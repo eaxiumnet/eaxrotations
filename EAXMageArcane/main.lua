@@ -17,6 +17,7 @@ local runtime = {
     evocation_id = nil,
     fire_blast_id = nil,
     ice_block_id = nil,
+    counterspell_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
     cached_mode = "solo",
@@ -33,6 +34,7 @@ local function resolve_spells()
     runtime.arcane_power_id = utils.resolve_spell_id(spells.ARCANE_POWER)
     runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
+    runtime.counterspell_id = utils.resolve_spell_id(spells.COUNTERSPELL)
 end
 
 local function log_resolved_spells()
@@ -273,6 +275,16 @@ end
 
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
+
+    -- Interrupt
+    if target:is_casting_spell() and target:is_active_spell_interruptable() then
+        if runtime.counterspell_id and utils.can_cast_target(runtime.counterspell_id, me, target) then
+            if utils.cast_target(runtime.counterspell_id, me, target) then
+                utils.log_debug(menu, "Counterspell interrupt")
+                return true
+            end
+        end
+    end
 
     if try_mana_gem(me) then return true end
     if try_evocation(me) then return true end
