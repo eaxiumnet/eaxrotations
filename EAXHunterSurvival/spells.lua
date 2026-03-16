@@ -24,10 +24,12 @@ spells.WING_CLIP = { 2974, 5124, 5123, 5122, 5121, 5120, 5119, 5118, 5116, 5115 
 
 -- Pet Abilities
 spells.KILL_COMMAND = { 34026 }
-spells.MEND_PET = { 136, 3111, 3112, 6259, 10095, 10096, 27356 }
 
 -- Traps
 spells.EXPLOSIVE_TRAP = { 13813, 13812, 13810, 27024 }
 spells.FREEZING_TRAP = { 3355, 14308 }
+
+-- Interrupt
+spells.COUNTER_SHOT = { 14768 }
 
 return spells

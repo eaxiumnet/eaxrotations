@@ -25,6 +25,7 @@ local runtime = {
     raptor_strike_id = nil,
     wing_clip_id = nil,
     mend_pet_id = nil,
+    counter_shot_id = nil,
     last_cast_time = 0,
     cached_mode = "solo",
     prev_toggle_state = false,
@@ -54,6 +55,7 @@ local function resolve_spells()
     runtime.raptor_strike_id = utils.resolve_spell_id(spells.RAPTOR_STRIKE)
     runtime.wing_clip_id = utils.resolve_spell_id(spells.WING_CLIP)
     runtime.mend_pet_id = utils.resolve_spell_id(spells.MEND_PET)
+    runtime.counter_shot_id = utils.resolve_spell_id(spells.COUNTER_SHOT)
 end
 
 local function log_resolved_spells()
@@ -313,6 +315,16 @@ end
 local function do_rotation(me, target)
     if is_busy() then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
+    
+    -- Interrupt
+    if target:is_casting_spell() and target:is_active_spell_interruptable() then
+        if runtime.counter_shot_id and can_cast(runtime.counter_shot_id, target) then
+            if cast_spell(runtime.counter_shot_id, target) then
+                utils.log_debug(menu, "Counter Shot interrupt")
+                return true
+            end
+        end
+    end
     
     local dist = get_distance(target)
     
