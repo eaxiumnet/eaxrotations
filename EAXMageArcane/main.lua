@@ -5,6 +5,11 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type defensive_manager
+local defensive_manager = require("common/eax_shared/defensive_manager")
+
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -284,6 +289,11 @@ local function do_rotation(me, target)
                 return true
             end
         end
+    end
+
+    -- Defensive abilities
+    if defensive_manager.try_defensive(me, "mage", utils) then
+        return true
     end
 
     if try_mana_gem(me) then return true end

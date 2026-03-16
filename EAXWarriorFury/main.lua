@@ -13,6 +13,8 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type defensive_manager
+local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -1834,6 +1836,11 @@ local function on_update()
         if interrupt_manager.try_interrupt(me, target, "warrior", utils) then
             return
         end
+    end
+
+    -- Defensive abilities
+    if defensive_manager.try_defensive(me, "warrior", utils) then
+        return
     end
     
     -- Focus Target Priority

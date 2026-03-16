@@ -1,18 +1,18 @@
 -- defensive_manager.lua
--- Layered HP threshold defensive system
+-- Layered HP threshold defensive system for TBC Classic
 
 local defensive_manager = {}
 
 local DEFENSIVE_TIERS = {
     warrior = {
-        { hp = 0.90, spell_ids = {12282, 12184}, name = "victory_rush" },
+        { hp = 0.90, spell_ids = {12282}, name = "victory_rush" },
         { hp = 0.70, spell_ids = {12975}, name = "last_stand" },
-        { hp = 0.50, spell_ids = {55694, 55693}, name = "enraged_regeneration" },
-        { hp = 0.30, spell_ids = {871, 12976}, name = "shield_wall" },
+        { hp = 0.50, spell_ids = {28820}, name = "enraged_regeneration" },
+        { hp = 0.30, spell_ids = {871}, name = "shield_wall" },
     },
     rogue = {
         { hp = 0.40, spell_ids = {5277}, name = "evasion" },
-        { hp = 0.25, spell_ids = {1856, 1857}, name = "vanish" },
+        { hp = 0.25, spell_ids = {1856}, name = "vanish" },
     },
     hunter = {
         { hp = 0.30, spell_ids = {5384}, name = "feign_death" },
@@ -23,7 +23,7 @@ local DEFENSIVE_TIERS = {
         { hp = 0.50, spell_ids = {20217}, name = "blessing_of_sacrifice" },
     },
     druid = {
-        { hp = 0.40, spell_ids = {22812, 22842}, name = "barkskin" },
+        { hp = 0.40, spell_ids = {22812}, name = "barkskin" },
         { hp = 0.30, spell_ids = {61336}, name = "survival_instincts" },
     },
     mage = {
@@ -36,10 +36,7 @@ local DEFENSIVE_TIERS = {
         { hp = 0.30, spell_ids = {30823}, name = "shamanistic_rage" },
     },
     warlock = {
-        { hp = 0.25, spell_ids = {47891}, name = "soul_harvest" },
-    },
-    deathknight = {
-        { hp = 0.30, spell_ids = {48792}, name = "icebound_fortitude" },
+        { hp = 0.25, spell_ids = {47893}, name = "soul_harvest" },
     },
 }
 
