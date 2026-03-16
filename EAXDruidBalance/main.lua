@@ -6,6 +6,9 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -352,6 +355,13 @@ core.register_on_update_callback(function()
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
     local target = focus_target or me:get_target()
+
+    -- Interrupt
+    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "druid", utils) then
+            return
+        end
+    end
 
     -- Self-emergency healing
     local self_threshold = eax_utils.get_self_heal_threshold(me, menu.tranquility_hp_pct:get() / 100.0, menu)

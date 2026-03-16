@@ -5,6 +5,10 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 ---@type color
 local color = require("common/color")
 
@@ -226,6 +230,13 @@ local function on_update()
     
     if not target or not me:can_attack(target) then
         return
+    end
+
+    -- Interrupt
+    if interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "paladin", utils) then
+            return
+        end
     end
 
     -- Self-emergency healing

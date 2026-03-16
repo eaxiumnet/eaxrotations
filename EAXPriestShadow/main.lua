@@ -6,6 +6,9 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 local runtime = {
     mode_cache = "solo",
     last_mode_check = 0,
@@ -138,6 +141,13 @@ core.register_on_update_callback(function()
     end
     
     if target and target:is_valid() and not target:is_dead() and me:can_attack(target) then
+        -- Interrupt
+        if interrupt_manager.should_interrupt(target) then
+            if interrupt_manager.try_interrupt(me, target, "priest", utils) then
+                return
+            end
+        end
+
         local dot_window_ms = menu.dot_refresh_window:get() * 1000
         refresh_dot(me, target, resolved.vampiric_touch, spells.VAMPIRIC_TOUCH, dot_window_ms)
         refresh_dot(me, target, resolved.shadow_word_pain, spells.SHADOW_WORD_PAIN, dot_window_ms)

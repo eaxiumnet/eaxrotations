@@ -11,6 +11,9 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -1825,6 +1828,13 @@ local function on_update()
 
     local rage = utils.get_rage(me)
     local target = me:get_target()
+    
+    -- Interrupt
+    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "warrior", utils) then
+            return
+        end
+    end
     
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)

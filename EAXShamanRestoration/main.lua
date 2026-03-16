@@ -30,7 +30,9 @@ local menu   = require("menu")
 local spells = require("spells")
 local utils  = require("utils")
 
----@type key_helper
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
@@ -108,6 +110,7 @@ local rt = {
     -- DPS
     chain_lightning_id     = nil,
     lightning_bolt_id      = nil,
+    wind_shear_id          = nil,
     earth_shock_id         = nil,
     -- Cooldowns
     bloodlust_id           = nil,
@@ -162,6 +165,7 @@ local function resolve_spells()
     rt.purge_id               = utils.resolve_spell_id(spells.PURGE)
     rt.chain_lightning_id     = utils.resolve_spell_id(spells.CHAIN_LIGHTNING)
     rt.lightning_bolt_id      = utils.resolve_spell_id(spells.LIGHTNING_BOLT)
+    rt.wind_shear_id          = utils.resolve_spell_id(spells.WINDSHEAR)
     rt.earth_shock_id         = utils.resolve_spell_id(spells.EARTH_SHOCK)
     rt.bloodlust_id           = utils.resolve_spell_id(spells.BLOODLUST)
     rt.heroism_id             = utils.resolve_spell_id(spells.HEROISM)
@@ -796,6 +800,14 @@ local function do_rotation(me)
     try_mana_potion(me)
 
     if not is_gcd_ready() then return end
+
+    -- ── Interrupt (PVP) ───────────────────────────────────────────────────────
+    local target = core.targets.get_current_target()
+    if target and interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
+            return
+        end
+    end
 
     -- ── Focus target priority ─────────────────────────────────────────────
     local focus_target = eax_utils.get_focus_target(menu)

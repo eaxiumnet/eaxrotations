@@ -7,6 +7,9 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -284,6 +287,13 @@ end
 local function do_rotation(me, target)
     if is_busy() then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
+    
+    -- Interrupt
+    if interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "hunter", utils) then
+            return true
+        end
+    end
     
     local dist = get_distance(target)
     

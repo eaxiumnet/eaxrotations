@@ -6,6 +6,9 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 local runtime = {
     mode_cache = "solo",
     last_mode_check = 0,
@@ -144,6 +147,14 @@ core.register_on_update_callback(function()
     -- Overheal Protection - cancel slow heals if target is healthy
     if eax_utils.should_stopcasting(me, menu) then
         if SpellStopCasting then SpellStopCasting() end
+    end
+
+    -- Interrupt (PVP)
+    local target = me:get_target()
+    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "priest", utils) then
+            return
+        end
     end
 
     -- Focus Target Priority - heal focus target first

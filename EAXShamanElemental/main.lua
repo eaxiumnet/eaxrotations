@@ -7,6 +7,9 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -53,6 +56,7 @@ local runtime = {
     natures_swiftness_id = nil,
     totem_of_wrath_id = nil,
     mana_spring_id = nil,
+    wind_shear_id = nil,
     last_cast_time = 0,
     pending_casts = {},
     cached_mode = "solo",
@@ -74,6 +78,7 @@ local function resolve_spells()
     runtime.natures_swiftness_id = utils.resolve_spell_id(spells.NATURES_SWIFTNESS)
     runtime.totem_of_wrath_id = utils.resolve_spell_id(spells.TOTEM_OF_WRATH)
     runtime.mana_spring_id = utils.resolve_spell_id(spells.MANA_SPRING_TOTEM)
+    runtime.wind_shear_id = utils.resolve_spell_id(spells.WINDSHEAR)
 end
 
 local function log_resolved_spells()
@@ -299,6 +304,11 @@ end
 local function do_rotation(me, target)
     if not is_gcd_ready() then
         return false
+    end
+    if target and interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
+            return true
+        end
     end
     ensure_totems(me)
     if try_burst(me, target) then

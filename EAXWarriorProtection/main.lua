@@ -6,6 +6,9 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 ---@type color
 local color = require("common/color")
 ---@type key_helper
@@ -2528,6 +2531,13 @@ local function on_update()
     if utils.is_casting_or_channeling(me) then return end
 
     local primary_target = me:get_target()
+    
+    -- Interrupt
+    if primary_target and primary_target:is_valid() and primary_target:is_enemy() and interrupt_manager.should_interrupt(primary_target) then
+        if interrupt_manager.try_interrupt(me, primary_target, "warrior", utils) then
+            return
+        end
+    end
     
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)

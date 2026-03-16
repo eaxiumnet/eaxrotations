@@ -6,6 +6,9 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 
+---@type interrupt_manager
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
+
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -258,6 +261,14 @@ local function do_rotation(me, target)
     if not is_gcd_ready() then
         return
     end
+    
+    -- Interrupt (Shadowfury)
+    if target and interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "warlock", utils) then
+            return
+        end
+    end
+    
     local effective_mode = get_effective_mode()
     if try_immolate(me, target) then
         return
