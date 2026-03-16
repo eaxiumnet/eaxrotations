@@ -12,6 +12,9 @@ spells.BUFF_ARCANE_BLAST = { 36032 }
 spells.BUFF_ARCANE_POWER = { 12042 }
 spells.BUFF_CLEARCASTING = { 12536 }
 
+spells.ICE_BLOCK = { 45438 }
+spells.BUFF_ICE_BLOCK = { 45438 }
+
 spells.MANA_GEM_ITEMS = { 22044, 8008, 8007, 5514, 5513 }
 
 return spells

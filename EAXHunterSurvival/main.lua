@@ -24,6 +24,7 @@ local runtime = {
     aspect_monkey_id = nil,
     raptor_strike_id = nil,
     wing_clip_id = nil,
+    mend_pet_id = nil,
     last_cast_time = 0,
     cached_mode = "solo",
     prev_toggle_state = false,
@@ -52,6 +53,7 @@ local function resolve_spells()
     runtime.aspect_monkey_id = utils.resolve_spell_id(spells.ASPECT_OF_THE_MONKEY)
     runtime.raptor_strike_id = utils.resolve_spell_id(spells.RAPTOR_STRIKE)
     runtime.wing_clip_id = utils.resolve_spell_id(spells.WING_CLIP)
+    runtime.mend_pet_id = utils.resolve_spell_id(spells.MEND_PET)
 end
 
 local function log_resolved_spells()
@@ -292,6 +294,22 @@ local function try_wing_clip(target)
     return false
 end
 
+local function try_mend_pet(me)
+    if not menu.use_mend_pet:get_state() then return false end
+    if not runtime.mend_pet_id then return false end
+    local pet = core.pet.get_pet()
+    if not pet or pet:is_dead() then return false end
+    local pet_hp = pet:get_health_percentage()
+    if pet_hp > menu.mend_pet_hp_pct:get() then return false end
+    if me:is_moving() then return false end
+    if not utils.can_cast_self(runtime.mend_pet_id, me) then return false end
+    if utils.cast_self(runtime.mend_pet_id, me) then
+        utils.log_debug(menu, "Mend Pet")
+        return true
+    end
+    return false
+end
+
 local function do_rotation(me, target)
     if is_busy() then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
@@ -371,7 +389,7 @@ local function on_update()
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
-        if try_mend_pet then try_mend_pet(me) end
+        try_mend_pet(me)
     end
     
     if not target or not target:is_valid() or target:is_dead() then

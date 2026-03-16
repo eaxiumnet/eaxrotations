@@ -18,6 +18,7 @@ local runtime = {
     kick_id = nil,
     blade_flurry_id = nil,
     adrenaline_rush_id = nil,
+    evasion_id = nil,
     combo_points = 0,
     combo_target = nil,
     prev_toggle_state = false,
@@ -35,6 +36,7 @@ local function resolve_spells()
     runtime.kick_id = utils.resolve_spell_id(spells.KICK)
     runtime.blade_flurry_id = utils.resolve_spell_id(spells.BLADE_FLURRY)
     runtime.adrenaline_rush_id = utils.resolve_spell_id(spells.ADRENALINE_RUSH)
+    runtime.evasion_id = utils.resolve_spell_id(spells.EVASION)
 end
 
 local function log_resolved_spells()
@@ -277,6 +279,23 @@ local function try_sinister_strike(me, target)
     return false
 end
 
+local function try_evasion(me)
+    if not menu.use_evasion:get_state() then return false end
+    if not runtime.evasion_id then
+        runtime.evasion_id = utils.resolve_spell_id(spells.EVASION)
+    end
+    if not runtime.evasion_id then return false end
+    local hp_pct = me:get_health_percentage() / 100
+    if hp_pct > (menu.evasion_hp_pct:get() / 100) then return false end
+    if utils.has_buff(me, spells.BUFF_EVASION) then return false end
+    if not utils.can_cast_self(runtime.evasion_id, me) then return false end
+    if utils.cast_self(runtime.evasion_id, me) then
+        utils.log_debug(menu, "Evasion")
+        return true
+    end
+    return false
+end
+
 local function do_rotation(me, target)
     if not is_gcd_ready() then
         return false
@@ -344,7 +363,7 @@ core.register_on_update_callback(function()
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.35, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
-        if try_evasion then try_evasion(me) end
+        try_evasion(me)
     end
 end)
 

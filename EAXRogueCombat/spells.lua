@@ -10,6 +10,9 @@ spells.KICK = { 1769, 1768, 1767, 1766 }
 spells.BLADE_FLURRY = { 13877 }
 spells.ADRENALINE_RUSH = { 13750 }
 
+spells.EVASION = { 5277 }
+spells.BUFF_EVASION = { 5277 }
+
 spells.BUFF_SLICE_AND_DICE = { 6774, 5171 }
 spells.BUFF_BLADE_FLURRY = { 13877 }
 spells.BUFF_ADRENALINE_RUSH = { 13750 }

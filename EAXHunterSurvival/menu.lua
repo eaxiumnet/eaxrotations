@@ -25,6 +25,9 @@ menu.trap_interval = core.menu.slider_float(1.0, 10.0, 4.0, dev_id .. "trap_inte
 menu.use_wyvern = core.menu.checkbox(true, dev_id .. "use_wyvern")
 menu.use_expose = core.menu.checkbox(true, dev_id .. "use_expose")
 
+menu.use_mend_pet = core.menu.checkbox(true, dev_id .. "use_mend_pet")
+menu.mend_pet_hp_pct = core.menu.slider_int(0, 100, 70, dev_id .. "mend_pet_hp_pct")
+
 function menu.render()
     main_node:render("EAX Hunter Survival", function()
         menu.enabled:render("Enable")
@@ -57,6 +60,12 @@ function menu.render()
             menu.trap_interval:render("Trap Interval", "Seconds between trap attempts")
             menu.use_wyvern:render("Use Wyvern Sting", "Apply Wyvern Sting before heavy bursts")
             menu.use_expose:render("Use Expose Weakness", "Maintain the debuff on the primary target")
+        end)
+        
+        local emergency_tree = core.menu.tree_node()
+        emergency_tree:render("Emergency", function()
+            menu.use_mend_pet:render("Use Mend Pet", "Use Mend Pet when pet health is low")
+            menu.mend_pet_hp_pct:render("Mend Pet HP%", "Use Mend Pet below this health percent")
         end)
         
         menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, dev_id .. "combat_self_hp_boost")

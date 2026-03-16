@@ -16,6 +16,7 @@ local runtime = {
     arcane_power_id = nil,
     evocation_id = nil,
     fire_blast_id = nil,
+    ice_block_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
     cached_mode = "solo",
@@ -253,6 +254,23 @@ local function try_arcane_blast(me, target)
     return false
 end
 
+local function try_ice_block(me)
+    if not menu.use_ice_block:get_state() then return false end
+    if not runtime.ice_block_id then
+        runtime.ice_block_id = utils.resolve_spell_id(spells.ICE_BLOCK)
+    end
+    if not runtime.ice_block_id then return false end
+    local hp_pct = me:get_health_percentage() / 100
+    if hp_pct > (menu.ice_block_hp_pct:get() / 100) then return false end
+    if utils.has_buff(me, spells.BUFF_ICE_BLOCK) then return false end
+    if not utils.can_cast_self(runtime.ice_block_id, me) then return false end
+    if utils.cast_self(runtime.ice_block_id, me) then
+        utils.log_debug(menu, "Ice Block")
+        return true
+    end
+    return false
+end
+
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
@@ -301,7 +319,7 @@ core.register_on_update_callback(function()
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.30, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
-        if try_ice_block then try_ice_block(me) end
+        try_ice_block(me)
     end
     
     do_rotation(me, target)

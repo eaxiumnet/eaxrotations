@@ -26,6 +26,9 @@ menu.use_evocation = core.menu.checkbox(true, "eax_mage_arcane_use_evocation")
 menu.mana_gem_pct = core.menu.slider_int(10, 90, 45, "eax_mage_arcane_mana_gem_pct")
 menu.evocation_pct = core.menu.slider_int(5, 60, 20, "eax_mage_arcane_evocation_pct")
 
+menu.use_ice_block = core.menu.checkbox(true, "eax_mage_arcane_use_ice_block")
+menu.ice_block_hp_pct = core.menu.slider_int(0, 100, 30, "eax_mage_arcane_ice_block_hp_pct")
+
 function menu.render()
     tree:render("EAX Mage Arcane", function()
         menu.enabled:render("Enabled", "Master enable/disable toggle")
@@ -51,6 +54,12 @@ function menu.render()
             menu.mana_gem_pct:render("Mana Gem %", "Use Mana Gem below this mana percent")
             menu.use_evocation:render("Evocation", "Channel Evocation when mana is low")
             menu.evocation_pct:render("Evocation %", "Use Evocation below this mana percent")
+        end)
+        
+        local emergency_tree = core.menu.tree_node()
+        emergency_tree:render("Emergency", function()
+            menu.use_ice_block:render("Use Ice Block", "Use Ice Block when health is low")
+            menu.ice_block_hp_pct:render("Ice Block HP%", "Use Ice Block below this health percent")
         end)
         
         menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, "eax_mage_arcane_combat_self_hp_boost")

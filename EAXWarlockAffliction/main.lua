@@ -188,7 +188,7 @@ local function try_refresh_dots(me, target)
     return false
 end
 
-local function try_apply_curse(target)
+local function try_apply_curse(me, target)
     if not menu.use_curse:get_state() then
         return false
     end
@@ -217,10 +217,10 @@ local function try_execute(me, target)
 end
 
 local function try_filler(me, target)
-    if not menu.use_shadow_bolt:get_state() then
-        return false
+    if menu.use_shadow_bolt:get_state() then
+        return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt")
     end
-    return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt")
+    return false
 end
 
 local function try_life_tap(me)
@@ -252,7 +252,7 @@ local function do_rotation(me, target)
         return
     end
     if not try_refresh_dots(me, target) then
-        if try_apply_curse(target) then
+        if try_apply_curse(me, target) then
             return
         end
     else

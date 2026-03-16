@@ -19,6 +19,9 @@ menu.use_kick = core.menu.checkbox(true, "eaxroguecombat_use_kick")
 menu.use_blade_flurry = core.menu.checkbox(true, "eaxroguecombat_use_blade_flurry")
 menu.use_adrenaline_rush = core.menu.checkbox(true, "eaxroguecombat_use_adrenaline_rush")
 
+menu.use_evasion = core.menu.checkbox(true, "eaxroguecombat_use_evasion")
+menu.evasion_hp_pct = core.menu.slider_int(0, 100, 35, "eaxroguecombat_evasion_hp_pct")
+
 menu.snd_refresh_seconds = core.menu.slider_int(1, 6, 3, "eaxroguecombat_snd_refresh_seconds")
 menu.finish_combo_points = core.menu.slider_int(3, 5, 4, "eaxroguecombat_finish_combo_points")
 menu.aoe_enemy_count = core.menu.slider_int(2, 5, 2, "eaxroguecombat_aoe_enemy_count")
@@ -45,6 +48,12 @@ function menu.render()
             menu.use_blade_flurry:render("Blade Flurry", "Use for cleave and burst")
             menu.use_adrenaline_rush:render("Adrenaline Rush", "Use during dungeon and raid burst windows")
             menu.aoe_enemy_count:render("AoE Threshold", "Enemies needed before Blade Flurry is prioritized")
+        end)
+        
+        local emergency_tree = core.menu.tree_node()
+        emergency_tree:render("Emergency", function()
+            menu.use_evasion:render("Use Evasion", "Use Evasion when health is low")
+            menu.evasion_hp_pct:render("Evasion HP%", "Use Evasion below this health percent")
         end)
         
         menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, "eaxroguecombat_combat_self_hp_boost")
