@@ -1,0 +1,15 @@
+-- spells.lua
+-- Spell rank tables used by EAX Warlock Affliction.
+
+local spells = {}
+
+spells.UNSTABLE_AFFLICTION = { 30405, 30404, 30108 }
+spells.CORRUPTION = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
+spells.SIPHON_LIFE = { 30911, 18265, 18879, 18263 }
+spells.CURSE_OF_AGONY = { 27218, 11713, 11712, 11711, 7658, 1014, 980 }
+spells.CURSE_OF_DOOM = { 30910 }
+spells.DRAIN_SOUL = { 27217, 11675, 8288, 8289, 11674, 1120 }
+spells.SHADOW_BOLT = { 27209, 25307, 11661, 11660, 11659, 11658, 7641, 1106, 1088, 705, 695, 686 }
+spells.LIFE_TAP = { 27222, 11689, 11688, 11687, 1457, 1456, 1455 }
+
+return spells

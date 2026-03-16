@@ -1,0 +1,17 @@
+-- EAX Mage Arcane | spells.lua
+
+local spells = {}
+
+spells.ARCANE_BLAST = { 33938, 30451 }
+spells.ARCANE_MISSILES = { 27075, 25345, 10212, 10211, 8417, 8416, 5145, 5144, 5143 }
+spells.ARCANE_POWER = { 12042 }
+spells.EVOCATION = { 12051 }
+spells.FIRE_BLAST = { 27079, 10199, 10198, 10197, 8413, 8412, 2138, 2137, 2136 }
+
+spells.BUFF_ARCANE_BLAST = { 36032 }
+spells.BUFF_ARCANE_POWER = { 12042 }
+spells.BUFF_CLEARCASTING = { 12536 }
+
+spells.MANA_GEM_ITEMS = { 22044, 8008, 8007, 5514, 5513 }
+
+return spells

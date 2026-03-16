@@ -1,0 +1,23 @@
+-- EAX Rogue Assassination | spells.lua
+
+local spells = {}
+
+spells.MUTILATE = { 1329 }
+spells.ENVENOM = { 32645 }
+spells.EVISCERATE = { 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }
+spells.SLICE_AND_DICE = { 6774, 5171 }
+spells.RUPTURE = { 11275, 11274, 11273, 8640, 8639, 1943 }
+spells.KICK = { 1769, 1768, 1767, 1766 }
+spells.COLD_BLOOD = { 14177 }
+spells.VANISH = { 1857, 1856 }
+
+spells.BUFF_SLICE_AND_DICE = { 6774, 5171 }
+spells.BUFF_COLD_BLOOD = { 14177 }
+
+spells.DEBUFF_RUPTURE = { 11275, 11274, 11273, 8640, 8639, 1943 }
+spells.DEBUFF_DEADLY_POISON = { 27189, 27188, 11357, 11356, 2818 }
+
+spells.POISON_ITEMS_DEADLY = { 22054, 20844, 8985, 8984, 2893, 2892 }
+spells.POISON_ITEMS_INSTANT = { 22053, 8928, 8927, 8926, 6950, 6949, 6947 }
+
+return spells

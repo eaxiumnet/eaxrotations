@@ -1,0 +1,16 @@
+-- EAX Mage Frost | spells.lua
+
+local spells = {}
+
+spells.FROSTBOLT = { 27072, 27071, 25304, 10181, 10180, 10179, 8408, 8407, 8406, 7322, 837, 205, 116 }
+spells.ICE_LANCE = { 30455 }
+spells.ICY_VEINS = { 12472 }
+spells.WATER_ELEMENTAL = { 31687 }
+spells.FIREBALL = { 27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133 }
+
+spells.BUFF_ICY_VEINS = { 12472 }
+spells.BUFF_BRAIN_FREEZE = { 57761, 57762 }
+spells.BUFF_FINGERS_OF_FROST = { 44544 }
+spells.DEBUFF_FROZEN = { 122, 33395 }
+
+return spells

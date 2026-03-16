@@ -1,0 +1,19 @@
+-- EAX Rogue Combat | spells.lua
+
+local spells = {}
+
+spells.SINISTER_STRIKE = { 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }
+spells.SLICE_AND_DICE = { 6774, 5171 }
+spells.EVISCERATE = { 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }
+spells.RUPTURE = { 11275, 11274, 11273, 8640, 8639, 1943 }
+spells.KICK = { 1769, 1768, 1767, 1766 }
+spells.BLADE_FLURRY = { 13877 }
+spells.ADRENALINE_RUSH = { 13750 }
+
+spells.BUFF_SLICE_AND_DICE = { 6774, 5171 }
+spells.BUFF_BLADE_FLURRY = { 13877 }
+spells.BUFF_ADRENALINE_RUSH = { 13750 }
+
+spells.DEBUFF_RUPTURE = { 11275, 11274, 11273, 8640, 8639, 1943 }
+
+return spells

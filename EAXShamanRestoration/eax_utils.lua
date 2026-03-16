@@ -1,0 +1,143 @@
+-- eax_utils.lua
+-- EAX Universal Utilities - Local module for healers
+-- Provides: Overheal Protection, Predictive Healing, Focus Priority, Combat Self HP, Mana Tide Timing
+
+---@type unit_helper
+local unit_helper = require("common/utility/unit_helper")
+---@type combat_forecast
+local combat_forecast = require("common/modules/combat_forecast")
+
+local eax_utils = {}
+
+--- Feature 1: Overheal Protection
+-- Returns true if should stop casting due to overheal risk
+function eax_utils.should_stopcasting(me, menu_settings)
+    if not menu_settings or not menu_settings.overheal_protection then
+        return false
+    end
+    
+    local overheal_enabled = false
+    if type(menu_settings.overheal_protection.get_state) == "function" then
+        overheal_enabled = menu_settings.overheal_protection:get_state()
+    end
+    
+    if not overheal_enabled then
+        return false
+    end
+    
+    if not me or not me.is_casting_spell or not me:is_casting_spell() then
+        return false
+    end
+    
+    local target = me.get_active_spell_target and me:get_active_spell_target()
+    if not target or not target.is_valid or not target:is_valid() or (target.is_dead and target:is_dead()) then
+        return false
+    end
+    
+    local hp_pct_inc, inc_dmg = unit_helper:get_health_percentage_inc(target, 2.0)
+    local max_hp = target.get_max_health and target:get_max_health() or 1
+    
+    if hp_pct_inc >= 0.98 and inc_dmg < max_hp * 0.05 then
+        return true
+    end
+    
+    return false
+end
+
+--- Feature 2: Predictive Healing
+-- Returns effective HP% including incoming damage
+function eax_utils.get_predictive_hp(unit, time_ahead_seconds)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return 1.0, 0, 1.0, 0
+    end
+    local time_limit = time_ahead_seconds or 2.0
+    return unit_helper:get_health_percentage_inc(unit, time_limit)
+end
+
+--- Feature 3: Focus Target Priority
+function eax_utils.get_focus_target(menu_settings)
+    if not menu_settings or not menu_settings.focus_priority then
+        return nil
+    end
+    
+    local focus_enabled = false
+    if type(menu_settings.focus_priority.get_state) == "function" then
+        focus_enabled = menu_settings.focus_priority:get_state()
+    end
+    
+    if not focus_enabled then
+        return nil
+    end
+    
+    if not core.input or not core.input.get_focus then
+        return nil
+    end
+    
+    local focus = core.input.get_focus()
+    if not focus or not focus.is_valid or not focus:is_valid() then
+        return nil
+    end
+    
+    if focus.is_dead and focus:is_dead() then
+        return nil
+    end
+    
+    return focus
+end
+
+--- Feature 4: Combat-aware Self HP
+function eax_utils.get_self_heal_threshold(me, base_threshold, menu_settings)
+    if not me or not me.is_valid or not me:is_valid() then
+        return base_threshold
+    end
+    
+    local in_combat = false
+    if me.is_in_combat then
+        in_combat = me:is_in_combat()
+    end
+    
+    local boost = 0
+    if menu_settings and menu_settings.combat_self_hp_boost then
+        if type(menu_settings.combat_self_hp_boost.get) == "function" then
+            boost = menu_settings.combat_self_hp_boost:get() / 100
+        end
+    end
+    
+    if in_combat then
+        return math.min(base_threshold + boost, 0.95)
+    else
+        return base_threshold
+    end
+end
+
+--- Feature 5: Mana Tide Timing
+-- Returns true if should use Mana Tide based on combat forecast
+function eax_utils.should_use_mana_tide(me, menu_settings)
+    if not menu_settings or not menu_settings.mana_tide_timing then
+        return false
+    end
+    
+    local timing_enabled = false
+    if type(menu_settings.mana_tide_timing.get_state) == "function" then
+        timing_enabled = menu_settings.mana_tide_timing:get_state()
+    end
+    
+    if not timing_enabled then
+        return false
+    end
+    
+    if not me or not me.is_valid or not me:is_valid() then
+        return false
+    end
+    
+    local forecast = combat_forecast:get_forecast()
+    
+    -- If forecast suggests long fight (>60 seconds), use mana tide proactively
+    if forecast > 60 then
+        return true
+    end
+    
+    return false
+end
+
+return eax_utils

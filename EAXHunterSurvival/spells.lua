@@ -1,0 +1,32 @@
+local spells = {}
+
+-- TBC Auto Attack / Auto Shot
+spells.AUTO_SHOT = { 75 }
+
+-- Ranged Attacks
+spells.AIMED_SHOT = { 19434, 19426, 19407, 19405, 19404, 19403, 19402, 19401, 19400, 19880 }
+spells.ARCANE_SHOT = { 3044, 3034, 3018, 3017, 2714, 19492 }
+spells.STEADY_SHOT = { 34120, 49052, 56641 }
+spells.MULTI_SHOT = { 2643, 14289, 14288, 14287, 14286, 24132, 24133, 24134, 24135, 24136, 24137, 24138 }
+
+-- Stings / Debuffs
+spells.SERPENT_STING = { 1978, 1977, 1976, 1975, 1974, 1973, 1972, 1971, 1970, 1968, 13549 }
+spells.EXPLOSIVE_SHOT = { 19486, 19484, 19483, 19482, 19481, 19480, 19479, 19478, 19477, 19476, 19475, 19474 }
+spells.HUNTERS_MARK = { 1130 }
+
+-- Aspects
+spells.ASPECT_OF_THE_HAWK = { 13165 }
+spells.ASPECT_OF_THE_MONKEY = { 13163 }
+
+-- Melee
+spells.RAPTOR_STRIKE = { 2973, 14260 }
+spells.WING_CLIP = { 2974, 5124, 5123, 5122, 5121, 5120, 5119, 5118, 5116, 5115 }
+
+-- Pet Abilities
+spells.KILL_COMMAND = { 34026 }
+
+-- Traps
+spells.EXPLOSIVE_TRAP = { 13813, 13812, 13810, 27024 }
+spells.FREEZING_TRAP = { 3355, 14308 }
+
+return spells

@@ -1,0 +1,24 @@
+-- EAX Rogue Subtlety | spells.lua
+
+local spells = {}
+
+spells.STEALTH = { 1787, 1786, 1785, 1784 }
+spells.PREMEDITATION = { 14183 }
+spells.CHEAP_SHOT = { 1833 }
+spells.AMBUSH = { 11269, 11268, 11267, 8725, 8724, 8676 }
+spells.BACKSTAB = { 25300, 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }
+spells.HEMORRHAGE = { 17348, 17347, 16511 }
+spells.SLICE_AND_DICE = { 6774, 5171 }
+spells.RUPTURE = { 11275, 11274, 11273, 8640, 8639, 1943 }
+spells.EVISCERATE = { 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }
+spells.SHADOWSTEP = { 36554 }
+spells.PREPARATION = { 14185 }
+spells.VANISH = { 1857, 1856 }
+
+spells.BUFF_STEALTH = { 1787, 1786, 1785, 1784 }
+spells.BUFF_SLICE_AND_DICE = { 6774, 5171 }
+
+spells.DEBUFF_CHEAP_SHOT = { 1833 }
+spells.DEBUFF_RUPTURE = { 11275, 11274, 11273, 8640, 8639, 1943 }
+
+return spells

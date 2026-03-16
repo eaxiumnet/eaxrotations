@@ -1,0 +1,15 @@
+## Interface: 20400
+## Title: EAX Druid Feral
+## Notes: TBC Feral Druid rotation helper for Sylvannas
+## Author: EAX Development Team
+## Version: 1.0.0
+## X-Category: Combat
+## Dependencies: sylvannas
+## LoadOnDemand: 0
+## DefaultState: enabled
+
+header.lua
+utils.lua
+spells.lua
+menu.lua
+main.lua
