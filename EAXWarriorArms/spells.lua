@@ -106,3 +106,7 @@ spells.SCROLL_OF_MIGHT = { 22734, 10310 }
 spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 
 return spells
+
+-- Added v1.1
+spells.ENRAGED_REGENERATION = { 55694, 55693 }
+spells.BUFF_ENRAGED_REGEN   = { 55694, 55693 }

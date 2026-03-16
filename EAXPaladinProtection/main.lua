@@ -8,6 +8,8 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -240,6 +242,10 @@ local function on_update()
             return
         end
     end
+
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "paladin", utils) then

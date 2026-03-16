@@ -8,6 +8,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -19,8 +23,9 @@ local runtime = {
 }
 
 local resolved = {
-    vampiric_touch = utils.resolve_spell_id(spells.VAMPIRIC_TOUCH),
-    shadow_word_pain = utils.resolve_spell_id(spells.SHADOW_WORD_PAIN),
+    vampiric_touch    = utils.resolve_spell_id(spells.VAMPIRIC_TOUCH),
+    shadow_word_pain  = utils.resolve_spell_id(spells.SHADOW_WORD_PAIN),
+    devouring_plague  = utils.resolve_spell_id(spells.DEVOURING_PLAGUE),
     mind_blast = utils.resolve_spell_id(spells.MIND_BLAST),
     mind_flay = utils.resolve_spell_id(spells.MIND_FLAY),
     shadowform = utils.resolve_spell_id(spells.SHADOWFORM),
@@ -62,6 +67,17 @@ local function refresh_dot(me, target, spell_id, buff_ids, window_ms)
 
     return false
 end
+
+
+local function try_devouring_plague(me, target)
+    if not resolved.devouring_plague or not target then return false end
+    if not menu.use_devouring_plague or not menu.use_devouring_plague:get_state() then return false end
+    local dot_window_ms = menu.dot_refresh_window:get() * 1000
+    local remain = utils.get_debuff_remaining_ms(target, spells.DEVOURING_PLAGUE)
+    if remain > dot_window_ms then return false end
+    return utils.cast_target(resolved.devouring_plague, me, target)
+end
+
 
 local function try_mind_blast(me, target)
     if not resolved.mind_blast or not target then
@@ -150,7 +166,13 @@ core.register_on_update_callback(function()
             end
         end
 
+        -- Racial CDs
+        racial_manager.try_offensive(me)
+        racial_manager.try_utility(me, target)
+
         -- Defensive abilities
+    ttd_tracker.update(target)
+
         if defensive_manager.try_defensive(me, "priest", utils) then
             return
         end
@@ -158,6 +180,7 @@ core.register_on_update_callback(function()
         local dot_window_ms = menu.dot_refresh_window:get() * 1000
         refresh_dot(me, target, resolved.vampiric_touch, spells.VAMPIRIC_TOUCH, dot_window_ms)
         refresh_dot(me, target, resolved.shadow_word_pain, spells.SHADOW_WORD_PAIN, dot_window_ms)
+        if try_devouring_plague(me, target) then return end
 
         if not try_mind_blast(me, target) then
             try_mind_flay(me, target)

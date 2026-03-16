@@ -8,6 +8,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -25,6 +29,7 @@ local runtime = {
     drain_soul_id = nil,
     shadow_bolt_id = nil,
     life_tap_id = nil,
+    howl_of_terror_id = nil,
     last_cast_time = 0,
     pending_casts = {},
     cached_mode = "solo",
@@ -46,7 +51,8 @@ local function resolve_spells()
     runtime.curse_doom_id = utils.resolve_spell_id(spells.CURSE_OF_DOOM)
     runtime.drain_soul_id = utils.resolve_spell_id(spells.DRAIN_SOUL)
     runtime.shadow_bolt_id = utils.resolve_spell_id(spells.SHADOW_BOLT)
-    runtime.life_tap_id = utils.resolve_spell_id(spells.LIFE_TAP)
+    runtime.life_tap_id       = utils.resolve_spell_id(spells.LIFE_TAP)
+    runtime.howl_of_terror_id = utils.resolve_spell_id(spells.HOWL_OF_TERROR)
 end
 
 local function log_spells()
@@ -252,6 +258,34 @@ local function try_life_tap(me)
     return false
 end
 
+
+-- ─── Howl of Terror (v1.2) ────────────────────────────────────────────────
+
+local function try_howl_of_terror(me)
+    if not menu.use_howl_of_terror or not menu.use_howl_of_terror:get_state() then return false end
+    if not runtime.howl_of_terror_id then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > 0.40 then return false end
+    -- Only worth using if multiple enemies are attacking us
+    local melee_attackers = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead()
+           and me:can_attack(obj) and obj:get_distance_to(me) <= 10 then
+            melee_attackers = melee_attackers + 1
+        end
+    end
+    if melee_attackers < 1 then return false end
+    if not utils.can_cast_self(runtime.howl_of_terror_id, me) then return false end
+    if utils.cast_self(runtime.howl_of_terror_id, me) then
+        utils.log_debug(menu, "Howl of Terror")
+        return true
+    end
+    return false
+end
+
+
 local function do_rotation(me, target)
     if not is_gcd_ready() then
         return
@@ -264,7 +298,13 @@ local function do_rotation(me, target)
         end
     end
 
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+
     -- Defensive abilities
+    ttd_tracker.update(target)
+
     if defensive_manager.try_defensive(me, "warlock", utils) then
         return
     end

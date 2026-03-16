@@ -9,6 +9,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -40,6 +44,10 @@ local runtime = {
     lightning_bolt_id = nil,
     totem_of_wrath_id = nil,
     windfury_totem_id = nil,
+    lava_lash_id = nil,
+    feral_spirit_id = nil,
+    windfury_weapon_id = nil,
+    flametongue_weapon_id = nil,
     wind_shear_id = nil,
     last_cast_time = 0,
     pending_casts = {},
@@ -69,7 +77,11 @@ local function resolve_spells()
     runtime.chain_lightning_id = utils.resolve_spell_id(spells.CHAIN_LIGHTNING)
     runtime.lightning_bolt_id = utils.resolve_spell_id(spells.LIGHTNING_BOLT)
     runtime.totem_of_wrath_id = utils.resolve_spell_id(spells.TOTEM_OF_WRATH)
-    runtime.windfury_totem_id = utils.resolve_spell_id(spells.WINDFURY_TOTEM)
+    runtime.windfury_totem_id      = utils.resolve_spell_id(spells.WINDFURY_TOTEM)
+    runtime.lava_lash_id            = utils.resolve_spell_id(spells.LAVA_LASH)
+    runtime.feral_spirit_id         = utils.resolve_spell_id(spells.FERAL_SPIRIT)
+    runtime.windfury_weapon_id      = utils.resolve_spell_id(spells.WINDFURY_WEAPON)
+    runtime.flametongue_weapon_id   = utils.resolve_spell_id(spells.FLAMETONGUE_WEAPON)
     runtime.wind_shear_id = utils.resolve_spell_id(spells.WINDSHEAR)
 end
 
@@ -248,13 +260,60 @@ local function try_shock(me, target)
     return try_cast_target(me, target, spell_id, shock_entry.label)
 end
 
+
+-- ─── Weapon Imbue Maintenance (v1.1) ──────────────────────────────────────
+
+local function try_weapon_imbues(me)
+    -- Throttled to avoid GCD waste — check every 30s
+    if not utils.throttle("weapon_imbue_check", 30.0) then return false end
+    -- Main hand: Windfury Weapon
+    if runtime.windfury_weapon_id then
+        if not core.inventory.has_weapon_enchant(me, 1) then
+            if utils.can_cast_self(runtime.windfury_weapon_id, me) then
+                utils.cast_self(runtime.windfury_weapon_id, me)
+                return true
+            end
+        end
+    end
+    -- Off hand: Flametongue Weapon
+    if runtime.flametongue_weapon_id then
+        if not core.inventory.has_weapon_enchant(me, 2) then
+            if utils.can_cast_self(runtime.flametongue_weapon_id, me) then
+                utils.cast_self(runtime.flametongue_weapon_id, me)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- ─── Offensive CDs (v1.1) ─────────────────────────────────────────────────
+
+local function try_feral_spirit(me, target)
+    if not menu.use_feral_spirit or not menu.use_feral_spirit:get_state() then return false end
+    if not runtime.feral_spirit_id then return false end   -- nil = talent not taken
+    if not me:is_in_combat() then return false end
+    return try_cast_self(me, runtime.feral_spirit_id, "Feral Spirit")
+end
+
+local function try_lava_lash(me, target)
+    if not runtime.lava_lash_id then return false end      -- nil = talent not taken
+    return try_cast_target(me, target, runtime.lava_lash_id, "Lava Lash")
+end
+
+
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
+    -- Interrupt (Earth Shock / Wind Shear)
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
             return true
         end
     end
+
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "shaman", utils) then
@@ -262,8 +321,17 @@ local function do_rotation(me, target)
     end
 
     ensure_totems(me)
+    -- Weapon imbues (out of combat / throttled)
+    try_weapon_imbues(me)
+
+    -- TTD tracking
+    ttd_tracker.update(target)
+
+    -- Offensive CDs
+    if try_feral_spirit(me, target) then return true end
     if try_shamanistic_rage(me) then return true end
     if try_stormstrike(me, target) then return true end
+    if try_lava_lash(me, target) then return true end
     if try_chain_lightning_weave(me, target) then return true end
     if try_shock(me, target) then return true end
     return false

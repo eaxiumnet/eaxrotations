@@ -7,6 +7,8 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -292,9 +294,19 @@ local function do_rotation(me, target)
     end
 
     -- Defensive abilities
+    -- Interrupt
+    if interrupt_manager.should_interrupt(target) then
+        interrupt_manager.try_interrupt(me, target, "mage", utils)
+    end
+
     if defensive_manager.try_defensive(me, "mage", utils) then
         return true
     end
+
+
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
 
     if try_mana_gem(me) then return true end
     if try_evocation(me) then return true end

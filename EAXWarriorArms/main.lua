@@ -9,6 +9,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -39,6 +43,11 @@ local runtime = {
     hamstring_id = nil,
     battle_stance_id = nil,
     berserker_stance_id = nil,
+    charge_id = nil,
+    death_wish_id = nil,
+    recklessness_id = nil,
+    sweeping_strikes_id = nil,
+    enraged_regen_id = nil,
     stance_swap_retention = 10,
     cached_mode = "solo",
     mode_cache_refreshed_at = 0,
@@ -59,7 +68,12 @@ local RUNTIME_SPELL_SPECS = {
     { field = "sunder_armor_id", ranks = spells.SUNDER_ARMOR },
     { field = "hamstring_id", ranks = spells.HAMSTRING },
     { field = "battle_stance_id", ranks = spells.BATTLE_STANCE },
-    { field = "berserker_stance_id", ranks = spells.BERSERKER_STANCE },
+    { field = "berserker_stance_id",  ranks = spells.BERSERKER_STANCE },
+    { field = "charge_id",            ranks = spells.CHARGE },
+    { field = "death_wish_id",        ranks = spells.DEATH_WISH },
+    { field = "recklessness_id",      ranks = spells.RECKLESSNESS },
+    { field = "sweeping_strikes_id",  ranks = spells.SWEEPING_STRIKES },
+    { field = "enraged_regen_id",     ranks = spells.ENRAGED_REGENERATION },
 }
 
 local function resolve_spells()
@@ -404,13 +418,87 @@ local function try_slam(me, target, rage)
     return false
 end
 
+
+-- ─── Charge opener ────────────────────────────────────────────────────────
+
+local function try_charge(me, target)
+    if not runtime.charge_id then return false end
+    if me:is_in_combat() then return false end
+    if not utils.can_cast_target(runtime.charge_id, me, target) then return false end
+    if utils.cast_target_fast(runtime.charge_id, target, "Charge") then
+        utils.log_debug(menu, "Charge")
+        return true
+    end
+    return false
+end
+
+-- ─── Offensive CDs ────────────────────────────────────────────────────────
+
+local function try_death_wish(me)
+    if not menu.use_death_wish or not menu.use_death_wish:get_state() then return false end
+    if not runtime.death_wish_id then return false end
+    if not me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.BUFF_DEATH_WISH) then return false end
+    if not utils.can_cast_self(runtime.death_wish_id, me) then return false end
+    if utils.cast_self_fast(runtime.death_wish_id, me) then
+        utils.log_debug(menu, "Death Wish")
+        return true
+    end
+    return false
+end
+
+local function try_recklessness(me)
+    if not menu.use_recklessness or not menu.use_recklessness:get_state() then return false end
+    if not runtime.recklessness_id then return false end
+    if not me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.BUFF_RECKLESSNESS) then return false end
+    -- Must be in Berserker Stance
+    if not utils.has_buff(me, spells.BUFF_BERSERKER_STANCE) then return false end
+    if not utils.can_cast_self(runtime.recklessness_id, me) then return false end
+    if utils.cast_self_fast(runtime.recklessness_id, me) then
+        utils.log_debug(menu, "Recklessness")
+        return true
+    end
+    return false
+end
+
+local function try_sweeping_strikes(me)
+    if not menu.use_sweeping_strikes or not menu.use_sweeping_strikes:get_state() then return false end
+    if not runtime.sweeping_strikes_id then return false end
+    if utils.has_buff(me, spells.BUFF_SWEEPING_STRIKES) then return false end
+    if not utils.can_cast_self(runtime.sweeping_strikes_id, me) then return false end
+    if utils.cast_self_fast(runtime.sweeping_strikes_id, me) then
+        utils.log_debug(menu, "Sweeping Strikes")
+        return true
+    end
+    return false
+end
+
+local function try_enraged_regen(me)
+    if not menu.use_enraged_regen or not menu.use_enraged_regen:get_state() then return false end
+    if not runtime.enraged_regen_id then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > 0.70 then return false end
+    if not utils.can_cast_self(runtime.enraged_regen_id, me) then return false end
+    if utils.cast_self(runtime.enraged_regen_id, me) then
+        utils.log_debug(menu, "Enraged Regeneration")
+        return true
+    end
+    return false
+end
+
+
 local function do_utility_lane(me, target, mode, target_hp_pct)
-    -- Interrupt check
+    -- Interrupt (Pummel)
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "warrior", utils) then
             return true
         end
     end
+
+    -- Racial offensive CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
 
     if try_battle_shout(me) then
         return true
@@ -434,6 +522,14 @@ end
 
 local function do_core_lane(me, target, rage, target_hp_pct)
     utils.ensure_melee_auto_attack(me, target)
+
+    -- TTD tracking
+    ttd_tracker.update(target)
+
+    -- Burst cooldowns
+    try_death_wish(me)
+    try_recklessness(me)
+    try_sweeping_strikes(me)
 
     if try_overpower(me, target) then
         return true
@@ -493,6 +589,12 @@ local function on_update()
     local target_hp_pct = target and utils.get_health_pct(target) or 1.0
     local rage = utils.get_rage(me)
     local mode = get_effective_mode()
+
+    -- Pre-combat charge
+    if target and try_charge(me, target) then return end
+
+    -- Enraged Regen (before offensive actions)
+    if try_enraged_regen(me) then return end
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "warrior", utils) then

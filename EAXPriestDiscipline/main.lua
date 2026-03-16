@@ -8,6 +8,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -159,10 +163,16 @@ core.register_on_update_callback(function()
         end
     end
 
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "priest", utils) then
         return
     end
+
+    ttd_tracker.update(target)
 
     -- Focus Target Priority - heal focus target first
     local focus_target = eax_utils.get_focus_target(menu)

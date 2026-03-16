@@ -9,6 +9,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -286,18 +290,56 @@ local function try_raptor_strike(target)
     return false
 end
 
+
+-- ─── Kiting / Threat Management (v1.2) ───────────────────────────────────
+
+local function try_disengage(me, target)
+    if not runtime.disengage_id then return false end
+    local dist = get_distance(target)
+    if dist > 8 then return false end
+    if not can_cast(runtime.disengage_id, "player") then return false end
+    if cast_spell(runtime.disengage_id, "player") then
+        utils.log_debug(menu, "Disengage")
+        return true
+    end
+    return false
+end
+
+local function try_feign_death(me)
+    if not runtime.feign_death_id then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > 0.30 then return false end
+    if not can_cast(runtime.feign_death_id, "player") then return false end
+    if cast_spell(runtime.feign_death_id, "player") then
+        utils.log_debug(menu, "Feign Death")
+        return true
+    end
+    return false
+end
+
+
 local function do_rotation(me, target)
     if is_busy() then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
+
+    if try_feign_death(me) then return true end
+    if try_disengage(me, target) then return true end
     
     -- Interrupt
-    if interrupt_manager.should_interrupt(target) then
+    -- Interrupt
+    if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "hunter", utils) then
             return true
         end
     end
 
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+
     -- Defensive abilities
+    ttd_tracker.update(target)
+
     if defensive_manager.try_defensive(me, "hunter", utils) then
         return true
     end

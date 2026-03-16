@@ -8,6 +8,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -18,6 +22,8 @@ local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
     crusader_strike_id = nil,
+    divine_storm_id = nil,
+    avenging_wrath_id = nil,
     seal_command_id = nil,
     seal_righteousness_id = nil,
     seal_blood_id = nil,
@@ -36,6 +42,8 @@ local MODE_REFRESH_INTERVAL = 3.0
 
 local function resolve_spells()
     runtime.crusader_strike_id = utils.resolve_spell_id(spells.CRUSADER_STRIKE)
+    runtime.divine_storm_id      = utils.resolve_spell_id(spells.DIVINE_STORM)
+    runtime.avenging_wrath_id    = utils.resolve_spell_id(spells.AVENGING_WRATH)
     runtime.seal_command_id = utils.resolve_spell_id(spells.SEAL_OF_COMMAND)
     runtime.seal_righteousness_id = utils.resolve_spell_id(spells.SEAL_OF_RIGHTEOUSNESS)
     runtime.seal_blood_id = utils.resolve_spell_id(spells.SEAL_OF_BLOOD)
@@ -285,6 +293,34 @@ end
 resolve_spells()
 log_resolved_spells()
 
+
+-- ─── Offensive CDs (v1.1) ─────────────────────────────────────────────────
+
+local function try_avenging_wrath(me)
+    if not menu.use_avenging_wrath or not menu.use_avenging_wrath:get_state() then return false end
+    if not runtime.avenging_wrath_id then return false end
+    if not me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.BUFF_AVENGING_WRATH) then return false end
+    if not utils.can_cast_self(runtime.avenging_wrath_id, me) then return false end
+    if utils.cast_self_fast(runtime.avenging_wrath_id, me) then
+        utils.log_debug(menu, "Avenging Wrath")
+        return true
+    end
+    return false
+end
+
+local function try_divine_storm(me, target)
+    if not menu.use_divine_storm or not menu.use_divine_storm:get_state() then return false end
+    if not runtime.divine_storm_id then return false end
+    if not utils.can_cast_target(runtime.divine_storm_id, me, target) then return false end
+    if utils.cast_target(runtime.divine_storm_id, target, "Divine Storm") then
+        utils.log_debug(menu, "Divine Storm")
+        return true
+    end
+    return false
+end
+
+
 core.register_on_update_callback(function()
     if not menu.enabled:get_state() then
         return
@@ -323,7 +359,13 @@ core.register_on_update_callback(function()
         end
     end
 
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+
     -- Defensive abilities
+    ttd_tracker.update(target)
+
     if defensive_manager.try_defensive(me, "paladin", utils) then
         return
     end
@@ -331,6 +373,10 @@ core.register_on_update_callback(function()
     if continue_seal_twist(me) then
         return
     end
+
+    -- Offensive CDs
+    try_avenging_wrath(me)
+    if try_divine_storm(me, target) then return end
 
     if maybe_cast_judgement(me, target) then
         return

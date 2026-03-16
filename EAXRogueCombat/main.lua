@@ -7,6 +7,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -23,6 +27,7 @@ local runtime = {
     kick_id = nil,
     blade_flurry_id = nil,
     adrenaline_rush_id = nil,
+    killing_spree_id = nil,
     evasion_id = nil,
     combo_points = 0,
     combo_target = nil,
@@ -41,6 +46,7 @@ local function resolve_spells()
     runtime.kick_id = utils.resolve_spell_id(spells.KICK)
     runtime.blade_flurry_id = utils.resolve_spell_id(spells.BLADE_FLURRY)
     runtime.adrenaline_rush_id = utils.resolve_spell_id(spells.ADRENALINE_RUSH)
+    runtime.killing_spree_id   = utils.resolve_spell_id(spells.KILLING_SPREE)
     runtime.evasion_id = utils.resolve_spell_id(spells.EVASION)
 end
 
@@ -301,19 +307,43 @@ local function try_evasion(me)
     return false
 end
 
+
+-- ─── Killing Spree (v1.1) ─────────────────────────────────────────────────
+
+local function try_killing_spree(me, target)
+    if not menu.use_killing_spree or not menu.use_killing_spree:get_state() then return false end
+    if not runtime.killing_spree_id then return false end
+    if not me:is_in_combat() then return false end
+    -- Use with Blade Flurry for maximum effect
+    if not utils.can_cast_target(runtime.killing_spree_id, me, target) then return false end
+    if utils.cast_target(runtime.killing_spree_id, target, "Killing Spree") then
+        utils.log_debug(menu, "Killing Spree")
+        return true
+    end
+    return false
+end
+
+
 local function do_rotation(me, target)
     if not is_gcd_ready() then
         return false
     end
 
     -- Interrupt
+    -- Interrupt (Kick)
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "rogue", utils) then
             return true
         end
     end
 
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+
     -- Defensive abilities
+    ttd_tracker.update(target)
+
     if defensive_manager.try_defensive(me, "rogue", utils) then
         return true
     end
@@ -326,9 +356,8 @@ local function do_rotation(me, target)
         if try_blade_flurry(me, target) then
             return true
         end
-        if try_adrenaline_rush(me) then
-            return true
-        end
+        if try_adrenaline_rush(me) then return true end
+        if try_killing_spree(me, target) then return true end
     end
 
     if not utils.can_attack(me, target) then

@@ -8,6 +8,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -32,6 +36,8 @@ local runtime = {
     growl_id = nil,
     frenzied_regeneration_id = nil,
     berserk_id = nil,
+    demoralizing_roar_id = nil,
+    maim_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
     cached_mode = "solo",
@@ -60,7 +66,9 @@ local function resolve_spells()
     runtime.swipe_id = utils.resolve_spell_id(spells.SWIPE)
     runtime.growl_id = utils.resolve_spell_id(spells.GROWL)
     runtime.frenzied_regeneration_id = utils.resolve_spell_id(spells.FRENZIED_REGENERATION)
-    runtime.berserk_id = utils.resolve_spell_id(spells.BERSERK)
+    runtime.berserk_id            = utils.resolve_spell_id(spells.BERSERK)
+    runtime.demoralizing_roar_id   = utils.resolve_spell_id(spells.DEMORALIZING_ROAR)
+    runtime.maim_id                = utils.resolve_spell_id(spells.MAIM)
 end
 
 local function log_resolved_spells()
@@ -352,6 +360,7 @@ local function do_cat_rotation(me, target)
     local target_hp_pct = utils.get_health_pct(target)
 
     if try_tigers_fury(me) then return true end
+    if try_maim(me, target) then return true end
     if try_faerie_fire(me, target) then return true end
     if not utils.is_melee_target(me, target) then return false end
     if try_rip(me, target) then return true end
@@ -469,6 +478,37 @@ local function try_maul(me, target)
     return false
 end
 
+
+-- ─── Bear utility (v1.1) ──────────────────────────────────────────────────
+
+local function try_demoralizing_roar(me, target)
+    if not menu.use_demoralizing_roar or not menu.use_demoralizing_roar:get_state() then return false end
+    if not runtime.demoralizing_roar_id then return false end
+    if utils.has_debuff(target, spells.DEBUFF_DEMORALIZING_ROAR) then return false end
+    if utils.cast_target(runtime.demoralizing_roar_id, target, "Demoralizing Roar") then
+        utils.log_debug(menu, "Demoralizing Roar")
+        return true
+    end
+    return false
+end
+
+-- ─── Cat utility (v1.1) ───────────────────────────────────────────────────
+
+local function try_maim(me, target)
+    if not menu.use_maim or not menu.use_maim:get_state() then return false end
+    if not runtime.maim_id then return false end
+    -- Maim as interrupt when Skull Bash is on CD
+    if not interrupt_manager.should_interrupt(target) then return false end
+    local cp = eax_utils.get_combo_points and eax_utils.get_combo_points(me) or 0
+    if cp < 1 then return false end
+    if utils.cast_target(runtime.maim_id, target, "Maim") then
+        utils.log_debug(menu, "Maim (interrupt)")
+        return true
+    end
+    return false
+end
+
+
 local function do_bear_rotation(me, target)
     local mode = get_effective_mode()
     local enemy_count = utils.enemy_count_in_radius(me, 8)
@@ -478,6 +518,7 @@ local function do_bear_rotation(me, target)
     if try_faerie_fire(me, target) then return true end
     if not utils.is_melee_target(me, target) then return false end
     if try_berserk(me, enemy_count, mode) then return true end
+    if try_demoralizing_roar(me, target) then return true end
     if try_mangle_bear(me, target) then return true end
     if try_swipe(me, enemy_count) then return true end
     if try_maul(me, target) then return true end
@@ -497,6 +538,7 @@ end
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
+    ttd_tracker.update(target)
     local lane = get_requested_lane(me)
     runtime.current_lane = lane
 
@@ -534,6 +576,10 @@ core.register_on_update_callback(function()
             return
         end
     end
+
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "druid", utils) then

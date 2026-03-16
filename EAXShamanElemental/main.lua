@@ -9,6 +9,10 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type ttd_tracker
+local ttd_tracker = require("common/eax_shared/ttd_tracker")
+---@type racial_manager
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
 
@@ -55,6 +59,7 @@ local runtime = {
     chain_lightning_id = nil,
     flame_shock_id = nil,
     elemental_mastery_id = nil,
+    lava_burst_id = nil,
     natures_swiftness_id = nil,
     totem_of_wrath_id = nil,
     mana_spring_id = nil,
@@ -77,6 +82,7 @@ local function resolve_spells()
     runtime.chain_lightning_id = utils.resolve_spell_id(spells.CHAIN_LIGHTNING)
     runtime.flame_shock_id = utils.resolve_spell_id(spells.FLAME_SHOCK)
     runtime.elemental_mastery_id = utils.resolve_spell_id(spells.ELEMENTAL_MASTERY)
+    runtime.lava_burst_id         = utils.resolve_spell_id(spells.LAVA_BURST)
     runtime.natures_swiftness_id = utils.resolve_spell_id(spells.NATURES_SWIFTNESS)
     runtime.totem_of_wrath_id = utils.resolve_spell_id(spells.TOTEM_OF_WRATH)
     runtime.mana_spring_id = utils.resolve_spell_id(spells.MANA_SPRING_TOTEM)
@@ -303,6 +309,17 @@ local function try_lightning_bolt(me, target)
     return try_cast_target(me, target, runtime.lightning_bolt_id, "Lightning Bolt")
 end
 
+
+-- ─── Lava Burst (v1.2) ────────────────────────────────────────────────────
+
+local function try_lava_burst(me, target)
+    if not runtime.lava_burst_id then return false end   -- nil if not talented/trained
+    -- Lava Burst deals guaranteed crit when Flame Shock is on target
+    if not utils.has_debuff(target, spells.DEBUFF_FLAME_SHOCK) then return false end
+    return try_cast_target(me, target, runtime.lava_burst_id, "Lava Burst")
+end
+
+
 local function do_rotation(me, target)
     if not is_gcd_ready() then
         return false
@@ -313,15 +330,20 @@ local function do_rotation(me, target)
         end
     end
 
+    -- Racial CDs
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+
     -- Defensive abilities
+    ttd_tracker.update(target)
+
     if defensive_manager.try_defensive(me, "shaman", utils) then
         return true
     end
 
     ensure_totems(me)
-    if try_burst(me, target) then
-        return true
-    end
+    if try_burst(me, target) then return true end
+    if try_lava_burst(me, target) then return true end
     if try_flame_shock(me, target) then
         return true
     end

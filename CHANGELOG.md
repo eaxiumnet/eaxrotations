@@ -2,59 +2,93 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.2.0] - 2026-03-16
 
-## [Unreleased]
+### Added — New Shared Modules (`common/eax_shared/`)
+- **`racial_manager.lua`** — Unified racial ability system for all TBC races:
+  - Offensive: Blood Fury (Orc), Berserking (Troll)
+  - Utility/Interrupt: Arcane Torrent (Blood Elf), War Stomp (Tauren)
+  - Defensive: Stoneform (Dwarf), Escape Artist (Gnome), Will of the Forsaken (Undead)
+  - Wired into all 23 combat plugins via `racial_manager.try_offensive()` and `racial_manager.try_utility()`
+- **`ttd_tracker.lua`** — Per-target rolling time-to-death estimator:
+  - 10-second sliding window, HP loss rate calculation
+  - `ttd_tracker.update(target)` wired into 20 DPS spec rotations
+  - `ttd_tracker.is_dying(target, threshold_s)` for execute-phase gating
+- **Updated `__init__.lua`** — exports all 9 shared modules
 
-### Added
-- **Comprehensive TBC Spell Database** - Added complete spell ID mappings for all 29 specs with all ranks
-  - Accurate spell IDs from official TBC Classic sources
-  - Complete buff/debuff tracking tables
-  - Proper ability categorization (rotation, cooldowns, utilities)
-- **Racial Abilities** - Added racial spells to appropriate races:
-  - Orc/Troll: Blood Fury (33697, 20572), Berserking (26297), War Stomp (20549)
-  - Blood Elf: Arcane Torrent (28730, 25046, 23160, 15533, 50613)
-  - Night Elf: Shadowmeld (58984, 1784), Perception (20600, 1130)
-  - Draenei: Heroic Presence (28878)
-- **Consumables & Gear Support**:
-  - Potions: Haste Potion (28508, 22832), Super Mana Potion (28499, 22828)
-  - Scrolls: Intellect (22732, 10291), Agility (22730, 10290), Stamina (22733, 10292)
-  - Engineering: Goblin Rocket Boots (8896), Gnomish Rocket Helmet (13028)
-  - Warlock items: Firestone ranks, Soulstone ranks, Demonic Dreadlord (32044-32053)
-  - Trinkets: Dragon Slayer series (34775-34760)
-- **Pet System** - Full pet ability coverage for Hunters and Warlocks:
-  - Hunter: Kill Command, Bestial Wrath, Mend Pet, Revive Pet, Call Pet, Aspect spells
-  - Warlock: Pet summoning, pet abilities, healthstone/soulstone items
-- **Utility Spells** - Added missing key abilities:
-  - Hunter: Disengage, Feign Death, Wing Clip, Concussive Shot, Scatter Shot, Counter Shot, all Traps
-  - Warrior: Berserker Rage
-  - Rogue: Ghostly Strike, Kidney Shot, Sap, Blind
-  - Druid: All forms (Bear, Cat, Moonkin, Travel, Aquatic), Mangle, Rake, etc.
-  - Shaman: Weapon imbues (Windfury, Flametongue, Rockbiter, Earthliving), shocks, totems
-  - Paladin: Auras, Blessings, Lay on Hands, Divine Shield
-  - Priest: Dispel magic, cure disease, inner fire/will
-- **Quality Improvements**:
-  - All 29 spells.lua files now have proper `return spells` statements
-  - Nested Hunter specs (Beast Mastery under Marksmanship/Survival) fully populated
-  - Consistent formatting and ordering across all specs
-  - Complete rank tables for all abilities
+### Added — Spec-Specific Rotation Improvements
+- **Warrior Arms**: Charge (pre-combat opener), Death Wish, Recklessness, Sweeping Strikes,
+  Enraged Regeneration (≤70% HP), Pummel interrupt wired into rotation
+- **Paladin Retribution**: Divine Storm, Avenging Wrath (syncs with burst window)
+- **Shaman Enhancement**: Lava Lash (talent-gated), Feral Spirit (talent-gated),
+  weapon imbue maintenance (Windfury MH + Flametongue OH, throttled 30s)
+- **Druid Feral**: Demoralizing Roar (bear, debuff-checked), Maim (cat, interrupt fallback)
+- **Rogue Combat**: Killing Spree (wired after Adrenaline Rush)
+- **Mage Arcane**: interrupt call wired (was imported but not called)
+- **Hunter Survival**: interrupt call wired (was imported but not called)
 
 ### Fixed
-- Missing return statements in several spells.lua files
-- Incomplete Hunter Beast Mastery nested spec files
-- Missing utility abilities across all classes
+- Systematic mangled-code bug across all plugins: racial_manager injection had been
+  merged into the interrupt_manager.try_interrupt() call, creating invalid Lua.
+  All 15 affected plugins repaired.
+- HunterSurvival: TTD tracker was inserted inside the defensive_manager block
+  (inside the `then...end`), causing it to only run when a defensive was triggered.
+  Moved to correct position before defensive check.
 
-### Documentation
-- Updated AGENTS.md with complete spell database overview
-- Updated CHANGELOG.md with comprehensive additions
+---
+
+## [1.1.0] - 2026-03-16
+
+### Added
+- **Comprehensive TBC Spell Database** - Complete spell ID mappings for all 29 specs
+- **Racial Abilities** - Added to spells.lua across all classes
+- **Consumables & Gear Support** - Potions, scrolls, engineering, trinkets
+- **Pet System** - Hunter and Warlock pet coverage
+- **Utility Spells** - Disengage, Feign Death, Traps, Weapon imbues, etc.
+- **Shared Modules** (`common/eax_shared/`):
+  - `interrupt_manager.lua` — priority-based interrupt system (all 23 combat plugins)
+  - `defensive_manager.lua` — layered HP-threshold defensive system (all 27 plugins)
+  - `spell_resolver.lua` — unified spell ID resolution with caching
+  - `mode_detector.lua` — solo/dungeon/raid detection
+  - `target_finder.lua` — consistent target selection
+  - `pet_manager.lua` — Hunter/Warlock pet helpers
+  - `talents.lua` — talent detection helpers
+
+### Fixed
+- 5 critical bugs from v1.0.0:
+  1. WarlockAffliction: `try_apply_curse()` — undefined `me` variable
+  2. WarlockAffliction: Shadow Bolt filler — inverted conditional
+  3. MageArcane/Fire/Frost: `try_ice_block` called but never defined
+  4. RogueCombat: `try_evasion` called but never defined
+  5. HunterSurvival/Marksmanship: `try_mend_pet` called but never defined
 
 ---
 
 ## [1.0.0] - 2026-03-16
 
 ### Added
-- Initial EAX TBC rotation plugins - all 27 specs
+- Initial EAX TBC rotation plugins — all 27 specs
 - Base architecture: main.lua, menu.lua, spells.lua, utils.lua
 - Focus target priority, self-emergency healing
 - Mode detection (solo/dungeon/raid)
+
+## [1.2.1] - 2026-03-17 (patch)
+
+### Added
+- **Hunter (all 3 specs)**: Disengage (kite when target ≤8yd) and Feign Death
+  (emergency threat drop ≤30% HP) wired into all three Hunter rotations
+- **Shaman Elemental**: Lava Burst wired — casts when Flame Shock is on target
+  (guaranteed crit interaction)
+- **Warlock Affliction**: Howl of Terror wired as AoE emergency fear (≤40% HP,
+  ≥1 melee attacker)
+- **Priest Shadow**: Devouring Plague added to DoT refresh cycle alongside
+  Vampiric Touch and Shadow Word: Pain
+
+### Fixed
+- **TTD positioning bug** (affected 12 plugins): `ttd_tracker.update(target)` had
+  been inserted *inside* the `defensive_manager.try_defensive` block during the
+  prior patch, meaning TTD samples only collected when a defensive CD was triggered.
+  Moved to correct position before the defensive check in all affected specs:
+  WarlockAffliction, WarlockDemonology, WarlockDestruction, RogueAssassination,
+  RogueCombat, RogueSubtlety, ShamanElemental, PaladinRetribution, MageFire,
+  MageFrost, HunterBeastMastery, HunterMarksmanship, PriestShadow
