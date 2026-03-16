@@ -32,6 +32,8 @@ local utils  = require("utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type defensive_manager
+local defensive_manager = require("common/eax_shared/defensive_manager")
 
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -807,6 +809,11 @@ local function do_rotation(me)
         if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
             return
         end
+    end
+
+    -- ── Defensive abilities ─────────────────────────────────────────────────
+    if defensive_manager.try_defensive(me, "shaman", utils) then
+        return
     end
 
     -- ── Focus target priority ─────────────────────────────────────────────

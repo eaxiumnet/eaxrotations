@@ -8,6 +8,8 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type defensive_manager
+local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -361,6 +363,11 @@ core.register_on_update_callback(function()
         if interrupt_manager.try_interrupt(me, target, "druid", utils) then
             return
         end
+    end
+
+    -- Defensive abilities
+    if defensive_manager.try_defensive(me, "druid", utils) then
+        return
     end
 
     -- Self-emergency healing

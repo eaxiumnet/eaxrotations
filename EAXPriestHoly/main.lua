@@ -8,6 +8,8 @@ local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
+---@type defensive_manager
+local defensive_manager = require("common/eax_shared/defensive_manager")
 
 local runtime = {
     mode_cache = "solo",
@@ -139,6 +141,11 @@ core.register_on_update_callback(function()
         if interrupt_manager.try_interrupt(me, target, "priest", utils) then
             return
         end
+    end
+
+    -- Defensive abilities
+    if defensive_manager.try_defensive(me, "priest", utils) then
+        return
     end
 
     -- Focus Target Priority - heal focus target first
