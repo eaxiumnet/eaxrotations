@@ -78,4 +78,18 @@ spells.WATER_SHIELD_BUFF    = { 33736, 24398 }
 
 spells.CHAIN_HEAL_JUMP_RANGE = 12   -- yards, TBC confirmed
 
+spells.BERSERKING = { 26297 }
+spells.BLOOD_FURY = { 33697, 20572 }
+spells.WAR_STOMP = { 20549 }
+spells.HEROIC_PRESENCE = { 28878 }
+
+spells.BUFF_BERSERKING = { 26297 }
+spells.BUFF_BLOOD_FURY = { 33697, 20572 }
+spells.BUFF_HEROIC_PRESENCE = { 28878 }
+
+spells.HASTE_POTION = { 28508, 22832 }
+spells.SUPER_MANA_POTION = { 28499, 22828 }
+spells.SCROLL_OF_INTELLECT = { 22732, 10291 }
+spells.SCROLL_OF_STAMINA = { 22733, 10292 }
+
 return spells
