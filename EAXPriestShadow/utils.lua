@@ -111,6 +111,29 @@ function utils.find_best_target(me)
     return best_attacking_me or best_attacking_party or best_any
 end
 
+function utils.same_unit(a, b)
+    if not a or not b then return false end
+    if a == b then return true end
+    if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
+    -- GUID comparison is authoritative — two different mobs can share a name
+    local function safe_guid(u)
+        if type(u.get_guid) ~= "function" then return nil end
+        local ok, g = pcall(function() return u:get_guid() end)
+        return (ok and g ~= nil) and tostring(g) or nil
+    end
+    local ga, gb = safe_guid(a), safe_guid(b)
+    if ga and gb then return ga == gb end
+    -- Fallback: name match only for players (NPCs commonly share names)
+    local a_player = type(a.is_player) == "function" and a:is_player()
+    local b_player = type(b.is_player) == "function" and b:is_player()
+    if a_player and b_player then
+        local a_name = a:get_name() or ""
+        local b_name = b:get_name() or ""
+        return a_name ~= "" and a_name == b_name
+    end
+    return false
+end
+
 return utils.get_buff_remaining_ms(unit, ids) > 0
 end
 

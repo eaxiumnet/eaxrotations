@@ -70,4 +70,30 @@ spells.REBIRTH           = { 26994, 20748, 20748, 20910, 20909, 20484 }
 
 spells.REMOVE_CURSE = { 2782, 8690, 8691 }
 
+
+-- Missing spells added in v2.1.0
+spells.PROWL               = { 9913, 5215 }
+spells.POUNCE              = { 27006, 9005, 9004, 8998 }
+spells.BASH                = { 8983, 1822, 5211 }
+spells.DASH                = { 9821, 1850 }
+spells.FERAL_CHARGE_BEAR   = { 16979, 19675 }
+spells.RAVAGE              = { 9867, 9866, 6785, 3242 }
+spells.TRAVEL_FORM         = { 783 }
+spells.ABOLISH_POISON      = { 2893 }
+spells.NATURES_GRASP       = { 27009, 16840, 16839, 16838, 16689, 9881, 9880, 6807, 779 }
+
+-- Defensive / utility
+spells.BARKSKIN            = { 22812 }
+spells.SURVIVAL_INSTINCTS  = { 61336 }
+spells.INNERVATE           = { 29166, 29166 }
+spells.CLAW                = { 27000, 9850, 9849, 1082 }
+spells.COWER               = { 27004, 9892, 8998, 8997 }
+
+spells.BUFF_BARKSKIN       = { 22812 }
+spells.BUFF_PROWL          = { 9913, 5215 }
+spells.BUFF_DASH           = { 9821, 1850 }
+spells.BUFF_TRAVEL_FORM    = { 783 }
+spells.DEBUFF_POUNCE       = { 27006, 9005, 9004, 8998 }
+spells.DEBUFF_BASH         = { 8983, 5211 }
+
 return spells

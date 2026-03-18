@@ -1,6 +1,10 @@
 -- EAX Rogue Subtlety | main.lua
 
 local menu = require("menu")
+local enums = (function()
+    local ok, e = pcall(require, "common/enums")
+    return ok and e or nil
+end)()
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
@@ -103,34 +107,26 @@ local function handle_toggle()
     runtime.prev_toggle_state = current
 end
 
--- Read combo points with multiple fallbacks for cross-server compatibility.
-local function get_current_combo_points(me)
-    local ok1, cp1 = pcall(function()
-        if enums and enums.power_type and enums.power_type.COMBOPOINTS_TBC then
-            return me:get_power(enums.power_type.COMBOPOINTS_TBC)
-        end
-    end)
-    if ok1 and type(cp1) == "number" and cp1 >= 0 then return cp1 end
+-- Read combo points using native game_object API on ME (the player).
+-- Key fix: get_power() must be called on the PLAYER, not on cp_obj (the target mob).
+-- Calling it on cp_obj always returned 0 because mobs have no combo points.
+local function get_current_combo_points(me, target)
+    -- Method 1: native game_object API, TBC-specific power type
+    local ok1, v1 = pcall(function() return me:get_power(enums.power_type.COMBOPOINTS_TBC) end)
+    if ok1 and type(v1) == "number" and v1 > 0 then return v1 end
 
-    local ok2, cp2 = pcall(function()
-        if enums and enums.power_type and enums.power_type.COMBOPOINTS then
-            return me:get_power(enums.power_type.COMBOPOINTS)
-        end
-    end)
-    if ok2 and type(cp2) == "number" and cp2 >= 0 then return cp2 end
+    -- Method 2: native game_object API, retail enum fallback (COMBOPOINTS = 4)
+    local ok2, v2 = pcall(function() return me:get_power(enums.power_type.COMBOPOINTS) end)
+    if ok2 and type(v2) == "number" and v2 > 0 then return v2 end
 
-    local ok3, cp3 = pcall(function() return me:get_power(4) end)
-    if ok3 and type(cp3) == "number" and cp3 >= 0 then return cp3 end
-
-    local ok4, cp4 = pcall(function() return me:combo_points_current() end)
-    if ok4 and type(cp4) == "number" and cp4 >= 0 then return cp4 end
-
-    return 0
+    return nil  -- all failed, keep cast-callback count
 end
+
 
 local function track_target(me, target)
     -- Read combo points directly from the API every tick via izi_sdk.
-    local cp = get_current_combo_points(me)
+    local cp = get_current_combo_points(me, target)
+    if cp == nil then return end  -- API bug, keep existing count
 
     -- Confirm CPs are on the current target, not a previous one
     local cp_target_ok, cp_target = pcall(function() return me:get_combo_points_target() end)
