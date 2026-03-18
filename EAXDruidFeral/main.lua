@@ -246,17 +246,11 @@ local function get_requested_lane(me)
     if lane_idx == 2 then return "cat" end
     if lane_idx == 3 then return "bear" end
 
-    if utils.has_buff(me, spells.BUFF_CAT_FORM) then
-        return "cat"
-    end
-    if utils.has_buff(me, spells.BUFF_BEAR_FORM) then
-        return "bear"
-    end
-
-    -- Auto detect based on mode: solo/dungeon dps = cat, tank role = bear
+    -- Auto mode: role/mode decides the lane, not the current form.
+    -- Current form must NOT lock the lane — otherwise feral charge (which
+    -- requires bear form) causes the script to stay in bear permanently.
     local mode = get_effective_mode()
     if mode == "solo" then return "cat" end
-    -- In group: check if we have a tank role or if we're pulling aggro
     local ok_r, role = pcall(function() return me:get_group_role() end)
     if not ok_r then role = 0 end
     if role == 2 then return "bear" end  -- 2 = tank role
