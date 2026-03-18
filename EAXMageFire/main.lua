@@ -6,13 +6,31 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type creature_utils
+local creature_utils = require("creature_utils")
+
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+
+esp_renderer.init("fire")
 ---@type ttd_tracker
-local ttd_tracker = require("common/eax_shared/ttd_tracker")
+local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
+
+---@type mana_conservator
+local mana_conservator = require("mana_conservator")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -25,14 +43,17 @@ local runtime = {
     pyroblast_id = nil,
     combustion_id = nil,
     fire_blast_id = nil,
+    ice_block_id = nil,
+    flamestrike_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
     cached_mode = "solo",
     pending_casts = {},
+    set_multiplier = 1.0,
 }
 
-local GCD_CAST_INTERVAL = 0.05
-local PENDING_CAST_TIMEOUT_S = 1.25
+local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
+local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 local function resolve_spells()
@@ -41,6 +62,7 @@ local function resolve_spells()
     runtime.pyroblast_id = utils.resolve_spell_id(spells.PYROBLAST)
     runtime.combustion_id = utils.resolve_spell_id(spells.COMBUSTION)
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
+    runtime.flamestrike_id = utils.resolve_spell_id(spells.FLAMESTRIKE)
 end
 
 local function log_resolved_spells()
@@ -52,6 +74,27 @@ end
 
 resolve_spells()
 log_resolved_spells()
+
+local function update_set_bonus()
+    local me = core.object_manager.get_local_player()
+    if not me then return end
+    
+    local aldor_mult = utils.get_set_multiplier(me, "Aldor")
+    local aldor_regalia_mult = utils.get_set_multiplier(me, "AldorRegalia")
+    local aldor_nethers_mult = utils.get_set_multiplier(me, "AldorNethers")
+    
+    runtime.set_multiplier = aldor_mult
+    if aldor_regalia_mult > runtime.set_multiplier then
+        runtime.set_multiplier = aldor_regalia_mult
+    end
+    if aldor_nethers_mult > runtime.set_multiplier then
+        runtime.set_multiplier = aldor_nethers_mult
+    end
+    
+    if runtime.set_multiplier > 1.0 then
+        utils.log_debug(menu, "Set bonus: " .. tostring(runtime.set_multiplier))
+    end
+end
 
 local function detect_mode()
     local objects = core.object_manager.get_all_objects()
@@ -112,6 +155,7 @@ local function is_valid_hostile_target(me, target)
 end
 
 local function try_combustion(me, target)
+    if enc and enc.hold_cooldowns then return false end
     if not menu.use_combustion:get_state() then return false end
     if not runtime.combustion_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
@@ -124,6 +168,7 @@ local function try_combustion(me, target)
         mark_pending_cast(runtime.combustion_id, FAST_PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Combustion")
         note_cast()
+                esp_renderer.on_cast(runtime.combustion_id, "Combustion", color.yellow(220))
         return true
     end
 
@@ -165,6 +210,7 @@ local function try_pyroblast(me, target)
         mark_pending_cast(runtime.pyroblast_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Pyroblast")
         note_cast()
+                esp_renderer.on_cast(runtime.pyroblast_id, "Pyroblast", color.orange(220))
         return true
     end
 
@@ -223,14 +269,73 @@ local function try_fireball(me, target)
     if utils.cast_target(runtime.fireball_id, target, "Fireball") then
         mark_pending_cast(runtime.fireball_id, PENDING_CAST_TIMEOUT_S)
         note_cast()
+                esp_renderer.on_cast(runtime.fireball_id, "Fireball", color.red(220))
         return true
     end
 
     return false
 end
 
-local function do_rotation(me, target)
+
+-- ─── Frost Nova — kite tool (v1.4) ───────────────────────────────────────
+
+local function try_frost_nova(me)
+    if not menu.use_frost_nova or not menu.use_frost_nova:get_state() then return false end
+    if not runtime.frost_nova_id then return false end
+    -- Use when a melee enemy is within 8 yards
+    local objects = core.object_manager.get_all_objects()
+    local melee_attacker = false
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead()
+           and me:can_attack(obj) and obj:get_distance_to(me) <= 8 then
+            melee_attacker = true
+            break
+        end
+    end
+    if not melee_attacker then return false end
+    if not utils.can_cast_self(runtime.frost_nova_id, me) then return false end
+    if utils.cast_self(runtime.frost_nova_id, me) then
+        utils.log_debug(menu, "Frost Nova (kite)")
+        return true
+    end
+    return false
+end
+
+-- ─── Presence of Mind — instant cast proc (Arcane talent) (v1.4) ─────────
+
+local function try_presence_of_mind(me)
+    if enc and enc.hold_cooldowns then return false end
+    if not menu.use_presence_of_mind or not menu.use_presence_of_mind:get_state() then return false end
+    if not runtime.presence_of_mind_id then return false end
+    if utils.has_buff(me, spells.BUFF_PRESENCE_OF_MIND) then return false end
+    if not me:is_in_combat() then return false end
+    -- Only pop PoM when Arcane Power is active or as opener
+    if runtime.arcane_power_id and not utils.has_buff(me, spells.BUFF_ARCANE_POWER) then return false end
+    if not utils.can_cast_self(runtime.presence_of_mind_id, me) then return false end
+    if utils.cast_self_fast(runtime.presence_of_mind_id, me) then
+        utils.log_debug(menu, "Presence of Mind")
+        return true
+    end
+    return false
+end
+
+
+local function -- Mana conservator: wand/melee when low on mana
+    if mana_conservator.on_update(me, target, menu, utils) then return end
+
+    do_rotation(me, target)
     if not is_gcd_ready() then return false end
+
+
+    -- Wanding / mana conservation (leveling 1-70)
+    if leveling_manager.try_wand(me, target, menu) then return true end
+    if not leveling_manager.has_enough_mana(me, menu) then
+        leveling_manager.ensure_melee(me, target)
+        return false
+    end
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
 
     -- Interrupt
     if target and interrupt_manager.should_interrupt(target) then
@@ -252,6 +357,7 @@ local function do_rotation(me, target)
 
     if try_combustion(me, target) then return true end
     if try_trinkets(me) then return true end
+    if try_flamestrike(me, target) then return true end
     if try_pyroblast(me, target) then return true end
     if try_scorch(me, target) then return true end
     if try_fire_blast_move(me, target) then return true end
@@ -269,18 +375,93 @@ local function handle_toggle()
     runtime.prev_toggle_state = current
 end
 
+
+-- ─── Flamestrike — AoE ground fire (v1.8.2) ──────────────────────────────
+
+local function count_enemies_near(me, radius)
+    local pos = me:get_position()
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if is_valid_hostile_target(me, obj) and obj:is_in_combat() then
+            local sq = pos:squared_dist_to_ignore_z(obj:get_position())
+            local r = radius + (obj:get_bounding_radius() or 0)
+            if sq <= r * r then count = count + 1 end
+        end
+    end
+    return count
+end
+
+local function try_flamestrike(me, target)
+    if enc and not enc.aoe_safe then return false end
+    if not menu.use_flamestrike:get_state() then return false end
+    if not runtime.flamestrike_id then return false end
+    local enemy_count = count_enemies_near(me, spells.FLAMESTRIKE_RADIUS)
+    if enemy_count < menu.flamestrike_enemy_count:get() then return false end
+    if not utils.can_cast_target(runtime.flamestrike_id, me, target) then return false end
+    if utils.cast_target(runtime.flamestrike_id, me, target) then
+        esp_renderer.on_cast(runtime.flamestrike_id, "Flamestrike", color.red(220))
+        utils.log_debug(menu, "Flamestrike (AoE x" .. tostring(enemy_count) .. ")")
+        return true
+    end
+    return false
+end
+
+-- ─── Ice Block — emergency freeze (v1.8.2) ───────────────────────────────
+local function try_ice_block(me)
+    if not menu.use_ice_block:get_state() then return false end
+    if not runtime.ice_block_id then
+        runtime.ice_block_id = utils.resolve_spell_id(spells.ICE_BLOCK)
+    end
+    if not runtime.ice_block_id then return false end
+    local hp_pct = me:get_health_percentage() / 100
+    if hp_pct > (menu.ice_block_hp_pct:get() / 100) then return false end
+    if utils.has_buff(me, spells.BUFF_ICE_BLOCK) then return false end
+    if not utils.can_cast_self(runtime.ice_block_id, me) then return false end
+    if utils.cast_self(runtime.ice_block_id, me) then
+        utils.log_debug(menu, "Ice Block")
+        return true
+    end
+    return false
+end
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
+    end
+    if utils.throttle("set_bonus", 5.0) then
+        update_set_bonus()
     end
 
     handle_toggle()
 
     if not menu.enabled:get_state() then return end
 
+    -- OOC management (drink/eat/rez/group buffs)
+    ooc_manager.on_update(me, menu, utils, {
+        group_buffs = {
+            { spell_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT),
+               buff_ids = spells.BUFF_ARCANE_INTELLECT,
+               name = "Arcane Intellect",
+               toggle = menu.ooc_group_buff },
+        },
+    })
+
     local me = core.object_manager.get_local_player()
     if not me then return end
     if me:is_dead() then return end
+    if eax_utils.is_eating_or_drinking(me) then return end
 
     local target = me:get_target()
     
@@ -300,6 +481,15 @@ core.register_on_update_callback(function()
     do_rotation(me, target)
 end)
 
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxmagefire_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
@@ -313,5 +503,50 @@ core.register_on_render_control_panel_callback(function()
     )
     return elements
 end)
+
+
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Mage"
+    local _eax_spec  = "Fire"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
 
 core.log("[EAX Mage Fire] Loaded v1.0.0")

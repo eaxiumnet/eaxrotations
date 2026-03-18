@@ -16,9 +16,8 @@ if not local_player then
     return plugin
 end
 
-local enums = require("common/enums")
 local player_class = local_player:get_class()
-if player_class ~= enums.class_id.SHAMAN then
+if player_class ~= 7 then
     plugin["load"] = false
     return plugin
 end

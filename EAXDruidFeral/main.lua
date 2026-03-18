@@ -7,13 +7,27 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type creature_utils
+local creature_utils = require("creature_utils")
+
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("feral")
 ---@type ttd_tracker
-local ttd_tracker = require("common/eax_shared/ttd_tracker")
+local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -21,6 +35,7 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
+    rebirth_id = nil,
     cat_form_id = nil,
     bear_form_id = nil,
     faerie_fire_feral_id = nil,
@@ -37,6 +52,8 @@ local runtime = {
     frenzied_regeneration_id = nil,
     berserk_id = nil,
     demoralizing_roar_id = nil,
+    lacerate_id = nil,
+    last_shift_at = 0,
     maim_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
@@ -45,10 +62,11 @@ local runtime = {
     combo_points = 0,
     combo_target_key = nil,
     pending_casts = {},
+    set_multiplier = 1.0,
 }
 
-local GCD_CAST_INTERVAL = 0.05
-local PENDING_CAST_TIMEOUT_S = 1.25
+local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
+local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 local function resolve_spells()
@@ -66,8 +84,10 @@ local function resolve_spells()
     runtime.swipe_id = utils.resolve_spell_id(spells.SWIPE)
     runtime.growl_id = utils.resolve_spell_id(spells.GROWL)
     runtime.frenzied_regeneration_id = utils.resolve_spell_id(spells.FRENZIED_REGENERATION)
+    runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
     runtime.berserk_id            = utils.resolve_spell_id(spells.BERSERK)
     runtime.demoralizing_roar_id   = utils.resolve_spell_id(spells.DEMORALIZING_ROAR)
+    runtime.lacerate_id             = utils.resolve_spell_id(spells.LACERATE)
     runtime.maim_id                = utils.resolve_spell_id(spells.MAIM)
 end
 
@@ -78,6 +98,13 @@ local function log_resolved_spells()
         .. " BearMangle=" .. tostring(runtime.mangle_bear_id)
         .. " Swipe=" .. tostring(runtime.swipe_id)
         .. " Growl=" .. tostring(runtime.growl_id))
+end
+
+local function update_set_bonus(me)
+    local nordrassil_mult = utils.get_set_multiplier(me, "Nordrassil")
+    local nordrassil_harness_mult = utils.get_set_multiplier(me, "NordrassilHarness")
+    local malorne_mult = utils.get_set_multiplier(me, "Malorne")
+    runtime.set_multiplier = math.max(nordrassil_mult, nordrassil_harness_mult, malorne_mult)
 end
 
 resolve_spells()
@@ -244,6 +271,7 @@ local function try_faerie_fire(me, target)
 end
 
 local function try_tigers_fury(me)
+    if enc and enc.hold_cooldowns then return false end
     if not menu.use_tigers_fury:get_state() then return false end
     if not runtime.tigers_fury_id then return false end
     if utils.get_energy(me) > menu.tigers_fury_energy:get() then return false end
@@ -261,8 +289,12 @@ local function try_tigers_fury(me)
     return false
 end
 
+
 local function try_rip(me, target)
     if not menu.use_rip:get_state() then return false end
+    if creature_utils.is_bleed_immune(target) then return false end  -- Undead/Elemental: bleed immune
+    -- TTD gate: don't Rip if fight ending before DoT expires (v1.4)
+    if ttd_tracker.get(target) < 12 then return false end
     if not runtime.rip_id then return false end
     if runtime.combo_points < menu.rip_combo_points:get() then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) > (menu.rip_refresh_seconds:get() * 1000) then return false end
@@ -315,8 +347,91 @@ local function try_mangle_cat(me, target)
     return false
 end
 
+
+-- ─── Rake trick improvement (v1.4) ───────────────────────────────────────
+-- From tbc/ feral/rotation.go: use Rake when energy is 35-55 and Mangle
+-- is unavailable, rather than waiting for the next energy tick.
+
+local RAKE_TRICK_MIN = 35
+local RAKE_TRICK_MAX = 55
+
+
+local SHIFT_ENERGY_THRESHOLD = 30
+local SHIFT_MIN_INTERVAL_S   = 1.2
+local WOLFSHEAD_ITEM_ID      = 8345
+
+local function has_wolfshead(me)
+    local ok, slot = pcall(function() return me:get_item_at_inventory_slot(1) end)
+    if ok and slot and slot.object then
+        local ok2, id = pcall(function() return slot.object:get_item_id() end)
+        return ok2 and id == WOLFSHEAD_ITEM_ID
+    end
+    return false
+end
+
+-- ─── Powershifting ────────────────────────────────────────────────────────────
+-- core.input.quick_cat replicates `/cast !Cat Form` behaviour:
+-- casts Cat Form while already in Cat Form WITHOUT dropping the form first.
+-- This is the classic TBC powershift trick — fires a zero-downtime shift that
+-- triggers the energy regen from Wolfshead Helm / Natural Shapeshifter talent.
+-- Only works on private/legacy servers (not retail).
+-- Falls back to a normal form cast on servers that haven't patched this in.
+
+local function try_powershift(me)
+    if not menu.use_powershift or not menu.use_powershift:get_state() then return false end
+    if not utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+    local energy = utils.get_energy and utils.get_energy(me) or 100
+    local threshold = has_wolfshead(me) and SHIFT_ENERGY_THRESHOLD or 15
+    if energy >= threshold then return false end
+    local now = core.time()
+    local min_i = has_wolfshead(me) and SHIFT_MIN_INTERVAL_S or 2.0
+    if (now - runtime.last_shift_at) < min_i then return false end
+
+    -- Use core.input.quick_cat if available — this is the PS implementation of
+    -- `/cast !Cat Form`: casts Cat Form in-form without cancelling the buff first.
+    -- It triggers the Wolfshead Helm energy restore and any on-shift procs without
+    -- the usual brief human/caster form window, giving zero-downtime powershifting.
+    local ok_qc, qc_result = pcall(function()
+        return core.input.quick_cat()
+    end)
+    if ok_qc and qc_result then
+        runtime.last_shift_at = now
+        utils.log_debug(menu, "Powershift via quick_cat (energy=" .. tostring(math.floor(energy)) .. ")")
+        return true
+    end
+
+    -- Fallback: normal cast_self (will briefly leave cat form on servers
+    -- that don't support quick_cat, but still triggers Wolfshead on some cores)
+    local cat_id = utils.resolve_spell_id(spells.CAT_FORM)
+    if not cat_id or not utils.can_cast_self(cat_id, me) then return false end
+    utils.cast_self(cat_id, me)
+    runtime.last_shift_at = now
+    utils.log_debug(menu, "Powershift via cast_self fallback (energy=" .. tostring(math.floor(energy)) .. ")")
+    return true
+end
+
+
+local function try_rake_trick(me, target)
+    -- Only use as energy sink when Rake not active and energy in sweet spot
+    if not menu.use_rake:get_state() then return false end
+    if not runtime.rake_id then return false end
+    if utils.has_debuff(target, spells.DEBUFF_RAKE) then return false end
+    local energy = utils.get_energy and utils.get_energy(me) or 0
+    if energy < RAKE_TRICK_MIN or energy > RAKE_TRICK_MAX then return false end
+    if is_pending_cast(runtime.rake_id) then return false end
+    if not utils.can_cast_target(runtime.rake_id, me, target) then return false end
+    if utils.cast_target(runtime.rake_id, target, "Rake trick") then
+        utils.log_debug(menu, "Rake trick (energy sink)")
+        mark_pending_cast(runtime.rake_id, 1.5)
+        note_cast()
+        return true
+    end
+    return false
+end
+
 local function try_rake(me, target)
     if not menu.use_rake:get_state() then return false end
+    if creature_utils.is_bleed_immune(target) then return false end  -- Undead/Elemental: bleed immune
     if not runtime.rake_id then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RAKE) > (menu.rake_refresh_seconds:get() * 1000) then return false end
     if is_pending_cast(runtime.rake_id) then return false end
@@ -367,7 +482,15 @@ local function do_cat_rotation(me, target)
     if try_ferocious_bite(me, target, target_hp_pct) then return true end
     if try_mangle_cat(me, target) then return true end
     if try_rake(me, target) then return true end
+    if try_rake_trick(me, target) then return true end
     if try_shred_or_filler(me, target) then return true end
+    if try_powershift(me) then return true end
+
+    -- Auto-attack fallback for leveling 1-70
+    if me:is_in_combat() and target and target:is_valid() and not target:is_dead()
+       and me:can_attack(target) then
+        leveling_manager.ensure_melee(me, target)
+    end
 
     return false
 end
@@ -383,6 +506,7 @@ local function try_growl(me, target)
         mark_pending_cast(runtime.growl_id, FAST_PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Growl")
         note_cast()
+                esp_renderer.on_cast(nil, "Cat Rotation", color.yellow(220))
         return true
     end
 
@@ -409,6 +533,7 @@ local function try_frenzied_regeneration(me)
 end
 
 local function try_berserk(me, enemy_count, mode)
+    if enc and enc.hold_cooldowns then return false end
     if not menu.use_berserk:get_state() then return false end
     if not runtime.berserk_id then return false end
     if not me:is_in_combat() then return false end
@@ -445,6 +570,7 @@ local function try_mangle_bear(me, target)
 end
 
 local function try_swipe(me, enemy_count)
+    if enc and not enc.aoe_safe then return false end
     if not menu.use_swipe:get_state() then return false end
     if not runtime.swipe_id then return false end
     if enemy_count < menu.swipe_enemy_count:get() then return false end
@@ -509,6 +635,44 @@ local function try_maim(me, target)
 end
 
 
+
+-- ─── Lacerate — bear DoT / threat (v1.3) ─────────────────────────────────
+-- Core TBC bear ability. Stacks to 5, each stack increases bleed damage.
+-- Priority: maintain at 5 stacks; refresh when < 3s remaining.
+
+local LACERATE_MAX_STACKS   = 5
+local LACERATE_REFRESH_MS   = 3000
+
+local function try_lacerate(me, target)
+    if not menu.use_lacerate or not menu.use_lacerate:get_state() then return false end
+    if not runtime.lacerate_id then return false end    -- nil = talent not yet trained
+    if not utils.has_buff(me, spells.BUFF_BEAR_FORM) and
+       not utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then return false end
+
+    local stacks = utils.get_debuff_stacks(target, spells.DEBUFF_LACERATE)
+    local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_LACERATE)
+
+    -- Apply if not at max stacks
+    if stacks < LACERATE_MAX_STACKS then
+        if utils.can_cast_target(runtime.lacerate_id, me, target) then
+            if utils.cast_target(runtime.lacerate_id, target, "Lacerate") then
+                utils.log_debug(menu, "Lacerate (" .. tostring(stacks + 1) .. " stacks)")
+                return true
+            end
+        end
+    -- Refresh when about to fall off
+    elseif remaining <= LACERATE_REFRESH_MS then
+        if utils.can_cast_target(runtime.lacerate_id, me, target) then
+            if utils.cast_target(runtime.lacerate_id, target, "Lacerate (refresh)") then
+                utils.log_debug(menu, "Lacerate refresh")
+                return true
+            end
+        end
+    end
+    return false
+end
+
+
 local function do_bear_rotation(me, target)
     local mode = get_effective_mode()
     local enemy_count = utils.enemy_count_in_radius(me, 8)
@@ -520,6 +684,7 @@ local function do_bear_rotation(me, target)
     if try_berserk(me, enemy_count, mode) then return true end
     if try_demoralizing_roar(me, target) then return true end
     if try_mangle_bear(me, target) then return true end
+    if try_lacerate(me, target) then return true end
     if try_swipe(me, enemy_count) then return true end
     if try_maul(me, target) then return true end
 
@@ -528,7 +693,8 @@ local function do_bear_rotation(me, target)
             mark_pending_cast(runtime.mangle_bear_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "Bear filler Mangle")
             note_cast()
-            return true
+                    esp_renderer.on_cast(runtime.mangle_bear_id, "Bear Rotation", color.orange(220))
+        return true
         end
     end
 
@@ -553,6 +719,17 @@ local function do_rotation(me, target)
     return do_bear_rotation(me, target)
 end
 
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
     local me = core.object_manager.get_local_player()
     if not me then return end
@@ -561,14 +738,38 @@ core.register_on_update_callback(function()
         runtime.cached_mode = detect_mode(me)
     end
 
+    if utils.throttle("eaxdruidferal_set_bonus", 10.0) then
+        update_set_bonus(me)
+    end
+
     handle_toggle()
 
     if not menu.enabled:get_state() then return end
+
+    -- OOC management (drink/eat/rez/group buffs)
+    ooc_manager.on_update(me, menu, utils, {
+        rez_spell_id = runtime.rebirth_id,
+        group_buffs = {
+            { spell_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD),
+               buff_ids = spells.BUFF_MARK_OF_THE_WILD,
+               name = "Mark Of The Wild",
+               toggle = menu.ooc_group_buff },
+        },
+    })
     if me:is_dead() then return end
+    if eax_utils.is_eating_or_drinking(me) then return end
 
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
     local target = focus_target or me:get_target()
+
+
+    -- Mana conservation (leveling 1-70)
+    if leveling_manager.is_conserving_mana(me, menu) then
+        leveling_manager.ensure_melee(me, target)
+    end
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
 
     -- Interrupt
     if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
@@ -596,6 +797,15 @@ core.register_on_update_callback(function()
     do_rotation(me, target)
 end)
 
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxdruidferal_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
@@ -624,5 +834,50 @@ core.register_on_spell_cast_callback(function(data)
         return
     end
 end)
+
+
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Druid"
+    local _eax_spec  = "Feral"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
 
 core.log("[EAX Druid Feral] Loaded v1.0.0")

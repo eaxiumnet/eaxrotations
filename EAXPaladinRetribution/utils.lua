@@ -3,6 +3,8 @@
 
 local auto_attack = require("common/utility/auto_attack_helper")
 local spell_queue = require("common/modules/spell_queue")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local utils = {}
 
@@ -119,7 +121,7 @@ function utils.has_buff(unit, id_table)
     if not unit or not id_table then
         return false
     end
-    local data = unit:get_buff_data(id_table)
+    local data = buff_manager:get_buff_data(unit, id_table)
     return data ~= nil and data.is_active
 end
 
@@ -127,7 +129,9 @@ function utils.has_debuff(unit, id_table)
     if not unit or not id_table then
         return false
     end
-    local data = unit:get_debuff_data(id_table)
+    local data = buff_manager:get_debuff_data(unit, id_table)
+    if data and data.is_active then return true end
+    data = buff_manager:get_aura_data(unit, id_table)
     return data ~= nil and data.is_active
 end
 

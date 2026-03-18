@@ -5,13 +5,12 @@ local plugin = {
     load = true,
 }
 
-local enums = require("common/enums")
 local local_player = core.object_manager.get_local_player()
 if not local_player then
     return plugin
 end
 
-if local_player:get_class() ~= enums.class_id.HUNTER then
+if local_player:get_class() ~= 3 then
     core.log("[EAX Hunter Marksmanship] Player is not Hunter; disabling addon.")
     plugin.load = false
     return plugin

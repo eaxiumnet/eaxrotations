@@ -8,7 +8,6 @@ local plugin = {
     ["load"] = true,
 }
 
-local enums = require("common/enums")
 local local_player = core.object_manager.get_local_player()
 
 if not local_player then
@@ -16,7 +15,7 @@ if not local_player then
     return plugin
 end
 
-if local_player:get_class() ~= enums.class_id.WARLOCK then
+if local_player:get_class() ~= 9 then
     plugin["load"] = false
     return plugin
 end

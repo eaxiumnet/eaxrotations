@@ -21,9 +21,8 @@ if not local_player then
 end
 
 -- We check if the class that is being played currently matches our script's intended class
-local enums = require("common/enums")
 local player_class = local_player:get_class()
-local TARGET_CLASS_ID = enums.class_id.PALADIN
+local TARGET_CLASS_ID = 2
 local is_valid_class = player_class == TARGET_CLASS_ID
 
 if not is_valid_class then

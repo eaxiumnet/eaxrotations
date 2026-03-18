@@ -12,13 +12,24 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("fury")
 ---@type ttd_tracker
-local ttd_tracker = require("common/eax_shared/ttd_tracker")
+local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -27,9 +38,10 @@ local control_panel_utility = require("common/utility/control_panel_helper")
 ---@type auto_attack_helper
 local auto_attack = require("common/utility/auto_attack_helper")
 ---@type color
-local color = require("common/color")
+local color = require("color")
 ---@type vec2
-local vec2 = require("common/geometry/vector_2")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local runtime = {
     bloodthirst_id = nil,
@@ -78,6 +90,8 @@ local runtime = {
     charge_stance_swap_requested_at = 0,
     last_on_next_attack_queue_at = 0,
     queued_on_next_attack_spell_id = nil,
+    tc_dance_pending = false,
+    tc_dance_return = false,
     last_overpower_usable = false,
     last_burst_window_active = false,
     last_slam_cast_game_time = 0,
@@ -93,6 +107,7 @@ local runtime = {
     cached_has_shaman = false,
     last_mode_debug_at = 0,
     pending_casts = {},
+    set_multiplier = 1.0,
 }
 
 local BATTLE_SHOUT_REFRESH_MS = 5000
@@ -106,7 +121,7 @@ local QUEUE_SWING_WINDOW_MS = 350
 local BURST_LUST_WAIT_MS = 10000
 local BURST_WINDOW_MS = 2500
 local STANCE_BUFFER_RAGE = 5
-local GCD_CAST_INTERVAL = 0.05
+local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
 local AOE_RADIUS = 8
 local TRINKET_SLOT_1 = 13
 local TRINKET_SLOT_2 = 14
@@ -135,7 +150,7 @@ local PROC_HUD_HEIGHT = 54
 local PROC_HUD_LINE_HEIGHT = 20
 local CHARGE_STANCE_RETRY_DELAY = 0.75
 local ON_NEXT_ATTACK_QUEUE_INTERVAL = 0.30
-local PENDING_CAST_TIMEOUT_S = 1.25
+local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 local SHAMAN_CLASS_ID = 7
 local MODE_OPTIONS = { "Auto", "Solo", "Dungeon", "Raid" }
@@ -226,6 +241,19 @@ end
 local function refresh_mode_cache()
     runtime.cached_mode = detect_mode()
     runtime.cached_has_shaman = has_shaman_in_party()
+end
+
+local function update_set_bonus(me)
+    if not me then return end
+    local best_multiplier = 1.0
+    local set_names = { "Warbringer", "WarbringerBattlegear", "Ymirjar" }
+    for _, set_name in ipairs(set_names) do
+        local multiplier = utils.get_set_multiplier(me, set_name)
+        if multiplier > best_multiplier then
+            best_multiplier = multiplier
+        end
+    end
+    runtime.set_multiplier = best_multiplier
 end
 
 local function get_effective_mode()
@@ -596,6 +624,9 @@ local function try_shout(me)
     return false
 end
 
+-- try_battle_shout is an alias for try_shout (handles both Battle/Commanding Shout)
+local try_battle_shout = try_shout
+
 local function try_demo_shout(me, target)
     if not menu.use_demo_shout:get_state() or not runtime.demoralizing_shout_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
@@ -689,7 +720,7 @@ local function try_sunder_armor(me, target, target_hp_pct)
     if target_hp_pct < EXECUTE_HP_THRESHOLD then return false end
     if not utils.is_melee_target(me, target) then return false end
 
-    local data = target:get_debuff_data(spells.DEBUFF_SUNDER_ARMOR)
+    local data = buff_manager:get_debuff_data(target, spells.DEBUFF_SUNDER_ARMOR)
     local stack_count = 0
     if data and data.is_active then
         stack_count = data.count or 0
@@ -901,7 +932,8 @@ local function try_overpower_dance(me, target, rage)
             utils.set_tracked_stance("battle")
             utils.log_debug(menu, "Stance -> battle (Overpower)")
             note_cast()
-            return true
+                    esp_renderer.on_cast(runtime.battle_stance_id, "Overpower", color.red(220))
+        return true
         end
 
         return false
@@ -1260,6 +1292,7 @@ local function try_slam_or_hamstring_filler(me, target, rage, target_hp_pct, lab
         runtime.last_slam_cast_game_time = core.game_time()
         utils.log_debug(menu, label .. ": Slam filler")
         note_cast()
+                esp_renderer.on_cast(runtime.slam_id, "Slam", color.orange(220))
         return true
     end
 
@@ -1315,6 +1348,7 @@ local function update_notifications(me, target)
 end
 
 local function do_single_target_core_lane(me, target, rage, target_hp_pct)
+    if try_tc_dance_return(me) then return true end
     local bt_can_cast = runtime.bloodthirst_id
         and rage >= BLOODTHIRST_COST
         and utils.can_cast_target_no_usable(runtime.bloodthirst_id, me, target)
@@ -1412,7 +1446,82 @@ local function try_switch_to_stance(me, spell_id, stance_name, rage, ability_cos
     return false
 end
 
+
+-- ─── Thunder Clap debuff maintenance (Battle Stance dance) (v1.6) ─────────────
+-- Pattern from tbc/ warrior/dps/rotation.go tryMaintainDebuffs.
+-- Swap to Battle, apply TC, swap back. Only in dungeons/raid where it matters.
+
+local function try_thunder_clap_dance(me, target, rage)
+    if not menu.use_thunder_clap_aoe:get_state() then return false end
+    if not runtime.thunder_clap_id then return false end
+    if not target or not utils.is_melee_target(me, target) then return false end
+    if utils.has_debuff(target, spells.DEBUFF_THUNDER_CLAP) then return false end
+
+    local mode = get_effective_mode()
+    if mode == "solo" then return false end  -- not worth the GCD loss in solo
+
+    -- We need rage for the stance swap + TC (20 rage)
+    if not utils.can_stance_dance_for_cost(rage, 20, 0, runtime.stance_swap_retention) then
+        return false
+    end
+
+    local current = utils.get_current_stance(me)
+    if current ~= "battle" then
+        -- Swap to Battle first
+        if runtime.battle_stance_id
+           and not is_pending_or_current(runtime.battle_stance_id)
+           and utils.can_cast_self(runtime.battle_stance_id, me)
+           and utils.cast_self(runtime.battle_stance_id, me)
+        then
+            mark_pending_cast(runtime.battle_stance_id, PENDING_CAST_TIMEOUT_S)
+            utils.set_tracked_stance("battle")
+            runtime.tc_dance_pending = true
+            utils.log_debug(menu, "Stance → Battle (TC dance)")
+            note_cast()
+            return true
+        end
+        return false
+    end
+
+    -- Already in Battle: cast TC
+    if runtime.tc_dance_pending or current == "battle" then
+        if utils.can_cast_melee(runtime.thunder_clap_id, me)
+           and utils.cast_target(runtime.thunder_clap_id, me, target)
+        then
+            utils.log_debug(menu, "Thunder Clap (debuff dance)")
+            note_cast()
+            runtime.tc_dance_pending = false
+            -- Schedule immediate return to Berserker/home stance
+            runtime.tc_dance_return = true
+            return true
+        end
+    end
+    return false
+end
+
+local function try_tc_dance_return(me)
+    if not runtime.tc_dance_return then return false end
+    local home = get_home_stance()
+    local home_id = get_home_stance_id()
+    if not home_id then return false end
+    if utils.get_current_stance(me) == home then
+        runtime.tc_dance_return = false
+        return false
+    end
+    if utils.can_cast_self(home_id, me) and utils.cast_self(home_id, me) then
+        mark_pending_cast(home_id, PENDING_CAST_TIMEOUT_S)
+        utils.set_tracked_stance(home)
+        runtime.tc_dance_return = false
+        utils.log_debug(menu, "Stance → " .. home .. " (TC dance return)")
+        note_cast()
+        return true
+    end
+    return false
+end
+
+
 local function do_aoe_core_lane(me, target, rage)
+    if enc and not enc.aoe_safe then return false end
     local primary_target = utils.find_best_aoe_target(me, target, AOE_RADIUS) or target
     local execute_target = get_aoe_execute_target(me, primary_target)
 
@@ -1796,13 +1905,21 @@ local function on_update()
 
     if not menu.enabled:get_state() then return end
 
+    -- OOC management (drink/eat/rez/group buffs)
+    ooc_manager.on_update(me, menu, utils)
+
     local me = core.object_manager.get_local_player()
     if not me then return end
 
     if me:is_dead() then return end
+    if eax_utils.is_eating_or_drinking(me) then return end
     if me:is_mounted() then return end
 
     refresh_mode_cache()
+
+    if utils.throttle("update_set_bonus", 5.0) then
+        update_set_bonus(me)
+    end
 
     if menu.debug:get_state() then
         local now_ms = core.game_time()
@@ -1810,7 +1927,52 @@ local function on_update()
             runtime.last_mode_debug_at = now_ms
             local eff = get_effective_mode()
             local sham = runtime.cached_has_shaman and "yes" or "no"
-            core.log("[EAX Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | Shaman: " .. sham)
+            
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Warrior"
+    local _eax_spec  = "Fury"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
+core.log("[EAX Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | Shaman: " .. sham)
         end
     end
 
@@ -1836,7 +1998,10 @@ local function on_update()
     local target = me:get_target()
     
     -- Interrupt
-    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+    if target and target:is_valid()
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
+ and target:is_enemy() and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "warrior", utils) then
             return
         end
@@ -2030,6 +2195,7 @@ local function draw_proc_status_line(y_offset, label, is_active, active_color)
 end
 
 local function on_render()
+    esp_renderer.on_render(menu)
     if not menu.show_notifications:get_state() or not menu.track_procs:get_state() then
         return
     end
@@ -2037,8 +2203,8 @@ local function on_render()
     local me = core.object_manager.get_local_player()
     if not me then return end
 
-    local flurry_data = me:get_buff_data(spells.BUFF_FLURRY)
-    local enrage_data = me:get_buff_data(spells.BUFF_ENRAGE)
+    local flurry_data = buff_manager:get_buff_data(me, spells.BUFF_FLURRY)
+    local enrage_data = buff_manager:get_buff_data(me, spells.BUFF_ENRAGE)
     local flurry_active = flurry_data and flurry_data.is_active or false
     local enrage_active = enrage_data and enrage_data.is_active or false
 
@@ -2111,7 +2277,21 @@ end
 -- ── register callbacks ──────────────────────────────────────────────────────
 core.register_on_update_callback(on_update)
 core.register_on_spell_cast_callback(on_spell_cast)
-core.register_on_render_callback(on_render)
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxwarriorfury_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 

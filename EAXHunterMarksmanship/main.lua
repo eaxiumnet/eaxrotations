@@ -8,18 +8,34 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type creature_utils
+local creature_utils = require("creature_utils")
+
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("marksmanship")
 ---@type ttd_tracker
-local ttd_tracker = require("common/eax_shared/ttd_tracker")
+local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local runtime = {
     auto_shot_id = nil,
@@ -33,13 +49,15 @@ local runtime = {
     aspect_hawk_id = nil,
     aspect_monkey_id = nil,
     raptor_strike_id = nil,
+    mend_pet_id = nil,
     last_cast_time = 0,
     cached_mode = "solo",
     prev_toggle_state = false,
     last_spell_refresh = 0,
+    set_multiplier = 1.0,
 }
 
-local GCD_INTERVAL = 0.05
+local GCD_INTERVAL = 1.5  -- actual TBC GCD duration
 local MODE_REFRESH_INTERVAL = 4.5
 local SPELL_REFRESH_INTERVAL = 1.0
 
@@ -61,10 +79,56 @@ local function resolve_spells()
     runtime.aspect_hawk_id = utils.resolve_spell_id(spells.ASPECT_OF_THE_HAWK)
     runtime.aspect_monkey_id = utils.resolve_spell_id(spells.ASPECT_OF_THE_MONKEY)
     runtime.raptor_strike_id = utils.resolve_spell_id(spells.RAPTOR_STRIKE)
+    runtime.mend_pet_id = utils.resolve_spell_id(spells.MEND_PET)
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Hunter Marksmanship] Resolved: AimedShot=" .. tostring(runtime.aimed_shot_id)
+    
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Hunter"
+    local _eax_spec  = "Marksmanship"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
+core.log("[EAX Hunter Marksmanship] Resolved: AimedShot=" .. tostring(runtime.aimed_shot_id)
         .. " MultiShot=" .. tostring(runtime.multi_shot_id)
         .. " SteadyShot=" .. tostring(runtime.steady_shot_id)
         .. " ArcaneShot=" .. tostring(runtime.arcane_shot_id)
@@ -73,6 +137,27 @@ end
 
 resolve_spells()
 log_resolved_spells()
+
+local function update_set_bonus()
+    local me = core.object_manager.get_local_player()
+    if not me then return end
+    
+    local cryptstalker_mult = utils.get_set_multiplier(me, "Cryptstalker")
+    local cryptstalker_battlegear_mult = utils.get_set_multiplier(me, "CryptstalkerBattlegear")
+    local cryptstalker_vindication_mult = utils.get_set_multiplier(me, "CryptstalkerVindication")
+    
+    runtime.set_multiplier = cryptstalker_mult
+    if cryptstalker_battlegear_mult > runtime.set_multiplier then
+        runtime.set_multiplier = cryptstalker_battlegear_mult
+    end
+    if cryptstalker_vindication_mult > runtime.set_multiplier then
+        runtime.set_multiplier = cryptstalker_vindication_mult
+    end
+    
+    if runtime.set_multiplier > 1.0 then
+        utils.log_debug(menu, "Set bonus: " .. tostring(runtime.set_multiplier))
+    end
+end
 
 local function detect_mode()
     local objects = core.object_manager.get_visible_objects()
@@ -110,13 +195,13 @@ local function has_buff(spell_id)
     if not spell_id then return false end
     local me = core.object_manager.get_local_player()
     if not me then return false end
-    local buff = me:get_buff_data(spell_id)
+    local buff = buff_manager:get_buff_data(me, {spell_id})
     return buff and buff.is_active
 end
 
 local function has_debuff(spell_id, target)
     if not spell_id or not target then return false end
-    local debuff = target:get_debuff_data(spell_id)
+    local debuff = buff_manager:get_debuff_data(target, {spell_id})
     return debuff and debuff.is_active
 end
 
@@ -181,6 +266,36 @@ local function start_auto_attack()
     end
 end
 
+
+-- ─── Auto Shot clip buffer (v1.3) ────────────────────────────────────────
+-- Prevents instant casts from clipping the auto shot timing.
+-- auto_shot_eta_ms: time until next auto shot fires
+-- Returns true if it is safe to cast an instant right now.
+
+local AUTO_SHOT_CLIP_BUFFER_MS = 200   -- 200ms safety margin
+
+local function get_auto_shot_eta_ms(me)
+    -- Use the auto-attack helper if available
+    if me and me.get_auto_attack_timer_ms then
+        local ok, val = pcall(function() return me:get_auto_attack_timer_ms() end)
+        if ok and type(val) == "number" then return val end
+    end
+    -- Fallback: assume safe
+    return 9999
+end
+
+local function allow_instant(me)
+    local eta = get_auto_shot_eta_ms(me)
+    return eta > AUTO_SHOT_CLIP_BUFFER_MS
+end
+
+local function allow_cast(me, cast_ms)
+    if me and me.is_moving and me:is_moving() then return false end
+    local eta = get_auto_shot_eta_ms(me)
+    return eta > (cast_ms + AUTO_SHOT_CLIP_BUFFER_MS)
+end
+
+
 local function try_hunters_mark(target)
     if not menu.use_hunters_mark:get_state() then return false end
     if not runtime.hunters_mark_id then return false end
@@ -227,6 +342,7 @@ local function try_aimed_shot(target)
     if not can_cast(runtime.aimed_shot_id, target) then return false end
     if cast_spell(runtime.aimed_shot_id, target) then
         utils.log_debug(menu, "Aimed Shot cast")
+                esp_renderer.on_cast(nil, "Aimed Shot", color.green(220))
         return true
     end
     return false
@@ -240,12 +356,14 @@ local function try_steady_shot(target)
     if not can_cast(runtime.steady_shot_id, target) then return false end
     if cast_spell(runtime.steady_shot_id, target) then
         utils.log_debug(menu, "Steady Shot cast")
+                esp_renderer.on_cast(nil, "Steady Shot", color.cyan(220))
         return true
     end
     return false
 end
 
 local function try_multi_shot(target)
+    if enc and not enc.aoe_safe then return false end
     if not menu.use_multi_shot:get_state() then return false end
     if not runtime.multi_shot_id then return false end
     local mode = get_active_mode()
@@ -318,14 +436,150 @@ local function try_feign_death(me)
 end
 
 
+
+-- ─── Mend Pet — pet healing (v1.8.2) ─────────────────────────────────────
+
+local function try_mend_pet(me)
+    if not menu.use_mend_pet:get_state() then return false end
+    if not runtime.mend_pet_id then return false end
+    local pet = core.pet.get_pet()
+    if not pet or pet:is_dead() then return false end
+    local pet_hp = pet:get_health_percentage()
+    if pet_hp > menu.mend_pet_hp_pct:get() then return false end
+    if me:is_moving() then return false end
+    if not utils.can_cast_self(runtime.mend_pet_id, me) then return false end
+    if utils.cast_self(runtime.mend_pet_id, me) then
+        utils.log_debug(menu, "Mend Pet")
+        return true
+    end
+    return false
+end
+
+-- ─── Scorpid / Viper Sting situational use (v1.4) ────────────────────────
+
+local function try_scorpid_sting(target)
+    if not runtime.scorpid_sting_id then return false end
+    if not menu.use_scorpid_sting or not menu.use_scorpid_sting:get_state() then return false end
+    if utils.has_debuff(target, spells.DEBUFF_SCORPID_STING) then return false end
+    -- Only use in dungeon/raid (debuffs matter there)
+    local mode = get_active_mode()
+    if mode == "solo" then return false end
+    if not allow_instant(core.object_manager.get_local_player()) then return false end
+    if not can_cast(runtime.scorpid_sting_id, target) then return false end
+    if cast_spell(runtime.scorpid_sting_id, target) then
+        utils.log_debug(menu, "Scorpid Sting")
+        return true
+    end
+    return false
+end
+
+local function try_viper_sting(target)
+    if not runtime.viper_sting_id then return false end
+    if not menu.use_viper_sting or not menu.use_viper_sting:get_state() then return false end
+    if utils.has_debuff(target, spells.DEBUFF_VIPER_STING) then return false end
+    -- Only use on mana-using targets (casters)
+    if not allow_instant(core.object_manager.get_local_player()) then return false end
+    if not can_cast(runtime.viper_sting_id, target) then return false end
+    if cast_spell(runtime.viper_sting_id, target) then
+        utils.log_debug(menu, "Viper Sting")
+        return true
+    end
+    return false
+end
+
+-- ─── Rapid Fire (v1.4) ────────────────────────────────────────────────────
+
+local function try_rapid_fire(me)
+    if enc and enc.hold_cooldowns then return false end
+    if not runtime.rapid_fire_id then return false end
+    if not menu.use_rapid_fire or not menu.use_rapid_fire:get_state() then return false end
+    if not me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.BUFF_RAPID_FIRE) then return false end
+    if not can_cast(runtime.rapid_fire_id, "player") then return false end
+    if cast_spell(runtime.rapid_fire_id, "player") then
+        utils.log_debug(menu, "Rapid Fire")
+        return true
+    end
+    return false
+end
+
+-- ─── Intimidation (BM only) (v1.4) ────────────────────────────────────────
+
+local function try_intimidation(me, target)
+    if not runtime.intimidation_id then return false end
+    if not menu.use_intimidation or not menu.use_intimidation:get_state() then return false end
+    if not pet_is_alive() then return false end
+    if not allow_instant(me) then return false end
+    if not can_cast(runtime.intimidation_id, target) then return false end
+    if cast_spell(runtime.intimidation_id, target) then
+        utils.log_debug(menu, "Intimidation")
+        return true
+    end
+    return false
+end
+
+-- ─── Aspect of the Viper — mana recovery (v1.4) ───────────────────────────
+
+local function try_aspect_of_viper(me)
+    -- Switch to Viper when OOM, back to Hawk when full
+    if not runtime.viper_aspect_id then return false end
+    if not menu.use_aspect_viper or not menu.use_aspect_viper:get_state() then return false end
+    local mana_pct = utils.get_mana_pct(me)
+    local has_viper = utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER)
+    if has_viper and mana_pct >= 0.90 then
+        -- Switch back to Hawk when mana recovered
+        if runtime.aspect_hawk_id and can_cast(runtime.aspect_hawk_id, "player") then
+            cast_spell(runtime.aspect_hawk_id, "player")
+        end
+        return false
+    end
+    if not has_viper and mana_pct < 0.20 then
+        if can_cast(runtime.viper_aspect_id, "player") then
+            cast_spell(runtime.viper_aspect_id, "player")
+            utils.log_debug(menu, "Aspect of the Viper (low mana)")
+            return true
+        end
+    end
+    return false
+end
+
+
+
+local function try_execute_opener(me, target)
+    if me:is_in_combat() then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if pet_is_alive() then do_pet_attack(target) end
+    if try_hunters_mark(target) then return true end
+    if not me:is_auto_attacking and not me:is_auto_attacking() then
+        if core.input and core.input.start_attack then
+            core.input.start_attack(target)
+        end
+    end
+    return false
+end
+
+
 local function do_rotation(me, target)
     if is_busy() then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
 
+    -- Pre-combat opener
+    try_execute_opener(me, target)
     if try_feign_death(me) then return true end
     if try_disengage(me, target) then return true end
+    try_aspect_of_viper(me)
+    try_rapid_fire(me)
     
     -- Interrupt
+
+    -- Mana conservation (leveling 1-70)
+    if leveling_manager.is_conserving_mana(me, menu) then
+        leveling_manager.ensure_melee(me, target)
+    end
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
+
     -- Interrupt
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "hunter", utils) then
@@ -354,6 +608,8 @@ local function do_rotation(me, target)
     
     if menu.use_hunters_mark:get_state() then
         if try_hunters_mark(target) then return true end
+    if try_scorpid_sting(target) then return true end
+    if try_viper_sting(target) then return true end
     end
     
     if dist <= 40 then
@@ -375,6 +631,12 @@ local function do_rotation(me, target)
         start_auto_attack()
     end
     
+    -- Ranged auto-attack fallback for leveling 1-70 (Hunter)
+    if me:is_in_combat() and target and target:is_valid() and not target:is_dead()
+       and me:can_attack(target) and not me:is_moving() then
+        leveling_manager.ensure_ranged(me, target)
+    end
+
     return false
 end
 
@@ -399,6 +661,10 @@ local function on_update()
         runtime.cached_mode = detect_mode()
     end
     
+    if utils.throttle("set_bonus", 5.0) then
+        update_set_bonus()
+    end
+    
     handle_toggle()
     
     if not menu.enabled:get_state() then
@@ -409,6 +675,7 @@ local function on_update()
     if not me or me:is_dead() then
         return
     end
+    if eax_utils.is_eating_or_drinking(me) then return end
     
     local target = me:get_target()
     
@@ -461,7 +728,27 @@ local function on_control_panel()
     return elements
 end
 
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxhuntermarksmanship_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 

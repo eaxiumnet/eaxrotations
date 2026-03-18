@@ -1,13 +1,29 @@
 -- utils.lua
 -- EAX Shaman Restoration | Helpers for heals and party tracking
 
-local enums = require("common/enums")
 ---@type spell_queue
 local spell_queue = require("common/modules/spell_queue")
----@type spell_helper
-local spell_helper = require("common/utility/spell_helper")
----@type unit_helper
-local unit_helper = require("common/utility/unit_helper")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
+-- spell_helper / unit_helper: inline replacements using core.* APIs
+local spell_helper = {
+    is_spell_castable = function(self, spell_id, caster, target, check_gcd, check_range)
+        if not spell_id then return false end
+        if not core.spell_book.is_spell_learned(spell_id) then return false end
+        if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
+        if not core.spell_book.is_usable_spell(spell_id) then return false end
+        return true
+    end,
+}
+local unit_helper = {
+    get_health_percentage = function(self, unit)
+        if not unit or not unit:is_valid() then return 0 end
+        local hp = unit:get_health()
+        local max_hp = unit:get_max_health()
+        if not max_hp or max_hp <= 0 then return 0 end
+        return hp / max_hp
+    end,
+}
 
 local utils = {}
 
@@ -25,10 +41,10 @@ end
 
 -- ─── Spell resolution ────────────────────────────────────────────────────────
 
--- Walk rank table from lowest to highest rank and return the first learned ID.
+-- Walk rank table from highest to lowest rank and return the first learned ID.
 function utils.resolve_spell_id(rank_table)
     if not rank_table then return nil end
-    for i = #rank_table, 1, -1 do
+    for i = 1, #rank_table do
         local spell_id = rank_table[i]
         if spell_id and core.spell_book.is_spell_learned(spell_id) then
             return spell_id
@@ -50,8 +66,8 @@ end
 
 function utils.get_mana_pct(unit)
     if not unit or not unit:is_valid() then return 0 end
-    local current = unit:get_power(enums.power_type.MANA)
-    local maximum = unit:get_max_power(enums.power_type.MANA)
+    local current = unit:get_power(0)
+    local maximum = unit:get_max_power(0)
     if not maximum or maximum <= 0 then return 0 end
     return current / maximum
 end
@@ -62,14 +78,14 @@ end
 -- Returns true if any ID in id_table is an active buff on unit.
 function utils.has_buff(unit, id_table)
     if not unit or not unit:is_valid() or not id_table then return false end
-    local data = unit:get_buff_data(id_table)
+    local data = buff_manager:get_buff_data(unit, id_table)
     return data ~= nil and data.is_active
 end
 
 -- Returns remaining duration in SECONDS (converts from ms internally).
 function utils.get_buff_remaining_s(unit, id_table)
     if not unit or not unit:is_valid() or not id_table then return 0 end
-    local data = unit:get_buff_data(id_table)
+    local data = buff_manager:get_buff_data(unit, id_table)
     if data and data.is_active then
         return (data.remaining or 0) / 1000.0
     end
@@ -79,7 +95,9 @@ end
 -- Returns true if any ID in id_table is an active debuff on unit.
 function utils.has_debuff(unit, id_table)
     if not unit or not unit:is_valid() or not id_table then return false end
-    local data = unit:get_debuff_data(id_table)
+    local data = buff_manager:get_debuff_data(unit, id_table)
+    if data and data.is_active then return true end
+    data = buff_manager:get_aura_data(unit, id_table)
     return data ~= nil and data.is_active
 end
 
@@ -159,6 +177,97 @@ function utils.log_debug(menu_module, message)
     if menu_module and menu_module.debug and menu_module.debug:get_state() then
         core.log("[EAX Shaman Restoration] " .. tostring(message))
     end
+end
+
+-- Set bonus detection
+local INVENTORY_SLOT_HEAD = 0
+local INVENTORY_SLOT_NECK = 1
+local INVENTORY_SLOT_SHOULDER = 2
+local INVENTORY_SLOT_CHEST = 4
+local INVENTORY_SLOT_WAIST = 5
+local INVENTORY_SLOT_LEGS = 6
+local INVENTORY_SLOT_FEET = 7
+local INVENTORY_SLOT_WRIST = 8
+local INVENTORY_SLOT_HAND = 9
+local INVENTORY_SLOT_FINGER = 10
+local INVENTORY_SLOT_TRINKET_1 = 12
+local INVENTORY_SLOT_TRINKET_2 = 13
+local INVENTORY_SLOT_BACK = 14
+local INVENTORY_SLOT_MAINHAND = 15
+local INVENTORY_SLOT_OFFHAND = 16
+local INVENTORY_SLOT_RANGED = 18
+
+local ALL_EQUIP_SLOTS = {
+    INVENTORY_SLOT_HEAD, INVENTORY_SLOT_NECK, INVENTORY_SLOT_SHOULDER,
+    INVENTORY_SLOT_CHEST, INVENTORY_SLOT_WAIST, INVENTORY_SLOT_LEGS,
+    INVENTORY_SLOT_FEET, INVENTORY_SLOT_WRIST, INVENTORY_SLOT_HAND,
+    INVENTORY_SLOT_FINGER, INVENTORY_SLOT_TRINKET_1, INVENTORY_SLOT_TRINKET_2,
+    INVENTORY_SLOT_BACK, INVENTORY_SLOT_MAINHAND, INVENTORY_SLOT_OFFHAND, INVENTORY_SLOT_RANGED
+}
+
+local TBC_SETS = {
+    ["Cyclone"] = {
+        items = { 29080, 29081, 29082, 29083, 29084 },
+        bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
+    },
+    ["Cataclysm"] = {
+        items = { 30236, 30237, 30238, 30239, 30240 },
+        bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
+    },
+    ["Skyshatter"] = {
+        items = { 31032, 31033, 31034, 31035, 31036 },
+        bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
+    },
+}
+
+local function get_item_id_in_slot(me, slot_id)
+    if not me then return nil end
+    local ok, slot_info = pcall(function() return me:get_item_at_inventory_slot(slot_id) end)
+    if not ok or not slot_info or not slot_info.object then return nil end
+    local item = slot_info.object
+    if not item or not item.is_valid or not item:is_valid() then return nil end
+    local item_id = item.get_item_id and item:get_item_id()
+    return item_id
+end
+
+local function get_equipped_items(me)
+    local items = {}
+    for _, slot in ipairs(ALL_EQUIP_SLOTS) do
+        local item_id = get_item_id_in_slot(me, slot)
+        if item_id and item_id > 0 then
+            table.insert(items, item_id)
+        end
+    end
+    return items
+end
+
+function utils.get_set_multiplier(me, set_name)
+    if not me then return 1.0 end
+    
+    local set_def = TBC_SETS[set_name]
+    if not set_def or not set_def.items or not set_def.bonuses then
+        return 1.0
+    end
+    
+    local items = get_equipped_items(me)
+    local count = 0
+    
+    for _, item_id in ipairs(items) do
+        for _, set_item_id in ipairs(set_def.items) do
+            if item_id == set_item_id then
+                count = count + 1
+                break
+            end
+        end
+    end
+    
+    if count >= 4 and set_def.bonuses["4"] then
+        return set_def.bonuses["4"]
+    elseif count >= 2 and set_def.bonuses["2"] then
+        return set_def.bonuses["2"]
+    end
+    
+    return 1.0
 end
 
 return utils

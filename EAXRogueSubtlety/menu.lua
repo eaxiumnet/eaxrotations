@@ -1,64 +1,117 @@
--- EAX Rogue Subtlety | menu.lua
+-- ╔══════════════════════════════════════════════════════════════════╗
+-- ║  Eax's Rogue Subtlety
+-- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
+-- ╚══════════════════════════════════════════════════════════════════╝
 
+local ps   = require("ps_theme")
 local menu = {}
 
-local tree = core.menu.tree_node()
-local opener_tree = core.menu.tree_node()
-local rotation_tree = core.menu.tree_node()
-local cooldowns_tree = core.menu.tree_node()
+-- ── Tree nodes ────────────────────────────────────────────────────────────────
+local root_tree    = ps.tree_node()
+local main_tree    = ps.tree_node()
+local def_tree     = ps.tree_node()
+local tgt_tree     = ps.tree_node()
+local racial_tree  = ps.tree_node()
+local ooc_tree     = ps.tree_node()
+local esp_tree     = ps.tree_node()
 
-menu.enabled = core.menu.checkbox(true, "eaxroguesubtlety_enabled")
-menu.toggle_key = core.menu.keybind(7, false, "eaxroguesubtlety_toggle_key")
-menu.mode = core.menu.combobox(1, "eaxroguesubtlety_mode")
-menu.debug = core.menu.checkbox(false, "eaxroguesubtlety_debug")
+-- ── Shared plugin controls + shared fields ────────────────────────────────────
+-- Controls
+menu.enabled                             = core.menu.checkbox(true, "eaxroguesubtlety_enabled")
+menu.toggle_key                          = core.menu.keybind(7, false, "eaxroguesubtlety_toggle_key")
+menu.mode                                = core.menu.combobox(1, "eaxroguesubtlety_mode")
+menu.debug                               = core.menu.checkbox(false, "eaxroguesubtlety_debug")
+-- Targeting
+menu.focus_priority                      = core.menu.checkbox(false, "eaxroguesubtlety_focus_priority")
+menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxroguesubtlety_combat_self_hp_boost")
+-- Racial
+menu.use_racial                          = core.menu.checkbox(true, "eaxroguesubtlety_use_racial")
+menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxroguesubtlety_racial_hp")
+-- OOC
+menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
+menu.ooc_eat                             = core.menu.checkbox(true,  "eax_ooc_eat")
+menu.ooc_rez                             = core.menu.checkbox(true,  "eax_ooc_rez")
+menu.ooc_group_buff                      = core.menu.checkbox(true,  "eax_ooc_group_buff")
+menu.drink_threshold                     = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
+menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
+-- Leveling
+menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxroguesubtlety_lev_conserve")
+menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxroguesubtlety_lev_mana_floor")
+-- ESP
+menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
+menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
+menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
+menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
-menu.use_premeditation = core.menu.checkbox(true, "eaxroguesubtlety_use_premeditation")
-menu.use_cheap_shot = core.menu.checkbox(true, "eaxroguesubtlety_use_cheap_shot")
-menu.use_ambush = core.menu.checkbox(true, "eaxroguesubtlety_use_ambush")
-menu.use_backstab = core.menu.checkbox(true, "eaxroguesubtlety_use_backstab")
-menu.use_hemorrhage = core.menu.checkbox(true, "eaxroguesubtlety_use_hemorrhage")
-menu.use_slice_and_dice = core.menu.checkbox(true, "eaxroguesubtlety_use_slice_and_dice")
-menu.use_rupture = core.menu.checkbox(true, "eaxroguesubtlety_use_rupture")
-menu.use_eviscerate = core.menu.checkbox(true, "eaxroguesubtlety_use_eviscerate")
-menu.use_shadowstep = core.menu.checkbox(true, "eaxroguesubtlety_use_shadowstep")
-menu.use_preparation = core.menu.checkbox(true, "eaxroguesubtlety_use_preparation")
+-- ── Class-specific elements ───────────────────────────────────────────────────
+menu.use_premeditation                    = core.menu.checkbox(true, "eaxroguesubtlety_use_premeditation")
+menu.use_cheap_shot                       = core.menu.checkbox(true, "eaxroguesubtlety_use_cheap_shot")
+menu.use_ambush                           = core.menu.checkbox(true, "eaxroguesubtlety_use_ambush")
+menu.use_backstab                         = core.menu.checkbox(true, "eaxroguesubtlety_use_backstab")
+menu.use_hemorrhage                       = core.menu.checkbox(true, "eaxroguesubtlety_use_hemorrhage")
+menu.use_slice_and_dice                   = core.menu.checkbox(true, "eaxroguesubtlety_use_slice_and_dice")
+menu.use_rupture                          = core.menu.checkbox(true, "eaxroguesubtlety_use_rupture")
+menu.use_eviscerate                       = core.menu.checkbox(true, "eaxroguesubtlety_use_eviscerate")
+menu.use_shadowstep                       = core.menu.checkbox(true, "eaxroguesubtlety_use_shadowstep")
+menu.use_preparation                      = core.menu.checkbox(true, "eaxroguesubtlety_use_preparation")
+menu.snd_refresh_seconds                  = core.menu.slider_int(1, 6, 3, "eaxroguesubtlety_snd_refresh_seconds")
+menu.finisher_combo_points                = core.menu.slider_int(3, 5, 4, "eaxroguesubtlety_finisher_combo_points")
 
-menu.snd_refresh_seconds = core.menu.slider_int(1, 6, 3, "eaxroguesubtlety_snd_refresh_seconds")
-menu.finisher_combo_points = core.menu.slider_int(3, 5, 4, "eaxroguesubtlety_finisher_combo_points")
+-- ════════════════════════════════════════════════════════════════════════════
+-- RENDER  — called every frame by core.register_on_render_menu_callback
+-- The window object is injected via menu.set_window(win) in main.lua
+-- ════════════════════════════════════════════════════════════════════════════
+
+local _win  -- set once from main.lua via menu.set_window(win)
+
+function menu.set_window(win)
+    _win = win
+end
 
 function menu.render()
-    tree:render("EAX Rogue Subtlety", function()
-        menu.enabled:render("Enabled", "Master toggle")
-        menu.toggle_key:render("Toggle Key", "Toggle the plugin on or off")
-        menu.mode:render("Mode", { "Auto", "Solo", "Dungeon", "Raid" }, "Auto uses party detection")
-        menu.debug:render("Debug Logging", "Print rotation decisions")
+    if _win and root_tree:is_open() then
+        -- Draw animated space background BEFORE imgui elements
+        ps.draw_space(_win, "eaxroguesubtlety")
+    end
 
-        opener_tree:render("Stealth Openers", function()
+    root_tree:render("  Eax's Rogue Subtlety", function()
+
+        ps.render_controls(menu, "Eax's Rogue Subtlety")
+
+        -- ── Class-specific settings ───────────────────────────────────────────
+        main_tree:render("  Eax's Rotation Settings", function()
+            ps.header("Spells & Abilities")
             menu.use_premeditation:render("Premeditation", "Build combo points before the opener")
             menu.use_cheap_shot:render("Cheap Shot", "Preferred control opener in dungeon and raid")
             menu.use_ambush:render("Ambush", "Fallback stealth damage opener")
-        end)
-
-        rotation_tree:render("Combat Rotation", function()
             menu.use_backstab:render("Backstab", "Primary behind-target builder")
             menu.use_hemorrhage:render("Hemorrhage", "Fallback builder when Backstab is not ideal")
             menu.use_slice_and_dice:render("Slice and Dice", "Maintain Slice and Dice before burst finishers")
             menu.use_rupture:render("Rupture", "Sustained finisher")
             menu.use_eviscerate:render("Eviscerate", "Burst finisher")
+            menu.use_shadowstep:render("Shadowstep", "Close gaps for stealth-style burst windows")
+            menu.use_preparation:render("Preparation", "Reset stealth tools in raid-style burst windows")
             menu.snd_refresh_seconds:render("SnD Refresh", "Refresh Slice and Dice below this many seconds")
             menu.finisher_combo_points:render("Finisher CP", "Minimum combo points before finishers")
         end)
 
-        cooldowns_tree:render("Burst Tools", function()
-            menu.use_shadowstep:render("Shadowstep", "Close gaps for stealth-style burst windows")
-            menu.use_preparation:render("Preparation", "Reset stealth tools in raid-style burst windows")
-        end)
-        
-        menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, "eaxroguesubtlety_combat_self_hp_boost")
-        menu.focus_priority = core.menu.checkbox(false, "eaxroguesubtlety_focus_priority")
-        
-        menu.combat_self_hp_boost:render("Combat Self HP Boost %", "Additional self-heal threshold when in combat")
-        menu.focus_priority:render("Focus Target Priority", "Prioritize targeting your focus target")
+        -- ── Defensive cooldowns ───────────────────────────────────────────────
+        ps.render_defensive(menu, def_tree, {
+        -- (none detected)
+        })
+
+        -- ── Targeting ────────────────────────────────────────────────────────
+        ps.render_targeting(menu, tgt_tree)
+
+        -- ── Racial ────────────────────────────────────────────────────────────
+        ps.render_racial(menu, racial_tree)
+
+        -- ── Out-of-combat ─────────────────────────────────────────────────────
+        ps.render_ooc(menu, ooc_tree, false)
+
+        -- ── Display & HUD ─────────────────────────────────────────────────────
+        ps.render_esp(menu, esp_tree)
+
     end)
 end
 

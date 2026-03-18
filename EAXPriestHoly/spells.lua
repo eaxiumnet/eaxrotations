@@ -41,4 +41,7 @@ spells.SUPER_MANA_POTION = { 28499, 22828 }
 spells.SCROLL_OF_INTELLECT = { 22732, 10291 }
 spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 
+
+spells.RESURRECTION     = { 27185, 10881, 2006, 2010 }
+
 return spells

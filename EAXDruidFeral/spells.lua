@@ -59,4 +59,10 @@ spells.SUPER_MANA_POTION = { 28499, 22828 }
 spells.SCROLL_OF_AGILITY = { 22730, 10290 }
 spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 
+
+spells.LACERATE          = { 48568, 48567, 33745 }
+spells.DEBUFF_LACERATE   = { 48568, 48567, 33745 }
+
+spells.REBIRTH           = { 26994, 20748, 20748, 20910, 20909, 20484 }
+
 return spells

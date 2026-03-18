@@ -7,11 +7,28 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type creature_utils
+local creature_utils = require("creature_utils")
+
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("restoration")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
+
+---@type ttd_tracker
+local ttd_tracker = require("ttd_tracker")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -19,6 +36,7 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
+    rebirth_id = nil,
     mark_of_the_wild_id = nil,
     lifebloom_id = nil,
     rejuvenation_id = nil,
@@ -32,11 +50,12 @@ local runtime = {
     last_cast_time = 0,
     cached_mode = "solo",
     pending_casts = {},
+    set_multiplier = 1.0,
 }
 
 local GROUP_ROLE_TANK = 0
-local GCD_CAST_INTERVAL = 0.05
-local PENDING_CAST_TIMEOUT_S = 1.25
+local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
+local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 local function resolve_spells()
@@ -49,6 +68,7 @@ local function resolve_spells()
     runtime.innervate_id = utils.resolve_spell_id(spells.INNERVATE)
     runtime.tranquility_id = utils.resolve_spell_id(spells.TRANQUILITY)
     runtime.natures_swiftness_id = utils.resolve_spell_id(spells.NATURES_SWIFTNESS)
+    runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
 end
 
 local function log_resolved_spells()
@@ -57,6 +77,13 @@ local function log_resolved_spells()
         .. " Regrowth=" .. tostring(runtime.regrowth_id)
         .. " WildGrowth=" .. tostring(runtime.wild_growth_id)
         .. " Swiftmend=" .. tostring(runtime.swiftmend_id))
+end
+
+local function update_set_bonus(me)
+    local nordrassil_mult = utils.get_set_multiplier(me, "Nordrassil")
+    local nordrassil_harness_mult = utils.get_set_multiplier(me, "NordrassilHarness")
+    local malorne_mult = utils.get_set_multiplier(me, "Malorne")
+    runtime.set_multiplier = math.max(nordrassil_mult, nordrassil_harness_mult, malorne_mult)
 end
 
 resolve_spells()
@@ -315,6 +342,7 @@ local function try_lifebloom(me, tank)
         mark_pending_cast(runtime.lifebloom_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Lifebloom on " .. (tank.get_name and tank:get_name() or "tank") .. " (stacks=" .. tostring(stacks) .. ")")
         note_cast()
+                esp_renderer.on_cast(nil, "Lifebloom", color.cyan(220))
         return true
     end
 
@@ -333,6 +361,7 @@ local function try_rejuvenation(me, target, target_hp_pct)
         mark_pending_cast(runtime.rejuvenation_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Rejuvenation on " .. (target.get_name and target:get_name() or "target"))
         note_cast()
+                esp_renderer.on_cast(nil, "Rejuvenation", color.green(220))
         return true
     end
 
@@ -352,6 +381,7 @@ local function try_regrowth(me, target, target_hp_pct, mana_pct)
         mark_pending_cast(runtime.regrowth_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Regrowth on " .. (target.get_name and target:get_name() or "target"))
         note_cast()
+                esp_renderer.on_cast(nil, "Regrowth", color.gold(220))
         return true
     end
 
@@ -396,9 +426,26 @@ local function do_rotation(me)
     if heal_target and try_rejuvenation(me, heal_target, heal_target_hp_pct) then return true end
     if heal_target and try_regrowth(me, heal_target, heal_target_hp_pct, mana_pct) then return true end
 
+    -- Leveling fallback: wand at enemy target when mana is low
+    if me:is_in_combat() and target and target:is_valid()
+       and not target:is_dead() and me:can_attack(target) then
+        leveling_manager.try_wand(me, target, menu)
+    end
+
     return false
 end
 
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
     local me = core.object_manager.get_local_player()
     if not me then return end
@@ -416,23 +463,58 @@ core.register_on_update_callback(function()
         end
     end
 
+
+    -- Mana conservation (leveling 1-70)
+    if leveling_manager.is_conserving_mana(me, menu) then
+        leveling_manager.ensure_melee(me, target)
+    end
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
+
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "druid", utils) then
         return
     end
 
+    ttd_tracker.update(target)
+
     if utils.throttle("eaxdruidrestoration_mode_refresh", 5.0) then
         runtime.cached_mode = detect_mode(me)
+    end
+
+    if utils.throttle("eaxdruidrestoration_set_bonus", 10.0) then
+        update_set_bonus(me)
     end
 
     handle_toggle()
 
     if not menu.enabled:get_state() then return end
+
+    -- OOC management (drink/eat/rez/group buffs)
+    ooc_manager.on_update(me, menu, utils, {
+        rez_spell_id = runtime.rebirth_id,
+        group_buffs = {
+            { spell_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD),
+               buff_ids = spells.BUFF_MARK_OF_THE_WILD,
+               name = "Mark Of The Wild",
+               toggle = menu.ooc_group_buff },
+        },
+    })
     if me:is_dead() then return end
+    if eax_utils.is_eating_or_drinking(me) then return end
 
     do_rotation(me)
 end)
 
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxdruidrestoration_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
@@ -444,5 +526,50 @@ core.register_on_render_control_panel_callback(function()
     control_panel_utility:insert_toggle_(control_panel_elements, enable_toggle_name, menu.toggle_key)
     return control_panel_elements
 end)
+
+
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Druid"
+    local _eax_spec  = "Restoration"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
 
 core.log("[EAX Druid Restoration] Loaded v1.0.0")

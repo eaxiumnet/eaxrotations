@@ -8,18 +8,31 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("arms")
 ---@type ttd_tracker
-local ttd_tracker = require("common/eax_shared/ttd_tracker")
+local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local MODE_REFRESH_INTERVAL_S = 5
 local MISSING_SPELL_REFRESH_INTERVAL_S = 1.0
@@ -46,6 +59,7 @@ local runtime = {
     charge_id = nil,
     death_wish_id = nil,
     recklessness_id = nil,
+    berserker_rage_id = nil,
     sweeping_strikes_id = nil,
     enraged_regen_id = nil,
     stance_swap_retention = 10,
@@ -53,7 +67,9 @@ local runtime = {
     mode_cache_refreshed_at = 0,
     last_spell_refresh_at = 0,
     ww_pending_return = false,
+    pending_battle_stance_return = false,
     prev_toggle_state = false,
+    set_multiplier = 1.0,
 }
 
 local RUNTIME_SPELL_SPECS = {
@@ -135,6 +151,19 @@ local function refresh_mode_cache()
     runtime.mode_cache_refreshed_at = now
 end
 
+local function update_set_bonus(me)
+    if not me then return end
+    local best_multiplier = 1.0
+    local set_names = { "Warbringer", "WarbringerBattlegear", "Ymirjar" }
+    for _, set_name in ipairs(set_names) do
+        local multiplier = utils.get_set_multiplier(me, set_name)
+        if multiplier > best_multiplier then
+            best_multiplier = multiplier
+        end
+    end
+    runtime.set_multiplier = best_multiplier
+end
+
 local function get_effective_mode()
     local idx = menu.mode:get()
     if idx == 2 then return "solo" end
@@ -178,7 +207,7 @@ local function get_debuff_stack(target, id_table)
     if not target or not id_table then
         return 0
     end
-    local data = target:get_debuff_data(id_table)
+    local data = buff_manager:get_debuff_data(target, id_table)
     if data and data.is_active then
         return data.count or 0
     end
@@ -327,6 +356,7 @@ local function try_mortal_strike(me, target, rage)
 
     if utils.cast_target(runtime.mortal_strike_id, me, target) then
         utils.log_debug(menu, "Mortal Strike")
+                esp_renderer.on_cast(runtime.mortal_strike_id, "Mortal Strike", color.red(220))
         return true
     end
 
@@ -345,6 +375,7 @@ local function try_execute(me, target, rage, target_hp_pct)
 
     if utils.cast_target(runtime.execute_id, me, target) then
         utils.log_debug(menu, "Execute")
+                esp_renderer.on_cast(runtime.execute_id, "Execute", color.orange(220))
         return true
     end
 
@@ -352,6 +383,7 @@ local function try_execute(me, target, rage, target_hp_pct)
 end
 
 local function try_whirlwind(me, target, rage)
+    if enc and not enc.aoe_safe then return false end
     if not menu.use_whirlwind:get_state()
         or not target
         or not runtime.whirlwind_id
@@ -434,7 +466,22 @@ end
 
 -- ─── Offensive CDs ────────────────────────────────────────────────────────
 
+
+local function try_berserker_rage(me)
+    if not menu.use_berserker_rage or not menu.use_berserker_rage:get_state() then return false end
+    if not runtime.berserker_rage_id then return false end
+    if not me:is_in_combat() then return false end
+    if not utils.can_cast_self(runtime.berserker_rage_id, me) then return false end
+    if utils.cast_self_fast(runtime.berserker_rage_id, me) then
+        utils.log_debug(menu, "Berserker Rage")
+        return true
+    end
+    return false
+end
+
+
 local function try_death_wish(me)
+    if enc and enc.hold_cooldowns then return false end
     if not menu.use_death_wish or not menu.use_death_wish:get_state() then return false end
     if not runtime.death_wish_id then return false end
     if not me:is_in_combat() then return false end
@@ -448,21 +495,49 @@ local function try_death_wish(me)
 end
 
 local function try_recklessness(me)
+    if enc and enc.hold_cooldowns then return false end
     if not menu.use_recklessness or not menu.use_recklessness:get_state() then return false end
     if not runtime.recklessness_id then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_RECKLESSNESS) then return false end
-    -- Must be in Berserker Stance
-    if not utils.has_buff(me, spells.BUFF_BERSERKER_STANCE) then return false end
+
+    -- Recklessness requires Berserker Stance — dance there and back
+    local in_berserker = utils.has_buff(me, spells.BUFF_BERSERKER_STANCE)
+    if not in_berserker then
+        -- Check we have enough rage to afford the stance swap cost
+        local rage = utils.get_rage(me)
+        if not utils.can_stance_dance_for_cost(rage, 0, 0, runtime.stance_swap_retention) then
+            return false
+        end
+        if runtime.berserker_stance_id
+           and utils.can_cast_self(runtime.berserker_stance_id, me)
+        then
+            utils.cast_self(runtime.berserker_stance_id, me)
+            utils.log_debug(menu, "Stance → Berserker (Recklessness)")
+            note_cast()
+            return true  -- next tick we'll be in Berserker and cast it
+        end
+        return false
+    end
+
     if not utils.can_cast_self(runtime.recklessness_id, me) then return false end
     if utils.cast_self_fast(runtime.recklessness_id, me) then
         utils.log_debug(menu, "Recklessness")
+        esp_renderer.on_cast(runtime.recklessness_id, "Recklessness", color.yellow(220))
+        note_cast()
+        -- Return to Battle Stance after casting
+        if runtime.battle_stance_id and utils.can_cast_self(runtime.battle_stance_id, me) then
+            -- Schedule return on next tick (can't double-cast same tick)
+            runtime.pending_battle_stance_return = true
+        end
         return true
     end
     return false
 end
 
+
 local function try_sweeping_strikes(me)
+    if enc and enc.hold_cooldowns then return false end
     if not menu.use_sweeping_strikes or not menu.use_sweeping_strikes:get_state() then return false end
     if not runtime.sweeping_strikes_id then return false end
     if utils.has_buff(me, spells.BUFF_SWEEPING_STRIKES) then return false end
@@ -528,7 +603,16 @@ local function do_core_lane(me, target, rage, target_hp_pct)
 
     -- Burst cooldowns
     try_death_wish(me)
+    try_berserker_rage(me)
     try_recklessness(me)
+    -- Return to Battle Stance after Recklessness dance
+    if runtime.pending_battle_stance_return and runtime.battle_stance_id then
+        if utils.can_cast_self(runtime.battle_stance_id, me) then
+            utils.cast_self(runtime.battle_stance_id, me)
+            runtime.pending_battle_stance_return = false
+            utils.log_debug(menu, "Stance → Battle (after Recklessness)")
+        end
+    end
     try_sweeping_strikes(me)
 
     if try_overpower(me, target) then
@@ -564,6 +648,7 @@ local function on_update()
     if not me or not me:is_valid() then
         return
     end
+    if eax_utils.is_eating_or_drinking(me) then return end
 
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
@@ -580,6 +665,10 @@ local function on_update()
 
     refresh_missing_runtime_spell_ids()
     refresh_mode_cache()
+
+    if utils.throttle("update_set_bonus", 5.0) then
+        update_set_bonus(me)
+    end
 
     if try_return_to_battle(me) then
         return
@@ -629,8 +718,74 @@ end
 resolve_spells()
 refresh_mode_cache()
 
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxwarriorarms_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 
 return { cleanup = cleanup }
+
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Warrior"
+    local _eax_spec  = "Arms"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
+

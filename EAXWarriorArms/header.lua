@@ -14,8 +14,7 @@ if not local_player then
     return plugin
 end
 
-local enums = require("common/enums")
-if local_player:get_class() ~= enums.class_id.WARRIOR then
+if local_player:get_class() ~= 1 then
     plugin.load = false
     return plugin
 end

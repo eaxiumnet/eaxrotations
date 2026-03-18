@@ -5,6 +5,8 @@
 local auto_attack = require("common/utility/auto_attack_helper")
 ---@type spell_queue
 local spell_queue = require("common/modules/spell_queue")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local utils = {}
 local queue_request_timestamps = {}
@@ -72,7 +74,7 @@ end
 
 function utils.has_buff(unit, id_table)
     if not unit or not id_table then return false end
-    local data = unit:get_buff_data(id_table)
+    local data = buff_manager:get_buff_data(unit, id_table)
     return data ~= nil and data.is_active
 end
 

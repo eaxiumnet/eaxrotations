@@ -2,6 +2,8 @@
 -- Helpers for spell resolution, mode detection, and health/buff utilities.
 
 local spell_queue = require("common/modules/spell_queue")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local MODE_DETECT_INTERVAL_MS = 1500
 
@@ -44,7 +46,7 @@ function utils.get_buff_remaining_ms(unit, ids)
         return 0
     end
 
-    local data = unit:get_buff_data(ids)
+    local data = buff_manager:get_buff_data(unit, ids)
     if data and data.is_active then
         return data.remaining or 0
     end
@@ -242,6 +244,91 @@ function utils.log_debug(menu_ref, message)
     if menu_ref and menu_ref.debug and menu_ref.debug:get_state() and message then
         core.log("[EAX Priest Shadow] " .. message)
     end
+end
+
+local INVENTORY_SLOT_HEAD = 0
+local INVENTORY_SLOT_NECK = 1
+local INVENTORY_SLOT_SHOULDER = 2
+local INVENTORY_SLOT_CHEST = 4
+local INVENTORY_SLOT_WAIST = 5
+local INVENTORY_SLOT_LEGS = 6
+local INVENTORY_SLOT_FEET = 7
+local INVENTORY_SLOT_WRIST = 8
+local INVENTORY_SLOT_HAND = 9
+local INVENTORY_SLOT_FINGER = 10
+local INVENTORY_SLOT_TRINKET_1 = 12
+local INVENTORY_SLOT_TRINKET_2 = 13
+local INVENTORY_SLOT_BACK = 14
+local INVENTORY_SLOT_MAINHAND = 15
+local INVENTORY_SLOT_OFFHAND = 16
+local INVENTORY_SLOT_RANGED = 18
+
+local ALL_EQUIP_SLOTS = {
+    INVENTORY_SLOT_HEAD, INVENTORY_SLOT_NECK, INVENTORY_SLOT_SHOULDER,
+    INVENTORY_SLOT_CHEST, INVENTORY_SLOT_WAIST, INVENTORY_SLOT_LEGS,
+    INVENTORY_SLOT_FEET, INVENTORY_SLOT_WRIST, INVENTORY_SLOT_HAND,
+    INVENTORY_SLOT_FINGER, INVENTORY_SLOT_TRINKET_1, INVENTORY_SLOT_TRINKET_2,
+    INVENTORY_SLOT_BACK, INVENTORY_SLOT_MAINHAND, INVENTORY_SLOT_OFFHAND, INVENTORY_SLOT_RANGED
+}
+
+local TBC_SETS = {
+    ["Vestments"] = {
+        items = { 29098, 29099, 29100, 29101, 29102 },
+        bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
+    },
+    ["Absolution"] = {
+        items = { 30142, 30143, 30144, 30145, 30146 },
+        bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
+    },
+    ["AbsolutionRegalia"] = {
+        items = { 30892, 30893, 30894, 30895, 30896 },
+        bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
+    },
+}
+
+local function get_item_id_in_slot(me, slot_id)
+    if not me then return nil end
+    local ok, slot_info = pcall(function() return me:get_item_at_inventory_slot(slot_id) end)
+    if not ok or not slot_info or not slot_info.object then return nil end
+    local item = slot_info.object
+    if not item or not item.is_valid or not item:is_valid() then return nil end
+    local item_id = item.get_item_id and item:get_item_id()
+    return item_id
+end
+
+local function get_equipped_items(me)
+    local items = {}
+    for _, slot in ipairs(ALL_EQUIP_SLOTS) do
+        local item_id = get_item_id_in_slot(me, slot)
+        if item_id and item_id > 0 then
+            table.insert(items, item_id)
+        end
+    end
+    return items
+end
+
+function utils.get_set_multiplier(me, set_name)
+    if not me then return 1.0 end
+    local set_def = TBC_SETS[set_name]
+    if not set_def or not set_def.items or not set_def.bonuses then
+        return 1.0
+    end
+    local items = get_equipped_items(me)
+    local count = 0
+    for _, item_id in ipairs(items) do
+        for _, set_item_id in ipairs(set_def.items) do
+            if item_id == set_item_id then
+                count = count + 1
+                break
+            end
+        end
+    end
+    if count >= 4 and set_def.bonuses["4"] then
+        return set_def.bonuses["4"]
+    elseif count >= 2 and set_def.bonuses["2"] then
+        return set_def.bonuses["2"]
+    end
+    return 1.0
 end
 
 return utils

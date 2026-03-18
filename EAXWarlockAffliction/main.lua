@@ -7,13 +7,30 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type creature_utils
+local creature_utils = require("creature_utils")
+
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("affliction")
 ---@type ttd_tracker
-local ttd_tracker = require("common/eax_shared/ttd_tracker")
+local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
+
+---@type mana_conservator
+local mana_conservator = require("mana_conservator")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -30,14 +47,16 @@ local runtime = {
     shadow_bolt_id = nil,
     life_tap_id = nil,
     howl_of_terror_id = nil,
+    seed_of_corruption_id = nil,
     last_cast_time = 0,
     pending_casts = {},
     cached_mode = "solo",
     prev_toggle_state = false,
+    set_multiplier = 1.0,
 }
 
 local GCD_INTERVAL_S = 0.05
-local PENDING_CAST_TIMEOUT_S = 1.25
+local PENDING_CAST_TIMEOUT_S = 2.5
 local DOT_REFRESH_MS = 3000
 local CURSE_REFRESH_MS = 2000
 local LIFE_TAP_MANA_PCT = 0.45
@@ -52,7 +71,8 @@ local function resolve_spells()
     runtime.drain_soul_id = utils.resolve_spell_id(spells.DRAIN_SOUL)
     runtime.shadow_bolt_id = utils.resolve_spell_id(spells.SHADOW_BOLT)
     runtime.life_tap_id       = utils.resolve_spell_id(spells.LIFE_TAP)
-    runtime.howl_of_terror_id = utils.resolve_spell_id(spells.HOWL_OF_TERROR)
+    runtime.howl_of_terror_id     = utils.resolve_spell_id(spells.HOWL_OF_TERROR)
+    runtime.seed_of_corruption_id = utils.resolve_spell_id(spells.SEED_OF_CORRUPTION)
 end
 
 local function log_spells()
@@ -66,6 +86,27 @@ end
 
 resolve_spells()
 log_spells()
+
+local function update_set_bonus()
+    local me = core.object_manager.get_local_player()
+    if not me then return end
+    
+    local voidheart_mult = utils.get_set_multiplier(me, "Voidheart")
+    local voidheart_regalia_mult = utils.get_set_multiplier(me, "VoidheartRegalia")
+    local malefic_mult = utils.get_set_multiplier(me, "Malefic")
+    
+    runtime.set_multiplier = voidheart_mult
+    if voidheart_regalia_mult > runtime.set_multiplier then
+        runtime.set_multiplier = voidheart_regalia_mult
+    end
+    if malefic_mult > runtime.set_multiplier then
+        runtime.set_multiplier = malefic_mult
+    end
+    
+    if runtime.set_multiplier > 1.0 then
+        utils.log_debug(menu, "Set bonus: " .. tostring(runtime.set_multiplier))
+    end
+end
 
 local function is_pending_cast(spell_id)
     if not spell_id then
@@ -180,10 +221,28 @@ local function try_cast_spell(me, spell_id, target, label)
     return false
 end
 
+
+local function try_seed_of_corruption(me, target, enemy_count)
+    if enc and not enc.aoe_safe then return false end
+    if not menu.use_seed_of_corruption or not menu.use_seed_of_corruption:get_state() then return false end
+    if not runtime.seed_of_corruption_id then return false end
+    if (enemy_count or 1) < 3 then return false end
+    if me:is_moving() then return false end
+    if utils.has_debuff(target, spells.DEBUFF_SEED_OF_CORRUPTION) then return false end
+    if not utils.can_cast_target(runtime.seed_of_corruption_id, me, target) then return false end
+    if utils.cast_target(runtime.seed_of_corruption_id, target, "Seed of Corruption") then
+        utils.log_debug(menu, "Seed of Corruption (AoE)")
+        return true
+    end
+    return false
+end
+
+
 local function try_refresh_dots(me, target)
     if menu.use_unstable_affliction:get_state() and should_refresh_debuff(target, spells.UNSTABLE_AFFLICTION, DOT_REFRESH_MS) then
         if try_cast_spell(me, runtime.unstable_affliction_id, target, "Unstable Affliction") then
-            return true
+                    esp_renderer.on_cast(nil, "Refresh DoTs", color.purple(220))
+        return true
         end
     end
     if menu.use_corruption:get_state() and should_refresh_debuff(target, spells.CORRUPTION, DOT_REFRESH_MS) then
@@ -200,18 +259,17 @@ local function try_refresh_dots(me, target)
 end
 
 local function try_apply_curse(me, target)
-    if not menu.use_curse:get_state() then
-        return false
-    end
+    if not menu.use_curse:get_state() then return false end
     local curse_id = menu.prefer_doom:get_state() and runtime.curse_doom_id or runtime.curse_agony_id
-    if not curse_id then
-        curse_id = runtime.curse_agony_id or runtime.curse_doom_id
-    end
-    if not curse_id then
-        return false
-    end
+    if not curse_id then curse_id = runtime.curse_agony_id or runtime.curse_doom_id end
+    if not curse_id then return false end
     if utils.has_debuff(target, spells.CURSE_OF_DOOM) or utils.has_debuff(target, spells.CURSE_OF_AGONY) then
         return false
+    end
+    -- Amplify Curse before casting for +doom/+agony duration (v1.3)
+    if runtime.amplify_curse_id and utils.can_cast_self(runtime.amplify_curse_id, me) then
+        utils.cast_self_fast(runtime.amplify_curse_id, me)
+        utils.log_debug(menu, "Amplify Curse")
     end
     return try_cast_spell(me, curse_id, target, "Curse")
 end
@@ -241,7 +299,10 @@ local function try_life_tap(me)
     local mana_pct = utils.get_mana_pct(me)
     local hp_pct = utils.get_health_pct(me)
     local threshold = menu.life_tap_threshold:get() / 100
-    if mana_pct >= LIFE_TAP_MANA_PCT then
+    -- Pre-regen: also tap when a major CD (Corruption, UA) coming off CD soon
+    -- and we need mana to sustain, even if above the normal threshold
+    local pre_regen_needed = mana_pct < 0.50
+    if mana_pct >= LIFE_TAP_MANA_PCT and not pre_regen_needed then
         return false
     end
     if hp_pct < threshold then
@@ -253,6 +314,8 @@ local function try_life_tap(me)
     if utils.cast_self(runtime.life_tap_id, me) then
         runtime.last_cast_time = core.time()
         utils.log_debug(menu, "Life Tap")
+                esp_renderer.on_cast(runtime.life_tap_id, "Shadow Bolt", color.new(180,100,220,220))
+                esp_renderer.on_cast(runtime.life_tap_id, "Drain Soul", color.green(220))
         return true
     end
     return false
@@ -286,7 +349,111 @@ local function try_howl_of_terror(me)
 end
 
 
-local function do_rotation(me, target)
+
+-- ─── Pet selection + management (v1.4) ────────────────────────────────────
+
+local PET_NPC_IDS = {
+    imp = 416,
+    voidwalker = 1860,
+    succubus = 1863,
+    felhunter = 417,
+    felguard = 17252,
+}
+
+local SUMMON_SPELLS = {
+    imp        = spells.SUMMON_IMP,
+    voidwalker = spells.SUMMON_VOIDWALKER,
+    succubus   = spells.SUMMON_SUCCUBUS,
+    felhunter  = spells.SUMMON_FELHUNTER,
+    felguard   = spells.SUMMON_FELGUARD,
+}
+
+local function get_pet_npc_id()
+    local me = core.object_manager.get_local_player()
+    if not me then return 0 end
+    local pet = me:get_pet and me:get_pet()
+    if not pet or not pet:is_valid() or pet:is_dead() then return 0 end
+    return pet.get_npc_id and pet:get_npc_id() or 0
+end
+
+local function current_pet_name()
+    local npc = get_pet_npc_id()
+    for name, id in pairs(PET_NPC_IDS) do
+        if npc == id then return name end
+    end
+    return "none"
+end
+
+local function desired_pet_name(mode)
+    -- Spec-appropriate default: overridden by subclass if needed
+    if mode == "raid"    then return "imp" end
+    if mode == "dungeon" then return "felhunter" end
+    return "voidwalker"
+end
+
+local function try_summon_correct_pet(me, mode)
+    if not menu.auto_pet or not menu.auto_pet:get_state() then return false end
+    if me:is_in_combat() then return false end  -- never summon mid-combat
+    if not utils.throttle("warlock_pet_check", 5.0) then return false end
+
+    local current = current_pet_name()
+    local desired = desired_pet_name(mode)
+
+    if current == desired then return false end  -- already correct
+
+    local spell_table = SUMMON_SPELLS[desired]
+    if not spell_table then return false end
+    local spell_id = utils.resolve_spell_id(spell_table)
+    if not spell_id then return false end
+    if not utils.can_cast_self(spell_id, me) then return false end
+
+    utils.cast_self(spell_id, me)
+    utils.log_debug(menu, "Summoning " .. desired)
+    return true
+end
+
+-- ─── Soul Shard farming (v1.4) ────────────────────────────────────────────
+-- Use Drain Soul on targets below 10% HP to collect shards
+
+local SHARD_FARM_HP_PCT = 0.10
+local SHARD_ITEM_IDS = { 6265 }  -- Soul Shard (stacks, any version)
+
+local function count_soul_shards()
+    for i = 0, 35 do
+        local item_id = core.inventory and core.inventory.get_item_id_in_bag_slot
+                        and core.inventory.get_item_id_in_bag_slot(i)
+        if item_id == 6265 then
+            local count = core.inventory.get_item_count and core.inventory.get_item_count(6265)
+            return count or 0
+        end
+    end
+    -- Fallback: use utils if available
+    if utils.get_item_count then return utils.get_item_count(6265) end
+    return 0
+end
+
+local function try_soul_shard_farm(me, target, drain_soul_id)
+    if not menu.auto_shard_farm or not menu.auto_shard_farm:get_state() then return false end
+    if not drain_soul_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    local hp = utils.get_health_pct(target)
+    if hp > SHARD_FARM_HP_PCT then return false end
+    -- Only farm if below the shard threshold set in menu
+    local min_shards = menu.min_shards and menu.min_shards:get() or 3
+    if count_soul_shards() >= min_shards then return false end
+    if not utils.can_cast_target(drain_soul_id, me, target) then return false end
+    if utils.cast_target(drain_soul_id, target, "Drain Soul (shard)") then
+        utils.log_debug(menu, "Drain Soul for shard farm")
+        return true
+    end
+    return false
+end
+
+
+local function -- Mana conservator: wand/melee when low on mana
+    if mana_conservator.on_update(me, target, menu, utils) then return end
+
+    do_rotation(me, target)
     if not is_gcd_ready() then
         return
     end
@@ -297,6 +464,16 @@ local function do_rotation(me, target)
             return
         end
     end
+
+
+    -- Wanding / mana conservation (leveling 1-70)
+    if leveling_manager.try_wand(me, target, menu) then return true end
+    if not leveling_manager.has_enough_mana(me, menu) then
+        leveling_manager.ensure_melee(me, target)
+        return false
+    end
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
 
     -- Racial CDs
     racial_manager.try_offensive(me)
@@ -325,9 +502,23 @@ local function do_rotation(me, target)
     try_life_tap(me)
 end
 
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
+    end
+    if utils.throttle("set_bonus", 5.0) then
+        update_set_bonus()
     end
     handle_toggle()
     if not menu.enabled:get_state() then
@@ -337,6 +528,7 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then
         return
     end
+    if eax_utils.is_eating_or_drinking(me) then return end
     local target = me:get_target()
     if not is_valid_target(me, target) then
         return
@@ -351,6 +543,15 @@ core.register_on_update_callback(function()
     do_rotation(me, target)
 end)
 
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxwarlockaffliction_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
@@ -361,5 +562,50 @@ core.register_on_render_control_panel_callback(function()
     control_panel_utility:insert_toggle_(control_panel_elements, enable_name, menu.toggle_key)
     return control_panel_elements
 end)
+
+
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Warlock"
+    local _eax_spec  = "Affliction"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
 
 core.log("[EAX Warlock Affliction] Loaded v1.0.0")

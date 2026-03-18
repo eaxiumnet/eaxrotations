@@ -8,16 +8,35 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type creature_utils
+local creature_utils = require("creature_utils")
+
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("paladin_holy")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
+
+---@type ttd_tracker
+local ttd_tracker = require("ttd_tracker")
 
 local CLEANSE_SPELL_IDS = {
     4987, -- Cleanse
@@ -36,6 +55,10 @@ local MODE_RAID = "raid"
 local MODE_REFRESH_INTERVAL = 1.0
 
 local runtime = {
+    redemption_id = nil,
+    divine_plea_id = nil,
+    jow_id = nil,
+    avenging_wrath_id = nil,
     holy_light_id = nil,
     flash_of_light_id = nil,
     holy_shock_id = nil,
@@ -56,10 +79,59 @@ local function resolve_spells()
     runtime.blessing_wisdom_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM)
     runtime.blessing_might_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT)
     runtime.cleanse_id = utils.resolve_spell_id(CLEANSE_SPELL_IDS)
+    runtime.divine_plea_id    = utils.resolve_spell_id(spells.DIVINE_PLEA)
+    runtime.jow_id            = utils.resolve_spell_id(spells.JUDGEMENT_OF_WISDOM)
+    runtime.avenging_wrath_id = utils.resolve_spell_id(spells.AVENGING_WRATH)
+    runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Paladin Holy] Spells resolved: HL=" .. tostring(runtime.holy_light_id)
+    
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Paladin"
+    local _eax_spec  = "Holy"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
+core.log("[EAX Paladin Holy] Spells resolved: HL=" .. tostring(runtime.holy_light_id)
         .. " FoL=" .. tostring(runtime.flash_of_light_id)
         .. " HS=" .. tostring(runtime.holy_shock_id)
         .. " Cleanse=" .. tostring(runtime.cleanse_id))
@@ -173,7 +245,7 @@ local function has_dispellable_debuff(unit)
         return false
     end
     for i = 1, #DISPELABLE_DEBUFF_IDS do
-        local data = unit:get_debuff_data(DISPELABLE_DEBUFF_IDS[i])
+        local data = buff_manager:get_debuff_data(unit, DISPELABLE_DEBUFF_IDS[i])
         if data and data.is_active then
             return true
         end
@@ -255,7 +327,8 @@ local function try_cast_heal(me, target, hp_pct)
     if menu.use_holy_shock:get_state() and runtime.holy_shock_id then
         local threshold = menu.holy_shock_hp_pct:get() / 100
         if hp_pct <= threshold and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock") then
-            return true
+                    esp_renderer.on_cast(nil, "Holy Light", color.yellow(220))
+        return true
         end
     end
 
@@ -276,6 +349,34 @@ local function try_cast_heal(me, target, hp_pct)
     return false
 end
 
+
+-- ─── Divine Plea — mana recovery (v1.4) ───────────────────────────────────
+
+local function try_divine_plea(me)
+    if not runtime.divine_plea_id then return false end
+    if utils.has_buff(me, spells.BUFF_DIVINE_PLEA) then return false end
+    local mana_pct = utils.get_mana_pct(me)
+    if mana_pct > 0.50 then return false end
+    if not utils.can_cast_self(runtime.divine_plea_id, me) then return false end
+    utils.cast_self(runtime.divine_plea_id, me)
+    utils.log_debug(menu, "Divine Plea")
+    return true
+end
+
+-- ─── Judgment of Wisdom — mana return on boss (v1.4) ──────────────────────
+
+local function try_judgment_of_wisdom(me, target)
+    if not runtime.jow_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if utils.has_debuff(target, spells.DEBUFF_JOW) then return false end
+    local mode = runtime.cached_mode or "solo"
+    if mode == "solo" then return false end
+    if not utils.can_cast_target(runtime.jow_id, me, target) then return false end
+    utils.cast_target(runtime.jow_id, target, "Judgment of Wisdom")
+    return true
+end
+
+
 local function on_update()
     handle_toggle()
     if not menu.enabled:get_state() then
@@ -286,6 +387,7 @@ local function on_update()
     if not me or not me:is_valid() or me:is_dead() then
         return
     end
+    if eax_utils.is_eating_or_drinking(me) then return end
 
     -- Overheal Protection - cancel slow heals if target is healthy
     if eax_utils.should_stopcasting(me, menu) then
@@ -300,10 +402,20 @@ local function on_update()
         end
     end
 
+
+    -- Mana conservation (leveling 1-70)
+    if leveling_manager.is_conserving_mana(me, menu) then
+        leveling_manager.ensure_melee(me, target)
+    end
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
+
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "paladin", utils) then
         return
     end
+
+    ttd_tracker.update(target)
 
     -- Focus Target Priority - heal focus target first
     local focus_target = eax_utils.get_focus_target(menu)
@@ -320,7 +432,11 @@ local function on_update()
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
-        if try_cast_heal(me, me, my_hp) then
+        -- Mana recovery
+    if try_divine_plea(me) then return end
+    if try_judgment_of_wisdom(me, me:get_target()) then return end
+
+    if try_cast_heal(me, me, my_hp) then
             return
         end
     end
@@ -360,6 +476,26 @@ end
 resolve_spells()
 log_resolved_spells()
 
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxpaladinholy_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)

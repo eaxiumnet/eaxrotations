@@ -1,0 +1,142 @@
+
+-- Example:
+-- ---@type assets_helper
+-- local assets = require("common/utility/assets_helper")
+-- assets: -> IntelliSense
+-- Warning: Access functions with ":", not "."
+-- Note: Static members (cache) are accessed with "."
+
+---@class assets_helper
+---@field cache table<string,any>
+
+---@class assets_helper_cache
+---@field local_textures table<string, assets_helper_local_texture_entry>
+---@field remote_textures table<string, assets_helper_remote_texture_entry>
+---@field remote_data table<string, any>
+---@field zip_packs table<string, assets_helper_zip_pack>
+---@field zip_pack_states table<string, assets_helper_zip_pack_state>
+---@field _default_white color
+
+---@class assets_helper_local_texture_entry
+---@field path string
+---@field tex_id integer|nil
+---@field w integer|nil
+---@field h integer|nil
+---@field dead boolean
+---@field dead_error string|nil
+---@field dead_logged boolean
+---@field next_try_time number
+---@field zip_redownloaded_once boolean
+
+---@class assets_helper_remote_texture_entry
+---@field url string
+---@field cache_path string|nil
+---@field tex_id integer|nil
+---@field w integer|nil
+---@field h integer|nil
+---@field requested boolean
+---@field error string|nil
+---@field _logged boolean|nil
+---@field _alt_url_tried boolean|nil
+
+---@class assets_helper_zip_pack
+---@field url string
+---@field zip_file string
+
+---@class assets_helper_zip_pack_state
+---@field requested boolean
+---@field done boolean
+---@field error string|nil
+---@field next_probe_time number
+---@field next_download_time number
+
+---@class assets_helper
+---@field register_zip_pack fun(self: assets_helper, folder_name: string, zip_url: string, zip_file_name?: string): nil
+---@field draw_local_texture fun(self: assets_helper, data_path: string, top_left: vec2|vec3, width: number, height: number, tint?: color, is_for_window?: boolean): boolean
+---@field draw_http_texture fun(self: assets_helper, url: string, top_left: vec2|vec3, width: number, height: number, cache_path?: string, headers?: table<string, string>, tint?: color, is_for_window?: boolean): boolean
+---@field load_local_data fun(self: assets_helper, data_path: string, default_value?: string): string
+---@field load_http_data fun(self: assets_helper, url: string, callback: fun(ok: boolean, data: string, http_code: integer, content_type: string, response_headers: string), headers?: table<string, string>): nil
+
+--------------------------------------------------------------------------------
+-- EXAMPLES (copy into your plugin)
+--------------------------------------------------------------------------------
+--
+-- Supported URL formats:
+-- 1) Full URL
+--    https://downloads.project-sylvanas.net/<file>
+--
+-- 2) PS short link (recommended for public scripts)
+--    ps/<file>
+--
+-- assets_helper resolves "ps/<file>" internally to the official host.
+--
+--
+-- Example 1, Local PNG texture (most common)
+--
+-- Requirements:
+-- - Place file at:
+--   <loader_path>\scripts_data\test_assets\classicon_paladin.png
+--
+-- local vec2 = require("common/geometry/vector_2")
+-- local assets_helper = require("common/utility/assets_helper")
+-- local color = require("common/color")
+--
+-- local function on_render()
+--     assets_helper:draw_local_texture(
+--         "test_assets\\classicon_paladin.png",
+--         vec2.new(30, 30),
+--         64, 64,
+--         color.white(255),
+--         false
+--     )
+-- end
+-- core.register_on_render_callback(on_render)
+--
+--
+-- Example 2, ZIP pack auto download using PS short link, then draw PNG from inside
+--
+-- What happens:
+-- - If scripts_data\\zip_test_assets.zip is missing, it is downloaded once automatically
+-- - Files are then accessible like a virtual folder:
+--   zip_test_assets\\classicon_paladin.png
+--
+-- local vec2 = require("common/geometry/vector_2")
+-- local assets_helper = require("common/utility/assets_helper")
+-- local color = require("common/color")
+--
+-- assets_helper:register_zip_pack(
+--     "zip_test_assets",
+--     "ps/1768128082013OFT0-zip_test_assets.zip"
+-- )
+--
+-- local function on_render()
+--     assets_helper:draw_local_texture(
+--         "zip_test_assets\\classicon_paladin.png",
+--         vec2.new(30, 110),
+--         64, 64,
+--         color.red(),
+--         false
+--     )
+-- end
+-- core.register_on_render_callback(on_render)
+--
+--
+-- Example 3, World-space position (vec3) using w2s each frame
+--
+-- local vec3 = require("common/geometry/vector_3")
+-- local assets_helper = require("common/utility/assets_helper")
+--
+-- local function on_render()
+--     local world_pos = vec3.new(1234, 5678, 90)
+--     assets_helper:draw_local_texture(
+--         "test_assets\\classicon_paladin.png",
+--         world_pos,
+--         64, 64
+--     )
+-- end
+-- core.register_on_render_callback(on_render)
+
+---@type assets_helper
+local tbl
+return tbl
+

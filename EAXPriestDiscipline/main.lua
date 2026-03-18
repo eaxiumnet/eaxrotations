@@ -7,18 +7,41 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type creature_utils
+local creature_utils = require("creature_utils")
+
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("discipline")
 ---@type ttd_tracker
-local ttd_tracker = require("common/eax_shared/ttd_tracker")
+local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
+
+---@type mana_conservator
+local mana_conservator = require("mana_conservator")
 
 local runtime = {
+    resurrection_id = nil,
+    penance_id = nil,
+    pw_shield_id = nil,
+    flash_heal_id = nil,
     mode_cache = "solo",
     last_mode_check = 0,
     last_mode_log = nil,
+    set_multiplier = 1.0,
+    last_set_check = 0,
 }
 
 local resolved = {
@@ -33,6 +56,24 @@ local function log_mode(mode)
     if menu.debug:get_state() and runtime.last_mode_log ~= mode then
         utils.log_debug(menu, "Mode=" .. mode)
         runtime.last_mode_log = mode
+    end
+end
+
+local SET_UPDATE_INTERVAL_MS = 5000
+local PRIEST_SET_NAMES = { "Vestments", "Absolution", "AbsolutionRegalia" }
+
+local function update_set_bonus(me)
+    local now = core.game_time()
+    if not runtime.last_set_check or (now - runtime.last_set_check) >= SET_UPDATE_INTERVAL_MS then
+        runtime.last_set_check = now
+        local best_multiplier = 1.0
+        for _, set_name in ipairs(PRIEST_SET_NAMES) do
+            local mult = utils.get_set_multiplier(me, set_name)
+            if mult > best_multiplier then
+                best_multiplier = mult
+            end
+        end
+        runtime.set_multiplier = best_multiplier
     end
 end
 
@@ -140,6 +181,62 @@ local function try_prayer_of_mending(me)
     return false
 end
 
+
+-- ─── Power Word: Shield maintenance (v1.4) ───────────────────────────────
+
+local function try_pw_shield(me, target)
+    if not runtime.pw_shield_id then return false end
+    if not menu.use_pw_shield or not menu.use_pw_shield:get_state() then return false end
+    -- Don't apply if Weakened Soul debuff is active
+    if utils.has_debuff(target, spells.BUFF_WEAKENED_SOUL) then return false end
+    if utils.has_buff(target, spells.BUFF_POWER_WORD_SHIELD) then return false end
+    local hp = utils.get_health_pct(target)
+    if hp > 0.80 then return false end  -- only shield when taking damage
+    esp_renderer.on_cast(nil, "PW:Shield", color.white(220))
+    return utils.cast_target(runtime.pw_shield_id, target, "PW:Shield")
+end
+
+-- ─── Penance — Disc spec burst heal (v1.4) ───────────────────────────────
+
+local function try_penance(me, target)
+    if not runtime.penance_id then return false end
+    if not menu.use_penance or not menu.use_penance:get_state() then return false end
+    if not target or not target:is_valid() then return false end
+    local hp = utils.get_health_pct(target)
+    if hp > 0.70 then return false end
+    if not utils.can_cast_target(runtime.penance_id, me, target) then return false end
+    esp_renderer.on_cast(nil, "Penance", color.gold(220))
+    return utils.cast_target(runtime.penance_id, target, "Penance")
+end
+
+
+
+-- ─── try_cast_spell — generic target-cast helper for focus/self priority ──
+local function try_cast_spell(me, target, spell_id)
+    if not spell_id then return false end
+    if not target or not target:is_valid() then return false end
+    if target == me then
+        if utils.can_cast_self(spell_id, me) then
+            return utils.cast_self(spell_id, me)
+        end
+    else
+        if utils.can_cast_target(spell_id, me, target) then
+            return utils.cast_target(spell_id, me, target)
+        end
+    end
+    return false
+end
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
     if not menu.enabled:get_state() then
         return
@@ -149,6 +246,9 @@ core.register_on_update_callback(function()
     if not me or not me:is_valid() or me:is_dead() or not me:is_in_combat() then
         return
     end
+    if eax_utils.is_eating_or_drinking(me) then return end
+
+    update_set_bonus(me)
 
     -- Overheal Protection - cancel slow heals if target is healthy
     if eax_utils.should_stopcasting(me, menu) then
@@ -162,6 +262,16 @@ core.register_on_update_callback(function()
             return
         end
     end
+
+
+    -- Wanding / mana conservation (leveling 1-70)
+    if leveling_manager.try_wand(me, target, menu) then return true end
+    if not leveling_manager.has_enough_mana(me, menu) then
+        leveling_manager.ensure_melee(me, target)
+        return false
+    end
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
 
     -- Racial CDs
     racial_manager.try_offensive(me)
@@ -204,6 +314,61 @@ core.register_on_update_callback(function()
     try_prayer_of_mending(me)
 end)
 
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxpriestdiscipline_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
+
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Priest"
+    local _eax_spec  = "Discipline"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
+

@@ -20,6 +20,8 @@
 
 ---@type unit_helper
 local unit_helper = require("common/utility/unit_helper")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local ABSORB_SCALAR = 0.25    -- count 25% of absorb shield (can be stripped)
 local SCAN_RANGE    = 60.0    -- yards; covers 40-man raid spread
@@ -138,7 +140,7 @@ function heal_engine.find_without_buff(buff_id_table, max_pct, skip_tanks)
     for _, entry in ipairs(heal_engine.friends) do
         if entry.eff_pct > max_pct then break end
         if not (skip_tanks and entry.is_tank) then
-            local data = entry.unit:get_buff_data(buff_id_table)
+            local data = entry.buff_manager:get_buff_data(unit, buff_id_table)
             if not (data and data.is_active) then
                 return entry.unit
             end

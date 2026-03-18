@@ -26,17 +26,36 @@
 --  - Auto-attack management
 --  - OOC: drink, self-heal, prepull totems, totemic recall
 
+require("common/wow_api_clone")  -- exposes GetWeaponEnchantInfo for temp enchant detection
 local menu   = require("menu")
 local spells = require("spells")
 local utils  = require("utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
----@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
----@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
 
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("restoration")
+---@type color
+local color = require("color")
+---@type racial_manager
+local racial_manager = require("racial_manager")
+---@type defensive_manager
+local defensive_manager = require("defensive_manager")
+
+---@type mana_conservator
+local mana_conservator = require("mana_conservator")
+
+---@type key_helper
+---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
@@ -50,11 +69,14 @@ local eax_utils = require("eax_utils")
 ---@type auto_attack_helper
 local auto_attack_helper = require("common/utility/auto_attack_helper")
 
+---@type ttd_tracker
+local ttd_tracker = require("ttd_tracker")
+
 -- ─── Constants ───────────────────────────────────────────────────────────────
 
-local GCD_INTERVAL           = 0.05
+local GCD_INTERVAL           = 1.5  -- actual TBC GCD duration
 local MODE_REFRESH_INTERVAL  = 4.5
-local PENDING_CAST_TIMEOUT_S = 1.25
+local PENDING_CAST_TIMEOUT_S = 2.5
 local TOTEMIC_RECALL_CD      = 120.0
 local NS_COOLDOWN_MIN        = 3.0
 local PREPULL_ENEMY_RANGE    = 50.0
@@ -116,11 +138,14 @@ local rt = {
     lightning_bolt_id      = nil,
     wind_shear_id          = nil,
     earth_shock_id         = nil,
+    -- DPS cooldowns
+    last_dps_at            = 0,
     -- Cooldowns
     bloodlust_id           = nil,
     heroism_id             = nil,
     -- Weapon buff
     flametongue_id         = nil,
+    last_flametongue_at    = 0,  -- core.time() when last cast
     -- Timing
     last_cast_time         = 0,
     last_ns_at             = 0,
@@ -134,6 +159,7 @@ local rt = {
     prev_toggle_state      = false,
     cached_mode            = "solo",
     pending_casts          = {},
+    set_multiplier         = 1.0,
 }
 
 -- ─── Totem table ─────────────────────────────────────────────────────────────
@@ -174,6 +200,27 @@ local function resolve_spells()
     rt.bloodlust_id           = utils.resolve_spell_id(spells.BLOODLUST)
     rt.heroism_id             = utils.resolve_spell_id(spells.HEROISM)
     rt.flametongue_id         = utils.resolve_spell_id(spells.FLAMETONGUE_WEAPON)
+end
+
+local function update_set_bonus()
+    local me = core.object_manager.get_local_player()
+    if not me then return end
+    
+    local cyclone_mult = utils.get_set_multiplier(me, "Cyclone")
+    local cataclysm_mult = utils.get_set_multiplier(me, "Cataclysm")
+    local skyshatter_mult = utils.get_set_multiplier(me, "Skyshatter")
+    
+    rt.set_multiplier = cyclone_mult
+    if cataclysm_mult > rt.set_multiplier then
+        rt.set_multiplier = cataclysm_mult
+    end
+    if skyshatter_mult > rt.set_multiplier then
+        rt.set_multiplier = skyshatter_mult
+    end
+    
+    if rt.set_multiplier > 1.0 then
+        utils.log_debug(menu, "Set bonus: " .. tostring(rt.set_multiplier))
+    end
 end
 
 -- ─── Mode detection ──────────────────────────────────────────────────────────
@@ -235,7 +282,9 @@ local function try_cast_ally(me, target, spell_id, label)
     if not utils.cast_target(spell_id, me, target) then return false end
     mark_pending(spell_id)
     note_cast()
-    utils.log_debug(menu, label .. " -> " .. (target:get_name() or "?"))
+    local target_name = target:get_name() or "?"
+    esp_renderer.on_cast(spell_id, label, color.green(220), target_name)
+    utils.log_debug(menu, label .. " -> " .. target_name)
     return true
 end
 
@@ -245,6 +294,7 @@ local function try_cast_self(me, spell_id, label)
     if not utils.cast_self(spell_id, me) then return false end
     mark_pending(spell_id)
     note_cast()
+    esp_renderer.on_cast(spell_id, label, color.green(220), "Self")
     utils.log_debug(menu, label .. " (self)")
     return true
 end
@@ -254,6 +304,7 @@ local function try_cast_self_fast(me, spell_id, label)
     if is_pending(spell_id) then return false end
     if not utils.cast_self_fast(spell_id, me) then return false end
     mark_pending(spell_id, 0.5)
+    esp_renderer.on_cast(spell_id, label, color.green(220), "Self")
     utils.log_debug(menu, label .. " (off-GCD)")
     return true
 end
@@ -265,6 +316,8 @@ local function try_cast_hostile(me, target, spell_id, label)
     if not utils.cast_target(spell_id, me, target) then return false end
     mark_pending(spell_id)
     note_cast()
+    local target_name = target:get_name() or "?"
+    esp_renderer.on_cast(spell_id, label, color.red(220), target_name)
     utils.log_debug(menu, label .. " (hostile)")
     return true
 end
@@ -303,19 +356,27 @@ end
 -- Uses item_enchant_expiration() to check remaining duration.
 -- Applies when: missing, or under FT_REFRESH_S seconds remain.
 
+local FT_REFRESH_REMAINING_MS = 60 * 1000   -- reapply when < 60 sec remain
+local FT_DURATION_S           = 29 * 60     -- 30 min imbue; fallback timer
+
 local function ensure_flametongue(me)
     if not menu.use_flametongue:get_state() then return false end
     if not rt.flametongue_id then return false end
     if is_pending(rt.flametongue_id) then return false end
-    local slot_info = me:get_item_at_inventory_slot(MAINHAND_SLOT)
-    if not slot_info or not slot_info.object then return false end
-    local item = slot_info.object
-    -- Check if the current enchant is Flametongue and when it expires
-    if item:item_has_enchant() then
-        local remaining = item:item_enchant_expiration()
-        if remaining and remaining > FT_REFRESH_S then return false end
+    -- Primary: GetWeaponEnchantInfo detects temporary weapon enchants
+    local hasMain, mainExpMs = GetWeaponEnchantInfo()
+    if hasMain == true then
+        -- API working: check remaining time
+        if mainExpMs and mainExpMs > FT_REFRESH_REMAINING_MS then return false end
+    else
+        -- Fallback: time-based tracking (in case GetWeaponEnchantInfo is not implemented)
+        if (core.time() - rt.last_flametongue_at) < FT_DURATION_S then return false end
     end
-    return try_cast_self(me, rt.flametongue_id, "Flametongue Weapon")
+    if try_cast_self(me, rt.flametongue_id, "Flametongue Weapon") then
+        rt.last_flametongue_at = core.time()
+        return true
+    end
+    return false
 end
 
 -- ─── Auto-attack ─────────────────────────────────────────────────────────────
@@ -328,11 +389,19 @@ local function ensure_auto_attack(me)
     local target = me:get_target()
     if not target or not target:is_valid() or target:is_dead() then return end
     if not utils.is_valid_hostile(me, target) then return end
-    if auto_attack_helper:is_auto_attacking(me) then return end
-    -- Only melee if in range (shamans don't wand)
+    
     local dist = me:get_position():dist_to(target:get_position())
     local reach = 5.0 + (target:get_bounding_radius() or 0)
-    if dist <= reach then
+    if dist > reach then return end
+    
+    -- Always show Basic Attack in HUD when in melee range
+    local target_name = target:get_name()
+    if target_name then
+        esp_renderer.on_cast(6603, "Basic Attack", color.yellow(220), target_name)
+    end
+    
+    -- Start attacking if not already
+    if not auto_attack_helper:is_auto_attacking(me) then
         auto_attack_helper:start_attack(target, auto_attack_helper.ATTACK_TYPE.MELEE)
     end
 end
@@ -700,7 +769,9 @@ local function try_pvp_utilities(me)
         local last = rt.totem_last_apply["grounding"] or 0
         if cd <= 0 and (core.time() - last) >= 15 then
             if try_cast_self(me, rt.grounding_totem_id, "Grounding Totem") then
-                rt.totem_last_apply["grounding"] = core.time(); return true
+                rt.totem_last_apply["grounding"] = core.time();         esp_renderer.on_cast(nil, "Chain Heal", color.green(220))
+                esp_renderer.on_cast(nil, "Healing Wave", color.cyan(220))
+        return true
             end
         end
     end
@@ -708,7 +779,7 @@ local function try_pvp_utilities(me)
         local FEAR_IDS = { 5782, 8983, 8122, 5484, 20511 }
         for _, entry in ipairs(heal_engine.friends) do
             for _, fid in ipairs(FEAR_IDS) do
-                local d = entry.unit:get_debuff_data({ fid })
+                local d = entry.buff_manager:get_debuff_data(unit, { fid })
                 if d and d.is_active then
                     local last = rt.totem_last_apply["tremor"] or 0
                     if (core.time() - last) >= 30 then
@@ -732,6 +803,7 @@ local function try_pvp_utilities(me)
 end
 
 -- ─── DPS filler ──────────────────────────────────────────────────────────────
+local DPS_COOLDOWN_S = 1.5  -- Minimum time between DPS casts
 
 local function try_dps_filler(me, target)
     local profile = get_mode_profile()
@@ -741,30 +813,50 @@ local function try_dps_filler(me, target)
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not utils.is_valid_hostile(me, target) then return false end
     if utils.get_mana_pct(me) < (math.max(menu.mana_floor:get(), profile.mana_floor) / 100.0) then return false end
+    
+    -- Cooldown check - prevent spam
+    local now = core.time()
+    if (now - rt.last_dps_at) < DPS_COOLDOWN_S then return false end
+    
     -- Earth Shock: interrupt on cast
     if menu.use_interrupt:get_state() and rt.earth_shock_id then
         if target:is_casting_spell() then
-            if try_cast_hostile(me, target, rt.earth_shock_id, "Earth Shock (interrupt)") then return true end
+            if try_cast_hostile(me, target, rt.earth_shock_id, "Earth Shock (interrupt)") then 
+                rt.last_dps_at = now
+                return true 
+            end
         end
     end
     -- Purge
     if menu.use_purge:get_state() and rt.purge_id then
         local buffs = target:get_buffs()
         if buffs and #buffs > 0 then
-            if try_cast_hostile(me, target, rt.purge_id, "Purge") then return true end
+            if try_cast_hostile(me, target, rt.purge_id, "Purge") then 
+                rt.last_dps_at = now
+                return true 
+            end
         end
     end
     -- AoE vs single target
     local near = unit_helper:get_enemy_list_around(me:get_position(), 12.0, true)
     local n = near and #near or 0
     if n >= 3 and rt.chain_lightning_id then
-        if try_cast_hostile(me, target, rt.chain_lightning_id, "Chain Lightning") then return true end
+        if try_cast_hostile(me, target, rt.chain_lightning_id, "Chain Lightning") then 
+            rt.last_dps_at = now
+            return true 
+        end
     end
     if rt.lightning_bolt_id then
-        if try_cast_hostile(me, target, rt.lightning_bolt_id, "Lightning Bolt") then return true end
+        if try_cast_hostile(me, target, rt.lightning_bolt_id, "Lightning Bolt") then 
+            rt.last_dps_at = now
+            return true 
+        end
     end
     if rt.chain_lightning_id then
-        return try_cast_hostile(me, target, rt.chain_lightning_id, "Chain Lightning")
+        if try_cast_hostile(me, target, rt.chain_lightning_id, "Chain Lightning") then 
+            rt.last_dps_at = now
+            return true 
+        end
     end
     return false
 end
@@ -772,6 +864,8 @@ end
 -- ─── Main rotation ───────────────────────────────────────────────────────────
 
 local function do_rotation(me)
+    -- Lazy re-resolve: spells may not be learned yet at plugin load time
+    if not rt.chain_heal_id then resolve_spells() end
     -- ── Always-on (no GCD) ────────────────────────────────────────────────
     ensure_water_shield(me)
     ensure_flametongue(me)
@@ -806,7 +900,7 @@ local function do_rotation(me)
     if not is_gcd_ready() then return end
 
     -- ── Interrupt (PVP) ───────────────────────────────────────────────────────
-    local target = core.targets.get_current_target()
+    local target = me:get_target()
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
             return
@@ -817,6 +911,8 @@ local function do_rotation(me)
     if defensive_manager.try_defensive(me, "shaman", utils) then
         return
     end
+
+    ttd_tracker.update(target)
 
     -- ── Focus target priority ─────────────────────────────────────────────
     local focus_target = eax_utils.get_focus_target(menu)
@@ -874,11 +970,58 @@ end
 
 -- ─── Boot ────────────────────────────────────────────────────────────────────
 
--- Require spell_queue here (needed by reincarnation direct queue)
+---@type spell_queue
 local spell_queue = require("common/modules/spell_queue")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 resolve_spells()
 build_totem_rotation()
+
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Shaman"
+    local _eax_spec  = "Restoration"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
 core.log("[EAX Shaman Restoration TBC] Loaded")
 core.log("  CH=" .. tostring(rt.chain_heal_id)
     .. " HW="   .. tostring(rt.healing_wave_id)
@@ -889,45 +1032,93 @@ core.log("  CH=" .. tostring(rt.chain_heal_id)
 
 -- ─── Callbacks ───────────────────────────────────────────────────────────────
 
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
+    local me = core.object_manager.get_local_player()
+
     if utils.throttle("mode_refresh", MODE_REFRESH_INTERVAL) then
-        local me = core.object_manager.get_local_player()
         if me then
             rt.cached_mode = detect_mode(me)
             heal_engine.set_tank_priority(menu.tank_priority_weight:get())
         end
     end
 
-    control_panel_utility:on_update(menu)
+    if utils.throttle("set_bonus", 5.0) then
+        update_set_bonus()
+    end
+
+    if control_panel_utility then control_panel_utility:on_update(menu) end
     detect_toggle()
 
     if not menu.enabled:get_state() then return end
-    local me = core.object_manager.get_local_player()
-    if not me then return end
 
+    -- OOC management (drink/eat/rez/group buffs)
+    ooc_manager.on_update(me, menu, utils, {
+        rez_spell_id = rt.ancestral_spirit_id,
+    })
+    if not me then return end
+    if eax_utils.is_eating_or_drinking(me) then return end
+
+    heal_engine.update(me)
     do_rotation(me)
 end)
 
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxshamanrestoration_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
 
-core.register_on_render_control_panel_callback(function()
-    local elements = {}
-    local toggle_key = menu.toggle_key:get_key_code()
-    control_panel_utility:insert_toggle_(elements,
-        "[EAX RSham] Enable (" .. key_helper:get_key_name(toggle_key) .. ")", menu.toggle_key)
-    local cd_key = menu.cooldowns_key:get_key_code()
-    control_panel_utility:insert_toggle_(elements,
-        "[EAX RSham] Cooldowns (" .. key_helper:get_key_name(cd_key) .. ")", menu.cooldowns_key)
-    local dps_key = menu.dps_key:get_key_code()
-    control_panel_utility:insert_toggle_(elements,
-        "[EAX RSham] DPS (" .. key_helper:get_key_name(dps_key) .. ")", menu.dps_key)
-    local disp_key = menu.cleanse_key:get_key_code()
-    control_panel_utility:insert_toggle_(elements,
-        "[EAX RSham] Dispels (" .. key_helper:get_key_name(disp_key) .. ")", menu.cleanse_key)
-    local mode_options = { "Auto", "Solo", "Dungeon", "Raid" }
-    control_panel_utility:insert_combo_(elements, "[EAX RSham] Mode", menu.mode,
-        mode_options[menu.mode:get()] or "Auto", mode_options, menu.toggle_key, false)
-    return elements
-end)
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(
+                elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "[EAX Shaman Restoration] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        local function add_kb(lbl, kb)
+            if not kb then return end
+            control_panel_utility:insert_toggle_(elements, lbl, kb, false)
+        end
+        add_cb(label,                               menu.enabled,            "eax_resto_enabled_cp")
+        if menu.enabled:get_state() then
+            add_cb("[EAX RSham] Cooldowns",             menu.use_cooldowns,      "eax_resto_cds_cp")
+            add_kb("[EAX RSham] Cooldowns Key",         menu.cooldowns_key)
+            add_cb("[EAX RSham] Nature's Swiftness",    menu.use_natures_swiftness,"eax_resto_ns_cp")
+            add_cb("[EAX RSham] Bloodlust",             menu.use_bloodlust,      "eax_resto_bl_cp")
+            add_cb("[EAX RSham] Enable DPS",            menu.enable_dps,         "eax_resto_dps_cp")
+            add_kb("[EAX RSham] DPS Key",               menu.dps_key)
+            add_cb("[EAX RSham] Dispels",               menu.use_dispels,        "eax_resto_disp_cp")
+            add_cb("[EAX RSham] Purge",                 menu.use_purge,          "eax_resto_purge_cp")
+            add_cb("[EAX RSham] Interrupt",             menu.use_interrupt,      "eax_resto_int_cp")
+            add_cb("[EAX RSham] Focus Priority",        menu.focus_priority,     "eax_resto_focus_cp")
+            add_cb("[EAX RSham] Use Racial",            menu.use_racial,         "eax_resto_racial_cp")
+        end
+        return elements
+    end)
+end

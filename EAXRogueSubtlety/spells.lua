@@ -53,4 +53,9 @@ spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 spells.GOBLIN_ROCKET_BOOTS = { 8896 }
 spells.GNOMISH_ROKET_HELMET = { 13028 }
 
+
+spells.FEINT = { 25302, 25301, 8637, 8636, 1966, 1960 }
+
+spells.SHIV = { 5938 }
+
 return spells

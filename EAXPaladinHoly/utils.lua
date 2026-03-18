@@ -4,6 +4,8 @@
 
 ---@type spell_queue
 local spell_queue = require("common/modules/spell_queue")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local utils = {}
 
@@ -24,7 +26,7 @@ end
 -- Resolve spell ID from table (find highest learned rank)
 function utils.resolve_spell_id(id_table)
     if not id_table then return nil end
-    for i = #id_table, 1, -1 do
+    for i = 1, #id_table do
         local id = id_table[i]
         if id and core.spell_book.is_spell_learned(id) then
             return id
@@ -65,7 +67,7 @@ function utils.has_buff(unit, buff_table)
     if not unit or not unit:is_valid() then return false end
     if not buff_table then return false end
     for i = 1, #buff_table do
-        local data = unit:get_buff_data(buff_table[i])
+        local data = buff_manager:get_buff_data(unit, buff_table[i])
         if data and data.is_active then
             return true
         end
@@ -77,15 +79,17 @@ end
 function utils.has_debuff(unit, debuff_table)
     if not unit or not unit:is_valid() then return false end
     if not debuff_table then return false end
-    local data = unit:get_debuff_data(debuff_table)
-    return data and data.is_active or false
+    local data = buff_manager:get_debuff_data(unit, debuff_table)
+    if data and data.is_active then return true end
+    data = buff_manager:get_aura_data(unit, debuff_table)
+    return data ~= nil and data.is_active
 end
 
 -- Get buff remaining time (ms)
 function utils.get_buff_remaining_ms(unit, buff_table)
     if not unit or not unit:is_valid() then return 0 end
     if not buff_table then return 0 end
-    local data = unit:get_buff_data(buff_table)
+    local data = buff_manager:get_buff_data(unit, buff_table)
     if data and data.is_active then
         return data.remaining_time or 0
     end
@@ -96,7 +100,7 @@ end
 function utils.get_debuff_remaining_ms(unit, debuff_table)
     if not unit or not unit:is_valid() then return 0 end
     if not debuff_table then return 0 end
-    local data = unit:get_debuff_data(debuff_table)
+    local data = buff_manager:get_debuff_data(unit, debuff_table)
     if data and data.is_active then
         return data.remaining_time or 0
     end

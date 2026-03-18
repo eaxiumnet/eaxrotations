@@ -21,9 +21,8 @@ if not local_player then
     return plugin
 end
 
-local enums = require("common/enums")
 local player_class = local_player:get_class()
-local is_valid_class = player_class == enums.class_id.PALADIN
+local is_valid_class = player_class == 2
 
 if not is_valid_class then
     plugin["load"] = false

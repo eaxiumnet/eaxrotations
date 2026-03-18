@@ -7,18 +7,34 @@ local utils = require("utils")
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
+---@type ooc_manager
+local ooc_manager = require("ooc_manager")
+---@type leveling_manager
+local leveling_manager = require("leveling_manager")
+---@type encounter_manager
+local encounter_manager = require("encounter_manager")
+
+
+---@type esp_renderer
+local esp_renderer = require("esp_renderer")
+esp_renderer.init("protection")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type color
-local color = require("common/color")
+local color = require("color")
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
+
+---@type ttd_tracker
+local ttd_tracker = require("ttd_tracker")
 
 local runtime = {
     shield_slam_id = nil,
@@ -76,10 +92,10 @@ local runtime = {
     recovery_target = nil,
     recovery_target_hold_until = 0,
     recovery_target_score = 0,
-    -- Burst tracking
     burst_window_active = false,
     burst_window_started_at = 0,
     burst_attempted = {},
+    set_multiplier = 1.0,
 }
 
 -- Constants
@@ -96,10 +112,10 @@ local QUEUE_SWING_WINDOW_MS = 350
 local BLOODRAGE_MAX_RAGE = 60
 local BLOODRAGE_MIN_HP_PCT = 0.70
 local AOE_RADIUS = 8
-local GCD_CAST_INTERVAL = 0.05
+local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
 local MODE_DEBUG_INTERVAL_MS = 10000
 local BURST_WINDOW_MS = 10000
-local PENDING_CAST_TIMEOUT_S = 1.25
+local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 local STANCE_PENDING_CAST_TIMEOUT_S = 3.0
 local INTERCEPT_RETRY_BACKOFF_S = 1.5
@@ -204,6 +220,19 @@ end
 
 local function refresh_mode_cache()
     runtime.cached_mode = detect_mode()
+end
+
+local function update_set_bonus(me)
+    if not me then return end
+    local best_multiplier = 1.0
+    local set_names = { "Warbringer", "WarbringerBattlegear", "Ymirjar" }
+    for _, set_name in ipairs(set_names) do
+        local multiplier = utils.get_set_multiplier(me, set_name)
+        if multiplier > best_multiplier then
+            best_multiplier = multiplier
+        end
+    end
+    runtime.set_multiplier = best_multiplier
 end
 
 local function get_effective_mode()
@@ -1201,6 +1230,7 @@ end
 
 -- Thunder Clap
 local function try_thunder_clap(me, target, rage)
+    if enc and not enc.aoe_safe then return false end
     if not menu.use_thunder_clap:get_state() or not runtime.thunder_clap_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
     if rage < THUNDER_CLAP_COST then return false end
@@ -1848,7 +1878,7 @@ local function try_sunder_armor(me, target, target_hp_pct)
         return false
     end
 
-    local data = target:get_debuff_data(spells.DEBUFF_SUNDER_ARMOR)
+    local data = buff_manager:get_debuff_data(target, spells.DEBUFF_SUNDER_ARMOR)
     local stack_count = 0
     if data and data.is_active then
         stack_count = data.count or data.stack_count or data.stacks or 0
@@ -1895,6 +1925,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     then
         if utils.cast_target(runtime.shield_slam_id, me, target) then
             utils.log_debug(menu, "ST: Shield Slam")
+            esp_renderer.on_cast(nil, "Shield Slam", color.red(220))
             note_cast()
             note_core_action()
             return true
@@ -1909,6 +1940,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     then
         if utils.cast_target(runtime.revenge_id, me, target) then
             utils.log_debug(menu, "ST: Revenge")
+            esp_renderer.on_cast(nil, "Revenge", color.orange(220))
             note_cast()
             note_core_action()
             return true
@@ -1922,6 +1954,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     then
         if utils.cast_target(runtime.devastate_id, me, target) then
             utils.log_debug(menu, "ST: Devastate")
+            esp_renderer.on_cast(nil, "Devastate", color.yellow(220))
             note_cast()
             note_core_action()
             return true
@@ -2515,12 +2548,21 @@ local function on_update()
 
     if not menu.enabled:get_state() then return end
 
+    -- OOC management (drink/eat/rez/group buffs)
+    ooc_manager.on_update(me, menu, utils)
+
     local me = core.object_manager.get_local_player()
     if not me then return end
     if me:is_dead() then return end
+    if eax_utils.is_eating_or_drinking(me) then return end
     if me:is_mounted() then return end
 
     refresh_mode_cache()
+
+    if utils.throttle("update_set_bonus", 5.0) then
+        update_set_bonus(me)
+    end
+
     refresh_pending_casts()
     local mode_policy = get_mode_policy()
 
@@ -2528,7 +2570,52 @@ local function on_update()
         local now_ms = core.game_time()
         if now_ms - runtime.last_mode_debug_at >= MODE_DEBUG_INTERVAL_MS then
             runtime.last_mode_debug_at = now_ms
-            core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
+            
+
+-- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Warrior"
+    local _eax_spec  = "Protection"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
+core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
         end
     end
 
@@ -2547,6 +2634,8 @@ local function on_update()
     if defensive_manager.try_defensive(me, "warrior", utils) then
         return
     end
+
+    ttd_tracker.update(target)
     
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
@@ -2737,8 +2826,28 @@ local function on_control_panel()
 end
 
 -- Register callbacks
+
+local function on_render()
+    esp_renderer.on_render(menu)
+end
+
+-- ESP only renders when this spec is enabled
+core.register_on_render_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    on_render()
+end)
+-- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
 core.register_on_spell_cast_callback(on_spell_cast)
+
+-- ── Space theme: create menu window and inject into menu ─────────────────────
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxwarriorprotection_space_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+-- ─────────────────────────────────────────────────────────────────────────────
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 

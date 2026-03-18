@@ -1,62 +1,104 @@
--- EAX Druid Restoration | menu.lua
--- Menu elements are created once at require-time.
+-- ╔══════════════════════════════════════════════════════════════════╗
+-- ║  Eax's Druid Restoration
+-- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
+-- ╚══════════════════════════════════════════════════════════════════╝
 
+local ps   = require("ps_theme")
 local menu = {}
 
-local tree = core.menu.tree_node()
-local lifebloom_tree = core.menu.tree_node()
-local hot_tree = core.menu.tree_node()
-local cooldown_tree = core.menu.tree_node()
+-- ── Tree nodes ────────────────────────────────────────────────────────────────
+local root_tree    = ps.tree_node()
+local main_tree    = ps.tree_node()
+local def_tree     = ps.tree_node()
+local tgt_tree     = ps.tree_node()
+local racial_tree  = ps.tree_node()
+local ooc_tree     = ps.tree_node()
+local esp_tree     = ps.tree_node()
 
-menu.enabled = core.menu.checkbox(true, "eaxdruidrestoration_enabled")
-menu.toggle_key = core.menu.keybind(7, false, "eaxdruidrestoration_toggle_key")
-menu.debug = core.menu.checkbox(false, "eaxdruidrestoration_debug")
-menu.mode = core.menu.combobox(1, "eaxdruidrestoration_mode")
-menu.mana_saver = core.menu.checkbox(false, "eaxdruidrestoration_mana_saver")
-menu.use_mark_of_the_wild = core.menu.checkbox(true, "eaxdruidrestoration_use_mark_of_the_wild")
+-- ── Shared plugin controls + shared fields ────────────────────────────────────
+-- Controls
+menu.enabled                             = core.menu.checkbox(true, "eaxdruidrestoration_enabled")
+menu.toggle_key                          = core.menu.keybind(7, false, "eaxdruidrestoration_toggle_key")
+menu.mode                                = core.menu.combobox(1, "eaxdruidrestoration_mode")
+menu.debug                               = core.menu.checkbox(false, "eaxdruidrestoration_debug")
+-- Targeting
+menu.focus_priority                      = core.menu.checkbox(false, "eaxdruidrestoration_focus_priority")
+menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxdruidrestoration_combat_self_hp_boost")
+-- Racial
+menu.use_racial                          = core.menu.checkbox(true, "eaxdruidrestoration_use_racial")
+menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxdruidrestoration_racial_hp")
+-- OOC
+menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
+menu.ooc_eat                             = core.menu.checkbox(true,  "eax_ooc_eat")
+menu.ooc_rez                             = core.menu.checkbox(true,  "eax_ooc_rez")
+menu.ooc_group_buff                      = core.menu.checkbox(true,  "eax_ooc_group_buff")
+menu.drink_threshold                     = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
+menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
+-- Leveling
+menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxdruidrestoration_lev_conserve")
+menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxdruidrestoration_lev_mana_floor")
+menu.use_wand                            = core.menu.checkbox(true,  "eaxdruidrestoration_use_wand")
+menu.wand_mana_floor                     = core.menu.slider_int(5, 80, 25, "eaxdruidrestoration_wand_mana_floor")
+menu.wand_at_hp                          = core.menu.slider_int(5, 60, 20, "eaxdruidrestoration_wand_at_hp")
+menu.use_spirit_tap_wand                 = core.menu.checkbox(true,  "eaxdruidrestoration_spirit_tap_wand")
+-- ESP
+menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
+menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
+menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
+menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
-menu.use_lifebloom = core.menu.checkbox(true, "eaxdruidrestoration_use_lifebloom")
-menu.lifebloom_stacks = core.menu.slider_int(1, 3, 3, "eaxdruidrestoration_lifebloom_stacks")
-menu.lifebloom_refresh_seconds = core.menu.slider_int(1, 4, 2, "eaxdruidrestoration_lifebloom_refresh_seconds")
+-- ── Class-specific elements ───────────────────────────────────────────────────
+menu.mana_saver                           = core.menu.checkbox(false, "eaxdruidrestoration_mana_saver")
+menu.use_mark_of_the_wild                 = core.menu.checkbox(true, "eaxdruidrestoration_use_mark_of_the_wild")
+menu.use_lifebloom                        = core.menu.checkbox(true, "eaxdruidrestoration_use_lifebloom")
+menu.lifebloom_stacks                     = core.menu.slider_int(1, 3, 3, "eaxdruidrestoration_lifebloom_stacks")
+menu.lifebloom_refresh_seconds            = core.menu.slider_int(1, 4, 2, "eaxdruidrestoration_lifebloom_refresh_seconds")
+menu.use_rejuvenation                     = core.menu.checkbox(true, "eaxdruidrestoration_use_rejuvenation")
+menu.rejuvenation_refresh_seconds         = core.menu.slider_int(1, 5, 3, "eaxdruidrestoration_rejuvenation_refresh_seconds")
+menu.use_regrowth                         = core.menu.checkbox(true, "eaxdruidrestoration_use_regrowth")
+menu.regrowth_refresh_seconds             = core.menu.slider_int(1, 5, 2, "eaxdruidrestoration_regrowth_refresh_seconds")
+menu.use_swiftmend                        = core.menu.checkbox(true, "eaxdruidrestoration_use_swiftmend")
+menu.swiftmend_hp_pct                     = core.menu.slider_int(20, 80, 60, "eaxdruidrestoration_swiftmend_hp_pct")
+menu.use_wild_growth                      = core.menu.checkbox(true, "eaxdruidrestoration_use_wild_growth")
+menu.wild_growth_targets                  = core.menu.slider_int(2, 6, 3, "eaxdruidrestoration_wild_growth_targets")
+menu.wild_growth_mana_pct                 = core.menu.slider_int(20, 80, 40, "eaxdruidrestoration_wild_growth_mana_pct")
+menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidrestoration_use_innervate")
+menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_innervate_mana_pct")
+menu.use_tranquility                      = core.menu.checkbox(true, "eaxdruidrestoration_use_tranquility")
+menu.tranquility_injured_count            = core.menu.slider_int(2, 8, 3, "eaxdruidrestoration_tranquility_injured_count")
+menu.use_natures_swiftness                = core.menu.checkbox(true, "eaxdruidrestoration_use_natures_swiftness")
+menu.emergency_hp_pct                     = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_emergency_hp_pct")
+menu.overheal_protection                  = core.menu.checkbox(true, "eaxdruidrestoration_overheal_protection")
 
-menu.use_rejuvenation = core.menu.checkbox(true, "eaxdruidrestoration_use_rejuvenation")
-menu.rejuvenation_refresh_seconds = core.menu.slider_int(1, 5, 3, "eaxdruidrestoration_rejuvenation_refresh_seconds")
-menu.use_regrowth = core.menu.checkbox(true, "eaxdruidrestoration_use_regrowth")
-menu.regrowth_refresh_seconds = core.menu.slider_int(1, 5, 2, "eaxdruidrestoration_regrowth_refresh_seconds")
-menu.use_swiftmend = core.menu.checkbox(true, "eaxdruidrestoration_use_swiftmend")
-menu.swiftmend_hp_pct = core.menu.slider_int(20, 80, 60, "eaxdruidrestoration_swiftmend_hp_pct")
-menu.use_wild_growth = core.menu.checkbox(true, "eaxdruidrestoration_use_wild_growth")
-menu.wild_growth_targets = core.menu.slider_int(2, 6, 3, "eaxdruidrestoration_wild_growth_targets")
-menu.wild_growth_mana_pct = core.menu.slider_int(20, 80, 40, "eaxdruidrestoration_wild_growth_mana_pct")
+-- ════════════════════════════════════════════════════════════════════════════
+-- RENDER  — called every frame by core.register_on_render_menu_callback
+-- The window object is injected via menu.set_window(win) in main.lua
+-- ════════════════════════════════════════════════════════════════════════════
 
-menu.use_innervate = core.menu.checkbox(true, "eaxdruidrestoration_use_innervate")
-menu.innervate_mana_pct = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_innervate_mana_pct")
-menu.use_tranquility = core.menu.checkbox(true, "eaxdruidrestoration_use_tranquility")
-menu.tranquility_injured_count = core.menu.slider_int(2, 8, 3, "eaxdruidrestoration_tranquility_injured_count")
-menu.use_natures_swiftness = core.menu.checkbox(true, "eaxdruidrestoration_use_natures_swiftness")
-menu.emergency_hp_pct = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_emergency_hp_pct")
+local _win  -- set once from main.lua via menu.set_window(win)
 
--- EAX Utils - Advanced Healing Features
-menu.overheal_protection = core.menu.checkbox(true, "eaxdruidrestoration_overheal_protection")
-menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, "eaxdruidrestoration_combat_self_hp_boost")
-menu.focus_priority = core.menu.checkbox(false, "eaxdruidrestoration_focus_priority")
+function menu.set_window(win)
+    _win = win
+end
 
 function menu.render()
-    tree:render("EAX Druid Restoration", function()
-        menu.enabled:render("Enabled", "Master enable/disable toggle")
-        menu.toggle_key:render("Toggle Key", "Keybind to toggle enabled state")
-        menu.debug:render("Debug Logging", "Print healing and target selection decisions to console")
-        menu.mode:render("Mode", { "Auto", "Solo", "Dungeon", "Raid" }, "Auto resolves from current group size")
-        menu.mana_saver:render("Mana Saver", "Delay expensive spells until mana is healthier")
-        menu.use_mark_of_the_wild:render("Mark of the Wild", "Refresh Mark of the Wild on yourself out of combat")
+    if _win and root_tree:is_open() then
+        -- Draw animated space background BEFORE imgui elements
+        ps.draw_space(_win, "eaxdruidrestoration")
+    end
 
-        lifebloom_tree:render("Lifebloom", function()
+    root_tree:render("  Eax's Druid Restoration", function()
+
+        ps.render_controls(menu, "Eax's Druid Restoration")
+
+        -- ── Class-specific settings ───────────────────────────────────────────
+        main_tree:render("  Eax's Rotation Settings", function()
+            ps.header("Spells & Abilities")
+            menu.mana_saver:render("Mana Saver", "Delay expensive spells until mana is healthier")
+            menu.use_mark_of_the_wild:render("Mark of the Wild", "Refresh Mark of the Wild on yourself out of combat")
             menu.use_lifebloom:render("Lifebloom", "Maintain Lifebloom stacks on the primary tank target")
             menu.lifebloom_stacks:render("Desired Stacks", "Target Lifebloom stack count")
             menu.lifebloom_refresh_seconds:render("Refresh Window (sec)", "Refresh Lifebloom below this remaining time")
-        end)
-
-        hot_tree:render("HoTs", function()
             menu.use_rejuvenation:render("Rejuvenation", "Maintain Rejuvenation on the priority heal target")
             menu.rejuvenation_refresh_seconds:render("Rejuvenation Refresh (sec)", "Refresh Rejuvenation below this remaining time")
             menu.use_regrowth:render("Regrowth", "Use Regrowth for heavier sustained healing")
@@ -66,20 +108,32 @@ function menu.render()
             menu.use_wild_growth:render("Wild Growth", "Use Wild Growth for multi-target healing when available")
             menu.wild_growth_targets:render("Wild Growth Targets", "Minimum injured allies before Wild Growth")
             menu.wild_growth_mana_pct:render("Wild Growth Mana %", "Minimum mana to allow Wild Growth")
-        end)
-
-        cooldown_tree:render("Cooldowns", function()
             menu.use_innervate:render("Innervate", "Recover mana automatically at the configured threshold")
             menu.innervate_mana_pct:render("Innervate Mana %", "Mana threshold for Innervate")
             menu.use_tranquility:render("Tranquility", "Use Tranquility during raid-wide injury windows")
             menu.tranquility_injured_count:render("Tranquility Injured Count", "Minimum injured allies before Tranquility")
             menu.use_natures_swiftness:render("Nature's Swiftness", "Prep Nature's Swiftness for Regrowth emergencies")
             menu.emergency_hp_pct:render("Emergency HP %", "Health threshold for Nature's Swiftness + Regrowth")
-            
             menu.overheal_protection:render("Overheal Protection", "Cancel slow heals when target is near full HP")
-            menu.combat_self_hp_boost:render("Combat Self HP Boost %", "Additional self-heal threshold when in combat")
-            menu.focus_priority:render("Focus Target Priority", "Prioritize healing your focus target")
         end)
+
+        -- ── Defensive cooldowns ───────────────────────────────────────────────
+        ps.render_defensive(menu, def_tree, {
+        -- (none detected)
+        })
+
+        -- ── Targeting ────────────────────────────────────────────────────────
+        ps.render_targeting(menu, tgt_tree)
+
+        -- ── Racial ────────────────────────────────────────────────────────────
+        ps.render_racial(menu, racial_tree)
+
+        -- ── Out-of-combat ─────────────────────────────────────────────────────
+        ps.render_ooc(menu, ooc_tree, true)
+
+        -- ── Display & HUD ─────────────────────────────────────────────────────
+        ps.render_esp(menu, esp_tree)
+
     end)
 end
 

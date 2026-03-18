@@ -8,12 +8,11 @@ local plugin = {
     load = true,
 }
 
-local enums = require("common/enums")
 local local_player = core.object_manager.get_local_player()
 
 if local_player then
     local player_class = local_player:get_class()
-    if player_class ~= enums.class_id.PALADIN then
+    if player_class ~= 2 then
         plugin.load = false
         return plugin
     end

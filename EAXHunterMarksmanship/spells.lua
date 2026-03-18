@@ -49,4 +49,17 @@ spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 spells.GOBLIN_ROCKET_BOOTS = { 8896 }
 spells.GNOMISH_ROKET_HELMET = { 13028 }
 
+
+spells.SCORPID_STING        = { 3043 }
+spells.VIPER_STING          = { 27018, 14280, 14279, 3034 }
+spells.RAPID_FIRE           = { 3045 }
+spells.INTIMIDATION         = { 19577 }
+spells.ASPECT_OF_THE_VIPER  = { 34074 }
+spells.FEED_PET             = { 6991 }
+
+spells.BUFF_RAPID_FIRE          = { 3045 }
+spells.BUFF_ASPECT_OF_THE_VIPER = { 34074 }
+spells.DEBUFF_SCORPID_STING     = { 3043 }
+spells.DEBUFF_VIPER_STING       = { 27018, 14280, 14279, 3034 }
+
 return spells

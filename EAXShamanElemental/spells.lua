@@ -41,4 +41,16 @@ spells.SUPER_MANA_POTION = { 28499, 22828 }
 spells.SCROLL_OF_INTELLECT = { 22732, 10291 }
 spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 
+spells.ANCESTRAL_SPIRIT  = { 25590, 20777, 20776, 20775, 20776, 2008 }
+
+
+spells.WATER_SHIELD         = { 33736, 24398 }          -- Water Shield R1-R2
+spells.LIGHTNING_SHIELD     = { 25472, 10432, 10431, 10430, 8134, 8133, 8132, 324 }
+spells.HEALING_WAVE         = { 25396, 10396, 10395, 913, 939, 940, 941, 547, 331 }
+spells.GHOST_WOLF           = { 2645 }
+spells.TOTEMIC_CALL         = { 36936 }
+
+spells.BUFF_WATER_SHIELD    = { 33736, 24398 }
+spells.BUFF_LIGHTNING_SHIELD = { 25472, 10432, 10431, 10430, 8134, 8133, 8132, 324 }
+
 return spells
