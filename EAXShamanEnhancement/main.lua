@@ -16,6 +16,8 @@ local ooc_manager = require("ooc_manager")
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -227,7 +229,7 @@ local function try_cast_target(me, target, spell_id, label)
     if is_pending_cast(spell_id) then
         return false
     end
-    if not utils.cast_target(spell_id, me, target) then
+    if not utils.cast_target(spell_id, target, nil) then
         return false
     end
     mark_pending_cast(spell_id)
@@ -584,11 +586,12 @@ local function do_rotation(me, target)
         leveling_manager.ensure_melee(me, target)
     end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "shaman", utils) then
@@ -688,7 +691,10 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then return end
     if eax_utils.is_eating_or_drinking(me) then return end
     local focus_target = eax_utils.get_focus_target(menu)
-    local target = focus_target or me:get_target()
+    -- Validate focus target is hostile; if not, fall through to smart selector
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    -- Smart target selection: prioritize units actively fighting us/party
+    local target = focus_target or utils.find_best_target(me)
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = utils.get_health_pct(me)
     if my_hp < self_threshold then

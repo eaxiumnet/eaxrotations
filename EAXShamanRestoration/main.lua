@@ -279,7 +279,7 @@ end
 local function try_cast_ally(me, target, spell_id, label)
     if not spell_id or not target or not target:is_valid() or target:is_dead() then return false end
     if is_pending(spell_id) then return false end
-    if not utils.cast_target(spell_id, me, target) then return false end
+    if not utils.cast_target(spell_id, target, nil) then return false end
     mark_pending(spell_id)
     note_cast()
     local target_name = target:get_name() or "?"
@@ -313,7 +313,7 @@ local function try_cast_hostile(me, target, spell_id, label)
     if not spell_id or not target or not target:is_valid() or target:is_dead() then return false end
     if not utils.is_valid_hostile(me, target) then return false end
     if is_pending(spell_id) then return false end
-    if not utils.cast_target(spell_id, me, target) then return false end
+    if not utils.cast_target(spell_id, target, nil) then return false end
     mark_pending(spell_id)
     note_cast()
     local target_name = target:get_name() or "?"
@@ -610,7 +610,7 @@ local function try_natures_swiftness(me, tank)
     if heal_engine.get_eff_pct(tank) > emergency then return false end
     if not try_cast_self_fast(me, rt.nature_s_swift_id, "Nature's Swiftness") then return false end
     rt.last_ns_at = now
-    if utils.cast_target(rt.healing_wave_id, me, tank) then
+    if utils.cast_target(rt.healing_wave_id, tank, nil) then
         mark_pending(rt.healing_wave_id)
         note_cast()
         utils.log_debug(menu, "HW (instant via NS) -> " .. (tank:get_name() or "?"))
@@ -908,6 +908,11 @@ local function do_rotation(me)
     end
 
     -- -- Defensive abilities -------------------------------------------------
+    -- Racial abilities
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
+
     if defensive_manager.try_defensive(me, "shaman", utils) then
         return
     end
@@ -953,7 +958,7 @@ local function do_rotation(me)
     -- 10. PvP
     if try_pvp_utilities(me) then return end
     -- 11. DPS filler
-    try_dps_filler(me, me:get_target())
+    try_dps_filler(me, utils.find_best_target(me))
 end
 
 -- --- Toggle ------------------------------------------------------------------

@@ -18,6 +18,8 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -209,10 +211,10 @@ local function try_cast_spell(me, spell_id, target, label)
     if is_pending_cast(spell_id) then
         return false
     end
-    if not utils.can_cast_target(spell_id, me, target) then
+    if not utils.can_cast_hostile(spell_id, me, target) then
         return false
     end
-    if utils.cast_target(spell_id, me, target) then
+    if utils.cast_target(spell_id, target) then
         mark_pending_cast(spell_id)
         note_cast()
         utils.log_debug(menu, label .. " cast")
@@ -404,7 +406,7 @@ local function try_soul_shard_farm(me, target, drain_soul_id)
     -- Only farm if below the shard threshold set in menu
     local min_shards = menu.min_shards and menu.min_shards:get() or 3
     if count_soul_shards() >= min_shards then return false end
-    if not utils.can_cast_target(drain_soul_id, me, target) then return false end
+    if not utils.can_cast_hostile(drain_soul_id, me, target) then return false end
     if utils.cast_target(drain_soul_id, target, "Drain Soul (shard)") then
         utils.log_debug(menu, "Drain Soul for shard farm")
         return true
@@ -428,7 +430,7 @@ local function try_seed_of_corruption(me, target, enemy_count)
     if me:is_moving() then return false end
     -- Don't re-apply if Seed is already on target
     if utils.has_debuff(target, spells.DEBUFF_SEED_OF_CORRUPTION) then return false end
-    if not utils.can_cast_target(runtime.seed_of_corruption_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.seed_of_corruption_id, me, target) then return false end
     if utils.cast_target(runtime.seed_of_corruption_id, target, "Seed of Corruption") then
         utils.log_debug(menu, "Seed of Corruption (AoE x" .. tostring(enemy_count) .. ")")
         return true
@@ -453,16 +455,13 @@ local function do_rotation(me, target)
 
     -- Wanding / mana conservation (leveling 1-70)
     if leveling_manager.try_wand(me, target, menu) then return true end
-    if not leveling_manager.has_enough_mana(me, menu) then
-        leveling_manager.ensure_melee(me, target)
-        return false
-    end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -516,13 +515,11 @@ core.register_on_update_callback(function()
     end
         ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
-    local target = me:get_target()
-    if not is_valid_target(me, target) then
-        return
-    end
-
-    -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    local target = focus_target or utils.find_best_target(me)
+    if not target then return end
+
     if focus_target and focus_target:is_valid() then
         target = focus_target
     end

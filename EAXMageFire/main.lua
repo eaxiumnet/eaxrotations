@@ -17,6 +17,8 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -51,6 +53,7 @@ local runtime = {
     cached_mode = "solo",
     pending_casts = {},
     set_multiplier = 1.0,
+    ooc_arcane_intellect_id = nil,
 }
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
@@ -205,7 +208,7 @@ local function try_pyroblast(me, target)
     local combustion_window = utils.has_buff(me, spells.BUFF_COMBUSTION)
     if not hot_streak and not combustion_window then return false end
     if is_pending_cast(runtime.pyroblast_id) or utils.is_spell_already_queued(runtime.pyroblast_id) then return false end
-    if not utils.can_cast_target(runtime.pyroblast_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.pyroblast_id, me, target) then return false end
 
     if utils.cast_target(runtime.pyroblast_id, target, "Pyroblast") then
         mark_pending_cast(runtime.pyroblast_id, PENDING_CAST_TIMEOUT_S)
@@ -230,7 +233,7 @@ local function try_scorch(me, target)
     end
 
     if is_pending_cast(runtime.scorch_id) or utils.is_spell_already_queued(runtime.scorch_id) then return false end
-    if not utils.can_cast_target(runtime.scorch_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.scorch_id, me, target) then return false end
 
     if utils.cast_target(runtime.scorch_id, target, "Scorch") then
         mark_pending_cast(runtime.scorch_id, PENDING_CAST_TIMEOUT_S)
@@ -247,7 +250,7 @@ local function try_fire_blast_move(me, target)
     if not runtime.fire_blast_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_moving() then return false end
-    if not utils.can_cast_target(runtime.fire_blast_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.fire_blast_id, me, target) then return false end
 
     if utils.cast_target_fast(runtime.fire_blast_id, target, "Fire Blast") then
         mark_pending_cast(runtime.fire_blast_id, FAST_PENDING_CAST_TIMEOUT_S)
@@ -265,7 +268,7 @@ local function try_fireball(me, target)
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
     if is_pending_cast(runtime.fireball_id) or utils.is_spell_already_queued(runtime.fireball_id) then return false end
-    if not utils.can_cast_target(runtime.fireball_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.fireball_id, me, target) then return false end
 
     if utils.cast_target(runtime.fireball_id, target, "Fireball") then
         mark_pending_cast(runtime.fireball_id, PENDING_CAST_TIMEOUT_S)
@@ -322,6 +325,36 @@ local function try_presence_of_mind(me)
 end
 
 
+local function count_enemies_near(me, radius)
+    local pos = me:get_position()
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if is_valid_hostile_target(me, obj) and obj:is_in_combat() then
+            local sq = pos:squared_dist_to_ignore_z(obj:get_position())
+            local r = radius + (obj:get_bounding_radius() or 0)
+            if sq <= r * r then count = count + 1 end
+        end
+    end
+    return count
+end
+
+local function try_flamestrike(me, target)
+    if enc and not enc.aoe_safe then return false end
+    if not menu.use_flamestrike:get_state() then return false end
+    if not runtime.flamestrike_id then return false end
+    local enemy_count = count_enemies_near(me, spells.FLAMESTRIKE_RADIUS)
+    if enemy_count < menu.flamestrike_enemy_count:get() then return false end
+    if not utils.can_cast_hostile(runtime.flamestrike_id, me, target) then return false end
+    if utils.cast_target(runtime.flamestrike_id, target) then
+        esp_renderer.on_cast(runtime.flamestrike_id, "Flamestrike", color.red(220))
+        utils.log_debug(menu, "Flamestrike (AoE x" .. tostring(enemy_count) .. ")")
+        return true
+    end
+    return false
+end
+
 local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
     if not is_gcd_ready() then return false end
@@ -329,12 +362,8 @@ local function do_rotation(me, target)
 
     -- Wanding / mana conservation (leveling 1-70)
     if leveling_manager.try_wand(me, target, menu) then return true end
-    if not leveling_manager.has_enough_mana(me, menu) then
-        leveling_manager.ensure_melee(me, target)
-        return false
-    end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Interrupt
     if target and interrupt_manager.should_interrupt(target) then
@@ -346,6 +375,7 @@ local function do_rotation(me, target)
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -377,35 +407,7 @@ end
 
 -- --- Flamestrike - AoE ground fire (v1.8.2) ------------------------------
 
-local function count_enemies_near(me, radius)
-    local pos = me:get_position()
-    local count = 0
-    local objects = core.object_manager.get_all_objects()
-    for i = 1, #objects do
-        local obj = objects[i]
-        if is_valid_hostile_target(me, obj) and obj:is_in_combat() then
-            local sq = pos:squared_dist_to_ignore_z(obj:get_position())
-            local r = radius + (obj:get_bounding_radius() or 0)
-            if sq <= r * r then count = count + 1 end
-        end
-    end
-    return count
-end
 
-local function try_flamestrike(me, target)
-    if enc and not enc.aoe_safe then return false end
-    if not menu.use_flamestrike:get_state() then return false end
-    if not runtime.flamestrike_id then return false end
-    local enemy_count = count_enemies_near(me, spells.FLAMESTRIKE_RADIUS)
-    if enemy_count < menu.flamestrike_enemy_count:get() then return false end
-    if not utils.can_cast_target(runtime.flamestrike_id, me, target) then return false end
-    if utils.cast_target(runtime.flamestrike_id, me, target) then
-        esp_renderer.on_cast(runtime.flamestrike_id, "Flamestrike", color.red(220))
-        utils.log_debug(menu, "Flamestrike (AoE x" .. tostring(enemy_count) .. ")")
-        return true
-    end
-    return false
-end
 
 -- --- Ice Block - emergency freeze (v1.8.2) -------------------------------
 local function try_ice_block(me)
@@ -450,7 +452,7 @@ core.register_on_update_callback(function()
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT),
+            { spell_id = runtime.ooc_arcane_intellect_id,
                buff_ids = spells.BUFF_ARCANE_INTELLECT,
                name = "Arcane Intellect",
                toggle = menu.ooc_group_buff },
@@ -462,13 +464,9 @@ core.register_on_update_callback(function()
     if me:is_dead() then return end
     if eax_utils.is_eating_or_drinking(me) then return end
 
-    local target = me:get_target()
-    
-    -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    if focus_target and focus_target:is_valid() then
-        target = focus_target
-    end
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    local target = focus_target or utils.find_best_target(me)
     
     -- Self-emergency
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.30, menu)

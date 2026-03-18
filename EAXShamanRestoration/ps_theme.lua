@@ -25,16 +25,19 @@ end
 
 -- -- Palette ------------------------------------------------------------------
 ps.col = {
-    panel        = c(  11,   8,  24, 252),
-    panel_deep   = c(   8,   5,  18, 240),
-    border_glow  = c( 110,  64, 201, 220),
-    border_dim   = c(  42,  29,  82, 160),
-    accent       = c( 196, 160, 255, 255),
-    accent_mid   = c( 112,  64, 192, 255),
-    text_on      = c( 168, 141, 224, 255),
-    text_off     = c(  74,  56, 120, 255),
-    transparent  = c(   0,   0,   0,   0),
+    panel        = c(  6, 10, 22, 252),
+    panel_deep   = c(  3,  6, 14, 240),
+    border_glow  = c( 60,240,200, 220),
+    border_dim   = c( 15, 50,130, 160),
+    accent       = c( 40,220,180, 255),
+    accent_mid   = c( 30, 90,200, 255),
+    text_on      = c( 80,255,220, 255),
+    text_off     = c( 30, 60,130, 255),
+    transparent  = c(  0,   0,   0,   0),
 }
+
+local STAR_R, STAR_G, STAR_B = 40, 220, 180
+local DUST_R, DUST_G, DUST_B = 20, 80, 220
 
 -- -- Pre-seeded star field (stable positions, no flicker between frames) -------
 -- We seed with a fixed value so every script gets identical star layout.
@@ -63,9 +66,6 @@ local function _build_field()
             spd   = 0.3 + r1() * 2.8,
             phase = r1() * math.pi * 2,
             bright = r1() > 0.35,
-            cr    = r1() > 0.65 and 175 or (r1() > 0.4 and 215 or 130),
-            cg    = r1() > 0.65 and 140 or (r1() > 0.4 and 195 or 100),
-            cb    = 255,
         }
     end
     _dust = {}
@@ -149,7 +149,7 @@ function ps.draw_space(win, id)
     for _, d in ipairs(_dust) do
         win:render_circle_filled(
             v(d.rx * W, d.ry * H), d.rad,
-            c(155, 95, 255, d.a))
+            c(DUST_R, DUST_G, DUST_B, d.a))
     end
 
     -- -- Stars (twinkling) -----------------------------------------------------
@@ -160,11 +160,11 @@ function ps.draw_space(win, id)
         win:render_circle_filled(
             v(s.rx * W, s.ry * H),
             s.rad * (0.7 + 0.3 * tw),
-            c(s.cr, s.cg, s.cb, alb))
+            c(STAR_R, STAR_G, STAR_B, alb))
 
         -- cross-flare on the biggest bright stars
         if s.bright and s.rad > 1.6 and tw > 0.88 then
-            local fl = c(s.cr, s.cg, s.cb, math.floor(alb * 0.28))
+            local fl = c(STAR_R, STAR_G, STAR_B, math.floor(alb * 0.28))
             local fx, fy = s.rx * W, s.ry * H
             local fr = s.rad * 3.5
             win:render_line(v(fx - fr, fy), v(fx + fr, fy), fl, 0.5)
@@ -208,17 +208,17 @@ function ps.draw_space(win, id)
             local my2 = my - math.sin(ang) * m.len * 0.45
 
             win:render_line(v(tx,  ty),  v(mx2, my2),
-                c(90, 40, 185, math.floor(m.a * 60)),  m.w * 0.7)
+                c(DUST_R, DUST_G, DUST_B, math.floor(m.a * 60)),  m.w * 0.7)
             win:render_line(v(mx2, my2), v(mx,  my),
-                c(180, 130, 255, math.floor(m.a * 180)), m.w)
+                c(STAR_R, STAR_G, STAR_B, math.floor(m.a * 180)), m.w)
 
             -- Head glow dot + soft halo
             win:render_circle_filled(
                 v(mx, my), 5.5,
-                c(170, 130, 255, math.floor(m.a * 70)))
+                c(STAR_R, STAR_G, STAR_B, math.floor(m.a * 70)))
             win:render_circle_filled(
                 v(mx, my), 2.6,
-                c(240, 220, 255, math.floor(m.a * 255)))
+                c(240, 235, 255, math.floor(m.a * 255)))
         end
     end
     for i = #dead, 1, -1 do table.remove(pool.list, dead[i]) end

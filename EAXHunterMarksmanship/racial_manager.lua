@@ -6,6 +6,13 @@
 
 local racial_manager = {}
 
+-- Safe boolean wrapper: returns false if the function errors (e.g. method not available)
+local function pcall_bool(fn)
+    local ok, result = pcall(fn)
+    return ok and result == true
+end
+
+
 -- Spell IDs by racial
 local RACIALS = {
     -- Offensive
@@ -85,19 +92,48 @@ end
 -- Try defensive racials. Call when HP drops below threshold or CC applied.
 function racial_manager.try_defensive(me)
     if not me then return false end
-    local hp = me:get_health_percentage() / 100
-    -- Stoneform: clear DoTs/bleeds when low
-    if hp < 0.50 then
-        if try_racial(me, "stoneform") then return true end
-    end
-    -- Escape Artist: when rooted/slowed (can't detect directly - use on low HP)
-    if hp < 0.40 then
+
+    -- Escape Artist (Gnome): fires when actually rooted or heavily slowed
+    local is_rooted = pcall_bool(function() return me:is_rooted(400) end)
+    local is_slowed = pcall_bool(function() return me:is_slowed(0.30, 400) end)
+    if is_rooted or is_slowed then
         if try_racial(me, "escape_artist") then return true end
     end
-    -- Will of the Forsaken: if feared/charmed (approximate via low HP)
-    if hp < 0.35 then
+
+    -- Will of the Forsaken (Undead): fires when feared or charmed
+    local is_feared   = pcall_bool(function() return me:is_feared(400) end)
+    local is_charmed  = pcall_bool(function()
+        local enums_ok, en = pcall(require, "common/enums")
+        if enums_ok and en and en.cc_flags then
+            return me:is_cc(400, en.cc_flags.CHARM)
+        end
+        return false
+    end)
+    if is_feared or is_charmed then
         if try_racial(me, "will_of_forsaken") then return true end
     end
+
+    -- Stoneform (Dwarf): fires when poisoned, diseased, or bleeding
+    local has_harmful = pcall_bool(function()
+        local bm_ok, bm = pcall(require, "common/modules/buff_manager")
+        if not (bm_ok and bm) then return false end
+        local cache = bm:get_debuff_cache(me, 60)
+        local en_ok, en = pcall(require, "common/enums")
+        if not (en_ok and en and en.buff_type) then return false end
+        for _, aura in ipairs(cache) do
+            if aura.is_active then
+                if aura.buff_type == en.buff_type.POISON
+                or aura.buff_type == en.buff_type.DISEASE then
+                    return true
+                end
+            end
+        end
+        return false
+    end)
+    if has_harmful then
+        if try_racial(me, "stoneform") then return true end
+    end
+
     return false
 end
 

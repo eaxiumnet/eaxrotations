@@ -52,6 +52,8 @@ local runtime = {
     cached_mode = "solo",
     pending_casts = {},
     set_multiplier = 1.0,
+    ooc_mark_of_the_wild_id = nil,
+    remove_curse_id = nil,
 }
 
 local GROUP_ROLE_TANK = 0
@@ -64,19 +66,19 @@ local function resolve_spells()
     runtime.lifebloom_id = utils.resolve_spell_id(spells.LIFEBLOOM)
     runtime.rejuvenation_id = utils.resolve_spell_id(spells.REJUVENATION)
     runtime.regrowth_id = utils.resolve_spell_id(spells.REGROWTH)
-    runtime.wild_growth_id = utils.resolve_spell_id(spells.WILD_GROWTH)
     runtime.swiftmend_id = utils.resolve_spell_id(spells.SWIFTMEND)
     runtime.innervate_id = utils.resolve_spell_id(spells.INNERVATE)
     runtime.tranquility_id = utils.resolve_spell_id(spells.TRANQUILITY)
     runtime.natures_swiftness_id = utils.resolve_spell_id(spells.NATURES_SWIFTNESS)
     runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
+    runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
 end
 
 local function log_resolved_spells()
     core.log("[EAX Druid Restoration] Resolved: Lifebloom=" .. tostring(runtime.lifebloom_id)
         .. " Rejuvenation=" .. tostring(runtime.rejuvenation_id)
         .. " Regrowth=" .. tostring(runtime.regrowth_id)
-        .. " WildGrowth=" .. tostring(runtime.wild_growth_id)
+        
         .. " Swiftmend=" .. tostring(runtime.swiftmend_id))
 end
 
@@ -392,7 +394,31 @@ local function try_regrowth(me, target, target_hp_pct, mana_pct)
     return false
 end
 
-local function do_rotation(me)
+local function try_remove_curse_resto(me)
+    if not menu.use_remove_curse:get_state() then return false end
+    if not runtime.remove_curse_id then return false end
+
+    local units = utils.get_group_units(me, true)
+    for _, unit in ipairs(units) do
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local cache = buff_manager:get_debuff_cache(unit, 100)
+            for _, aura in ipairs(cache) do
+                if aura.is_active and aura.buff_type == enums.buff_type.CURSE then
+                    if utils.can_cast_unit(runtime.remove_curse_id, me, unit) then
+                        if utils.cast_unit(runtime.remove_curse_id, me, unit) then
+                            utils.log_debug(menu, "Remove Curse -> " .. (unit.get_name and unit:get_name() or "ally"))
+                            return true
+                        end
+                    end
+                    break
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
     -- OOC: only allow buffs like Mark of the Wild, not heals
@@ -427,10 +453,10 @@ local function do_rotation(me)
     local injured_count = utils.count_injured_units(units, 0.85)
 
     if try_innervate(me, mana_pct) then return true end
+    if try_remove_curse_resto(me) then return true end
     if try_tranquility(me, injured_count, lowest_hp_pct, mode) then return true end
     if heal_target and try_natures_swiftness_regrowth(me, heal_target, heal_target_hp_pct) then return true end
     if heal_target and try_swiftmend(me, heal_target, heal_target_hp_pct) then return true end
-    if lowest and try_wild_growth(me, lowest, injured_count, mana_pct) then return true end
     if tank and try_lifebloom(me, tank) then return true end
     if heal_target and try_rejuvenation(me, heal_target, heal_target_hp_pct) then return true end
     if heal_target and try_regrowth(me, heal_target, heal_target_hp_pct, mana_pct) then return true end
@@ -459,34 +485,6 @@ core.register_on_update_callback(function()
     local me = core.object_manager.get_local_player()
     if not me then return end
 
-    -- Overheal Protection - cancel slow heals if target is healthy
-    if eax_utils.should_stopcasting(me, menu) then
-        if SpellStopCasting then SpellStopCasting() end
-    end
-
-    -- Interrupt (PVP)
-    local target = me:get_target()
-    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "druid", utils) then
-            return
-        end
-    end
-
-
-    -- Mana conservation (leveling 1-70)
-    if leveling_manager.is_conserving_mana(me, menu) then
-        leveling_manager.ensure_melee(me, target)
-    end
-    -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
-
-    -- Defensive abilities
-    if defensive_manager.try_defensive(me, "druid", utils) then
-        return
-    end
-
-    ttd_tracker.update(target)
-
     if utils.throttle("eaxdruidrestoration_mode_refresh", 5.0) then
         runtime.cached_mode = detect_mode(me)
     end
@@ -503,7 +501,7 @@ core.register_on_update_callback(function()
     ooc_manager.on_update(me, menu, utils, {
         rez_spell_id = runtime.rebirth_id,
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD),
+            { spell_id = runtime.ooc_mark_of_the_wild_id,
                buff_ids = spells.BUFF_MARK_OF_THE_WILD,
                name = "Mark Of The Wild",
                toggle = menu.ooc_group_buff },
@@ -512,7 +510,42 @@ core.register_on_update_callback(function()
     if me:is_dead() then return end
     if eax_utils.is_eating_or_drinking(me) then return end
 
-    do_rotation(me)
+    -- Overheal Protection - cancel slow heals if target is healthy
+    if eax_utils.should_stopcasting(me, menu) then
+        if SpellStopCasting then SpellStopCasting() end
+    end
+
+    -- Use smart target for wanding/interrupts (prefers units attacking us/party)
+    local target = utils.find_best_target(me)
+
+    -- Mana conservation (leveling 1-70)
+    if leveling_manager.is_conserving_mana(me, menu) then
+        leveling_manager.ensure_melee(me, target)
+    end
+
+    -- Interrupt (PVP)
+    if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
+        if interrupt_manager.try_interrupt(me, target, "druid", utils) then
+            return
+        end
+    end
+
+    -- Encounter policy (boss-specific rotation adjustments)
+    local enc = encounter_manager.get_policy(me)
+
+    -- Defensive abilities
+    -- Racial abilities
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
+
+    if defensive_manager.try_defensive(me, "druid", utils) then
+        return
+    end
+
+    ttd_tracker.update(target)
+
+    do_rotation(me, target)
 end)
 
 

@@ -59,23 +59,84 @@ local INTERRUPT_SPELLS = {
 -- Priority interrupt whitelist (from OpenWarrior2/core/interrupt_library.lua)
 -- Higher weight = higher priority interrupt target
 local DANGEROUS_SPELLS = {
-    -- Healing
-    [2061]  = 70,  -- Flash Heal
-    [331]   = 70,  -- Healing Wave
-    [20473] = 65,  -- Holy Shock
-    [635]   = 60,  -- Holy Light
-    -- CC
-    [118]   = 80,  -- Polymorph
-    [5484]  = 75,  -- Howl of Terror
-    [8122]  = 75,  -- Psychic Scream
-    [2094]  = 70,  -- Blind
-    -- Big nukes
-    [116]   = 50,  -- Frostbolt
-    [133]   = 50,  -- Fireball
-    [686]   = 50,  -- Shadow Bolt
-    -- Buffs/summons worth interrupting
-    [755]   = 55,  -- Health Funnel
-    [20484] = 60,  -- Rebirth (battle rez)
+    -- === HEALING (highest priority) ===
+    -- Paladin
+    [635]   = 90,  -- Holy Light (rank 1-11; highest rank is 25292)
+    [25292] = 90,  -- Holy Light rank 11
+    [27135] = 90,  -- Holy Light rank 9
+    [20473] = 85,  -- Holy Shock
+    [19750] = 75,  -- Flash of Light
+    [27137] = 75,  -- Flash of Light rank 6
+    -- Priest
+    [2061]  = 85,  -- Flash Heal
+    [25233] = 85,  -- Flash Heal rank 9
+    [2060]  = 80,  -- Greater Heal
+    [25314] = 80,  -- Greater Heal rank 6
+    [596]   = 75,  -- Prayer of Healing
+    [25316] = 75,  -- Prayer of Healing rank 6
+    [139]   = 65,  -- Renew (DoT heal - worth stopping before it starts)
+    -- Druid
+    [8936]  = 80,  -- Regrowth
+    [25299] = 80,  -- Regrowth rank 10
+    [5185]  = 70,  -- Healing Touch
+    [25297] = 70,  -- Healing Touch rank 11
+    -- Shaman
+    [331]   = 85,  -- Healing Wave rank 1-11
+    [25357] = 85,  -- Healing Wave rank 11
+    [8004]  = 75,  -- Lesser Healing Wave
+    [25420] = 75,  -- Lesser Healing Wave rank 7
+    [1064]  = 80,  -- Chain Heal rank 1-5
+    [25422] = 80,  -- Chain Heal rank 5
+    -- Warlock
+    [755]   = 65,  -- Health Funnel
+
+    -- === CROWD CONTROL (high priority) ===
+    [118]   = 95,  -- Polymorph
+    [28272] = 95,  -- Polymorph: Pig
+    [28271] = 95,  -- Polymorph: Turtle
+    [12826] = 95,  -- Polymorph (rank 4)
+    [33786] = 90,  -- Cyclone
+    [605]   = 90,  -- Mind Control
+    [5484]  = 85,  -- Howl of Terror
+    [8122]  = 85,  -- Psychic Scream
+    [8124]  = 85,  -- Psychic Scream rank 3
+    [10890] = 85,  -- Psychic Scream rank 4
+    [2094]  = 80,  -- Blind
+    [6358]  = 80,  -- Seduction (succubus)
+    [710]   = 85,  -- Banish
+    [18647] = 85,  -- Banish rank 2
+
+    -- === RESURRECTIONS ===
+    [2006]  = 95,  -- Resurrection
+    [20484] = 95,  -- Rebirth (Druid battle rez)
+    [2008]  = 90,  -- Ancestral Spirit (Shaman)
+    [8171]  = 90,  -- Ancestral Spirit rank 4
+    [10060] = 90,  -- Power Infusion (Priest) - massive haste buff
+
+    -- === BIG OFFENSIVE CASTS ===
+    [116]   = 60,  -- Frostbolt
+    [25304] = 60,  -- Frostbolt rank 12
+    [133]   = 60,  -- Fireball
+    [27070] = 60,  -- Fireball rank 12
+    [11366] = 65,  -- Pyroblast
+    [27085] = 65,  -- Pyroblast rank 9
+    [686]   = 55,  -- Shadow Bolt
+    [25307] = 55,  -- Shadow Bolt rank 11
+    [1120]  = 60,  -- Drain Soul
+    [11675] = 60,  -- Drain Soul rank 4
+    [2812]  = 55,  -- Holy Smite / Smite
+    [25364] = 55,  -- Smite rank 9
+    [9739]  = 55,  -- Starfire
+    [25298] = 55,  -- Starfire rank 8
+    [5570]  = 50,  -- Insect Swarm
+    [24974] = 50,  -- Insect Swarm rank 5
+
+    -- === SUMMONS ===
+    [688]   = 70,  -- Summon Imp
+    [691]   = 70,  -- Summon Felhunter
+    [712]   = 70,  -- Summon Succubus
+    [697]   = 70,  -- Summon Voidwalker
+    [30146] = 70,  -- Summon Felguard
 }
 
 local function get_interrupt_priority(target)

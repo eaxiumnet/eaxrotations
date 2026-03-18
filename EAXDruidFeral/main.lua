@@ -18,6 +18,8 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -64,6 +66,9 @@ local runtime = {
     combo_target_key = nil,
     pending_casts = {},
     set_multiplier = 1.0,
+    ooc_mark_of_the_wild_id = nil,
+    remove_curse_id = nil,
+    caster_form_cancel_id = nil,
 }
 
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
@@ -90,6 +95,7 @@ local function resolve_spells()
     runtime.demoralizing_roar_id   = utils.resolve_spell_id(spells.DEMORALIZING_ROAR)
     runtime.lacerate_id             = utils.resolve_spell_id(spells.LACERATE)
     runtime.maim_id                = utils.resolve_spell_id(spells.MAIM)
+    runtime.remove_curse_id        = utils.resolve_spell_id(spells.REMOVE_CURSE)
 end
 
 local function log_resolved_spells()
@@ -178,19 +184,22 @@ local function is_valid_hostile_target(me, target)
     return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
 end
 
-local function sync_combo_target(target)
-    local target_key = utils.get_target_key(target)
-    if not target_key then
+-- Read combo points from the game each tick with multiple fallbacks.
+-- TBC stores combo points as a player power resource (power type COMBOPOINTS_TBC).
+-- We try the most reliable method first and fall through if unavailable.
+local function sync_combo_target(me, target)
+    -- Reset CPs to 0 if we switched targets
+    local ok, cp_obj = pcall(function() return me:get_combo_points_target() end)
+    if ok and cp_obj and cp_obj:is_valid() then
+        if target and not utils.same_unit(cp_obj, target) then
+            runtime.combo_points = 0
+        end
+    else
+        -- No CP target at all - reset
         runtime.combo_points = 0
-        runtime.combo_target_key = nil
-        return
-    end
-
-    if runtime.combo_target_key ~= target_key then
-        runtime.combo_points = 0
-        runtime.combo_target_key = target_key
     end
 end
+
 
 local function get_requested_lane(me)
     local lane_idx = menu.lane:get()
@@ -259,9 +268,9 @@ local function try_faerie_fire(me, target)
     if not is_valid_hostile_target(me, target) then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) >= 3000 then return false end
     if is_pending_cast(runtime.faerie_fire_feral_id) then return false end
-    if not utils.can_cast_target(runtime.faerie_fire_feral_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.faerie_fire_feral_id, me, target) then return false end
 
-    if utils.cast_target(runtime.faerie_fire_feral_id, me, target) then
+    if utils.cast_target(runtime.faerie_fire_feral_id, target) then
         mark_pending_cast(runtime.faerie_fire_feral_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Faerie Fire (Feral)")
         note_cast()
@@ -300,9 +309,9 @@ local function try_rip(me, target)
     if runtime.combo_points < menu.rip_combo_points:get() then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) > (menu.rip_refresh_seconds:get() * 1000) then return false end
     if is_pending_cast(runtime.rip_id) then return false end
-    if not utils.can_cast_target(runtime.rip_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.rip_id, me, target) then return false end
 
-    if utils.cast_target(runtime.rip_id, me, target) then
+    if utils.cast_target(runtime.rip_id, target) then
         mark_pending_cast(runtime.rip_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Rip")
         note_cast()
@@ -319,9 +328,9 @@ local function try_ferocious_bite(me, target, target_hp_pct)
     if target_hp_pct > (menu.bite_hp_pct:get() / 100) then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) <= 3200 then return false end
     if is_pending_cast(runtime.ferocious_bite_id) then return false end
-    if not utils.can_cast_target(runtime.ferocious_bite_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.ferocious_bite_id, me, target) then return false end
 
-    if utils.cast_target(runtime.ferocious_bite_id, me, target) then
+    if utils.cast_target(runtime.ferocious_bite_id, target) then
         mark_pending_cast(runtime.ferocious_bite_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Ferocious Bite")
         note_cast()
@@ -336,9 +345,9 @@ local function try_mangle_cat(me, target)
     if not runtime.mangle_cat_id then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE) > 1500 then return false end
     if is_pending_cast(runtime.mangle_cat_id) then return false end
-    if not utils.can_cast_target(runtime.mangle_cat_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then return false end
 
-    if utils.cast_target(runtime.mangle_cat_id, me, target) then
+    if utils.cast_target(runtime.mangle_cat_id, target) then
         mark_pending_cast(runtime.mangle_cat_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Mangle (Cat)")
         note_cast()
@@ -420,7 +429,7 @@ local function try_rake_trick(me, target)
     local energy = utils.get_energy and utils.get_energy(me) or 0
     if energy < RAKE_TRICK_MIN or energy > RAKE_TRICK_MAX then return false end
     if is_pending_cast(runtime.rake_id) then return false end
-    if not utils.can_cast_target(runtime.rake_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.rake_id, me, target) then return false end
     if utils.cast_target(runtime.rake_id, target, "Rake trick") then
         utils.log_debug(menu, "Rake trick (energy sink)")
         mark_pending_cast(runtime.rake_id, 1.5)
@@ -436,9 +445,9 @@ local function try_rake(me, target)
     if not runtime.rake_id then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RAKE) > (menu.rake_refresh_seconds:get() * 1000) then return false end
     if is_pending_cast(runtime.rake_id) then return false end
-    if not utils.can_cast_target(runtime.rake_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.rake_id, me, target) then return false end
 
-    if utils.cast_target(runtime.rake_id, me, target) then
+    if utils.cast_target(runtime.rake_id, target) then
         mark_pending_cast(runtime.rake_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Rake")
         note_cast()
@@ -449,19 +458,50 @@ local function try_rake(me, target)
 end
 
 local function try_shred_or_filler(me, target)
-    if menu.use_shred:get_state() and runtime.shred_id and runtime.combo_points < 5 then
-        if not is_pending_cast(runtime.shred_id) and utils.can_cast_target(runtime.shred_id, me, target) then
-            if utils.cast_target(runtime.shred_id, me, target) then
-                mark_pending_cast(runtime.shred_id, PENDING_CAST_TIMEOUT_S)
-                utils.log_debug(menu, "Shred")
-                note_cast()
-                return true
+    local cp         = runtime.combo_points
+    local rake_rem   = math.floor(utils.get_debuff_remaining_ms(target, spells.DEBUFF_RAKE) / 1000)
+    local rip_rem    = math.floor(utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) / 1000)
+    local mangle_rem = math.floor(utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE) / 1000)
+    utils.log_debug(menu, string.format(
+        "State | CP=%d Rake=%ds Rip=%ds Mangle=%ds", cp, rake_rem, rip_rem, mangle_rem))
+
+    if menu.use_shred:get_state() and runtime.shred_id and cp < 5 then
+        local behind = utils.is_behind_target(me, target)
+        utils.log_debug(menu, "Shred check | behind=" .. tostring(behind))
+        if behind then
+            if not is_pending_cast(runtime.shred_id) and utils.can_cast_hostile(runtime.shred_id, me, target) then
+                if utils.cast_target(runtime.shred_id, target) then
+                    mark_pending_cast(runtime.shred_id, PENDING_CAST_TIMEOUT_S)
+                    utils.log_debug(menu, "Shred -> fired")
+                    note_cast()
+                    return true
+                end
+            end
+        else
+            local maim_reason = "ok"
+            if not runtime.maim_id then
+                maim_reason = "no maim_id (not learned)"
+            elseif cp < 1 then
+                maim_reason = "CP=" .. cp .. " (need >=1)"
+            elseif utils.has_debuff(target, spells.DEBUFF_MAIM) then
+                maim_reason = "already stunned"
+            elseif not utils.can_cast_hostile(runtime.maim_id, me, target) then
+                maim_reason = "can_cast_hostile=false (on CD or not usable)"
+            end
+            utils.log_debug(menu, "Not behind | Maim=" .. maim_reason)
+
+            if maim_reason == "ok" then
+                if utils.cast_target(runtime.maim_id, target) then
+                    utils.log_debug(menu, "Maim -> fired (reposition for Shred)")
+                    note_cast()
+                    return true
+                end
             end
         end
     end
 
-    if runtime.mangle_cat_id and not is_pending_cast(runtime.mangle_cat_id) and utils.can_cast_target(runtime.mangle_cat_id, me, target) then
-        if utils.cast_target(runtime.mangle_cat_id, me, target) then
+    if runtime.mangle_cat_id and not is_pending_cast(runtime.mangle_cat_id) and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
+        if utils.cast_target(runtime.mangle_cat_id, target) then
             mark_pending_cast(runtime.mangle_cat_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "Cat filler Mangle")
             note_cast()
@@ -469,6 +509,73 @@ local function try_shred_or_filler(me, target)
         end
     end
 
+    return false
+end
+
+local function try_maim(me, target)
+    if not menu.use_maim or not menu.use_maim:get_state() then return false end
+    if not runtime.maim_id then return false end
+    -- Maim as interrupt when Skull Bash is on CD
+    if not interrupt_manager.should_interrupt(target) then return false end
+    -- Use runtime.combo_points which is read from API each tick by sync_combo_target
+    if runtime.combo_points < 1 then return false end
+    if utils.cast_target(runtime.maim_id, target, "Maim") then
+        utils.log_debug(menu, "Maim (interrupt)")
+        return true
+    end
+    return false
+end
+
+-- --- Root escape (TBC: shifting form cancels roots) -----------------------
+-- Shifting out of animal form while rooted breaks the root.
+-- try_shift_form will re-enter the correct form on the next tick.
+
+local function try_root_escape(me)
+    if not menu.use_root_escape:get_state() then return false end
+    -- Only act if actually rooted
+    if not me:is_rooted(400) then return false end
+    -- Only if in an animal form (cat or bear)
+    local in_animal = utils.has_buff(me, spells.BUFF_CAT_FORM)
+                   or utils.has_buff(me, spells.BUFF_BEAR_FORM)
+    if not in_animal then return false end
+    -- Cancel form by cancelling the aura (standard TBC technique)
+    -- We call cast_self on an invalid form to trigger cancellation,
+    -- or use the bare CancelShapeshiftForm if exposed
+    local ok = pcall(function()
+        if CancelShapeshiftForm then CancelShapeshiftForm() end
+    end)
+    if not ok then
+        -- Fallback: cast self without buff active check to trigger drop
+        if runtime.cat_form_id and utils.has_buff(me, spells.BUFF_CAT_FORM) then
+            core.spell_book.cast_spell(runtime.cat_form_id)
+        elseif runtime.bear_form_id then
+            core.spell_book.cast_spell(runtime.bear_form_id)
+        end
+    end
+    utils.log_debug(menu, "Root escape: shifted out of form")
+    note_cast()
+    return true
+end
+
+local function try_remove_curse_feral(me, target)
+    if not menu.use_remove_curse:get_state() then return false end
+    if not runtime.remove_curse_id then return false end
+    -- Only castable in caster form
+    if utils.has_buff(me, spells.BUFF_CAT_FORM) or utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
+    if not target or not target:is_valid() then return false end
+    -- Check if target has a curse
+    local cache = buff_manager:get_debuff_cache(target, 100)
+    for _, aura in ipairs(cache) do
+        if aura.is_active and aura.buff_type == enums.buff_type.CURSE then
+            if utils.can_cast_target(runtime.remove_curse_id, me, target) then
+                if utils.cast_target(runtime.remove_curse_id, target) then
+                    utils.log_debug(menu, "Remove Curse")
+                    note_cast()
+                    return true
+                end
+            end
+        end
+    end
     return false
 end
 
@@ -501,7 +608,7 @@ local function try_growl(me, target)
     if not runtime.growl_id then return false end
     if utils.target_is_me(target, me) then return false end
     if is_pending_cast(runtime.growl_id) then return false end
-    if not utils.can_cast_target(runtime.growl_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.growl_id, me, target) then return false end
 
     if utils.cast_target_fast(runtime.growl_id, target) then
         mark_pending_cast(runtime.growl_id, FAST_PENDING_CAST_TIMEOUT_S)
@@ -558,9 +665,9 @@ local function try_mangle_bear(me, target)
     if not runtime.mangle_bear_id then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE) > 1500 then return false end
     if is_pending_cast(runtime.mangle_bear_id) then return false end
-    if not utils.can_cast_target(runtime.mangle_bear_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.mangle_bear_id, me, target) then return false end
 
-    if utils.cast_target(runtime.mangle_bear_id, me, target) then
+    if utils.cast_target(runtime.mangle_bear_id, target) then
         mark_pending_cast(runtime.mangle_bear_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Mangle (Bear)")
         note_cast()
@@ -621,19 +728,6 @@ end
 
 -- --- Cat utility (v1.1) ---------------------------------------------------
 
-local function try_maim(me, target)
-    if not menu.use_maim or not menu.use_maim:get_state() then return false end
-    if not runtime.maim_id then return false end
-    -- Maim as interrupt when Skull Bash is on CD
-    if not interrupt_manager.should_interrupt(target) then return false end
-    local cp = eax_utils.get_combo_points and eax_utils.get_combo_points(me) or 0
-    if cp < 1 then return false end
-    if utils.cast_target(runtime.maim_id, target, "Maim") then
-        utils.log_debug(menu, "Maim (interrupt)")
-        return true
-    end
-    return false
-end
 
 
 
@@ -655,7 +749,7 @@ local function try_lacerate(me, target)
 
     -- Apply if not at max stacks
     if stacks < LACERATE_MAX_STACKS then
-        if utils.can_cast_target(runtime.lacerate_id, me, target) then
+        if utils.can_cast_hostile(runtime.lacerate_id, me, target) then
             if utils.cast_target(runtime.lacerate_id, target, "Lacerate") then
                 utils.log_debug(menu, "Lacerate (" .. tostring(stacks + 1) .. " stacks)")
                 return true
@@ -663,7 +757,7 @@ local function try_lacerate(me, target)
         end
     -- Refresh when about to fall off
     elseif remaining <= LACERATE_REFRESH_MS then
-        if utils.can_cast_target(runtime.lacerate_id, me, target) then
+        if utils.can_cast_hostile(runtime.lacerate_id, me, target) then
             if utils.cast_target(runtime.lacerate_id, target, "Lacerate (refresh)") then
                 utils.log_debug(menu, "Lacerate refresh")
                 return true
@@ -689,8 +783,8 @@ local function do_bear_rotation(me, target)
     if try_swipe(me, enemy_count) then return true end
     if try_maul(me, target) then return true end
 
-    if runtime.mangle_bear_id and not is_pending_cast(runtime.mangle_bear_id) and utils.can_cast_target(runtime.mangle_bear_id, me, target) then
-        if utils.cast_target(runtime.mangle_bear_id, me, target) then
+    if runtime.mangle_bear_id and not is_pending_cast(runtime.mangle_bear_id) and utils.can_cast_hostile(runtime.mangle_bear_id, me, target) then
+        if utils.cast_target(runtime.mangle_bear_id, target) then
             mark_pending_cast(runtime.mangle_bear_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "Bear filler Mangle")
             note_cast()
@@ -709,10 +803,11 @@ local function do_rotation(me, target)
     local lane = get_requested_lane(me)
     runtime.current_lane = lane
 
+    if try_root_escape(me) then return true end
     if try_shift_form(me, lane) then return true end
     if not is_valid_hostile_target(me, target) then return false end
 
-    sync_combo_target(target)
+    sync_combo_target(me, target)
 
     if lane == "cat" then
         return do_cat_rotation(me, target)
@@ -731,6 +826,42 @@ core.register_on_render_callback(function()
     on_render()
 end)
 -- __EAX_ESP_GUARD
+-- Combo point tracking via cast callback (server does not expose CP count via get_power)
+-- Builder spells each grant +1 CP (max 5), finishers reset to 0.
+local CP_BUILDERS = {}
+local CP_FINISHERS = {}
+local function build_cp_spell_sets()
+    -- Builders: Rake, Shred, Mangle (Cat), Ferocious Bite, Claw
+    local builder_ids = {
+        1822, 27003,           -- Rake
+        5221, 8992, 8993, 27001, 27002,  -- Shred
+        33876, 33983, 48565, 48566,       -- Mangle Cat
+        1082, 6807, 27001,                -- Claw (fallback builder)
+    }
+    for _, id in ipairs(builder_ids) do CP_BUILDERS[id] = true end
+    -- Finishers: Rip, Ferocious Bite, Maim
+    local finisher_ids = {
+        1079, 27008,           -- Rip
+        22568, 22828, 22829, 24248,       -- Ferocious Bite
+        22570, 49802,          -- Maim
+    }
+    for _, id in ipairs(finisher_ids) do CP_FINISHERS[id] = true end
+end
+build_cp_spell_sets()
+
+local function on_spell_cast(data)
+    if not data or not data.spell_id then return end
+    local sid = data.spell_id
+    if CP_BUILDERS[sid] then
+        runtime.combo_points = math.min(5, runtime.combo_points + 1)
+        core.log("[EAX CP] Builder " .. sid .. " -> CP=" .. runtime.combo_points)
+    elseif CP_FINISHERS[sid] then
+        runtime.combo_points = 0
+        core.log("[EAX CP] Finisher " .. sid .. " -> CP=0")
+    end
+end
+
+core.register_on_spell_cast_callback(on_spell_cast)
 core.register_on_update_callback(function()
     local me = core.object_manager.get_local_player()
     if not me then return end
@@ -751,7 +882,7 @@ core.register_on_update_callback(function()
     ooc_manager.on_update(me, menu, utils, {
         rez_spell_id = runtime.rebirth_id,
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD),
+            { spell_id = runtime.ooc_mark_of_the_wild_id,
                buff_ids = spells.BUFF_MARK_OF_THE_WILD,
                name = "Mark Of The Wild",
                toggle = menu.ooc_group_buff },
@@ -762,7 +893,10 @@ core.register_on_update_callback(function()
 
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    local target = focus_target or me:get_target()
+    -- Validate focus target is hostile; if not, fall through to smart selector
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    -- Smart target selection: prioritize units actively fighting us/party
+    local target = focus_target or utils.find_best_target(me)
 
 
     -- Mana conservation (leveling 1-70)
@@ -770,10 +904,10 @@ core.register_on_update_callback(function()
         leveling_manager.ensure_melee(me, target)
     end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Interrupt
-    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+    if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "druid", utils) then
             return
         end
@@ -782,6 +916,7 @@ core.register_on_update_callback(function()
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "druid", utils) then
@@ -902,4 +1037,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Druid Feral] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[EAX Druid Feral] Loaded " .. (_pi and _pi.plugin_version or "?") .. " (CP-fix-v9)")

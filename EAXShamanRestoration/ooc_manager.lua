@@ -25,9 +25,11 @@ local EAT_BUFF_IDS   = { 433, 787,  1131, 5004,  5005,  7737,  18191, 35270 }
 -- --- Helpers ------------------------------------------------------------------
 
 local function has_any_buff(unit, ids)
-    if not unit or not ids then return false end
-    -- buff_manager:get_buff_data accepts a number[] table directly
+    if not unit or not unit:is_valid() or not ids then return false end
+    -- Try buff first, then aura cache fallback (handles some server quirks)
     local data = buff_manager:get_buff_data(unit, ids)
+    if data and data.is_active then return true end
+    data = buff_manager:get_aura_data(unit, ids)
     return data ~= nil and data.is_active
 end
 
@@ -197,32 +199,50 @@ end
 -- Generic group buff applier. Pass a table of {spell_id, buff_ids, name}.
 -- Applies to all party members (and self) who are missing the buff.
 
+-- Coarse scan interval: only check who needs buffing every 5 seconds
+local _last_group_buff_scan = 0
+local GROUP_BUFF_SCAN_INTERVAL = 5.0
+-- After a successful cast, wait this long before recasting the same buff (1500s = 25 min)
+local GROUP_BUFF_RECAST_DELAY  = 1500.0
+
 function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_toggle, menu, utils)
     if not menu_toggle or not menu_toggle:get_state() then return false end
     if not spell_id then return false end
-    if me:is_in_combat() then return false end  -- most group buffs OOC only
-    -- Don't cast buffs while eating or drinking
+    if me:is_in_combat() then return false end
+    -- Don't cast while eating or drinking
     local ok_cast, is_casting = pcall(function() return me:is_casting_spell() end)
     if ok_cast and is_casting then return false end
     local ok_chan, is_chan = pcall(function() return me:is_channelling_spell() end)
     if ok_chan and is_chan then return false end
 
     local now = core.time()
-    local throttle_key = spell_id
-    if (now - (last_group_buff[throttle_key] or 0)) < 2.0 then return false end
 
-    -- Check self first
-    if not has_any_buff(me, buff_ids) then
+    -- Coarse scan throttle: don't scan every frame
+    if (now - _last_group_buff_scan) < GROUP_BUFF_SCAN_INTERVAL then return false end
+
+    -- Per-spell post-cast delay: don't recast a buff we just applied
+    if (now - (last_group_buff[spell_id] or 0)) < GROUP_BUFF_RECAST_DELAY then
+        return false
+    end
+
+    -- Check self
+    if has_any_buff(me, buff_ids) then
+        -- Already buffed: set the recast timer so we don't keep scanning
+        if (last_group_buff[spell_id] or 0) == 0 then
+            last_group_buff[spell_id] = now
+        end
+    else
         if utils.can_cast_self(spell_id, me) then
             if utils.cast_self(spell_id, me) then
-                last_group_buff[throttle_key] = now
+                last_group_buff[spell_id] = now
+                _last_group_buff_scan = now
                 utils.log_debug(menu, "OOC: Buffing self - " .. (buff_name or ""))
                 return true
             end
         end
     end
 
-    -- Check party
+    -- Check party members
     local objects = core.object_manager.get_all_objects()
     for i = 1, #objects do
         local obj = objects[i]
@@ -232,7 +252,8 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
             if not has_any_buff(obj, buff_ids) then
                 if utils.can_cast_target(spell_id, me, obj) then
                     if utils.cast_target(spell_id, obj, buff_name or "Group Buff") then
-                        last_group_buff[throttle_key] = now
+                        last_group_buff[spell_id] = now
+                        _last_group_buff_scan = now
                         utils.log_debug(menu, "OOC: Buffing party - " .. (buff_name or ""))
                         return true
                     end
@@ -240,6 +261,9 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
             end
         end
     end
+
+    -- Advance scan timestamp even when nothing was cast so we don't spam checks
+    _last_group_buff_scan = now
     return false
 end
 

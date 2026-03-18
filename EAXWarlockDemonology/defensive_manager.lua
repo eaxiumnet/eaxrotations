@@ -5,10 +5,12 @@ local defensive_manager = {}
 
 local DEFENSIVE_TIERS = {
     warrior = {
-        { hp = 0.90, spell_ids = {12282}, name = "victory_rush" },
-        { hp = 0.70, spell_ids = {12975}, name = "last_stand" },
-        { hp = 0.50, spell_ids = {28820}, name = "enraged_regeneration" },
-        { hp = 0.30, spell_ids = {871}, name = "shield_wall" },
+        -- TBC: Last Stand (Protection talent) - 30% max HP boost for 20s
+        { hp = 0.60, spell_ids = {12975}, name = "last_stand" },
+        -- TBC: Berserker Rage - immune to fear/incapacitate, generates rage
+        { hp = 0.50, spell_ids = {18499}, name = "berserker_rage" },
+        -- TBC: Shield Wall (requires shield - Prot/Arms) - 75% damage reduction
+        { hp = 0.30, spell_ids = {871, 8538, 8539}, name = "shield_wall" },
     },
     rogue = {
         -- Cloak of Shadows: dispels all magic debuffs, 1-min CD
@@ -20,8 +22,8 @@ local DEFENSIVE_TIERS = {
         { hp = 0.30, spell_ids = {5384}, name = "feign_death" },
     },
     paladin = {
+        { hp = 0.25, spell_ids = {1044}, name = "hand_of_freedom" },
         { hp = 0.30, spell_ids = {642}, name = "divine_shield" },
-        { hp = 0.40, spell_ids = {1044}, name = "blessing_of_protection" },
         { hp = 0.50, spell_ids = {20217}, name = "blessing_of_sacrifice" },
     },
     druid = {
@@ -29,7 +31,7 @@ local DEFENSIVE_TIERS = {
         { hp = 0.30, spell_ids = {61336}, name = "survival_instincts" },
     },
     mage = {
-        { hp = 0.20, spell_ids = {45438}, name = "ice_block" },
+        { hp = 0.20, spell_ids = {11958, 27619}, name = "ice_block" },
     },
     priest = {
         { hp = 0.30, spell_ids = {33206}, name = "pain_suppression" },
@@ -38,7 +40,8 @@ local DEFENSIVE_TIERS = {
         { hp = 0.30, spell_ids = {30823}, name = "shamanistic_rage" },
     },
     warlock = {
-        { hp = 0.25, spell_ids = {47893}, name = "soul_harvest" },
+        -- TBC: Drain Life as emergency self-heal
+        { hp = 0.35, spell_ids = {27221, 11700, 11699, 3699, 1455, 1454, 689}, name = "drain_life" },
     },
 }
 

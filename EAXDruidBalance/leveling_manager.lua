@@ -74,7 +74,12 @@ function leveling_manager.is_conserving_mana(me, menu)
     if not menu or not menu.leveling_conserve_mana then return false end
     local ok, enabled = pcall(function() return menu.leveling_conserve_mana:get_state() end)
     if not (ok and enabled) then return false end
-    return leveling_manager.get_mana_pct(me) < 0.40
+    local floor = 0.40
+    if menu and menu.leveling_mana_floor then
+        local ok, v = pcall(function() return menu.leveling_mana_floor:get() end)
+        if ok and type(v) == "number" then floor = v / 100.0 end
+    end
+    return leveling_manager.get_mana_pct(me) < floor
 end
 
 -- --- Wand detection -----------------------------------------------------------

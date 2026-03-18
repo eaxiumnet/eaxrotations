@@ -19,6 +19,8 @@ local ooc_manager = require("ooc_manager")
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -731,7 +733,7 @@ local function try_sunder_armor(me, target, target_hp_pct)
     end
 
     if utils.can_cast_melee(runtime.sunder_armor_id, me)
-        and utils.cast_target(runtime.sunder_armor_id, me, target)
+        and utils.cast_target(runtime.sunder_armor_id, target)
     then
         utils.log_debug(menu, "Sunder Armor (" .. tostring(stack_count) .. " -> " .. tostring(stack_count + 1) .. ")")
         note_cast()
@@ -941,7 +943,7 @@ local function try_overpower_dance(me, target, rage)
 
     if not is_pending_or_current(runtime.overpower_id)
         and utils.can_cast_melee(runtime.overpower_id, me)
-        and utils.cast_target(runtime.overpower_id, me, target)
+        and utils.cast_target(runtime.overpower_id, target)
     then
         runtime.overpower_queue_requested_at = core.time()
         mark_pending_cast(runtime.overpower_id, PENDING_CAST_TIMEOUT_S, function()
@@ -970,7 +972,7 @@ local function try_rend_in_battle_stance(me, target, rage)
         return false
     end
 
-    if utils.can_cast_melee(runtime.rend_id, me) and utils.cast_target(runtime.rend_id, me, target) then
+    if utils.can_cast_melee(runtime.rend_id, me) and utils.cast_target(runtime.rend_id, target) then
         utils.log_debug(menu, "Rend")
         note_cast()
         return true
@@ -1287,7 +1289,7 @@ local function try_slam_or_hamstring_filler(me, target, rage, target_hp_pct, lab
         and target_hp_pct >= EXECUTE_HP_THRESHOLD
         and utils.can_cast_melee(runtime.slam_id, me)
         and utils.can_slam_without_clipping(me, runtime.slam_id, menu.slam_safety_buffer_ms:get())
-        and utils.cast_target(runtime.slam_id, me, target)
+        and utils.cast_target(runtime.slam_id, target)
     then
         runtime.last_slam_cast_game_time = core.game_time()
         utils.log_debug(menu, label .. ": Slam filler")
@@ -1301,7 +1303,7 @@ local function try_slam_or_hamstring_filler(me, target, rage, target_hp_pct, lab
         and rage >= HAMSTRING_MIN_RAGE
         and target_hp_pct >= EXECUTE_HP_THRESHOLD
         and utils.can_cast_melee(runtime.hamstring_id, me)
-        and utils.cast_target(runtime.hamstring_id, me, target)
+        and utils.cast_target(runtime.hamstring_id, target)
     then
         utils.log_debug(menu, label .. ": Hamstring filler")
         note_cast()
@@ -1347,11 +1349,31 @@ local function update_notifications(me, target)
     runtime.last_overpower_usable = overpower_usable
 end
 
+local function try_tc_dance_return(me)
+    if not runtime.tc_dance_return then return false end
+    local home = get_home_stance()
+    local home_id = get_home_stance_id()
+    if not home_id then return false end
+    if utils.get_current_stance(me) == home then
+        runtime.tc_dance_return = false
+        return false
+    end
+    if utils.can_cast_self(home_id, me) and utils.cast_self(home_id, me) then
+        mark_pending_cast(home_id, PENDING_CAST_TIMEOUT_S)
+        utils.set_tracked_stance(home)
+        runtime.tc_dance_return = false
+        utils.log_debug(menu, "Stance -> " .. home .. " (TC dance return)")
+        note_cast()
+        return true
+    end
+    return false
+end
+
 local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     if try_tc_dance_return(me) then return true end
     local bt_can_cast = runtime.bloodthirst_id
         and rage >= BLOODTHIRST_COST
-        and utils.can_cast_target_no_usable(runtime.bloodthirst_id, me, target)
+        and utils.can_cast_hostile_no_usable(runtime.bloodthirst_id, me, target)
         or false
     local ww_can_cast = runtime.whirlwind_id
         and utils.is_melee_target(me, target)
@@ -1359,11 +1381,11 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
         and core.spell_book.get_spell_cooldown(runtime.whirlwind_id) <= 0
         or false
     local ex_can_cast = should_cast_execute(target_hp_pct, rage)
-        and utils.can_cast_target_no_usable(runtime.execute_id, me, target)
+        and utils.can_cast_hostile_no_usable(runtime.execute_id, me, target)
         or false
 
     if bt_can_cast and not is_pending_or_current(runtime.bloodthirst_id) then
-        if utils.cast_target(runtime.bloodthirst_id, me, target) then
+        if utils.cast_target(runtime.bloodthirst_id, target) then
             mark_pending_cast(runtime.bloodthirst_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "ST: Bloodthirst")
             note_cast()
@@ -1372,7 +1394,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     end
 
     if ww_can_cast and not is_pending_or_current(runtime.whirlwind_id) then
-        if utils.cast_target(runtime.whirlwind_id, me, target) then
+        if utils.cast_target(runtime.whirlwind_id, target) then
             mark_pending_cast(runtime.whirlwind_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "ST: Whirlwind")
             note_cast()
@@ -1381,7 +1403,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     end
 
     if ex_can_cast and not is_pending_or_current(runtime.execute_id) then
-        if utils.cast_target(runtime.execute_id, me, target) then
+        if utils.cast_target(runtime.execute_id, target) then
             mark_pending_cast(runtime.execute_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "ST: Execute")
             note_cast()
@@ -1401,7 +1423,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
             and utils.is_melee_target(me, target)
             and rage >= REND_COST
             and utils.can_cast_melee(runtime.rend_id, me)
-            and utils.cast_target(runtime.rend_id, me, target)
+            and utils.cast_target(runtime.rend_id, target)
         then
             utils.log_debug(menu, "ST: Rend (leveling)")
             note_cast()
@@ -1413,7 +1435,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
             and rage >= THUNDER_CLAP_COST
             and not utils.has_debuff(target, spells.DEBUFF_THUNDER_CLAP)
             and utils.can_cast_melee(runtime.thunder_clap_id, me)
-            and utils.cast_target(runtime.thunder_clap_id, me, target)
+            and utils.cast_target(runtime.thunder_clap_id, target)
         then
             utils.log_debug(menu, "ST: Thunder Clap (leveling)")
             note_cast()
@@ -1486,7 +1508,7 @@ local function try_thunder_clap_dance(me, target, rage)
     -- Already in Battle: cast TC
     if runtime.tc_dance_pending or current == "battle" then
         if utils.can_cast_melee(runtime.thunder_clap_id, me)
-           and utils.cast_target(runtime.thunder_clap_id, me, target)
+           and utils.cast_target(runtime.thunder_clap_id, target)
         then
             utils.log_debug(menu, "Thunder Clap (debuff dance)")
             note_cast()
@@ -1499,25 +1521,6 @@ local function try_thunder_clap_dance(me, target, rage)
     return false
 end
 
-local function try_tc_dance_return(me)
-    if not runtime.tc_dance_return then return false end
-    local home = get_home_stance()
-    local home_id = get_home_stance_id()
-    if not home_id then return false end
-    if utils.get_current_stance(me) == home then
-        runtime.tc_dance_return = false
-        return false
-    end
-    if utils.can_cast_self(home_id, me) and utils.cast_self(home_id, me) then
-        mark_pending_cast(home_id, PENDING_CAST_TIMEOUT_S)
-        utils.set_tracked_stance(home)
-        runtime.tc_dance_return = false
-        utils.log_debug(menu, "Stance -> " .. home .. " (TC dance return)")
-        note_cast()
-        return true
-    end
-    return false
-end
 
 
 local function do_aoe_core_lane(me, target, rage)
@@ -1551,7 +1554,7 @@ local function do_aoe_core_lane(me, target, rage)
         and rage >= THUNDER_CLAP_COST
         and not utils.has_debuff(primary_target, spells.DEBUFF_THUNDER_CLAP)
         and utils.can_cast_melee(runtime.thunder_clap_id, me)
-        and utils.cast_target(runtime.thunder_clap_id, me, primary_target)
+        and utils.cast_target(runtime.thunder_clap_id, primary_target)
     then
         utils.log_debug(menu, "AoE: Thunder Clap (Sweeping window)")
         note_cast()
@@ -1568,7 +1571,7 @@ local function do_aoe_core_lane(me, target, rage)
             and core.spell_book.get_spell_cooldown(runtime.whirlwind_id) <= 0
         then
             if not is_pending_or_current(runtime.whirlwind_id)
-                and utils.cast_target(runtime.whirlwind_id, me, primary_target)
+                and utils.cast_target(runtime.whirlwind_id, primary_target)
             then
                 mark_pending_cast(runtime.whirlwind_id, PENDING_CAST_TIMEOUT_S)
                 utils.log_debug(menu, "AoE: Whirlwind")
@@ -1579,10 +1582,10 @@ local function do_aoe_core_lane(me, target, rage)
     end
 
     if primary_target and runtime.bloodthirst_id
-        and utils.can_cast_target(runtime.bloodthirst_id, me, primary_target)
+        and utils.can_cast_hostile(runtime.bloodthirst_id, me, primary_target)
     then
         if not is_pending_or_current(runtime.bloodthirst_id)
-            and utils.cast_target(runtime.bloodthirst_id, me, primary_target)
+            and utils.cast_target(runtime.bloodthirst_id, primary_target)
         then
             mark_pending_cast(runtime.bloodthirst_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "AoE: Bloodthirst")
@@ -1592,10 +1595,10 @@ local function do_aoe_core_lane(me, target, rage)
     end
 
     if execute_target and should_cast_execute(utils.get_health_pct(execute_target), rage)
-        and utils.can_cast_target_no_usable(runtime.execute_id, me, execute_target)
+        and utils.can_cast_hostile_no_usable(runtime.execute_id, me, execute_target)
     then
         if not is_pending_or_current(runtime.execute_id)
-            and utils.cast_target(runtime.execute_id, me, execute_target)
+            and utils.cast_target(runtime.execute_id, execute_target)
         then
             mark_pending_cast(runtime.execute_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "AoE: Execute")
@@ -1628,7 +1631,7 @@ local function try_intercept(me, target)
         return false
     end
 
-    if utils.can_cast_target(runtime.intercept_id, me, target) and utils.cast_target(runtime.intercept_id, me, target) then
+    if utils.can_cast_hostile(runtime.intercept_id, me, target) and utils.cast_target(runtime.intercept_id, target) then
         utils.log_debug(menu, "Intercept (" .. string.format("%.1f", distance) .. " yd)")
         note_cast()
         return true
@@ -1711,7 +1714,7 @@ local function try_charge_opener(me, target)
         reset_charge_stance_request()
     end
 
-    if not is_pending_or_current(runtime.charge_id) and utils.cast_target(runtime.charge_id, me, target) then
+    if not is_pending_or_current(runtime.charge_id) and utils.cast_target(runtime.charge_id, target) then
         runtime.charge_queue_requested_at = core.time()
         mark_pending_cast(runtime.charge_id, PENDING_CAST_TIMEOUT_S, function()
             runtime.charge_queue_requested_at = 0
@@ -1757,7 +1760,7 @@ local function try_intimidating_shout_keybind(me, target)
     if not core.spell_book.is_usable_spell(runtime.intimidating_shout_id) then return false end
 
     if utils.can_cast_melee(runtime.intimidating_shout_id, me)
-        and utils.cast_target(runtime.intimidating_shout_id, me, target)
+        and utils.cast_target(runtime.intimidating_shout_id, target)
     then
         utils.log_debug(menu, "Manual: Intimidating Shout")
         note_cast()
@@ -2034,19 +2037,24 @@ core.log("[EAX Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | 
     if utils.is_casting_or_channeling(me) then return end
 
     local rage = utils.get_rage(me)
-    local target = me:get_target()
+    local target = utils.find_best_target(me)
     
     -- Interrupt
     if target and target:is_valid()
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
- and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+    enc = encounter_manager.get_policy(me)
+ and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "warrior", utils) then
             return
         end
     end
 
     -- Defensive abilities
+    -- Racial abilities
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
+
     if defensive_manager.try_defensive(me, "warrior", utils) then
         return
     end

@@ -103,17 +103,44 @@ local function handle_toggle()
     runtime.prev_toggle_state = current
 end
 
-local function track_target(target)
-    if not target or not target:is_valid() then
-        runtime.combo_points = 0
-        runtime.combo_target = nil
-        return
+-- Read combo points with multiple fallbacks for cross-server compatibility.
+local function get_current_combo_points(me)
+    local ok1, cp1 = pcall(function()
+        if enums and enums.power_type and enums.power_type.COMBOPOINTS_TBC then
+            return me:get_power(enums.power_type.COMBOPOINTS_TBC)
+        end
+    end)
+    if ok1 and type(cp1) == "number" and cp1 >= 0 then return cp1 end
+
+    local ok2, cp2 = pcall(function()
+        if enums and enums.power_type and enums.power_type.COMBOPOINTS then
+            return me:get_power(enums.power_type.COMBOPOINTS)
+        end
+    end)
+    if ok2 and type(cp2) == "number" and cp2 >= 0 then return cp2 end
+
+    local ok3, cp3 = pcall(function() return me:get_power(4) end)
+    if ok3 and type(cp3) == "number" and cp3 >= 0 then return cp3 end
+
+    local ok4, cp4 = pcall(function() return me:combo_points_current() end)
+    if ok4 and type(cp4) == "number" and cp4 >= 0 then return cp4 end
+
+    return 0
+end
+
+local function track_target(me, target)
+    -- Read combo points directly from the API every tick via izi_sdk.
+    local cp = get_current_combo_points(me)
+
+    -- Confirm CPs are on the current target, not a previous one
+    local cp_target_ok, cp_target = pcall(function() return me:get_combo_points_target() end)
+    if cp_target_ok and cp_target and cp_target:is_valid() then
+        if target and not utils.same_unit(cp_target, target) then
+            cp = 0
+        end
     end
 
-    if runtime.combo_target and runtime.combo_target ~= target then
-        runtime.combo_points = 0
-    end
-
+    runtime.combo_points = cp or 0
     runtime.combo_target = target
 end
 
@@ -143,8 +170,7 @@ local function try_premeditation(me, target)
     if utils.cast_self(runtime.premeditation_id, me, "Premeditation") then
         utils.log_debug(menu, "Premeditation")
         note_cast()
-        runtime.combo_points = math.min(runtime.combo_points + 2, 5)
-        runtime.combo_target = target
+        -- combo_points will be updated from API on next tick
         return true
     end
 
@@ -161,7 +187,7 @@ local function try_cheap_shot(me, target)
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_CHEAP_SHOT) > 0 then
         return false
     end
-    if not utils.can_cast_target(runtime.cheap_shot_id, me, target) then
+    if not utils.can_cast_hostile(runtime.cheap_shot_id, me, target) then
         return false
     end
 
@@ -181,7 +207,7 @@ local function try_ambush(me, target)
     if not runtime.ambush_id or not is_stealthed(me) or not utils.can_attack(me, target) then
         return false
     end
-    if not utils.can_cast_target(runtime.ambush_id, me, target) then
+    if not utils.can_cast_hostile(runtime.ambush_id, me, target) then
         return false
     end
 
@@ -204,10 +230,10 @@ local function try_shadowstep(me, target)
     if current_mode() == "solo" then
         return false
     end
-    if utils.can_cast_target(runtime.backstab_id, me, target) then
+    if utils.can_cast_hostile(runtime.backstab_id, me, target) then
         return false
     end
-    if not utils.can_cast_target(runtime.shadowstep_id, me, target) then
+    if not utils.can_cast_hostile(runtime.shadowstep_id, me, target) then
         return false
     end
 
@@ -281,7 +307,7 @@ local function try_rupture(me, target)
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RUPTURE) > 3000 then return false end
     -- TTD gate: don't Rupture if fight ending before it expires (v1.3)
     if ttd_tracker.get(target) < 12 then return false end
-    if not utils.can_cast_target(runtime.rupture_id, me, target) then
+    if not utils.can_cast_hostile(runtime.rupture_id, me, target) then
         return false
     end
 
@@ -307,7 +333,7 @@ local function try_eviscerate(me, target)
     if utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE) < 2000 then
         return false
     end
-    if not utils.can_cast_target(runtime.eviscerate_id, me, target) then
+    if not utils.can_cast_hostile(runtime.eviscerate_id, me, target) then
         return false
     end
 
@@ -330,7 +356,7 @@ local function try_backstab(me, target)
     if runtime.combo_points >= 5 then
         return false
     end
-    if not utils.can_cast_target(runtime.backstab_id, me, target) then
+    if not utils.can_cast_hostile(runtime.backstab_id, me, target) then
         return false
     end
 
@@ -354,7 +380,7 @@ local function try_hemorrhage(me, target)
     if runtime.combo_points >= 5 then
         return false
     end
-    if not utils.can_cast_target(runtime.hemorrhage_id, me, target) then
+    if not utils.can_cast_hostile(runtime.hemorrhage_id, me, target) then
         return false
     end
 
@@ -376,7 +402,7 @@ local function try_feint(me)
     if not runtime.feint_id then return false end
     local mode = utils.get_selected_mode and utils.get_selected_mode(menu) or "solo"
     if mode == "solo" then return false end
-    if not utils.can_cast_target(runtime.feint_id, me, me:get_target()) then return false end
+    if not utils.can_cast_hostile(runtime.feint_id, me, me:get_target()) then return false end
     if utils.cast_target(runtime.feint_id, me:get_target(), "Feint") then
         utils.log_debug(menu, "Feint")
         return true
@@ -407,6 +433,7 @@ local function do_rotation(me, target)
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -415,7 +442,7 @@ local function do_rotation(me, target)
         return true
     end
 
-    track_target(target)
+    track_target(me, target)
 
     if is_stealthed(me) then
         if try_premeditation(me, target) then
@@ -457,6 +484,18 @@ local function do_rotation(me, target)
 end
 
 
+local function update_set_bonus(me)
+    local max_mult = 1.0
+    local sets = { "Deathmantle", "DeathmantleBattlegear", "Terror" }
+    for _, set_name in ipairs(sets) do
+        local mult = utils.get_set_multiplier(me, set_name)
+        if mult > max_mult then
+            max_mult = mult
+        end
+    end
+    runtime.set_multiplier = max_mult
+end
+
 local function on_render()
     esp_renderer.on_render(menu)
 end
@@ -493,22 +532,14 @@ core.register_on_update_callback(function()
 
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    local target = focus_target or me:get_target()
+    -- Validate focus target is hostile; if not, fall through to smart selector
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    -- Smart target selection: prioritize units actively fighting us/party
+    local target = focus_target or utils.find_best_target(me)
 
     do_rotation(me, target)
 end)
 
-local function update_set_bonus(me)
-    local max_mult = 1.0
-    local sets = { "Deathmantle", "DeathmantleBattlegear", "Terror" }
-    for _, set_name in ipairs(sets) do
-        local mult = utils.get_set_multiplier(me, set_name)
-        if mult > max_mult then
-            max_mult = mult
-        end
-    end
-    runtime.set_multiplier = max_mult
-end
 
 
 -- -- Space theme: create menu window and inject into menu ---------------------

@@ -17,6 +17,8 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -53,6 +55,9 @@ local runtime = {
     mode_checked_at = 0,
     last_update_at = 0,
     prev_toggle_state = false,
+    ooc_blessing_of_might_id = nil,
+    ooc_blessing_of_sanctuary_id = nil,
+    hand_of_freedom_id = nil,
 }
 
 local function resolve_spells()
@@ -63,6 +68,7 @@ local function resolve_spells()
     runtime.judgement_id = utils.resolve_spell_id(spells.JUDGEMENT)
     runtime.hammer_of_justice_id = utils.resolve_spell_id(spells.HAMMER_OF_JUSTICE)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
+    runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
 end
 
 local function detect_mode()
@@ -153,6 +159,32 @@ local function ensure_holy_shield(me, target)
     return false
 end
 
+local function try_hand_of_freedom(me)
+    if not menu.use_hand_of_freedom:get_state() then return false end
+    if not runtime.hand_of_freedom_id then return false end
+    if not utils.can_cast_self(runtime.hand_of_freedom_id, me) then return false end
+
+    local include_slows = menu.hof_include_slows:get_state()
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local unit = objects[i]
+        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
+            and (me:is_party_member_of(unit) or utils.same_unit(me, unit)) then
+            local is_root = unit:is_rooted(500)
+            local is_slow = include_slows and unit:is_slowed(0.30, 500)
+            if is_root or is_slow then
+                if not utils.has_buff(unit, spells.BUFF_HAND_OF_FREEDOM) then
+                    if utils.cast_unit(runtime.hand_of_freedom_id, me, unit) then
+                        utils.log_debug(menu, "Hand of Freedom -> " .. (unit.get_name and unit:get_name() or "ally"))
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function try_consecration(me, enemy_count)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_consecration:get_state() or not runtime.consecration_id then
@@ -186,8 +218,8 @@ local function try_avengers_shield(me, target, mode)
         return false
     end
 
-    if utils.can_cast_target(runtime.avengers_shield_id, me, target) then
-        if utils.cast_target(runtime.avengers_shield_id, me, target) then
+    if utils.can_cast_hostile(runtime.avengers_shield_id, me, target) then
+        if utils.cast_target(runtime.avengers_shield_id, target) then
             utils.log_debug(menu, "Cast Avenger's Shield")
             notify_cast("paladin:avengers_shield", "Avenger's Shield", color.green(220))
                     esp_renderer.on_cast(nil, "Avenger's Shield", color.gold(220))
@@ -203,11 +235,11 @@ local function try_judgement(me, target)
         return false
     end
 
-    if not utils.can_cast_target(runtime.judgement_id, me, target) then
+    if not utils.can_cast_hostile(runtime.judgement_id, me, target) then
         return false
     end
 
-    if utils.cast_target(runtime.judgement_id, me, target) then
+    if utils.cast_target(runtime.judgement_id, target) then
         utils.log_debug(menu, "Cast Judgement")
         notify_cast("paladin:judgement", "Judgement", color.gold(220))
         return true
@@ -233,7 +265,7 @@ local function try_hammer_of_justice(me, target)
     if not runtime.hammer_of_justice_id then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not interrupt_manager.should_interrupt(target) then return false end
-    if not utils.can_cast_target(runtime.hammer_of_justice_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.hammer_of_justice_id, me, target) then return false end
     if utils.cast_target_fast(runtime.hammer_of_justice_id, target) then
         utils.log_debug(menu, "Hammer of Justice (interrupt)")
         return true
@@ -266,11 +298,11 @@ local function on_update()
     end
         ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT),
+            { spell_id = runtime.ooc_blessing_of_might_id,
                buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
                name = "Blessing of Might",
                toggle = menu.ooc_group_buff },
-            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_SANCTUARY),
+            { spell_id = runtime.ooc_blessing_of_sanctuary_id,
                buff_ids = spells.BUFF_BLESSING_OF_SANCTUARY,
                name = "Blessing of Sanctuary",
                toggle = menu.ooc_group_buff },
@@ -302,11 +334,12 @@ local function on_update()
         leveling_manager.ensure_melee(me, target)
     end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "paladin", utils) then
@@ -323,6 +356,7 @@ local function on_update()
     if ensure_holy_shield(me, target) then return true end
     end
 
+    if try_hand_of_freedom(me) then return end
     utils.ensure_melee_attack(me, target)
 
     if ensure_righteous_fury(me) then

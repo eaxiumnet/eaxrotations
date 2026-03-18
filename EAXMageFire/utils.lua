@@ -16,6 +16,10 @@ local FAST_SPELL_QUEUE_INTERVAL_S = 0.10
 
 function utils.resolve_spell_id(rank_table)
     if not rank_table then return nil end
+    -- Accept a plain spell ID (number) as well as a ranked table
+    if type(rank_table) == "number" then
+        return core.spell_book.is_spell_learned(rank_table) and rank_table or nil
+    end
     for i = 1, #rank_table do
         if core.spell_book.is_spell_learned(rank_table[i]) then
             return rank_table[i]
@@ -65,6 +69,80 @@ function utils.can_cast_target(spell_id, me, target)
     if not core.spell_book.is_spell_in_range(spell_id, target, me) then return false end
     return true
 end
+
+--- Can the player cast an OFFENSIVE spell on target right now?
+--- Extends can_cast_target with a hostility check (me:can_attack) and
+--- a self-cast guard so damage spells never fire on friendly units.
+---@param spell_id number|nil
+---@param me game_object
+---@param target game_object
+---@return boolean
+function utils.can_cast_hostile(spell_id, me, target)
+    if not me or not target then return false end
+    -- Never cast damage spells on self
+    if utils.same_unit(me, target) then return false end
+    -- Target must be attackable by the player (fails for friendlies, self, neutral)
+    if not me:can_attack(target) then return false end
+    
+    return utils.can_cast_target(spell_id, me, target)
+end
+
+
+-- Find the best hostile target using priority logic:
+-- 1. Current target if it is a valid hostile
+-- 2. A hostile unit that is actively targeting ME (attacking me)
+-- 3. A hostile unit attacking any party member
+-- 4. Any nearby hostile unit
+-- Returns nil if no valid target found.
+function utils.find_best_target(me)
+    if not me or not me:is_valid() then return nil end
+
+    local function is_hostile(unit)
+        return unit and unit:is_valid() and not unit:is_dead() and me:can_attack(unit)
+    end
+
+    -- Priority 1: keep current target if it is already a valid hostile
+    local current = me:get_target()
+    if is_hostile(current) then
+        return current
+    end
+
+    local objects = core.object_manager.get_all_objects()
+    local best_attacking_me   = nil
+    local best_attacking_party = nil
+    local best_any            = nil
+
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) then
+            local obj_target = obj:get_target()
+
+            -- Priority 2: unit actively targeting me
+            if obj_target and utils.same_unit(obj_target, me) then
+                if not best_attacking_me then
+                    best_attacking_me = obj
+                end
+
+            -- Priority 3: unit targeting a party member
+            elseif obj_target and obj_target:is_valid()
+                and obj_target:is_party_member() then
+                if not best_attacking_party then
+                    best_attacking_party = obj
+                end
+
+            -- Priority 4: any hostile (fallback)
+            else
+                if not best_any then
+                    best_any = obj
+                end
+            end
+        end
+    end
+
+    return best_attacking_me or best_attacking_party or best_any
+end
+
+
 
 function utils.can_cast_self(spell_id, me)
     if not spell_id or not me then return false end

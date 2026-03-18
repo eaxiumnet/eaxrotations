@@ -18,6 +18,8 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -54,6 +56,9 @@ local runtime = {
     cached_mode = "solo",
     last_twist_at = 0,
     twist_state = "idle",
+    ooc_blessing_of_might_id = nil,
+    ooc_blessing_of_wisdom_id = nil,
+    hand_of_freedom_id = nil,
 }
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
@@ -70,6 +75,7 @@ local function resolve_spells()
     runtime.divine_favor_id  = utils.resolve_spell_id(spells.DIVINE_FAVOR)
     runtime.exorcism_id      = utils.resolve_spell_id(spells.EXORCISM)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
+    runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
     runtime.judgement_ids.wisdom = utils.resolve_spell_id(spells.JUDGEMENT_OF_WISDOM)
     runtime.judgement_ids.crusader = utils.resolve_spell_id(spells.JUDGEMENT_OF_THE_CRUSADER)
 end
@@ -268,6 +274,32 @@ end
 -- --- Consecration (v1.6) ------------------------------------------------------
 -- AoE threat + DPS; also used in single-target as filler when everything else is on CD
 
+local function try_hand_of_freedom(me)
+    if not menu.use_hand_of_freedom:get_state() then return false end
+    if not runtime.hand_of_freedom_id then return false end
+    if not utils.can_cast_self(runtime.hand_of_freedom_id, me) then return false end
+
+    local include_slows = menu.hof_include_slows:get_state()
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local unit = objects[i]
+        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
+            and (me:is_party_member_of(unit) or utils.same_unit(me, unit)) then
+            local is_root = unit:is_rooted(500)
+            local is_slow = include_slows and unit:is_slowed(0.30, 500)
+            if is_root or is_slow then
+                if not utils.has_buff(unit, spells.BUFF_HAND_OF_FREEDOM) then
+                    if utils.cast_unit(runtime.hand_of_freedom_id, me, unit) then
+                        utils.log_debug(menu, "Hand of Freedom -> " .. (unit.get_name and unit:get_name() or "ally"))
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function try_consecration(me, target)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_consecration or not menu.use_consecration:get_state() then return false end
@@ -305,7 +337,7 @@ local function try_exorcism(me, target)
     local target_type = target.get_creature_type and target:get_creature_type() or 0
     local UNDEAD, DEMON = 5, 2  -- creature type IDs
     if target_type ~= UNDEAD and target_type ~= DEMON then return false end
-    if not utils.can_cast_target(runtime.exorcism_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.exorcism_id, me, target) then return false end
     if utils.cast_target(runtime.exorcism_id, target, "Exorcism") then
         utils.log_debug(menu, "Exorcism (undead/demon)")
         return true
@@ -334,7 +366,7 @@ local function maybe_cast_judgement(me, target)
     if not spell_id then
         return false
     end
-    if utils.cast_target(spell_id, me, target) then
+    if utils.cast_target(spell_id, target) then
         note_cast()
         utils.log_debug(menu, "Judgement -> " .. (mode_key == "crusader" and "Crusader" or "Wisdom"))
                 esp_renderer.on_cast(runtime.spell_id, "Judgement", color.yellow(220))
@@ -356,7 +388,7 @@ local function maybe_cast_crusader_strike(me, target)
     if not runtime.crusader_strike_id then
         return false
     end
-    if utils.cast_target(runtime.crusader_strike_id, me, target) then
+    if utils.cast_target(runtime.crusader_strike_id, target) then
         note_cast()
         utils.log_debug(menu, "Crusader Strike")
                 esp_renderer.on_cast(runtime.crusader_strike_id, "Crusader Strike", color.gold(220))
@@ -389,7 +421,7 @@ local function try_divine_storm(me, target)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_divine_storm or not menu.use_divine_storm:get_state() then return false end
     if not runtime.divine_storm_id then return false end
-    if not utils.can_cast_target(runtime.divine_storm_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.divine_storm_id, me, target) then return false end
     if utils.cast_target(runtime.divine_storm_id, target, "Divine Storm") then
         utils.log_debug(menu, "Divine Storm")
                 esp_renderer.on_cast(runtime.divine_storm_id, "Divine Storm", color.gold(220))
@@ -421,11 +453,11 @@ core.register_on_update_callback(function()
     end
         ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT),
+            { spell_id = runtime.ooc_blessing_of_might_id,
                buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
                name = "Blessing of Might",
                toggle = menu.ooc_group_buff },
-            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM),
+            { spell_id = runtime.ooc_blessing_of_wisdom_id,
                buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
                name = "Blessing of Wisdom",
                toggle = menu.ooc_group_buff },
@@ -437,13 +469,9 @@ core.register_on_update_callback(function()
         refresh_mode_cache()
     end
 
-    local target = me:get_target()
-    
-    -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    if focus_target and focus_target:is_valid() then
-        target = focus_target
-    end
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    local target = focus_target or utils.find_best_target(me)
     
     -- Self-emergency
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
@@ -460,10 +488,10 @@ core.register_on_update_callback(function()
         leveling_manager.ensure_melee(me, target)
     end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Interrupt
-    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+    if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "paladin", utils) then
             return
         end
@@ -472,6 +500,7 @@ core.register_on_update_callback(function()
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -480,6 +509,7 @@ core.register_on_update_callback(function()
         return
     end
 
+    if try_hand_of_freedom(me) then return end
     if continue_seal_twist(me) then
         return
     end

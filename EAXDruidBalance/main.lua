@@ -18,6 +18,8 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -58,6 +60,8 @@ local runtime = {
     cached_mode = "solo",
     pending_casts = {},
     set_multiplier = 1.0,
+    ooc_mark_of_the_wild_id = nil,
+    remove_curse_id = nil,
 }
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
@@ -79,6 +83,7 @@ local function resolve_spells()
     runtime.innervate_id = utils.resolve_spell_id(spells.INNERVATE)
     runtime.tranquility_id = utils.resolve_spell_id(spells.TRANQUILITY)
     runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
+    runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
 end
 
 local function log_resolved_spells()
@@ -87,7 +92,7 @@ local function log_resolved_spells()
         .. " Wrath=" .. tostring(runtime.wrath_id)
         .. " Starfire=" .. tostring(runtime.starfire_id)
         .. " ForceOfNature=" .. tostring(runtime.force_of_nature_id)
-        .. " Starfall=" .. tostring(runtime.starfall_id))
+        )
 end
 
 local function update_set_bonus(me)
@@ -229,9 +234,9 @@ local function try_faerie_fire(me, target)
     if not is_valid_hostile_target(me, target) then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) >= 3000 then return false end
     if is_pending_cast(runtime.faerie_fire_id) then return false end
-    if not utils.can_cast_target(runtime.faerie_fire_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.faerie_fire_id, me, target) then return false end
 
-    if utils.cast_target(runtime.faerie_fire_id, me, target) then
+    if utils.cast_target(runtime.faerie_fire_id, target) then
         mark_pending_cast(runtime.faerie_fire_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Faerie Fire refresh")
         note_cast()
@@ -249,9 +254,9 @@ local function try_moonfire(me, target)
     local refresh_ms = menu.dot_refresh_seconds:get() * 1000
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE) > refresh_ms then return false end
     if is_pending_cast(runtime.moonfire_id) then return false end
-    if not utils.can_cast_target(runtime.moonfire_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.moonfire_id, me, target) then return false end
 
-    if utils.cast_target(runtime.moonfire_id, me, target) then
+    if utils.cast_target(runtime.moonfire_id, target) then
         mark_pending_cast(runtime.moonfire_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Moonfire refresh")
         note_cast()
@@ -270,9 +275,9 @@ local function try_insect_swarm(me, target)
     local refresh_ms = menu.dot_refresh_seconds:get() * 1000
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM) > refresh_ms then return false end
     if is_pending_cast(runtime.insect_swarm_id) then return false end
-    if not utils.can_cast_target(runtime.insect_swarm_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.insect_swarm_id, me, target) then return false end
 
-    if utils.cast_target(runtime.insect_swarm_id, me, target) then
+    if utils.cast_target(runtime.insect_swarm_id, target) then
         mark_pending_cast(runtime.insect_swarm_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Insect Swarm refresh")
         note_cast()
@@ -372,7 +377,7 @@ local function try_adaptive_nuke(me, target, mana_pct)
     if me:is_moving() then return false end
     -- High mana: use Starfire (highest DPS)
     if mana_pct >= STARFIRE_MANA_FLOOR and runtime.starfire_id then
-        if utils.can_cast_target(runtime.starfire_id, me, target) then
+        if utils.can_cast_hostile(runtime.starfire_id, me, target) then
             if utils.cast_target(runtime.starfire_id, target, "Starfire") then
                 return true
             end
@@ -380,7 +385,7 @@ local function try_adaptive_nuke(me, target, mana_pct)
     end
     -- Low mana: fall back to Wrath (cheaper, instant cast for moving)
     if runtime.wrath_id then
-        if utils.can_cast_target(runtime.wrath_id, me, target) then
+        if utils.can_cast_hostile(runtime.wrath_id, me, target) then
             if utils.cast_target(runtime.wrath_id, target, "Wrath") then
                 utils.log_debug(menu, "Wrath (mana conservation)")
                 return true
@@ -397,9 +402,9 @@ local function try_primary_nuke(me, target)
     local spell_id, spell_name = get_primary_nuke_id(me)
     if not spell_id then return false end
     if is_pending_cast(spell_id) then return false end
-    if not utils.can_cast_target(spell_id, me, target) then return false end
+    if not utils.can_cast_hostile(spell_id, me, target) then return false end
 
-    if utils.cast_target(spell_id, me, target) then
+    if utils.cast_target(spell_id, target) then
         mark_pending_cast(spell_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, spell_name)
         note_cast()
@@ -407,6 +412,40 @@ local function try_primary_nuke(me, target)
         return true
     end
 
+    return false
+end
+
+-- --- Root escape (Balance: shift out of Moonkin Form breaks roots) --------
+
+local function try_root_escape_balance(me)
+    if not menu.use_root_escape:get_state() then return false end
+    if not me:is_rooted(400) then return false end
+    if not utils.has_buff(me, spells.BUFF_MOONKIN_FORM) then return false end
+    local ok = pcall(function()
+        if CancelShapeshiftForm then CancelShapeshiftForm() end
+    end)
+    if not ok and runtime.moonkin_form_id then
+        core.spell_book.cast_spell(runtime.moonkin_form_id)
+    end
+    utils.log_debug(menu, "Balance root escape: shifted out of Moonkin")
+    return true
+end
+
+local function try_remove_curse_balance(me, target)
+    if not menu.use_remove_curse:get_state() then return false end
+    if not runtime.remove_curse_id then return false end
+    if not target or not target:is_valid() then return false end
+    local cache = buff_manager:get_debuff_cache(target, 100)
+    for _, aura in ipairs(cache) do
+        if aura.is_active and aura.buff_type == enums.buff_type.CURSE then
+            if utils.can_cast_target(runtime.remove_curse_id, me, target) then
+                if utils.cast_target(runtime.remove_curse_id, target) then
+                    utils.log_debug(menu, "Remove Curse")
+                    return true
+                end
+            end
+        end
+    end
     return false
 end
 
@@ -420,6 +459,7 @@ local function update_rotation(me, target, menu, utils)
     local mana_pct = utils.get_mana_pct(me)
     local enemy_count = utils.enemy_count_in_radius(me, 12)
 
+    if try_root_escape_balance(me) then return true end
     if try_innervate(me, mana_pct) then return true end
     if try_moonkin_form(me) then return true end
     if try_tranquility(me) then return true end
@@ -429,11 +469,11 @@ local function update_rotation(me, target, menu, utils)
     end
 
     if try_faerie_fire(me, target) then return true end
+    if try_remove_curse_balance(me, target) then return true end
     if try_moonfire(me, target) then return true end
     if try_insect_swarm(me, target) then return true end
     if try_force_of_nature(me, target, mana_pct) then return true end
     if try_hurricane(me, enemy_count, mana_pct) then return true end
-    if try_starfall(me, enemy_count, mode) then return true end
     if try_primary_nuke(me, target) then return true end
     if try_adaptive_nuke(me, target, mana_pct) then return true end
 
@@ -471,7 +511,7 @@ core.register_on_update_callback(function()
     ooc_manager.on_update(me, menu, utils, {
         rez_spell_id = runtime.rebirth_id,
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD),
+            { spell_id = runtime.ooc_mark_of_the_wild_id,
                buff_ids = spells.BUFF_MARK_OF_THE_WILD,
                name = "Mark Of The Wild",
                toggle = menu.ooc_group_buff },
@@ -482,20 +522,19 @@ core.register_on_update_callback(function()
 
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    local target = focus_target or me:get_target()
+    -- Validate focus target is hostile; if not, fall through to smart selector
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    -- Smart target selection: prioritize units actively fighting us/party
+    local target = focus_target or utils.find_best_target(me)
 
 
     -- Wanding / mana conservation (leveling 1-70)
     if leveling_manager.try_wand(me, target, menu) then return true end
-    if not leveling_manager.has_enough_mana(me, menu) then
-        leveling_manager.ensure_melee(me, target)
-        return false
-    end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Interrupt
-    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+    if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "druid", utils) then
             return
         end
@@ -504,6 +543,7 @@ core.register_on_update_callback(function()
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "druid", utils) then

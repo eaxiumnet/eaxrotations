@@ -49,6 +49,8 @@ menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "e
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
 -- -- Class-specific elements ---------------------------------------------------
+menu.use_root_escape                     = core.menu.checkbox(true, "eaxdruidbalance_root_escape")
+menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidbalance_remove_curse")
 menu.force_moonkin                        = core.menu.checkbox(true, "eaxdruidbalance_force_moonkin")
 menu.use_faerie_fire                      = core.menu.checkbox(true, "eaxdruidbalance_use_faerie_fire")
 menu.use_moonfire                         = core.menu.checkbox(true, "eaxdruidbalance_use_moonfire")

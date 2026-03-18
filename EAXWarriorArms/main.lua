@@ -16,6 +16,8 @@ local ooc_manager = require("ooc_manager")
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -188,20 +190,10 @@ local function is_valid_hostile_target(me, target)
 end
 
 local function find_valid_target(me)
-    local target = me:get_target()
-    if is_valid_hostile_target(me, target) then
-        return target
-    end
-
-    local objects = core.object_manager.get_visible_objects()
-    for i = 1, #objects do
-        local obj = objects[i]
-        if is_valid_hostile_target(me, obj) then
-            return obj
-        end
-    end
-
-    return nil
+    enc = encounter_manager.get_policy(me)
+    -- Delegate to utils.find_best_target for priority-aware selection:
+    -- prefers units attacking us/party over random hostiles
+    return utils.find_best_target(me)
 end
 
 local function get_debuff_stack(target, id_table)
@@ -278,7 +270,7 @@ local function try_sunder(me, target, target_hp_pct)
         return false
     end
 
-    if utils.cast_target(runtime.sunder_armor_id, me, target) then
+    if utils.cast_target(runtime.sunder_armor_id, target) then
         utils.log_debug(menu, "Sunder Armor")
         return true
     end
@@ -295,7 +287,7 @@ local function try_hamstring(me, target, target_hp_pct)
         return false
     end
 
-    if utils.cast_target(runtime.hamstring_id, me, target) then
+    if utils.cast_target(runtime.hamstring_id, target) then
         utils.log_debug(menu, "Hamstring")
         return true
     end
@@ -334,7 +326,7 @@ local function try_overpower(me, target)
         return false
     end
 
-    if utils.cast_target(runtime.overpower_id, me, target) then
+    if utils.cast_target(runtime.overpower_id, target) then
         utils.log_debug(menu, "Overpower")
         return true
     end
@@ -355,7 +347,7 @@ local function try_mortal_strike(me, target, rage)
         return false
     end
 
-    if utils.cast_target(runtime.mortal_strike_id, me, target) then
+    if utils.cast_target(runtime.mortal_strike_id, target) then
         utils.log_debug(menu, "Mortal Strike")
                 esp_renderer.on_cast(runtime.mortal_strike_id, "Mortal Strike", color.red(220))
         return true
@@ -374,7 +366,7 @@ local function try_execute(me, target, rage, target_hp_pct)
         return false
     end
 
-    if utils.cast_target(runtime.execute_id, me, target) then
+    if utils.cast_target(runtime.execute_id, target) then
         utils.log_debug(menu, "Execute")
                 esp_renderer.on_cast(runtime.execute_id, "Execute", color.orange(220))
         return true
@@ -417,7 +409,7 @@ local function try_whirlwind(me, target, rage)
         return false
     end
 
-    if utils.cast_target(runtime.whirlwind_id, me, target) then
+    if utils.cast_target(runtime.whirlwind_id, target) then
         utils.log_debug(menu, "Whirlwind")
         return true
     end
@@ -443,7 +435,7 @@ local function try_slam(me, target, rage)
         return false
     end
 
-    if utils.cast_target(runtime.slam_id, me, target) then
+    if utils.cast_target(runtime.slam_id, target) then
         utils.log_debug(menu, "Slam weave")
         return true
     end
@@ -457,7 +449,7 @@ end
 local function try_charge(me, target)
     if not runtime.charge_id then return false end
     if me:is_in_combat() then return false end
-    if not utils.can_cast_target(runtime.charge_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.charge_id, me, target) then return false end
     if utils.cast_target_fast(runtime.charge_id, target, "Charge") then
         utils.log_debug(menu, "Charge")
         return true
@@ -575,6 +567,7 @@ local function do_utility_lane(me, target, mode, target_hp_pct)
     -- Racial offensive CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     if try_battle_shout(me) then
         return true

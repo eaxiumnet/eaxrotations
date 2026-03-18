@@ -111,7 +111,7 @@ local function try_pain_suppression(me, mode)
     local candidate = utils.find_low_health_ally(me, threshold, false)
 
     if candidate and not utils.has_buff(candidate, spells.PAIN_SUPPRESSION) then
-        return utils.cast_target(resolved.pain_suppression, me, candidate)
+        return utils.cast_target(resolved.pain_suppression, candidate, nil)
     end
 
     return false
@@ -126,7 +126,7 @@ local function try_shield(me)
     local candidate = utils.find_low_health_ally(me, threshold, true)
 
     if candidate and not utils.has_buff(candidate, spells.POWER_WORD_SHIELD) then
-        return utils.cast_target(resolved.shield, me, candidate)
+        return utils.cast_target(resolved.shield, candidate, nil)
     end
 
     return false
@@ -162,7 +162,7 @@ local function try_renew(me)
     end
 
     if candidate and not utils.has_buff(candidate, spells.RENEW) then
-        return utils.cast_target(resolved.renew, me, candidate)
+        return utils.cast_target(resolved.renew, candidate, nil)
     end
 
     return false
@@ -177,7 +177,7 @@ local function try_prayer_of_mending(me)
     local candidate = utils.find_low_health_ally(me, threshold, true)
 
     if candidate and not utils.has_buff(candidate, spells.PRAYER_OF_MENDING) then
-        return utils.cast_target(resolved.prayer_of_mending, me, candidate)
+        return utils.cast_target(resolved.prayer_of_mending, candidate, nil)
     end
 
     return false
@@ -223,7 +223,7 @@ local function try_cast_spell(me, target, spell_id)
         end
     else
         if utils.can_cast_target(spell_id, me, target) then
-            return utils.cast_target(spell_id, me, target)
+            return utils.cast_target(spell_id, target, nil)
         end
     end
     return false
@@ -245,25 +245,28 @@ core.register_on_update_callback(function()
     end
 
     local me = core.object_manager.get_local_player()
-    if not me or not me:is_valid() or me:is_dead() or not me:is_in_combat() then
+    if not me or not me:is_valid() or me:is_dead() then
         return
     end
         ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.POWER_WORD_FORTITUDE),
+            { spell_id = resolved.ooc_power_word_fortitude_id,
                buff_ids = spells.BUFF_POWER_WORD_FORT,
                name = "Power Word: Fortitude",
                toggle = menu.ooc_group_buff },
-            { spell_id = utils.resolve_spell_id(spells.DIVINE_SPIRIT),
+            { spell_id = resolved.ooc_divine_spirit_id,
                buff_ids = spells.BUFF_DIVINE_SPIRIT,
                name = "Divine Spirit",
                toggle = menu.ooc_group_buff },
-            { spell_id = utils.resolve_spell_id(spells.SHADOW_PROTECTION),
+            { spell_id = resolved.ooc_shadow_protection_id,
                buff_ids = spells.BUFF_SHADOW_PROTECTION,
                name = "Shadow Protection",
                toggle = menu.ooc_group_buff },
         },
     })
+    if not me:is_in_combat() then
+        return
+    end
     if eax_utils.is_eating_or_drinking(me) then return end
 
     update_set_bonus(me)
@@ -274,8 +277,8 @@ core.register_on_update_callback(function()
     end
 
     -- Interrupt (PVP)
-    local target = me:get_target()
-    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+    local target = utils.find_best_target(me)
+    if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "priest", utils) then
             return
         end
@@ -294,6 +297,7 @@ core.register_on_update_callback(function()
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "priest", utils) then

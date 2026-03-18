@@ -43,6 +43,8 @@ local runtime = {
     shadowfiend_last = 0,
     set_multiplier = 1.0,
     last_set_check = 0,
+    ooc_divine_spirit_id = nil,
+    ooc_power_word_fort_id = nil,
 }
 
 local resolved = {
@@ -106,7 +108,7 @@ local function refresh_dot(me, target, spell_id, buff_ids, window_ms)
 
     local remaining = utils.get_buff_remaining_ms(target, buff_ids)
     if remaining <= window_ms then
-        return utils.cast_target(spell_id, me, target)
+        return utils.cast_target(spell_id, target, nil)
     end
 
     return false
@@ -141,7 +143,7 @@ local function try_sw_death(me, target)
     local hp = utils.get_health_pct(target)
     local is_execute = hp < 0.25 or ttd_tracker.get(target) < 4
     if not is_execute then return false end
-    if not utils.can_cast_target(resolved.shadow_word_death, me, target) then return false end
+    if not utils.can_cast_hostile(resolved.shadow_word_death, me, target) then return false end
     return utils.cast_target(resolved.shadow_word_death, target, "SW:Death")
 end
 
@@ -152,7 +154,7 @@ local function try_devouring_plague(me, target)
     local dot_window_ms = menu.dot_refresh_window:get() * 1000
     local remain = utils.get_debuff_remaining_ms(target, spells.DEVOURING_PLAGUE)
     if remain > dot_window_ms then return false end
-    return utils.cast_target(resolved.devouring_plague, me, target)
+    return utils.cast_target(resolved.devouring_plague, target, nil)
 end
 
 
@@ -167,11 +169,11 @@ local function try_mind_blast(me, target)
     local swp_remain = utils.get_buff_remaining_ms(target, spells.SHADOW_WORD_PAIN)
 
     if vt_remain >= dot_window_ms and swp_remain >= dot_window_ms then
-        return utils.cast_target(resolved.mind_blast, me, target)
+        return utils.cast_target(resolved.mind_blast, target, nil)
     end
 
     if menu.mind_blast_burst:get_state() and (vt_remain <= burst_window_ms or swp_remain <= burst_window_ms) then
-        return utils.cast_target(resolved.mind_blast, me, target)
+        return utils.cast_target(resolved.mind_blast, target, nil)
     end
 
     return false
@@ -182,7 +184,7 @@ local function try_mind_flay(me, target)
         return false
     end
 
-    return utils.cast_target(resolved.mind_flay, me, target)
+    return utils.cast_target(resolved.mind_flay, target, nil)
 end
 
 local function try_shadowfiend(me)
@@ -221,8 +223,8 @@ local function try_flash_heal(me, target)
     if hp_pct > (menu.flash_heal_hp_pct:get() / 100) then return false end
     local cast_target = target or me
     if not cast_target:is_valid() then return false end
-    if not utils.can_cast_target(runtime.flash_heal_id, me, cast_target) then return false end
-    if utils.cast_target(runtime.flash_heal_id, me, cast_target) then
+    if not utils.can_cast_hostile(runtime.flash_heal_id, me, cast_target) then return false end
+    if utils.cast_target(runtime.flash_heal_id, cast_target, nil) then
         utils.log_debug(menu, "Flash Heal (emergency)")
         return true
     end
@@ -252,11 +254,11 @@ core.register_on_update_callback(function()
     end
         ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.POWER_WORD_FORT),
+            { spell_id = runtime.ooc_power_word_fort_id,
                buff_ids = spells.BUFF_POWER_WORD_FORT,
                name = "Power Word: Fortitude",
                toggle = menu.ooc_group_buff },
-            { spell_id = utils.resolve_spell_id(spells.DIVINE_SPIRIT),
+            { spell_id = runtime.ooc_divine_spirit_id,
                buff_ids = spells.BUFF_DIVINE_SPIRIT,
                name = "Divine Spirit",
                toggle = menu.ooc_group_buff },
@@ -271,13 +273,9 @@ core.register_on_update_callback(function()
 
     ensure_shadowform(me)
 
-    local target = me:get_target()
-    
-    -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    if focus_target and focus_target:is_valid() then
-        target = focus_target
-    end
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    local target = focus_target or utils.find_best_target(me)
     
     -- Self-emergency
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
@@ -300,6 +298,7 @@ core.register_on_update_callback(function()
         -- Racial CDs
         racial_manager.try_offensive(me)
         racial_manager.try_utility(me, target)
+        racial_manager.try_defensive(me)
 
         -- Defensive abilities
     ttd_tracker.update(target)

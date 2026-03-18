@@ -28,10 +28,14 @@ end
 
 function utils.resolve_spell_id(rank_table)
     if not rank_table then return nil end
+    -- Accept a plain spell ID (number) as well as a ranked table
+    if type(rank_table) == "number" then
+        return core.spell_book.is_spell_learned(rank_table) and rank_table or nil
+    end
     for i = 1, #rank_table do
-        local candidate = rank_table[i]
-        if core.spell_book.is_spell_learned(candidate) then
-            return candidate
+        local spell_id = rank_table[i]
+        if spell_id and core.spell_book.is_spell_learned(spell_id) then
+            return spell_id
         end
     end
     return nil
@@ -46,6 +50,23 @@ function utils.can_cast_target(spell_id, me, target)
     if not core.spell_book.is_spell_in_range(spell_id, target, me) then return false end
     return true
 end
+
+--- Can the player cast an OFFENSIVE spell on target right now?
+--- Extends can_cast_target with a hostility check (me:can_attack) and
+--- a self-cast guard so damage spells never fire on friendly units.
+---@param spell_id number|nil
+---@param me game_object
+---@param target game_object
+---@return boolean
+function utils.can_cast_hostile(spell_id, me, target)
+    if not me or not target then return false end
+    -- Never cast damage spells on self
+    if utils.same_unit(me, target) then return false end
+    -- Target must be attackable by the player (fails for friendlies, self, neutral)
+    if not me:can_attack(target) then return false end
+    return utils.can_cast_target(spell_id, me, target)
+end
+
 
 function utils.can_cast_self(spell_id, me)
     if not spell_id or not me then return false end

@@ -62,6 +62,7 @@ menu.swiftmend_hp_pct                     = core.menu.slider_int(20, 80, 60, "ea
 menu.use_wild_growth                      = core.menu.checkbox(true, "eaxdruidrestoration_use_wild_growth")
 menu.wild_growth_targets                  = core.menu.slider_int(2, 6, 3, "eaxdruidrestoration_wild_growth_targets")
 menu.wild_growth_mana_pct                 = core.menu.slider_int(20, 80, 40, "eaxdruidrestoration_wild_growth_mana_pct")
+menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidrestoration_remove_curse")
 menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidrestoration_use_innervate")
 menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_innervate_mana_pct")
 menu.use_tranquility                      = core.menu.checkbox(true, "eaxdruidrestoration_use_tranquility")

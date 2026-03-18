@@ -25,16 +25,19 @@ end
 
 -- -- Palette ------------------------------------------------------------------
 ps.col = {
-    panel        = c(  11,   8,  24, 252),
-    panel_deep   = c(   8,   5,  18, 240),
-    border_glow  = c( 110,  64, 201, 220),
-    border_dim   = c(  42,  29,  82, 160),
-    accent       = c( 196, 160, 255, 255),
-    accent_mid   = c( 112,  64, 192, 255),
-    text_on      = c( 168, 141, 224, 255),
-    text_off     = c(  74,  56, 120, 255),
-    transparent  = c(   0,   0,   0,   0),
+    panel        = c( 16,  9,  4, 252),
+    panel_deep   = c( 10,  5,  2, 240),
+    border_glow  = c(180,240,100, 220),
+    border_dim   = c(100, 48,  8, 160),
+    accent       = c(160,220, 80, 255),
+    accent_mid   = c(190, 85, 15, 255),
+    text_on      = c(200,255,120, 255),
+    text_off     = c(110, 60, 15, 255),
+    transparent  = c(  0,   0,   0,   0),
 }
+
+local STAR_R, STAR_G, STAR_B = 160, 220, 80
+local DUST_R, DUST_G, DUST_B = 200, 80, 10
 
 -- -- Pre-seeded star field (stable positions, no flicker between frames) -------
 -- We seed with a fixed value so every script gets identical star layout.
@@ -63,9 +66,6 @@ local function _build_field()
             spd   = 0.3 + r1() * 2.8,
             phase = r1() * math.pi * 2,
             bright = r1() > 0.35,
-            cr    = r1() > 0.65 and 175 or (r1() > 0.4 and 215 or 130),
-            cg    = r1() > 0.65 and 140 or (r1() > 0.4 and 195 or 100),
-            cb    = 255,
         }
     end
     _dust = {}
@@ -149,7 +149,7 @@ function ps.draw_space(win, id)
     for _, d in ipairs(_dust) do
         win:render_circle_filled(
             v(d.rx * W, d.ry * H), d.rad,
-            c(155, 95, 255, d.a))
+            c(DUST_R, DUST_G, DUST_B, d.a))
     end
 
     -- -- Stars (twinkling) -----------------------------------------------------
@@ -160,11 +160,11 @@ function ps.draw_space(win, id)
         win:render_circle_filled(
             v(s.rx * W, s.ry * H),
             s.rad * (0.7 + 0.3 * tw),
-            c(s.cr, s.cg, s.cb, alb))
+            c(STAR_R, STAR_G, STAR_B, alb))
 
         -- cross-flare on the biggest bright stars
         if s.bright and s.rad > 1.6 and tw > 0.88 then
-            local fl = c(s.cr, s.cg, s.cb, math.floor(alb * 0.28))
+            local fl = c(STAR_R, STAR_G, STAR_B, math.floor(alb * 0.28))
             local fx, fy = s.rx * W, s.ry * H
             local fr = s.rad * 3.5
             win:render_line(v(fx - fr, fy), v(fx + fr, fy), fl, 0.5)
@@ -208,17 +208,17 @@ function ps.draw_space(win, id)
             local my2 = my - math.sin(ang) * m.len * 0.45
 
             win:render_line(v(tx,  ty),  v(mx2, my2),
-                c(90, 40, 185, math.floor(m.a * 60)),  m.w * 0.7)
+                c(DUST_R, DUST_G, DUST_B, math.floor(m.a * 60)),  m.w * 0.7)
             win:render_line(v(mx2, my2), v(mx,  my),
-                c(180, 130, 255, math.floor(m.a * 180)), m.w)
+                c(STAR_R, STAR_G, STAR_B, math.floor(m.a * 180)), m.w)
 
             -- Head glow dot + soft halo
             win:render_circle_filled(
                 v(mx, my), 5.5,
-                c(170, 130, 255, math.floor(m.a * 70)))
+                c(STAR_R, STAR_G, STAR_B, math.floor(m.a * 70)))
             win:render_circle_filled(
                 v(mx, my), 2.6,
-                c(240, 220, 255, math.floor(m.a * 255)))
+                c(240, 235, 255, math.floor(m.a * 255)))
         end
     end
     for i = #dead, 1, -1 do table.remove(pool.list, dead[i]) end
@@ -364,6 +364,43 @@ function ps.render_ooc(m, ooc_tree, is_caster)
                 "Use mana-efficient rotation while leveling")
             m.leveling_mana_floor:render("Mana Floor %",
                 "Switch to conservation mode below this percent")
+        end
+        -- Shaman-specific OOC options (shields, ghost wolf, healing)
+        if m.shield_mode then
+            ps.header("Shields & Utility")
+            m.shield_mode:render("Shield Mode",
+                { "None", "Lightning Shield", "Water Shield", "Auto (Water 60+)" },
+                "Maintain selected shield between pulls")
+        end
+        if m.use_ghost_wolf then
+            m.use_ghost_wolf:render("Ghost Wolf OOC",
+                "Automatically shift to Ghost Wolf when out of combat for faster travel")
+        end
+        if m.use_totemic_call then
+            m.use_totemic_call:render("Totemic Call",
+                "Recall totems for 25% mana refund when OOC and mana is low")
+        end
+        if m.use_healing_wave then
+            ps.header("Self-Healing")
+            m.use_healing_wave:render("Self-Heal (Healing Wave)",
+                "Cast Healing Wave when HP drops below threshold")
+            if m.healing_wave_hp then
+                m.healing_wave_hp:render("Self-Heal HP %",
+                    "HP% threshold to trigger emergency Healing Wave")
+            end
+        end
+        if m.use_lesser_healing_wave then
+            m.use_lesser_healing_wave:render("Prefer Lesser HW",
+                "Use faster/cheaper Lesser Healing Wave when available")
+        end
+        if m.use_lb_pull then
+            ps.header("Combat Opener")
+            m.use_lb_pull:render("Lightning Bolt Pull",
+                "Open with Lightning Bolt on targets beyond melee range")
+            if m.lb_pull_range then
+                m.lb_pull_range:render("LB Pull Range (yards)",
+                    "Minimum distance before using LB to engage")
+            end
         end
     end)
 end

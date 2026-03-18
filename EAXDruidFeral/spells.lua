@@ -11,14 +11,14 @@ spells.TRAVEL_FORM = { 783 }
 spells.AQUATIC_FORM = { 1066 }
 spells.FAERIE_FIRE_FERAL = { 27011, 17392, 17391, 17390, 16857 }
 
-spells.MANGLE_CAT = { 33983, 33876 }
+spells.MANGLE_CAT = { 33983, 33876, 48565, 48566 }
 spells.RAKE = { 27003, 1822 }
-spells.SHRED = { 5221 }
+spells.SHRED = { 5221, 8992, 8993, 27001, 27002 }
 spells.RIP = { 27008, 1079 }
 spells.FEROCIOUS_BITE = { 24248, 22829, 22828, 22568 }
 spells.TIGERS_FURY = { 9846, 9845, 6793, 5217 }
 
-spells.MANGLE_BEAR = { 33987, 33986, 33878 }
+spells.MANGLE_BEAR = { 33987, 33986, 33878, 48563, 48564 }
 spells.MAUL = { 26996, 9881, 9880, 6807 }
 spells.SWIPE = { 26997, 9908, 779 }
 spells.GROWL = { 6795 }
@@ -60,9 +60,14 @@ spells.SCROLL_OF_AGILITY = { 22730, 10290 }
 spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 
 
+spells.MAIM              = { 22570, 49802 }
+spells.DEBUFF_MAIM       = { 22570, 49802 }
+
 spells.LACERATE          = { 48568, 48567, 33745 }
 spells.DEBUFF_LACERATE   = { 48568, 48567, 33745 }
 
 spells.REBIRTH           = { 26994, 20748, 20748, 20910, 20909, 20484 }
+
+spells.REMOVE_CURSE = { 2782, 8690, 8691 }
 
 return spells

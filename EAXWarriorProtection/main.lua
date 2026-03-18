@@ -1082,10 +1082,10 @@ local function process_pending_stance_action(me)
             end
         end
     elseif action.key == "hamstring" then
-        if utils.can_cast_melee(action.action_id, me) and utils.cast_target(action.action_id, me, action.target) then
+        if utils.can_cast_melee(action.action_id, me) and utils.cast_target(action.action_id, action.target) then
             cast_success = true
         end
-    elseif utils.can_cast_target(action.action_id, me, action.target) and utils.cast_target(action.action_id, me, action.target) then
+    elseif utils.can_cast_hostile(action.action_id, me, action.target) and utils.cast_target(action.action_id, action.target) then
         cast_success = true
     end
 
@@ -1238,7 +1238,7 @@ local function try_thunder_clap(me, target, rage)
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_THUNDER_CLAP)
     if remaining >= 5000 then return false end
 
-    if utils.can_cast_melee(runtime.thunder_clap_id, me) and utils.cast_target(runtime.thunder_clap_id, me, target) then
+    if utils.can_cast_melee(runtime.thunder_clap_id, me) and utils.cast_target(runtime.thunder_clap_id, target) then
         utils.log_debug(menu, "Thunder Clap")
         note_cast()
         note_core_action()
@@ -1888,7 +1888,7 @@ local function try_sunder_armor(me, target, target_hp_pct)
         return false
     end
 
-    if utils.can_cast_melee(runtime.sunder_armor_id, me) and utils.cast_target(runtime.sunder_armor_id, me, target) then
+    if utils.can_cast_melee(runtime.sunder_armor_id, me) and utils.cast_target(runtime.sunder_armor_id, target) then
         utils.log_debug(
             menu,
             "Sunder Armor (" .. tostring(stack_count) .. " -> " .. tostring(stack_count + 1) .. ")"
@@ -1908,9 +1908,9 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
         and runtime.shield_slam_id
         and rage >= SHIELD_SLAM_COST
         and utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
-        and utils.can_cast_target(runtime.shield_slam_id, me, target)
+        and utils.can_cast_hostile(runtime.shield_slam_id, me, target)
     then
-        if utils.cast_target(runtime.shield_slam_id, me, target) then
+        if utils.cast_target(runtime.shield_slam_id, target) then
             utils.log_debug(menu, "ST: Shield Slam (Shield Block synergy)")
             note_cast()
             note_core_action()
@@ -1921,9 +1921,9 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
         and rage >= SHIELD_SLAM_COST
-        and utils.can_cast_target(runtime.shield_slam_id, me, target)
+        and utils.can_cast_hostile(runtime.shield_slam_id, me, target)
     then
-        if utils.cast_target(runtime.shield_slam_id, me, target) then
+        if utils.cast_target(runtime.shield_slam_id, target) then
             utils.log_debug(menu, "ST: Shield Slam")
             esp_renderer.on_cast(nil, "Shield Slam", color.red(220))
             note_cast()
@@ -1938,7 +1938,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
         and core.spell_book.is_usable_spell(runtime.revenge_id)
         and utils.can_cast_melee(runtime.revenge_id, me)
     then
-        if utils.cast_target(runtime.revenge_id, me, target) then
+        if utils.cast_target(runtime.revenge_id, target) then
             utils.log_debug(menu, "ST: Revenge")
             esp_renderer.on_cast(nil, "Revenge", color.orange(220))
             note_cast()
@@ -1950,9 +1950,9 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     if menu.use_devastate:get_state()
         and runtime.devastate_id
         and rage >= DEVASTATE_COST
-        and utils.can_cast_target(runtime.devastate_id, me, target)
+        and utils.can_cast_hostile(runtime.devastate_id, me, target)
     then
-        if utils.cast_target(runtime.devastate_id, me, target) then
+        if utils.cast_target(runtime.devastate_id, target) then
             utils.log_debug(menu, "ST: Devastate")
             esp_renderer.on_cast(nil, "Devastate", color.yellow(220))
             note_cast()
@@ -1969,9 +1969,9 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
         and target_hp_pct < EXECUTE_HP_THRESHOLD
         and rage >= menu.execute_min_rage:get()
         and runtime.execute_id
-        and utils.can_cast_target(runtime.execute_id, me, target)
+        and utils.can_cast_hostile(runtime.execute_id, me, target)
     then
-        if utils.cast_target(runtime.execute_id, me, target) then
+        if utils.cast_target(runtime.execute_id, target) then
             utils.log_debug(menu, "ST: Execute")
             note_cast()
             note_core_action()
@@ -1984,9 +1984,9 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
         and runtime.disarm_id
         and utils.is_melee_target(me, target)
         and not is_pending_or_current(runtime.disarm_id)
-        and utils.can_cast_target(runtime.disarm_id, me, target)
+        and utils.can_cast_hostile(runtime.disarm_id, me, target)
     then
-        if utils.cast_target(runtime.disarm_id, me, target) then
+        if utils.cast_target(runtime.disarm_id, target) then
             utils.log_debug(menu, "ST: Disarm")
             notify_cast("simpleprot:cast:disarm", "Disarm", color.orange(220), 0.9)
             note_cast()
@@ -2010,9 +2010,9 @@ local function do_aoe_core_lane(me, target, rage)
         and runtime.shield_slam_id
         and rage >= SHIELD_SLAM_COST
         and utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
-        and utils.can_cast_target(runtime.shield_slam_id, me, primary_target)
+        and utils.can_cast_hostile(runtime.shield_slam_id, me, primary_target)
     then
-        if utils.cast_target(runtime.shield_slam_id, me, primary_target) then
+        if utils.cast_target(runtime.shield_slam_id, primary_target) then
             utils.log_debug(menu, "AoE: Shield Slam (Shield Block synergy)")
             note_cast()
             note_core_action()
@@ -2023,9 +2023,9 @@ local function do_aoe_core_lane(me, target, rage)
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
         and rage >= SHIELD_SLAM_COST
-        and utils.can_cast_target(runtime.shield_slam_id, me, primary_target)
+        and utils.can_cast_hostile(runtime.shield_slam_id, me, primary_target)
     then
-        if utils.cast_target(runtime.shield_slam_id, me, primary_target) then
+        if utils.cast_target(runtime.shield_slam_id, primary_target) then
             utils.log_debug(menu, "AoE: Shield Slam")
             note_cast()
             note_core_action()
@@ -2039,7 +2039,7 @@ local function do_aoe_core_lane(me, target, rage)
         and core.spell_book.is_usable_spell(runtime.revenge_id)
         and utils.can_cast_melee(runtime.revenge_id, me)
     then
-        if utils.cast_target(runtime.revenge_id, me, primary_target) then
+        if utils.cast_target(runtime.revenge_id, primary_target) then
             utils.log_debug(menu, "AoE: Revenge")
             note_cast()
             note_core_action()
@@ -2050,9 +2050,9 @@ local function do_aoe_core_lane(me, target, rage)
     if menu.use_devastate:get_state()
         and runtime.devastate_id
         and rage >= DEVASTATE_COST
-        and utils.can_cast_target(runtime.devastate_id, me, primary_target)
+        and utils.can_cast_hostile(runtime.devastate_id, me, primary_target)
     then
-        if utils.cast_target(runtime.devastate_id, me, primary_target) then
+        if utils.cast_target(runtime.devastate_id, primary_target) then
             utils.log_debug(menu, "AoE: Devastate")
             note_cast()
             note_core_action()
@@ -2104,7 +2104,7 @@ local function try_shield_bash(me, target, context_label)
     if not is_interruptible_caster(target) then return false end
     if is_pending_or_current(runtime.shield_bash_id) then return false end
 
-    if utils.can_cast_target(runtime.shield_bash_id, me, target)
+    if utils.can_cast_hostile(runtime.shield_bash_id, me, target)
         and utils.cast_target_fast(runtime.shield_bash_id, target)
     then
         mark_pending_cast(runtime.shield_bash_id, FAST_PENDING_CAST_TIMEOUT_S)
@@ -2161,7 +2161,7 @@ local function try_taunt(me, target, context_label)
         return false
     end
 
-    if utils.can_cast_target(runtime.taunt_id, me, target) and utils.cast_target(runtime.taunt_id, me, target) then
+    if utils.can_cast_hostile(runtime.taunt_id, me, target) and utils.cast_target(runtime.taunt_id, target) then
         mark_pending_cast(runtime.taunt_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(
             menu,
@@ -2189,7 +2189,7 @@ local function try_concussion_blow(me, target, context_label)
     if not is_dangerous_caster(target) then return false end
     if is_pending_or_current(runtime.concussion_blow_id) then return false end
 
-    if utils.can_cast_target(runtime.concussion_blow_id, me, target)
+    if utils.can_cast_hostile(runtime.concussion_blow_id, me, target)
         and utils.cast_target_fast(runtime.concussion_blow_id, target)
     then
         mark_pending_cast(runtime.concussion_blow_id, FAST_PENDING_CAST_TIMEOUT_S)
@@ -2247,8 +2247,8 @@ local function try_mocking_blow(me, target, context_label)
         return false
     end
 
-    if utils.can_cast_target(runtime.mocking_blow_id, me, target)
-        and utils.cast_target(runtime.mocking_blow_id, me, target)
+    if utils.can_cast_hostile(runtime.mocking_blow_id, me, target)
+        and utils.cast_target(runtime.mocking_blow_id, target)
     then
         mark_pending_cast(runtime.mocking_blow_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, (context_label or "Recovery") .. ": Mocking Blow -> " .. describe_unit(target))
@@ -2377,7 +2377,7 @@ local function try_intimidating_shout_keybind(me, target)
     if not is_valid_hostile_target(me, target) then return false end
     if not utils.is_melee_target(me, target) then return false end
 
-    if utils.can_cast_melee(runtime.intimidating_shout_id, me) and utils.cast_target(runtime.intimidating_shout_id, me, target) then
+    if utils.can_cast_melee(runtime.intimidating_shout_id, me) and utils.cast_target(runtime.intimidating_shout_id, target) then
         utils.log_debug(menu, "Manual: Intimidating Shout")
         notify_cast(
             "simpleprot:cast:intimidating_shout",
@@ -2399,7 +2399,7 @@ try_rend = function(me, target, rage, target_hp_pct)
     if not utils.is_melee_target(me, target) then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_REND) > 0 then return false end
 
-    if utils.can_cast_melee(runtime.rend_id, me) and utils.cast_target(runtime.rend_id, me, target) then
+    if utils.can_cast_melee(runtime.rend_id, me) and utils.cast_target(runtime.rend_id, target) then
         utils.log_debug(menu, "ST: Rend")
         notify_cast("simpleprot:cast:rend", "Rend", color.red(220), 0.9)
         note_cast()
@@ -2654,16 +2654,21 @@ core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
 
     if utils.is_casting_or_channeling(me) then return end
 
-    local primary_target = me:get_target()
+    local primary_target = utils.find_best_target(me)
     
     -- Interrupt
-    if primary_target and primary_target:is_valid() and primary_target:is_enemy() and interrupt_manager.should_interrupt(primary_target) then
+    if primary_target and primary_target:is_valid() and me:can_attack(primary_target) and interrupt_manager.should_interrupt(primary_target) then
         if interrupt_manager.try_interrupt(me, primary_target, "warrior", utils) then
             return
         end
     end
 
     -- Defensive abilities
+    -- Racial abilities
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
+
     if defensive_manager.try_defensive(me, "warrior", utils) then
         return
     end

@@ -17,6 +17,8 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -49,6 +51,7 @@ local runtime = {
     cached_mode = "solo",
     pending_casts = {},
     set_multiplier = 1.0,
+    ooc_arcane_intellect_id = nil,
 }
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
@@ -217,7 +220,7 @@ local function try_fireball_proc(me, target)
     if me:is_moving() then return false end
     if not utils.has_buff(me, spells.BUFF_BRAIN_FREEZE) then return false end
     if is_pending_cast(runtime.fireball_id) or utils.is_spell_already_queued(runtime.fireball_id) then return false end
-    if not utils.can_cast_target(runtime.fireball_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.fireball_id, me, target) then return false end
 
     if utils.cast_target(runtime.fireball_id, target, "Fireball") then
         mark_pending_cast(runtime.fireball_id, PENDING_CAST_TIMEOUT_S)
@@ -241,7 +244,7 @@ local function try_ice_lance(me, target)
     end
 
     if is_pending_cast(runtime.ice_lance_id) or utils.is_spell_already_queued(runtime.ice_lance_id) then return false end
-    if not utils.can_cast_target(runtime.ice_lance_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.ice_lance_id, me, target) then return false end
 
     if utils.cast_target(runtime.ice_lance_id, target, "Ice Lance") then
         mark_pending_cast(runtime.ice_lance_id, PENDING_CAST_TIMEOUT_S)
@@ -260,7 +263,7 @@ local function try_frostbolt(me, target)
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
     if is_pending_cast(runtime.frostbolt_id) or utils.is_spell_already_queued(runtime.frostbolt_id) then return false end
-    if not utils.can_cast_target(runtime.frostbolt_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.frostbolt_id, me, target) then return false end
 
     if utils.cast_target(runtime.frostbolt_id, target, "Frostbolt") then
         mark_pending_cast(runtime.frostbolt_id, PENDING_CAST_TIMEOUT_S)
@@ -324,12 +327,8 @@ local function do_rotation(me, target)
 
     -- Wanding / mana conservation (leveling 1-70)
     if leveling_manager.try_wand(me, target, menu) then return true end
-    if not leveling_manager.has_enough_mana(me, menu) then
-        leveling_manager.ensure_melee(me, target)
-        return false
-    end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Interrupt
     if target and interrupt_manager.should_interrupt(target) then
@@ -341,6 +340,7 @@ local function do_rotation(me, target)
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -412,7 +412,7 @@ core.register_on_update_callback(function()
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT),
+            { spell_id = runtime.ooc_arcane_intellect_id,
                buff_ids = spells.BUFF_ARCANE_INTELLECT,
                name = "Arcane Intellect",
                toggle = menu.ooc_group_buff },
@@ -424,13 +424,9 @@ core.register_on_update_callback(function()
     if me:is_dead() then return end
     if eax_utils.is_eating_or_drinking(me) then return end
 
-    local target = me:get_target()
-    
-    -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    if focus_target and focus_target:is_valid() then
-        target = focus_target
-    end
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    local target = focus_target or utils.find_best_target(me)
     
     -- Self-emergency
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.30, menu)

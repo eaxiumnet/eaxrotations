@@ -19,6 +19,8 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -288,6 +290,8 @@ local function can_cast(spell_id, target)
     if not spell_id or not target then return false end
     local me = core.object_manager.get_local_player()
     if not me then return false end
+    -- Never cast offensive spells on self or friendly units
+    if not me:can_attack(target) then return false end
     return me:can_cast_spell(spell_id, false, target:get_position())
 end
 
@@ -734,7 +738,7 @@ local function do_rotation(me, target)
         leveling_manager.ensure_melee(me, target)
     end
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 
     -- Interrupt
     if target and interrupt_manager.should_interrupt(target) then
@@ -746,6 +750,7 @@ local function do_rotation(me, target)
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -854,13 +859,9 @@ local function on_update()
         ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
     
-    local target = me:get_target()
-    
-    -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    if focus_target and focus_target:is_valid() then
-        target = focus_target
-    end
+    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    local target = focus_target or utils.find_best_target(me)
     
     -- Self-emergency
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)

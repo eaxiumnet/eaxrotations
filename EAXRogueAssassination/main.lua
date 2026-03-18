@@ -14,6 +14,8 @@ local ooc_manager = require("ooc_manager")
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+-- Module-level encounter policy cache (updated each tick)
+local enc = nil
 
 
 ---@type esp_renderer
@@ -100,17 +102,44 @@ local function handle_toggle()
     runtime.prev_toggle_state = current
 end
 
-local function reset_combo_points_if_needed(target)
-    if not target or not target:is_valid() then
-        runtime.combo_points = 0
-        runtime.combo_target = nil
-        return
+-- Read combo points with multiple fallbacks for cross-server compatibility.
+local function get_current_combo_points(me)
+    local ok1, cp1 = pcall(function()
+        if enums and enums.power_type and enums.power_type.COMBOPOINTS_TBC then
+            return me:get_power(enums.power_type.COMBOPOINTS_TBC)
+        end
+    end)
+    if ok1 and type(cp1) == "number" and cp1 >= 0 then return cp1 end
+
+    local ok2, cp2 = pcall(function()
+        if enums and enums.power_type and enums.power_type.COMBOPOINTS then
+            return me:get_power(enums.power_type.COMBOPOINTS)
+        end
+    end)
+    if ok2 and type(cp2) == "number" and cp2 >= 0 then return cp2 end
+
+    local ok3, cp3 = pcall(function() return me:get_power(4) end)
+    if ok3 and type(cp3) == "number" and cp3 >= 0 then return cp3 end
+
+    local ok4, cp4 = pcall(function() return me:combo_points_current() end)
+    if ok4 and type(cp4) == "number" and cp4 >= 0 then return cp4 end
+
+    return 0
+end
+
+local function reset_combo_points_if_needed(me, target)
+    -- Read combo points directly from the API every tick via izi_sdk.
+    local cp = get_current_combo_points(me)
+
+    -- Confirm CPs are on the current target, not a previous one
+    local cp_target_ok, cp_target = pcall(function() return me:get_combo_points_target() end)
+    if cp_target_ok and cp_target and cp_target:is_valid() then
+        if target and not utils.same_unit(cp_target, target) then
+            cp = 0
+        end
     end
 
-    if runtime.combo_target and runtime.combo_target ~= target then
-        runtime.combo_points = 0
-    end
-
+    runtime.combo_points = cp or 0
     runtime.combo_target = target
 end
 
@@ -127,7 +156,7 @@ local function try_kick(me, target)
     if target:is_casting_spell() and not target:is_active_spell_interruptable() then
         return false
     end
-    if not utils.can_cast_target(runtime.kick_id, me, target) then
+    if not utils.can_cast_hostile(runtime.kick_id, me, target) then
         return false
     end
 
@@ -208,7 +237,7 @@ local function try_envenom(me, target)
     if poison_stacks < menu.poison_stack_threshold:get() then
         return false
     end
-    if not utils.can_cast_target(runtime.envenom_id, me, target) then
+    if not utils.can_cast_hostile(runtime.envenom_id, me, target) then
         return false
     end
 
@@ -239,7 +268,7 @@ local function try_rupture(me, target)
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RUPTURE) > 3000 then return false end
     -- TTD gate: don't Rupture if fight ending before it expires (v1.3)
     if ttd_tracker.get(target) < 12 then return false end
-    if not utils.can_cast_target(runtime.rupture_id, me, target) then
+    if not utils.can_cast_hostile(runtime.rupture_id, me, target) then
         return false
     end
 
@@ -262,7 +291,7 @@ local function try_eviscerate(me, target)
     if runtime.combo_points < 4 then
         return false
     end
-    if not utils.can_cast_target(runtime.eviscerate_id, me, target) then
+    if not utils.can_cast_hostile(runtime.eviscerate_id, me, target) then
         return false
     end
 
@@ -289,7 +318,7 @@ local function try_mutilate(me, target)
     if runtime.combo_points >= 5 then
         return false
     end
-    if not utils.can_cast_target(runtime.mutilate_id, me, target) then
+    if not utils.can_cast_hostile(runtime.mutilate_id, me, target) then
         return false
     end
 
@@ -311,7 +340,7 @@ local function try_feint(me)
     if not runtime.feint_id then return false end
     local mode = utils.get_selected_mode and utils.get_selected_mode(menu) or "solo"
     if mode == "solo" then return false end
-    if not utils.can_cast_target(runtime.feint_id, me, me:get_target()) then return false end
+    if not utils.can_cast_hostile(runtime.feint_id, me, me:get_target()) then return false end
     if utils.cast_target(runtime.feint_id, me:get_target(), "Feint") then
         utils.log_debug(menu, "Feint")
         return true
@@ -326,7 +355,7 @@ local function try_shiv(me, target)
     if not runtime.shiv_id then return false end
     local dp_remain = utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEADLY_POISON)
     if dp_remain <= 0 or dp_remain > 2000 then return false end
-    if not utils.can_cast_target(runtime.shiv_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.shiv_id, me, target) then return false end
     if utils.cast_target(runtime.shiv_id, target, "Shiv") then
         utils.log_debug(menu, "Shiv (Deadly Poison refresh)")
         note_cast()
@@ -347,7 +376,7 @@ local function try_garrote(me, target)
     if not utils.has_buff(me, spells.BUFF_STEALTH) then return false end
     if not utils.is_melee_target(me, target) then return false end
     if utils.has_debuff(target, spells.DEBUFF_GARROTE) then return false end
-    if not utils.can_cast_target(runtime.garrote_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.garrote_id, me, target) then return false end
     if utils.cast_target(runtime.garrote_id, target, "Garrote") then
         utils.log_debug(menu, "Garrote (stealth opener)")
         note_cast()
@@ -364,7 +393,7 @@ local function try_riposte(me, target)
     if not menu.use_riposte or not menu.use_riposte:get_state() then return false end
     if not runtime.riposte_id then return false end
     -- Riposte is only usable after a parry (the game makes it usable automatically)
-    if not utils.can_cast_target(runtime.riposte_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.riposte_id, me, target) then return false end
     if utils.cast_target(runtime.riposte_id, target, "Riposte") then
         utils.log_debug(menu, "Riposte")
         note_cast()
@@ -382,7 +411,7 @@ local function do_rotation(me, target)
     -- Interrupt
     if target and interrupt_manager
     -- Encounter policy (boss-specific rotation adjustments)
-    local enc = encounter_manager.get_policy(me)
+    enc = encounter_manager.get_policy(me)
 .should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "rogue", utils) then
             return true
@@ -392,6 +421,7 @@ local function do_rotation(me, target)
     -- Racial CDs
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -408,7 +438,7 @@ local function do_rotation(me, target)
         return false
     end
 
-    reset_combo_points_if_needed(target)
+    reset_combo_points_if_needed(me, target)
 
     if try_slice_and_dice(me) then return true end
     if try_feint(me) then return true end
@@ -451,6 +481,18 @@ local function try_evasion(me)
 end
 
 
+local function update_set_bonus(me)
+    local max_mult = 1.0
+    local sets = { "Deathmantle", "DeathmantleBattlegear", "Terror" }
+    for _, set_name in ipairs(sets) do
+        local mult = utils.get_set_multiplier(me, set_name)
+        if mult > max_mult then
+            max_mult = mult
+        end
+    end
+    runtime.set_multiplier = max_mult
+end
+
 local function on_render()
     esp_renderer.on_render(menu)
 end
@@ -485,7 +527,7 @@ core.register_on_update_callback(function()
         ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
 
-    do_rotation(me, me:get_target())
+    do_rotation(me, utils.find_best_target(me))
     
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
@@ -501,17 +543,6 @@ core.register_on_update_callback(function()
     end
 end)
 
-local function update_set_bonus(me)
-    local max_mult = 1.0
-    local sets = { "Deathmantle", "DeathmantleBattlegear", "Terror" }
-    for _, set_name in ipairs(sets) do
-        local mult = utils.get_set_multiplier(me, set_name)
-        if mult > max_mult then
-            max_mult = mult
-        end
-    end
-    runtime.set_multiplier = max_mult
-end
 
 
 -- -- Space theme: create menu window and inject into menu ---------------------

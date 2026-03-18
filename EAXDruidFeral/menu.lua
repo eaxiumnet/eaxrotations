@@ -45,6 +45,8 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 
 -- -- Class-specific elements ---------------------------------------------------
 menu.lane                                 = core.menu.combobox(1, "eaxdruidferal_lane")
+menu.use_root_escape                     = core.menu.checkbox(true, "eaxdruidferal_root_escape")
+menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidferal_remove_curse")
 menu.auto_form                            = core.menu.checkbox(true, "eaxdruidferal_auto_form")
 menu.use_faerie_fire                      = core.menu.checkbox(true, "eaxdruidferal_use_faerie_fire")
 menu.use_mangle_cat                       = core.menu.checkbox(true, "eaxdruidferal_use_mangle_cat")

@@ -37,6 +37,8 @@ menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "ea
 -- Leveling
 menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxpaladinprotection_lev_conserve")
 menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxpaladinprotection_lev_mana_floor")
+menu.use_hand_of_freedom                  = core.menu.checkbox(true, "eaxpaladinprotection_use_hof")
+menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinprotection_hof_slows")
 -- ESP
 menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
 menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")

@@ -67,9 +67,12 @@ local runtime = {
     blessing_wisdom_id = nil,
     blessing_might_id = nil,
     cleanse_id = nil,
+    hand_of_freedom_id = nil,
     mode_cache = MODE_SOLO,
     mode_cache_refreshed_at = 0,
     last_toggle_state = false,
+    ooc_blessing_of_might_id = nil,
+    ooc_blessing_of_wisdom_id = nil,
 }
 
 local function resolve_spells()
@@ -84,6 +87,7 @@ local function resolve_spells()
     runtime.jow_id            = utils.resolve_spell_id(spells.JUDGEMENT_OF_WISDOM)
     runtime.avenging_wrath_id = utils.resolve_spell_id(spells.AVENGING_WRATH)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
+    runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
 end
 
 local function log_resolved_spells()
@@ -304,7 +308,7 @@ local function try_cast_spell(spell_id, me, target, label)
     if not utils.can_cast_target(spell_id, me, target) then
         return false
     end
-    if not utils.cast_target(spell_id, me, target) then
+    if not utils.cast_target(spell_id, target) then
         return false
     end
     local target_name = "unknown"
@@ -316,6 +320,35 @@ local function try_cast_spell(spell_id, me, target, label)
     end
     utils.log_debug(menu, label .. " -> " .. target_name)
     return true
+end
+
+local function try_hand_of_freedom(me)
+    if not menu.use_hand_of_freedom:get_state() then return false end
+    if not runtime.hand_of_freedom_id then return false end
+    if not utils.can_cast_self(runtime.hand_of_freedom_id, me) then return false end
+
+    local include_slows = menu.hof_include_slows:get_state()
+    local candidates = gather_heal_candidates(me)
+
+    for _, unit in ipairs(candidates) do
+        if unit and unit:is_valid() and not unit:is_dead() then
+            -- Root check (always)
+            local is_root = unit:is_rooted(500)
+            -- Slow check (optional)
+            local is_slow = include_slows and unit:is_slowed(0.30, 500)
+
+            if is_root or is_slow then
+                -- Don't waste if unit already has Hand of Freedom
+                if not utils.has_buff(unit, spells.BUFF_HAND_OF_FREEDOM) then
+                    if utils.cast_unit(runtime.hand_of_freedom_id, me, unit) then
+                        utils.log_debug(menu, "Hand of Freedom -> " .. (unit.get_name and unit:get_name() or "ally"))
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
 end
 
 local function try_cleanse(me, target)
@@ -430,11 +463,11 @@ local function on_update()
     end
         ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
-            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT),
+            { spell_id = runtime.ooc_blessing_of_might_id,
                buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
                name = "Blessing of Might",
                toggle = menu.ooc_group_buff },
-            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM),
+            { spell_id = runtime.ooc_blessing_of_wisdom_id,
                buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
                name = "Blessing of Wisdom",
                toggle = menu.ooc_group_buff },
@@ -449,7 +482,7 @@ local function on_update()
 
     -- Interrupt (PVP)
     local target = me:get_target()
-    if target and target:is_valid() and target:is_enemy() and interrupt_manager.should_interrupt(target) then
+    if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "paladin", utils) then
             return
         end
@@ -464,6 +497,11 @@ local function on_update()
     local enc = encounter_manager.get_policy(me)
 
     -- Defensive abilities
+    -- Racial abilities
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
+
     if defensive_manager.try_defensive(me, "paladin", utils) then
         return
     end
@@ -487,7 +525,7 @@ local function on_update()
     if my_hp < self_threshold then
         -- Mana recovery
     if try_divine_plea(me) then return end
-    if try_judgment_of_wisdom(me, me:get_target()) then return end
+    if try_judgment_of_wisdom(me, utils.find_best_target(me)) then return end
 
     if try_cast_heal(me, me, my_hp) then
             return
@@ -509,6 +547,7 @@ local function on_update()
     end
 
     local target, hp_pct = find_heal_target(me, mode)
+    if try_hand_of_freedom(me) then return end
     if try_cleanse(me, target) then
         return
     end
