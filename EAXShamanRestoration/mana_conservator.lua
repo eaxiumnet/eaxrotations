@@ -16,7 +16,7 @@
 
 local mana_conservator = {}
 
--- ─── Constants ────────────────────────────────────────────────────────────────
+-- --- Constants ----------------------------------------------------------------
 
 -- Spell ID 5019 = "Shoot" (wand ranged auto attack)
 local WAND_SPELL_ID    = 5019
@@ -26,7 +26,7 @@ local MELEE_SPELL_ID   = 6603
 -- Inventory slot for ranged weapon (wand slot in TBC = slot 18)
 local RANGED_SLOT      = 18
 
--- ─── Internal state ───────────────────────────────────────────────────────────
+-- --- Internal state -----------------------------------------------------------
 
 local last_wand_toggle_time  = 0
 local last_melee_start_time  = 0
@@ -34,7 +34,7 @@ local WAND_TOGGLE_THROTTLE   = 0.5   -- seconds between wand start/stop attempts
 local MELEE_START_THROTTLE   = 1.0   -- seconds between melee start attempts
 local conserve_mode_active   = false
 
--- ─── Helpers ──────────────────────────────────────────────────────────────────
+-- --- Helpers ------------------------------------------------------------------
 
 local function get_mana_pct(me)
     local ok, enums = pcall(require, "common/enums")
@@ -113,7 +113,7 @@ local function start_melee(me, target)
     return cast_ok
 end
 
--- ─── Menu helpers ─────────────────────────────────────────────────────────────
+-- --- Menu helpers -------------------------------------------------------------
 
 local function get_conserve_threshold(menu)
     -- Default: conserve below 20% mana
@@ -144,7 +144,7 @@ local function is_conserve_enabled(menu)
     return true  -- default enabled
 end
 
--- ─── Public API ───────────────────────────────────────────────────────────────
+-- --- Public API ---------------------------------------------------------------
 
 ---Returns true if the rotation should be suppressed (mana-conserve mode active).
 ---The module will handle wanding or melee attacking automatically.
@@ -200,7 +200,7 @@ function mana_conservator.reset()
     conserve_mode_active = false
 end
 
--- ─── Menu element factory ─────────────────────────────────────────────────────
+-- --- Menu element factory -----------------------------------------------------
 -- Call this from a spec's menu.lua to register the required sliders/checkboxes.
 -- prefix: unique string for savedvariables keys, e.g. "eax_mage_frost"
 --

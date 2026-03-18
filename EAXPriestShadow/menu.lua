@@ -7,7 +7,7 @@ local mana_conservator = require("mana_conservator")
 local ps   = require("ps_theme")
 local menu = {}
 
--- ── Tree nodes ────────────────────────────────────────────────────────────────
+-- -- Tree nodes ----------------------------------------------------------------
 local root_tree    = ps.tree_node()
 local main_tree    = ps.tree_node()
 local def_tree     = ps.tree_node()
@@ -16,7 +16,7 @@ local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
 
--- ── Shared plugin controls + shared fields ────────────────────────────────────
+-- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxpriestshadow_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxpriestshadow_toggle_key")
@@ -48,7 +48,7 @@ menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_sh
 menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- ── Class-specific elements ───────────────────────────────────────────────────
+-- -- Class-specific elements ---------------------------------------------------
 menu.dot_refresh_window                   = core.menu.slider_int(1, 5, 3, "eax_priest_shadow_dot_window")
 menu.mind_blast_burst                     = core.menu.checkbox(true, "eax_priest_shadow_mb_burst")
 menu.mind_blast_burst_window              = core.menu.slider_float(0.5, 3, 1.4, "eax_priest_shadow_mb_burst_window")
@@ -61,7 +61,7 @@ menu.flash_heal_hp_pct                    = core.menu.slider_int(0, 100, 30, "ea
 mana_conservator.register_menu_items(menu, "eax_priest_shadow")
 
 -- ════════════════════════════════════════════════════════════════════════════
--- RENDER  — called every frame by core.register_on_render_menu_callback
+-- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -81,7 +81,7 @@ function menu.render()
 
         ps.render_controls(menu, "Eax's Priest Shadow")
 
-        -- ── Class-specific settings ───────────────────────────────────────────
+        -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.dot_refresh_window:render("DoT Refresh Window", "Refresh Vampiric Touch / Shadow Word: Pain when only this many seconds remain")
@@ -94,21 +94,21 @@ function menu.render()
             menu.flash_heal_hp_pct:render("Flash Heal Hp Percent", "")
         end)
 
-        -- ── Defensive cooldowns ───────────────────────────────────────────────
+        -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
         -- (none detected)
         })
 
-        -- ── Targeting ────────────────────────────────────────────────────────
+        -- -- Targeting --------------------------------------------------------
         ps.render_targeting(menu, tgt_tree)
 
-        -- ── Racial ────────────────────────────────────────────────────────────
+        -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
 
-        -- ── Out-of-combat ─────────────────────────────────────────────────────
+        -- -- Out-of-combat -----------------------------------------------------
         ps.render_ooc(menu, ooc_tree, true)
 
-        -- ── Display & HUD ─────────────────────────────────────────────────────
+        -- -- Display & HUD -----------------------------------------------------
         ps.render_esp(menu, esp_tree)
 
     end)

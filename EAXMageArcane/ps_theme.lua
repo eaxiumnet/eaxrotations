@@ -9,21 +9,21 @@
 
 local ps = {}
 
--- ── Lazy-loaded deps ─────────────────────────────────────────────────────────
+-- -- Lazy-loaded deps ---------------------------------------------------------
 local _vec2
 local function v(x, y)
     if not _vec2 then _vec2 = require("common/geometry/vector_2") end
     return _vec2.new(x, y)
 end
 
--- ── Color helper ─────────────────────────────────────────────────────────────
+-- -- Color helper -------------------------------------------------------------
 local _color_api
 local function c(r, g, b, a)
     if not _color_api then _color_api = require("common/color") end
     return _color_api.new(r, g, b, a or 255)
 end
 
--- ── Palette ──────────────────────────────────────────────────────────────────
+-- -- Palette ------------------------------------------------------------------
 ps.col = {
     panel        = c(  11,   8,  24, 252),
     panel_deep   = c(   8,   5,  18, 240),
@@ -36,7 +36,7 @@ ps.col = {
     transparent  = c(   0,   0,   0,   0),
 }
 
--- ── Pre-seeded star field (stable positions, no flicker between frames) ───────
+-- -- Pre-seeded star field (stable positions, no flicker between frames) -------
 -- We seed with a fixed value so every script gets identical star layout.
 local STAR_COUNT  = 160
 local DUST_COUNT  = 55
@@ -79,7 +79,7 @@ local function _build_field()
     end
 end
 
--- ── Meteor state (per-menu, keyed by window id) ───────────────────────────────
+-- -- Meteor state (per-menu, keyed by window id) -------------------------------
 local _meteor_pools = {}
 
 local function _get_meteors(id)
@@ -105,7 +105,7 @@ local function _spawn_meteor(pool)
     })
 end
 
--- ── Main draw call — call this at the TOP of every window callback ────────────
+-- -- Main draw call - call this at the TOP of every window callback ------------
 -- win  : the window object passed by core.register_on_render_menu_callback
 -- id   : any unique string (use script prefix) for meteor state isolation
 function ps.draw_space(win, id)
@@ -141,18 +141,18 @@ function ps.draw_space(win, id)
 
     local t = core.time()
 
-    -- ── Panel base fill ──────────────────────────────────────────────────────
+    -- -- Panel base fill ------------------------------------------------------
     win:render_rect_filled(v(0, 0), v(W, H), ps.col.panel, 0)
 
 
-    -- ── Dust particles ───────────────────────────────────────────────────────
+    -- -- Dust particles -------------------------------------------------------
     for _, d in ipairs(_dust) do
         win:render_circle_filled(
             v(d.rx * W, d.ry * H), d.rad,
             c(155, 95, 255, d.a))
     end
 
-    -- ── Stars (twinkling) ─────────────────────────────────────────────────────
+    -- -- Stars (twinkling) -----------------------------------------------------
     for _, s in ipairs(_stars) do
         local tw  = 0.3 + 0.7 * math.abs(math.sin(t * s.spd + s.phase))
         local al  = s.bright and (0.4 + 0.6 * tw) or (0.08 + 0.38 * tw)
@@ -172,7 +172,7 @@ function ps.draw_space(win, id)
         end
     end
 
-    -- ── Meteors ───────────────────────────────────────────────────────────────
+    -- -- Meteors ---------------------------------------------------------------
     local pool = _get_meteors(id)
     local dt   = math.min(t - (pool.last_t or t), 0.05)
     pool.last_t = t
@@ -223,13 +223,13 @@ function ps.draw_space(win, id)
     end
     for i = #dead, 1, -1 do table.remove(pool.list, dead[i]) end
 
-    -- ── Titlebar glow line (drawn over everything, under imgui content) ───────
+    -- -- Titlebar glow line (drawn over everything, under imgui content) -------
     win:render_line(v(0, 22), v(W, 22),
         c(110, 64, 201, 80), 1.0)
     win:render_rect_filled(v(0, 22), v(W, 24),
         c(110, 64, 201, 35), 0)
 
-    -- ── Corner bracket lines ──────────────────────────────────────────────────
+    -- -- Corner bracket lines --------------------------------------------------
     local BL  = 18
     local gcol = ps.col.border_glow
     -- top-left
@@ -262,18 +262,18 @@ function ps.draw_space(win, id)
     gem(W - G - 2, H - G - 2, G)
 end
 
--- ── Section header (purple label rendered via core.menu.header) ───────────────
+-- -- Section header (purple label rendered via core.menu.header) ---------------
 function ps.header(label)
     local h = core.menu.header()
     h:render("  " .. label, ps.col.accent)
 end
 
--- ── Purple separator via window add_separator ─────────────────────────────────
+-- -- Purple separator via window add_separator ---------------------------------
 function ps.sep(win)
     win:add_separator(6, 6, 3, 0, c(110, 64, 201, 110))
 end
 
--- ── Element constructors ──────────────────────────────────────────────────────
+-- -- Element constructors ------------------------------------------------------
 function ps.checkbox(id, default)
     return core.menu.checkbox(default, id)
 end
@@ -293,10 +293,10 @@ function ps.tree_node()
     return core.menu.tree_node()
 end
 
--- ── Standard mode options ─────────────────────────────────────────────────────
+-- -- Standard mode options -----------------------------------------------------
 ps.MODE = { "Auto", "Solo", "Dungeon", "Raid" }
 
--- ── Common render helpers ─────────────────────────────────────────────────────
+-- -- Common render helpers -----------------------------------------------------
 
 function ps.render_controls(m, title)
     ps.header("Controls")

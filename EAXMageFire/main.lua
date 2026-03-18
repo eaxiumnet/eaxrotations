@@ -4,6 +4,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -21,7 +22,7 @@ local encounter_manager = require("encounter_manager")
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 
-esp_renderer.init("fire")
+esp_renderer.init("fire", "Mage Fire")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -277,7 +278,7 @@ local function try_fireball(me, target)
 end
 
 
--- ─── Frost Nova — kite tool (v1.4) ───────────────────────────────────────
+-- --- Frost Nova - kite tool (v1.4) ---------------------------------------
 
 local function try_frost_nova(me)
     if not menu.use_frost_nova or not menu.use_frost_nova:get_state() then return false end
@@ -302,7 +303,7 @@ local function try_frost_nova(me)
     return false
 end
 
--- ─── Presence of Mind — instant cast proc (Arcane talent) (v1.4) ─────────
+-- --- Presence of Mind - instant cast proc (Arcane talent) (v1.4) ---------
 
 local function try_presence_of_mind(me)
     if enc and enc.hold_cooldowns then return false end
@@ -321,10 +322,8 @@ local function try_presence_of_mind(me)
 end
 
 
-local function -- Mana conservator: wand/melee when low on mana
+local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
-
-    do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
 
@@ -376,7 +375,7 @@ local function handle_toggle()
 end
 
 
--- ─── Flamestrike — AoE ground fire (v1.8.2) ──────────────────────────────
+-- --- Flamestrike - AoE ground fire (v1.8.2) ------------------------------
 
 local function count_enemies_near(me, radius)
     local pos = me:get_position()
@@ -408,7 +407,7 @@ local function try_flamestrike(me, target)
     return false
 end
 
--- ─── Ice Block — emergency freeze (v1.8.2) ───────────────────────────────
+-- --- Ice Block - emergency freeze (v1.8.2) -------------------------------
 local function try_ice_block(me)
     if not menu.use_ice_block:get_state() then return false end
     if not runtime.ice_block_id then
@@ -482,31 +481,60 @@ core.register_on_update_callback(function()
 end)
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxmagefire_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
 
-core.register_on_render_control_panel_callback(function()
-    local elements = {}
-    control_panel_utility:insert_toggle_(
-        elements,
-        "[EAX Mage Fire] Enable (" .. key_helper:get_key_name(menu.toggle_key:get_key_code()) .. ")",
-        menu.toggle_key
-    )
-    return elements
-end)
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Mage Fire] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxmagefire_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_mfi_cds = menu.use_cooldowns:get_state()
+            local nxt_mfi_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MFi] Cooldowns", cur_mfi_cds, 0, false, "eax_mfi_cds_cp")
+            if nxt_mfi_cds ~= cur_mfi_cds then menu.use_cooldowns:set(nxt_mfi_cds) end
+        end
+        if menu.focus_priority then
+            local cur_mfi_focus = menu.focus_priority:get_state()
+            local nxt_mfi_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MFi] Focus Priority", cur_mfi_focus, 0, false, "eax_mfi_focus_cp")
+            if nxt_mfi_focus ~= cur_mfi_focus then menu.focus_priority:set(nxt_mfi_focus) end
+        end
+        if menu.use_racial then
+            local cur_mfi_racial = menu.use_racial:get_state()
+            local nxt_mfi_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MFi] Use Racial", cur_mfi_racial, 0, false, "eax_mfi_racial_cp")
+            if nxt_mfi_racial ~= cur_mfi_racial then menu.use_racial:set(nxt_mfi_racial) end
+        end
+        end
+        return elements
+    end)
+end
 
 
-
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -549,4 +577,5 @@ do
     end
 end
 
-core.log("[EAX Mage Fire] Loaded v1.0.0")
+local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
+core.log("[EAX Mage Fire] Loaded " .. (_pi and _pi.plugin_version or "?"))

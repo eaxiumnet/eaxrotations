@@ -6,7 +6,7 @@
 local ps   = require("ps_theme")
 local menu = {}
 
--- ── Tree nodes ────────────────────────────────────────────────────────────────
+-- -- Tree nodes ----------------------------------------------------------------
 local root_tree    = ps.tree_node()
 local main_tree    = ps.tree_node()
 local def_tree     = ps.tree_node()
@@ -15,7 +15,7 @@ local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
 
--- ── Shared plugin controls + shared fields ────────────────────────────────────
+-- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxwarriorprotection_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxwarriorprotection_toggle_key")
@@ -43,7 +43,7 @@ menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_sh
 menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- ── Class-specific elements ───────────────────────────────────────────────────
+-- -- Class-specific elements ---------------------------------------------------
 menu.use_shield_slam                      = core.menu.checkbox(true, "simpleprot_use_shield_slam")
 menu.use_revenge                          = core.menu.checkbox(true, "simpleprot_use_revenge")
 menu.use_devastate                        = core.menu.checkbox(true, "simpleprot_use_devastate")
@@ -101,7 +101,7 @@ menu.aoe_enemy_count                      = core.menu.slider_int(2, 10, 3, "simp
 menu.execute_min_rage                     = core.menu.slider_int(15, 80, 31, "simpleprot_execute_min_rage")
 
 -- ════════════════════════════════════════════════════════════════════════════
--- RENDER  — called every frame by core.register_on_render_menu_callback
+-- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -121,7 +121,7 @@ function menu.render()
 
         ps.render_controls(menu, "Eax's Warrior Protection")
 
-        -- ── Class-specific settings ───────────────────────────────────────────
+        -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_shield_slam:render("Shield Slam", "Use Shield Slam on cooldown")
@@ -177,22 +177,22 @@ function menu.render()
             menu.execute_min_rage:render("Execute Min Rage", "Minimum rage to use Execute (rage above cost is consumed for bonus damage)")
         end)
 
-        -- ── Defensive cooldowns ───────────────────────────────────────────────
+        -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
         { key = "use_last_stand", label = "Last Stand", tip = "Use Last Stand as an emergency cooldown", hp_key = "last_stand_hp_pct", hp_label = "Last Stand Hp Percent" },
         { key = "use_shield_wall", label = "Shield Wall", tip = "Use Shield Wall as an emergency cooldown", hp_key = "shield_wall_hp_pct", hp_label = "Shield Wall Hp Percent" },
         })
 
-        -- ── Targeting ────────────────────────────────────────────────────────
+        -- -- Targeting --------------------------------------------------------
         ps.render_targeting(menu, tgt_tree)
 
-        -- ── Racial ────────────────────────────────────────────────────────────
+        -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
 
-        -- ── Out-of-combat ─────────────────────────────────────────────────────
+        -- -- Out-of-combat -----------------------------------------------------
         ps.render_ooc(menu, ooc_tree, false)
 
-        -- ── Display & HUD ─────────────────────────────────────────────────────
+        -- -- Display & HUD -----------------------------------------------------
         ps.render_esp(menu, esp_tree)
 
     end)

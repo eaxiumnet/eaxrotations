@@ -4,6 +4,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -20,7 +21,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("arcane")
+esp_renderer.init("arcane", "Mage Arcane")
 ---@type racial_manager
 local racial_manager = require("racial_manager")
 ---@type defensive_manager
@@ -331,7 +332,7 @@ local function try_ice_block(me)
 end
 
 
--- ─── Frost Nova — kite tool (v1.4) ───────────────────────────────────────
+-- --- Frost Nova - kite tool (v1.4) ---------------------------------------
 
 local function try_frost_nova(me)
     if not menu.use_frost_nova or not menu.use_frost_nova:get_state() then return false end
@@ -356,7 +357,7 @@ local function try_frost_nova(me)
     return false
 end
 
--- ─── Presence of Mind — instant cast proc (Arcane talent) (v1.4) ─────────
+-- --- Presence of Mind - instant cast proc (Arcane talent) (v1.4) ---------
 
 local function try_presence_of_mind(me)
     if enc and enc.hold_cooldowns then return false end
@@ -375,10 +376,8 @@ local function try_presence_of_mind(me)
 end
 
 
-local function -- Mana conservator: wand/melee when low on mana
+local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
-
-    do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
     -- Interrupt
@@ -496,31 +495,60 @@ core.register_on_update_callback(function()
 end)
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxmagearcane_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
 
-core.register_on_render_control_panel_callback(function()
-    local elements = {}
-    control_panel_utility:insert_toggle_(
-        elements,
-        "[EAX Mage Arcane] Enable (" .. key_helper:get_key_name(menu.toggle_key:get_key_code()) .. ")",
-        menu.toggle_key
-    )
-    return elements
-end)
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Mage Arcane] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxmagearcane_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_mar_cds = menu.use_cooldowns:get_state()
+            local nxt_mar_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MAr] Cooldowns", cur_mar_cds, 0, false, "eax_mar_cds_cp")
+            if nxt_mar_cds ~= cur_mar_cds then menu.use_cooldowns:set(nxt_mar_cds) end
+        end
+        if menu.focus_priority then
+            local cur_mar_focus = menu.focus_priority:get_state()
+            local nxt_mar_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MAr] Focus Priority", cur_mar_focus, 0, false, "eax_mar_focus_cp")
+            if nxt_mar_focus ~= cur_mar_focus then menu.focus_priority:set(nxt_mar_focus) end
+        end
+        if menu.use_racial then
+            local cur_mar_racial = menu.use_racial:get_state()
+            local nxt_mar_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MAr] Use Racial", cur_mar_racial, 0, false, "eax_mar_racial_cp")
+            if nxt_mar_racial ~= cur_mar_racial then menu.use_racial:set(nxt_mar_racial) end
+        end
+        end
+        return elements
+    end)
+end
 
 
-
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -563,4 +591,5 @@ do
     end
 end
 
-core.log("[EAX Mage Arcane] Loaded v1.0.0")
+local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
+core.log("[EAX Mage Arcane] Loaded " .. (_pi and _pi.plugin_version or "?"))

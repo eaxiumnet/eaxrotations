@@ -12,7 +12,7 @@ local buff_manager = require("common/modules/buff_manager")
 
 local ooc_manager = {}
 
--- ─── Internal state ───────────────────────────────────────────────────────────
+-- --- Internal state -----------------------------------------------------------
 
 local last_drink_attempt    = 0
 local last_eat_attempt      = 0
@@ -22,7 +22,7 @@ local last_group_buff       = {}   -- [buff_id] = timestamp
 local DRINK_BUFF_IDS = { 430, 2639, 1133, 10250, 22734, 27089, 29007, 46755 }
 local EAT_BUFF_IDS   = { 433, 787,  1131, 5004,  5005,  7737,  18191, 35270 }
 
--- ─── Helpers ──────────────────────────────────────────────────────────────────
+-- --- Helpers ------------------------------------------------------------------
 
 local function has_any_buff(unit, ids)
     if not unit or not ids then return false end
@@ -70,7 +70,7 @@ local function find_consumable_of_type(me, want_drink, want_food)
     return nil
 end
 
--- ─── 1. Drink / Eat ───────────────────────────────────────────────────────────
+-- --- 1. Drink / Eat -----------------------------------------------------------
 
 function ooc_manager.try_drink(me, menu, utils)
     if not menu.ooc_drink or not menu.ooc_drink:get_state() then return false end
@@ -80,7 +80,8 @@ function ooc_manager.try_drink(me, menu, utils)
     if has_any_buff(me, EAT_BUFF_IDS) then return false end
 
     local threshold = menu.drink_threshold and (menu.drink_threshold:get() / 100.0) or 0.80
-    local mana_pct  = utils.get_mana_pct(me)
+    local _max_mana = me:get_max_power(0)
+    local mana_pct = (_max_mana and _max_mana > 0) and (me:get_power(0) / _max_mana) or 1.0
     if mana_pct >= threshold then return false end
 
     local now = core.time()
@@ -139,7 +140,7 @@ function ooc_manager.try_eat(me, menu, utils)
     return false
 end
 
--- ─── 2. Party Resurrection ────────────────────────────────────────────────────
+-- --- 2. Party Resurrection ----------------------------------------------------
 -- Each spec passes its own rez spell IDs and class-specific constraints.
 
 local BATTLE_REZ_CLASSES = { "druid", "warlock" }  -- can rez mid-combat
@@ -192,7 +193,7 @@ function ooc_manager.try_resurrect(me, rez_spell_id, menu, utils, allow_in_comba
     return false
 end
 
--- ─── 3. Group Buffs ───────────────────────────────────────────────────────────
+-- --- 3. Group Buffs -----------------------------------------------------------
 -- Generic group buff applier. Pass a table of {spell_id, buff_ids, name}.
 -- Applies to all party members (and self) who are missing the buff.
 
@@ -215,7 +216,7 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
         if utils.can_cast_self(spell_id, me) then
             if utils.cast_self(spell_id, me) then
                 last_group_buff[throttle_key] = now
-                utils.log_debug(menu, "OOC: Buffing self — " .. (buff_name or ""))
+                utils.log_debug(menu, "OOC: Buffing self - " .. (buff_name or ""))
                 return true
             end
         end
@@ -232,7 +233,7 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
                 if utils.can_cast_target(spell_id, me, obj) then
                     if utils.cast_target(spell_id, obj, buff_name or "Group Buff") then
                         last_group_buff[throttle_key] = now
-                        utils.log_debug(menu, "OOC: Buffing party — " .. (buff_name or ""))
+                        utils.log_debug(menu, "OOC: Buffing party - " .. (buff_name or ""))
                         return true
                     end
                 end
@@ -242,7 +243,7 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
     return false
 end
 
--- ─── Master on_update entry point ─────────────────────────────────────────────
+-- --- Master on_update entry point ---------------------------------------------
 -- Specs call this with their optional spell IDs. nil = not available for spec.
 --
 -- ooc_manager.on_update(me, menu, utils, {

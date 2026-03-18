@@ -6,7 +6,7 @@
 local ps   = require("ps_theme")
 local menu = {}
 
--- ── Tree nodes ────────────────────────────────────────────────────────────────
+-- -- Tree nodes ----------------------------------------------------------------
 local root_tree    = ps.tree_node()
 local main_tree    = ps.tree_node()
 local def_tree     = ps.tree_node()
@@ -15,7 +15,7 @@ local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
 
--- ── Shared plugin controls + shared fields ────────────────────────────────────
+-- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxroguesubtlety_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxroguesubtlety_toggle_key")
@@ -43,7 +43,7 @@ menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_sh
 menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- ── Class-specific elements ───────────────────────────────────────────────────
+-- -- Class-specific elements ---------------------------------------------------
 menu.use_premeditation                    = core.menu.checkbox(true, "eaxroguesubtlety_use_premeditation")
 menu.use_cheap_shot                       = core.menu.checkbox(true, "eaxroguesubtlety_use_cheap_shot")
 menu.use_ambush                           = core.menu.checkbox(true, "eaxroguesubtlety_use_ambush")
@@ -58,7 +58,7 @@ menu.snd_refresh_seconds                  = core.menu.slider_int(1, 6, 3, "eaxro
 menu.finisher_combo_points                = core.menu.slider_int(3, 5, 4, "eaxroguesubtlety_finisher_combo_points")
 
 -- ════════════════════════════════════════════════════════════════════════════
--- RENDER  — called every frame by core.register_on_render_menu_callback
+-- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -78,7 +78,7 @@ function menu.render()
 
         ps.render_controls(menu, "Eax's Rogue Subtlety")
 
-        -- ── Class-specific settings ───────────────────────────────────────────
+        -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_premeditation:render("Premeditation", "Build combo points before the opener")
@@ -95,21 +95,21 @@ function menu.render()
             menu.finisher_combo_points:render("Finisher CP", "Minimum combo points before finishers")
         end)
 
-        -- ── Defensive cooldowns ───────────────────────────────────────────────
+        -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
         -- (none detected)
         })
 
-        -- ── Targeting ────────────────────────────────────────────────────────
+        -- -- Targeting --------------------------------------------------------
         ps.render_targeting(menu, tgt_tree)
 
-        -- ── Racial ────────────────────────────────────────────────────────────
+        -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
 
-        -- ── Out-of-combat ─────────────────────────────────────────────────────
+        -- -- Out-of-combat -----------------------------------------------------
         ps.render_ooc(menu, ooc_tree, false)
 
-        -- ── Display & HUD ─────────────────────────────────────────────────────
+        -- -- Display & HUD -----------------------------------------------------
         ps.render_esp(menu, esp_tree)
 
     end)

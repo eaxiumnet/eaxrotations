@@ -1,5 +1,5 @@
 -- main.lua
--- EAX Shaman Restoration | TBC 2.4.3 — Full autonomous healer
+-- EAX Shaman Restoration | TBC 2.4.3 - Full autonomous healer
 --
 -- Covers: healing, mana management, totems, dispels, weapon buff,
 -- auto-attack, drinking, mana potions, reincarnation, DPS filler,
@@ -16,7 +16,7 @@
 --  8. Healing Wave on tank   (single target tank)
 --  9. Dispels                (Cure Poison > Cure Disease)
 -- 10. Lesser Healing Wave    (fast single target fill)
--- 11. Totems                 (end of list — never steal a heal GCD)
+-- 11. Totems                 (end of list - never steal a heal GCD)
 -- 12. PvP utilities
 -- 13. DPS filler             (Earth Shock interrupt > CL > LB)
 --
@@ -43,7 +43,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("restoration")
+esp_renderer.init("sresto", "Shaman Resto")
 ---@type color
 local color = require("color")
 ---@type racial_manager
@@ -72,7 +72,7 @@ local auto_attack_helper = require("common/utility/auto_attack_helper")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 
--- ─── Constants ───────────────────────────────────────────────────────────────
+-- --- Constants ---------------------------------------------------------------
 
 local GCD_INTERVAL           = 1.5  -- actual TBC GCD duration
 local MODE_REFRESH_INTERVAL  = 4.5
@@ -91,7 +91,7 @@ local FT_REFRESH_S  = 60.0  -- re-apply when < 60 seconds remain
 -- Only drink when fully OOC, not moving.
 local DRINK_BUFF_ID = { 430, 2639, 1133, 10250, 22734, 27089, 29007 }
 
--- TBC mana potion item IDs (highest rank first — inventory_helper finds whichever we have)
+-- TBC mana potion item IDs (highest rank first - inventory_helper finds whichever we have)
 local MANA_POTION_IDS = { 33447, 22832, 13444, 6149, 3827 }
 -- Super Mana Potion=22832, Major=13444, Greater=6149, Mana=3827, Fel Mana=33447
 
@@ -111,7 +111,7 @@ local MODE_PROFILE = {
     raid    = { enable_dps = false, mana_floor = 30, heal_party_hp = 82, heal_tank_hp = 88, chain_heal_targets = 4 },
 }
 
--- ─── Runtime state ───────────────────────────────────────────────────────────
+-- --- Runtime state -----------------------------------------------------------
 
 local rt = {
     -- Healing
@@ -162,7 +162,7 @@ local rt = {
     set_multiplier         = 1.0,
 }
 
--- ─── Totem table ─────────────────────────────────────────────────────────────
+-- --- Totem table -------------------------------------------------------------
 
 local TOTEM_ROTATION = nil
 local function build_totem_rotation()
@@ -174,7 +174,7 @@ local function build_totem_rotation()
     }
 end
 
--- ─── Spell resolution ────────────────────────────────────────────────────────
+-- --- Spell resolution --------------------------------------------------------
 
 local function resolve_spells()
     rt.chain_heal_id          = utils.resolve_spell_id(spells.CHAIN_HEAL)
@@ -223,7 +223,7 @@ local function update_set_bonus()
     end
 end
 
--- ─── Mode detection ──────────────────────────────────────────────────────────
+-- --- Mode detection ----------------------------------------------------------
 
 local function detect_mode(me)
     local allies = unit_helper:get_ally_list_around(me:get_position(), 100.0, true, true)
@@ -245,7 +245,7 @@ local function get_mode_profile()
     return MODE_PROFILE[get_effective_mode()] or MODE_PROFILE.solo
 end
 
--- ─── Pending cast tracking ───────────────────────────────────────────────────
+-- --- Pending cast tracking ---------------------------------------------------
 
 local function mark_pending(spell_id, timeout_s)
     if not spell_id then return end
@@ -267,14 +267,14 @@ local function note_cast()
     rt.last_cast_time = core.time()
 end
 
--- ─── GCD check ───────────────────────────────────────────────────────────────
+-- --- GCD check ---------------------------------------------------------------
 
 local function is_gcd_ready()
     if (core.time() - rt.last_cast_time) < GCD_INTERVAL then return false end
     return core.spell_book.get_global_cooldown() <= 0
 end
 
--- ─── Cast wrappers ───────────────────────────────────────────────────────────
+-- --- Cast wrappers -----------------------------------------------------------
 
 local function try_cast_ally(me, target, spell_id, label)
     if not spell_id or not target or not target:is_valid() or target:is_dead() then return false end
@@ -322,7 +322,7 @@ local function try_cast_hostile(me, target, spell_id, label)
     return true
 end
 
--- ─── Reincarnation (auto self-rez) ───────────────────────────────────────────
+-- --- Reincarnation (auto self-rez) -------------------------------------------
 -- Fires immediately when we are dead and the ankh CD is ready.
 -- This runs before do_rotation since we need it even when "dead".
 
@@ -340,18 +340,18 @@ local function try_reincarnation(me)
     return false
 end
 
--- ─── Water Shield ────────────────────────────────────────────────────────────
+-- --- Water Shield ------------------------------------------------------------
 
 local function ensure_water_shield(me)
     if not menu.use_water_shield:get_state() then return false end
     if not rt.water_shield_id then return false end
     if utils.has_buff(me, spells.WATER_SHIELD_BUFF) then return false end
-    -- Earth Shield shares the weapon-imbue slot — never overwrite it
+    -- Earth Shield shares the weapon-imbue slot - never overwrite it
     if utils.has_buff(me, spells.EARTH_SHIELD_BUFF) then return false end
     return try_cast_self(me, rt.water_shield_id, "Water Shield")
 end
 
--- ─── Flametongue Weapon ──────────────────────────────────────────────────────
+-- --- Flametongue Weapon ------------------------------------------------------
 -- TBC Resto mainhand buff. Provides spell power scaling.
 -- Uses item_enchant_expiration() to check remaining duration.
 -- Applies when: missing, or under FT_REFRESH_S seconds remain.
@@ -379,9 +379,9 @@ local function ensure_flametongue(me)
     return false
 end
 
--- ─── Auto-attack ─────────────────────────────────────────────────────────────
+-- --- Auto-attack -------------------------------------------------------------
 -- Start melee auto-attacks when we have a hostile target in melee range.
--- Uses auto_attack_helper — doesn't consume a GCD.
+-- Uses auto_attack_helper - doesn't consume a GCD.
 
 local function ensure_auto_attack(me)
     if not menu.use_auto_attack:get_state() then return end
@@ -406,7 +406,7 @@ local function ensure_auto_attack(me)
     end
 end
 
--- ─── Drinking OOC ────────────────────────────────────────────────────────────
+-- --- Drinking OOC ------------------------------------------------------------
 -- Use a drink from bags when OOC, below the mana threshold, not moving,
 -- and not already drinking.
 
@@ -445,7 +445,7 @@ local function try_drink(me)
     return false
 end
 
--- ─── Mana Potion ─────────────────────────────────────────────────────────────
+-- --- Mana Potion -------------------------------------------------------------
 -- Use highest-rank mana potion available when in-combat mana is critically low.
 -- Potions share a 2-min cooldown in TBC (item cooldown, not spell CD).
 
@@ -483,7 +483,7 @@ local function try_mana_potion(me)
     return false
 end
 
--- ─── Totemic Recall ──────────────────────────────────────────────────────────
+-- --- Totemic Recall ----------------------------------------------------------
 
 local function try_totemic_recall(me)
     if not menu.use_totemic_recall:get_state() then return false end
@@ -504,7 +504,7 @@ local function try_totemic_recall(me)
     return false
 end
 
--- ─── Totem placement ─────────────────────────────────────────────────────────
+-- --- Totem placement ---------------------------------------------------------
 -- Checks both the spell cooldown AND the actual in-game totem slot.
 -- get_totem_info(slot) returns have_totem=false if the totem was destroyed early
 -- (AoE, PvP, mob proximity), so we catch that and re-place immediately.
@@ -548,7 +548,7 @@ local function ensure_totems(me)
     end
 end
 
--- ─── Pre-pull totems ─────────────────────────────────────────────────────────
+-- --- Pre-pull totems ---------------------------------------------------------
 
 local function try_prepull_totems(me)
     if not menu.prepull_totems:get_state() then return false end
@@ -584,7 +584,7 @@ local function try_prepull_totems(me)
     return placed
 end
 
--- ─── OOC self-heal ───────────────────────────────────────────────────────────
+-- --- OOC self-heal -----------------------------------------------------------
 
 local function try_ooc_self_heal(me)
     if not menu.ooc_self_heal:get_state() then return false end
@@ -596,7 +596,7 @@ local function try_ooc_self_heal(me)
     return try_cast_ally(me, me, spell_id, "OOC Self-heal")
 end
 
--- ─── Nature's Swiftness ──────────────────────────────────────────────────────
+-- --- Nature's Swiftness ------------------------------------------------------
 
 local function try_natures_swiftness(me, tank)
     if not menu.use_cooldowns:get_state() then return false end
@@ -618,7 +618,7 @@ local function try_natures_swiftness(me, tank)
     return true
 end
 
--- ─── Bloodlust / Heroism ─────────────────────────────────────────────────────
+-- --- Bloodlust / Heroism -----------------------------------------------------
 
 local function try_bloodlust(me)
     if not menu.use_cooldowns:get_state() then return false end
@@ -649,7 +649,7 @@ local function try_bloodlust(me)
     return false
 end
 
--- ─── Proactive Mana Tide ─────────────────────────────────────────────────────
+-- --- Proactive Mana Tide -----------------------------------------------------
 
 local function try_proactive_mana_tide(me)
     if not menu.mana_tide_timing:get_state() then return false end
@@ -668,7 +668,7 @@ local function try_proactive_mana_tide(me)
     return false
 end
 
--- ─── Earth Shield ────────────────────────────────────────────────────────────
+-- --- Earth Shield ------------------------------------------------------------
 
 local function try_earth_shield(me, tank)
     if not rt.earth_shield_id or not tank then return false end
@@ -677,7 +677,7 @@ local function try_earth_shield(me, tank)
     return try_cast_ally(me, tank, rt.earth_shield_id, "Earth Shield")
 end
 
--- ─── Chain Heal ──────────────────────────────────────────────────────────────
+-- --- Chain Heal --------------------------------------------------------------
 
 local function score_chain_heal_candidate(entry, party_threshold)
     local bounce_circle = circle:create(entry.pos, spells.CHAIN_HEAL_JUMP_RANGE)
@@ -713,7 +713,7 @@ local function try_chain_heal(me)
     return try_cast_ally(me, best_target, rt.chain_heal_id, "Chain Heal")
 end
 
--- ─── Healing Wave ────────────────────────────────────────────────────────────
+-- --- Healing Wave ------------------------------------------------------------
 
 local function try_healing_wave(me, tank)
     if not rt.healing_wave_id or not tank then return false end
@@ -723,7 +723,7 @@ local function try_healing_wave(me, tank)
     return try_cast_ally(me, tank, rt.healing_wave_id, "Healing Wave")
 end
 
--- ─── Dispels ─────────────────────────────────────────────────────────────────
+-- --- Dispels -----------------------------------------------------------------
 
 local function try_dispel(me)
     if not menu.use_dispels:get_state() then return false end
@@ -750,7 +750,7 @@ local function try_dispel(me)
     return false
 end
 
--- ─── Lesser Healing Wave ─────────────────────────────────────────────────────
+-- --- Lesser Healing Wave -----------------------------------------------------
 
 local function try_lesser_healing_wave(me)
     if not rt.lesser_healing_wave_id then return false end
@@ -760,7 +760,7 @@ local function try_lesser_healing_wave(me)
     return try_cast_ally(me, entry.unit, rt.lesser_healing_wave_id, "Lesser Healing Wave")
 end
 
--- ─── PvP utilities ───────────────────────────────────────────────────────────
+-- --- PvP utilities -----------------------------------------------------------
 
 local function try_pvp_utilities(me)
     if not menu.pvp_mode:get_state() then return false end
@@ -802,7 +802,7 @@ local function try_pvp_utilities(me)
     return false
 end
 
--- ─── DPS filler ──────────────────────────────────────────────────────────────
+-- --- DPS filler --------------------------------------------------------------
 local DPS_COOLDOWN_S = 1.5  -- Minimum time between DPS casts
 
 local function try_dps_filler(me, target)
@@ -861,24 +861,24 @@ local function try_dps_filler(me, target)
     return false
 end
 
--- ─── Main rotation ───────────────────────────────────────────────────────────
+-- --- Main rotation -----------------------------------------------------------
 
 local function do_rotation(me)
     -- Lazy re-resolve: spells may not be learned yet at plugin load time
     if not rt.chain_heal_id then resolve_spells() end
-    -- ── Always-on (no GCD) ────────────────────────────────────────────────
+    -- -- Always-on (no GCD) ------------------------------------------------
     ensure_water_shield(me)
     ensure_flametongue(me)
     ensure_auto_attack(me)
     try_totemic_recall(me)
 
-    -- ── Dead path ─────────────────────────────────────────────────────────
+    -- -- Dead path ---------------------------------------------------------
     if me:is_dead() then
         try_reincarnation(me)
         return
     end
 
-    -- ── OOC path ──────────────────────────────────────────────────────────
+    -- -- OOC path ----------------------------------------------------------
     if not me:is_in_combat() then
         try_drink(me)
         try_prepull_totems(me)
@@ -886,20 +886,20 @@ local function do_rotation(me)
         return
     end
 
-    -- ── Overheal protection ───────────────────────────────────────────────
+    -- -- Overheal protection -----------------------------------------------
     if eax_utils.should_stopcasting(me, menu) then
         if SpellStopCasting then SpellStopCasting() end
     end
 
-    -- ── heal_engine update ────────────────────────────────────────────────
+    -- -- heal_engine update ------------------------------------------------
     heal_engine.update(me)
 
-    -- ── Mana potion (no GCD) ──────────────────────────────────────────────
+    -- -- Mana potion (no GCD) ----------------------------------------------
     try_mana_potion(me)
 
     if not is_gcd_ready() then return end
 
-    -- ── Interrupt (PVP) ───────────────────────────────────────────────────────
+    -- -- Interrupt (PVP) -------------------------------------------------------
     local target = me:get_target()
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
@@ -907,14 +907,14 @@ local function do_rotation(me)
         end
     end
 
-    -- ── Defensive abilities ─────────────────────────────────────────────────
+    -- -- Defensive abilities -------------------------------------------------
     if defensive_manager.try_defensive(me, "shaman", utils) then
         return
     end
 
     ttd_tracker.update(target)
 
-    -- ── Focus target priority ─────────────────────────────────────────────
+    -- -- Focus target priority ---------------------------------------------
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target then
         local fhp = heal_engine.get_eff_pct(focus_target)
@@ -924,7 +924,7 @@ local function do_rotation(me)
         end
     end
 
-    -- ── Self emergency ────────────────────────────────────────────────────
+    -- -- Self emergency ----------------------------------------------------
     local self_thr = eax_utils.get_self_heal_threshold(me, menu.ns_emergency_hp:get() / 100.0, menu)
     if heal_engine.get_eff_pct(me) < self_thr then
         if try_cast_ally(me, me, rt.healing_wave_id, "Self Heal (emergency)") then return end
@@ -948,7 +948,7 @@ local function do_rotation(me)
     if try_dispel(me) then return end
     -- 8. Lesser Healing Wave
     if try_lesser_healing_wave(me) then return end
-    -- 9. Totems (last — never steal a heal GCD)
+    -- 9. Totems (last - never steal a heal GCD)
     ensure_totems(me)
     -- 10. PvP
     if try_pvp_utilities(me) then return end
@@ -956,7 +956,7 @@ local function do_rotation(me)
     try_dps_filler(me, me:get_target())
 end
 
--- ─── Toggle ──────────────────────────────────────────────────────────────────
+-- --- Toggle ------------------------------------------------------------------
 
 local function detect_toggle()
     local current = menu.toggle_key:get_state()
@@ -968,7 +968,7 @@ local function detect_toggle()
     rt.prev_toggle_state = current
 end
 
--- ─── Boot ────────────────────────────────────────────────────────────────────
+-- --- Boot --------------------------------------------------------------------
 
 ---@type spell_queue
 local spell_queue = require("common/modules/spell_queue")
@@ -979,7 +979,7 @@ resolve_spells()
 build_totem_rotation()
 
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1030,7 +1030,7 @@ core.log("  CH=" .. tostring(rt.chain_heal_id)
     .. " FT="   .. tostring(rt.flametongue_id)
     .. " BL="   .. tostring(rt.bloodlust_id or rt.heroism_id))
 
--- ─── Callbacks ───────────────────────────────────────────────────────────────
+-- --- Callbacks ---------------------------------------------------------------
 
 
 local function on_render()
@@ -1074,14 +1074,14 @@ core.register_on_update_callback(function()
 end)
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxshamanrestoration_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)

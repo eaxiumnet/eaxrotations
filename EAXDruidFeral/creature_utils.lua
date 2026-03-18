@@ -21,7 +21,7 @@ local function get_ct(unit)
     return ok and ct or nil
 end
 
--- ─── Bleed immunity ───────────────────────────────────────────────────────────
+-- --- Bleed immunity -----------------------------------------------------------
 -- Undead and Elemental are immune to bleed effects in TBC.
 -- Affects: Rip, Rake, Mangle (bleed component), Garrote.
 function creature_utils.is_bleed_immune(target)
@@ -32,7 +32,7 @@ function creature_utils.is_bleed_immune(target)
     return ct == e.creature_type.UNDEAD or ct == e.creature_type.ELEMENTAL
 end
 
--- ─── Banish ───────────────────────────────────────────────────────────────────
+-- --- Banish -------------------------------------------------------------------
 -- Only works on Demon and Elemental.
 function creature_utils.is_banishable(target)
     local ct = get_ct(target)
@@ -42,7 +42,7 @@ function creature_utils.is_banishable(target)
     return ct == e.creature_type.DEMON or ct == e.creature_type.ELEMENTAL
 end
 
--- ─── Polymorph / Hex ─────────────────────────────────────────────────────────
+-- --- Polymorph / Hex ---------------------------------------------------------
 -- Polymorph: Humanoid, Beast, Critter
 -- Hex (Shaman TBC): Humanoid only in TBC (retail expanded to more)
 function creature_utils.is_polymorphable(target)
@@ -55,7 +55,7 @@ function creature_utils.is_polymorphable(target)
         or ct == e.creature_type.CRITTER
 end
 
--- ─── Scare Beast (Hunter) ────────────────────────────────────────────────────
+-- --- Scare Beast (Hunter) ----------------------------------------------------
 -- Only works on Beast.
 function creature_utils.is_beast(target)
     local ct = get_ct(target)
@@ -65,7 +65,7 @@ function creature_utils.is_beast(target)
     return ct == e.creature_type.BEAST
 end
 
--- ─── Hibernate (Druid) ───────────────────────────────────────────────────────
+-- --- Hibernate (Druid) -------------------------------------------------------
 -- Only works on Beast and Dragonkin.
 function creature_utils.is_hibernatable(target)
     local ct = get_ct(target)
@@ -75,7 +75,7 @@ function creature_utils.is_hibernatable(target)
     return ct == e.creature_type.BEAST or ct == e.creature_type.DRAGONKIN
 end
 
--- ─── Shackle Undead (Priest) ─────────────────────────────────────────────────
+-- --- Shackle Undead (Priest) -------------------------------------------------
 -- Only works on Undead.
 function creature_utils.is_undead(target)
     local ct = get_ct(target)
@@ -85,7 +85,7 @@ function creature_utils.is_undead(target)
     return ct == e.creature_type.UNDEAD
 end
 
--- ─── Turn Evil (Paladin) ─────────────────────────────────────────────────────
+-- --- Turn Evil (Paladin) -----------------------------------------------------
 -- Works on Undead and Demon.
 function creature_utils.is_turn_evailable(target)
     local ct = get_ct(target)
@@ -95,7 +95,7 @@ function creature_utils.is_turn_evailable(target)
     return ct == e.creature_type.UNDEAD or ct == e.creature_type.DEMON
 end
 
--- ─── Demon-only ───────────────────────────────────────────────────────────────
+-- --- Demon-only ---------------------------------------------------------------
 -- Warlocks: Banish, Enslave Demon, Unending Breath (not game-relevant but here for completeness)
 function creature_utils.is_demon(target)
     local ct = get_ct(target)
@@ -105,7 +105,7 @@ function creature_utils.is_demon(target)
     return ct == e.creature_type.DEMON
 end
 
--- ─── Elemental-only ──────────────────────────────────────────────────────────
+-- --- Elemental-only ----------------------------------------------------------
 function creature_utils.is_elemental(target)
     local ct = get_ct(target)
     if not ct then return false end
@@ -114,7 +114,7 @@ function creature_utils.is_elemental(target)
     return ct == e.creature_type.ELEMENTAL
 end
 
--- ─── Generic: get creature type name (for debug/logging) ─────────────────────
+-- --- Generic: get creature type name (for debug/logging) ---------------------
 function creature_utils.get_name(target)
     local ct = get_ct(target)
     if not ct then return "unknown" end

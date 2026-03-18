@@ -5,6 +5,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -21,7 +22,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("destruction")
+esp_renderer.init("destro", "Warlock Destro")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -312,7 +313,7 @@ local function try_life_tap(me, mode)
 end
 
 
--- ─── Pet selection + management (v1.4) ────────────────────────────────────
+-- --- Pet selection + management (v1.4) ------------------------------------
 
 local PET_NPC_IDS = {
     imp = 416,
@@ -374,7 +375,7 @@ local function try_summon_correct_pet(me, mode)
     return true
 end
 
--- ─── Soul Shard farming (v1.4) ────────────────────────────────────────────
+-- --- Soul Shard farming (v1.4) --------------------------------------------
 -- Use Drain Soul on targets below 10% HP to collect shards
 
 local SHARD_FARM_HP_PCT = 0.10
@@ -413,7 +414,7 @@ end
 
 
 
--- ─── Seed of Corruption — AoE mode (v1.4) ────────────────────────────────
+-- --- Seed of Corruption - AoE mode (v1.4) --------------------------------
 -- Use Seed of Corruption on AoE packs (3+ enemies). Each Seed explodes
 -- when the target takes 1044+ damage, dealing shadow damage to all nearby.
 
@@ -436,10 +437,8 @@ local function try_seed_of_corruption(me, target, enemy_count)
 end
 
 
-local function -- Mana conservator: wand/melee when low on mana
+local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
-
-    do_rotation(me, target)
     if not is_gcd_ready() then
         return
     end
@@ -515,6 +514,7 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then
         return
     end
+        ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
     local target = me:get_target()
     if not is_valid_target(me, target) then
@@ -531,28 +531,60 @@ core.register_on_update_callback(function()
 end)
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxwarlockdestruction_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
 
-core.register_on_render_control_panel_callback(function()
-    local control_panel_elements = {}
-    local label = "[EAX Warlock Destruction] Enabled (" .. key_helper:get_key_name(menu.toggle_key:get_key_code()) .. ")"
-    control_panel_utility:insert_toggle_(control_panel_elements, label, menu.toggle_key)
-    return control_panel_elements
-end)
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Warlock Dest] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxwarlockdestruction_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_wds_cds = menu.use_cooldowns:get_state()
+            local nxt_wds_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WDs] Cooldowns", cur_wds_cds, 0, false, "eax_wds_cds_cp")
+            if nxt_wds_cds ~= cur_wds_cds then menu.use_cooldowns:set(nxt_wds_cds) end
+        end
+        if menu.focus_priority then
+            local cur_wds_focus = menu.focus_priority:get_state()
+            local nxt_wds_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WDs] Focus Priority", cur_wds_focus, 0, false, "eax_wds_focus_cp")
+            if nxt_wds_focus ~= cur_wds_focus then menu.focus_priority:set(nxt_wds_focus) end
+        end
+        if menu.use_racial then
+            local cur_wds_racial = menu.use_racial:get_state()
+            local nxt_wds_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WDs] Use Racial", cur_wds_racial, 0, false, "eax_wds_racial_cp")
+            if nxt_wds_racial ~= cur_wds_racial then menu.use_racial:set(nxt_wds_racial) end
+        end
+        end
+        return elements
+    end)
+end
 
 
-
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -595,4 +627,5 @@ do
     end
 end
 
-core.log("[EAX Warlock Destruction] Loaded v1.0.0")
+local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
+core.log("[EAX Warlock Destruction] Loaded " .. (_pi and _pi.plugin_version or "?"))

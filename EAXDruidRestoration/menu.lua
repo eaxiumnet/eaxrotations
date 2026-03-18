@@ -6,7 +6,7 @@
 local ps   = require("ps_theme")
 local menu = {}
 
--- ── Tree nodes ────────────────────────────────────────────────────────────────
+-- -- Tree nodes ----------------------------------------------------------------
 local root_tree    = ps.tree_node()
 local main_tree    = ps.tree_node()
 local def_tree     = ps.tree_node()
@@ -15,7 +15,7 @@ local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
 
--- ── Shared plugin controls + shared fields ────────────────────────────────────
+-- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxdruidrestoration_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxdruidrestoration_toggle_key")
@@ -47,7 +47,7 @@ menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_sh
 menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- ── Class-specific elements ───────────────────────────────────────────────────
+-- -- Class-specific elements ---------------------------------------------------
 menu.mana_saver                           = core.menu.checkbox(false, "eaxdruidrestoration_mana_saver")
 menu.use_mark_of_the_wild                 = core.menu.checkbox(true, "eaxdruidrestoration_use_mark_of_the_wild")
 menu.use_lifebloom                        = core.menu.checkbox(true, "eaxdruidrestoration_use_lifebloom")
@@ -71,7 +71,7 @@ menu.emergency_hp_pct                     = core.menu.slider_int(10, 60, 35, "ea
 menu.overheal_protection                  = core.menu.checkbox(true, "eaxdruidrestoration_overheal_protection")
 
 -- ════════════════════════════════════════════════════════════════════════════
--- RENDER  — called every frame by core.register_on_render_menu_callback
+-- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -91,7 +91,7 @@ function menu.render()
 
         ps.render_controls(menu, "Eax's Druid Restoration")
 
-        -- ── Class-specific settings ───────────────────────────────────────────
+        -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.mana_saver:render("Mana Saver", "Delay expensive spells until mana is healthier")
@@ -117,21 +117,21 @@ function menu.render()
             menu.overheal_protection:render("Overheal Protection", "Cancel slow heals when target is near full HP")
         end)
 
-        -- ── Defensive cooldowns ───────────────────────────────────────────────
+        -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
         -- (none detected)
         })
 
-        -- ── Targeting ────────────────────────────────────────────────────────
+        -- -- Targeting --------------------------------------------------------
         ps.render_targeting(menu, tgt_tree)
 
-        -- ── Racial ────────────────────────────────────────────────────────────
+        -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
 
-        -- ── Out-of-combat ─────────────────────────────────────────────────────
+        -- -- Out-of-combat -----------------------------------------------------
         ps.render_ooc(menu, ooc_tree, true)
 
-        -- ── Display & HUD ─────────────────────────────────────────────────────
+        -- -- Display & HUD -----------------------------------------------------
         ps.render_esp(menu, esp_tree)
 
     end)

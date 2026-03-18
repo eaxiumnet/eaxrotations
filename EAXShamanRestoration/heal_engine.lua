@@ -28,7 +28,7 @@ local SCAN_RANGE    = 60.0    -- yards; covers 40-man raid spread
 
 local heal_engine   = {}
 
--- ─── Internal state ──────────────────────────────────────────────────────────
+-- --- Internal state ----------------------------------------------------------
 
 heal_engine.friends = {}          -- pre-allocated, reused each tick
 local last_build_time = 0
@@ -36,12 +36,12 @@ local BUILD_INTERVAL  = 0.1       -- rebuild at most every 100 ms
 
 local tank_priority_weight = 0.08 -- set dynamically from menu slider
 
--- ─── Effective HP calculation ────────────────────────────────────────────────
+-- --- Effective HP calculation ------------------------------------------------
 --
 -- Uses the three Sylvanas game_object accessors:
---   unit:get_incoming_heals()     → heals already in flight
---   unit:get_total_shield()       → absorb shield total
---   unit:get_total_heal_absorbs() → negative modifier on incoming heals
+--   unit:get_incoming_heals()     -> heals already in flight
+--   unit:get_total_shield()       -> absorb shield total
+--   unit:get_total_heal_absorbs() -> negative modifier on incoming heals
 
 local function calc_eff_pct(unit, is_tank)
     local hp     = unit:get_health()
@@ -63,7 +63,7 @@ local function calc_eff_pct(unit, is_tank)
     return eff_pct
 end
 
--- ─── Build pass ──────────────────────────────────────────────────────────────
+-- --- Build pass --------------------------------------------------------------
 
 function heal_engine.update(me)
     local now = core.time()
@@ -95,7 +95,7 @@ function heal_engine.update(me)
     end)
 end
 
--- ─── Derived queries ─────────────────────────────────────────────────────────
+-- --- Derived queries ---------------------------------------------------------
 
 function heal_engine.lowest_friend()
     local entry = heal_engine.friends[1]

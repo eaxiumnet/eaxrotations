@@ -6,6 +6,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -19,7 +20,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("arms")
+esp_renderer.init("arms", "Warrior Arms")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -451,7 +452,7 @@ local function try_slam(me, target, rage)
 end
 
 
--- ─── Charge opener ────────────────────────────────────────────────────────
+-- --- Charge opener --------------------------------------------------------
 
 local function try_charge(me, target)
     if not runtime.charge_id then return false end
@@ -464,7 +465,7 @@ local function try_charge(me, target)
     return false
 end
 
--- ─── Offensive CDs ────────────────────────────────────────────────────────
+-- --- Offensive CDs --------------------------------------------------------
 
 
 local function try_berserker_rage(me)
@@ -501,7 +502,7 @@ local function try_recklessness(me)
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_RECKLESSNESS) then return false end
 
-    -- Recklessness requires Berserker Stance — dance there and back
+    -- Recklessness requires Berserker Stance - dance there and back
     local in_berserker = utils.has_buff(me, spells.BUFF_BERSERKER_STANCE)
     if not in_berserker then
         -- Check we have enough rage to afford the stance swap cost
@@ -513,7 +514,7 @@ local function try_recklessness(me)
            and utils.can_cast_self(runtime.berserker_stance_id, me)
         then
             utils.cast_self(runtime.berserker_stance_id, me)
-            utils.log_debug(menu, "Stance → Berserker (Recklessness)")
+            utils.log_debug(menu, "Stance -> Berserker (Recklessness)")
             note_cast()
             return true  -- next tick we'll be in Berserker and cast it
         end
@@ -610,7 +611,7 @@ local function do_core_lane(me, target, rage, target_hp_pct)
         if utils.can_cast_self(runtime.battle_stance_id, me) then
             utils.cast_self(runtime.battle_stance_id, me)
             runtime.pending_battle_stance_return = false
-            utils.log_debug(menu, "Stance → Battle (after Recklessness)")
+            utils.log_debug(menu, "Stance -> Battle (after Recklessness)")
         end
     end
     try_sweeping_strikes(me)
@@ -648,6 +649,7 @@ local function on_update()
     if not me or not me:is_valid() then
         return
     end
+        ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
 
     -- Focus Target Priority
@@ -731,21 +733,61 @@ end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxwarriorarms_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 
 return { cleanup = cleanup }
 
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Warrior Arms] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxwarriorarms_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_war_cds = menu.use_cooldowns:get_state()
+            local nxt_war_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WAr] Cooldowns", cur_war_cds, 0, false, "eax_war_cds_cp")
+            if nxt_war_cds ~= cur_war_cds then menu.use_cooldowns:set(nxt_war_cds) end
+        end
+        if menu.focus_priority then
+            local cur_war_focus = menu.focus_priority:get_state()
+            local nxt_war_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WAr] Focus Priority", cur_war_focus, 0, false, "eax_war_focus_cp")
+            if nxt_war_focus ~= cur_war_focus then menu.focus_priority:set(nxt_war_focus) end
+        end
+        if menu.use_racial then
+            local cur_war_racial = menu.use_racial:get_state()
+            local nxt_war_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WAr] Use Racial", cur_war_racial, 0, false, "eax_war_racial_cp")
+            if nxt_war_racial ~= cur_war_racial then menu.use_racial:set(nxt_war_racial) end
+        end
+        end
+        return elements
+    end)
+end
+
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end

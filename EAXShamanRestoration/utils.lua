@@ -27,7 +27,7 @@ local unit_helper = {
 
 local utils = {}
 
--- ─── Throttle ────────────────────────────────────────────────────────────────
+-- --- Throttle ----------------------------------------------------------------
 
 local throttle_data = {}
 function utils.throttle(key, interval_s)
@@ -39,7 +39,7 @@ function utils.throttle(key, interval_s)
     return false
 end
 
--- ─── Spell resolution ────────────────────────────────────────────────────────
+-- --- Spell resolution --------------------------------------------------------
 
 -- Walk rank table from highest to lowest rank and return the first learned ID.
 function utils.resolve_spell_id(rank_table)
@@ -53,7 +53,7 @@ function utils.resolve_spell_id(rank_table)
     return nil
 end
 
--- ─── Health helpers ──────────────────────────────────────────────────────────
+-- --- Health helpers ----------------------------------------------------------
 
 -- Returns 0.0–1.0 raw health fraction.
 function utils.get_health_pct(unit)
@@ -62,7 +62,7 @@ function utils.get_health_pct(unit)
     return unit_helper:get_health_percentage(unit)
 end
 
--- ─── Mana helper ─────────────────────────────────────────────────────────────
+-- --- Mana helper -------------------------------------------------------------
 
 function utils.get_mana_pct(unit)
     if not unit or not unit:is_valid() then return 0 end
@@ -72,7 +72,7 @@ function utils.get_mana_pct(unit)
     return current / maximum
 end
 
--- ─── Buff helpers ────────────────────────────────────────────────────────────
+-- --- Buff helpers ------------------------------------------------------------
 
 -- buff_manager_data.remaining is in MILLISECONDS.
 -- Returns true if any ID in id_table is an active buff on unit.
@@ -101,7 +101,7 @@ function utils.has_debuff(unit, id_table)
     return data ~= nil and data.is_active
 end
 
--- ─── Target helpers ──────────────────────────────────────────────────────────
+-- --- Target helpers ----------------------------------------------------------
 
 -- Returns true if `target` is a valid hostile the player can attack.
 function utils.is_valid_hostile(me, target)
@@ -110,7 +110,7 @@ function utils.is_valid_hostile(me, target)
     return me:can_attack(target)
 end
 
--- ─── Cast helpers ────────────────────────────────────────────────────────────
+-- --- Cast helpers ------------------------------------------------------------
 
 local queue_timestamps = {}
 local QUEUE_INTERVAL_S      = 0.25
@@ -171,7 +171,7 @@ function utils.cast_self_fast(spell_id, me)
     return true
 end
 
--- ─── Logging ─────────────────────────────────────────────────────────────────
+-- --- Logging -----------------------------------------------------------------
 
 function utils.log_debug(menu_module, message)
     if menu_module and menu_module.debug and menu_module.debug:get_state() then

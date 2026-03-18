@@ -18,7 +18,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("protection")
+esp_renderer.init("wprot", "Warrior Prot")
 ---@type racial_manager
 local racial_manager = require("racial_manager")
 ---@type defensive_manager
@@ -1069,7 +1069,7 @@ local function process_pending_stance_action(me)
 
     local cast_success = false
     if action.cast_mode == "self" then
-        -- Skip is_usable_spell check here — some spells (e.g. Recklessness) briefly
+        -- Skip is_usable_spell check here - some spells (e.g. Recklessness) briefly
         -- return unusable for a frame or two after a stance swap even though the stance
         -- is now correct. We've already confirmed the stance, so only check cooldown.
         local cd = action.action_id and core.spell_book.get_spell_cooldown(action.action_id) or -1
@@ -1122,7 +1122,7 @@ local function try_return_home_stance(me)
     local home = get_home_stance()
     local current = utils.get_current_stance(me)
     -- If stance detection returns nil we cannot confirm we're in the wrong stance,
-    -- so don't attempt a swap — let the rotation proceed assuming home stance.
+    -- so don't attempt a swap - let the rotation proceed assuming home stance.
     if current == nil then return false end
     if current == home then return false end
 
@@ -1903,7 +1903,7 @@ local function try_sunder_armor(me, target, target_hp_pct)
 end
 
 local function do_single_target_core_lane(me, target, rage, target_hp_pct)
-    -- Shield Block synergy: Shield Slam crits guaranteed under Shield Block — rush it first
+    -- Shield Block synergy: Shield Slam crits guaranteed under Shield Block - rush it first
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
         and rage >= SHIELD_SLAM_COST
@@ -2550,7 +2550,6 @@ local function on_update()
 
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils)
-
     local me = core.object_manager.get_local_player()
     if not me then return end
     if me:is_dead() then return end
@@ -2572,7 +2571,41 @@ local function on_update()
             runtime.last_mode_debug_at = now_ms
             
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Warrior Prot] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxwarriorprotection_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_wpr_cds = menu.use_cooldowns:get_state()
+            local nxt_wpr_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WPr] Cooldowns", cur_wpr_cds, 0, false, "eax_wpr_cds_cp")
+            if nxt_wpr_cds ~= cur_wpr_cds then menu.use_cooldowns:set(nxt_wpr_cds) end
+        end
+        if menu.use_racial then
+            local cur_wpr_racial = menu.use_racial:get_state()
+            local nxt_wpr_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WPr] Use Racial", cur_wpr_racial, 0, false, "eax_wpr_racial_cp")
+            if nxt_wpr_racial ~= cur_wpr_racial then menu.use_racial:set(nxt_wpr_racial) end
+        end
+        end
+        return elements
+    end)
+end
+
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -2840,14 +2873,14 @@ end)
 core.register_on_update_callback(on_update)
 core.register_on_spell_cast_callback(on_spell_cast)
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxwarriorprotection_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 

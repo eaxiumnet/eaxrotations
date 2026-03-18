@@ -7,7 +7,7 @@ local mana_conservator = require("mana_conservator")
 local ps   = require("ps_theme")
 local menu = {}
 
--- ── Tree nodes ────────────────────────────────────────────────────────────────
+-- -- Tree nodes ----------------------------------------------------------------
 local root_tree    = ps.tree_node()
 local main_tree    = ps.tree_node()
 local def_tree     = ps.tree_node()
@@ -16,7 +16,7 @@ local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
 
--- ── Shared plugin controls + shared fields ────────────────────────────────────
+-- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxwarlockaffliction_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxwarlockaffliction_toggle_key")
@@ -48,7 +48,7 @@ menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_sh
 menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- ── Class-specific elements ───────────────────────────────────────────────────
+-- -- Class-specific elements ---------------------------------------------------
 menu.use_unstable_affliction              = core.menu.checkbox(true, "eax_affliction_use_ua")
 menu.use_corruption                       = core.menu.checkbox(true, "eax_affliction_use_corruption")
 menu.use_siphon_life                      = core.menu.checkbox(true, "eax_affliction_use_siphon_life")
@@ -62,7 +62,7 @@ menu.life_tap_threshold                   = core.menu.slider_int(10, 70, 35, "ea
 mana_conservator.register_menu_items(menu, "eax_warlock_affliction")
 
 -- ════════════════════════════════════════════════════════════════════════════
--- RENDER  — called every frame by core.register_on_render_menu_callback
+-- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -82,7 +82,7 @@ function menu.render()
 
         ps.render_controls(menu, "Eax's Warlock Affliction")
 
-        -- ── Class-specific settings ───────────────────────────────────────────
+        -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_unstable_affliction:render("Unstable Affliction", "Maintain the primary DoT")
@@ -96,21 +96,21 @@ function menu.render()
             menu.life_tap_threshold:render("Life Tap HP %", "Life Tap when health is above this percent")
         end)
 
-        -- ── Defensive cooldowns ───────────────────────────────────────────────
+        -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
         -- (none detected)
         })
 
-        -- ── Targeting ────────────────────────────────────────────────────────
+        -- -- Targeting --------------------------------------------------------
         ps.render_targeting(menu, tgt_tree)
 
-        -- ── Racial ────────────────────────────────────────────────────────────
+        -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
 
-        -- ── Out-of-combat ─────────────────────────────────────────────────────
+        -- -- Out-of-combat -----------------------------------------------------
         ps.render_ooc(menu, ooc_tree, true)
 
-        -- ── Display & HUD ─────────────────────────────────────────────────────
+        -- -- Display & HUD -----------------------------------------------------
         ps.render_esp(menu, esp_tree)
 
     end)

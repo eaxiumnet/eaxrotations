@@ -19,7 +19,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("elemental")
+esp_renderer.init("elemental", "Shaman Ele")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -359,7 +359,7 @@ local function try_lightning_bolt(me, target)
 end
 
 
--- ─── Lava Burst (v1.2) ────────────────────────────────────────────────────
+-- --- Lava Burst (v1.2) ----------------------------------------------------
 
 local function try_lava_burst(me, target)
     if not runtime.lava_burst_id then return false end   -- nil if not talented/trained
@@ -370,7 +370,7 @@ end
 
 
 
--- ── Shield maintenance ────────────────────────────────────────────────────────
+-- -- Shield maintenance --------------------------------------------------------
 local function ensure_shield(me)
     local mode = menu.shield_mode and menu.shield_mode:get() or 2
     -- 0=None, 1=Lightning, 2=Water, 3=Auto(Water at 60+)
@@ -392,7 +392,7 @@ local function ensure_shield(me)
     return false
 end
 
--- ── Self-healing ──────────────────────────────────────────────────────────────
+-- -- Self-healing --------------------------------------------------------------
 local function try_self_heal(me)
     if not menu.use_healing_wave or not menu.use_healing_wave:get_state() then return false end
     if not runtime.healing_wave_id then return false end
@@ -402,7 +402,7 @@ local function try_self_heal(me)
     return try_cast_self(me, runtime.healing_wave_id, "Healing Wave")
 end
 
--- ── Ghost Wolf OOC ────────────────────────────────────────────────────────────
+-- -- Ghost Wolf OOC ------------------------------------------------------------
 local GHOST_WOLF_BUFF = { 2645 }
 local function try_ghost_wolf(me)
     if not menu.use_ghost_wolf or not menu.use_ghost_wolf:get_state() then return false end
@@ -418,7 +418,7 @@ local function try_ghost_wolf(me)
     return try_cast_self(me, runtime.ghost_wolf_id, "Ghost Wolf")
 end
 
--- ── Totemic Call (recall for mana refund) ─────────────────────────────────────
+-- -- Totemic Call (recall for mana refund) -------------------------------------
 local last_totemic_call = 0
 local TOTEMIC_CALL_CD = 2.0
 local function try_totemic_call(me)
@@ -561,6 +561,7 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then
         return
     end
+        ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
     
     -- Focus Target Priority
@@ -577,14 +578,14 @@ core.register_on_update_callback(function()
 end)
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxshamanelemental_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
@@ -626,7 +627,7 @@ end
 
 
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end

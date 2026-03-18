@@ -23,7 +23,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("fury")
+esp_renderer.init("fury", "Warrior Fury")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -202,7 +202,7 @@ end
 resolve_spells()
 log_resolved_spells()
 
--- ── mode detection ──────────────────────────────────────────────────────────
+-- -- mode detection ----------------------------------------------------------
 
 local function detect_mode()
     local objects = core.object_manager.get_visible_objects()
@@ -1447,7 +1447,7 @@ local function try_switch_to_stance(me, spell_id, stance_name, rage, ability_cos
 end
 
 
--- ─── Thunder Clap debuff maintenance (Battle Stance dance) (v1.6) ─────────────
+-- --- Thunder Clap debuff maintenance (Battle Stance dance) (v1.6) -------------
 -- Pattern from tbc/ warrior/dps/rotation.go tryMaintainDebuffs.
 -- Swap to Battle, apply TC, swap back. Only in dungeons/raid where it matters.
 
@@ -1476,7 +1476,7 @@ local function try_thunder_clap_dance(me, target, rage)
             mark_pending_cast(runtime.battle_stance_id, PENDING_CAST_TIMEOUT_S)
             utils.set_tracked_stance("battle")
             runtime.tc_dance_pending = true
-            utils.log_debug(menu, "Stance → Battle (TC dance)")
+            utils.log_debug(menu, "Stance -> Battle (TC dance)")
             note_cast()
             return true
         end
@@ -1512,7 +1512,7 @@ local function try_tc_dance_return(me)
         mark_pending_cast(home_id, PENDING_CAST_TIMEOUT_S)
         utils.set_tracked_stance(home)
         runtime.tc_dance_return = false
-        utils.log_debug(menu, "Stance → " .. home .. " (TC dance return)")
+        utils.log_debug(menu, "Stance -> " .. home .. " (TC dance return)")
         note_cast()
         return true
     end
@@ -1897,7 +1897,7 @@ local function do_queue_lane(me, target, rage, target_hp_pct, is_aoe)
     return false
 end
 
--- ── main update callback ────────────────────────────────────────────────────
+-- -- main update callback ----------------------------------------------------
 
 local function on_update()
     control_panel_utility:on_update(menu)
@@ -1907,7 +1907,6 @@ local function on_update()
 
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils)
-
     local me = core.object_manager.get_local_player()
     if not me then return end
 
@@ -1929,7 +1928,47 @@ local function on_update()
             local sham = runtime.cached_has_shaman and "yes" or "no"
             
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Warrior Fury] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxwarriorfury_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_wfu_cds = menu.use_cooldowns:get_state()
+            local nxt_wfu_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WFu] Cooldowns", cur_wfu_cds, 0, false, "eax_wfu_cds_cp")
+            if nxt_wfu_cds ~= cur_wfu_cds then menu.use_cooldowns:set(nxt_wfu_cds) end
+        end
+        if menu.focus_priority then
+            local cur_wfu_focus = menu.focus_priority:get_state()
+            local nxt_wfu_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WFu] Focus Priority", cur_wfu_focus, 0, false, "eax_wfu_focus_cp")
+            if nxt_wfu_focus ~= cur_wfu_focus then menu.focus_priority:set(nxt_wfu_focus) end
+        end
+        if menu.use_racial then
+            local cur_wfu_racial = menu.use_racial:get_state()
+            local nxt_wfu_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WFu] Use Racial", cur_wfu_racial, 0, false, "eax_wfu_racial_cp")
+            if nxt_wfu_racial ~= cur_wfu_racial then menu.use_racial:set(nxt_wfu_racial) end
+        end
+        end
+        return elements
+    end)
+end
+
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -2228,7 +2267,7 @@ local function on_render()
     draw_proc_status_line(PROC_HUD_Y + 10 + PROC_HUD_LINE_HEIGHT, "Enrage", enrage_active, color.cyan(220))
 end
 
--- ── control panel callback ──────────────────────────────────────────────────
+-- -- control panel callback --------------------------------------------------
 
 local function on_control_panel()
     local elements = {}
@@ -2274,7 +2313,7 @@ local function on_spell_cast(data)
     clear_pending_cast(data.spell_id)
 end
 
--- ── register callbacks ──────────────────────────────────────────────────────
+-- -- register callbacks ------------------------------------------------------
 core.register_on_update_callback(on_update)
 core.register_on_spell_cast_callback(on_spell_cast)
 -- ESP only renders when this spec is enabled
@@ -2284,18 +2323,18 @@ core.register_on_render_callback(function()
 end)
 -- __EAX_ESP_GUARD
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxwarriorfury_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 
--- ── public interface ────────────────────────────────────────────────────────
+-- -- public interface --------------------------------------------------------
 local function cleanup()
 end
 

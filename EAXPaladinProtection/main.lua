@@ -21,7 +21,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("protection")
+esp_renderer.init("pprot", "Paladin Prot")
 ---@type racial_manager
 local racial_manager = require("racial_manager")
 ---@type defensive_manager
@@ -227,7 +227,7 @@ local function handle_toggle()
 end
 
 
--- ─── Hammer of Justice — interrupt/stun (v1.4) ───────────────────────────
+-- --- Hammer of Justice - interrupt/stun (v1.4) ---------------------------
 
 local function try_hammer_of_justice(me, target)
     if not runtime.hammer_of_justice_id then return false end
@@ -264,6 +264,18 @@ local function on_update()
     if not me or not me:is_valid() or me:is_dead() then
         return
     end
+        ooc_manager.on_update(me, menu, utils, {
+        group_buffs = {
+            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT),
+               buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
+               name = "Blessing of Might",
+               toggle = menu.ooc_group_buff },
+            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_SANCTUARY),
+               buff_ids = spells.BUFF_BLESSING_OF_SANCTUARY,
+               name = "Blessing of Sanctuary",
+               toggle = menu.ooc_group_buff },
+        },
+    })
     if eax_utils.is_eating_or_drinking(me) then return end
 
     refresh_mode_cache(now)
@@ -352,19 +364,53 @@ end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxpaladinprotection_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Paladin Prot] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxpaladinprotection_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_ppr_cds = menu.use_cooldowns:get_state()
+            local nxt_ppr_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX PPr] Cooldowns", cur_ppr_cds, 0, false, "eax_ppr_cds_cp")
+            if nxt_ppr_cds ~= cur_ppr_cds then menu.use_cooldowns:set(nxt_ppr_cds) end
+        end
+        if menu.use_racial then
+            local cur_ppr_racial = menu.use_racial:get_state()
+            local nxt_ppr_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX PPr] Use Racial", cur_ppr_racial, 0, false, "eax_ppr_racial_cp")
+            if nxt_ppr_racial ~= cur_ppr_racial then menu.use_racial:set(nxt_ppr_racial) end
+        end
+        end
+        return elements
+    end)
+end
+
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end

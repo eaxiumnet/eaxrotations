@@ -19,7 +19,7 @@ local RACIALS = {
     shadowmeld   = { 58984, 1784 },     -- Night Elf (cancel combat)
     escape_artist = { 20589 },          -- Gnome (root/slow removal)
     will_of_forsaken = { 7744 },        -- Undead (fear/charm/sleep removal)
-    every_man_for_himself = { 59752 },  -- Human (stun removal — Wrath, included for future)
+    every_man_for_himself = { 59752 },  -- Human (stun removal - Wrath, included for future)
 }
 
 -- Which racials are offensive (sync with burst)
@@ -90,7 +90,7 @@ function racial_manager.try_defensive(me)
     if hp < 0.50 then
         if try_racial(me, "stoneform") then return true end
     end
-    -- Escape Artist: when rooted/slowed (can't detect directly — use on low HP)
+    -- Escape Artist: when rooted/slowed (can't detect directly - use on low HP)
     if hp < 0.40 then
         if try_racial(me, "escape_artist") then return true end
     end
@@ -101,7 +101,7 @@ function racial_manager.try_defensive(me)
     return false
 end
 
--- Convenience: try offensive → utility → defensive in one call.
+-- Convenience: try offensive -> utility -> defensive in one call.
 function racial_manager.try_all(me, target)
     if racial_manager.try_offensive(me) then return true end
     if racial_manager.try_utility(me, target) then return true end

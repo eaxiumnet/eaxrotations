@@ -4,6 +4,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -20,7 +21,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("frost")
+esp_renderer.init("frost", "Mage Frost")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -272,7 +273,7 @@ local function try_frostbolt(me, target)
 end
 
 
--- ─── Frost Nova — kite tool (v1.4) ───────────────────────────────────────
+-- --- Frost Nova - kite tool (v1.4) ---------------------------------------
 
 local function try_frost_nova(me)
     if enc and not enc.aoe_safe then return false end
@@ -298,7 +299,7 @@ local function try_frost_nova(me)
     return false
 end
 
--- ─── Presence of Mind — instant cast proc (Arcane talent) (v1.4) ─────────
+-- --- Presence of Mind - instant cast proc (Arcane talent) (v1.4) ---------
 
 local function try_presence_of_mind(me)
     if not menu.use_presence_of_mind or not menu.use_presence_of_mind:get_state() then return false end
@@ -316,10 +317,8 @@ local function try_presence_of_mind(me)
 end
 
 
-local function -- Mana conservator: wand/melee when low on mana
+local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
-
-    do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
 
@@ -370,7 +369,7 @@ local function handle_toggle()
 end
 
 
--- ─── Ice Block — emergency freeze (v1.8.2) ───────────────────────────────
+-- --- Ice Block - emergency freeze (v1.8.2) -------------------------------
 local function try_ice_block(me)
     if not menu.use_ice_block:get_state() then return false end
     if not runtime.ice_block_id then
@@ -444,31 +443,60 @@ core.register_on_update_callback(function()
 end)
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxmagefrost_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
 
-core.register_on_render_control_panel_callback(function()
-    local elements = {}
-    control_panel_utility:insert_toggle_(
-        elements,
-        "[EAX Mage Frost] Enable (" .. key_helper:get_key_name(menu.toggle_key:get_key_code()) .. ")",
-        menu.toggle_key
-    )
-    return elements
-end)
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Mage Frost] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxmagefrost_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_mfr_cds = menu.use_cooldowns:get_state()
+            local nxt_mfr_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MFr] Cooldowns", cur_mfr_cds, 0, false, "eax_mfr_cds_cp")
+            if nxt_mfr_cds ~= cur_mfr_cds then menu.use_cooldowns:set(nxt_mfr_cds) end
+        end
+        if menu.focus_priority then
+            local cur_mfr_focus = menu.focus_priority:get_state()
+            local nxt_mfr_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MFr] Focus Priority", cur_mfr_focus, 0, false, "eax_mfr_focus_cp")
+            if nxt_mfr_focus ~= cur_mfr_focus then menu.focus_priority:set(nxt_mfr_focus) end
+        end
+        if menu.use_racial then
+            local cur_mfr_racial = menu.use_racial:get_state()
+            local nxt_mfr_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX MFr] Use Racial", cur_mfr_racial, 0, false, "eax_mfr_racial_cp")
+            if nxt_mfr_racial ~= cur_mfr_racial then menu.use_racial:set(nxt_mfr_racial) end
+        end
+        end
+        return elements
+    end)
+end
 
 
-
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -511,4 +539,5 @@ do
     end
 end
 
-core.log("[EAX Mage Frost] Loaded v1.0.0")
+local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
+core.log("[EAX Mage Frost] Loaded " .. (_pi and _pi.plugin_version or "?"))

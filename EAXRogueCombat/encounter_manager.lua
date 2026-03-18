@@ -1,10 +1,10 @@
 -- encounter_manager.lua
 -- TBC dungeon and raid encounter awareness for all EAX specs.
 -- Uses only documented Sylvanas API:
---   core.get_instance_name() — returns current instance/zone name
---   unit:get_name()          — boss name matching
---   unit:is_boss()           — boss classification check
---   unit:get_classification() — 1=elite, 2=rareelite, 3=worldboss
+--   core.get_instance_name() - returns current instance/zone name
+--   unit:get_name()          - boss name matching
+--   unit:is_boss()           - boss classification check
+--   unit:get_classification() - 1=elite, 2=rareelite, 3=worldboss
 --
 -- Returns an encounter_policy table that rotation modules use to gate
 -- cooldowns, adjust behaviour, and set interrupt priority.
@@ -19,7 +19,7 @@
 
 local encounter_manager = {}
 
--- ─── Default policy ───────────────────────────────────────────────────────────
+-- --- Default policy -----------------------------------------------------------
 -- All fields default to "normal PvE" values.
 
 local DEFAULT_POLICY = {
@@ -51,14 +51,14 @@ local function copy_default()
     return p
 end
 
--- ─── Boss database ────────────────────────────────────────────────────────────
+-- --- Boss database ------------------------------------------------------------
 -- Keyed by lowercase boss name (or substring).
 -- Each entry overrides fields from DEFAULT_POLICY.
 --
 -- Sources:
---   OpenDruid2/encounters/catalog.lua  — policy tags per boss
---   OpenMage2/encounters/raid_pack_tbc_v2.lua — range/CD overrides
---   OpenPriest/data/bosses/tbc.lua — special ability IDs
+--   OpenDruid2/encounters/catalog.lua  - policy tags per boss
+--   OpenMage2/encounters/raid_pack_tbc_v2.lua - range/CD overrides
+--   OpenPriest/data/bosses/tbc.lua - special ability IDs
 
 local BOSS_DB = {
     -- ═══════════════════════════════════════════════════════════════
@@ -243,13 +243,13 @@ local BOSS_DB = {
                                     raid_aoe_heavy=true, healer_mana_call=true },
 }
 
--- ─── Internal state ───────────────────────────────────────────────────────────
+-- --- Internal state -----------------------------------------------------------
 
 local cache_policy  = nil
 local cache_time    = 0
 local CACHE_TTL     = 2.0   -- seconds between re-evaluations
 
--- ─── Matching ─────────────────────────────────────────────────────────────────
+-- --- Matching -----------------------------------------------------------------
 
 local function normalize(s)
     return s and string.lower(tostring(s)) or ""
@@ -289,7 +289,7 @@ local function scan_enemies_for_boss()
     return nil, nil
 end
 
--- ─── Public API ───────────────────────────────────────────────────────────────
+-- --- Public API ---------------------------------------------------------------
 
 --- Returns the current encounter policy. Cached for CACHE_TTL seconds.
 --- @param me game_object  the local player

@@ -4,6 +4,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -17,7 +18,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("assassination")
+esp_renderer.init("assa", "Rogue Assa")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -303,7 +304,7 @@ local function try_mutilate(me, target)
 end
 
 
--- ─── Feint — threat drop (v1.3) ──────────────────────────────────────────
+-- --- Feint - threat drop (v1.3) ------------------------------------------
 
 local function try_feint(me)
     if not menu.use_feint or not menu.use_feint:get_state() then return false end
@@ -336,7 +337,7 @@ end
 
 
 
--- ─── Garrote opener (stealth) (v1.6) ─────────────────────────────────────────
+-- --- Garrote opener (stealth) (v1.6) -----------------------------------------
 -- Apply Garrote from stealth: strong bleed, silences for 3s, no CD.
 -- Higher DPS than Ambush for Assassination; used for openers.
 
@@ -355,7 +356,7 @@ local function try_garrote(me, target)
     return false
 end
 
--- ─── Riposte (v1.6) — after parry ────────────────────────────────────────────
+-- --- Riposte (v1.6) - after parry --------------------------------------------
 -- Free attack that disarms target for 6s; Combat talent. Use immediately after parry.
 
 local function try_riposte(me, target)
@@ -430,7 +431,7 @@ local function do_rotation(me, target)
     return false
 end
 
--- ─── Evasion — emergency dodge CD (v1.8.2) ───────────────────────────────
+-- --- Evasion - emergency dodge CD (v1.8.2) -------------------------------
 
 local function try_evasion(me)
     if not menu.use_evasion:get_state() then return false end
@@ -481,6 +482,7 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then
         return
     end
+        ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
 
     do_rotation(me, me:get_target())
@@ -512,45 +514,60 @@ local function update_set_bonus(me)
 end
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxrogueassassination_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
 
-core.register_on_render_control_panel_callback(function()
-    local elements = {}
-    local key_name = key_helper:get_key_name(menu.toggle_key:get_key_code())
-    control_panel_utility:insert_toggle_(elements, "[EAX Rogue Assassination] Enable (" .. key_name .. ")", menu.toggle_key)
-    return elements
-end)
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Rogue Assa] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxrogueassassination_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_ras_cds = menu.use_cooldowns:get_state()
+            local nxt_ras_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX RAs] Cooldowns", cur_ras_cds, 0, false, "eax_ras_cds_cp")
+            if nxt_ras_cds ~= cur_ras_cds then menu.use_cooldowns:set(nxt_ras_cds) end
+        end
+        if menu.focus_priority then
+            local cur_ras_focus = menu.focus_priority:get_state()
+            local nxt_ras_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX RAs] Focus Priority", cur_ras_focus, 0, false, "eax_ras_focus_cp")
+            if nxt_ras_focus ~= cur_ras_focus then menu.focus_priority:set(nxt_ras_focus) end
+        end
+        if menu.use_racial then
+            local cur_ras_racial = menu.use_racial:get_state()
+            local nxt_ras_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX RAs] Use Racial", cur_ras_racial, 0, false, "eax_ras_racial_cp")
+            if nxt_ras_racial ~= cur_ras_racial then menu.use_racial:set(nxt_ras_racial) end
+        end
+        end
+        return elements
+    end)
+end
 
-core.register_on_spell_cast_callback(function(data)
-    if not data or not data.spell_id then
-        return
-    end
 
-    if data.spell_id == runtime.mutilate_id then
-        runtime.combo_points = math.min(runtime.combo_points + 2, 5)
-        runtime.combo_target = data.target or runtime.combo_target
-    elseif data.spell_id == runtime.envenom_id
-        or data.spell_id == runtime.eviscerate_id
-        or data.spell_id == runtime.slice_and_dice_id
-        or data.spell_id == runtime.rupture_id then
-        runtime.combo_points = 0
-        runtime.combo_target = data.target or runtime.combo_target
-    end
-end)
-
-
-
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -593,4 +610,5 @@ do
     end
 end
 
-core.log("[EAX Rogue Assassination] Loaded v1.0.0")
+local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
+core.log("[EAX Rogue Assassination] Loaded " .. (_pi and _pi.plugin_version or "?"))

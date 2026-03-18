@@ -7,7 +7,7 @@ local mana_conservator = require("mana_conservator")
 local ps   = require("ps_theme")
 local menu = {}
 
--- ── Tree nodes ────────────────────────────────────────────────────────────────
+-- -- Tree nodes ----------------------------------------------------------------
 local root_tree    = ps.tree_node()
 local main_tree    = ps.tree_node()
 local def_tree     = ps.tree_node()
@@ -16,7 +16,7 @@ local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
 
--- ── Shared plugin controls + shared fields ────────────────────────────────────
+-- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxshamanrestoration_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxshamanrestoration_toggle_key")
@@ -48,7 +48,7 @@ menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_sh
 menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- ── Class-specific elements ───────────────────────────────────────────────────
+-- -- Class-specific elements ---------------------------------------------------
 menu.heal_tank_hp                         = core.menu.slider_int(50, 99, 75, "heal_tank_hp")
 menu.heal_party_hp                        = core.menu.slider_int(50, 99, 78, "heal_party_hp")
 menu.chain_heal_targets                   = core.menu.slider_int(2, 6, 3, "chain_heal_targets")
@@ -97,7 +97,7 @@ menu.mana_tide_mana_pct                   = core.menu.slider_int(20, 80, 50, "ma
 mana_conservator.register_menu_items(menu, "eax_shaman_restoration")
 
 -- ════════════════════════════════════════════════════════════════════════════
--- RENDER  — called every frame by core.register_on_render_menu_callback
+-- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -117,13 +117,13 @@ function menu.render()
 
         ps.render_controls(menu, "Eax's Shaman Restoration")
 
-        -- ── Class-specific settings ───────────────────────────────────────────
+        -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.heal_tank_hp:render("Tank heal HP%", "Cast Healing Wave when tank effective HP falls below this")
             menu.heal_party_hp:render("Party heal HP%", "Chain Heal fires when enough party members are below this")
             menu.chain_heal_targets:render("Chain Heal min targets", "Minimum injured members before Chain Heal fires")
-            menu.heal_emergency_hp:render("Emergency HP%", "Skip dispels/totems for any member below this — heal first")
+            menu.heal_emergency_hp:render("Emergency HP%", "Skip dispels/totems for any member below this - heal first")
             menu.use_water_shield:render("Water Shield", "Keep Water Shield active for mana regen (never overwrites Earth Shield)")
             menu.use_cooldowns:render("Enable Cooldowns", "Master toggle for all cooldown abilities")
             menu.cooldowns_key:render("Cooldowns Hotkey", "")
@@ -134,9 +134,9 @@ function menu.render()
             menu.bloodlust_on_pull:render("  Lust on pull", "Also use Bloodlust at the start of combat (ignores HP threshold)")
             menu.auto_totems:render("Auto Totems", "Automatically place and refresh totems")
             menu.auto_totem_mana_tide:render("  Mana Tide Totem", "Use proactively when mana drops below the configured threshold")
-            menu.auto_totem_healing_stream:render("  Healing Stream Totem", "Passive AoE healing — keep active in combat")
-            menu.auto_totem_wrath:render("  Totem of Wrath", "+3%% spell crit for the party — TBC's best healing throughput totem")
-            menu.auto_totem_wrath_of_air:render("  Wrath of Air Totem", "5%% spell haste aura — enable if your spec has it")
+            menu.auto_totem_healing_stream:render("  Healing Stream Totem", "Passive AoE healing - keep active in combat")
+            menu.auto_totem_wrath:render("  Totem of Wrath", "+3%% spell crit for the party - TBC's best healing throughput totem")
+            menu.auto_totem_wrath_of_air:render("  Wrath of Air Totem", "5%% spell haste aura - enable if your spec has it")
             menu.prepull_totems:render("  Pre-pull totems", "Place Healing Stream + Totem of Wrath before combat when enemies are nearby")
             menu.use_totemic_recall:render("Totemic Recall", "Recall totems out of combat to recover a portion of their mana cost")
             menu.use_dispels:render("Cure Poison + Cure Disease", "Auto-dispel Poison and Disease from party members.\n")
@@ -166,21 +166,21 @@ function menu.render()
             menu.mana_tide_mana_pct:render("  Mana Tide at mana%", "")
         end)
 
-        -- ── Defensive cooldowns ───────────────────────────────────────────────
+        -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
         -- (none detected)
         })
 
-        -- ── Targeting ────────────────────────────────────────────────────────
+        -- -- Targeting --------------------------------------------------------
         ps.render_targeting(menu, tgt_tree)
 
-        -- ── Racial ────────────────────────────────────────────────────────────
+        -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
 
-        -- ── Out-of-combat ─────────────────────────────────────────────────────
+        -- -- Out-of-combat -----------------------------------------------------
         ps.render_ooc(menu, ooc_tree, true)
 
-        -- ── Display & HUD ─────────────────────────────────────────────────────
+        -- -- Display & HUD -----------------------------------------------------
         ps.render_esp(menu, esp_tree)
 
     end)

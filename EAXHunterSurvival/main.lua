@@ -6,6 +6,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -22,7 +23,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("survival")
+esp_renderer.init("sv", "Hunter SV")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -87,7 +88,47 @@ end
 local function log_resolved_spells()
     
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Hunter SV] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxhuntersurvival_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_hsv_cds = menu.use_cooldowns:get_state()
+            local nxt_hsv_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX HSV] Cooldowns", cur_hsv_cds, 0, false, "eax_hsv_cds_cp")
+            if nxt_hsv_cds ~= cur_hsv_cds then menu.use_cooldowns:set(nxt_hsv_cds) end
+        end
+        if menu.focus_priority then
+            local cur_hsv_focus = menu.focus_priority:get_state()
+            local nxt_hsv_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX HSV] Focus Priority", cur_hsv_focus, 0, false, "eax_hsv_focus_cp")
+            if nxt_hsv_focus ~= cur_hsv_focus then menu.focus_priority:set(nxt_hsv_focus) end
+        end
+        if menu.use_racial then
+            local cur_hsv_racial = menu.use_racial:get_state()
+            local nxt_hsv_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX HSV] Use Racial", cur_hsv_racial, 0, false, "eax_hsv_racial_cp")
+            if nxt_hsv_racial ~= cur_hsv_racial then menu.use_racial:set(nxt_hsv_racial) end
+        end
+        end
+        return elements
+    end)
+end
+
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -268,7 +309,7 @@ local function start_auto_attack()
 end
 
 
--- ─── Auto Shot clip buffer (v1.3) ────────────────────────────────────────
+-- --- Auto Shot clip buffer (v1.3) ----------------------------------------
 -- Prevents instant casts from clipping the auto shot timing.
 -- auto_shot_eta_ms: time until next auto shot fires
 -- Returns true if it is safe to cast an instant right now.
@@ -438,7 +479,7 @@ local function try_mend_pet(me)
 end
 
 
--- ─── Kiting / Threat Management (v1.2) ───────────────────────────────────
+-- --- Kiting / Threat Management (v1.2) -----------------------------------
 
 local function try_disengage(me, target)
     if not runtime.disengage_id then return false end
@@ -466,7 +507,7 @@ end
 
 
 
--- ─── Scorpid / Viper Sting situational use (v1.4) ────────────────────────
+-- --- Scorpid / Viper Sting situational use (v1.4) ------------------------
 
 local function try_scorpid_sting(target)
     if not runtime.scorpid_sting_id then return false end
@@ -498,7 +539,7 @@ local function try_viper_sting(target)
     return false
 end
 
--- ─── Rapid Fire (v1.4) ────────────────────────────────────────────────────
+-- --- Rapid Fire (v1.4) ----------------------------------------------------
 
 local function try_rapid_fire(me)
     if enc and enc.hold_cooldowns then return false end
@@ -514,7 +555,7 @@ local function try_rapid_fire(me)
     return false
 end
 
--- ─── Intimidation (BM only) (v1.4) ────────────────────────────────────────
+-- --- Intimidation (BM only) (v1.4) ----------------------------------------
 
 local function try_intimidation(me, target)
     if not runtime.intimidation_id then return false end
@@ -529,7 +570,7 @@ local function try_intimidation(me, target)
     return false
 end
 
--- ─── Aspect of the Viper — mana recovery (v1.4) ───────────────────────────
+-- --- Aspect of the Viper - mana recovery (v1.4) ---------------------------
 
 local function try_aspect_of_viper(me)
     -- Switch to Viper when OOM, back to Hawk when full
@@ -690,6 +731,7 @@ local function on_update()
     if not me or me:is_dead() then
         return
     end
+        ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
     
     local target = me:get_target()
@@ -738,14 +780,14 @@ end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxhuntersurvival_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 

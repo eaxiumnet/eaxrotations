@@ -6,6 +6,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -22,7 +23,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("paladin_holy")
+esp_renderer.init("pholy", "Paladin Holy")
 ---@type racial_manager
 local racial_manager = require("racial_manager")
 ---@type defensive_manager
@@ -88,7 +89,47 @@ end
 local function log_resolved_spells()
     
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Paladin Holy] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxpaladinholy_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_pho_cds = menu.use_cooldowns:get_state()
+            local nxt_pho_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX PHo] Cooldowns", cur_pho_cds, 0, false, "eax_pho_cds_cp")
+            if nxt_pho_cds ~= cur_pho_cds then menu.use_cooldowns:set(nxt_pho_cds) end
+        end
+        if menu.focus_priority then
+            local cur_pho_focus = menu.focus_priority:get_state()
+            local nxt_pho_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX PHo] Focus Priority", cur_pho_focus, 0, false, "eax_pho_focus_cp")
+            if nxt_pho_focus ~= cur_pho_focus then menu.focus_priority:set(nxt_pho_focus) end
+        end
+        if menu.use_racial then
+            local cur_pho_racial = menu.use_racial:get_state()
+            local nxt_pho_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX PHo] Use Racial", cur_pho_racial, 0, false, "eax_pho_racial_cp")
+            if nxt_pho_racial ~= cur_pho_racial then menu.use_racial:set(nxt_pho_racial) end
+        end
+        end
+        return elements
+    end)
+end
+
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -350,7 +391,7 @@ local function try_cast_heal(me, target, hp_pct)
 end
 
 
--- ─── Divine Plea — mana recovery (v1.4) ───────────────────────────────────
+-- --- Divine Plea - mana recovery (v1.4) -----------------------------------
 
 local function try_divine_plea(me)
     if not runtime.divine_plea_id then return false end
@@ -363,7 +404,7 @@ local function try_divine_plea(me)
     return true
 end
 
--- ─── Judgment of Wisdom — mana return on boss (v1.4) ──────────────────────
+-- --- Judgment of Wisdom - mana return on boss (v1.4) ----------------------
 
 local function try_judgment_of_wisdom(me, target)
     if not runtime.jow_id then return false end
@@ -387,6 +428,18 @@ local function on_update()
     if not me or not me:is_valid() or me:is_dead() then
         return
     end
+        ooc_manager.on_update(me, menu, utils, {
+        group_buffs = {
+            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT),
+               buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
+               name = "Blessing of Might",
+               toggle = menu.ooc_group_buff },
+            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM),
+               buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
+               name = "Blessing of Wisdom",
+               toggle = menu.ooc_group_buff },
+        },
+    })
     if eax_utils.is_eating_or_drinking(me) then return end
 
     -- Overheal Protection - cancel slow heals if target is healthy
@@ -444,9 +497,12 @@ local function on_update()
     refresh_mode_cache()
     local mode = get_effective_mode()
 
+    -- OOC: only allow blessing maintenance, not heals/cleanse
     if ensure_blessings(me) then
         return
     end
+
+    if not me:is_in_combat() then return end
 
     if core.spell_book.get_global_cooldown() > 0 then
         return
@@ -489,13 +545,13 @@ end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxpaladinholy_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)

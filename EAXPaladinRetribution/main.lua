@@ -5,6 +5,7 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local color     = require("color")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -21,7 +22,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("retribution")
+esp_renderer.init("pret", "Paladin Ret")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -193,7 +194,7 @@ local function begin_seal_twist(me, target)
     if utils.cast_self(runtime.seal_blood_id, me) then
         runtime.twist_state = "blood"
         runtime.last_twist_at = core.time()
-        utils.log_debug(menu, "Seal twist → Blood")
+        utils.log_debug(menu, "Seal twist -> Blood")
         note_cast()
         return true
     end
@@ -211,7 +212,7 @@ local function continue_seal_twist(me)
     if runtime.twist_state == "blood" then
         if utils.cast_self(runtime.seal_righteousness_id, me) then
             runtime.twist_state = "righteous"
-            utils.log_debug(menu, "Seal twist → Righteousness")
+            utils.log_debug(menu, "Seal twist -> Righteousness")
             note_cast()
             return true
         end
@@ -221,7 +222,7 @@ local function continue_seal_twist(me)
     if runtime.twist_state == "righteous" then
         if utils.cast_self(runtime.seal_command_id, me) then
             runtime.twist_state = "command"
-            utils.log_debug(menu, "Seal twist → Command")
+            utils.log_debug(menu, "Seal twist -> Command")
             note_cast()
             return true
         end
@@ -264,7 +265,7 @@ local function selected_judgement_key()
 end
 
 
--- ─── Consecration (v1.6) ──────────────────────────────────────────────────────
+-- --- Consecration (v1.6) ------------------------------------------------------
 -- AoE threat + DPS; also used in single-target as filler when everything else is on CD
 
 local function try_consecration(me, target)
@@ -280,7 +281,7 @@ local function try_consecration(me, target)
     return false
 end
 
--- ─── Divine Favor (v1.6) — Holy Shock guaranteed crit ─────────────────────────
+-- --- Divine Favor (v1.6) - Holy Shock guaranteed crit -------------------------
 
 local function try_divine_favor(me)
     if enc and enc.hold_cooldowns then return false end
@@ -295,7 +296,7 @@ local function try_divine_favor(me)
     return false
 end
 
--- ─── Exorcism (v1.6) — Undead / Demon only ────────────────────────────────────
+-- --- Exorcism (v1.6) - Undead / Demon only ------------------------------------
 
 local function try_exorcism(me, target)
     if not menu.use_exorcism or not menu.use_exorcism:get_state() then return false end
@@ -335,7 +336,7 @@ local function maybe_cast_judgement(me, target)
     end
     if utils.cast_target(spell_id, me, target) then
         note_cast()
-        utils.log_debug(menu, "Judgement → " .. (mode_key == "crusader" and "Crusader" or "Wisdom"))
+        utils.log_debug(menu, "Judgement -> " .. (mode_key == "crusader" and "Crusader" or "Wisdom"))
                 esp_renderer.on_cast(runtime.spell_id, "Judgement", color.yellow(220))
         return true
     end
@@ -368,7 +369,7 @@ resolve_spells()
 log_resolved_spells()
 
 
--- ─── Offensive CDs (v1.1) ─────────────────────────────────────────────────
+-- --- Offensive CDs (v1.1) -------------------------------------------------
 
 local function try_avenging_wrath(me)
     if enc and enc.hold_cooldowns then return false end
@@ -418,6 +419,18 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then
         return
     end
+        ooc_manager.on_update(me, menu, utils, {
+        group_buffs = {
+            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT),
+               buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
+               name = "Blessing of Might",
+               toggle = menu.ooc_group_buff },
+            { spell_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM),
+               buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
+               name = "Blessing of Wisdom",
+               toggle = menu.ooc_group_buff },
+        },
+    })
     if eax_utils.is_eating_or_drinking(me) then return end
 
     if utils.throttle("eaxpr:mode", MODE_REFRESH_INTERVAL) then
@@ -492,32 +505,60 @@ core.register_on_update_callback(function()
 end)
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxpaladinretribution_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
 
-core.register_on_render_control_panel_callback(function()
-    local elements = {}
-    local key_name = key_helper:get_key_name(menu.toggle_key:get_key_code())
-    local entry = {
-        name = "[EAX Paladin Retribution] Enable (" .. key_name .. ")",
-        keybind = menu.toggle_key,
-    }
-    control_panel_utility:insert_toggle_(elements, entry.name, menu.toggle_key)
-    return elements
-end)
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Paladin Ret] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxpaladinretribution_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_prt_cds = menu.use_cooldowns:get_state()
+            local nxt_prt_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX PRt] Cooldowns", cur_prt_cds, 0, false, "eax_prt_cds_cp")
+            if nxt_prt_cds ~= cur_prt_cds then menu.use_cooldowns:set(nxt_prt_cds) end
+        end
+        if menu.focus_priority then
+            local cur_prt_focus = menu.focus_priority:get_state()
+            local nxt_prt_focus = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX PRt] Focus Priority", cur_prt_focus, 0, false, "eax_prt_focus_cp")
+            if nxt_prt_focus ~= cur_prt_focus then menu.focus_priority:set(nxt_prt_focus) end
+        end
+        if menu.use_racial then
+            local cur_prt_racial = menu.use_racial:get_state()
+            local nxt_prt_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX PRt] Use Racial", cur_prt_racial, 0, false, "eax_prt_racial_cp")
+            if nxt_prt_racial ~= cur_prt_racial then menu.use_racial:set(nxt_prt_racial) end
+        end
+        end
+        return elements
+    end)
+end
 
 
-
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -560,4 +601,5 @@ do
     end
 end
 
-core.log("[EAX Paladin Retribution] Loaded v1.0.0")
+local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
+core.log("[EAX Paladin Retribution] Loaded " .. (_pi and _pi.plugin_version or "?"))

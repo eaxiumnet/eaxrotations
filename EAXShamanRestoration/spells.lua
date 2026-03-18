@@ -4,7 +4,7 @@
 
 local spells = {}
 
--- ─── Healing ─────────────────────────────────────────────────────────────────
+-- --- Healing -----------------------------------------------------------------
 
 -- Chain Heal r1-5 (r5 = 25423 added in TBC 2.1)
 spells.CHAIN_HEAL           = { 25423, 25422, 10623, 10622, 1064 }
@@ -18,13 +18,13 @@ spells.LESSER_HEALING_WAVE  = { 25420, 10468, 10467, 10466, 8010, 8008, 8004 }
 -- Earth Shield r1-3 (TBC new spell)
 spells.EARTH_SHIELD         = { 32594, 32593, 974 }
 
--- ─── Totems ──────────────────────────────────────────────────────────────────
+-- --- Totems ------------------------------------------------------------------
 
 -- Water
 spells.MANA_TIDE_TOTEM      = { 16190 }
 spells.HEALING_STREAM_TOTEM = { 25567, 10461, 10460, 6372, 6371, 5672 }
 
--- Fire (both give raid throughput — place whichever is learned)
+-- Fire (both give raid throughput - place whichever is learned)
 spells.TOTEM_OF_WRATH       = { 30706 }          -- TBC: +3% spell crit to party
 spells.FLAMETONGUE_TOTEM    = { 25557, 16387, 16386, 16385, 8233 }
 
@@ -37,7 +37,7 @@ spells.GROUNDING_TOTEM      = { 8177 }
 spells.TREMOR_TOTEM         = { 8143 }
 spells.STONESKIN_TOTEM      = { 25509, 10408, 8156, 8155, 8154 }
 
--- ─── Cooldowns ───────────────────────────────────────────────────────────────
+-- --- Cooldowns ---------------------------------------------------------------
 
 spells.NATURES_SWIFTNESS    = { 16188 }           -- TBC talent
 
@@ -45,23 +45,23 @@ spells.NATURES_SWIFTNESS    = { 16188 }           -- TBC talent
 spells.BLOODLUST            = { 2825 }
 spells.HEROISM              = { 32182 }
 
--- ─── Dispels ─────────────────────────────────────────────────────────────────
+-- --- Dispels -----------------------------------------------------------------
 -- TBC Resto can remove Poison and Disease only. No curse/magic removal.
 
 spells.CURE_POISON          = { 526 }
 spells.CURE_DISEASE         = { 2870 }
 spells.PURGE                = { 8012, 370 }       -- removes 1 magic buff from enemy
 
--- ─── DPS fillers ─────────────────────────────────────────────────────────────
+-- --- DPS fillers -------------------------------------------------------------
 
 spells.CHAIN_LIGHTNING      = { 25442, 25439, 10605, 2860, 930, 421 }
 spells.LIGHTNING_BOLT       = { 25449, 25448, 15208, 15207 }
 spells.EARTH_SHOCK          = { 25454, 10414, 10413, 10412, 8045 }  -- interrupt + damage
 spells.FLAME_SHOCK          = { 29228, 25457, 10448, 10447, 8051, 8050 }
 
--- ─── Self-buffs ───────────────────────────────────────────────────────────────
+-- --- Self-buffs ---------------------------------------------------------------
 
--- Water Shield r1-2 (r3 = 57960 is WotLK — not included)
+-- Water Shield r1-2 (r3 = 57960 is WotLK - not included)
 spells.WATER_SHIELD         = { 33736, 24398 }
 
 -- Flametongue Weapon: TBC Resto mainhand buff (spell power); ranks 1-7
@@ -69,12 +69,12 @@ spells.FLAMETONGUE_WEAPON   = { 25489, 16342, 16341, 16339, 8030, 8027, 8024 }
 
 spells.TOTEMIC_RECALL       = { 36936 }
 
--- ─── Buff tracking IDs ───────────────────────────────────────────────────────
+-- --- Buff tracking IDs -------------------------------------------------------
 
 spells.EARTH_SHIELD_BUFF    = { 32594, 32593, 974 }
 spells.WATER_SHIELD_BUFF    = { 33736, 24398 }
 
--- ─── Constants ───────────────────────────────────────────────────────────────
+-- --- Constants ---------------------------------------------------------------
 
 spells.CHAIN_HEAL_JUMP_RANGE = 12   -- yards, TBC confirmed
 

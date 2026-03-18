@@ -20,7 +20,7 @@ local encounter_manager = require("encounter_manager")
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
-esp_renderer.init("enhancement")
+esp_renderer.init("enhance", "Shaman Enh")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -339,7 +339,7 @@ local function try_shock(me, target)
 end
 
 
--- ─── Weapon Imbue Maintenance (v1.1) ──────────────────────────────────────
+-- --- Weapon Imbue Maintenance (v1.1) --------------------------------------
 
 local IMBUE_DURATION_S = 29 * 60    -- fallback timer
 
@@ -377,7 +377,7 @@ local function try_weapon_imbues(me)
     return false
 end
 
--- ─── Offensive CDs (v1.1) ─────────────────────────────────────────────────
+-- --- Offensive CDs (v1.1) -------------------------------------------------
 
 local function try_feral_spirit(me, target)
     if enc and enc.hold_cooldowns then return false end
@@ -394,14 +394,14 @@ end
 
 
 
--- ─── Fire Totem maintenance (v1.3) ───────────────────────────────────────
+-- --- Fire Totem maintenance (v1.3) ---------------------------------------
 -- Maintain Searing Totem (single target) or Magma Totem (2+ enemies).
 -- Totems have a 1-min duration; we re-drop when expired.
 
 local FIRE_TOTEM_REFRESH_S = 55.0   -- re-drop 5s before expiry
 
 
--- ─── Totem Twist (v1.4) ───────────────────────────────────────────────────
+-- --- Totem Twist (v1.4) ---------------------------------------------------
 -- Pattern from tbc/ enhancement/rotation.go:
 -- Drop Windfury Totem every 10s for the proc, then drop Grace/Wrath of Air
 -- for the buff. In practice: WF first 1s, then default air totem for 9s.
@@ -449,7 +449,7 @@ local function try_totem_twist(me)
     return false
 end
 
--- ─── Strength/Mana totem maintenance (v1.4) ──────────────────────────────
+-- --- Strength/Mana totem maintenance (v1.4) ------------------------------
 
 local function try_earth_totem(me)
     if not menu.use_earth_totem or not menu.use_earth_totem:get_state() then return false end
@@ -501,7 +501,7 @@ end
 
 
 
--- ── Shield maintenance ────────────────────────────────────────────────────────
+-- -- Shield maintenance --------------------------------------------------------
 local function ensure_shield(me)
     local mode = menu.shield_mode and menu.shield_mode:get() or 3
     if mode == 0 then return false end
@@ -523,7 +523,7 @@ local function ensure_shield(me)
     return false
 end
 
--- ── Self-healing ──────────────────────────────────────────────────────────────
+-- -- Self-healing --------------------------------------------------------------
 local function try_self_heal(me)
     if not menu.use_healing_wave or not menu.use_healing_wave:get_state() then return false end
     local hp_pct = utils.get_health_pct(me)
@@ -540,7 +540,7 @@ local function try_self_heal(me)
     return false
 end
 
--- ── Ghost Wolf OOC ────────────────────────────────────────────────────────────
+-- -- Ghost Wolf OOC ------------------------------------------------------------
 local GHOST_WOLF_BUFF = { 2645 }
 local function try_ghost_wolf(me)
     if not menu.use_ghost_wolf or not menu.use_ghost_wolf:get_state() then return false end
@@ -555,7 +555,7 @@ local function try_ghost_wolf(me)
     return try_cast_self(me, runtime.ghost_wolf_id, "Ghost Wolf")
 end
 
--- ── Lightning Bolt ranged pull ────────────────────────────────────────────────
+-- -- Lightning Bolt ranged pull ------------------------------------------------
 local function try_lb_pull(me, target)
     if not menu.use_lb_pull or not menu.use_lb_pull:get_state() then return false end
     if not runtime.lightning_bolt_id then return false end
@@ -708,14 +708,14 @@ core.register_on_update_callback(function()
 end)
 
 
--- ── Space theme: create menu window and inject into menu ─────────────────────
+-- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxshamanenhancement_space_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
@@ -758,7 +758,7 @@ end
 
 
 
--- ── EAX Conflict Detection ─────────────────────────────────────────────────
+-- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end

@@ -20,7 +20,7 @@ local buff_manager = require("common/modules/buff_manager")
 
 local leveling_manager = {}
 
--- ─── Constants ────────────────────────────────────────────────────────────────
+-- --- Constants ----------------------------------------------------------------
 
 local WAND_SPELL_ID  = 5019   -- "Shoot" wand ranged auto-attack
 local MELEE_TYPE     = 6603   -- auto_attack_helper.ATTACK_TYPE.MELEE
@@ -31,7 +31,7 @@ local WAND_THROTTLE  = 2.0    -- seconds between wand start attempts
 -- Spirit Tap buff ID (Shadow Priest talent)
 local SPIRIT_TAP_BUFF = 15271
 
--- ─── Lazy-loaded dependencies ─────────────────────────────────────────────────
+-- --- Lazy-loaded dependencies -------------------------------------------------
 
 local _aa
 local function get_aa()
@@ -42,11 +42,11 @@ local function get_aa()
     return _aa
 end
 
--- ─── Internal state ───────────────────────────────────────────────────────────
+-- --- Internal state -----------------------------------------------------------
 
 local last_wand_time = 0
 
--- ─── Mana utilities ───────────────────────────────────────────────────────────
+-- --- Mana utilities -----------------------------------------------------------
 
 function leveling_manager.get_mana_pct(me)
     if not me or not me:is_valid() then return 1.0 end
@@ -77,7 +77,7 @@ function leveling_manager.is_conserving_mana(me, menu)
     return leveling_manager.get_mana_pct(me) < 0.40
 end
 
--- ─── Wand detection ───────────────────────────────────────────────────────────
+-- --- Wand detection -----------------------------------------------------------
 
 local function has_wand_equipped()
     -- The "Shoot" spell (5019) is only in spellbook when a wand is equipped
@@ -95,7 +95,7 @@ local function is_wanding()
     return ok and cur == true
 end
 
--- ─── Wand logic ───────────────────────────────────────────────────────────────
+-- --- Wand logic ---------------------------------------------------------------
 
 local function should_wand(me, target, menu)
     if not menu or not menu.use_wand then return false end
@@ -158,7 +158,7 @@ function leveling_manager.stop_wanding()
     end
 end
 
--- ─── Melee / Ranged fallback ──────────────────────────────────────────────────
+-- --- Melee / Ranged fallback --------------------------------------------------
 
 function leveling_manager.ensure_melee(me, target)
     if not me or not target or not target:is_valid() or target:is_dead() then return end
@@ -178,7 +178,7 @@ function leveling_manager.ensure_ranged(me, target)
     end
 end
 
--- ─── Spirit Tap (Priest Shadow) ───────────────────────────────────────────────
+-- --- Spirit Tap (Priest Shadow) -----------------------------------------------
 -- Wand-finish targets below 25% to proc Spirit Tap mana regen on kill.
 
 function leveling_manager.should_wand_for_spirit_tap(me, target, menu)
@@ -193,7 +193,7 @@ function leveling_manager.should_wand_for_spirit_tap(me, target, menu)
     return hp <= 0.25
 end
 
--- ─── Menu item factory ────────────────────────────────────────────────────────
+-- --- Menu item factory --------------------------------------------------------
 
 function leveling_manager.register_menu_items(menu_tbl, prefix)
     if not menu_tbl or not prefix then return end
