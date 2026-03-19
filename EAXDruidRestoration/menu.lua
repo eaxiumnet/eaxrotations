@@ -70,6 +70,8 @@ menu.tranquility_injured_count            = core.menu.slider_int(2, 8, 3, "eaxdr
 menu.use_natures_swiftness                = core.menu.checkbox(true, "eaxdruidrestoration_use_natures_swiftness")
 menu.emergency_hp_pct                     = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_emergency_hp_pct")
 menu.overheal_protection                  = core.menu.checkbox(true, "eaxdruidrestoration_overheal_protection")
+menu.use_healing_touch                    = core.menu.checkbox(true, "eaxdruidrestoration_use_healing_touch")
+menu.healing_touch_hp_pct                 = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_healing_touch_hp_pct")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
@@ -115,6 +117,8 @@ function menu.render()
             menu.tranquility_injured_count:render("Tranquility Injured Count", "Minimum injured allies before Tranquility")
             menu.use_natures_swiftness:render("Nature's Swiftness", "Prep Nature's Swiftness for Regrowth emergencies")
             menu.emergency_hp_pct:render("Emergency HP %", "Health threshold for Nature's Swiftness + Regrowth")
+            menu.use_healing_touch:render("Healing Touch", "Direct heal fallback when target is critical and all HoTs are running")
+            menu.healing_touch_hp_pct:render("Healing Touch HP %", "Only cast Healing Touch below this health threshold")
             menu.overheal_protection:render("Overheal Protection", "Cancel slow heals when target is near full HP")
         end)
 

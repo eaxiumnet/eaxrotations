@@ -261,9 +261,14 @@ function utils.has_debuff(unit, id_table)
 end
 
 function utils.get_debuff_remaining_ms(unit, id_table)
-    local data = utils.get_debuff_data(unit, id_table)
-    if data and data.is_active then
-        return data.remaining or 0
+    -- Try debuff slot first, then aura slot (some servers store DoTs as auras)
+    local data = buff_manager:get_debuff_data(unit, id_table)
+    if data and data.is_active and (data.remaining or 0) > 0 then
+        return data.remaining
+    end
+    data = buff_manager:get_aura_data(unit, id_table)
+    if data and data.is_active and (data.remaining or 0) > 0 then
+        return data.remaining
     end
     return 0
 end

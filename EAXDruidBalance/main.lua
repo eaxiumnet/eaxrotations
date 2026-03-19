@@ -85,7 +85,7 @@ local function resolve_spells()
     runtime.moonkin_form_id = utils.resolve_spell_id(spells.MOONKIN_FORM)
     runtime.faerie_fire_id = utils.resolve_spell_id(spells.FAERIE_FIRE)
     runtime.berserk_id  = utils.resolve_spell_id(spells.BERSERK)
-    runtime.typhoon_id  = utils.resolve_spell_id(spells.TYPOON)
+    runtime.typhoon_id  = utils.resolve_spell_id(spells.TYPHOON)
     runtime.moonfire_id = utils.resolve_spell_id(spells.MOONFIRE)
     runtime.insect_swarm_id = utils.resolve_spell_id(spells.INSECT_SWARM)
     runtime.wrath_id = utils.resolve_spell_id(spells.WRATH)
@@ -196,7 +196,7 @@ local function handle_toggle()
 end
 
 local function try_moonkin_form(me)
-    if not menu.force_moonkin:get_state() then return false end
+    if not menu.force_moonkin or not menu.force_moonkin:get_state() then return false end
     if not runtime.moonkin_form_id then return false end
     if utils.has_buff(me, spells.BUFF_MOONKIN_FORM) then return false end
     if is_pending_cast(runtime.moonkin_form_id) then return false end
@@ -213,9 +213,9 @@ local function try_moonkin_form(me)
 end
 
 local function try_innervate(me, mana_pct)
-    if not menu.use_innervate:get_state() then return false end
+    if not menu.use_innervate or not menu.use_innervate:get_state() then return false end
     if not runtime.innervate_id then return false end
-    if mana_pct >= (menu.innervate_mana_pct:get() / 100) then return false end
+    if mana_pct >= ((menu.innervate_mana_pct and menu.innervate_mana_pct:get() or 30) / 100) then return false end
     if utils.has_buff(me, spells.BUFF_INNERVATE) then return false end
     if is_pending_cast(runtime.innervate_id) then return false end
     if not utils.can_cast_self(runtime.innervate_id, me) then return false end
@@ -231,9 +231,9 @@ local function try_innervate(me, mana_pct)
 end
 
 local function try_tranquility(me)
-    if not menu.use_tranquility:get_state() then return false end
+    if not menu.use_tranquility or not menu.use_tranquility:get_state() then return false end
     if not runtime.tranquility_id then return false end
-    if utils.get_health_pct(me) >= (menu.tranquility_hp_pct:get() / 100) then return false end
+    if utils.get_health_pct(me) >= ((menu.tranquility_hp_pct and menu.tranquility_hp_pct:get() or 35) / 100) then return false end
     if is_pending_cast(runtime.tranquility_id) then return false end
     if not utils.can_cast_self(runtime.tranquility_id, me) then return false end
 
@@ -248,67 +248,60 @@ local function try_tranquility(me)
 end
 
 local function try_faerie_fire(me, target)
-    if not menu.use_faerie_fire:get_state() then return false end
+    if not menu.use_faerie_fire or not menu.use_faerie_fire:get_state() then return false end
     if not runtime.faerie_fire_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) >= 3000 then return false end
+    -- Faerie Fire lasts 5 minutes — only reapply when fully gone
+    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) > 5000 then return false end
     if is_pending_cast(runtime.faerie_fire_id) then return false end
     if not utils.can_cast_hostile(runtime.faerie_fire_id, me, target) then return false end
-
     if utils.cast_target(runtime.faerie_fire_id, target) then
         mark_pending_cast(runtime.faerie_fire_id, 5.0)
-        utils.log_debug(menu, "Faerie Fire refresh")
+        utils.log_debug(menu, "Faerie Fire")
         note_cast()
         return true
     end
-
     return false
 end
 
 local function try_moonfire(me, target)
-    if not menu.use_moonfire:get_state() then return false end
+    if not menu.use_moonfire or not menu.use_moonfire:get_state() then return false end
     if not runtime.moonfire_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-
-    local refresh_ms = menu.dot_refresh_seconds:get() * 1000
+    local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE) > refresh_ms then return false end
     if is_pending_cast(runtime.moonfire_id) then return false end
     if not utils.can_cast_hostile(runtime.moonfire_id, me, target) then return false end
-
     if utils.cast_target(runtime.moonfire_id, target) then
         mark_pending_cast(runtime.moonfire_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Moonfire refresh")
+        utils.log_debug(menu, "Moonfire")
         note_cast()
-                esp_renderer.on_cast(runtime.moonfire_id, "Moonfire", color.blue(220))
+        esp_renderer.on_cast(runtime.moonfire_id, "Moonfire", color.blue(220))
         return true
     end
-
     return false
 end
 
 local function try_insect_swarm(me, target)
-    if not menu.use_insect_swarm:get_state() then return false end
+    if not menu.use_insect_swarm or not menu.use_insect_swarm:get_state() then return false end
     if not runtime.insect_swarm_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-
-    local refresh_ms = menu.dot_refresh_seconds:get() * 1000
+    local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM) > refresh_ms then return false end
     if is_pending_cast(runtime.insect_swarm_id) then return false end
     if not utils.can_cast_hostile(runtime.insect_swarm_id, me, target) then return false end
-
     if utils.cast_target(runtime.insect_swarm_id, target) then
         mark_pending_cast(runtime.insect_swarm_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Insect Swarm refresh")
+        utils.log_debug(menu, "Insect Swarm")
         note_cast()
         return true
     end
-
     return false
 end
 
 local function try_force_of_nature(me, target, mana_pct)
     if enc and enc.hold_cooldowns then return false end
-    if not menu.use_force_of_nature:get_state() then return false end
+    if not menu.use_force_of_nature or not menu.use_force_of_nature:get_state() then return false end
     if not runtime.force_of_nature_id then return false end
     if not me:is_in_combat() then return false end
     if not is_valid_hostile_target(me, target) then return false end
@@ -331,10 +324,10 @@ end
 local function try_starfall(me, enemy_count, mode)
     if enc and enc.hold_cooldowns then return false end
     if enc and not enc.aoe_safe then return false end
-    if not menu.use_starfall:get_state() then return false end
+    if not menu.use_starfall or not menu.use_starfall:get_state() then return false end
     if not runtime.starfall_id then return false end
     if not me:is_in_combat() then return false end
-    if enemy_count < menu.starfall_aoe_targets:get() and mode == "solo" then return false end
+    if enemy_count < (menu.starfall_aoe_targets and menu.starfall_aoe_targets:get() or 3) and mode == "solo" then return false end
     if is_pending_cast(runtime.starfall_id) then return false end
     if not utils.can_cast_self(runtime.starfall_id, me) then return false end
 
@@ -348,96 +341,105 @@ local function try_starfall(me, enemy_count, mode)
     return false
 end
 
-local function get_primary_nuke_id(me)
-    if menu.wrath_during_lunar:get_state() and utils.has_buff(me, spells.BUFF_LUNAR_ECLIPSE) and runtime.wrath_id then
-        return runtime.wrath_id, "Wrath"
+-- --- TBC Balance nuke selection -------------------------------------------
+-- TBC has NO Eclipse mechanic (WotLK+). Rotation is:
+--   Starfire (highest DPS, long cast) when mana is healthy
+--   Wrath (cheaper, shorter cast) when mana is low or moving
+local STARFIRE_MANA_FLOOR = 0.30
+
+local function try_nuke(me, target, mana_pct)
+    if not is_valid_hostile_target(me, target) then return false end
+    -- Moving: only Wrath is castable (it's instant in some server configs,
+    -- and shorter than Starfire regardless)
+    local moving = me:is_moving()
+
+    -- Clearcasting proc: spend it on Starfire (highest value free cast)
+    local clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
+    if clearcasting and not moving and runtime.starfire_id then
+        if not is_pending_cast(runtime.starfire_id)
+           and utils.can_cast_hostile(runtime.starfire_id, me, target) then
+            if utils.cast_target(runtime.starfire_id, target) then
+                mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S)
+                utils.log_debug(menu, "Starfire [Clearcasting]")
+                note_cast()
+                esp_renderer.on_cast(runtime.starfire_id, "Starfire [CC]", color.gold(240))
+                return true
+            end
+        end
     end
 
-    if utils.has_buff(me, spells.BUFF_SOLAR_ECLIPSE) and runtime.starfire_id then
-        return runtime.starfire_id, "Starfire"
+    -- High mana + not moving: Starfire
+    if not moving and mana_pct >= STARFIRE_MANA_FLOOR and runtime.starfire_id then
+        if not is_pending_cast(runtime.starfire_id)
+           and utils.can_cast_hostile(runtime.starfire_id, me, target) then
+            if utils.cast_target(runtime.starfire_id, target) then
+                mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S)
+                utils.log_debug(menu, "Starfire")
+                note_cast()
+                esp_renderer.on_cast(runtime.starfire_id, "Starfire", color.purple(220))
+                return true
+            end
+        end
     end
 
-    if runtime.starfire_id then
-        return runtime.starfire_id, "Starfire"
+    -- Low mana OR moving: Wrath
+    if runtime.wrath_id then
+        if not is_pending_cast(runtime.wrath_id)
+           and utils.can_cast_hostile(runtime.wrath_id, me, target) then
+            if utils.cast_target(runtime.wrath_id, target) then
+                mark_pending_cast(runtime.wrath_id, PENDING_CAST_TIMEOUT_S)
+                local reason = moving and "Wrath [moving]" or "Wrath [mana]"
+                utils.log_debug(menu, reason)
+                note_cast()
+                esp_renderer.on_cast(runtime.wrath_id, reason, color.blue(220))
+                return true
+            end
+        end
     end
-
-    return runtime.wrath_id, "Wrath"
+    return false
 end
 
-
--- --- Hurricane AoE (v1.4) -------------------------------------------------
-
-local HURRICANE_TARGET_COUNT = 4
-local HURRICANE_MANA_FLOOR   = 0.40
-
+-- --- Hurricane AoE ---------------------------------------------------------
 local function try_hurricane(me, enemy_count, mana_pct)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_hurricane or not menu.use_hurricane:get_state() then return false end
     if not runtime.hurricane_id then return false end
-    if enemy_count < HURRICANE_TARGET_COUNT then return false end
-    if mana_pct < HURRICANE_MANA_FLOOR then return false end
+    local min_targets = menu.hurricane_min_targets and (menu.hurricane_min_targets and menu.hurricane_min_targets:get() or 4) or 4
+    local mana_floor  = menu.hurricane_mana_floor and ((menu.hurricane_mana_floor and menu.hurricane_mana_floor:get() or 40) / 100) or 0.40
+    if enemy_count < min_targets then return false end
+    if mana_pct < mana_floor then return false end
     if me:is_moving() then return false end
     if not utils.can_cast_self(runtime.hurricane_id, me) then return false end
     if utils.cast_self(runtime.hurricane_id, me) then
         utils.log_debug(menu, "Hurricane (AoE x" .. tostring(enemy_count) .. ")")
-                esp_renderer.on_cast(runtime.hurricane_id, "Hurricane", color.cyan(220))
-        return true
-    end
-    return false
-end
-
--- --- Adaptive mana rotation (v1.4) ----------------------------------------
--- When mana < starfire_mana_floor, downgrade to Wrath (cheaper, faster).
--- Pattern from tbc/ balance/rotation.go and OpenDruid2/specs/balance.lua.
-
-local STARFIRE_MANA_FLOOR = 0.30   -- below this, switch to Wrath
-
-local function try_adaptive_nuke(me, target, mana_pct)
-    if me:is_moving() then return false end
-    -- High mana: use Starfire (highest DPS)
-    if mana_pct >= STARFIRE_MANA_FLOOR and runtime.starfire_id then
-        if utils.can_cast_hostile(runtime.starfire_id, me, target) then
-            if utils.cast_target(runtime.starfire_id, target, "Starfire") then
-                return true
-            end
-        end
-    end
-    -- Low mana: fall back to Wrath (cheaper, instant cast for moving)
-    if runtime.wrath_id then
-        if utils.can_cast_hostile(runtime.wrath_id, me, target) then
-            if utils.cast_target(runtime.wrath_id, target, "Wrath") then
-                utils.log_debug(menu, "Wrath (mana conservation)")
-                return true
-            end
-        end
-    end
-    return false
-end
-
-
-local function try_primary_nuke(me, target)
-    if not is_valid_hostile_target(me, target) then return false end
-
-    local spell_id, spell_name = get_primary_nuke_id(me)
-    if not spell_id then return false end
-    if is_pending_cast(spell_id) then return false end
-    if not utils.can_cast_hostile(spell_id, me, target) then return false end
-
-    if utils.cast_target(spell_id, target) then
-        mark_pending_cast(spell_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, spell_name)
+        esp_renderer.on_cast(runtime.hurricane_id, "Hurricane", color.cyan(220))
         note_cast()
-                esp_renderer.on_cast(spell_id, spell_name, color.purple(220))
         return true
     end
-
     return false
 end
 
--- --- Root escape (Balance: shift out of Moonkin Form breaks roots) --------
+-- --- Typhoon (knockback / AoE slow) ----------------------------------------
+local function try_typhoon(me, enemy_count)
+    if enc and enc.hold_cooldowns then return false end
+    if not menu.use_typhoon or not menu.use_typhoon:get_state() then return false end
+    if not runtime.typhoon_id then return false end
+    local min_targets = menu.typhoon_min_targets and (menu.typhoon_min_targets and menu.typhoon_min_targets:get() or 3) or 3
+    if enemy_count < min_targets then return false end
+    if is_pending_cast(runtime.typhoon_id) then return false end
+    if not utils.can_cast_self(runtime.typhoon_id, me) then return false end
+    if utils.cast_self(runtime.typhoon_id, me) then
+        mark_pending_cast(runtime.typhoon_id, PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Typhoon")
+        note_cast()
+        return true
+    end
+    return false
+end
 
+-- --- Root escape -----------------------------------------------------------
 local function try_root_escape_balance(me)
-    if not menu.use_root_escape:get_state() then return false end
+    if not menu.use_root_escape or not menu.use_root_escape:get_state() then return false end
     if not me:is_rooted(400) then return false end
     if not utils.has_buff(me, spells.BUFF_MOONKIN_FORM) then return false end
     local ok = pcall(function()
@@ -450,18 +452,34 @@ local function try_root_escape_balance(me)
     return true
 end
 
-local function try_remove_curse_balance(me, target)
-    if not menu.use_remove_curse:get_state() then return false end
+-- --- Remove Curse (scans self + party) ------------------------------------
+local function try_remove_curse_balance(me)
+    if not menu.use_remove_curse or not menu.use_remove_curse:get_state() then return false end
     if not runtime.remove_curse_id then return false end
-    if not target or not target:is_valid() then return false end
-    local cache = buff_manager:get_debuff_cache(target, 100)
-    for _, aura in ipairs(cache) do
-        if aura.is_active and aura.buff_type == enums.buff_type.CURSE then
-            if utils.can_cast_target(runtime.remove_curse_id, me, target) then
-                if utils.cast_target(runtime.remove_curse_id, target) then
-                    utils.log_debug(menu, "Remove Curse")
-                    return true
+    if is_pending_cast(runtime.remove_curse_id) then return false end
+    local units = { me }
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead()
+           and obj:is_party_member() then
+            units[#units + 1] = obj
+        end
+    end
+    for _, unit in ipairs(units) do
+        local cache = buff_manager:get_debuff_cache(unit, 100)
+        for _, aura in ipairs(cache) do
+            if aura.is_active and enums and enums.buff_type
+               and aura.buff_type == enums.buff_type.CURSE then
+                if utils.can_cast_hostile(runtime.remove_curse_id, me, unit) then
+                    if utils.cast_target(runtime.remove_curse_id, unit) then
+                        mark_pending_cast(runtime.remove_curse_id, PENDING_CAST_TIMEOUT_S)
+                        utils.log_debug(menu, "Remove Curse -> " .. (unit.get_name and unit:get_name() or "ally"))
+                        note_cast()
+                        return true
+                    end
                 end
+                break
             end
         end
     end
@@ -493,13 +511,11 @@ local function set_locked_target(target)
 end
 
 local function should_switch_target(me, current_lock, new_target)
-    if not current_lock then return true end  -- no lock, take any target
+    if not current_lock then return true end
     if not new_target then return false end
-    -- Switch if new target has neither DoT — saves applying to a fresh kill target
-    local has_mf  = utils.get_debuff_remaining_ms(current_lock, spells.DEBUFF_MOONFIRE) > 0
-    local has_is  = utils.get_debuff_remaining_ms(current_lock, spells.DEBUFF_INSECT_SWARM) > 0
-    -- Keep lock if current target still has DoTs running
-    if has_mf or has_is then return false end
+    local mf_rem = utils.get_debuff_remaining_ms(current_lock, spells.DEBUFF_MOONFIRE)
+    local is_rem = utils.get_debuff_remaining_ms(current_lock, spells.DEBUFF_INSECT_SWARM)
+    if mf_rem > 0 or is_rem > 0 then return false end
     return true
 end
 
@@ -508,7 +524,7 @@ local function try_barkskin_defensive(me)
     if not runtime.barkskin_id then return false end
     if utils.has_buff(me, spells.BUFF_BARKSKIN) then return false end
     local hp = me:get_health_percentage() / 100
-    local threshold = menu.use_barkskin_hp_pct and (menu.use_barkskin_hp_pct:get() / 100) or 0.40
+    local threshold = menu.use_barkskin_hp_pct and ((menu.use_barkskin_hp_pct and menu.use_barkskin_hp_pct:get() or 40) / 100) or 0.40
     if hp > threshold then return false end
     if not utils.can_cast_self(runtime.barkskin_id, me) then return false end
     if utils.cast_self(runtime.barkskin_id, me) then
@@ -548,13 +564,14 @@ local function update_rotation(me, target, menu, utils)
     ttd_tracker.update(dot_target)
 
     if try_faerie_fire(me, dot_target) then return true end
-    if try_remove_curse_balance(me, dot_target) then return true end
+    if try_remove_curse_balance(me) then return true end
     if try_moonfire(me, dot_target) then return true end
     if try_insect_swarm(me, dot_target) then return true end
     if try_force_of_nature(me, dot_target, mana_pct) then return true end
+    if try_starfall(me, enemy_count, mode) then return true end
     if try_hurricane(me, enemy_count, mana_pct) then return true end
-    if try_primary_nuke(me, dot_target) then return true end
-    if try_adaptive_nuke(me, dot_target, mana_pct) then return true end
+    if try_typhoon(me, enemy_count) then return true end
+    if try_nuke(me, dot_target, mana_pct) then return true end
 
     return false
 end
@@ -584,7 +601,7 @@ core.register_on_update_callback(function()
 
     handle_toggle()
 
-    if not menu.enabled:get_state() then return end
+    if not menu.enabled or not menu.enabled:get_state() then return end
 
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils, {
@@ -635,7 +652,7 @@ core.register_on_update_callback(function()
     end
 
     -- Self-emergency healing
-    local self_threshold = eax_utils.get_self_heal_threshold(me, menu.tranquility_hp_pct:get() / 100.0, menu)
+    local self_threshold = eax_utils.get_self_heal_threshold(me, (menu.tranquility_hp_pct and menu.tranquility_hp_pct:get() or 35) / 100.0, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
         if try_tranquility(me) then return end
