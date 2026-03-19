@@ -317,6 +317,8 @@ local function try_faerie_fire(me, target)
     if not menu.use_faerie_fire:get_state() then return false end
     if not runtime.faerie_fire_feral_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
+    -- Never break stealth with Faerie Fire
+    if utils.has_buff(me, spells.BUFF_PROWL) then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) >= 3000 then return false end
     if is_pending_cast(runtime.faerie_fire_feral_id) then return false end
     if not utils.can_cast_hostile(runtime.faerie_fire_feral_id, me, target) then return false end
@@ -378,7 +380,13 @@ local function try_ferocious_bite(me, target, target_hp_pct)
     if not runtime.ferocious_bite_id then return false end
     if runtime.combo_points < menu.bite_combo_points:get() then return false end
     if target_hp_pct > (menu.bite_hp_pct:get() / 100) then return false end
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) <= 3200 then return false end
+    -- Only require an active Rip to be present when:
+    --   1) Rip is enabled in the menu, AND
+    --   2) the target is not bleed-immune (Rip could actually be applied)
+    -- If Rip is disabled or the mob is bleed-immune, Ferocious Bite is the
+    -- primary finisher and should never be blocked by a Rip check.
+    local rip_relevant = menu.use_rip:get_state() and not creature_utils.is_bleed_immune(target)
+    if rip_relevant and utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) <= 3200 then return false end
     if is_pending_cast(runtime.ferocious_bite_id) then return false end
     if not utils.can_cast_hostile(runtime.ferocious_bite_id, me, target) then return false end
 

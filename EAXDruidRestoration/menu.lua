@@ -129,6 +129,26 @@ function menu.render()
         -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
 
+        -- -- DPS Fallback (Solo) -----------------------------------------------
+        local dps_tree = ps.tree_node()
+        dps_tree:render("  DPS Fallback (Solo)", function()
+            ps.header("Solo DPS – used when no healing is needed")
+            menu.dps_fallback_enabled:render("Enable DPS Fallback",
+                "When solo and no one needs healing, cast damage spells instead of standing idle")
+            menu.dps_use_faerie_fire:render("Faerie Fire",
+                "Apply Faerie Fire debuff on target (armor reduction)")
+            menu.dps_use_insect_swarm:render("Insect Swarm",
+                "Maintain Insect Swarm DoT on target")
+            menu.dps_use_moonfire:render("Moonfire",
+                "Maintain Moonfire DoT on target")
+            menu.dps_use_starfire:render("Starfire",
+                "Cast Starfire as filler (slow but high damage)")
+            menu.dps_use_wrath:render("Wrath",
+                "Cast Wrath as filler (fast caster nuke)")
+            menu.dps_starfire_over_wrath:render("Prefer Starfire over Wrath",
+                "When both are enabled, cast Starfire instead of Wrath as the filler nuke")
+        end)
+
         -- -- Out-of-combat -----------------------------------------------------
         ps.render_ooc(menu, ooc_tree, true)
 
@@ -140,4 +160,14 @@ end
 
 menu.use_barkskin = core.menu.checkbox(true, "eaxrest_use_barkskin")
 menu.use_barkskin_hp_pct = core.menu.slider_int(0, 100, 40, "eaxrest_barkskin_hp")
+
+-- DPS Fallback (solo only - used when no healing is needed)
+menu.dps_fallback_enabled     = core.menu.checkbox(true,  "eaxrest_dps_fallback_enabled")
+menu.dps_use_faerie_fire      = core.menu.checkbox(true,  "eaxrest_dps_faerie_fire")
+menu.dps_use_insect_swarm     = core.menu.checkbox(true,  "eaxrest_dps_insect_swarm")
+menu.dps_use_moonfire         = core.menu.checkbox(true,  "eaxrest_dps_moonfire")
+menu.dps_use_starfire         = core.menu.checkbox(true,  "eaxrest_dps_starfire")
+menu.dps_use_wrath            = core.menu.checkbox(true,  "eaxrest_dps_wrath")
+menu.dps_starfire_over_wrath  = core.menu.checkbox(false, "eaxrest_dps_starfire_over_wrath")
+
 return menu

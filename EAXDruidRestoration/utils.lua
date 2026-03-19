@@ -242,6 +242,32 @@ function utils.get_buff_stacks(unit, id_table)
     return 0
 end
 
+-- Enemy debuff utilities (used by DPS fallback to check DoT state on targets)
+function utils.get_debuff_data(unit, id_table)
+    if not unit or not unit:is_valid() or not id_table then return nil end
+    return buff_manager:get_debuff_data(unit, id_table)
+end
+
+function utils.has_debuff(unit, id_table)
+    if not unit or not unit:is_valid() then return false end
+    local data = buff_manager:get_debuff_data(unit, id_table)
+    if data and data.is_active then return true end
+    -- fallback: check aura cache (covers self-applied debuffs on some API versions)
+    if buff_manager.get_aura_data then
+        data = buff_manager:get_aura_data(unit, id_table)
+        return data ~= nil and data.is_active
+    end
+    return false
+end
+
+function utils.get_debuff_remaining_ms(unit, id_table)
+    local data = utils.get_debuff_data(unit, id_table)
+    if data and data.is_active then
+        return data.remaining or 0
+    end
+    return 0
+end
+
 function utils.get_group_units(me, include_self)
     local units = {}
     local seen = {}

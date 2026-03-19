@@ -48,4 +48,15 @@ spells.REBIRTH           = { 26994, 20748, 20748, 20910, 20909, 20484 }
 
 spells.REMOVE_CURSE = { 2782, 8690, 8691 }
 
+-- DPS fallback spells (used in solo when no healing needed)
+spells.MOONFIRE      = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
+spells.INSECT_SWARM  = { 24977, 24976, 24975, 24974, 5570 }
+spells.WRATH         = { 26985, 9912, 9909, 8905, 6780, 5176, 5175, 5174, 5172 }
+spells.STARFIRE      = { 26986, 10058, 10057, 9876, 8949, 8950, 2912 }
+spells.FAERIE_FIRE   = { 26993, 9907, 9749, 778, 770 }
+
+spells.DEBUFF_MOONFIRE      = { 8921, 8924, 8925, 8926, 8927, 8928, 8929, 9833, 9834, 9835, 26987, 26988 }
+spells.DEBUFF_INSECT_SWARM  = { 24977, 24976, 24975, 24974, 5570 }
+spells.DEBUFF_FAERIE_FIRE   = { 770, 778, 9749, 9907, 26993 }
+
 return spells

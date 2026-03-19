@@ -57,6 +57,12 @@ local runtime = {
     set_multiplier = 1.0,
     ooc_mark_of_the_wild_id = nil,
     remove_curse_id = nil,
+    -- DPS fallback
+    moonfire_id = nil,
+    insect_swarm_id = nil,
+    wrath_id = nil,
+    starfire_id = nil,
+    faerie_fire_id = nil,
 }
 
 local GROUP_ROLE_TANK = 0
@@ -76,6 +82,12 @@ local function resolve_spells()
     runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
     runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
     runtime.barkskin_id = utils.resolve_spell_id(spells.BARKSKIN)
+    -- DPS fallback
+    runtime.moonfire_id    = utils.resolve_spell_id(spells.MOONFIRE)
+    runtime.insect_swarm_id = utils.resolve_spell_id(spells.INSECT_SWARM)
+    runtime.wrath_id       = utils.resolve_spell_id(spells.WRATH)
+    runtime.starfire_id    = utils.resolve_spell_id(spells.STARFIRE)
+    runtime.faerie_fire_id = utils.resolve_spell_id(spells.FAERIE_FIRE)
 end
 
 local function log_resolved_spells()
@@ -436,6 +448,102 @@ local function try_barkskin_defensive(me)
     end
     return false
 end
+-- ─────────────────────────────────────────────────────────────────────────────
+-- DPS FALLBACK  (solo only – fires when no healing action was taken)
+-- Priority: Faerie Fire > Insect Swarm > Moonfire > Starfire/Wrath filler
+-- ─────────────────────────────────────────────────────────────────────────────
+local function do_dps_fallback(me, target)
+    if not menu.dps_fallback_enabled or not menu.dps_fallback_enabled:get_state() then
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if not is_gcd_ready() then return false end
+
+    -- Faerie Fire (armor debuff, no DoT to track, just check if active)
+    if menu.dps_use_faerie_fire:get_state() and runtime.faerie_fire_id then
+        local ff_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) or 0
+        if ff_rem <= 0 and not is_pending_cast(runtime.faerie_fire_id) then
+            if utils.can_cast_unit(runtime.faerie_fire_id, me, target) then
+                if utils.cast_unit(runtime.faerie_fire_id, me, target) then
+                    mark_pending_cast(runtime.faerie_fire_id, PENDING_CAST_TIMEOUT_S)
+                    utils.log_debug(menu, "DPS: Faerie Fire")
+                    note_cast()
+                    esp_renderer.on_cast(nil, "Faerie Fire", color.cyan(200))
+                    return true
+                end
+            end
+        end
+    end
+
+    -- Insect Swarm DoT
+    if menu.dps_use_insect_swarm:get_state() and runtime.insect_swarm_id then
+        local is_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM) or 0
+        if is_rem <= 1500 and not is_pending_cast(runtime.insect_swarm_id) then
+            if utils.can_cast_unit(runtime.insect_swarm_id, me, target) then
+                if utils.cast_unit(runtime.insect_swarm_id, me, target) then
+                    mark_pending_cast(runtime.insect_swarm_id, PENDING_CAST_TIMEOUT_S)
+                    utils.log_debug(menu, "DPS: Insect Swarm")
+                    note_cast()
+                    esp_renderer.on_cast(nil, "Insect Swarm", color.green(200))
+                    return true
+                end
+            end
+        end
+    end
+
+    -- Moonfire DoT
+    if menu.dps_use_moonfire:get_state() and runtime.moonfire_id then
+        local mf_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE) or 0
+        if mf_rem <= 1500 and not is_pending_cast(runtime.moonfire_id) then
+            if utils.can_cast_unit(runtime.moonfire_id, me, target) then
+                if utils.cast_unit(runtime.moonfire_id, me, target) then
+                    mark_pending_cast(runtime.moonfire_id, PENDING_CAST_TIMEOUT_S)
+                    utils.log_debug(menu, "DPS: Moonfire")
+                    note_cast()
+                    esp_renderer.on_cast(nil, "Moonfire", color.gold(200))
+                    return true
+                end
+            end
+        end
+    end
+
+    -- Filler nuke: Starfire or Wrath
+    local prefer_starfire = menu.dps_starfire_over_wrath:get_state()
+    local primary_id   = prefer_starfire and runtime.starfire_id   or runtime.wrath_id
+    local primary_key  = prefer_starfire and "dps_use_starfire"     or "dps_use_wrath"
+    local fallback_id  = prefer_starfire and runtime.wrath_id      or runtime.starfire_id
+    local fallback_key = prefer_starfire and "dps_use_wrath"       or "dps_use_starfire"
+    local primary_name  = prefer_starfire and "Starfire"           or "Wrath"
+    local fallback_name = prefer_starfire and "Wrath"              or "Starfire"
+
+    if menu[primary_key]:get_state() and primary_id and not is_pending_cast(primary_id) then
+        if utils.can_cast_unit(primary_id, me, target) then
+            if utils.cast_unit(primary_id, me, target) then
+                mark_pending_cast(primary_id, PENDING_CAST_TIMEOUT_S)
+                utils.log_debug(menu, "DPS: " .. primary_name)
+                note_cast()
+                esp_renderer.on_cast(nil, primary_name, color.cyan(200))
+                return true
+            end
+        end
+    end
+
+    if menu[fallback_key]:get_state() and fallback_id and not is_pending_cast(fallback_id) then
+        if utils.can_cast_unit(fallback_id, me, target) then
+            if utils.cast_unit(fallback_id, me, target) then
+                mark_pending_cast(fallback_id, PENDING_CAST_TIMEOUT_S)
+                utils.log_debug(menu, "DPS: " .. fallback_name)
+                note_cast()
+                esp_renderer.on_cast(nil, fallback_name, color.cyan(200))
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
@@ -483,6 +591,14 @@ local function do_rotation(me, target)
     if me:is_in_combat() and target and target:is_valid()
        and not target:is_dead() and me:can_attack(target) then
         leveling_manager.try_wand(me, target, menu)
+    end
+
+    -- ── Solo DPS fallback ────────────────────────────────────────────────────
+    -- Only fires when in solo mode (no group members) and no healing was done.
+    -- In group/raid mode we never DPS – healing is always priority #1.
+    local effective_mode = get_effective_mode()
+    if effective_mode == "solo" and me:is_in_combat() then
+        do_dps_fallback(me, target)
     end
 
     return false

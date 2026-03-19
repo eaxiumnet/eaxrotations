@@ -132,7 +132,7 @@ function utils.find_best_target(me)
         end
     end
 
-    return best_attacking_me or best_attacking_party or best_any
+    return best_attacking_me or best_attacking_party or (me:is_in_combat() and best_any or nil)
 end
 
 
