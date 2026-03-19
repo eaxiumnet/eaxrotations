@@ -29,7 +29,13 @@ function utils.resolve_spell_id(rank_table)
 end
 
 local function can_issue_queue_request(kind, spell_id, target, interval_s)
-    local key = kind .. ":" .. tostring(spell_id) .. ":" .. tostring(target)
+    -- Use a stable target identifier (GUID if available, else tostring)
+    local target_key = tostring(target)
+    if target and type(target) == "table" or type(target) == "userdata" then
+        local ok, guid = pcall(function() return target:get_guid() end)
+        if ok and guid and guid ~= "" then target_key = tostring(guid) end
+    end
+    local key = kind .. ":" .. tostring(spell_id) .. ":" .. target_key
     local now = core.time()
     local last = queue_request_timestamps[key] or 0
     if (now - last) < interval_s then
@@ -218,6 +224,30 @@ function utils.has_buff(unit, id_table)
     return data ~= nil and data.is_active or false
 end
 
+-- Prowl can appear as a buff, debuff, or aura depending on the server.
+-- This checks all three paths to reliably detect stealth.
+function utils.is_prowling(unit, prowl_ids)
+    if not unit or not unit:is_valid() then return false end
+    -- Check buff path
+    local data = buff_manager:get_buff_data(unit, prowl_ids)
+    if data and data.is_active then return true end
+    -- Check debuff path (some servers register it here)
+    data = buff_manager:get_debuff_data(unit, prowl_ids)
+    if data and data.is_active then return true end
+    -- Check generic aura path
+    data = buff_manager:get_aura_data(unit, prowl_ids)
+    if data and data.is_active then return true end
+    return false
+end
+
+-- Returns true if the unit is in cat form OR prowling (prowl = stealthed cat form)
+function utils.is_in_cat_form(unit, spells_ref)
+    if not unit or not unit:is_valid() then return false end
+    if utils.has_buff(unit, spells_ref.BUFF_CAT_FORM) then return true end
+    if utils.is_prowling(unit, spells_ref.BUFF_PROWL) then return true end
+    return false
+end
+
 function utils.has_debuff(unit, id_table)
     if not unit or not unit:is_valid() then return false end
     local data = buff_manager:get_debuff_data(unit, id_table)
@@ -366,6 +396,16 @@ end
 function utils.get_target_key(target)
     if not target or not target:is_valid() or not target.get_name then return nil end
     return target:get_name()
+end
+
+-- Purge all queued copies of a spell from the SpellQueue.
+-- Useful after manually marking a spell pending to prevent the queue
+-- from retrying it and causing double-casts.
+function utils.purge_queued_spell(spell_id, target)
+    if not spell_id then return end
+    pcall(function()
+        spell_queue:purge_by_spell(spell_id, target)
+    end)
 end
 
 function utils.throttle(key, interval_s)

@@ -107,7 +107,7 @@ end
 -- ── Form detection ─────────────────────────────────────────────────────────────
 local function get_form(me)
     if not (_sp and _ut) then return "caster", 0, 100 end
-    if _ut.has_buff(me, _sp.BUFF_PROWL)          then return "prowl",  _ut.get_energy(me), 100 end
+    if _ut.is_prowling(me, _sp.BUFF_PROWL)          then return "prowl",  _ut.get_energy(me), 100 end
     if _ut.has_buff(me, _sp.BUFF_CAT_FORM)        then return "cat",    _ut.get_energy(me), 100 end
     if _ut.has_buff(me, _sp.BUFF_BEAR_FORM) or
        _ut.has_buff(me, _sp.BUFF_DIRE_BEAR_FORM)  then return "bear",   _ut.get_rage(me),   100 end

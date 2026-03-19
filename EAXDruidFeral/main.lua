@@ -371,21 +371,27 @@ local function try_shift_form(me, lane)
     end
 
     if lane == "cat" then
-        -- Don't shift to cat while out of melee range and charge is available —
-        -- bear needs to close the gap first via Feral Charge.
-        -- Also suppress snap-back for 2s after we committed a bear shift for
-        -- a charge — avoids wasting a GCD if range flickers by one tick.
+        -- Suppress snap-back for 2s after we committed a bear shift for charge/regen
         local charge_shift_hold = 2.0
         if (core.time() - runtime.bear_charge_shift_at) < charge_shift_hold then
             return false
         end
+        -- Also hold if we're already in bear form — feral charge may be about to fire
+        -- (bear_charge_shift_at gets set on the tick AFTER try_shift_form runs,
+        -- so we need this secondary check for the first tick in bear form)
+        if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then
+            if runtime.feral_charge_bear_id and target_valid and not in_melee then
+                return false  -- stay in bear, let the charge fire
+            end
+        end
+        -- Don't shift to cat while charge is in range (would waste the bear shift)
         if runtime.feral_charge_bear_id and target_valid and not in_melee then
-            -- Only hold the cat shift if charge is actually in range to fire
             if core.spell_book.is_spell_in_range(runtime.feral_charge_bear_id, target, me) then
                 return false
             end
         end
-        if not runtime.cat_form_id or utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+        if not runtime.cat_form_id or utils.has_buff(me, spells.BUFF_CAT_FORM)
+           or utils.is_prowling(me, spells.BUFF_PROWL) then return false end
         if is_pending_cast(runtime.cat_form_id) then return false end
         if not utils.can_cast_self(runtime.cat_form_id, me) then return false end
         if utils.cast_self(runtime.cat_form_id, me) then
@@ -429,7 +435,7 @@ local function try_faerie_fire(me, target)
     if not runtime.faerie_fire_feral_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     -- Never break stealth with Faerie Fire
-    if utils.has_buff(me, spells.BUFF_PROWL) then return false end
+    if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) >= 3000 then return false end
     if is_pending_cast(runtime.faerie_fire_feral_id) then return false end
     if not utils.can_cast_hostile(runtime.faerie_fire_feral_id, me, target) then return false end
@@ -453,16 +459,24 @@ local function try_tigers_fury(me, target)
     -- Never fire at high CP when a finisher is ready — the GCD is better spent
     -- on Rip or Ferocious Bite. Tiger's Fury is a builder-phase cooldown.
     if target then
+        local target_hp_pct = utils.get_health_pct(target)
         local rip_ready = menu.use_rip:get_state()
             and not creature_utils.is_bleed_immune(target)
             and runtime.combo_points >= menu.rip_combo_points:get()
+        -- Killshot: bite fires at any CP when target is below killshot threshold
+        local killshot_mode = menu.use_ferocious_bite:get_state()
+            and target_hp_pct <= (menu.bite_killshot_hp_pct:get() / 100)
+            and runtime.combo_points >= 1
         local bite_ready = menu.use_ferocious_bite:get_state()
             and runtime.combo_points >= 5
-        if rip_ready or bite_ready then return false end
+        if rip_ready or bite_ready or killshot_mode then return false end
     end
     -- Also avoid TF when at 4 CP and about to get the final builder —
     -- don't waste it on a Fury proc that gets immediately capped by a finisher
     if runtime.combo_points >= 4 then return false end
+    -- Don't fire immediately after opener (CP=0-1) — wait until mid-builder phase
+    -- so the damage bonus actually snapshots into meaningful hits
+    if runtime.combo_points < 2 then return false end
     if is_pending_cast(runtime.tigers_fury_id) then return false end
     if not utils.can_cast_self(runtime.tigers_fury_id, me) then return false end
 
@@ -630,8 +644,12 @@ end
 
 local function try_powershift(me)
     if not menu.use_powershift or not menu.use_powershift:get_state() then return false end
+    -- Must be in cat form but NOT stealthed — powershifting breaks stealth
     if not utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+    if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     local energy = utils.get_energy and utils.get_energy(me) or 100
+    -- Only powershift if we actually have energy to reset — firing at 0 gains nothing
+    if energy <= 0 then return false end
     local threshold = has_wolfshead(me) and SHIFT_ENERGY_THRESHOLD or 15
     if energy >= threshold then return false end
     local now = core.time()
@@ -702,16 +720,17 @@ local function try_rake(me, target)
         end
     end
     if not utils.can_cast_hostile(runtime.rake_id, me, target) then return false end
-
+    -- Mark pending before attempting so server lag can't cause a double-cast
+    mark_pending_cast(runtime.rake_id, PENDING_CAST_TIMEOUT_S)
     if utils.cast_target(runtime.rake_id, target) then
-        mark_pending_cast(runtime.rake_id, PENDING_CAST_TIMEOUT_S)
         local snap = utils.has_buff(me, spells.BUFF_TIGERS_FURY) and " [TF]"
                   or utils.has_buff(me, spells.BUFF_BERSERK) and " [Berserk]" or ""
         utils.log_debug(menu, "Rake" .. snap)
         note_cast()
         return true
     end
-
+    -- Cast failed — clear the pending so we can retry sooner
+    runtime.pending_casts[runtime.rake_id] = nil
     return false
 end
 
@@ -790,8 +809,8 @@ local function try_root_escape(me)
     if not menu.use_root_escape:get_state() then return false end
     -- Only act if actually rooted
     if not me:is_rooted(400) then return false end
-    -- Only if in an animal form (cat or bear)
-    local in_animal = utils.has_buff(me, spells.BUFF_CAT_FORM)
+    -- Only if in an animal form (cat, prowl, or bear)
+    local in_animal = utils.is_in_cat_form(me, spells)
                    or utils.has_buff(me, spells.BUFF_BEAR_FORM)
     if not in_animal then return false end
     -- Cancel form by cancelling the aura (standard TBC technique)
@@ -866,8 +885,12 @@ local function try_ooc_self_heal(me)
         return me:get_power(0) / me:get_max_power(0)
     end)
     if ok_mp and type(cur_mp) == "number" and cur_mp < 0.50 then return false end
-    -- Must be in caster form to cast — if in cat/bear, shift out first
-    local in_animal = utils.has_buff(me, spells.BUFF_CAT_FORM)
+    -- Don't fire during bear form transition (combat flag briefly drops mid-fight)
+    if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then
+        return false
+    end
+    -- Must be in caster form to cast — if in cat/bear/prowl, shift out first
+    local in_animal = utils.is_in_cat_form(me, spells)
                    or utils.has_buff(me, spells.BUFF_BEAR_FORM)
     if in_animal then
         -- Cancel form to enable healing — try_shift_form will re-enter on next tick
@@ -875,7 +898,7 @@ local function try_ooc_self_heal(me)
             if CancelShapeshiftForm then CancelShapeshiftForm() end
         end)
         if not ok then
-            if runtime.cat_form_id and utils.has_buff(me, spells.BUFF_CAT_FORM) then
+            if runtime.cat_form_id and utils.is_in_cat_form(me, spells) then
                 core.spell_book.cast_spell(runtime.cat_form_id)
             elseif runtime.bear_form_id then
                 core.spell_book.cast_spell(runtime.bear_form_id)
@@ -902,13 +925,20 @@ local function try_prowl(me)
     if not menu.use_prowl:get_state() then return false end
     if not runtime.prowl_id then return false end
     if me:is_in_combat() then return false end
-    -- Don't prowl if we still have combo points — means combat just ended or
-    -- the server briefly dropped the combat flag between hits
+    -- Don't prowl if we still have combo points — means combat just ended
     if runtime.combo_points > 0 then return false end
-    -- Don't prowl if any enemy is within aggro range (would break immediately)
-    if utils.enemy_count_in_radius(me, 10) > 0 then return false end
-    if utils.has_buff(me, spells.BUFF_PROWL) then return false end
+    if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     if not utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+    -- Don't prowl if an enemy we're NOT targeting is already in melee range
+    -- (would break stealth immediately). Allow prowl when enemies are at pounce range.
+    local sel = me:get_target()
+    local enemies_in_melee = utils.enemy_count_in_radius(me, 5)
+    if enemies_in_melee > 0 then
+        -- Only block if the melee-range enemy is not our selected target
+        if not sel or not sel:is_valid() then return false end
+        -- If our target is in melee range we still want to prowl (then pounce)
+        if not utils.is_melee_target(me, sel) then return false end
+    end
     if utils.can_cast_self(runtime.prowl_id, me) then
         if utils.cast_self(runtime.prowl_id, me) then
             mark_pending_cast(runtime.prowl_id, PENDING_CAST_TIMEOUT_S)
@@ -924,11 +954,17 @@ end
 local function try_pounce(me, target)
     if not menu.use_pounce:get_state() then return false end
     if not runtime.pounce_id then return false end
-    if not utils.has_buff(me, spells.BUFF_PROWL) then return false end
+    if not utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     if is_pending_cast(runtime.pounce_id) then return false end
+    -- Only pounce when in melee range — if we fire from too far the SpellQueue
+    -- retries and double-casts. Let movement close the gap first.
+    if not utils.is_melee_target(me, target) then return false end
     if not utils.can_cast_hostile(runtime.pounce_id, me, target) then return false end
+    -- Mark pending BEFORE attempting cast so a failed cast still blocks retry
+    mark_pending_cast(runtime.pounce_id, PENDING_CAST_TIMEOUT_S)
+    -- Purge any already-queued copies to prevent SpellQueue retry double-cast
+    utils.purge_queued_spell(runtime.pounce_id, target)
     if utils.cast_target(runtime.pounce_id, target) then
-        mark_pending_cast(runtime.pounce_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Pounce (stealth opener)")
         note_cast()
         return true
@@ -940,8 +976,12 @@ end
 local function try_ravage(me, target)
     if not menu.use_ravage:get_state() then return false end
     if not runtime.ravage_id then return false end
-    if not utils.has_buff(me, spells.BUFF_PROWL) then return false end
+    if not utils.is_prowling(me, spells.BUFF_PROWL) then return false end
+    if is_pending_cast(runtime.ravage_id) then return false end
+    if not utils.is_melee_target(me, target) then return false end
     if not utils.can_cast_hostile(runtime.ravage_id, me, target) then return false end
+    mark_pending_cast(runtime.ravage_id, PENDING_CAST_TIMEOUT_S)
+    utils.purge_queued_spell(runtime.ravage_id, target)
     if utils.cast_target(runtime.ravage_id, target) then
         utils.log_debug(menu, "Ravage (stealth)")
         note_cast()
@@ -1022,7 +1062,10 @@ local function try_innervate(me)
     if not menu.use_innervate:get_state() then return false end
     if not runtime.innervate_id then return false end
     if me:is_in_combat() then return false end
-    local mana_pct = utils.get_health_pct(me)  -- reuse get_mana_pct if available
+    -- Don't fire during a bear form transition (charge/regen shift window)
+    if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then
+        return false
+    end
     local ok, mp = pcall(function()
         return me:get_power(0) / me:get_max_power(0)
     end)
@@ -1043,7 +1086,7 @@ local function try_travel_form(me)
     if me:is_mounted() then return false end
     if utils.has_buff(me, spells.BUFF_TRAVEL_FORM) then return false end
     -- Never fight prowl — if stealthed or prowl just cast, back off entirely
-    if utils.has_buff(me, spells.BUFF_PROWL) then return false end
+    if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     if runtime.prowl_id and is_pending_cast(runtime.prowl_id) then return false end
     -- Don't shift to travel form if there's a hostile target selected — combat imminent
     local sel = me:get_target()
@@ -1053,7 +1096,7 @@ local function try_travel_form(me)
     -- If in cat/bear form, we need to drop to caster form first before travel
     -- form becomes usable. But only drop form if prowl is NOT the intended
     -- next action — if prowl is enabled and no target, prowl should win.
-    local in_cat  = utils.has_buff(me, spells.BUFF_CAT_FORM)
+    local in_cat  = utils.is_in_cat_form(me, spells)
     local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM)
     if in_cat then
         -- Cat form OOC with prowl enabled → let prowl handle it, not travel form
@@ -1257,7 +1300,7 @@ local function try_cyclone(me, target)
     if not me:can_attack(target) then return false end
     -- Cyclone is last resort — only cast when already in caster form.
     -- Never shift out of cat/bear mid-rotation just to Cyclone.
-    local in_cat  = utils.has_buff(me, spells.BUFF_CAT_FORM)
+    local in_cat  = utils.is_in_cat_form(me, spells)
     local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM)
     if in_cat or in_bear then return false end
     -- Bash must be on cooldown — if Bash is available, use that instead
@@ -1303,7 +1346,7 @@ end
 
 local function do_cat_rotation(me, target)
     local target_hp_pct = utils.get_health_pct(target)
-    local in_stealth = utils.has_buff(me, spells.BUFF_PROWL)
+    local in_stealth = utils.is_prowling(me, spells.BUFF_PROWL)
 
     -- Defensive / self-cast (always safe, don't break stealth)
     if try_barkskin(me) then return true end
@@ -1832,25 +1875,56 @@ local function build_cp_spell_sets()
 end
 build_cp_spell_sets()
 
+-- Track last time ANY builder incremented CP, to deduplicate same-cast events
+local _last_cp_increment_time = 0
+local _last_cast_seen = {}
+
 local function on_spell_cast(data)
     if not data or not data.spell_id then return end
+
+    -- Only count spells cast by the local player
+    local me = core.object_manager.get_local_player()
+    if not me then return end
+    if data.caster and data.caster:is_valid() then
+        if not utils.same_unit(data.caster, me) then return end
+    end
+
     local sid = data.spell_id
+    local now = core.time()
+
     if CP_BUILDERS[sid] then
+        -- Deduplicate: if ANY builder already incremented CP very recently,
+        -- skip. Uses a short 0.15s window — duplicate events from the same cast
+        -- happen within the same frame (microseconds apart), not 0.5s later.
+        -- A longer window was blocking legitimate sequential builders (Rake → Mangle).
+        if (now - _last_cp_increment_time) < 0.15 then return end
+        _last_cp_increment_time = now
+
         -- If this builder hit a different target than our current CP target,
         -- the old CPs are gone — reset before incrementing on the new target.
-        local me = core.object_manager.get_local_player()
-        if me then
-            local ok, cp_obj = pcall(function() return me:get_combo_points_target() end)
-            if ok and cp_obj and cp_obj:is_valid() and data.target and data.target:is_valid() then
-                if not utils.same_unit(cp_obj, data.target) then
-                    runtime.combo_points = 0
-                    utils.log_debug(menu, "[CP] target changed, reset to 0")
-                end
+        local ok, cp_obj = pcall(function() return me:get_combo_points_target() end)
+        if ok and cp_obj and cp_obj:is_valid() and data.target and data.target:is_valid() then
+            if not utils.same_unit(cp_obj, data.target) then
+                runtime.combo_points = 0
+                utils.log_debug(menu, "[CP] target changed, reset to 0")
             end
         end
-        runtime.combo_points = math.min(5, runtime.combo_points + 1)
+        -- Try to read actual CP from the API first; fall back to +1 counter
+        local ok2, api_cp = pcall(function()
+            local v = me:get_combo_points()
+            if type(v) == "number" and v >= 0 then return v end
+            return nil
+        end)
+        if ok2 and api_cp then
+            runtime.combo_points = math.min(5, api_cp)
+        else
+            runtime.combo_points = math.min(5, runtime.combo_points + 1)
+        end
         utils.log_debug(menu, "[CP] builder " .. sid .. " -> CP=" .. runtime.combo_points)
     elseif CP_FINISHERS[sid] then
+        -- Deduplicate finishers too
+        if (now - _last_cp_increment_time) < 0.15 then return end
+        _last_cp_increment_time = now
         runtime.combo_points = 0
         utils.log_debug(menu, "[CP] finisher " .. sid .. " -> CP=0")
     end
