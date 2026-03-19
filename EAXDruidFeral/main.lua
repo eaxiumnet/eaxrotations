@@ -33,40 +33,40 @@ local esp_renderer = require("esp_renderer")
 esp_renderer.init("feral", "Druid Feral")
 
 -- ── ESP Proc indicators ──────────────────────────────────────────────────────
--- These show as persistent rows in the HUD so you can glance at rotation state.
+-- Role-aware: cat procs only show in cat lane, bear/guardian procs in bear lane.
+-- Combo points shown as a 5-pip bar, not a simple on/off.
 
--- Combo points (cat)
-esp_renderer.add_proc("CP: 5", function()
-    return runtime and runtime.combo_points >= 5
-end, color.gold(240), color.cyan(80))
-
+-- Cat lane procs
 esp_renderer.add_proc("Tiger's Fury", function()
     local me = core.object_manager.get_local_player()
     return me and utils.has_buff(me, spells.BUFF_TIGERS_FURY)
-end, color.gold(240), color.cyan(60))
+end, color.gold(240), color.cyan(60), "cat")
+
+esp_renderer.add_proc("Clearcasting", function()
+    local me = core.object_manager.get_local_player()
+    return me and utils.has_buff(me, spells.BUFF_CLEARCASTING)
+end, color.cyan(240), color.cyan(50), "cat")
 
 esp_renderer.add_proc("Berserk", function()
     local me = core.object_manager.get_local_player()
     return me and utils.has_buff(me, spells.BUFF_BERSERK)
-end, color.gold(240), color.cyan(60))
+end, color.orange(240), color.cyan(60), "any")
 
--- Survival Instincts (guardian)
+-- Bear / Guardian lane procs
 esp_renderer.add_proc("Survival Instincts", function()
     local me = core.object_manager.get_local_player()
     return me and utils.has_buff(me, spells.BUFF_SURVIVAL_INSTINCTS)
-end, color.gold(240), color.cyan(60))
+end, color.green(240), color.cyan(60), "bear")
 
--- Frenzied Regen (guardian)
 esp_renderer.add_proc("Frenzied Regen", function()
     local me = core.object_manager.get_local_player()
     return me and utils.has_buff(me, spells.BUFF_FRENZIED_REGENERATION)
-end, color.gold(240), color.cyan(60))
+end, color.green(240), color.cyan(60), "bear")
 
--- Enrage (guardian rage gen)
 esp_renderer.add_proc("Enrage", function()
     local me = core.object_manager.get_local_player()
     return me and utils.has_buff(me, spells.BUFF_ENRAGE)
-end, color.gold(240), color.cyan(60))
+end, color.orange(230), color.cyan(60), "bear")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -136,6 +136,9 @@ local runtime = {
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
+
+-- Wire up HUD context now that runtime exists
+esp_renderer.set_context(spells, utils, runtime)
 -- Energy pooling: at CP=4, wait for this much energy before the final Shred
 -- so you can chain Shred → finisher without an energy gap.
 local ENERGY_POOL_FOR_SHRED = 75
