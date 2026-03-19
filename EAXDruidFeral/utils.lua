@@ -187,6 +187,15 @@ function utils.get_rage(me)
     return me:get_power(1)
 end
 
+function utils.get_mana_pct(me)
+    if not me or not me:is_valid() then return 1.0 end
+    local ok, max_mana = pcall(function() return me:get_max_power(0) end)
+    if not ok or not max_mana or max_mana <= 0 then return 1.0 end
+    local ok2, mana = pcall(function() return me:get_power(0) end)
+    if not ok2 or not mana then return 1.0 end
+    return mana / max_mana
+end
+
 function utils.get_health_pct(unit)
     if not unit or not unit:is_valid() then return 1.0 end
     local max_hp = unit:get_max_health()

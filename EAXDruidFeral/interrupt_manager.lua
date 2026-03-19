@@ -40,13 +40,15 @@ local INTERRUPT_SPELLS = {
         { id = 15487, name = "silence", type = "fast" },
     },
     druid = {
-        -- TBC: Skull Bash is Cataclysm+. Feral uses Feral Charge (Cat) to kick.
-        -- Bear form: Bash (stun, not a true interrupt but the best available)
-        { id = 8983,  name = "bash",              type = "stun" },  -- Bash rank 3
-        { id = 1822,  name = "bash",              type = "stun" },  -- rank 2
-        { id = 5211,  name = "bash",              type = "stun" },  -- rank 1
-        -- Caster form: Cyclone (DR-limited, last resort)
-        { id = 33786, name = "cyclone",           type = "stun" },
+        -- Bash: only usable in bear form — instant stun, no mana cost once in bear.
+        -- Marked as "bear_only" so try_interrupt skips it when not in bear form
+        -- rather than triggering a form shift mid-rotation.
+        { id = 8983,  name = "bash",    type = "stun", form = "bear" },
+        { id = 5211,  name = "bash",    type = "stun", form = "bear" },
+        { id = 1822,  name = "bash",    type = "stun", form = "bear" },
+        -- Cyclone: absolute last resort — requires caster form (costs mana, breaks
+        -- cat rotation). Only fires for high-priority spells (weight >= 80).
+        { id = 33786, name = "cyclone", type = "stun", form = "caster", min_priority = 80 },
     },
     warlock = {
         { id = 19647, name = "shadowfury",  type = "stun" },
@@ -194,8 +196,16 @@ function interrupt_manager.try_interrupt(me, target, class_name, utils_module)
     local spells = interrupt_manager.get_interrupt_spells(class_name)
     if #spells == 0 then return false end
 
+    local priority = get_interrupt_priority(target)
+
+    -- Pass 1: fast interrupts (no form restriction check needed for non-druids)
     for _, spell in ipairs(spells) do
         if spell.type == "fast" then
+            -- form gate
+            if spell.form == "bear" and not utils_module.has_buff(me, { 5487, 9634 }) then goto continue end
+            if spell.form == "caster" and (utils_module.has_buff(me, { 768, 783, 5487, 9634 }) ) then goto continue end
+            -- priority gate
+            if spell.min_priority and priority < spell.min_priority then goto continue end
             local spell_id = utils_module.resolve_spell_id(spell.id)
             if spell_id and _can_recast(spell_id)
                and utils_module.can_cast_hostile(spell_id, me, target) then
@@ -204,11 +214,19 @@ function interrupt_manager.try_interrupt(me, target, class_name, utils_module)
                     return true
                 end
             end
+            ::continue::
         end
     end
 
+    -- Pass 2: stuns/CC — only if fast interrupt unavailable
     for _, spell in ipairs(spells) do
         if spell.type ~= "fast" then
+            -- form gate: skip bear spells when not in bear
+            if spell.form == "bear" and not utils_module.has_buff(me, { 5487, 9634 }) then goto continue2 end
+            -- form gate: skip caster spells when in any shapeshift form
+            if spell.form == "caster" and (utils_module.has_buff(me, { 768, 783, 5487, 9634 })) then goto continue2 end
+            -- priority gate: cyclone and other expensive CC only for high-priority spells
+            if spell.min_priority and priority < spell.min_priority then goto continue2 end
             local spell_id = utils_module.resolve_spell_id(spell.id)
             if spell_id and _can_recast(spell_id)
                and utils_module.can_cast_hostile(spell_id, me, target) then
@@ -217,6 +235,7 @@ function interrupt_manager.try_interrupt(me, target, class_name, utils_module)
                     return true
                 end
             end
+            ::continue2::
         end
     end
 

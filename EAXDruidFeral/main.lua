@@ -253,6 +253,18 @@ local function get_requested_lane(me)
     if lane_idx == 2 then return "cat" end
     if lane_idx == 3 then return "bear" end
 
+    -- Mana fallback: if mana is below the shift floor and we're already in
+    -- bear form, stay in bear and use rage-based abilities rather than shifting
+    -- to cat (which costs mana and leaves us in a form we can't sustain).
+    local mana_floor = menu.shift_mana_floor:get() / 100
+    if mana_floor > 0 and utils.get_mana_pct(me) < mana_floor then
+        if utils.has_buff(me, spells.BUFF_BEAR_FORM) then
+            return "bear"
+        end
+        -- In cat form with low mana: stay cat (cat abilities are energy-based, free)
+        return "cat"
+    end
+
     -- Auto mode: role/mode decides the lane, not the current form.
     -- Current form must NOT lock the lane — otherwise feral charge (which
     -- requires bear form) causes the script to stay in bear permanently.
@@ -277,6 +289,11 @@ end
 local function try_shift_form(me, lane)
     if not menu.auto_form:get_state() then return false end
     if not me:is_in_combat() then return false end
+
+    -- Mana floor: don't spend mana on form shifts when running low.
+    -- Stay in the current form and use its rotation instead.
+    local mana_floor = menu.shift_mana_floor:get() / 100
+    if mana_floor > 0 and utils.get_mana_pct(me) < mana_floor then return false end
 
     local target = me:get_target()
     local target_valid = target and target:is_valid() and not target:is_dead() and me:can_attack(target)
@@ -739,6 +756,8 @@ local function try_feral_charge_bear(me, target)
     end
     -- Must be in bear form to cast it
     if not utils.has_buff(me, spells.BUFF_BEAR_FORM) then
+        local mana_floor = menu.shift_mana_floor:get() / 100
+        if mana_floor > 0 and utils.get_mana_pct(me) < mana_floor then return false end
         if menu.auto_form:get_state() and runtime.bear_form_id then
             if utils.can_cast_self(runtime.bear_form_id, me) then
                 utils.cast_self(runtime.bear_form_id, me)
@@ -978,24 +997,28 @@ local function try_cyclone(me, target)
     if not menu.use_cyclone or not menu.use_cyclone:get_state() then return false end
     if not runtime.cyclone_id then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
-    -- Must be an actual enemy — never cast on self or friendlies
     if utils.same_unit(me, target) then return false end
     if not me:can_attack(target) then return false end
-    -- Pending cast guard — Cyclone debuff takes time to land, don't spam
+    -- Cyclone is last resort — only cast when already in caster form.
+    -- Never shift out of cat/bear mid-rotation just to Cyclone.
+    local in_cat  = utils.has_buff(me, spells.BUFF_CAT_FORM)
+    local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM)
+    if in_cat or in_bear then return false end
+    -- Bash must be on cooldown — if Bash is available, use that instead
+    if runtime.bash_id then
+        local bash_cd = core.spell_book.get_spell_cooldown(runtime.bash_id)
+        if bash_cd <= 0 and core.spell_book.is_usable_spell(runtime.bash_id) then
+            return false  -- Bash is available, don't waste a Cyclone
+        end
+    end
+    -- Only for healers actively casting heals on enemies — not generic casts
+    if not is_healing_our_target(target, me) and not is_healer(target) then return false end
     if is_pending_cast(runtime.cyclone_id) then return false end
     if utils.has_debuff(target, spells.DEBUFF_CYCLONE) then return false end
-    -- Auto: only cyclone if target is a healer actively healing an enemy
-    -- OR if target is casting/channelling (interrupt isn't available / on CD)
-    local should_cyclone = is_healing_our_target(target, me) or is_healer(target)
-    if not should_cyclone then return false end
     if not utils.can_cast_hostile(runtime.cyclone_id, me, target) then return false end
-    local ok_name, tname = pcall(function() return target:get_name() end)
-    local ok_p, is_p = pcall(function() return target:is_player() end)
-    local ok_atk, can_atk = pcall(function() return me:can_attack(target) end)
-    utils.log_debug(menu, "[Cyclone] target=" .. tostring(tname) .. " is_player=" .. tostring(is_p) .. " can_attack=" .. tostring(can_atk))
     if utils.cast_target(runtime.cyclone_id, target) then
         mark_pending_cast(runtime.cyclone_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Cyclone (healer/caster)")
+        utils.log_debug(menu, "Cyclone (last resort healer CC)")
         note_cast()
         return true
     end
