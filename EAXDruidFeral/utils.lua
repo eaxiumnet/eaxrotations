@@ -410,6 +410,7 @@ local ALL_EQUIP_SLOTS = {
 }
 
 local TBC_SETS = {
+    -- Caster druid sets
     ["Nordrassil"] = {
         items = { 29085, 29086, 29087, 29088, 29089 },
         bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
@@ -421,6 +422,22 @@ local TBC_SETS = {
     ["Malorne"] = {
         items = { 30883, 30884, 30885, 30886, 30887 },
         bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
+    },
+    -- Feral / Guardian sets (T4 Malorne Harness, T5 Nordrassil Harness, T6 Thunderheart)
+    ["MalorneHarness"] = {
+        -- T4 feral: Malorne Harness — 2pc: +5% Mangle damage; 4pc: reduce Mangle CD by 1s
+        items = { 29075, 29076, 29077, 29078, 29079 },
+        bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
+    },
+    ["NordrassilBattlegear"] = {
+        -- T5 feral: Nordrassil Battlegear — 2pc: +20% Shred damage; 4pc: -0.5s Mangle CD
+        items = { 30214, 30215, 30216, 30217, 30218 },
+        bonuses = { ["2"] = 1.10, ["4"] = 1.15 }
+    },
+    ["ThunderhearBattlegear"] = {
+        -- T6 feral: Thunderheart Battlegear — 2pc: +6% Rip/Rake dmg; 4pc: Mangle boosts Shred
+        items = { 31014, 31015, 31016, 31017, 31018 },
+        bonuses = { ["2"] = 1.06, ["4"] = 1.12 }
     },
 }
 

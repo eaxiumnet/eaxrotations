@@ -10,6 +10,8 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 local color     = require("color")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -190,10 +192,15 @@ local function log_resolved_spells()
 end
 
 local function update_set_bonus(me)
-    local nordrassil_mult = utils.get_set_multiplier(me, "Nordrassil")
+    local nordrassil_mult         = utils.get_set_multiplier(me, "Nordrassil")
     local nordrassil_harness_mult = utils.get_set_multiplier(me, "NordrassilHarness")
-    local malorne_mult = utils.get_set_multiplier(me, "Malorne")
-    runtime.set_multiplier = math.max(nordrassil_mult, nordrassil_harness_mult, malorne_mult)
+    local malorne_mult            = utils.get_set_multiplier(me, "Malorne")
+    local malorne_harness_mult    = utils.get_set_multiplier(me, "MalorneHarness")
+    local nordrassil_battle_mult  = utils.get_set_multiplier(me, "NordrassilBattlegear")
+    local thunderheart_mult       = utils.get_set_multiplier(me, "ThunderhearBattlegear")
+    runtime.set_multiplier = math.max(
+        nordrassil_mult, nordrassil_harness_mult, malorne_mult,
+        malorne_harness_mult, nordrassil_battle_mult, thunderheart_mult)
 end
 
 resolve_spells()
@@ -629,15 +636,28 @@ end
 
 local function try_rake(me, target)
     if not menu.use_rake:get_state() then return false end
-    if creature_utils.is_bleed_immune(target) then return false end  -- Undead/Elemental: bleed immune
+    if creature_utils.is_bleed_immune(target) then return false end
     if not runtime.rake_id then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RAKE) > (menu.rake_refresh_seconds:get() * 1000) then return false end
     if is_pending_cast(runtime.rake_id) then return false end
+    -- Snapshotting: hold Rake briefly if Tiger's Fury is about to come off CD
+    local rake_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RAKE)
+    if rake_rem <= 0 then
+        local has_tf = utils.has_buff(me, spells.BUFF_TIGERS_FURY)
+        if not has_tf then
+            local tf_cd = runtime.tigers_fury_id and core.spell_book.get_spell_cooldown(runtime.tigers_fury_id) or 99
+            if tf_cd > 0 and tf_cd < 2.0 then
+                return false  -- TF incoming in <2s, wait to snapshot
+            end
+        end
+    end
     if not utils.can_cast_hostile(runtime.rake_id, me, target) then return false end
 
     if utils.cast_target(runtime.rake_id, target) then
         mark_pending_cast(runtime.rake_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Rake")
+        local snap = utils.has_buff(me, spells.BUFF_TIGERS_FURY) and " [TF]"
+                  or utils.has_buff(me, spells.BUFF_BERSERK) and " [Berserk]" or ""
+        utils.log_debug(menu, "Rake" .. snap)
         note_cast()
         return true
     end
@@ -739,22 +759,35 @@ local function try_root_escape(me)
     return true
 end
 
-local function try_remove_curse_feral(me, target)
+local function try_remove_curse_feral(me)
     if not menu.use_remove_curse:get_state() then return false end
     if not runtime.remove_curse_id then return false end
     -- Only castable in caster form
     if utils.has_buff(me, spells.BUFF_CAT_FORM) or utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
-    if not target or not target:is_valid() then return false end
-    -- Check if target has a curse
-    local cache = buff_manager:get_debuff_cache(target, 100)
-    for _, aura in ipairs(cache) do
-        if aura.is_active and aura.buff_type == enums.buff_type.CURSE then
-            if utils.can_cast_target(runtime.remove_curse_id, me, target) then
-                if utils.cast_target(runtime.remove_curse_id, target) then
-                    utils.log_debug(menu, "Remove Curse")
-                    note_cast()
-                    return true
+    if is_pending_cast(runtime.remove_curse_id) then return false end
+    -- Scan self and party for curses
+    local units = { me }
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead()
+           and obj:is_party_member() then
+            units[#units + 1] = obj
+        end
+    end
+    for _, unit in ipairs(units) do
+        local cache = buff_manager:get_debuff_cache(unit, 100)
+        for _, aura in ipairs(cache) do
+            if aura.is_active and aura.buff_type == enums.buff_type.CURSE then
+                if utils.can_cast_hostile(runtime.remove_curse_id, me, unit) then
+                    if utils.cast_target(runtime.remove_curse_id, unit) then
+                        mark_pending_cast(runtime.remove_curse_id, PENDING_CAST_TIMEOUT_S)
+                        utils.log_debug(menu, "Remove Curse -> " .. (unit.get_name and unit:get_name() or "ally"))
+                        note_cast()
+                        return true
+                    end
                 end
+                break
             end
         end
     end
@@ -1194,13 +1227,45 @@ local function do_cat_rotation(me, target)
 
     if try_faerie_fire(me, target) then return true end
     if not utils.is_melee_target(me, target) then return false end
+
+    -- ── Omen of Clarity (Clearcasting proc) ──────────────────────────────────
+    -- Free next ability — spend it immediately on the highest-value action.
+    -- Priority: Shred (highest damage/CP) > Mangle (debuff maintenance) > Rake
+    local has_clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
+    if has_clearcasting and runtime.combo_points < 5 then
+        -- Shred is best value on a free proc
+        if menu.use_shred:get_state() and runtime.shred_id
+           and utils.is_behind_target(me, target)
+           and not is_pending_cast(runtime.shred_id)
+           and utils.can_cast_hostile(runtime.shred_id, me, target) then
+            if utils.cast_target(runtime.shred_id, target) then
+                mark_pending_cast(runtime.shred_id, PENDING_CAST_TIMEOUT_S)
+                utils.log_debug(menu, "Shred [Clearcasting]")
+                note_cast()
+                return true
+            end
+        end
+        -- Mangle if not behind
+        if menu.use_mangle_cat:get_state() and runtime.mangle_cat_id
+           and not is_pending_cast(runtime.mangle_cat_id)
+           and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
+            if utils.cast_target(runtime.mangle_cat_id, target) then
+                mark_pending_cast(runtime.mangle_cat_id, PENDING_CAST_TIMEOUT_S)
+                utils.log_debug(menu, "Mangle [Clearcasting]")
+                note_cast()
+                return true
+            end
+        end
+    end
+
     -- Finishers first — always spend CPs before anything else
     if try_rip(me, target) then return true end
     if try_ferocious_bite(me, target, target_hp_pct) then return true end
     -- Maim: only at CP=5 when target is casting and Rip is not the right choice
     if try_maim(me, target) then return true end
-    -- Tiger's Fury: energy recovery, but only when no finisher is ready
+    -- Tiger's Fury: energy recovery, fires during builder phase (CP < 4)
     if try_tigers_fury(me, target) then return true end
+    -- Builder priority: Mangle (debuff) → Rake (bleed) → Shred/Claw
     if try_mangle_cat(me, target) then return true end
     if try_rake(me, target) then return true end
     if try_rake_trick(me, target) then return true end
@@ -1706,6 +1771,7 @@ core.register_on_update_callback(function()
     -- OOC utility
     if not me:is_in_combat() then
         if try_ooc_self_heal(me) then return end
+        if try_remove_curse_feral(me) then return end
         if try_innervate(me) then return end
         if try_travel_form(me) then return end
         if try_abolish_poison(me) then return end

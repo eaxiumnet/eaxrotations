@@ -106,6 +106,8 @@ spells.DEBUFF_BASH         = { 8983, 5211 }
 -- Buffs
 spells.BUFF_MARK_OF_THE_WILD   = { 1126, 5232, 5234, 6756, 8907, 9884, 9885, 26990 }
 spells.BUFF_LEADER_OF_THE_PACK = { 17007 }
+-- Omen of Clarity — Clearcasting proc, next builder/finisher costs 0 energy
+spells.BUFF_CLEARCASTING = { 16864 }
 
 -- CC
 spells.CYCLONE          = { 33786 }

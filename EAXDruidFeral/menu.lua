@@ -61,6 +61,7 @@ menu.tank_cd_overlap                      = core.menu.checkbox(false, "eaxdruidf
 
 menu.use_root_escape                     = core.menu.checkbox(true, "eaxdruidferal_root_escape")
 menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidferal_remove_curse")
+menu.use_powershift                      = core.menu.checkbox(false, "eaxdruidferal_use_powershift")
 menu.auto_form                            = core.menu.checkbox(true, "eaxdruidferal_auto_form")
 menu.shift_mana_floor                     = core.menu.slider_int(0, 50, 20, "eaxdruidferal_shift_mana_floor")
 menu.use_faerie_fire                      = core.menu.checkbox(true, "eaxdruidferal_use_faerie_fire")
@@ -200,12 +201,14 @@ function menu.render()
             menu.use_cyclone:render("Cyclone", "Last-resort CC — caster form only, Bash must be on CD")
             menu.use_entangling_roots:render("Entangling Roots", "Root kiting targets")
             menu.use_abolish_poison:render("Abolish Poison", "Cleanse poison from self")
+            menu.use_remove_curse:render("Remove Curse", "Dispel curses from self or party (caster form only)")
             menu.use_natures_grasp:render("Nature's Grasp", "Auto-root attackers in caster form")
             menu.use_travel_form:render("Travel Form", "Auto Travel Form OOC")
             menu.use_innervate:render("Innervate", "Self-cast OOC when low mana")
             menu.innervate_mana_pct:render("Innervate Mana %", "Trigger threshold")
             menu.use_ooc_self_heal:render("OOC Self-Heal", "Drop to caster form and Healing Touch when HP is low OOC")
             menu.ooc_self_heal_hp_pct:render("OOC Self-Heal HP %", "Heal below this HP % when out of combat")
+            menu.use_powershift:render("Powershift", "Shift out and back into cat form to trigger energy regen (Wolfshead Helm / Natural Shapeshifter)")
         end)
 
         -- ── Standard sections ─────────────────────────────────────────────────
