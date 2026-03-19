@@ -276,18 +276,21 @@ end
 
 local function try_shift_form(me, lane)
     if not menu.auto_form:get_state() then return false end
-    -- Stay in travel form while OOC — only shift into combat forms when in combat
     if not me:is_in_combat() then return false end
-    -- Don't shift to cat while out of melee range — feral charge needs bear to close
-    -- the gap first. Shift to cat only once we are in melee.
-    if lane == "cat" and runtime.feral_charge_bear_id then
-        local target = me:get_target()
-        if target and target:is_valid() and not target:is_dead() and me:can_attack(target) then
-            if not utils.is_melee_target(me, target) then return false end
-        end
-    end
+
+    local target = me:get_target()
+    local target_valid = target and target:is_valid() and not target:is_dead() and me:can_attack(target)
+    local in_melee = target_valid and utils.is_melee_target(me, target)
 
     if lane == "cat" then
+        -- Don't shift to cat while out of melee range and charge is available —
+        -- bear needs to close the gap first via Feral Charge
+        if runtime.feral_charge_bear_id and target_valid and not in_melee then
+            -- Only hold the cat shift if charge is actually in range to fire
+            if core.spell_book.is_spell_in_range(runtime.feral_charge_bear_id, target, me) then
+                return false
+            end
+        end
         if not runtime.cat_form_id or utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
         if is_pending_cast(runtime.cat_form_id) then return false end
         if not utils.can_cast_self(runtime.cat_form_id, me) then return false end
@@ -298,6 +301,16 @@ local function try_shift_form(me, lane)
             return true
         end
         return false
+    end
+
+    -- Bear lane: only shift to bear if charge is actually usable from here
+    -- (target out of melee range AND within charge range)
+    if target_valid and not in_melee then
+        if runtime.feral_charge_bear_id then
+            if not core.spell_book.is_spell_in_range(runtime.feral_charge_bear_id, target, me) then
+                return false  -- too far even for charge — stay in current form
+            end
+        end
     end
 
     if not runtime.bear_form_id or utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
@@ -333,12 +346,21 @@ local function try_faerie_fire(me, target)
     return false
 end
 
-local function try_tigers_fury(me)
+local function try_tigers_fury(me, target)
     if enc and enc.hold_cooldowns then return false end
     if not menu.use_tigers_fury:get_state() then return false end
     if not runtime.tigers_fury_id then return false end
     if utils.get_energy(me) > menu.tigers_fury_energy:get() then return false end
     if utils.has_buff(me, spells.BUFF_TIGERS_FURY) then return false end
+    -- Never interrupt a finisher opportunity with Tiger's Fury
+    if target then
+        local rip_ready = menu.use_rip:get_state()
+            and not creature_utils.is_bleed_immune(target)
+            and runtime.combo_points >= menu.rip_combo_points:get()
+        local bite_ready = menu.use_ferocious_bite:get_state()
+            and runtime.combo_points >= 5
+        if rip_ready or bite_ready then return false end
+    end
     if is_pending_cast(runtime.tigers_fury_id) then return false end
     if not utils.can_cast_self(runtime.tigers_fury_id, me) then return false end
 
@@ -378,21 +400,31 @@ end
 local function try_ferocious_bite(me, target, target_hp_pct)
     if not menu.use_ferocious_bite:get_state() then return false end
     if not runtime.ferocious_bite_id then return false end
-    if runtime.combo_points < menu.bite_combo_points:get() then return false end
-    if target_hp_pct > (menu.bite_hp_pct:get() / 100) then return false end
-    -- Only require an active Rip to be present when:
-    --   1) Rip is enabled in the menu, AND
-    --   2) the target is not bleed-immune (Rip could actually be applied)
-    -- If Rip is disabled or the mob is bleed-immune, Ferocious Bite is the
-    -- primary finisher and should never be blocked by a Rip check.
-    local rip_relevant = menu.use_rip:get_state() and not creature_utils.is_bleed_immune(target)
-    if rip_relevant and utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) <= 3200 then return false end
+    if runtime.combo_points < 1 then return false end
+
+    local killshot_threshold = menu.bite_killshot_hp_pct:get() / 100
+
+    if target_hp_pct <= killshot_threshold then
+        -- Killshot mode: target is low enough to finish off — dump any CPs now
+        -- Skip the Rip check entirely; the mob is dying anyway
+    else
+        -- Normal mode: only spend CPs at max (5) as a finisher
+        if runtime.combo_points < 5 then return false end
+        -- If Rip is active but expiring, let try_rip refresh it first
+        local rip_relevant = menu.use_rip:get_state() and not creature_utils.is_bleed_immune(target)
+        if rip_relevant then
+            local rip_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP)
+            if rip_rem > 0 and rip_rem <= 3200 then return false end
+        end
+    end
+
     if is_pending_cast(runtime.ferocious_bite_id) then return false end
     if not utils.can_cast_hostile(runtime.ferocious_bite_id, me, target) then return false end
 
     if utils.cast_target(runtime.ferocious_bite_id, target) then
         mark_pending_cast(runtime.ferocious_bite_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Ferocious Bite")
+        local mode = target_hp_pct <= killshot_threshold and "killshot" or "finisher"
+        utils.log_debug(menu, "Ferocious Bite (" .. mode .. " CP=" .. runtime.combo_points .. ")")
         note_cast()
         return true
     end
@@ -520,58 +552,20 @@ end
 local try_claw  -- forward declaration (defined after try_shred_or_filler)
 
 local function try_shred_or_filler(me, target)
-    local cp         = runtime.combo_points
-    local rake_rem   = math.floor(utils.get_debuff_remaining_ms(target, spells.DEBUFF_RAKE) / 1000)
-    local rip_rem    = math.floor(utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) / 1000)
-    local mangle_rem = math.floor(utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE) / 1000)
-    utils.log_debug(menu, string.format(
-        "State | CP=%d Rake=%ds Rip=%ds Mangle=%ds", cp, rake_rem, rip_rem, mangle_rem))
+    local cp = runtime.combo_points
 
     if menu.use_shred:get_state() and runtime.shred_id and cp < 5 then
-        local behind = utils.is_behind_target(me, target)
-        if behind then
-            utils.log_debug(menu, "Shred check | behind=true")
-            local pend = is_pending_cast(runtime.shred_id)
-            local castable = utils.can_cast_hostile(runtime.shred_id, me, target)
-            -- Break down why can_cast is false
-            if not castable then
-                local cd = core.spell_book.get_spell_cooldown(runtime.shred_id)
-                local usable = core.spell_book.is_usable_spell(runtime.shred_id)
-                local inrange = core.spell_book.is_spell_in_range(runtime.shred_id, target, me)
-                local can_atk = me:can_attack(target)
-                utils.log_debug(menu, "Shred BLOCKED | cd=" .. tostring(cd) .. " usable=" .. tostring(usable) .. " inrange=" .. tostring(inrange) .. " can_atk=" .. tostring(can_atk))
-            else
-                utils.log_debug(menu, "Shred | pending=" .. tostring(pend) .. " can_cast=" .. tostring(castable))
-            end
-            if not pend and castable then
+        if utils.is_behind_target(me, target) then
+            if not is_pending_cast(runtime.shred_id) and utils.can_cast_hostile(runtime.shred_id, me, target) then
                 if utils.cast_target(runtime.shred_id, target) then
                     mark_pending_cast(runtime.shred_id, PENDING_CAST_TIMEOUT_S)
-                    utils.log_debug(menu, "Shred -> fired")
-                    note_cast()
-                    return true
-                end
-            end
-        else
-            local maim_reason = "ok"
-            if not runtime.maim_id then
-                maim_reason = "no maim_id (not learned)"
-            elseif cp < 1 then
-                maim_reason = "CP=" .. cp .. " (need >=1)"
-            elseif utils.has_debuff(target, spells.DEBUFF_MAIM) then
-                maim_reason = "already stunned"
-            elseif not utils.can_cast_hostile(runtime.maim_id, me, target) then
-                maim_reason = "can_cast_hostile=false (on CD or not usable)"
-            end
-            utils.log_debug(menu, "Not behind | Maim=" .. maim_reason)
-
-            if maim_reason == "ok" then
-                if utils.cast_target(runtime.maim_id, target) then
-                    utils.log_debug(menu, "Maim -> fired (reposition for Shred)")
+                    utils.log_debug(menu, "Shred")
                     note_cast()
                     return true
                 end
             end
         end
+        -- Not behind: fall through to Mangle/Claw builders
     end
 
     if runtime.mangle_cat_id and not is_pending_cast(runtime.mangle_cat_id) and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
@@ -588,16 +582,25 @@ local function try_shred_or_filler(me, target)
 
     return false
 end
-
 local function try_maim(me, target)
     if not menu.use_maim or not menu.use_maim:get_state() then return false end
     if not runtime.maim_id then return false end
-    -- Maim as interrupt when Skull Bash is on CD
+    -- Maim is a CP finisher that happens to stun/interrupt.
+    -- NEVER drain low CPs on an interrupt — only cast when at max CPs (5)
+    -- AND the target is casting something that needs to be stopped.
+    -- This prevents Maim from starving Rip / Ferocious Bite.
+    if runtime.combo_points < 5 then return false end
     if not interrupt_manager.should_interrupt(target) then return false end
-    -- Use runtime.combo_points which is read from API each tick by sync_combo_target
-    if runtime.combo_points < 1 then return false end
+    -- If Rip is the preferred finisher, let Rip go instead
+    local rip_ready = menu.use_rip:get_state()
+        and not creature_utils.is_bleed_immune(target)
+        and runtime.combo_points >= menu.rip_combo_points:get()
+        and utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) <= (menu.rip_refresh_seconds:get() * 1000)
+    if rip_ready then return false end
+    if not utils.can_cast_hostile(runtime.maim_id, me, target) then return false end
     if utils.cast_target(runtime.maim_id, target, "Maim") then
-        utils.log_debug(menu, "Maim (interrupt)")
+        utils.log_debug(menu, "Maim (CP5 interrupt)")
+        note_cast()
         return true
     end
     return false
@@ -662,6 +665,11 @@ local function try_prowl(me)
     if not menu.use_prowl:get_state() then return false end
     if not runtime.prowl_id then return false end
     if me:is_in_combat() then return false end
+    -- Don't prowl if we still have combo points — means combat just ended or
+    -- the server briefly dropped the combat flag between hits
+    if runtime.combo_points > 0 then return false end
+    -- Don't prowl if any enemy is within aggro range (would break immediately)
+    if utils.enemy_count_in_radius(me, 10) > 0 then return false end
     if utils.has_buff(me, spells.BUFF_PROWL) then return false end
     if not utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
     if utils.can_cast_self(runtime.prowl_id, me) then
@@ -679,8 +687,10 @@ local function try_pounce(me, target)
     if not menu.use_pounce:get_state() then return false end
     if not runtime.pounce_id then return false end
     if not utils.has_buff(me, spells.BUFF_PROWL) then return false end
+    if is_pending_cast(runtime.pounce_id) then return false end
     if not utils.can_cast_hostile(runtime.pounce_id, me, target) then return false end
     if utils.cast_target(runtime.pounce_id, target) then
+        mark_pending_cast(runtime.pounce_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Pounce (stealth opener)")
         note_cast()
         return true
@@ -719,15 +729,16 @@ local function try_dash(me)
 end
 
 local function try_feral_charge_bear(me, target)
-    -- Feral Charge (Bear): gap closer available from any form.
-    -- If in cat form, the auto_form shift to bear will happen next tick,
-    -- then charge fires. We only block it if already in melee range.
     if not menu.use_feral_charge:get_state() then return false end
     if not runtime.feral_charge_bear_id then return false end
     if utils.is_melee_target(me, target) then return false end
-    -- Must be in bear form to actually cast it
+    -- Only shift to bear / attempt charge if the target is actually within
+    -- Feral Charge range. If they're too far away, don't waste the form shift.
+    if not core.spell_book.is_spell_in_range(runtime.feral_charge_bear_id, target, me) then
+        return false
+    end
+    -- Must be in bear form to cast it
     if not utils.has_buff(me, spells.BUFF_BEAR_FORM) then
-        -- Not in bear - shift to bear first if we have auto_form
         if menu.auto_form:get_state() and runtime.bear_form_id then
             if utils.can_cast_self(runtime.bear_form_id, me) then
                 utils.cast_self(runtime.bear_form_id, me)
@@ -937,9 +948,21 @@ local function try_war_stomp(me, target)
     if not utils.is_melee_target(me, target) then return false end
     if is_pending_cast(runtime.war_stomp_id) then return false end
     if not utils.can_cast_self(runtime.war_stomp_id, me) then return false end
+    -- Never interrupt a finisher — CPs are too valuable to waste on a stomp
+    local min_finisher_cp = 99
+    if menu.use_rip:get_state() then
+        min_finisher_cp = math.min(min_finisher_cp, menu.rip_combo_points:get())
+    end
+    if menu.use_ferocious_bite:get_state() then
+        min_finisher_cp = math.min(min_finisher_cp, 5)
+    end
+    if runtime.combo_points >= min_finisher_cp then return false end
     local attackers = count_melee_attackers(me)
     local my_hp = me:get_health_percentage() / 100
-    local should_stomp = attackers >= 2 or my_hp < 0.35
+    local stomp_hp = menu.war_stomp_hp_pct:get() / 100
+    local stomp_attackers = menu.war_stomp_attackers:get()
+    -- Fire when enough enemies are swarming, OR health is critically low
+    local should_stomp = attackers >= stomp_attackers or (stomp_hp > 0 and my_hp < stomp_hp)
     if not should_stomp then return false end
     if utils.cast_self(runtime.war_stomp_id, me) then
         mark_pending_cast(runtime.war_stomp_id, PENDING_CAST_TIMEOUT_S)
@@ -1018,12 +1041,15 @@ local function do_cat_rotation(me, target)
     if try_cyclone(me, target) then return true end
     if try_entangling_roots(me, target) then return true end
 
-    if try_tigers_fury(me) then return true end
-    if try_maim(me, target) then return true end
     if try_faerie_fire(me, target) then return true end
     if not utils.is_melee_target(me, target) then return false end
+    -- Finishers first — always spend CPs before anything else
     if try_rip(me, target) then return true end
     if try_ferocious_bite(me, target, target_hp_pct) then return true end
+    -- Maim: only at CP=5 when target is casting and Rip is not the right choice
+    if try_maim(me, target) then return true end
+    -- Tiger's Fury: energy recovery, but only when no finisher is ready
+    if try_tigers_fury(me, target) then return true end
     if try_mangle_cat(me, target) then return true end
     if try_rake(me, target) then return true end
     if try_rake_trick(me, target) then return true end
@@ -1254,12 +1280,26 @@ local function do_rotation(me, target)
         return false
     end
 
-    -- Only sync combo points while in combat with a valid target
-    -- Avoids spam from dead/stale cp_obj after mob dies
+    -- Sync combo points from API; fall back to cast-callback counter.
+    -- IMPORTANT: only zero the counter when we are certain the CPs are gone —
+    -- i.e. the target actually died or changed. Never zero just because
+    -- is_in_combat() briefly returned false (private servers drop the flag
+    -- between hits, which would wipe the counter mid-fight).
     if me:is_in_combat() and target and target:is_valid() and not target:is_dead() then
         sync_combo_target(me, target)
-    elseif not me:is_in_combat() then
-        runtime.combo_points = 0
+    end
+    -- Zero only on confirmed target death/change, not on combat-flag flicker
+    do
+        local ok, cp_obj = pcall(function() return me:get_combo_points_target() end)
+        if ok and cp_obj and cp_obj:is_valid() then
+            -- CPs are on a live target — check if it changed
+            if target and not utils.same_unit(cp_obj, target) then
+                runtime.combo_points = 0
+            end
+        elseif ok and (not cp_obj or not cp_obj:is_valid()) then
+            -- No CP target at all — genuinely zero
+            runtime.combo_points = 0
+        end
     end
 
     -- Prowl OOC when in cat form and no target yet
@@ -1290,21 +1330,21 @@ end)
 local CP_BUILDERS = {}
 local CP_FINISHERS = {}
 local function build_cp_spell_sets()
-    local builder_ids = {
-        1822, 27003,                        -- Rake
-        5221, 8992, 8993, 27001, 27002,     -- Shred
-        33876, 33983, 48565, 48566,         -- Mangle Cat
-        9867, 9866, 6785, 3242,             -- Ravage
-        27006, 9005, 9004, 8998,            -- Pounce
-        1082, 6807,                         -- Claw
+    -- Build directly from the spells tables so nothing drifts out of sync.
+    local builder_tables = {
+        spells.RAKE, spells.SHRED, spells.MANGLE_CAT,
+        spells.RAVAGE, spells.POUNCE, spells.CLAW,
     }
-    for _, id in ipairs(builder_ids) do CP_BUILDERS[id] = true end
-    local finisher_ids = {
-        1079, 27008,                        -- Rip
-        22568, 22828, 22829, 24248,         -- Ferocious Bite
-        22570, 49802,                       -- Maim
+    for _, tbl in ipairs(builder_tables) do
+        for _, id in ipairs(tbl) do CP_BUILDERS[id] = true end
+    end
+
+    local finisher_tables = {
+        spells.RIP, spells.FEROCIOUS_BITE, spells.MAIM,
     }
-    for _, id in ipairs(finisher_ids) do CP_FINISHERS[id] = true end
+    for _, tbl in ipairs(finisher_tables) do
+        for _, id in ipairs(tbl) do CP_FINISHERS[id] = true end
+    end
 end
 build_cp_spell_sets()
 
@@ -1312,6 +1352,18 @@ local function on_spell_cast(data)
     if not data or not data.spell_id then return end
     local sid = data.spell_id
     if CP_BUILDERS[sid] then
+        -- If this builder hit a different target than our current CP target,
+        -- the old CPs are gone — reset before incrementing on the new target.
+        local me = core.object_manager.get_local_player()
+        if me then
+            local ok, cp_obj = pcall(function() return me:get_combo_points_target() end)
+            if ok and cp_obj and cp_obj:is_valid() and data.target and data.target:is_valid() then
+                if not utils.same_unit(cp_obj, data.target) then
+                    runtime.combo_points = 0
+                    utils.log_debug(menu, "[CP] target changed, reset to 0")
+                end
+            end
+        end
         runtime.combo_points = math.min(5, runtime.combo_points + 1)
         utils.log_debug(menu, "[CP] builder " .. sid .. " -> CP=" .. runtime.combo_points)
     elseif CP_FINISHERS[sid] then
@@ -1363,6 +1415,24 @@ core.register_on_update_callback(function()
     if focus_target and not me:can_attack(focus_target) then focus_target = nil end
     -- Smart target selection: prioritize units actively fighting us/party
     local target = focus_target or utils.find_best_target(me)
+
+    -- CP finisher lock: when CPs are at the finisher threshold, stick to the
+    -- mob the CPs were built on. Switching targets at CP=5 wastes the finisher.
+    if not focus_target then
+        local min_finisher_cp = 99
+        if menu.use_rip:get_state() then
+            min_finisher_cp = math.min(min_finisher_cp, menu.rip_combo_points:get())
+        end
+        if menu.use_ferocious_bite:get_state() then
+            min_finisher_cp = math.min(min_finisher_cp, 5)
+        end
+        if runtime.combo_points >= min_finisher_cp then
+            local ok, cp_obj = pcall(function() return me:get_combo_points_target() end)
+            if ok and cp_obj and cp_obj:is_valid() and not cp_obj:is_dead() and me:can_attack(cp_obj) then
+                target = cp_obj
+            end
+        end
+    end
 
 
     -- Mana conservation (leveling 1-70)
