@@ -29,9 +29,22 @@ local defensive_manager = require("defensive_manager")
 ---@type control_panel_helper
 local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
+---@type kiting_manager
+local kiting_manager = require("kiting_manager")
+kiting_manager.init({})
+---@type pet_manager
+local pet_manager = require("pet_manager")
+pet_manager.init({})
+---@type talent_manager
+local talent_manager = require("talent_manager")
+talent_manager.init()
+---@type set_bonus
+local set_bonus = require("set_bonus")
 
 -- ── Runtime state ─────────────────────────────────────────────────────────────
 local rt = {
+    last_talent_refresh = 0,
+    revive_in_progress = false,
     auto_shot_id       = nil,
     aimed_shot_id      = nil,
     arcane_shot_id     = nil,
@@ -64,23 +77,24 @@ local rt = {
     pet_special_id     = nil,  -- special: Furious Howl, Screech, Thunderstomp etc
     pet_spells_scanned = false,
     -- state
-    last_wing_clip_cast_count = 0,
-    last_concussive_cast_count = 0,
-    last_viper_sting_cast_count = 0,
-    last_disengage_cast_count = 0,
-    last_kill_command_cast_count = 0,
-    last_hunters_mark_cast_count = 0,
-    last_serpent_sting_cast_count = 0,
-    last_scorpid_sting_cast_count = 0,
-    last_aspect_cast_count = 0,
-    last_arcane_shot_cast_count = 0,
-    last_aimed_shot_cast_count = 0,
-    last_steady_shot_cast_count = 0,
-    last_multi_shot_cast_count = 0,
-    last_bestial_wrath_cast_count = 0,
-    last_rapid_fire_cast_count = 0,
-    last_intimidation_cast_count = 0,
+    last_wing_clip_cast_count = -1,
+    last_concussive_cast_count = -1,
+    last_viper_sting_cast_count = -1,
+    last_disengage_cast_count = -1,
+    last_kill_command_cast_count = -1,
+    last_hunters_mark_cast_count = -1,
+    last_serpent_sting_cast_count = -1,
+    last_scorpid_sting_cast_count = -1,
+    last_aspect_cast_count = -1,
+    last_arcane_shot_cast_count = -1,
+    last_aimed_shot_cast_count = -1,
+    last_steady_shot_cast_count = -1,
+    last_multi_shot_cast_count = -1,
+    last_bestial_wrath_cast_count = -1,
+    last_rapid_fire_cast_count = -1,
+    last_intimidation_cast_count = -1,
     last_trap_time     = 0,
+    last_disengage_time = 0,
     last_spell_refresh = 0,
     cached_mode        = "solo",
     prev_toggle_state  = false,
@@ -89,12 +103,30 @@ local rt = {
 
 local SPELL_REFRESH     = 1.0
 local MODE_REFRESH      = 4.5
+local SHOT_DEBUG_INTERVAL = 3.0
 local AUTO_CLIP_MS      = 200   -- don't fire instant within 200ms of auto
+local TALENT_REFRESH    = 2.0  -- throttle talent updates
+
+-- ── Helpers (defined early — used by resolve) ──────────────────────────────────
+local function get_me()  return core.object_manager.get_local_player() end
+local function get_pet()
+    local me = get_me(); if not me then return nil end
+    local ok, p = pcall(function() return me:get_pet() end)
+    return (ok and p and p:is_valid()) and p or nil
+end
 
 local function resolve()
     local now = core.time()
     if (now - rt.last_spell_refresh) < SPELL_REFRESH then return end
     rt.last_spell_refresh = now
+    if (now - (rt.last_talent_refresh or 0)) >= TALENT_REFRESH then
+        rt.last_talent_refresh = now
+        talent_manager.update()
+    end
+    local me = get_me()
+    if me then
+        rt.set_multiplier = set_bonus.get_best_multiplier(me)
+    end
     rt.auto_shot_id        = utils.resolve_spell_id(spells.AUTO_SHOT)
     rt.aimed_shot_id       = utils.resolve_spell_id(spells.AIMED_SHOT)
     rt.arcane_shot_id      = utils.resolve_spell_id(spells.ARCANE_SHOT)
@@ -124,13 +156,6 @@ local function resolve()
     rt.frost_trap_id       = utils.resolve_spell_id(spells.FROST_TRAP)
 end
 
--- ── Helpers ───────────────────────────────────────────────────────────────────
-local function get_me()  return core.object_manager.get_local_player() end
-local function get_pet()
-    local me = get_me(); if not me then return nil end
-    local ok, p = pcall(function() return me:get_pet() end)
-    return (ok and p and p:is_valid()) and p or nil
-end
 local function pet_alive()   local p = get_pet(); return p and not p:is_dead() end
 -- ── Pet spell discovery ───────────────────────────────────────────────────────
 local PET_GROWL_IDS  = { 2649, 14921, 14922, 14923, 14924, 14925 }
@@ -145,18 +170,27 @@ local PET_POISON_IDS = { 24640 }
 
 local function scan_pet_spells()
     if rt.pet_spells_scanned then return end
+    -- Try API first
     local list = core.spell_book.get_pet_spells()
-    if not list or #list == 0 then return end
     local known = {}
-    for _, s in ipairs(list) do
-        local id = type(s) == "number" and s or (type(s) == "table" and (s.spell_id or s.id) or nil)
-        if id then known[id] = true end
+    if list and #list > 0 then
+        for _, s in ipairs(list) do
+            local id = type(s) == "number" and s or (type(s) == "table" and (s.spell_id or s.id) or nil)
+            if id then known[id] = true end
+        end
+    else
+        -- Fallback: check all known pet spell IDs via is_spell_learned
+        for _, group in ipairs({ PET_GROWL_IDS, PET_CLAW_IDS, PET_BITE_IDS, PET_GORE_IDS, PET_LIGHTNING_IDS, PET_HOWL_IDS, PET_SCREECH_IDS, PET_THUNDER_IDS }) do
+            for _, id in ipairs(group) do
+                if core.spell_book.is_spell_learned(id) then
+                    known[id] = true
+                end
+            end
+        end
     end
-    -- Growl (taunt) - highest rank
     for i = #PET_GROWL_IDS, 1, -1 do
         if known[PET_GROWL_IDS[i]] then rt.pet_growl_id = PET_GROWL_IDS[i]; break end
     end
-    -- Primary damage ability - first match wins (Claw > Bite > Gore > Lightning > Poison)
     for _, group in ipairs({ PET_CLAW_IDS, PET_BITE_IDS, PET_GORE_IDS, PET_LIGHTNING_IDS, PET_POISON_IDS }) do
         if not rt.pet_damage_id then
             for i = #group, 1, -1 do
@@ -164,7 +198,6 @@ local function scan_pet_spells()
             end
         end
     end
-    -- Special (Furious Howl AP buff > Screech attack speed debuff > Thunderstomp AoE)
     for _, group in ipairs({ PET_HOWL_IDS, PET_SCREECH_IDS, PET_THUNDER_IDS }) do
         if not rt.pet_special_id then
             for i = #group, 1, -1 do
@@ -267,12 +300,11 @@ local _last_pet_attack_guid = nil
 local function pet_attack(target)
     if not target or not target:is_valid() then return end
     local p = get_pet(); if not p then return end
-    -- Get target GUID and only send command if target changed
     local ok, guid = pcall(function() return tostring(target:get_guid()) end)
     if not ok or not guid then return end
-    if _last_pet_attack_guid == guid then return end  -- already sent to this target
+    if _last_pet_attack_guid == guid then return end
     _last_pet_attack_guid = guid
-    core.input.pet_attack(target)
+    pcall(function() p:cast_spell(23145) end)
 end
 
 -- ── Aspect management ─────────────────────────────────────────────────────────
@@ -408,6 +440,7 @@ local function try_serpent_sting(me, t)
     if not menu.use_serpent_sting or not menu.use_serpent_sting:get_state() then return false end
     if not rt.serpent_sting_id then return false end
     if debuff_rem(t, spells.DEBUFF_SERPENT_STING) > 3000 then return false end
+    if not utils.can_fire(me, "serpent_sting") then return false end
     if rt.last_serpent_sting_cast_count == core.spell_book.get_spell_cast_count(rt.serpent_sting_id) then return false end
     if not allow_instant(me) then return false end
     if not utils.can_cast_hostile(rt.serpent_sting_id, me, t) then return false end
@@ -515,8 +548,12 @@ local function try_arcane_shot(me, t)
     if not menu.use_arcane_shot or not menu.use_arcane_shot:get_state() then return false end
     if not rt.arcane_shot_id then return false end
     if not allow_instant(me) then return false end
+    if not utils.can_fire(me, "arcane_shot") then return false end
     if rt.last_arcane_shot_cast_count == core.spell_book.get_spell_cast_count(rt.arcane_shot_id) then return false end
     if not utils.can_cast_hostile(rt.arcane_shot_id, me, t) then return false end
+    if utils.throttle("arcane_ok", 5.0) then
+        core.log(string.format("[EAX DEBUG] arcane OK: id=%d", rt.arcane_shot_id))
+    end
     if utils.cast_target(rt.arcane_shot_id, t) then
         rt.last_arcane_shot_cast_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
         utils.log_debug(menu, "Arcane Shot"); return true
@@ -530,6 +567,7 @@ local function try_multi_shot(me, t)
     if not rt.multi_shot_id then return false end
     if active_mode() == "solo" then return false end
     if is_moving() then return false end
+    if not utils.can_fire(me, "multi_shot") then return false end
     if rt.last_multi_shot_cast_count == core.spell_book.get_spell_cast_count(rt.multi_shot_id) then return false end
     if not utils.can_cast_hostile(rt.multi_shot_id, me, t) then return false end
     if utils.cast_target(rt.multi_shot_id, t) then
@@ -543,6 +581,7 @@ local function try_aimed_shot(me, t)
     if not menu.use_aimed_shot or not menu.use_aimed_shot:get_state() then return false end
     if not rt.aimed_shot_id then return false end
     if is_moving() then return false end
+    if not utils.can_fire(me, "aimed_shot") then return false end
     if rt.last_aimed_shot_cast_count == core.spell_book.get_spell_cast_count(rt.aimed_shot_id) then return false end
     if not utils.can_cast_hostile(rt.aimed_shot_id, me, t) then return false end
     if utils.cast_target(rt.aimed_shot_id, t) then
@@ -556,6 +595,7 @@ local function try_steady_shot(me, t)
     if not menu.use_steady_shot or not menu.use_steady_shot:get_state() then return false end
     if not rt.steady_shot_id then return false end
     if is_moving() then return false end
+    if not utils.can_fire(me, "steady_shot") then return false end
     if rt.last_steady_shot_cast_count == core.spell_book.get_spell_cast_count(rt.steady_shot_id) then return false end
     if not utils.can_cast_hostile(rt.steady_shot_id, me, t) then return false end
     if utils.cast_target(rt.steady_shot_id, t) then
@@ -655,25 +695,20 @@ local function do_rotation(me, t)
     local d = dist(t)
     if d <= 40 then if t:get_position() then core.input.look_at(t:get_position()) end end
 
-    -- Emergency
     if try_feign_death(me) then return end
 
-    -- Kiting: target reached melee - try to escape but DON'T stop the rotation
-    if d <= 8 then
-        try_concussive(me, t)   -- slow them
-        try_wing_clip(me, t)    -- slow them
-        if try_disengage(me) then return end  -- only stop if we actually blinked away
-        -- No disengage available - fall through and keep shooting
+    local now = core.time()
+    local bm_state = pet_manager.get_spec_state("bm")
+    local kiting_state, should_kite = kiting_manager.update(me, t, rt, spells, utils, now, "bm")
+
+    if should_kite then
+        if kiting_manager.try_kiting_sequence(me, t, rt, spells, utils, menu, "bm") then return end
     end
 
-    -- Aspect management (runs every tick, no return)
     try_aspect_viper(me)
     try_aspect(me)
-
-    -- Cooldowns (off-GCD safe)
     try_rapid_fire(me)
 
-    -- Interrupt
     if interrupt_manager.should_interrupt(t) then
         interrupt_manager.try_interrupt(me, t, "hunter", utils)
     end
@@ -684,81 +719,52 @@ local function do_rotation(me, t)
     racial_manager.try_defensive(me)
     if defensive_manager.try_defensive(me, "hunter", utils) then return end
 
+    local mana = utils.get_mana(me)
+
     ttd_tracker.update(t)
 
-    -- Pet first (BM: always send pet before opening shots)
-    if try_revive(me) then return end
-    if pet_alive() then
-        pet_attack(t)  -- send pet to target
-        do_pet_abilities(t)  -- growl/taunt + damage + special abilities
-        try_kill_command(me, t)  -- Kill Command off-GCD
+    if pet_manager.try_revive_call(me, bm_state, rt, utils, now) then return end
+
+    local pet = get_pet()
+    pet_manager.on_update(me, t, bm_state, now, menu, utils)
+
+    if pet_manager.pet_alive(pet) then
+        pet_manager.pet_attack(me, t, bm_state, now)
+        try_kill_command(me, t)
     end
-    try_mend(me)
 
-    -- Traps (melee range window)
+    if pet_manager.try_mend(me, pet, bm_state, rt, spells, utils, menu, now) then return end
+
     if try_trap(me, t) then return end
-
-    -- Hunter's Mark (pre-pull and new targets)
     if try_hunters_mark(me, t) then return end
 
-    if d > 40 then return end
-
-    -- BM pre-pull: hold damage shots until pet arrives so it builds threat first
-    if not me:is_in_combat() and pet_alive() then
-        local p = get_pet()
-        if p and p:is_valid() then
-            local ok, pp = pcall(function() return p:get_position() end)
-            local ok2, tp = pcall(function() return t:get_position() end)
-            if ok and ok2 and pp and tp then
-                local dx,dy,dz = pp.x-tp.x, pp.y-tp.y, pp.z-tp.z
-                if math.sqrt(dx*dx+dy*dy+dz*dz) > 10 then return end
-            end
-        end
+    if d > 35 then
+        return
     end
 
-    -- ── TBC BM optimal priority ───────────────────────────────────────────────
-    -- Source: TBC 2.4.3 BM theorycrafting - auto shot weaving is king
-    -- Aimed Shot is intentionally LOW priority for BM: its 3s cast clips auto shot
-    -- Kill Command fires off-GCD on every pet special attack (already handled above)
-    -- Serpent Sting: apply once, maintain - it's a mana-efficient DoT
-    -- Bestial Wrath + Intimidation: on CD, always
-    -- Multi-Shot: 10s CD, instant - fire when up
-    -- Arcane Shot: 6s CD, instant - fire when up
-    -- Steady Shot: 1.5s cast filler - weaves between auto shots
-    -- Aimed Shot: only fire when Steady Shot AND Arcane AND Multi are all on CD
+    if d <= 5 then
+        if try_raptor_strike(me, t) then
+            core.input.move_forward_start()
+            return
+        end
+        core.input.move_forward_stop()
+        if try_arcane_shot(me, t) then return end
+        if try_steady_shot(me, t) then return end
+        return
+    end
 
-    -- Group stings (utility, apply once)
     if try_scorpid_sting(me, t) then return end
     if try_viper_sting(me, t) then return end
-
-    -- Serpent Sting (maintain DoT - highest mana efficiency)
     if try_serpent_sting(me, t) then return end
 
-    -- Burst cooldowns (on CD)
     if try_bestial_wrath(me, t) then return end
     if try_intimidation(me, t) then return end
 
-    -- Multi-Shot (10s CD instant - fires before Arcane to maximize DPS windows)
     if try_multi_shot(me, t) then return end
-
-    -- Arcane Shot (6s CD instant)
-    if try_arcane_shot(me, t) then return end
-
-    -- Steady Shot (cast filler - primary DPS between cooldowns)
     if try_steady_shot(me, t) then return end
-
-    -- Aimed Shot (only as last resort - low priority for BM, clips auto shot)
+    if try_arcane_shot(me, t) then return end
     if try_aimed_shot(me, t) then return end
 
-    -- Melee dead zone fallback
-    if d <= 5 then
-        try_raptor_strike(me, t)
-    end
-
-    -- Ensure ranged auto shot is always running
-    if me:is_in_combat() and not is_moving() then
-        leveling_manager.ensure_ranged(me, t)
-    end
 end
 
 -- ── Toggle ────────────────────────────────────────────────────────────────────
@@ -786,18 +792,21 @@ local function on_update()
     local t = focus or utils.find_best_target(me)
     if not t or not t:is_valid() or t:is_dead() then
         _last_pet_attack_guid = nil
-        -- No target: keep pet on Defensive and following us
         if utils.throttle("pet_ctrl_idle", 2.0) then
-            local p = get_pet and (function()
-                local ok, pet = pcall(function() return me:get_pet() end)
-                return (ok and pet and pet:is_valid() and not pet:is_dead()) and pet or nil
-            end)()
-            if p then
-                core.input.set_pet_defensive()  -- prevent roaming
-                core.input.set_pet_follow()     -- come back to me
+            local p = get_pet()
+            if p and pet_manager.pet_alive(p) then
+                core.input.set_pet_aggressive()
+                core.input.set_pet_follow()
             end
         end
         return
+    end
+    -- Reset pet attack when target changes to a different enemy
+    if _last_pet_attack_guid then
+        local ok, guid = pcall(function() return tostring(t:get_guid()) end)
+        if ok and guid and guid ~= _last_pet_attack_guid then
+            _last_pet_attack_guid = nil
+        end
     end
     -- In combat: set defensive so pet only attacks what WE tell it to
     if utils.throttle("pet_ctrl_combat", 3.0) then

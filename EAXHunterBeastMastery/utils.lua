@@ -234,6 +234,7 @@ function utils.can_cast_self(spell_id, me)
     return true
 end
 
+
 function utils.cast_self(spell_id, me)
     if not spell_id or not me or not me:is_valid() then
         return false
@@ -245,14 +246,18 @@ function utils.cast_self(spell_id, me)
     return true
 end
 
-function utils.cast_target(spell_id, target)
+function utils.cast_target(spell_id, target, spell_name)
     if not spell_id or not target or not target:is_valid() then
         return false
     end
     if not can_issue_queue_request("spell_target", spell_id, target, SPELL_QUEUE_INTERVAL_S) then
         return false
     end
-    spell_queue:queue_spell_target(spell_id, target, 1)
+    local ok, err = pcall(function() spell_queue:queue_spell_target(spell_id, target, 1) end)
+    if not ok then
+        core.log(string.format("[EAX DEBUG] queue failed: spell=%d err=%s", spell_id, tostring(err)))
+        return false
+    end
     return true
 end
 
@@ -279,6 +284,15 @@ local ALL_EQUIP_SLOTS = {
     INVENTORY_SLOT_FEET, INVENTORY_SLOT_WRIST, INVENTORY_SLOT_HAND,
     INVENTORY_SLOT_FINGER, INVENTORY_SLOT_TRINKET_1, INVENTORY_SLOT_TRINKET_2,
     INVENTORY_SLOT_BACK, INVENTORY_SLOT_MAINHAND, INVENTORY_SLOT_OFFHAND, INVENTORY_SLOT_RANGED
+}
+
+local SPELL_COSTS = {
+    arcane_shot     = 230,
+    multi_shot      = 275,
+    aimed_shot      = 370,
+    steady_shot     = 110,
+    serpent_sting   = 250,
+    serpent_sting_dot = 250,
 }
 
 local TBC_SETS = {
@@ -339,6 +353,77 @@ function utils.get_set_multiplier(me, set_name)
         return set_def.bonuses["2"]
     end
     return 1.0
+end
+
+function utils.get_mana(me)
+    if me and me.mana_current then
+        local ok, m = pcall(function() return me:mana_current() end)
+        if ok and type(m) == "number" then return m end
+    end
+    if me and me.get_power then
+        local ok, m = pcall(function() return me:get_power(0) end)
+        if ok and type(m) == "number" then return m end
+    end
+    return 0
+end
+
+function utils.get_max_mana(me)
+    if me and me.mana_max then
+        local ok, m = pcall(function() return me:mana_max() end)
+        if ok and type(m) == "number" then return m end
+    end
+    if me and me.get_max_power then
+        local ok, m = pcall(function() return me:get_max_power(0) end)
+        if ok and type(m) == "number" then return m end
+    end
+    return 10000
+end
+
+function utils.mana_pct(me)
+    local cm = utils.get_mana(me)
+    local mm = utils.get_max_mana(me)
+    return (mm > 0 and cm / mm) or 0
+end
+
+function utils.can_fire(me, shot_type)
+    local cost = SPELL_COSTS[shot_type] or 0
+    return utils.get_mana(me) >= cost
+end
+
+function utils.mana_regen_during(me, cast_time_sec)
+    local max_mana = utils.get_max_mana(me)
+    local mana_regen_pct = 0.03
+    return max_mana * mana_regen_pct * cast_time_sec
+end
+
+function utils.can_afford_after_regen(me, shot_type, cast_time_sec)
+    local cost = SPELL_COSTS[shot_type] or 0
+    local current = utils.get_mana(me)
+    local regen = utils.mana_regen_during(me, cast_time_sec)
+    return current + regen >= cost
+end
+
+function utils.get_aoe_count(me, t)
+    local count = 1
+    if not t or not t:is_valid() then return count end
+    local tp = t:get_position()
+    if not tp then return count end
+    for _, o in ipairs(core.object_manager.get_all_objects()) do
+        if o and o:is_valid() and o:is_unit() and not o:is_dead() and me:can_attack(o) and o ~= t then
+            local op = o:get_position()
+            if op then
+                local dx,dy,dz = op.x-tp.x, op.y-tp.y, op.z-tp.z
+                if math.sqrt(dx*dx+dy*dy+dz*dz) <= 15 then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
+function utils.get_spell_cost(shot_type)
+    return SPELL_COSTS[shot_type] or 0
 end
 
 return utils

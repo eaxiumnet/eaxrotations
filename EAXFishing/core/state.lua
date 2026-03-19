@@ -1,6 +1,8 @@
 -- =============================================================================
 -- Core State Module - Single source of truth for all runtime state
 -- Eliminates Lua's 60 upvalue limit by consolidating state into one table
+-- NOTE: Bite detection state lives as module-level locals in fishing/engine.lua
+--       for hot-path performance. state.bite was removed to avoid dual-state confusion.
 -- =============================================================================
 
 local M = {}
@@ -30,14 +32,10 @@ function M.create(now)
             last_bobber_obj = nil,
         },
         
-        -- Bite detection state
-        bite = {
-            detected_time = 0.0,
-            pending = false,
-            reaction_deadline = 0.0,
-            escape_deadline = 0.0,
-            should_miss = false,
-        },
+        -- NOTE: Bite detection state is intentionally kept as module-level locals
+        -- inside fishing/engine.lua for performance (avoids table indirection on
+        -- the hot per-tick path). The state.bite table has been removed to avoid
+        -- confusion from having two parallel bite-state systems.
         
         -- Loot handling state
         loot = {
@@ -149,16 +147,6 @@ function M.create(now)
     }
 end
 
---- Reset bite state to default
--- @param state table
-function M.reset_bite(state)
-    state.bite.detected_time = 0.0
-    state.bite.pending = false
-    state.bite.reaction_deadline = 0.0
-    state.bite.escape_deadline = 0.0
-    state.bite.should_miss = false
-end
-
 --- Reset shoreline solver cache
 -- @param state table
 function M.reset_shoreline_solver_cache(state)
@@ -182,7 +170,7 @@ function M.reset_fishing(state)
     state.fishing.stand_still_since = 0.0
     state.fishing.no_lure_warned = false
     state.safety.hard_stop = false  -- Reset safety stop on manual disable
-    M.reset_bite(state)
+    -- Note: bite state is module-level in fishing/engine.lua and resets via its own reset_bite()
     state.loot.last_time = 0.0
     state.loot.slot_index = 0
     state.loot.start_time = 0.0

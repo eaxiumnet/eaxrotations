@@ -99,6 +99,7 @@ local runtime = {
     demoralizing_roar_id = nil,
     lacerate_id = nil,
     last_shift_at = 0,
+    bear_charge_shift_at = 0,  -- timestamp of last bear-shift-for-charge; suppresses snap-back
     maim_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
@@ -340,7 +341,6 @@ end
 
 local function try_shift_form(me, lane)
     if not menu.auto_form:get_state() then return false end
-    if not me:is_in_combat() then return false end
 
     -- Mana floor: don't spend mana on form shifts when running low.
     -- Stay in the current form and use its rotation instead.
@@ -351,9 +351,31 @@ local function try_shift_form(me, lane)
     local target_valid = target and target:is_valid() and not target:is_dead() and me:can_attack(target)
     local in_melee = target_valid and utils.is_melee_target(me, target)
 
+    -- Break travel form immediately when a hostile target is explicitly selected
+    -- and we're ready to engage — don't wait for is_in_combat().
+    -- Use me:get_target() directly (player's actual selected target) rather
+    -- than find_best_target so we don't break form just because a mob exists nearby.
+    local in_travel = utils.has_buff(me, spells.BUFF_TRAVEL_FORM)
+    local explicit_target = me:get_target()
+    local explicit_hostile = explicit_target
+        and explicit_target:is_valid()
+        and not explicit_target:is_dead()
+        and me:can_attack(explicit_target)
+    if in_travel and explicit_hostile then
+        -- Fall through to normal shift logic below
+    elseif not me:is_in_combat() then
+        return false
+    end
+
     if lane == "cat" then
         -- Don't shift to cat while out of melee range and charge is available —
-        -- bear needs to close the gap first via Feral Charge
+        -- bear needs to close the gap first via Feral Charge.
+        -- Also suppress snap-back for 2s after we committed a bear shift for
+        -- a charge — avoids wasting a GCD if range flickers by one tick.
+        local charge_shift_hold = 2.0
+        if (core.time() - runtime.bear_charge_shift_at) < charge_shift_hold then
+            return false
+        end
         if runtime.feral_charge_bear_id and target_valid and not in_melee then
             -- Only hold the cat shift if charge is actually in range to fire
             if core.spell_book.is_spell_in_range(runtime.feral_charge_bear_id, target, me) then
@@ -524,6 +546,33 @@ local function try_ferocious_bite(me, target, target_hp_pct)
     return false
 end
 
+-- Safe check: only skip mangle if we can CONFIRM another player applied it.
+-- The built-in debuff_applied_by_other returns true when caster info is
+-- missing (common on private servers), causing false positives that suppress
+-- our own Mangle indefinitely. This version only returns true when the caster
+-- field is present and verifiably not us.
+local function mangle_debuff_confirmed_by_other(unit, id_table, me)
+    if not unit or not unit:is_valid() then return false end
+    local ok, cache = pcall(function()
+        return buff_manager:get_debuff_cache(unit, 100)
+    end)
+    if not ok or not cache then return false end
+    local id_set = {}
+    for _, id in ipairs(id_table) do id_set[id] = true end
+    for _, aura in ipairs(cache) do
+        if aura.is_active and id_set[aura.buff_id] then
+            local remaining = aura.remaining or 0
+            if remaining >= 4000 then
+                local caster = aura.caster
+                if caster and caster:is_valid() and not utils.same_unit(caster, me) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function try_mangle_cat(me, target)
     if not menu.use_mangle_cat:get_state() then return false end
     if not runtime.mangle_cat_id then return false end
@@ -531,10 +580,8 @@ local function try_mangle_cat(me, target)
     -- During Berserk, Mangle CD is reduced — refresh aggressively
     local refresh_threshold = utils.has_buff(me, spells.BUFF_BERSERK) and 3000 or 1500
     if mangle_rem > refresh_threshold then return false end
-    -- Skip if another player (warrior Trauma or another druid) already has
-    -- the bleed amplification debuff up with plenty of time remaining
-    if utils.debuff_applied_by_other(target, spells.DEBUFF_MANGLE, me, 4000) then return false end
-    if utils.debuff_applied_by_other(target, spells.DEBUFF_TRAUMA, me, 4000) then return false end
+    if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_MANGLE, me) then return false end
+    if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me) then return false end
     if is_pending_cast(runtime.mangle_cat_id) then return false end
     if not utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then return false end
 
@@ -690,7 +737,11 @@ local function try_shred_or_filler(me, target)
         -- Not behind: fall through to Mangle/Claw builders
     end
 
-    if runtime.mangle_cat_id and not is_pending_cast(runtime.mangle_cat_id) and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
+    if runtime.mangle_cat_id and menu.use_mangle_cat:get_state()
+       and not is_pending_cast(runtime.mangle_cat_id)
+       and not mangle_debuff_confirmed_by_other(target, spells.DEBUFF_MANGLE, me)
+       and not mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me)
+       and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
         if utils.cast_target(runtime.mangle_cat_id, target) then
             mark_pending_cast(runtime.mangle_cat_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "Cat filler Mangle")
@@ -806,6 +857,12 @@ local function try_ooc_self_heal(me)
     if me:is_in_combat() then return false end
     local hp = me:get_health_percentage() / 100
     if hp >= (menu.ooc_self_heal_hp_pct:get() / 100) then return false end
+    -- Don't burn mana healing minor scratches — only heal if mana is healthy
+    -- enough to afford it. Below 50% mana, save it for the next fight.
+    local ok_mp, cur_mp = pcall(function()
+        return me:get_power(0) / me:get_max_power(0)
+    end)
+    if ok_mp and type(cur_mp) == "number" and cur_mp < 0.50 then return false end
     -- Must be in caster form to cast — if in cat/bear, shift out first
     local in_animal = utils.has_buff(me, spells.BUFF_CAT_FORM)
                    or utils.has_buff(me, spells.BUFF_BEAR_FORM)
@@ -851,6 +908,7 @@ local function try_prowl(me)
     if not utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
     if utils.can_cast_self(runtime.prowl_id, me) then
         if utils.cast_self(runtime.prowl_id, me) then
+            mark_pending_cast(runtime.prowl_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "Prowl")
             note_cast()
             return true
@@ -908,6 +966,8 @@ end
 local function try_feral_charge_bear(me, target)
     if not menu.use_feral_charge:get_state() then return false end
     if not runtime.feral_charge_bear_id then return false end
+    -- Never shift to bear OOC just to charge — only gap-close once already fighting
+    if not me:is_in_combat() then return false end
     if utils.is_melee_target(me, target) then return false end
     -- Only shift to bear / attempt charge if the target is actually within
     -- Feral Charge range. If they're too far away, don't waste the form shift.
@@ -921,6 +981,7 @@ local function try_feral_charge_bear(me, target)
         if menu.auto_form:get_state() and runtime.bear_form_id then
             if utils.can_cast_self(runtime.bear_form_id, me) then
                 utils.cast_self(runtime.bear_form_id, me)
+                runtime.bear_charge_shift_at = core.time()
                 utils.log_debug(menu, "Shifting Bear for Feral Charge")
             end
         end
@@ -978,7 +1039,38 @@ local function try_travel_form(me)
     if me:is_in_combat() then return false end
     if me:is_mounted() then return false end
     if utils.has_buff(me, spells.BUFF_TRAVEL_FORM) then return false end
-    -- After combat ends, shift back to travel form from any combat form
+    -- Never fight prowl — if stealthed or prowl just cast, back off entirely
+    if utils.has_buff(me, spells.BUFF_PROWL) then return false end
+    if runtime.prowl_id and is_pending_cast(runtime.prowl_id) then return false end
+    -- Don't shift to travel form if there's a hostile target selected — combat imminent
+    local sel = me:get_target()
+    if sel and sel:is_valid() and not sel:is_dead() and me:can_attack(sel) then
+        return false
+    end
+    -- If in cat/bear form, we need to drop to caster form first before travel
+    -- form becomes usable. But only drop form if prowl is NOT the intended
+    -- next action — if prowl is enabled and no target, prowl should win.
+    local in_cat  = utils.has_buff(me, spells.BUFF_CAT_FORM)
+    local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM)
+    if in_cat then
+        -- Cat form OOC with prowl enabled → let prowl handle it, not travel form
+        if menu.use_prowl:get_state() and runtime.prowl_id then return false end
+        -- Cat form OOC, prowl disabled → drop to caster so travel form can cast
+        local ok = pcall(function()
+            if CancelShapeshiftForm then CancelShapeshiftForm() end
+        end)
+        if not ok then core.spell_book.cast_spell(runtime.cat_form_id) end
+        utils.log_debug(menu, "Travel Form: dropping cat form")
+        return false  -- cast travel form next tick in caster form
+    end
+    if in_bear then
+        local ok = pcall(function()
+            if CancelShapeshiftForm then CancelShapeshiftForm() end
+        end)
+        if not ok and runtime.bear_form_id then core.spell_book.cast_spell(runtime.bear_form_id) end
+        utils.log_debug(menu, "Travel Form: dropping bear form")
+        return false
+    end
     if not utils.can_cast_self(runtime.travel_form_id, me) then return false end
     if utils.cast_self(runtime.travel_form_id, me) then
         utils.log_debug(menu, "Travel Form (OOC)")
@@ -1208,15 +1300,22 @@ end
 
 local function do_cat_rotation(me, target)
     local target_hp_pct = utils.get_health_pct(target)
+    local in_stealth = utils.has_buff(me, spells.BUFF_PROWL)
 
-    -- Defensive
+    -- Defensive / self-cast (always safe, don't break stealth)
     if try_barkskin(me) then return true end
-    -- Self-cleanse
     if try_abolish_poison(me) then return true end
-    -- Stealth openers (must be first — pounce/ravage only available in prowl)
-    if try_pounce(me, target) then return true end
-    if try_ravage(me, target) then return true end
-    -- Gap closer
+
+    -- While stealthed: ONLY fire stealth openers — nothing else hostile.
+    -- Dash and Feral Charge must NOT run here; they break stealth before
+    -- Pounce/Ravage can land.
+    if in_stealth then
+        if try_pounce(me, target) then return true end
+        if try_ravage(me, target) then return true end
+        return false
+    end
+
+    -- Gap closer (only outside stealth)
     if try_feral_charge_bear(me, target) then return true end
     if try_dash(me) then return true end
 
@@ -1303,8 +1402,25 @@ local function try_frenzied_regeneration(me)
     if not menu.use_frenzied_regeneration:get_state() then return false end
     if not runtime.frenzied_regeneration_id then return false end
     if utils.get_health_pct(me) >= (menu.frenzied_regeneration_hp_pct:get() / 100) then return false end
-    if utils.get_rage(me) < 40 then return false end
     if utils.has_buff(me, spells.BUFF_FRENZIED_REGENERATION) then return false end
+
+    -- If we're in cat form (or caster), shift to bear first so we can use Frenzied Regen.
+    -- Only do this in combat — no point emergency-shifting while OOC.
+    local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM)
+    if not in_bear then
+        if me:is_in_combat() and menu.auto_form:get_state() and runtime.bear_form_id then
+            if not is_pending_cast(runtime.bear_form_id) and utils.can_cast_self(runtime.bear_form_id, me) then
+                utils.cast_self(runtime.bear_form_id, me)
+                mark_pending_cast(runtime.bear_form_id, PENDING_CAST_TIMEOUT_S)
+                runtime.bear_charge_shift_at = core.time()  -- suppress cat snap-back for 2s
+                utils.log_debug(menu, "Shifting Bear for Frenzied Regen")
+            end
+        end
+        return false  -- cast Frenzied Regen on the next tick once in bear form
+    end
+
+    -- In bear form: require enough rage to actually cast it
+    if utils.get_rage(me) < 40 then return false end
     if is_pending_cast(runtime.frenzied_regeneration_id) then return false end
     if not utils.can_cast_self(runtime.frenzied_regeneration_id, me) then return false end
 
@@ -1345,9 +1461,8 @@ local function try_mangle_bear(me, target)
     -- During Berserk, Mangle CD is 1.5s — spam it aggressively for threat
     local refresh_threshold = utils.has_buff(me, spells.BUFF_BERSERK) and 3000 or 1500
     if mangle_rem > refresh_threshold then return false end
-    -- Skip if Mangle/Trauma from another player is already well covered
-    if utils.debuff_applied_by_other(target, spells.DEBUFF_MANGLE, me, 4000) then return false end
-    if utils.debuff_applied_by_other(target, spells.DEBUFF_TRAUMA, me, 4000) then return false end
+    if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_MANGLE, me) then return false end
+    if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me) then return false end
     if is_pending_cast(runtime.mangle_bear_id) then return false end
     if not utils.can_cast_hostile(runtime.mangle_bear_id, me, target) then return false end
 
@@ -1773,8 +1888,10 @@ core.register_on_update_callback(function()
         if try_ooc_self_heal(me) then return end
         if try_remove_curse_feral(me) then return end
         if try_innervate(me) then return end
-        if try_travel_form(me) then return end
         if try_abolish_poison(me) then return end
+        -- Travel form last — prowl (fired in do_rotation below) takes priority,
+        -- and travel form guards against active targets itself
+        if try_travel_form(me) then return end
     end
 
     -- Focus Target Priority

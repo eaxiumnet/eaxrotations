@@ -1,6 +1,10 @@
 -- =============================================================================
 -- Fishing/Lures Module - Lure management
 -- Uses APISurface for all runtime API calls
+-- FIXED: try_apply_lure now uses APISurface.use_item_on_safe / use_item_self_safe
+--        instead of calling lure.use_on directly (bypassed safe fallback chain)
+-- FIXED: lure_apply_delay_end reset logged on failure so silent failures are visible
+-- FIXED: get_buffs wrapped in pcall for safety if API returns unexpected type
 -- =============================================================================
 
 local State = require("core/state")
@@ -60,28 +64,32 @@ function M.has_active_lure(ctx, me)
     end
     
     local buffs = APISurface.get_buffs(me)
-    if not buffs then
-        return false
-    end
-    
-    for _, buff in ipairs(buffs) do
-        if buff then
-            if type(buff.buff_id) == "number" and LURE_BUFF_ID_SET[buff.buff_id] then
-                state.lure.assumed_expire_time = 0.0
-                return true
-            end
-            
-            if type(buff.buff_name) == "string" then
-                local lower_name = string.lower(buff.buff_name)
-                if string.find(lower_name, "lure") or string.find(lower_name, "fishing") then
-                    state.lure.assumed_expire_time = 0.0
-                    return true
+    if buffs and type(buffs) == "table" then
+        local ok, found = pcall(function()
+            for _, buff in ipairs(buffs) do
+                if buff then
+                    if type(buff.buff_id) == "number" and LURE_BUFF_ID_SET[buff.buff_id] then
+                        state.lure.assumed_expire_time = 0.0
+                        return true
+                    end
+                    
+                    if type(buff.buff_name) == "string" then
+                        local lower_name = string.lower(buff.buff_name)
+                        if string.find(lower_name, "lure") or string.find(lower_name, "fishing") then
+                            state.lure.assumed_expire_time = 0.0
+                            return true
+                        end
+                    end
                 end
             end
+            return false
+        end)
+        if ok and found then
+            return true
         end
     end
     
-    -- Check assumed expiry
+    -- Check assumed expiry fallback
     local now = APISurface.now()
     if type(now) == "number" and now < state.lure.assumed_expire_time then
         return true
@@ -219,20 +227,17 @@ function M.try_apply_lure(ctx, me, now)
     
     APISurface.print("[EaxFishing] Applying " .. (lure_name or "Lure") .. "...")
     
-    -- Try use_on first, fall back to use_self
+    -- Use APISurface safe wrappers (tries use_on_safe -> use_on fallback chain)
+    -- Prefer use_on (apply to main hand weapon) over use_self
     local applied = false
-    if lure.use_on then
-        local ok, result = pcall(lure.use_on, lure, main_hand.object)
-        if ok and result then
-            applied = true
-        end
+    
+    if main_hand.object then
+        applied = APISurface.use_item_on_safe(lure_id, main_hand.object)
     end
     
-    if not applied and lure.use_self then
-        local ok, result = pcall(lure.use_self, lure)
-        if ok and result then
-            applied = true
-        end
+    if not applied then
+        -- Fallback: use_self in case the item API changed
+        applied = APISurface.use_item_self_safe(lure_id)
     end
     
     if applied then
@@ -241,7 +246,7 @@ function M.try_apply_lure(ctx, me, now)
         APISurface.print("[EaxFishing] Lure applied successfully")
         return true
     else
-        APISurface.print("[EaxFishing] Failed to apply lure")
+        APISurface.print("[EaxFishing] Failed to apply lure (id=" .. tostring(lure_id) .. " name=" .. tostring(lure_name) .. ") - check item is in bags and pole is equipped")
         return false
     end
 end

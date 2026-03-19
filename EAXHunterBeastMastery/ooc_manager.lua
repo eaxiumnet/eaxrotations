@@ -16,6 +16,7 @@ local ooc_manager = {}
 
 local last_drink_attempt    = 0
 local last_eat_attempt      = 0
+local last_eating_started   = 0
 local last_rez_attempt      = {}   -- [guid] = timestamp
 local last_group_buff       = {}   -- [buff_id] = timestamp
 
@@ -80,8 +81,9 @@ function ooc_manager.try_drink(me, menu, utils)
     if me:is_moving() then return false end
     if has_any_buff(me, DRINK_BUFF_IDS) then return false end
     if has_any_buff(me, EAT_BUFF_IDS) then return false end
+    if (core.time() - last_eating_started) < 3.0 then return false end
 
-    local threshold = menu.drink_threshold and (menu.drink_threshold:get() / 100.0) or 0.80
+    local threshold = menu.drink_threshold and (menu.drink_threshold:get() / 100.0) or 0.20
     local _max_mana = me:get_max_power(0)
     local mana_pct = (_max_mana and _max_mana > 0) and (me:get_power(0) / _max_mana) or 1.0
     if mana_pct >= threshold then return false end
@@ -136,6 +138,7 @@ function ooc_manager.try_eat(me, menu, utils)
 
     local item_id = find_consumable_of_type(me, false, true)
     if item_id and core.input.use_item(item_id) then
+        last_eating_started = core.time()
         utils.log_debug(menu, "OOC: Eating")
         return true
     end
@@ -283,9 +286,12 @@ function ooc_manager.on_update(me, menu, utils, opts)
     if not me or not me:is_valid() or me:is_dead() then return end
     opts = opts or {}
 
+    -- If we recently started eating, don't try to drink at all
+    if (core.time() - last_eating_started) < 3.0 then return end
+
     -- Always try eat/drink for any spec (menu gates them)
+    if ooc_manager.try_eat(me, menu, utils) then return end
     ooc_manager.try_drink(me, menu, utils)
-    ooc_manager.try_eat(me, menu, utils)
 
     -- Resurrection
     if opts.rez_spell_id then

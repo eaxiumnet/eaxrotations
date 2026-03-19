@@ -86,7 +86,7 @@ menu.use_abolish_poison                   = core.menu.checkbox(true, "eaxdruidfe
 menu.use_natures_grasp                    = core.menu.checkbox(false, "eaxdruidferal_use_natures_grasp")
 menu.use_barkskin                         = core.menu.checkbox(true, "eaxdruidferal_use_barkskin")
 menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidferal_use_innervate")
-menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 30, "eaxdruidferal_innervate_mana_pct")
+menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 20, "eaxdruidferal_innervate_mana_pct")
 menu.barkskin_hp_pct                      = core.menu.slider_int(10, 60, 40, "eaxdruidferal_barkskin_hp_pct")
 menu.use_mangle_bear                      = core.menu.checkbox(true, "eaxdruidferal_use_mangle_bear")
 menu.use_lacerate                         = core.menu.checkbox(true, "eaxdruidferal_use_lacerate")
@@ -108,7 +108,7 @@ menu.use_entangling_roots                 = core.menu.checkbox(false, "eaxdruidf
 menu.maul_min_rage                        = core.menu.slider_int(10, 80, 45, "eaxdruidferal_maul_min_rage")
 menu.frenzied_regeneration_hp_pct         = core.menu.slider_int(10, 70, 40, "eaxdruidferal_frenzied_regeneration_hp_pct")
 menu.use_ooc_self_heal                    = core.menu.checkbox(true, "eaxdruidferal_ooc_self_heal")
-menu.ooc_self_heal_hp_pct                 = core.menu.slider_int(30, 90, 70, "eaxdruidferal_ooc_self_heal_hp_pct")
+menu.ooc_self_heal_hp_pct                 = core.menu.slider_int(30, 90, 50, "eaxdruidferal_ooc_self_heal_hp_pct")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
