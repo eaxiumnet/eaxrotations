@@ -243,7 +243,13 @@ end
 -- Returns true if the unit is in cat form OR prowling (prowl = stealthed cat form)
 function utils.is_in_cat_form(unit, spells_ref)
     if not unit or not unit:is_valid() then return false end
-    if utils.has_buff(unit, spells_ref.BUFF_CAT_FORM) then return true end
+    -- Check all paths — cat form may register as buff, debuff, or aura
+    local ids = spells_ref.BUFF_CAT_FORM
+    local data = buff_manager:get_buff_data(unit, ids)
+    if data and data.is_active then return true end
+    data = buff_manager:get_aura_data(unit, ids)
+    if data and data.is_active then return true end
+    -- Also count prowl as cat form
     if utils.is_prowling(unit, spells_ref.BUFF_PROWL) then return true end
     return false
 end

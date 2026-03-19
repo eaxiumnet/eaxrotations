@@ -390,8 +390,7 @@ local function try_shift_form(me, lane)
                 return false
             end
         end
-        if not runtime.cat_form_id or utils.has_buff(me, spells.BUFF_CAT_FORM)
-           or utils.is_prowling(me, spells.BUFF_PROWL) then return false end
+        if not runtime.cat_form_id or utils.is_in_cat_form(me, spells) then return false end
         if is_pending_cast(runtime.cat_form_id) then return false end
         if not utils.can_cast_self(runtime.cat_form_id, me) then return false end
         if utils.cast_self(runtime.cat_form_id, me) then
@@ -645,7 +644,7 @@ end
 local function try_powershift(me)
     if not menu.use_powershift or not menu.use_powershift:get_state() then return false end
     -- Must be in cat form but NOT stealthed — powershifting breaks stealth
-    if not utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+    if not utils.is_in_cat_form(me, spells) then return false end
     if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     local energy = utils.get_energy and utils.get_energy(me) or 100
     -- Only powershift if we actually have energy to reset — firing at 0 gains nothing
@@ -821,10 +820,10 @@ local function try_root_escape(me)
     end)
     if not ok then
         -- Fallback: cast self without buff active check to trigger drop
-        if runtime.cat_form_id and utils.has_buff(me, spells.BUFF_CAT_FORM) then
-            core.spell_book.cast_spell(runtime.cat_form_id)
+        if runtime.cat_form_id and utils.is_in_cat_form(me, spells) then
+            utils.cast_self(runtime.cat_form_id, me)
         elseif runtime.bear_form_id then
-            core.spell_book.cast_spell(runtime.bear_form_id)
+            utils.cast_self(runtime.bear_form_id, me)
         end
     end
     utils.log_debug(menu, "Root escape: shifted out of form")
@@ -836,7 +835,7 @@ local function try_remove_curse_feral(me)
     if not menu.use_remove_curse:get_state() then return false end
     if not runtime.remove_curse_id then return false end
     -- Only castable in caster form
-    if utils.has_buff(me, spells.BUFF_CAT_FORM) or utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
+    if utils.is_in_cat_form(me, spells) or utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
     if is_pending_cast(runtime.remove_curse_id) then return false end
     -- Scan self and party for curses
     local units = { me }
@@ -899,9 +898,9 @@ local function try_ooc_self_heal(me)
         end)
         if not ok then
             if runtime.cat_form_id and utils.is_in_cat_form(me, spells) then
-                core.spell_book.cast_spell(runtime.cat_form_id)
+                utils.cast_self(runtime.cat_form_id, me)
             elseif runtime.bear_form_id then
-                core.spell_book.cast_spell(runtime.bear_form_id)
+                utils.cast_self(runtime.bear_form_id, me)
             end
         end
         utils.log_debug(menu, "OOC self-heal: dropping form to cast")
@@ -928,7 +927,7 @@ local function try_prowl(me)
     -- Don't prowl if we still have combo points — means combat just ended
     if runtime.combo_points > 0 then return false end
     if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
-    if not utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+    if not utils.is_in_cat_form(me, spells) then return false end
     -- Don't prowl if an enemy we're NOT targeting is already in melee range
     -- (would break stealth immediately). Allow prowl when enemies are at pounce range.
     local sel = me:get_target()
@@ -995,7 +994,7 @@ local function try_dash(me)
     -- Dash: cat form sprint to close gap OOC or when target is far
     if not menu.use_feral_charge:get_state() then return false end
     if not runtime.dash_id then return false end
-    if not utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+    if not utils.is_in_cat_form(me, spells) then return false end
     if utils.has_buff(me, spells.BUFF_DASH) then return false end
     if not utils.can_cast_self(runtime.dash_id, me) then return false end
     if utils.cast_self(runtime.dash_id, me) then
@@ -1101,19 +1100,32 @@ local function try_travel_form(me)
     if in_cat then
         -- Cat form OOC with prowl enabled → let prowl handle it, not travel form
         if menu.use_prowl:get_state() and runtime.prowl_id then return false end
-        -- Cat form OOC, prowl disabled → drop to caster so travel form can cast
-        local ok = pcall(function()
-            if CancelShapeshiftForm then CancelShapeshiftForm() end
+        -- Already waiting for form to drop — don't spam CancelShapeshiftForm
+        if runtime.cat_form_id and is_pending_cast(runtime.cat_form_id) then return false end
+        -- Drop cat form so travel form can cast next tick
+        local dropped = false
+        pcall(function()
+            if CancelShapeshiftForm then
+                CancelShapeshiftForm()
+                dropped = true
+            end
         end)
-        if not ok then core.spell_book.cast_spell(runtime.cat_form_id) end
+        if not dropped and runtime.cat_form_id then
+            -- Fallback: cast cat form again to toggle it off
+            utils.cast_self(runtime.cat_form_id, me)
+        end
+        -- Block re-entry for 1.5s while the server processes the form drop
+        if runtime.cat_form_id then
+            mark_pending_cast(runtime.cat_form_id, 1.5)
+        end
         utils.log_debug(menu, "Travel Form: dropping cat form")
-        return false  -- cast travel form next tick in caster form
+        return false
     end
     if in_bear then
         local ok = pcall(function()
             if CancelShapeshiftForm then CancelShapeshiftForm() end
         end)
-        if not ok and runtime.bear_form_id then core.spell_book.cast_spell(runtime.bear_form_id) end
+        if not ok and runtime.bear_form_id then utils.cast_self(runtime.bear_form_id, me) end
         utils.log_debug(menu, "Travel Form: dropping bear form")
         return false
     end
@@ -1153,7 +1165,7 @@ end
 local function try_natures_grasp(me)
     if not menu.use_natures_grasp:get_state() then return false end
     if not runtime.natures_grasp_id then return false end
-    if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+    if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.is_in_cat_form(me, spells) then return false end
     if not utils.can_cast_self(runtime.natures_grasp_id, me) then return false end
     if utils.cast_self(runtime.natures_grasp_id, me) then
         utils.log_debug(menu, "Nature's Grasp")
