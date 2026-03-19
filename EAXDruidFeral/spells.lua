@@ -45,6 +45,9 @@ spells.DEBUFF_FAERIE_FIRE = { 770, 778, 16857, 17390, 17391, 17392, 26993, 27011
 spells.DEBUFF_RAKE = { 1822, 27003 }
 spells.DEBUFF_RIP = { 1079, 27008 }
 spells.DEBUFF_MANGLE = { 33876, 33983, 33878, 33986, 33987 }
+-- Trauma (Arms warrior) provides the same bleed-amplification effect as Mangle.
+-- If Trauma is already on the target, our Mangle is redundant.
+spells.DEBUFF_TRAUMA = { 46857 }
 spells.DEBUFF_DEMORALIZING_ROAR = { 99, 1738, 9490, 9491, 9745, 9746, 10756, 25275 }
 
 spells.BERSERKING = { 26297 }
@@ -85,6 +88,10 @@ spells.NATURES_GRASP       = { 27009, 16840, 16839, 16838, 16689, 9881, 9880, 68
 -- Defensive / utility
 spells.BARKSKIN            = { 22812 }
 spells.SURVIVAL_INSTINCTS  = { 61336 }
+spells.ENRAGE              = { 5229 }
+spells.CHALLENGING_ROAR    = { 5209 }
+spells.BUFF_ENRAGE         = { 5229 }
+spells.BUFF_SURVIVAL_INSTINCTS = { 61336 }
 spells.INNERVATE           = { 29166, 29166 }
 spells.CLAW                = { 27000, 9850, 9849, 1082 }
 spells.COWER               = { 27004, 9892, 8998, 8997 }

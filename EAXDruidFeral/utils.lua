@@ -234,6 +234,52 @@ function utils.get_debuff_remaining_ms(unit, id_table)
     return 0
 end
 
+function utils.get_debuff_stacks(unit, id_table)
+    local data = utils.get_debuff_data(unit, id_table)
+    if data and data.is_active then
+        return data.stacks or 0
+    end
+    return 0
+end
+
+-- Returns true if a debuff from id_table is active on unit AND was cast by someone
+-- other than `me` with at least `min_remaining_ms` left.
+-- Used to skip redundant Mangle casts when a party member already has it up.
+function utils.debuff_applied_by_other(unit, id_table, me, min_remaining_ms)
+    if not unit or not unit:is_valid() then return false end
+    local min_ms = min_remaining_ms or 4000
+    local ok, cache = pcall(function()
+        return buff_manager:get_debuff_cache(unit, 100)
+    end)
+    if not ok or not cache then return false end
+    -- Build a lookup set from id_table
+    local id_set = {}
+    if type(id_table) == "table" then
+        for _, id in ipairs(id_table) do id_set[id] = true end
+    elseif type(id_table) == "number" then
+        id_set[id_table] = true
+    end
+    for _, aura in ipairs(cache) do
+        if aura.is_active and id_set[aura.buff_id] then
+            local remaining = aura.remaining or 0
+            if remaining >= min_ms then
+                -- Check if caster is someone other than me
+                local caster = aura.caster
+                if caster and caster:is_valid() then
+                    if not utils.same_unit(caster, me) then
+                        return true
+                    end
+                else
+                    -- No caster info — assume it's from another player if active
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+
 function utils.same_unit(a, b)
     if not a or not b then return false end
     if a == b then return true end

@@ -9,6 +9,10 @@ local menu = {}
 -- -- Tree nodes ----------------------------------------------------------------
 local root_tree    = ps.tree_node()
 local main_tree    = ps.tree_node()
+local cat_tree     = ps.tree_node()
+local bear_tree    = ps.tree_node()
+local guardian_tree = ps.tree_node()
+local shared_tree  = ps.tree_node()
 local def_tree     = ps.tree_node()
 local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
@@ -45,6 +49,16 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 
 -- -- Class-specific elements ---------------------------------------------------
 menu.lane                                 = core.menu.combobox(1, "eaxdruidferal_lane")
+
+-- Guardian / Tank settings
+menu.use_survival_instincts               = core.menu.checkbox(true,  "eaxdruidferal_use_survival_instincts")
+menu.survival_instincts_hp_pct            = core.menu.slider_int(10, 60, 35, "eaxdruidferal_survival_instincts_hp")
+menu.use_enrage                           = core.menu.checkbox(true,  "eaxdruidferal_use_enrage")
+menu.enrage_rage_threshold                = core.menu.slider_int(0, 40, 15, "eaxdruidferal_enrage_rage")
+menu.use_challenging_roar                 = core.menu.checkbox(true,  "eaxdruidferal_use_challenging_roar")
+menu.challenging_roar_party_hp_pct        = core.menu.slider_int(20, 90, 75, "eaxdruidferal_challenging_roar_party_hp")
+menu.tank_cd_overlap                      = core.menu.checkbox(false, "eaxdruidferal_tank_cd_overlap")
+
 menu.use_root_escape                     = core.menu.checkbox(true, "eaxdruidferal_root_escape")
 menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidferal_remove_curse")
 menu.auto_form                            = core.menu.checkbox(true, "eaxdruidferal_auto_form")
@@ -74,12 +88,17 @@ menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidfe
 menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 30, "eaxdruidferal_innervate_mana_pct")
 menu.barkskin_hp_pct                      = core.menu.slider_int(10, 60, 40, "eaxdruidferal_barkskin_hp_pct")
 menu.use_mangle_bear                      = core.menu.checkbox(true, "eaxdruidferal_use_mangle_bear")
+menu.use_lacerate                         = core.menu.checkbox(true, "eaxdruidferal_use_lacerate")
+menu.use_demoralizing_roar                = core.menu.checkbox(true, "eaxdruidferal_use_demoralizing_roar")
 menu.use_maul                             = core.menu.checkbox(true, "eaxdruidferal_use_maul")
 menu.use_swipe                            = core.menu.checkbox(true, "eaxdruidferal_use_swipe")
 menu.auto_growl                           = core.menu.checkbox(true, "eaxdruidferal_auto_growl")
 menu.use_frenzied_regeneration            = core.menu.checkbox(true, "eaxdruidferal_use_frenzied_regeneration")
 menu.use_berserk                          = core.menu.checkbox(true, "eaxdruidferal_use_berserk")
+menu.use_maim                             = core.menu.checkbox(false, "eaxdruidferal_use_maim")
+menu.use_claw                             = core.menu.checkbox(true, "eaxdruidferal_use_claw")
 menu.swipe_enemy_count                    = core.menu.slider_int(2, 6, 3, "eaxdruidferal_swipe_enemy_count")
+menu.guardian_swipe_enemy_count           = core.menu.slider_int(1, 4, 2, "eaxdruidferal_guardian_swipe_enemy_count")
 menu.use_war_stomp                        = core.menu.checkbox(false, "eaxdruidferal_use_war_stomp")
 menu.war_stomp_hp_pct                     = core.menu.slider_int(10, 60, 25, "eaxdruidferal_war_stomp_hp_pct")
 menu.war_stomp_attackers                  = core.menu.slider_int(1, 5, 3, "eaxdruidferal_war_stomp_attackers")
@@ -87,6 +106,8 @@ menu.use_cyclone                          = core.menu.checkbox(false, "eaxdruidf
 menu.use_entangling_roots                 = core.menu.checkbox(false, "eaxdruidferal_use_entangling_roots")
 menu.maul_min_rage                        = core.menu.slider_int(10, 80, 45, "eaxdruidferal_maul_min_rage")
 menu.frenzied_regeneration_hp_pct         = core.menu.slider_int(10, 70, 40, "eaxdruidferal_frenzied_regeneration_hp_pct")
+menu.use_ooc_self_heal                    = core.menu.checkbox(true, "eaxdruidferal_ooc_self_heal")
+menu.ooc_self_heal_hp_pct                 = core.menu.slider_int(30, 90, 70, "eaxdruidferal_ooc_self_heal_hp_pct")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
@@ -101,7 +122,6 @@ end
 
 function menu.render()
     if _win and root_tree:is_open() then
-        -- Draw animated space background BEFORE imgui elements
         ps.draw_space(_win, "eaxdruidferal")
     end
 
@@ -109,69 +129,94 @@ function menu.render()
 
         ps.render_controls(menu, "Eax's Druid Feral")
 
-        -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
-            ps.header("Spells & Abilities")
-            menu.auto_form:render("Auto Form", "Automatically shift into Cat or Bear for the active lane")
-            menu.shift_mana_floor:render("Shift Mana Floor %", "Don't shift forms below this mana % — stay in current form and use its rotation instead")
-            menu.use_faerie_fire:render("Faerie Fire (Feral)", "Maintain Faerie Fire for both Cat and Bear lanes")
-            menu.use_prowl:render("Prowl", "Automatically enter stealth out of combat in cat form")
-            menu.use_pounce:render("Pounce", "Open from stealth with Pounce stun")
-            menu.use_ravage:render("Ravage", "Use Ravage as stealth opener (high damage)")
-            menu.use_feral_charge:render("Feral Charge (Cat)", "Charge to target when out of melee range")
-            menu.use_bash:render("Bash", "Stun target in bear form")
-            menu.use_war_stomp:render("War Stomp", "Tauren racial AoE stun at melee range (Tauren only)")
-            menu.war_stomp_hp_pct:render("War Stomp HP %", "Use War Stomp (single target) below this HP % — 0 to disable HP trigger")
-            menu.war_stomp_attackers:render("War Stomp Attackers", "Use War Stomp when this many enemies are in melee range")
-            menu.use_cyclone:render("Cyclone", "CC target — use on healers/casters")
-            menu.use_entangling_roots:render("Entangling Roots", "Root target — kiting or stopping melee gap close")
-            menu.use_travel_form:render("Travel Form", "Auto enter Travel Form out of combat when not mounted")
-            menu.use_abolish_poison:render("Abolish Poison", "Cleanse poison from self")
-            menu.use_natures_grasp:render("Nature\'s Grasp", "Auto-root melee attackers when out of form")
-            menu.use_barkskin:render("Barkskin", "Emergency damage reduction")
-            menu.use_innervate:render("Innervate", "Self-cast Innervate OOC when low mana")
-            menu.innervate_mana_pct:render("Innervate Mana %", "Use Innervate below this mana")
-            menu.barkskin_hp_pct:render("Barkskin HP %", "Use Barkskin below this health")
-            menu.use_mangle_cat:render("Mangle (Cat)", "Maintain the shared Mangle debuff")
+        -- ── Top-level controls (always visible, no sub-menu) ─────────────────
+        menu.lane:render("Role", { "Auto Detect", "Cat DPS", "Bear DPS", "Guardian (Tank)" })
+        menu.auto_form:render("Auto Form", "Automatically shift into the correct form for the selected role")
+        menu.shift_mana_floor:render("Shift Mana Floor %", "Don't shift forms below this mana % — stay in current form instead")
+
+        -- ── Cat Form (DPS) ────────────────────────────────────────────────────
+        cat_tree:render("  Cat Form (DPS)", function()
+            ps.header("Builders")
+            menu.use_mangle_cat:render("Mangle (Cat)", "Maintain the shared Mangle / bleed-amp debuff")
             menu.use_rake:render("Rake", "Maintain Rake bleed uptime")
-            menu.use_shred:render("Shred", "Use Shred as the primary combo-point builder")
-            menu.use_rip:render("Rip", "Spend combo points on Rip when ready")
-            menu.use_ferocious_bite:render("Ferocious Bite", "Spend combo points on Ferocious Bite in execute windows")
-            menu.use_tigers_fury:render("Tiger's Fury", "Recover energy for burst windows")
             menu.rake_refresh_seconds:render("Rake Refresh (sec)", "Refresh Rake below this remaining time")
+            menu.use_shred:render("Shred", "Primary CP builder — requires being behind the target")
+            menu.use_claw:render("Claw", "Builder fallback when Shred is unavailable")
+            ps.header("Finishers")
+            menu.use_rip:render("Rip", "Spend CPs on Rip bleed (prefer during Tiger's Fury / Berserk)")
+            menu.rip_combo_points:render("Rip Combo Points", "Minimum CPs before Rip")
             menu.rip_refresh_seconds:render("Rip Refresh (sec)", "Refresh Rip below this remaining time")
-            menu.rip_combo_points:render("Rip Combo Points", "Minimum combo points before Rip")
-            menu.bite_killshot_hp_pct:render("Killshot HP %", "Fire Ferocious Bite at any CP count when target HP is below this % (killshot). Above this HP, only fires at max 5 CPs as a normal finisher.")
-            menu.tigers_fury_energy:render("Tiger's Fury Energy", "Use Tiger's Fury at or below this energy")
-            menu.use_mangle_bear:render("Mangle (Bear)", "Maintain the shared Mangle debuff")
-            menu.use_maul:render("Maul", "Queue Maul as a rage dump")
-            menu.use_swipe:render("Swipe", "Use Swipe for pack threat")
-            menu.auto_growl:render("Auto Growl", "Taunt when the current target is not on you")
-            menu.use_berserk:render("Berserk", "Use Berserk for high-pressure threat windows")
-            menu.swipe_enemy_count:render("Swipe Enemy Count", "Minimum enemies before Swipe becomes preferred")
-            menu.maul_min_rage:render("Maul Min Rage", "Minimum rage before Maul is queued")
-            menu.frenzied_regeneration_hp_pct:render("Frenzied Regen HP %", "Self-health threshold for Frenzied Regeneration")
-            menu.lane:render("Lane", { "Auto Detect", "Force Cat", "Force Bear" })
+            menu.use_ferocious_bite:render("Ferocious Bite", "CP finisher / killshot")
+            menu.bite_killshot_hp_pct:render("Killshot HP %", "Fire at any CP below this HP — above it, only at 5 CPs")
+            menu.use_maim:render("Maim (interrupt)", "Use at 5 CPs to interrupt — only when Bash is on CD")
+            ps.header("Cooldowns")
+            menu.use_tigers_fury:render("Tiger's Fury", "Energy recovery — fires during builder phase (CP < 4)")
+            menu.tigers_fury_energy:render("Tiger's Fury Energy", "Fire Tiger's Fury at or below this energy")
+            ps.header("Stealth")
+            menu.use_prowl:render("Prowl", "Auto-enter stealth OOC in cat form")
+            menu.use_pounce:render("Pounce", "Stealth opener — stun")
+            menu.use_ravage:render("Ravage", "Stealth opener — high damage")
         end)
 
-        -- -- Defensive cooldowns -----------------------------------------------
+        -- ── Bear Form (DPS) ───────────────────────────────────────────────────
+        bear_tree:render("  Bear Form (DPS)", function()
+            menu.use_mangle_bear:render("Mangle (Bear)", "Maintain the shared Mangle debuff")
+            menu.use_lacerate:render("Lacerate", "Build and maintain Lacerate stacks")
+            menu.use_demoralizing_roar:render("Demoralizing Roar", "Reduce nearby enemy attack power")
+            menu.use_swipe:render("Swipe", "AoE — use when multiple enemies are in range")
+            menu.swipe_enemy_count:render("Swipe Enemy Count", "Minimum enemies before Swipe fires")
+            menu.use_maul:render("Maul", "Queue Maul on next melee swing as rage dump")
+            menu.maul_min_rage:render("Maul Min Rage", "Minimum rage before Maul is queued")
+            menu.use_berserk:render("Berserk", "Burst CD — reduces Mangle CD to 1.5s")
+            menu.auto_growl:render("Auto Growl", "Taunt when the primary target is not on you")
+            menu.frenzied_regeneration_hp_pct:render("Frenzied Regen HP %", "Emergency self-heal threshold")
+        end)
+
+        -- ── Guardian / Tank ───────────────────────────────────────────────────
+        guardian_tree:render("  Guardian / Tank", function()
+            ps.header("Defensive Cooldowns")
+            menu.use_survival_instincts:render("Survival Instincts", "Major tank CD — use below this HP %")
+            menu.survival_instincts_hp_pct:render("Survival Instincts HP %", "Trigger threshold")
+            menu.tank_cd_overlap:render("Allow CD Overlap", "Allow SI + Frenzied Regen simultaneously")
+            ps.header("Rage")
+            menu.use_enrage:render("Enrage", "Free rage generation when low — important for pull threat")
+            menu.enrage_rage_threshold:render("Enrage Rage Threshold", "Fire Enrage below this rage value")
+            ps.header("Multi-Target")
+            menu.use_challenging_roar:render("Challenging Roar", "AoE taunt when a party member drops below the HP threshold")
+            menu.challenging_roar_party_hp_pct:render("Challenging Roar Party HP %", "Trigger threshold")
+            menu.guardian_swipe_enemy_count:render("Guardian Swipe Count", "Minimum enemies before Swipe fires in tank mode")
+        end)
+
+        -- ── Shared Abilities ──────────────────────────────────────────────────
+        shared_tree:render("  Shared Abilities", function()
+            menu.use_faerie_fire:render("Faerie Fire (Feral)", "Armor reduction — works in any form")
+            menu.use_bash:render("Bash", "Bear stun — also used as interrupt")
+            menu.use_feral_charge:render("Feral Charge", "Bear charge to close gaps")
+            menu.use_barkskin:render("Barkskin", "Emergency damage reduction — any form")
+            menu.barkskin_hp_pct:render("Barkskin HP %", "Use below this HP %")
+            menu.use_war_stomp:render("War Stomp", "Tauren racial AoE stun")
+            menu.war_stomp_hp_pct:render("War Stomp HP %", "HP trigger (0 = disable HP trigger)")
+            menu.war_stomp_attackers:render("War Stomp Attackers", "Attacker count trigger")
+            menu.use_cyclone:render("Cyclone", "Last-resort CC — caster form only, Bash must be on CD")
+            menu.use_entangling_roots:render("Entangling Roots", "Root kiting targets")
+            menu.use_abolish_poison:render("Abolish Poison", "Cleanse poison from self")
+            menu.use_natures_grasp:render("Nature's Grasp", "Auto-root attackers in caster form")
+            menu.use_travel_form:render("Travel Form", "Auto Travel Form OOC")
+            menu.use_innervate:render("Innervate", "Self-cast OOC when low mana")
+            menu.innervate_mana_pct:render("Innervate Mana %", "Trigger threshold")
+            menu.use_ooc_self_heal:render("OOC Self-Heal", "Drop to caster form and Healing Touch when HP is low OOC")
+            menu.ooc_self_heal_hp_pct:render("OOC Self-Heal HP %", "Heal below this HP % when out of combat")
+        end)
+
+        -- ── Standard sections ─────────────────────────────────────────────────
         ps.render_defensive(menu, def_tree, {
-        { key = "use_frenzied_regeneration", label = "Frenzied Regeneration", tip = "Use Frenzied Regeneration as an emergency cooldown" },
+            { key = "use_frenzied_regeneration", label = "Frenzied Regeneration", tip = "Emergency self-heal in bear form" },
         })
-
-        -- -- Targeting --------------------------------------------------------
         ps.render_targeting(menu, tgt_tree)
-
-        -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
-
-        -- -- Out-of-combat -----------------------------------------------------
         ps.render_ooc(menu, ooc_tree, false)
-
-        -- -- Display & HUD -----------------------------------------------------
         ps.render_esp(menu, esp_tree)
 
     end)
 end
-
 return menu

@@ -29,6 +29,42 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("feral", "Druid Feral")
+
+-- ── ESP Proc indicators ──────────────────────────────────────────────────────
+-- These show as persistent rows in the HUD so you can glance at rotation state.
+
+-- Combo points (cat)
+esp_renderer.add_proc("CP: 5", function()
+    return runtime and runtime.combo_points >= 5
+end, color.gold(240), color.cyan(80))
+
+esp_renderer.add_proc("Tiger's Fury", function()
+    local me = core.object_manager.get_local_player()
+    return me and utils.has_buff(me, spells.BUFF_TIGERS_FURY)
+end, color.gold(240), color.cyan(60))
+
+esp_renderer.add_proc("Berserk", function()
+    local me = core.object_manager.get_local_player()
+    return me and utils.has_buff(me, spells.BUFF_BERSERK)
+end, color.gold(240), color.cyan(60))
+
+-- Survival Instincts (guardian)
+esp_renderer.add_proc("Survival Instincts", function()
+    local me = core.object_manager.get_local_player()
+    return me and utils.has_buff(me, spells.BUFF_SURVIVAL_INSTINCTS)
+end, color.gold(240), color.cyan(60))
+
+-- Frenzied Regen (guardian)
+esp_renderer.add_proc("Frenzied Regen", function()
+    local me = core.object_manager.get_local_player()
+    return me and utils.has_buff(me, spells.BUFF_FRENZIED_REGENERATION)
+end, color.gold(240), color.cyan(60))
+
+-- Enrage (guardian rage gen)
+esp_renderer.add_proc("Enrage", function()
+    local me = core.object_manager.get_local_player()
+    return me and utils.has_buff(me, spells.BUFF_ENRAGE)
+end, color.gold(240), color.cyan(60))
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
@@ -88,11 +124,18 @@ local runtime = {
     cyclone_id = nil,
     entangling_roots_id = nil,
     war_stomp_id = nil,
+    survival_instincts_id = nil,
+    enrage_id = nil,
+    challenging_roar_id = nil,
+    healing_touch_id = nil,
 }
 
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
+-- Energy pooling: at CP=4, wait for this much energy before the final Shred
+-- so you can chain Shred → finisher without an energy gap.
+local ENERGY_POOL_FOR_SHRED = 75
 
 local function resolve_spells()
     runtime.cat_form_id = utils.resolve_spell_id(spells.CAT_FORM)
@@ -131,6 +174,10 @@ local function resolve_spells()
     runtime.cyclone_id             = utils.resolve_spell_id(spells.CYCLONE)
     runtime.entangling_roots_id    = utils.resolve_spell_id(spells.ENTANGLING_ROOTS)
     runtime.war_stomp_id           = utils.resolve_spell_id(spells.WAR_STOMP)
+    runtime.survival_instincts_id  = utils.resolve_spell_id(spells.SURVIVAL_INSTINCTS)
+    runtime.enrage_id              = utils.resolve_spell_id(spells.ENRAGE)
+    runtime.challenging_roar_id    = utils.resolve_spell_id(spells.CHALLENGING_ROAR)
+    runtime.healing_touch_id       = utils.resolve_spell_id(spells.HEALING_TOUCH)
 end
 
 local function log_resolved_spells()
@@ -252,27 +299,25 @@ local function get_requested_lane(me)
     local lane_idx = menu.lane:get()
     if lane_idx == 2 then return "cat" end
     if lane_idx == 3 then return "bear" end
+    if lane_idx == 4 then return "guardian" end
 
     -- Mana fallback: if mana is below the shift floor and we're already in
-    -- bear form, stay in bear and use rage-based abilities rather than shifting
-    -- to cat (which costs mana and leaves us in a form we can't sustain).
+    -- bear form, stay in bear/guardian and use rage-based abilities.
     local mana_floor = menu.shift_mana_floor:get() / 100
     if mana_floor > 0 and utils.get_mana_pct(me) < mana_floor then
         if utils.has_buff(me, spells.BUFF_BEAR_FORM) then
-            return "bear"
+            -- Preserve guardian lane if that's what was selected
+            return lane_idx == 4 and "guardian" or "bear"
         end
-        -- In cat form with low mana: stay cat (cat abilities are energy-based, free)
         return "cat"
     end
 
     -- Auto mode: role/mode decides the lane, not the current form.
-    -- Current form must NOT lock the lane — otherwise feral charge (which
-    -- requires bear form) causes the script to stay in bear permanently.
     local mode = get_effective_mode()
     if mode == "solo" then return "cat" end
     local ok_r, role = pcall(function() return me:get_group_role() end)
     if not ok_r then role = 0 end
-    if role == 2 then return "bear" end  -- 2 = tank role
+    if role == 2 then return "guardian" end  -- tank role → guardian
     return "cat"
 end
 
@@ -320,15 +365,19 @@ local function try_shift_form(me, lane)
         return false
     end
 
-    -- Bear lane: only shift to bear if charge is actually usable from here
-    -- (target out of melee range AND within charge range)
-    if target_valid and not in_melee then
-        if runtime.feral_charge_bear_id then
-            if not core.spell_book.is_spell_in_range(runtime.feral_charge_bear_id, target, me) then
-                return false  -- too far even for charge — stay in current form
+    -- Bear / Guardian lane: shift to bear form
+    -- For guardian (tank), skip the charge-range check — tank should always
+    -- be in bear form regardless of distance.
+    if lane == "bear" then
+        if target_valid and not in_melee then
+            if runtime.feral_charge_bear_id then
+                if not core.spell_book.is_spell_in_range(runtime.feral_charge_bear_id, target, me) then
+                    return false  -- too far even for charge — stay in current form
+                end
             end
         end
     end
+    -- Guardian: always shift to bear, no range restriction
 
     if not runtime.bear_form_id or utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
     if is_pending_cast(runtime.bear_form_id) then return false end
@@ -369,7 +418,8 @@ local function try_tigers_fury(me, target)
     if not runtime.tigers_fury_id then return false end
     if utils.get_energy(me) > menu.tigers_fury_energy:get() then return false end
     if utils.has_buff(me, spells.BUFF_TIGERS_FURY) then return false end
-    -- Never interrupt a finisher opportunity with Tiger's Fury
+    -- Never fire at high CP when a finisher is ready — the GCD is better spent
+    -- on Rip or Ferocious Bite. Tiger's Fury is a builder-phase cooldown.
     if target then
         local rip_ready = menu.use_rip:get_state()
             and not creature_utils.is_bleed_immune(target)
@@ -378,12 +428,15 @@ local function try_tigers_fury(me, target)
             and runtime.combo_points >= 5
         if rip_ready or bite_ready then return false end
     end
+    -- Also avoid TF when at 4 CP and about to get the final builder —
+    -- don't waste it on a Fury proc that gets immediately capped by a finisher
+    if runtime.combo_points >= 4 then return false end
     if is_pending_cast(runtime.tigers_fury_id) then return false end
     if not utils.can_cast_self(runtime.tigers_fury_id, me) then return false end
 
     if utils.cast_self_fast(runtime.tigers_fury_id, me) then
         mark_pending_cast(runtime.tigers_fury_id, FAST_PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Tiger's Fury")
+        utils.log_debug(menu, "Tiger's Fury (CP=" .. runtime.combo_points .. ")")
         note_cast()
         return true
     end
@@ -394,19 +447,34 @@ end
 
 local function try_rip(me, target)
     if not menu.use_rip:get_state() then return false end
-    if creature_utils.is_bleed_immune(target) then return false end  -- Undead/Elemental: bleed immune
-    -- TTD gate: don't Rip if fight ending before DoT expires (v1.4)
+    if creature_utils.is_bleed_immune(target) then return false end
     local ttd = ttd_tracker.get(target)
-    if ttd > 0 and ttd < 12 then return false end  -- skip if fight ending soon, but not if TTD unknown (0)
+    if ttd > 0 and ttd < 12 then return false end
     if not runtime.rip_id then return false end
     if runtime.combo_points < menu.rip_combo_points:get() then return false end
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP) > (menu.rip_refresh_seconds:get() * 1000) then return false end
+    local rip_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP)
+    if rip_rem > (menu.rip_refresh_seconds:get() * 1000) then return false end
+    -- Snapshotting: if Rip isn't active yet (or is almost gone) and we have
+    -- Tiger's Fury or Berserk available but not active, hold briefly.
+    -- Only delay if the buff is about to come off cooldown (CD < 2s).
+    if rip_rem <= 0 then
+        local has_tf     = utils.has_buff(me, spells.BUFF_TIGERS_FURY)
+        local has_berserk = utils.has_buff(me, spells.BUFF_BERSERK)
+        if not has_tf and not has_berserk then
+            local tf_cd = runtime.tigers_fury_id and core.spell_book.get_spell_cooldown(runtime.tigers_fury_id) or 99
+            if tf_cd > 0 and tf_cd < 2.0 then
+                return false  -- TF incoming in <2s, wait to snapshot
+            end
+        end
+    end
     if is_pending_cast(runtime.rip_id) then return false end
     if not utils.can_cast_hostile(runtime.rip_id, me, target) then return false end
 
     if utils.cast_target(runtime.rip_id, target) then
         mark_pending_cast(runtime.rip_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Rip")
+        local snap = utils.has_buff(me, spells.BUFF_TIGERS_FURY) and " [TF]"
+                  or utils.has_buff(me, spells.BUFF_BERSERK) and " [Berserk]" or ""
+        utils.log_debug(menu, "Rip" .. snap)
         note_cast()
         return true
     end
@@ -452,7 +520,14 @@ end
 local function try_mangle_cat(me, target)
     if not menu.use_mangle_cat:get_state() then return false end
     if not runtime.mangle_cat_id then return false end
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE) > 1500 then return false end
+    local mangle_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE)
+    -- During Berserk, Mangle CD is reduced — refresh aggressively
+    local refresh_threshold = utils.has_buff(me, spells.BUFF_BERSERK) and 3000 or 1500
+    if mangle_rem > refresh_threshold then return false end
+    -- Skip if another player (warrior Trauma or another druid) already has
+    -- the bleed amplification debuff up with plenty of time remaining
+    if utils.debuff_applied_by_other(target, spells.DEBUFF_MANGLE, me, 4000) then return false end
+    if utils.debuff_applied_by_other(target, spells.DEBUFF_TRAUMA, me, 4000) then return false end
     if is_pending_cast(runtime.mangle_cat_id) then return false end
     if not utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then return false end
 
@@ -531,10 +606,14 @@ end
 
 
 local function try_rake_trick(me, target)
-    -- Only use as energy sink when Rake not active and energy in sweet spot
+    -- Energy-sink Rake: only when Rake is absent AND energy is in the sweet
+    -- spot AND we don't have enough CPs for a finisher yet.
+    -- Prevents burning energy at CP=4/5 when a finisher should fire instead.
     if not menu.use_rake:get_state() then return false end
     if not runtime.rake_id then return false end
     if utils.has_debuff(target, spells.DEBUFF_RAKE) then return false end
+    -- Don't rake-trick when a finisher is imminent
+    if runtime.combo_points >= 4 then return false end
     local energy = utils.get_energy and utils.get_energy(me) or 0
     if energy < RAKE_TRICK_MIN or energy > RAKE_TRICK_MAX then return false end
     if is_pending_cast(runtime.rake_id) then return false end
@@ -570,9 +649,15 @@ local try_claw  -- forward declaration (defined after try_shred_or_filler)
 
 local function try_shred_or_filler(me, target)
     local cp = runtime.combo_points
+    local energy = utils.get_energy(me)
 
     if menu.use_shred:get_state() and runtime.shred_id and cp < 5 then
         if utils.is_behind_target(me, target) then
+            -- Energy pooling: if we're one builder from a finisher, wait for
+            -- enough energy to chain Shred → finisher without an energy gap.
+            if cp >= 4 and energy < ENERGY_POOL_FOR_SHRED then
+                return false  -- pool energy for the final Shred
+            end
             if not is_pending_cast(runtime.shred_id) and utils.can_cast_hostile(runtime.shred_id, me, target) then
                 if utils.cast_target(runtime.shred_id, target) then
                     mark_pending_cast(runtime.shred_id, PENDING_CAST_TIMEOUT_S)
@@ -678,6 +763,48 @@ end
 
 
 -- ── Prowl ─────────────────────────────────────────────────────────────────
+-- ── OOC Self-Heal ─────────────────────────────────────────────────────────
+-- When out of combat and HP is low, shift to caster form and cast Healing
+-- Touch to top up. Shifts back into the appropriate form on next tick via
+-- try_shift_form. Only fires when not already casting and not eating/drinking.
+local function try_ooc_self_heal(me)
+    if not menu.use_ooc_self_heal:get_state() then return false end
+    if not runtime.healing_touch_id then return false end
+    if me:is_in_combat() then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp >= (menu.ooc_self_heal_hp_pct:get() / 100) then return false end
+    -- Must be in caster form to cast — if in cat/bear, shift out first
+    local in_animal = utils.has_buff(me, spells.BUFF_CAT_FORM)
+                   or utils.has_buff(me, spells.BUFF_BEAR_FORM)
+    if in_animal then
+        -- Cancel form to enable healing — try_shift_form will re-enter on next tick
+        local ok = pcall(function()
+            if CancelShapeshiftForm then CancelShapeshiftForm() end
+        end)
+        if not ok then
+            if runtime.cat_form_id and utils.has_buff(me, spells.BUFF_CAT_FORM) then
+                core.spell_book.cast_spell(runtime.cat_form_id)
+            elseif runtime.bear_form_id then
+                core.spell_book.cast_spell(runtime.bear_form_id)
+            end
+        end
+        utils.log_debug(menu, "OOC self-heal: dropping form to cast")
+        return false  -- cast next tick once in caster form
+    end
+    -- Check mana floor — don't heal if we'll be left with nothing
+    local mana_floor = menu.shift_mana_floor:get() / 100
+    if mana_floor > 0 and utils.get_mana_pct(me) < mana_floor then return false end
+    if is_pending_cast(runtime.healing_touch_id) then return false end
+    if not utils.can_cast_self(runtime.healing_touch_id, me) then return false end
+    if utils.cast_self(runtime.healing_touch_id, me) then
+        mark_pending_cast(runtime.healing_touch_id, 3.0)
+        utils.log_debug(menu, "OOC Healing Touch (hp=" .. string.format("%.0f%%", hp * 100) .. ")")
+        note_cast()
+        return true
+    end
+    return false
+end
+
 local function try_prowl(me)
     if not menu.use_prowl:get_state() then return false end
     if not runtime.prowl_id then return false end
@@ -884,6 +1011,7 @@ end
 
 -- ── Claw (builder when Shred not available / not behind) ───────────────────
 try_claw = function(me, target)
+    if not menu.use_claw or not menu.use_claw:get_state() then return false end
     if not runtime.claw_id then return false end
     if runtime.combo_points >= 5 then return false end
     if not utils.can_cast_hostile(runtime.claw_id, me, target) then return false end
@@ -1148,7 +1276,13 @@ end
 local function try_mangle_bear(me, target)
     if not menu.use_mangle_bear:get_state() then return false end
     if not runtime.mangle_bear_id then return false end
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE) > 1500 then return false end
+    local mangle_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE)
+    -- During Berserk, Mangle CD is 1.5s — spam it aggressively for threat
+    local refresh_threshold = utils.has_buff(me, spells.BUFF_BERSERK) and 3000 or 1500
+    if mangle_rem > refresh_threshold then return false end
+    -- Skip if Mangle/Trauma from another player is already well covered
+    if utils.debuff_applied_by_other(target, spells.DEBUFF_MANGLE, me, 4000) then return false end
+    if utils.debuff_applied_by_other(target, spells.DEBUFF_TRAUMA, me, 4000) then return false end
     if is_pending_cast(runtime.mangle_bear_id) then return false end
     if not utils.can_cast_hostile(runtime.mangle_bear_id, me, target) then return false end
 
@@ -1162,11 +1296,12 @@ local function try_mangle_bear(me, target)
     return false
 end
 
-local function try_swipe(me, enemy_count)
+local function try_swipe(me, enemy_count, min_count_override)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_swipe:get_state() then return false end
     if not runtime.swipe_id then return false end
-    if enemy_count < menu.swipe_enemy_count:get() then return false end
+    local min_count = min_count_override or menu.swipe_enemy_count:get()
+    if enemy_count < min_count then return false end
     if is_pending_cast(runtime.swipe_id) then return false end
     if not utils.can_cast_self(runtime.swipe_id, me) then return false end
 
@@ -1203,9 +1338,15 @@ end
 local function try_demoralizing_roar(me, target)
     if not menu.use_demoralizing_roar or not menu.use_demoralizing_roar:get_state() then return false end
     if not runtime.demoralizing_roar_id then return false end
-    if utils.has_debuff(target, spells.DEBUFF_DEMORALIZING_ROAR) then return false end
-    if utils.cast_target(runtime.demoralizing_roar_id, target, "Demoralizing Roar") then
+    -- Demoralizing Roar is an AoE — check nearby enemies, not just the target
+    -- Use a generous remaining time so we don't recast constantly
+    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEMORALIZING_ROAR) > 4000 then return false end
+    if is_pending_cast(runtime.demoralizing_roar_id) then return false end
+    if not utils.can_cast_self(runtime.demoralizing_roar_id, me) then return false end
+    if utils.cast_self(runtime.demoralizing_roar_id, me) then
+        mark_pending_cast(runtime.demoralizing_roar_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Demoralizing Roar")
+        note_cast()
         return true
     end
     return false
@@ -1225,29 +1366,27 @@ local LACERATE_REFRESH_MS   = 3000
 
 local function try_lacerate(me, target)
     if not menu.use_lacerate or not menu.use_lacerate:get_state() then return false end
-    if not runtime.lacerate_id then return false end    -- nil = talent not yet trained
+    if not runtime.lacerate_id then return false end
     if not utils.has_buff(me, spells.BUFF_BEAR_FORM) and
        not utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then return false end
+    if is_pending_cast(runtime.lacerate_id) then return false end
+    -- TTD gate: don't build Lacerate stacks if the fight is nearly over
+    local ttd = ttd_tracker.get(target)
+    if ttd > 0 and ttd < 8 then return false end
+    if not utils.can_cast_hostile(runtime.lacerate_id, me, target) then return false end
 
-    local stacks = utils.get_debuff_stacks(target, spells.DEBUFF_LACERATE)
+    local stacks    = utils.get_debuff_stacks(target, spells.DEBUFF_LACERATE)
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_LACERATE)
 
-    -- Apply if not at max stacks
-    if stacks < LACERATE_MAX_STACKS then
-        if utils.can_cast_hostile(runtime.lacerate_id, me, target) then
-            if utils.cast_target(runtime.lacerate_id, target, "Lacerate") then
-                utils.log_debug(menu, "Lacerate (" .. tostring(stacks + 1) .. " stacks)")
-                return true
-            end
-        end
-    -- Refresh when about to fall off
-    elseif remaining <= LACERATE_REFRESH_MS then
-        if utils.can_cast_hostile(runtime.lacerate_id, me, target) then
-            if utils.cast_target(runtime.lacerate_id, target, "Lacerate (refresh)") then
-                utils.log_debug(menu, "Lacerate refresh")
-                return true
-            end
-        end
+    local should_cast = (stacks < LACERATE_MAX_STACKS)
+                     or (stacks >= LACERATE_MAX_STACKS and remaining <= LACERATE_REFRESH_MS)
+    if not should_cast then return false end
+
+    if utils.cast_target(runtime.lacerate_id, target) then
+        mark_pending_cast(runtime.lacerate_id, PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Lacerate (" .. tostring(math.min(stacks + 1, LACERATE_MAX_STACKS)) .. " stacks)")
+        note_cast()
+        return true
     end
     return false
 end
@@ -1270,15 +1409,152 @@ local function do_bear_rotation(me, target)
     if try_swipe(me, enemy_count) then return true end
     if try_maul(me, target) then return true end
 
-    if runtime.mangle_bear_id and not is_pending_cast(runtime.mangle_bear_id) and utils.can_cast_hostile(runtime.mangle_bear_id, me, target) then
-        if utils.cast_target(runtime.mangle_bear_id, target) then
-            mark_pending_cast(runtime.mangle_bear_id, PENDING_CAST_TIMEOUT_S)
-            utils.log_debug(menu, "Bear filler Mangle")
-            note_cast()
-                    esp_renderer.on_cast(runtime.mangle_bear_id, "Bear Rotation", color.orange(220))
+    return false
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- GUARDIAN / TANK ABILITIES
+-- ─────────────────────────────────────────────────────────────────────────────
+
+local function try_survival_instincts(me)
+    if not menu.use_survival_instincts:get_state() then return false end
+    if not runtime.survival_instincts_id then return false end
+    if utils.has_buff(me, spells.BUFF_SURVIVAL_INSTINCTS) then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > (menu.survival_instincts_hp_pct:get() / 100) then return false end
+    -- Respect CD overlap setting — if Frenzied Regen is already active and
+    -- overlap is off, hold SI for when Regen expires
+    if not menu.tank_cd_overlap:get_state() then
+        if utils.has_buff(me, spells.BUFF_FRENZIED_REGENERATION) then return false end
+    end
+    if is_pending_cast(runtime.survival_instincts_id) then return false end
+    if not utils.can_cast_self(runtime.survival_instincts_id, me) then return false end
+    if utils.cast_self_fast(runtime.survival_instincts_id, me) then
+        mark_pending_cast(runtime.survival_instincts_id, FAST_PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Survival Instincts")
+        note_cast()
         return true
+    end
+    return false
+end
+
+local function try_enrage(me)
+    if not menu.use_enrage:get_state() then return false end
+    if not runtime.enrage_id then return false end
+    if utils.has_buff(me, spells.BUFF_ENRAGE) then return false end
+    if utils.get_rage(me) > menu.enrage_rage_threshold:get() then return false end
+    if is_pending_cast(runtime.enrage_id) then return false end
+    if not utils.can_cast_self(runtime.enrage_id, me) then return false end
+    if utils.cast_self_fast(runtime.enrage_id, me) then
+        mark_pending_cast(runtime.enrage_id, FAST_PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Enrage (rage=" .. tostring(math.floor(utils.get_rage(me))) .. ")")
+        note_cast()
+        return true
+    end
+    return false
+end
+
+-- Scan party members — return true if any are below the configured HP threshold
+local function party_member_in_danger(me)
+    local threshold = menu.challenging_roar_party_hp_pct:get() / 100
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead()
+           and not utils.same_unit(obj, me) and obj:is_party_member() then
+            if utils.get_health_pct(obj) < threshold then
+                return true
+            end
         end
     end
+    return false
+end
+
+local function try_challenging_roar(me)
+    if not menu.use_challenging_roar:get_state() then return false end
+    if not runtime.challenging_roar_id then return false end
+    if not utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
+    -- Only fire when a party member is being hammered
+    if not party_member_in_danger(me) then return false end
+    -- Growl should be on cooldown first — Challenging Roar is the AoE fallback
+    if runtime.growl_id then
+        local growl_cd = core.spell_book.get_spell_cooldown(runtime.growl_id)
+        if growl_cd <= 0 then return false end  -- growl is available, use that first
+    end
+    if is_pending_cast(runtime.challenging_roar_id) then return false end
+    if not utils.can_cast_self(runtime.challenging_roar_id, me) then return false end
+    if utils.cast_self(runtime.challenging_roar_id, me) then
+        mark_pending_cast(runtime.challenging_roar_id, PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Challenging Roar (party in danger)")
+        note_cast()
+        return true
+    end
+    return false
+end
+
+-- Taunt any mob attacking a party member that isn't targeting me
+local function try_taunt_off_party(me)
+    if not menu.auto_growl:get_state() then return false end
+    if not runtime.growl_id then return false end
+    if core.spell_book.get_spell_cooldown(runtime.growl_id) > 0 then return false end
+    if is_pending_cast(runtime.growl_id) then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead()
+           and me:can_attack(obj) then
+            local ok, obj_target = pcall(function() return obj:get_target() end)
+            if ok and obj_target and obj_target:is_valid()
+               and not utils.same_unit(obj_target, me)
+               and obj_target:is_party_member()
+               and utils.is_melee_target(me, obj) then
+                if utils.can_cast_hostile(runtime.growl_id, me, obj) then
+                    if utils.cast_target(runtime.growl_id, obj) then
+                        mark_pending_cast(runtime.growl_id, FAST_PENDING_CAST_TIMEOUT_S)
+                        utils.log_debug(menu, "Growl -> taunt off party member")
+                        note_cast()
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function do_guardian_rotation(me, target)
+    local enemy_count = utils.enemy_count_in_radius(me, 8)
+    local mode = get_effective_mode()
+
+    -- Emergency defensive layer (highest priority)
+    if try_survival_instincts(me) then return true end
+    if try_frenzied_regeneration(me) then return true end
+    if try_barkskin(me) then return true end
+
+    -- Rage generation — do this early so we have rage for abilities
+    if try_enrage(me) then return true end
+
+    -- Gap closer / engage
+    if try_feral_charge_bear(me, target) then return true end
+
+    -- AoE taunt — pull threat off party before anything else
+    if try_challenging_roar(me) then return true end
+    if try_taunt_off_party(me) then return true end
+    -- Single target taunt on primary target
+    if try_growl(me, target) then return true end
+
+    if try_bash(me, target) then return true end
+    if try_faerie_fire(me, target) then return true end
+    if not utils.is_melee_target(me, target) then return false end
+
+    if try_berserk(me, enemy_count, mode) then return true end
+    if try_demoralizing_roar(me, target) then return true end
+
+    -- Core threat rotation: Mangle → Lacerate stacks → Swipe AoE → Maul rage dump
+    if try_mangle_bear(me, target) then return true end
+    if try_lacerate(me, target) then return true end
+    if try_swipe(me, enemy_count, menu.guardian_swipe_enemy_count:get()) then return true end
+    if try_maul(me, target) then return true end
 
     return false
 end
@@ -1332,6 +1608,8 @@ local function do_rotation(me, target)
 
     if lane == "cat" then
         return do_cat_rotation(me, target)
+    elseif lane == "guardian" then
+        return do_guardian_rotation(me, target)
     end
     return do_bear_rotation(me, target)
 end
@@ -1427,6 +1705,7 @@ core.register_on_update_callback(function()
 
     -- OOC utility
     if not me:is_in_combat() then
+        if try_ooc_self_heal(me) then return end
         if try_innervate(me) then return end
         if try_travel_form(me) then return end
         if try_abolish_poison(me) then return end
