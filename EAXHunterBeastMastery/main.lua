@@ -1,111 +1,829 @@
--- main.lua
--- EAX Hunter Beast Mastery | Full TBC Auto Rotation
--- Stolen from BRLite Hunter_tbc.lua + KPS
+-- main.lua  |  EAX Hunter Beast Mastery  |  TBC
+-- Priority: Bestial Wrath > Rapid Fire > Kill Command > Arcane Shot > Serpent Sting > Aimed Shot > Multi > Steady
 
-local menu = require("menu")
-local spells = require("spells")
-local utils = require("utils")
+local menu    = require("menu")
+local spells  = require("spells")
+local utils   = require("utils")
 local eax_utils = require("eax_utils")
-local color     = require("color")
-
+local color   = require("color")
+---@type buff_manager
+local buff_manager  = require("common/modules/buff_manager")
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager   = require("ooc_manager")
 ---@type leveling_manager
-local leveling_manager = require("leveling_manager")
----@type creature_utils
-local creature_utils = require("creature_utils")
-
+local leveling_manager  = require("leveling_manager")
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
--- Module-level encounter policy cache (updated each tick)
 local enc = nil
-
-
 ---@type esp_renderer
-local esp_renderer = require("esp_renderer")
+local esp_renderer  = require("esp_renderer")
 esp_renderer.init("bm", "Hunter BM")
 ---@type ttd_tracker
-local ttd_tracker = require("ttd_tracker")
+local ttd_tracker   = require("ttd_tracker")
 ---@type racial_manager
 local racial_manager = require("racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("defensive_manager")
-
----@type key_helper
-local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
+local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
----@type buff_manager
-local buff_manager = require("common/modules/buff_manager")
 
-local runtime = {
-    auto_shot_id = nil,
-    aimed_shot_id = nil,
-    arcane_shot_id = nil,
-    steady_shot_id = nil,
-    multi_shot_id = nil,
-    kill_command_id = nil,
-    bestial_wrath_id = nil,
-    mend_pet_id = nil,
-    revive_pet_id = nil,
-    disengage_id = nil,
-    feign_death_id = nil,
-    scorpid_sting_id = nil,
-    viper_sting_id = nil,
-    rapid_fire_id = nil,
-    intimidation_id = nil,
-    viper_aspect_id = nil,
-    hunters_mark_id = nil,
-    serpent_sting_id = nil,
-    aspect_hawk_id = nil,
-    aspect_monkey_id = nil,
-    raptor_strike_id = nil,
-    last_cast_time = 0,
-    cached_mode = "solo",
-    prev_toggle_state = false,
+-- ── Runtime state ─────────────────────────────────────────────────────────────
+local rt = {
+    auto_shot_id       = nil,
+    aimed_shot_id      = nil,
+    arcane_shot_id     = nil,
+    steady_shot_id     = nil,
+    multi_shot_id      = nil,
+    kill_command_id    = nil,
+    bestial_wrath_id   = nil,
+    intimidation_id    = nil,
+    mend_pet_id        = nil,
+    revive_pet_id      = nil,
+    call_pet_id        = nil,
+    disengage_id       = nil,
+    feign_death_id     = nil,
+    concussive_shot_id = nil,
+    scorpid_sting_id   = nil,
+    viper_sting_id     = nil,
+    rapid_fire_id      = nil,
+    viper_aspect_id    = nil,
+    hunters_mark_id    = nil,
+    serpent_sting_id   = nil,
+    aspect_hawk_id     = nil,
+    raptor_strike_id   = nil,
+    wing_clip_id       = nil,
+    immolation_trap_id = nil,
+    freezing_trap_id   = nil,
+    frost_trap_id      = nil,
+    -- pet ability cache (populated from get_pet_spells())
+    pet_growl_id       = nil,  -- taunt
+    pet_damage_id      = nil,  -- primary damage ability (Claw/Bite/Gore etc)
+    pet_special_id     = nil,  -- special: Furious Howl, Screech, Thunderstomp etc
+    pet_spells_scanned = false,
+    -- state
+    last_wing_clip_cast_count = 0,
+    last_concussive_cast_count = 0,
+    last_viper_sting_cast_count = 0,
+    last_disengage_cast_count = 0,
+    last_kill_command_cast_count = 0,
+    last_hunters_mark_cast_count = 0,
+    last_serpent_sting_cast_count = 0,
+    last_scorpid_sting_cast_count = 0,
+    last_aspect_cast_count = 0,
+    last_arcane_shot_cast_count = 0,
+    last_aimed_shot_cast_count = 0,
+    last_steady_shot_cast_count = 0,
+    last_multi_shot_cast_count = 0,
+    last_bestial_wrath_cast_count = 0,
+    last_rapid_fire_cast_count = 0,
+    last_intimidation_cast_count = 0,
+    last_trap_time     = 0,
     last_spell_refresh = 0,
-    set_multiplier = 1.0,
+    cached_mode        = "solo",
+    prev_toggle_state  = false,
+    set_multiplier     = 1.0,
 }
 
-local GCD_INTERVAL = 1.5  -- actual TBC GCD duration
-local MODE_REFRESH_INTERVAL = 4.5
-local SPELL_REFRESH_INTERVAL = 1.0
-local PENDING_CAST_TIMEOUT = 2.5
+local SPELL_REFRESH     = 1.0
+local MODE_REFRESH      = 4.5
+local AUTO_CLIP_MS      = 200   -- don't fire instant within 200ms of auto
 
-local function resolve_spells()
+local function resolve()
     local now = core.time()
-    if (now - runtime.last_spell_refresh) < SPELL_REFRESH_INTERVAL then
-        return
-    end
-    runtime.last_spell_refresh = now
-
-    runtime.auto_shot_id = utils.resolve_spell_id(spells.AUTO_SHOT)
-    runtime.aimed_shot_id = utils.resolve_spell_id(spells.AIMED_SHOT)
-    runtime.arcane_shot_id = utils.resolve_spell_id(spells.ARCANE_SHOT)
-    runtime.steady_shot_id = utils.resolve_spell_id(spells.STEADY_SHOT)
-    runtime.multi_shot_id = utils.resolve_spell_id(spells.MULTI_SHOT)
-    runtime.kill_command_id = utils.resolve_spell_id(spells.KILL_COMMAND)
-    runtime.bestial_wrath_id = utils.resolve_spell_id(spells.BESTIAL_WRATH)
-    runtime.mend_pet_id    = utils.resolve_spell_id(spells.MEND_PET)
-    runtime.revive_pet_id  = utils.resolve_spell_id(spells.REVIVE_PET)
-    runtime.disengage_id    = utils.resolve_spell_id(spells.DISENGAGE)
-    runtime.feign_death_id  = utils.resolve_spell_id(spells.FEIGN_DEATH)
-    runtime.scorpid_sting_id = utils.resolve_spell_id(spells.SCORPID_STING)
-    runtime.viper_sting_id   = utils.resolve_spell_id(spells.VIPER_STING)
-    runtime.rapid_fire_id    = utils.resolve_spell_id(spells.RAPID_FIRE)
-    runtime.intimidation_id  = utils.resolve_spell_id(spells.INTIMIDATION)
-    runtime.viper_aspect_id  = utils.resolve_spell_id(spells.ASPECT_OF_THE_VIPER)
-    runtime.hunters_mark_id = utils.resolve_spell_id(spells.HUNTERS_MARK)
-    runtime.serpent_sting_id = utils.resolve_spell_id(spells.SERPENT_STING)
-    runtime.aspect_hawk_id = utils.resolve_spell_id(spells.ASPECT_OF_THE_HAWK)
-    runtime.aspect_monkey_id = utils.resolve_spell_id(spells.ASPECT_OF_THE_MONKEY)
-    runtime.raptor_strike_id = utils.resolve_spell_id(spells.RAPTOR_STRIKE)
+    if (now - rt.last_spell_refresh) < SPELL_REFRESH then return end
+    rt.last_spell_refresh = now
+    rt.auto_shot_id        = utils.resolve_spell_id(spells.AUTO_SHOT)
+    rt.aimed_shot_id       = utils.resolve_spell_id(spells.AIMED_SHOT)
+    rt.arcane_shot_id      = utils.resolve_spell_id(spells.ARCANE_SHOT)
+    rt.steady_shot_id      = utils.resolve_spell_id(spells.STEADY_SHOT)
+    rt.multi_shot_id       = utils.resolve_spell_id(spells.MULTI_SHOT)
+    rt.kill_command_id     = utils.resolve_spell_id(spells.KILL_COMMAND)
+    rt.bestial_wrath_id    = utils.resolve_spell_id(spells.BESTIAL_WRATH)
+    rt.intimidation_id     = utils.resolve_spell_id(spells.INTIMIDATION)
+    rt.mend_pet_id         = utils.resolve_spell_id(spells.MEND_PET)
+    rt.revive_pet_id       = utils.resolve_spell_id(spells.REVIVE_PET)
+    rt.call_pet_id         = utils.resolve_spell_id(spells.CALL_PET)
+    rt.disengage_id        = utils.resolve_spell_id(spells.DISENGAGE)
+    rt.feign_death_id      = utils.resolve_spell_id(spells.FEIGN_DEATH)
+    rt.concussive_shot_id  = utils.resolve_spell_id(spells.CONCUSSIVE_SHOT)
+    rt.scorpid_sting_id    = utils.resolve_spell_id(spells.SCORPID_STING)
+    rt.viper_sting_id      = utils.resolve_spell_id(spells.VIPER_STING)
+    rt.rapid_fire_id       = utils.resolve_spell_id(spells.RAPID_FIRE)
+    rt.viper_aspect_id     = utils.resolve_spell_id(spells.ASPECT_OF_THE_VIPER)
+    rt.hunters_mark_id     = utils.resolve_spell_id(spells.HUNTERS_MARK)
+    rt.serpent_sting_id    = utils.resolve_spell_id(spells.SERPENT_STING)
+    rt.aspect_hawk_id      = utils.resolve_spell_id(spells.ASPECT_OF_THE_HAWK)
+    rt.aspect_monkey_id    = utils.resolve_spell_id(spells.ASPECT_OF_THE_MONKEY)
+    rt.raptor_strike_id    = utils.resolve_spell_id(spells.RAPTOR_STRIKE)
+    rt.wing_clip_id        = utils.resolve_spell_id(spells.WING_CLIP)
+    rt.immolation_trap_id  = utils.resolve_spell_id(spells.IMMOLATION_TRAP)
+    rt.freezing_trap_id    = utils.resolve_spell_id(spells.FREEZING_TRAP)
+    rt.frost_trap_id       = utils.resolve_spell_id(spells.FROST_TRAP)
 end
 
-local function log_resolved_spells()
-    
+-- ── Helpers ───────────────────────────────────────────────────────────────────
+local function get_me()  return core.object_manager.get_local_player() end
+local function get_pet()
+    local me = get_me(); if not me then return nil end
+    local ok, p = pcall(function() return me:get_pet() end)
+    return (ok and p and p:is_valid()) and p or nil
+end
+local function pet_alive()   local p = get_pet(); return p and not p:is_dead() end
+-- ── Pet spell discovery ───────────────────────────────────────────────────────
+local PET_GROWL_IDS  = { 2649, 14921, 14922, 14923, 14924, 14925 }
+local PET_CLAW_IDS   = { 2981, 14261, 14262, 14263, 14264, 14265 }
+local PET_BITE_IDS   = { 17253, 17254, 17255, 17256, 17257, 27050 }
+local PET_GORE_IDS   = { 35290, 35291 }
+local PET_HOWL_IDS   = { 24597, 24598, 24599, 24600 }
+local PET_SCREECH_IDS= { 24604 }
+local PET_THUNDER_IDS= { 26090, 26093 }
+local PET_LIGHTNING_IDS = { 25011, 25012, 25013, 25014, 25015, 25016 }
+local PET_POISON_IDS = { 24640 }
+
+local function scan_pet_spells()
+    if rt.pet_spells_scanned then return end
+    local list = core.spell_book.get_pet_spells()
+    if not list or #list == 0 then return end
+    local known = {}
+    for _, s in ipairs(list) do
+        local id = type(s) == "number" and s or (type(s) == "table" and (s.spell_id or s.id) or nil)
+        if id then known[id] = true end
+    end
+    -- Growl (taunt) - highest rank
+    for i = #PET_GROWL_IDS, 1, -1 do
+        if known[PET_GROWL_IDS[i]] then rt.pet_growl_id = PET_GROWL_IDS[i]; break end
+    end
+    -- Primary damage ability - first match wins (Claw > Bite > Gore > Lightning > Poison)
+    for _, group in ipairs({ PET_CLAW_IDS, PET_BITE_IDS, PET_GORE_IDS, PET_LIGHTNING_IDS, PET_POISON_IDS }) do
+        if not rt.pet_damage_id then
+            for i = #group, 1, -1 do
+                if known[group[i]] then rt.pet_damage_id = group[i]; break end
+            end
+        end
+    end
+    -- Special (Furious Howl AP buff > Screech attack speed debuff > Thunderstomp AoE)
+    for _, group in ipairs({ PET_HOWL_IDS, PET_SCREECH_IDS, PET_THUNDER_IDS }) do
+        if not rt.pet_special_id then
+            for i = #group, 1, -1 do
+                if known[group[i]] then rt.pet_special_id = group[i]; break end
+            end
+        end
+    end
+    rt.pet_spells_scanned = true
+    core.log(string.format("[EAX BM] Pet: growl=%s dmg=%s special=%s",
+        tostring(rt.pet_growl_id), tostring(rt.pet_damage_id), tostring(rt.pet_special_id)))
+end
+
+local function try_pet_ability(spell_id, target)
+    if not spell_id or not target or not target:is_valid() then return false end
+    if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
+    core.input.pet_cast_target_spell(spell_id, target)
+    return true
+end
+
+local function do_pet_abilities(t)
+    local p = get_pet()
+    if not p or not p:is_valid() or p:is_dead() then return end
+    if not rt.pet_spells_scanned then scan_pet_spells() end
+
+    -- Only fire pet abilities when pet is close enough to actually be in combat
+    -- (pet within 10 yards of target = it's in melee/fighting)
+    local pp = p:get_position()
+    local tp = t and t:get_position()
+    if pp and tp then
+        local dx,dy,dz = pp.x-tp.x, pp.y-tp.y, pp.z-tp.z
+        if math.sqrt(dx*dx+dy*dy+dz*dz) > 10 then return end
+    end
+
+    -- 1. Growl on cooldown - keeps threat on pet so it tanks
+    try_pet_ability(rt.pet_growl_id, t)
+    -- 2. Primary damage ability on cooldown (Claw/Bite/Gore/Lightning)
+    try_pet_ability(rt.pet_damage_id, t)
+    -- 3. Special on cooldown (Furious Howl/Screech/Thunderstomp)
+    try_pet_ability(rt.pet_special_id, t)
+end
+
+local function is_moving()   local me = get_me(); return me and me.is_moving and me:is_moving() end
+local function dist(target)
+    local me = get_me(); if not me or not target then return 999 end
+    local p1, p2 = me:get_position(), target:get_position()
+    if not p1 or not p2 then return 999 end
+    local dx,dy,dz = p1.x-p2.x, p1.y-p2.y, p1.z-p2.z
+    return math.sqrt(dx*dx+dy*dy+dz*dz)
+end
+local function auto_eta(me)
+    if me and me.get_auto_attack_timer_ms then
+        local ok,v = pcall(function() return me:get_auto_attack_timer_ms() end)
+        if ok and type(v)=="number" then return v end
+    end
+    return 9999
+end
+local function allow_instant(me) return auto_eta(me) > AUTO_CLIP_MS end
+
+local function mana_pct(me)
+    local ok,mp = pcall(function() return me:get_power(0) end)
+    local ok2,mm = pcall(function() return me:get_max_power(0) end)
+    if ok and ok2 and mm and mm>0 then return mp/mm end
+    return 1.0
+end
+local function hp_pct(me) return (me:get_health_percentage() or 100)/100 end
+
+local function has_debuff(target, tbl)
+    if not target or not target:is_valid() then return false end
+    -- Use game_object API directly: check debuff slot then aura slot
+    local d = target:get_debuff_data(tbl)
+    if d and d.is_active then return true end
+    d = target:get_aura_data(tbl)
+    return d ~= nil and d.is_active == true
+end
+local function debuff_rem(target, tbl)
+    if not target or not target:is_valid() then return 0 end
+    local d = target:get_debuff_data(tbl)
+    if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
+    d = target:get_aura_data(tbl)
+    if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
+    return 0
+end
+
+local function detect_mode()
+    local n=0
+    for _,o in ipairs(core.object_manager.get_all_objects()) do
+        if o and o:is_valid() and o:is_unit() and not o:is_dead() and o:is_party_member() then n=n+1 end
+    end
+    if n==0 then return "solo" elseif n<=4 then return "dungeon" end
+    return "raid"
+end
+local function active_mode()
+    local s = menu.mode and menu.mode:get() or 1
+    if s==2 then return "solo" elseif s==3 then return "dungeon" elseif s==4 then return "raid" end
+    return rt.cached_mode
+end
+
+-- ── Pet attack ────────────────────────────────────────────────────────────────
+local _last_pet_attack_guid = nil
+local function pet_attack(target)
+    if not target or not target:is_valid() then return end
+    local p = get_pet(); if not p then return end
+    -- Get target GUID and only send command if target changed
+    local ok, guid = pcall(function() return tostring(target:get_guid()) end)
+    if not ok or not guid then return end
+    if _last_pet_attack_guid == guid then return end  -- already sent to this target
+    _last_pet_attack_guid = guid
+    core.input.pet_attack(target)
+end
+
+-- ── Aspect management ─────────────────────────────────────────────────────────
+local function try_aspect_viper(me)
+    if not rt.viper_aspect_id then return false end
+    if not menu.use_aspect_viper or not menu.use_aspect_viper:get_state() then return false end
+    local mp = mana_pct(me)
+    local enter = (menu.viper_mana_enter and menu.viper_mana_enter:get() or 35)/100
+    local exit  = (menu.viper_mana_exit  and menu.viper_mana_exit:get()  or 85)/100
+    local on_viper = utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER)
+    if on_viper and mp >= exit then
+        if rt.aspect_hawk_id and utils.can_cast_self(rt.aspect_hawk_id, me) then
+            utils.cast_self(rt.aspect_hawk_id, me)
+            utils.log_debug(menu, "Aspect of the Hawk (mana recovered)")
+        end
+        return false
+    end
+    if not on_viper and mp < enter then
+        if utils.can_cast_self(rt.viper_aspect_id, me) then
+            utils.cast_self(rt.viper_aspect_id, me)
+            utils.log_debug(menu, "Aspect of the Viper")
+            return true
+        end
+    end
+    return false
+end
+
+local function try_aspect(me)
+    if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER) then return false end
+
+    -- Check if any enemy is attacking us in melee range
+    local in_melee = false
+    for _, o in ipairs(core.object_manager.get_all_objects()) do
+        if o and o:is_valid() and o:is_unit() and not o:is_dead() and me:can_attack(o) then
+            local ok, ot = pcall(function() return o:get_target() end)
+            if ok and ot and utils.same_unit(ot, me) then
+                local p1, p2 = me:get_position(), o:get_position()
+                if p1 and p2 then
+                    local dx,dy,dz = p1.x-p2.x, p1.y-p2.y, p1.z-p2.z
+                    if math.sqrt(dx*dx+dy*dy+dz*dz) <= 8 then
+                        in_melee = true; break
+                    end
+                end
+            end
+        end
+    end
+
+    -- In melee: use Monkey for dodge. Out of melee: use Hawk for AP/DPS.
+    if in_melee and rt.aspect_monkey_id then
+        if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_MONKEY) then return false end
+        if rt.last_aspect_cast_count == core.spell_book.get_spell_cast_count(rt.aspect_monkey_id) then return false end
+        if utils.can_cast_self(rt.aspect_monkey_id, me) then
+            rt.last_aspect_cast_count = core.spell_book.get_spell_cast_count(rt.aspect_monkey_id)
+            utils.cast_self(rt.aspect_monkey_id, me)
+            utils.log_debug(menu, "Aspect of the Monkey"); return true
+        end
+    else
+        if not rt.aspect_hawk_id then return false end
+        if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_HAWK) then return false end
+        if rt.last_aspect_cast_count == core.spell_book.get_spell_cast_count(rt.aspect_hawk_id) then return false end
+        if utils.can_cast_self(rt.aspect_hawk_id, me) then
+            rt.last_aspect_cast_count = core.spell_book.get_spell_cast_count(rt.aspect_hawk_id)
+            utils.cast_self(rt.aspect_hawk_id, me)
+            utils.log_debug(menu, "Aspect of the Hawk"); return true
+        end
+    end
+    return false
+end
+
+-- ── Pet management ────────────────────────────────────────────────────────────
+local function try_revive(me)
+    if not menu.use_revive_pet or not menu.use_revive_pet:get_state() then return false end
+    if pet_alive() then return false end
+    if me:is_in_combat() then return false end  -- never summon/revive mid-combat
+
+    local p = get_pet()
+    if p and p:is_dead() then
+        -- Pet died - Revive Pet (long cast, OOC only)
+        if rt.revive_pet_id and utils.can_cast_self(rt.revive_pet_id, me) then
+            utils.cast_self(rt.revive_pet_id, me)
+            rt.pet_spells_scanned = false  -- rescan after revive
+        utils.log_debug(menu, "Revive Pet"); return true
+        end
+    elseif not p then
+        -- No pet summoned at all - Call Pet
+        if rt.call_pet_id and utils.can_cast_self(rt.call_pet_id, me) then
+            rt.pet_spells_scanned = false  -- rescan after call
+            utils.cast_self(rt.call_pet_id, me)
+            utils.log_debug(menu, "Call Pet"); return true
+        end
+    end
+    return false
+end
+
+local function try_mend(me)
+    if not menu.use_mend_pet or not menu.use_mend_pet:get_state() then return false end
+    if not rt.mend_pet_id then return false end
+    local p = get_pet(); if not p or p:is_dead() then return false end
+    local thresh = menu.mend_pet_hp and menu.mend_pet_hp:get() or 50
+    if (p:get_health_percentage() or 100) > thresh then return false end
+    -- Mend Pet has 15 yard range - only cast when pet is nearby
+    local pp, mp = p:get_position(), me:get_position()
+    if pp and mp then
+        local dx,dy,dz = pp.x-mp.x, pp.y-mp.y, pp.z-mp.z
+        if math.sqrt(dx*dx+dy*dy+dz*dz) > 14 then return false end
+    end
+    if is_moving() then return false end
+    -- Don't recast if already channelling Mend Pet
+    local bd = p:get_buff_data(spells.MEND_PET)
+    if bd and bd.is_active then return false end
+    if utils.can_cast_self(rt.mend_pet_id, me) then
+        utils.cast_self(rt.mend_pet_id, me)
+        utils.log_debug(menu, "Mend Pet"); return true
+    end
+    return false
+end
+
+-- ── Shots ─────────────────────────────────────────────────────────────────────
+local function try_hunters_mark(me, t)
+    if not menu.use_hunters_mark or not menu.use_hunters_mark:get_state() then return false end
+    if not rt.hunters_mark_id then return false end
+    if has_debuff(t, spells.DEBUFF_HUNTERS_MARK) then return false end
+    if rt.last_hunters_mark_cast_count == core.spell_book.get_spell_cast_count(rt.hunters_mark_id) then return false end
+    if not utils.can_cast_hostile(rt.hunters_mark_id, me, t) then return false end
+    if utils.cast_target(rt.hunters_mark_id, t) then
+        rt.last_hunters_mark_cast_count = core.spell_book.get_spell_cast_count(rt.hunters_mark_id)
+        utils.log_debug(menu, "Hunter's Mark"); return true
+    end
+    return false
+end
+
+local function try_serpent_sting(me, t)
+    if not menu.use_serpent_sting or not menu.use_serpent_sting:get_state() then return false end
+    if not rt.serpent_sting_id then return false end
+    if debuff_rem(t, spells.DEBUFF_SERPENT_STING) > 3000 then return false end
+    if rt.last_serpent_sting_cast_count == core.spell_book.get_spell_cast_count(rt.serpent_sting_id) then return false end
+    if not allow_instant(me) then return false end
+    if not utils.can_cast_hostile(rt.serpent_sting_id, me, t) then return false end
+    if utils.cast_target(rt.serpent_sting_id, t) then
+        rt.last_serpent_sting_cast_count = core.spell_book.get_spell_cast_count(rt.serpent_sting_id)
+        utils.log_debug(menu, "Serpent Sting")
+        esp_renderer.on_cast(rt.serpent_sting_id, "Serpent Sting", color.green(220))
+        return true
+    end
+    return false
+end
+
+local function try_scorpid_sting(me, t)
+    if not menu.use_scorpid_sting or not menu.use_scorpid_sting:get_state() then return false end
+    if not rt.scorpid_sting_id then return false end
+    if active_mode() == "solo" then return false end
+    if has_debuff(t, spells.DEBUFF_SCORPID_STING) then return false end
+    if rt.last_scorpid_sting_cast_count == core.spell_book.get_spell_cast_count(rt.scorpid_sting_id) then return false end
+    if not allow_instant(me) then return false end
+    if not utils.can_cast_hostile(rt.scorpid_sting_id, me, t) then return false end
+    if utils.cast_target(rt.scorpid_sting_id, t) then
+        rt.last_scorpid_sting_cast_count = core.spell_book.get_spell_cast_count(rt.scorpid_sting_id)
+        utils.log_debug(menu, "Scorpid Sting"); return true
+    end
+    return false
+end
+
+local function try_viper_sting(me, t)
+    if not menu.use_viper_sting or not menu.use_viper_sting:get_state() then return false end
+    if not rt.viper_sting_id then return false end
+    if has_debuff(t, spells.DEBUFF_VIPER_STING) then return false end
+    if rt.last_viper_sting_cast_count == core.spell_book.get_spell_cast_count(rt.viper_sting_id) then return false end
+    if not allow_instant(me) then return false end
+    if not utils.can_cast_hostile(rt.viper_sting_id, me, t) then return false end
+    if utils.cast_target(rt.viper_sting_id, t) then
+        rt.last_viper_sting_cast_count = core.spell_book.get_spell_cast_count(rt.viper_sting_id)
+        utils.log_debug(menu, "Viper Sting"); return true
+    end
+    return false
+end
+
+local function try_bestial_wrath(me, t)
+    if enc and enc.hold_cooldowns then return false end
+    if not menu.use_bestial_wrath or not menu.use_bestial_wrath:get_state() then return false end
+    if not rt.bestial_wrath_id or not pet_alive() then return false end
+    if utils.has_buff(me, spells.BUFF_BESTIAL_WRATH) then return false end
+    if rt.last_bestial_wrath_cast_count == core.spell_book.get_spell_cast_count(rt.bestial_wrath_id) then return false end
+    if utils.can_cast_self(rt.bestial_wrath_id, me) then
+        rt.last_bestial_wrath_cast_count = core.spell_book.get_spell_cast_count(rt.bestial_wrath_id)
+        utils.cast_self(rt.bestial_wrath_id, me)
+        utils.log_debug(menu, "Bestial Wrath")
+        esp_renderer.on_cast(rt.bestial_wrath_id, "Bestial Wrath", color.orange(240))
+        return true
+    end
+    return false
+end
+
+local function try_rapid_fire(me)
+    if enc and enc.hold_cooldowns then return false end
+    if not menu.use_rapid_fire or not menu.use_rapid_fire:get_state() then return false end
+    if not rt.rapid_fire_id then return false end
+    if not me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.BUFF_RAPID_FIRE) then return false end
+    if rt.last_rapid_fire_cast_count == core.spell_book.get_spell_cast_count(rt.rapid_fire_id) then return false end
+    if utils.can_cast_self(rt.rapid_fire_id, me) then
+        rt.last_rapid_fire_cast_count = core.spell_book.get_spell_cast_count(rt.rapid_fire_id)
+        utils.cast_self(rt.rapid_fire_id, me)
+        utils.log_debug(menu, "Rapid Fire")
+        esp_renderer.on_cast(rt.rapid_fire_id, "Rapid Fire", color.gold(240))
+        return true
+    end
+    return false
+end
+
+local function try_intimidation(me, t)
+    if enc and enc.hold_cooldowns then return false end
+    if not menu.use_intimidation or not menu.use_intimidation:get_state() then return false end
+    if not rt.intimidation_id or not pet_alive() then return false end
+    if not allow_instant(me) then return false end
+    if rt.last_intimidation_cast_count == core.spell_book.get_spell_cast_count(rt.intimidation_id) then return false end
+    if not utils.can_cast_hostile(rt.intimidation_id, me, t) then return false end
+    if utils.cast_target(rt.intimidation_id, t) then
+        rt.last_intimidation_cast_count = core.spell_book.get_spell_cast_count(rt.intimidation_id)
+        utils.log_debug(menu, "Intimidation"); return true
+    end
+    return false
+end
+
+local function try_kill_command(me, t)
+    if not menu.use_kill_command or not menu.use_kill_command:get_state() then return false end
+    if not rt.kill_command_id or not pet_alive() then return false end
+    if rt.last_kill_command_cast_count == core.spell_book.get_spell_cast_count(rt.kill_command_id) then return false end
+    if not allow_instant(me) then return false end
+    if not utils.can_cast_hostile(rt.kill_command_id, me, t) then return false end
+    if utils.cast_target(rt.kill_command_id, t) then
+        rt.last_kill_command_cast_count = core.spell_book.get_spell_cast_count(rt.kill_command_id)
+        utils.log_debug(menu, "Kill Command")
+        esp_renderer.on_cast(rt.kill_command_id, "Kill Command", color.red(220))
+        return true
+    end
+    return false
+end
+
+local function try_arcane_shot(me, t)
+    if not menu.use_arcane_shot or not menu.use_arcane_shot:get_state() then return false end
+    if not rt.arcane_shot_id then return false end
+    if not allow_instant(me) then return false end
+    if rt.last_arcane_shot_cast_count == core.spell_book.get_spell_cast_count(rt.arcane_shot_id) then return false end
+    if not utils.can_cast_hostile(rt.arcane_shot_id, me, t) then return false end
+    if utils.cast_target(rt.arcane_shot_id, t) then
+        rt.last_arcane_shot_cast_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
+        utils.log_debug(menu, "Arcane Shot"); return true
+    end
+    return false
+end
+
+local function try_multi_shot(me, t)
+    if enc and not enc.aoe_safe then return false end
+    if not menu.use_multi_shot or not menu.use_multi_shot:get_state() then return false end
+    if not rt.multi_shot_id then return false end
+    if active_mode() == "solo" then return false end
+    if is_moving() then return false end
+    if rt.last_multi_shot_cast_count == core.spell_book.get_spell_cast_count(rt.multi_shot_id) then return false end
+    if not utils.can_cast_hostile(rt.multi_shot_id, me, t) then return false end
+    if utils.cast_target(rt.multi_shot_id, t) then
+        rt.last_multi_shot_cast_count = core.spell_book.get_spell_cast_count(rt.multi_shot_id)
+        utils.log_debug(menu, "Multi-Shot"); return true
+    end
+    return false
+end
+
+local function try_aimed_shot(me, t)
+    if not menu.use_aimed_shot or not menu.use_aimed_shot:get_state() then return false end
+    if not rt.aimed_shot_id then return false end
+    if is_moving() then return false end
+    if rt.last_aimed_shot_cast_count == core.spell_book.get_spell_cast_count(rt.aimed_shot_id) then return false end
+    if not utils.can_cast_hostile(rt.aimed_shot_id, me, t) then return false end
+    if utils.cast_target(rt.aimed_shot_id, t) then
+        rt.last_aimed_shot_cast_count = core.spell_book.get_spell_cast_count(rt.aimed_shot_id)
+        utils.log_debug(menu, "Aimed Shot"); return true
+    end
+    return false
+end
+
+local function try_steady_shot(me, t)
+    if not menu.use_steady_shot or not menu.use_steady_shot:get_state() then return false end
+    if not rt.steady_shot_id then return false end
+    if is_moving() then return false end
+    if rt.last_steady_shot_cast_count == core.spell_book.get_spell_cast_count(rt.steady_shot_id) then return false end
+    if not utils.can_cast_hostile(rt.steady_shot_id, me, t) then return false end
+    if utils.cast_target(rt.steady_shot_id, t) then
+        rt.last_steady_shot_cast_count = core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+        utils.log_debug(menu, "Steady Shot")
+        esp_renderer.on_cast(rt.steady_shot_id, "Steady Shot", color.cyan(220))
+        return true
+    end
+    return false
+end
+
+local function try_raptor_strike(me, t)
+    if not menu.use_raptor_strike or not menu.use_raptor_strike:get_state() then return false end
+    if not rt.raptor_strike_id or dist(t) > 5 then return false end
+    -- Raptor Strike queues on next swing - use cast_count to avoid re-queuing every frame
+    if rt.last_raptor_strike_cast_count == core.spell_book.get_spell_cast_count(rt.raptor_strike_id) then return false end
+    if not utils.can_cast_hostile(rt.raptor_strike_id, me, t) then return false end
+    if utils.cast_target(rt.raptor_strike_id, t) then
+        rt.last_raptor_strike_cast_count = core.spell_book.get_spell_cast_count(rt.raptor_strike_id)
+        utils.log_debug(menu, "Raptor Strike"); return true
+    end
+    return false
+end
+
+local function try_wing_clip(me, t)
+    if not menu.use_wing_clip or not menu.use_wing_clip:get_state() then return false end
+    if not rt.wing_clip_id or dist(t) > 5 then return false end
+    -- Don't recast while slow debuff is still active
+    if has_debuff(t, spells.DEBUFF_WING_CLIP) then return false end
+    -- Throttle: max once every 8 sec regardless of debuff detection
+    if rt.last_wing_clip_cast_count == core.spell_book.get_spell_cast_count(rt.wing_clip_id) then return false end
+    if not utils.can_cast_hostile(rt.wing_clip_id, me, t) then return false end
+    if utils.cast_target(rt.wing_clip_id, t) then
+        rt.last_wing_clip_cast_count = core.spell_book.get_spell_cast_count(rt.wing_clip_id)
+        utils.log_debug(menu, "Wing Clip"); return true
+    end
+    return false
+end
+
+local function try_concussive(me, t)
+    if not menu.use_concussive or not menu.use_concussive:get_state() then return false end
+    if not rt.concussive_shot_id then return false end
+    -- Don't recast while slow is active
+    if has_debuff(t, spells.DEBUFF_CONCUSSIVE) then return false end
+    if rt.last_concussive_cast_count == core.spell_book.get_spell_cast_count(rt.concussive_shot_id) then return false end
+    if not allow_instant(me) then return false end
+    if not utils.can_cast_hostile(rt.concussive_shot_id, me, t) then return false end
+    if utils.cast_target(rt.concussive_shot_id, t) then
+        rt.last_concussive_cast_count = core.spell_book.get_spell_cast_count(rt.concussive_shot_id)
+        utils.log_debug(menu, "Concussive Shot"); return true
+    end
+    return false
+end
+
+local function try_disengage(me)
+    if not menu.use_disengage or not menu.use_disengage:get_state() then return false end
+    if not rt.disengage_id then return false end
+    if rt.last_disengage_cast_count == core.spell_book.get_spell_cast_count(rt.disengage_id) then return false end
+    if utils.can_cast_self(rt.disengage_id, me) then
+        utils.cast_self(rt.disengage_id, me)
+        rt.last_disengage_cast_count = core.spell_book.get_spell_cast_count(rt.disengage_id)
+        utils.log_debug(menu, "Disengage"); return true
+    end
+    return false
+end
+
+local function try_feign_death(me)
+    if not menu.use_feign_death or not menu.use_feign_death:get_state() then return false end
+    if not rt.feign_death_id then return false end
+    local thresh = (menu.feign_death_hp and menu.feign_death_hp:get() or 20)/100
+    if hp_pct(me) > thresh then return false end
+    if utils.can_cast_self(rt.feign_death_id, me) then
+        utils.cast_self(rt.feign_death_id, me)
+        utils.log_debug(menu, "Feign Death"); return true
+    end
+    return false
+end
+
+local function try_trap(me, t)
+    if not menu.use_traps or not menu.use_traps:get_state() then return false end
+    if dist(t) > 6 then return false end
+    local interval = menu.trap_interval and menu.trap_interval:get() or 30
+    if (core.time() - rt.last_trap_time) < interval then return false end
+    local sel = menu.trap_selection and menu.trap_selection:get() or 1
+    local tid = sel == 2 and rt.frost_trap_id or rt.immolation_trap_id
+    if not tid then return false end
+    if utils.can_cast_self(tid, me) then
+        utils.cast_self(tid, me)
+        rt.last_trap_time = core.time()
+        utils.log_debug(menu, "Trap placed"); return true
+    end
+    return false
+end
+
+-- ── Main rotation ─────────────────────────────────────────────────────────────
+local function do_rotation(me, t)
+    local d = dist(t)
+    if d <= 40 then if t:get_position() then core.input.look_at(t:get_position()) end end
+
+    -- Emergency
+    if try_feign_death(me) then return end
+
+    -- Kiting: target reached melee - try to escape but DON'T stop the rotation
+    if d <= 8 then
+        try_concussive(me, t)   -- slow them
+        try_wing_clip(me, t)    -- slow them
+        if try_disengage(me) then return end  -- only stop if we actually blinked away
+        -- No disengage available - fall through and keep shooting
+    end
+
+    -- Aspect management (runs every tick, no return)
+    try_aspect_viper(me)
+    try_aspect(me)
+
+    -- Cooldowns (off-GCD safe)
+    try_rapid_fire(me)
+
+    -- Interrupt
+    if interrupt_manager.should_interrupt(t) then
+        interrupt_manager.try_interrupt(me, t, "hunter", utils)
+    end
+
+    enc = encounter_manager.get_policy(me)
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, t)
+    racial_manager.try_defensive(me)
+    if defensive_manager.try_defensive(me, "hunter", utils) then return end
+
+    ttd_tracker.update(t)
+
+    -- Pet first (BM: always send pet before opening shots)
+    if try_revive(me) then return end
+    if pet_alive() then
+        pet_attack(t)  -- send pet to target
+        do_pet_abilities(t)  -- growl/taunt + damage + special abilities
+        try_kill_command(me, t)  -- Kill Command off-GCD
+    end
+    try_mend(me)
+
+    -- Traps (melee range window)
+    if try_trap(me, t) then return end
+
+    -- Hunter's Mark (pre-pull and new targets)
+    if try_hunters_mark(me, t) then return end
+
+    if d > 40 then return end
+
+    -- BM pre-pull: hold damage shots until pet arrives so it builds threat first
+    if not me:is_in_combat() and pet_alive() then
+        local p = get_pet()
+        if p and p:is_valid() then
+            local ok, pp = pcall(function() return p:get_position() end)
+            local ok2, tp = pcall(function() return t:get_position() end)
+            if ok and ok2 and pp and tp then
+                local dx,dy,dz = pp.x-tp.x, pp.y-tp.y, pp.z-tp.z
+                if math.sqrt(dx*dx+dy*dy+dz*dz) > 10 then return end
+            end
+        end
+    end
+
+    -- ── TBC BM optimal priority ───────────────────────────────────────────────
+    -- Source: TBC 2.4.3 BM theorycrafting - auto shot weaving is king
+    -- Aimed Shot is intentionally LOW priority for BM: its 3s cast clips auto shot
+    -- Kill Command fires off-GCD on every pet special attack (already handled above)
+    -- Serpent Sting: apply once, maintain - it's a mana-efficient DoT
+    -- Bestial Wrath + Intimidation: on CD, always
+    -- Multi-Shot: 10s CD, instant - fire when up
+    -- Arcane Shot: 6s CD, instant - fire when up
+    -- Steady Shot: 1.5s cast filler - weaves between auto shots
+    -- Aimed Shot: only fire when Steady Shot AND Arcane AND Multi are all on CD
+
+    -- Group stings (utility, apply once)
+    if try_scorpid_sting(me, t) then return end
+    if try_viper_sting(me, t) then return end
+
+    -- Serpent Sting (maintain DoT - highest mana efficiency)
+    if try_serpent_sting(me, t) then return end
+
+    -- Burst cooldowns (on CD)
+    if try_bestial_wrath(me, t) then return end
+    if try_intimidation(me, t) then return end
+
+    -- Multi-Shot (10s CD instant - fires before Arcane to maximize DPS windows)
+    if try_multi_shot(me, t) then return end
+
+    -- Arcane Shot (6s CD instant)
+    if try_arcane_shot(me, t) then return end
+
+    -- Steady Shot (cast filler - primary DPS between cooldowns)
+    if try_steady_shot(me, t) then return end
+
+    -- Aimed Shot (only as last resort - low priority for BM, clips auto shot)
+    if try_aimed_shot(me, t) then return end
+
+    -- Melee dead zone fallback
+    if d <= 5 then
+        try_raptor_strike(me, t)
+    end
+
+    -- Ensure ranged auto shot is always running
+    if me:is_in_combat() and not is_moving() then
+        leveling_manager.ensure_ranged(me, t)
+    end
+end
+
+-- ── Toggle ────────────────────────────────────────────────────────────────────
+local function handle_toggle()
+    local cur = menu.toggle_key and menu.toggle_key:get_state()
+    if cur and not rt.prev_toggle_state then
+        menu.enabled:set(not menu.enabled:get_state())
+    end
+    rt.prev_toggle_state = cur or false
+end
+
+-- ── Update loop ───────────────────────────────────────────────────────────────
+local function on_update()
+    resolve()
+
+    if utils.throttle("bm_mode", MODE_REFRESH) then rt.cached_mode = detect_mode() end
+    handle_toggle()
+    if not menu.enabled or not menu.enabled:get_state() then return end
+    local me = get_me()
+    if not me or me:is_dead() then return end
+    ooc_manager.on_update(me, menu, utils, {})
+    if eax_utils.is_eating_or_drinking(me) then return end
+    local focus = eax_utils.get_focus_target(menu)
+    if focus and not me:can_attack(focus) then focus = nil end
+    local t = focus or utils.find_best_target(me)
+    if not t or not t:is_valid() or t:is_dead() then
+        _last_pet_attack_guid = nil
+        -- No target: keep pet on Defensive and following us
+        if utils.throttle("pet_ctrl_idle", 2.0) then
+            local p = get_pet and (function()
+                local ok, pet = pcall(function() return me:get_pet() end)
+                return (ok and pet and pet:is_valid() and not pet:is_dead()) and pet or nil
+            end)()
+            if p then
+                core.input.set_pet_defensive()  -- prevent roaming
+                core.input.set_pet_follow()     -- come back to me
+            end
+        end
+        return
+    end
+    -- In combat: set defensive so pet only attacks what WE tell it to
+    if utils.throttle("pet_ctrl_combat", 3.0) then
+        local ok, pet = pcall(function() return me:get_pet() end)
+        if ok and pet and pet:is_valid() and not pet:is_dead() then
+            core.input.set_pet_defensive()
+        end
+    end
+    do_rotation(me, t)
+end
+
+local function on_render() esp_renderer.on_render(menu) end
+
+core.register_on_render_callback(function()
+    if menu and menu.enabled and menu.enabled:get_state() then on_render() end
+end)
+core.register_on_update_callback(on_update)
+
+local _vec2 = require("common/geometry/vector_2")
+local _win  = core.menu.window("eaxhunterbm_win")
+_win:set_initial_size(_vec2.new(460, 640))
+_win:set_next_window_min_size(_vec2.new(320, 300))
+_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_win)
+core.register_on_render_menu_callback(menu.render)
+
 
 if control_panel_utility then
     core.register_on_render_control_panel_callback(function()
@@ -116,800 +834,34 @@ if control_panel_utility then
             local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
             if nxt ~= cur then item:set(nxt) end
         end
+        -- Master toggle (shows keybind if bound)
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Hunter BM] Enabled"
+        local lbl_enabled = "[EAX BM] Enabled"
         if toggle_key ~= 7 then
-            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+            lbl_enabled = lbl_enabled .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
-        label = "[" .. label
-        add_cb(label, menu.enabled, "eax_eaxhunterbeastmastery_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_hbm_cds = menu.use_cooldowns:get_state()
-            local nxt_hbm_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX HBM] Cooldowns", cur_hbm_cds, 0, false, "eax_hbm_cds_cp")
-            if nxt_hbm_cds ~= cur_hbm_cds then menu.use_cooldowns:set(nxt_hbm_cds) end
-        end
-        if menu.use_bestial_wrath then
-            local cur_hbm_bw = menu.use_bestial_wrath:get_state()
-            local nxt_hbm_bw = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX HBM] Bestial Wrath", cur_hbm_bw, 0, false, "eax_hbm_bw_cp")
-            if nxt_hbm_bw ~= cur_hbm_bw then menu.use_bestial_wrath:set(nxt_hbm_bw) end
-        end
-        if menu.focus_priority then
-            local cur_hbm_focus = menu.focus_priority:get_state()
-            local nxt_hbm_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX HBM] Focus Priority", cur_hbm_focus, 0, false, "eax_hbm_focus_cp")
-            if nxt_hbm_focus ~= cur_hbm_focus then menu.focus_priority:set(nxt_hbm_focus) end
-        end
-        if menu.use_racial then
-            local cur_hbm_racial = menu.use_racial:get_state()
-            local nxt_hbm_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX HBM] Use Racial", cur_hbm_racial, 0, false, "eax_hbm_racial_cp")
-            if nxt_hbm_racial ~= cur_hbm_racial then menu.use_racial:set(nxt_hbm_racial) end
-        end
+        add_cb(lbl_enabled, menu.enabled, "eax_bm_enabled_cp")
+        if menu.enabled and menu.enabled:get_state() then
+            add_cb("[EAX BM] Bestial Wrath",   menu.use_bestial_wrath,  "eax_bm_bw_cp")
+            add_cb("[EAX BM] Rapid Fire",       menu.use_rapid_fire,     "eax_bm_rf_cp")
+            add_cb("[EAX BM] Auto Viper",       menu.use_aspect_viper,   "eax_bm_viper_cp")
+            add_cb("[EAX BM] Kill Command",     menu.use_kill_command,   "eax_bm_kc_cp")
+            add_cb("[EAX BM] Mend Pet",         menu.use_mend_pet,       "eax_bm_mend_cp")
+            add_cb("[EAX BM] Use Traps",        menu.use_traps,          "eax_bm_traps_cp")
+            add_cb("[EAX BM] Focus Priority",   menu.focus_priority,     "eax_bm_focus_cp")
+            add_cb("[EAX BM] Use Racial",       menu.use_racial,         "eax_bm_racial_cp")
         end
         return elements
     end)
 end
 
--- -- EAX Conflict Detection -------------------------------------------------
--- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
-    local _eax_class = "Hunter"
-    local _eax_spec  = "BeastMastery"
-    -- Register this spec for its class (last-loaded wins for tracking)
-    if not _G.__EAX_LOADED[_eax_class] then
-        _G.__EAX_LOADED[_eax_class] = {}
-    end
-    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+    if not _G.__EAX_LOADED["Hunter"] then _G.__EAX_LOADED["Hunter"] = {} end
+    _G.__EAX_LOADED["Hunter"]["BeastMastery"] = function()
         return menu and menu.enabled and menu.enabled:get_state()
     end
-    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
-    local _conflict_last_warn = 0
-    local _orig_render = on_render
-    on_render = function()
-        if _orig_render then _orig_render() end
-        local specs = _G.__EAX_LOADED[_eax_class]
-        if not specs then return end
-        local enabled_specs = {}
-        for spec_name, is_enabled_fn in pairs(specs) do
-            if is_enabled_fn and is_enabled_fn() then
-                table.insert(enabled_specs, spec_name)
-            end
-        end
-        if #enabled_specs < 2 then return end
-        local now = core.time()
-        if (now - _conflict_last_warn) < 10 then return end
-        _conflict_last_warn = now
-        local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
-            .. names .. ". Disable all but one.")
-        core.graphics.add_notification(
-            "eax_conflict_" .. _eax_class,
-            "[EAX] Conflict!",
-            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
-            8.0,
-            require("common/color").new(255, 80, 80, 255)
-        )
-    end
 end
 
-core.log("[EAX Hunter BM] Resolved: AutoShot=" .. tostring(runtime.auto_shot_id)
-        .. " AimedShot=" .. tostring(runtime.aimed_shot_id)
-        .. " ArcaneShot=" .. tostring(runtime.arcane_shot_id)
-        .. " SteadyShot=" .. tostring(runtime.steady_shot_id)
-        .. " MultiShot=" .. tostring(runtime.multi_shot_id)
-        .. " KillCommand=" .. tostring(runtime.kill_command_id)
-        .. " BestialWrath=" .. tostring(runtime.bestial_wrath_id)
-        .. " HuntersMark=" .. tostring(runtime.hunters_mark_id)
-        .. " SerpentSting=" .. tostring(runtime.serpent_sting_id)
-        .. " AspectHawk=" .. tostring(runtime.aspect_hawk_id)
-        .. " RaptorStrike=" .. tostring(runtime.raptor_strike_id))
-end
-
-resolve_spells()
-log_resolved_spells()
-
-local function update_set_bonus()
-    local me = core.object_manager.get_local_player()
-    if not me then return end
-    
-    local cryptstalker_mult = utils.get_set_multiplier(me, "Cryptstalker")
-    local cryptstalker_battlegear_mult = utils.get_set_multiplier(me, "CryptstalkerBattlegear")
-    local cryptstalker_vindication_mult = utils.get_set_multiplier(me, "CryptstalkerVindication")
-    
-    runtime.set_multiplier = cryptstalker_mult
-    if cryptstalker_battlegear_mult > runtime.set_multiplier then
-        runtime.set_multiplier = cryptstalker_battlegear_mult
-    end
-    if cryptstalker_vindication_mult > runtime.set_multiplier then
-        runtime.set_multiplier = cryptstalker_vindication_mult
-    end
-    
-    if runtime.set_multiplier > 1.0 then
-        utils.log_debug(menu, "Set bonus: " .. tostring(runtime.set_multiplier))
-    end
-end
-
-local function detect_mode()
-    local objects = core.object_manager.get_visible_objects()
-    local party_count = 0
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() 
-           and obj:is_party_member() then
-            party_count = party_count + 1
-        end
-    end
-    if party_count == 0 then
-        return "solo"
-    elseif party_count <= 4 then
-        return "dungeon"
-    end
-    return "raid"
-end
-
-local function get_active_mode()
-    local selection = menu.mode:get()
-    if selection == 1 then
-        return detect_mode()
-    elseif selection == 2 then
-        return "solo"
-    elseif selection == 3 then
-        return "dungeon"
-    elseif selection == 4 then
-        return "raid"
-    end
-    return detect_mode()
-end
-
-local function has_buff(spell_id)
-    if not spell_id then return false end
-    local me = core.object_manager.get_local_player()
-    if not me then return false end
-    local buff = buff_manager:get_buff_data(me, {spell_id})
-    return buff and buff.is_active
-end
-
-local function has_debuff(spell_id, target)
-    if not spell_id or not target then return false end
-    local debuff = buff_manager:get_debuff_data(target, {spell_id})
-    return debuff and debuff.is_active
-end
-
-local function is_spell_ready(spell_id)
-    if not spell_id then return false end
-    local me = core.object_manager.get_local_player()
-    if not me then return false end
-    return me:is_spell_ready(spell_id)
-end
-
-local function can_cast(spell_id, target)
-    if not spell_id or not target then return false end
-    local me = core.object_manager.get_local_player()
-    if not me then return false end
-    -- Never cast offensive spells on self or friendly units
-    if not me:can_attack(target) then return false end
-    return me:can_cast_spell(spell_id, false, target:get_position())
-end
-
-local function cast_spell(spell_id, target_or_pos)
-    if not spell_id then return false end
-    local me = core.object_manager.get_local_player()
-    if not me then return false end
-    local target = me:get_target()
-    if target_or_pos then
-        if type(target_or_pos) == "userdata" then
-            return me:cast_spell(spell_id, target_or_pos)
-        elseif target_or_pos == "target" and target then
-            return me:cast_spell(spell_id, target)
-        elseif target_or_pos == "player" then
-            return me:cast_spell(spell_id, me)
-        end
-    end
-    return me:cast_spell(spell_id)
-end
-
-local function get_distance(target)
-    if not target then return 999 end
-    local me = core.object_manager.get_local_player()
-    if not me then return 999 end
-    local my_pos = me:get_position()
-    local target_pos = target:get_position()
-    if not my_pos or not target_pos then return 999 end
-    local dx = my_pos.x - target_pos.x
-    local dy = my_pos.y - target_pos.y
-    local dz = my_pos.z - target_pos.z
-    return math.sqrt(dx*dx + dy*dy + dz*dz)
-end
-
-local function face_target(target)
-    if not target then return end
-    local me = core.object_manager.get_local_player()
-    if not me then return end
-    me:face_target(target)
-end
-
-local function is_busy()
-    local me = core.object_manager.get_local_player()
-    if not me then return true end
-    return me:is_channeling() or me:is_casting()
-end
-
-local function start_auto_attack()
-    local me = core.object_manager.get_local_player()
-    if not me then return end
-    local target = me:get_target()
-    if not target or not target:is_valid() then return end
-    local dist = get_distance(target)
-    if dist <= 5 then
-        me:start_auto_attack(target)
-    end
-end
-
-local function get_pet()
-    local me = core.object_manager.get_local_player()
-    if not me then return nil end
-    return me:get_pet()
-end
-
-local function pet_exists()
-    return get_pet() ~= nil
-end
-
-local function pet_is_alive()
-    local pet = get_pet()
-    return pet and pet:is_valid() and not pet:is_dead()
-end
-
-local function has_pet_attack()
-    local pet = get_pet()
-    if not pet then return false end
-    local target = me:get_target()
-    if not target then return false end
-    return pet:get_target() == target
-end
-
-local function do_pet_attack(target)
-    local pet = get_pet()
-    if not pet then return false end
-    if not target or not target:is_valid() then return false end
-    local pet_target = pet:get_target()
-    if pet_target ~= target then
-        pet:cast_spell(23145)
-        return true
-    end
-    return false
-end
-
-
--- --- Auto Shot clip buffer (v1.3) ----------------------------------------
--- Prevents instant casts from clipping the auto shot timing.
--- auto_shot_eta_ms: time until next auto shot fires
--- Returns true if it is safe to cast an instant right now.
-
-local AUTO_SHOT_CLIP_BUFFER_MS = 200   -- 200ms safety margin
-
-local function get_auto_shot_eta_ms(me)
-    -- Use the auto-attack helper if available
-    if me and me.get_auto_attack_timer_ms then
-        local ok, val = pcall(function() return me:get_auto_attack_timer_ms() end)
-        if ok and type(val) == "number" then return val end
-    end
-    -- Fallback: assume safe
-    return 9999
-end
-
-local function allow_instant(me)
-    local eta = get_auto_shot_eta_ms(me)
-    return eta > AUTO_SHOT_CLIP_BUFFER_MS
-end
-
-local function allow_cast(me, cast_ms)
-    if me and me.is_moving and me:is_moving() then return false end
-    local eta = get_auto_shot_eta_ms(me)
-    return eta > (cast_ms + AUTO_SHOT_CLIP_BUFFER_MS)
-end
-
-
-local function try_hunters_mark(target)
-    if not menu.use_hunters_mark:get_state() then return false end
-    if not runtime.hunters_mark_id then return false end
-    if not can_cast(runtime.hunters_mark_id, target) then return false end
-    if has_debuff(runtime.hunters_mark_id, target) then return false end
-    if cast_spell(runtime.hunters_mark_id, target) then
-        utils.log_debug(menu, "Hunters Mark cast")
-        return true
-    end
-    return false
-end
-
-local function try_serpent_sting(target)
-    if not menu.use_serpent_sting:get_state() then return false end
-    if not runtime.serpent_sting_id then return false end
-    if not can_cast(runtime.serpent_sting_id, target) then return false end
-    if has_debuff(runtime.serpent_sting_id, target) then return false end
-    if cast_spell(runtime.serpent_sting_id, target) then
-        utils.log_debug(menu, "Serpent Sting cast")
-        return true
-    end
-    return false
-end
-
-local function try_arcane_shot(target)
-    if not menu.use_arcane_shot:get_state() then return false end
-    if not runtime.arcane_shot_id then return false end
-    local dist = get_distance(target)
-    if dist > 30 then return false end
-    if not can_cast(runtime.arcane_shot_id, target) then return false end
-    if cast_spell(runtime.arcane_shot_id, target) then
-        utils.log_debug(menu, "Arcane Shot cast")
-        return true
-    end
-    return false
-end
-
-local function try_aimed_shot(target)
-    if not menu.use_aimed_shot:get_state() then return false end
-    if not runtime.aimed_shot_id then return false end
-    local dist = get_distance(target)
-    if dist > 40 then return false end
-    if not can_cast(runtime.aimed_shot_id, target) then return false end
-    if cast_spell(runtime.aimed_shot_id, target) then
-        utils.log_debug(menu, "Aimed Shot cast")
-        return true
-    end
-    return false
-end
-
-local function try_steady_shot(target)
-    if not menu.use_steady_shot:get_state() then return false end
-    if not runtime.steady_shot_id then return false end
-    local dist = get_distance(target)
-    if dist > 40 then return false end
-    if not can_cast(runtime.steady_shot_id, target) then return false end
-    if cast_spell(runtime.steady_shot_id, target) then
-        utils.log_debug(menu, "Steady Shot cast")
-                esp_renderer.on_cast(nil, "Steady Shot", color.green(220))
-        return true
-    end
-    return false
-end
-
-local function try_multi_shot(target)
-    if enc and not enc.aoe_safe then return false end
-    if not menu.use_multi_shot:get_state() then return false end
-    if not runtime.multi_shot_id then return false end
-    local mode = get_active_mode()
-    if mode == "solo" then return false end
-    local dist = get_distance(target)
-    if dist > 30 then return false end
-    if not can_cast(runtime.multi_shot_id, target) then return false end
-    if cast_spell(runtime.multi_shot_id, target) then
-        utils.log_debug(menu, "Multi-Shot cast")
-        return true
-    end
-    return false
-end
-
-local function try_kill_command(target)
-    if not menu.use_kill_command:get_state() then return false end
-    if not runtime.kill_command_id then return false end
-    if not pet_is_alive() then return false end
-    if not can_cast(runtime.kill_command_id, target) then return false end
-    if cast_spell(runtime.kill_command_id, target) then
-        utils.log_debug(menu, "Kill Command cast")
-                esp_renderer.on_cast(nil, "Kill Command", color.red(220))
-        return true
-    end
-    return false
-end
-
-local function try_bestial_wrath(target)
-    if enc and enc.hold_cooldowns then return false end
-    if not menu.use_bestial_wrath:get_state() then return false end
-    if not runtime.bestial_wrath_id then return false end
-    if not pet_is_alive() then return false end
-    if not can_cast(runtime.bestial_wrath_id, target) then return false end
-    if cast_spell(runtime.bestial_wrath_id, "player") then
-        utils.log_debug(menu, "Bestial Wrath cast")
-                esp_renderer.on_cast(nil, "Bestial Wrath", color.orange(220))
-        return true
-    end
-    return false
-end
-
-local function try_mend_pet()
-    if not menu.use_mend_pet:get_state() then return false end
-    if not runtime.mend_pet_id then return false end
-    if not pet_is_alive() then return false end
-    local pet = get_pet()
-    if not pet then return false end
-    local pet_hp = pet:get_health() / pet:get_max_health()
-    if pet_hp > (menu.mend_pet_hp:get() / 100) then return false end
-    if not can_cast(runtime.mend_pet_id, pet) then return false end
-    if cast_spell(runtime.mend_pet_id, pet) then
-        utils.log_debug(menu, "Mend Pet cast")
-        return true
-    end
-    return false
-end
-
-local function try_revive_pet()
-    if not menu.use_revive_pet:get_state() then return false end
-    if not runtime.revive_pet_id then return false end
-    if pet_exists() and pet_is_alive() then return false end
-    if not can_cast(runtime.revive_pet_id, "player") then return false end
-    if cast_spell(runtime.revive_pet_id, "player") then
-        utils.log_debug(menu, "Revive Pet cast")
-        return true
-    end
-    return false
-end
-
-local function try_aspect()
-    local me = core.object_manager.get_local_player()
-    if not me then return false end
-    
-    local mode = get_active_mode()
-    local desired_aspect = runtime.aspect_hawk_id
-    
-    if mode == "solo" and me:get_level() < 10 then
-        desired_aspect = runtime.aspect_monkey_id
-    end
-    
-    if not desired_aspect then return false end
-    if has_buff(desired_aspect) then return false end
-    if is_busy() then return false end
-    
-    if cast_spell(desired_aspect, "player") then
-        utils.log_debug(menu, "Aspect cast")
-        return true
-    end
-    return false
-end
-
-local function try_raptor_strike(target)
-    if not menu.use_raptor_strike:get_state() then return false end
-    if not runtime.raptor_strike_id then return false end
-    local dist = get_distance(target)
-    if dist > 5 then return false end
-    if not can_cast(runtime.raptor_strike_id, target) then return false end
-    if cast_spell(runtime.raptor_strike_id, target) then
-        utils.log_debug(menu, "Raptor Strike cast")
-        return true
-    end
-    return false
-end
-
-
--- --- Kiting / Threat Management (v1.2) -----------------------------------
-
-local function try_disengage(me, target)
-    if not runtime.disengage_id then return false end
-    -- Only use when target is within melee range (stuck on us)
-    local dist = get_distance(target)
-    if dist > 8 then return false end
-    if not can_cast(runtime.disengage_id, "player") then return false end
-    if cast_spell(runtime.disengage_id, "player") then
-        utils.log_debug(menu, "Disengage")
-        return true
-    end
-    return false
-end
-
-local function try_feign_death(me)
-    if not runtime.feign_death_id then return false end
-    local hp = me:get_health_percentage() / 100
-    if hp > 0.30 then return false end   -- only use when low
-    if not can_cast(runtime.feign_death_id, "player") then return false end
-    if cast_spell(runtime.feign_death_id, "player") then
-        utils.log_debug(menu, "Feign Death")
-        return true
-    end
-    return false
-end
-
-
-
--- --- Scorpid / Viper Sting situational use (v1.4) ------------------------
-
-local function try_scorpid_sting(target)
-    if not runtime.scorpid_sting_id then return false end
-    if not menu.use_scorpid_sting or not menu.use_scorpid_sting:get_state() then return false end
-    if utils.has_debuff(target, spells.DEBUFF_SCORPID_STING) then return false end
-    -- Only use in dungeon/raid (debuffs matter there)
-    local mode = get_active_mode()
-    if mode == "solo" then return false end
-    if not allow_instant(core.object_manager.get_local_player()) then return false end
-    if not can_cast(runtime.scorpid_sting_id, target) then return false end
-    if cast_spell(runtime.scorpid_sting_id, target) then
-        utils.log_debug(menu, "Scorpid Sting")
-        return true
-    end
-    return false
-end
-
-local function try_viper_sting(target)
-    if not runtime.viper_sting_id then return false end
-    if not menu.use_viper_sting or not menu.use_viper_sting:get_state() then return false end
-    if utils.has_debuff(target, spells.DEBUFF_VIPER_STING) then return false end
-    -- Only use on mana-using targets (casters)
-    if not allow_instant(core.object_manager.get_local_player()) then return false end
-    if not can_cast(runtime.viper_sting_id, target) then return false end
-    if cast_spell(runtime.viper_sting_id, target) then
-        utils.log_debug(menu, "Viper Sting")
-        return true
-    end
-    return false
-end
-
--- --- Rapid Fire (v1.4) ----------------------------------------------------
-
-local function try_rapid_fire(me)
-    if enc and enc.hold_cooldowns then return false end
-    if not runtime.rapid_fire_id then return false end
-    if not menu.use_rapid_fire or not menu.use_rapid_fire:get_state() then return false end
-    if not me:is_in_combat() then return false end
-    if utils.has_buff(me, spells.BUFF_RAPID_FIRE) then return false end
-    if not can_cast(runtime.rapid_fire_id, "player") then return false end
-    if cast_spell(runtime.rapid_fire_id, "player") then
-        utils.log_debug(menu, "Rapid Fire")
-        return true
-    end
-    return false
-end
-
--- --- Intimidation (BM only) (v1.4) ----------------------------------------
-
-local function try_intimidation(me, target)
-    if not runtime.intimidation_id then return false end
-    if not menu.use_intimidation or not menu.use_intimidation:get_state() then return false end
-    if not pet_is_alive() then return false end
-    if not allow_instant(me) then return false end
-    if not can_cast(runtime.intimidation_id, target) then return false end
-    if cast_spell(runtime.intimidation_id, target) then
-        utils.log_debug(menu, "Intimidation")
-        return true
-    end
-    return false
-end
-
--- --- Aspect of the Viper - mana recovery (v1.4) ---------------------------
-
-local function try_aspect_of_viper(me)
-    -- Switch to Viper when OOM, back to Hawk when full
-    if not runtime.viper_aspect_id then return false end
-    if not menu.use_aspect_viper or not menu.use_aspect_viper:get_state() then return false end
-    local mana_pct = utils.get_mana_pct(me)
-    local has_viper = utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER)
-    if has_viper and mana_pct >= 0.90 then
-        -- Switch back to Hawk when mana recovered
-        if runtime.aspect_hawk_id and can_cast(runtime.aspect_hawk_id, "player") then
-            cast_spell(runtime.aspect_hawk_id, "player")
-        end
-        return false
-    end
-    if not has_viper and mana_pct < 0.20 then
-        if can_cast(runtime.viper_aspect_id, "player") then
-            cast_spell(runtime.viper_aspect_id, "player")
-            utils.log_debug(menu, "Aspect of the Viper (low mana)")
-            return true
-        end
-    end
-    return false
-end
-
-
-
-local function try_execute_opener(me, target)
-    if me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
-    if pet_is_alive() then do_pet_attack(target) end
-    if try_hunters_mark(target) then return true end
-    if not me:is_auto_attacking and not me:is_auto_attacking() then
-        if core.input and core.input.start_attack then
-            core.input.start_attack(target)
-        end
-    end
-    return false
-end
-
-
-local function do_rotation(me, target)
-    if is_busy() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-
-    -- Threat drop / kite
-    -- Pre-combat opener
-    try_execute_opener(me, target)
-    if try_feign_death(me) then return true end
-    if try_disengage(me, target) then return true end
-    try_aspect_of_viper(me)
-    try_rapid_fire(me)
-    
-    -- Interrupt
-
-    -- Mana conservation (leveling 1-70)
-    if leveling_manager.is_conserving_mana(me, menu) then
-        leveling_manager.ensure_melee(me, target)
-    end
-    -- Encounter policy (boss-specific rotation adjustments)
-    enc = encounter_manager.get_policy(me)
-
-    -- Interrupt
-    if target and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "hunter", utils) then
-            return true
-        end
-    end
-
-    -- Racial CDs
-    racial_manager.try_offensive(me)
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
-
-    -- Defensive abilities
-    ttd_tracker.update(target)
-
-    if defensive_manager.try_defensive(me, "hunter", utils) then
-        return true
-    end
-    
-    local dist = get_distance(target)
-    local mode = get_active_mode()
-    
-    if dist <= 40 then
-        face_target(target)
-    end
-    
-    if try_aspect() then return true end
-    
-    if not pet_exists() and menu.use_revive_pet:get_state() then
-        if try_revive_pet() then return true end
-    end
-    
-    if pet_exists() and not pet_is_alive() and menu.use_revive_pet:get_state() then
-        if try_revive_pet() then return true end
-    end
-    
-    if pet_is_alive() and not has_pet_attack() then
-        do_pet_attack(target)
-    end
-    
-    if menu.use_hunters_mark:get_state() then
-        if try_hunters_mark(target) then return true end
-    if try_scorpid_sting(target) then return true end
-    if try_viper_sting(target) then return true end
-    end
-    
-    if try_bestial_wrath(target) then return true end
-    
-    if dist <= 30 then
-        if try_arcane_shot(target) then return true end
-    end
-    
-    if try_serpent_sting(target) then return true end
-    
-    if dist <= 40 then
-        if try_aimed_shot(target) then return true end
-    end
-    
-    if try_multi_shot(target) then return true end
-    
-    if try_steady_shot(target) then return true end
-    
-    if try_intimidation(me, target) then return true end
-    if try_kill_command(target) then return true end
-    
-    if try_mend_pet() then return true end
-    
-    if dist <= 5 then
-        if try_raptor_strike(target) then return true end
-        start_auto_attack()
-    end
-    
-    -- Ranged auto-attack fallback for leveling 1-70 (Hunter)
-    if me:is_in_combat() and target and target:is_valid() and not target:is_dead()
-       and me:can_attack(target) and not me:is_moving() then
-        leveling_manager.ensure_ranged(me, target)
-    end
-
-    return false
-end
-
-local function handle_toggle()
-    local current = menu.toggle_key:get_state()
-    if current then
-        if not runtime.prev_toggle_state then
-            local enabled = menu.enabled:get_state()
-            menu.enabled:set(not enabled)
-            utils.log_debug(menu, "Toggled -> " .. tostring(not enabled))
-        end
-        runtime.prev_toggle_state = true
-    else
-        runtime.prev_toggle_state = false
-    end
-end
-
-local function on_update()
-    resolve_spells()
-    
-    if utils.throttle("mode_refresh", MODE_REFRESH_INTERVAL) then
-        runtime.cached_mode = detect_mode()
-    end
-    
-    if utils.throttle("set_bonus", 5.0) then
-        update_set_bonus()
-    end
-    
-    handle_toggle()
-    
-    if not menu.enabled:get_state() then
-        return
-    end
-    
-    local me = core.object_manager.get_local_player()
-    if not me or me:is_dead() then
-        return
-    end
-        ooc_manager.on_update(me, menu, utils)
-    if eax_utils.is_eating_or_drinking(me) then return end
-    
-    local focus_target = eax_utils.get_focus_target(menu)
-    if focus_target and not me:can_attack(focus_target) then focus_target = nil end
-    local target = focus_target or utils.find_best_target(me)
-    
-    -- Self-emergency
-    local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
-    local my_hp = me:get_health_percentage() / 100
-    if my_hp < self_threshold then
-        if try_mend_pet then try_mend_pet(me) end
-    end
-    
-    if not target or not target:is_valid() or target:is_dead() then
-        return
-    end
-    
-    do_rotation(me, target)
-end
-
-local function on_control_panel()
-    local elements = {}
-    local toggle_key_code = menu.toggle_key:get_key_code()
-    local display_name = "[EAX Hunter Beast Mastery] Enable"
-    if toggle_key_code ~= 7 then
-        display_name = "[EAX Hunter Beast Mastery] Enable (" .. key_helper:get_key_name(toggle_key_code) .. ")"
-    end
-    control_panel_utility:insert_toggle_(elements, display_name, menu.toggle_key)
-    return elements
-end
-
-
-local function on_render()
-    esp_renderer.on_render(menu)
-end
-
--- ESP only renders when this spec is enabled
-core.register_on_render_callback(function()
-    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
-    on_render()
-end)
--- __EAX_ESP_GUARD
-core.register_on_update_callback(on_update)
-
--- -- Space theme: create menu window and inject into menu ---------------------
-local _vec2 = require("common/geometry/vector_2")
-local _space_win = core.menu.window("eaxhunterbeastmastery_space_win")
-_space_win:set_initial_size(_vec2.new(460, 580))
-_space_win:set_next_window_min_size(_vec2.new(320, 300))
-_space_win:set_next_window_padding(_vec2.new(10, 8))
-menu.set_window(_space_win)
--- -----------------------------------------------------------------------------
-core.register_on_render_menu_callback(menu.render)
-core.register_on_render_control_panel_callback(on_control_panel)
-
+core.log("[EAX Hunter BM] Loaded")
 return {}

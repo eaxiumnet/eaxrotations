@@ -85,21 +85,7 @@ function utils.can_cast_target(spell_id, me, target)
     return true
 end
 
---- Can the player cast an OFFENSIVE spell on target right now?
---- Extends can_cast_target with a hostility check (me:can_attack) and
---- a self-cast guard so damage spells never fire on friendly units.
----@param spell_id number|nil
----@param me game_object
----@param target game_object
----@return boolean
-function utils.can_cast_hostile(spell_id, me, target)
-    if not me or not target then return false end
-    -- Never cast damage spells on self
-    if utils.same_unit(me, target) then return false end
-    -- Target must be attackable by the player (fails for friendlies, self, neutral)
-    if not me:can_attack(target) then return false end
-    
-    function utils.same_unit(a, b)
+function utils.same_unit(a, b)
     if not a or not b then return false end
     if a == b then return true end
     if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
@@ -122,7 +108,20 @@ function utils.can_cast_hostile(spell_id, me, target)
     return false
 end
 
-return utils.can_cast_target(spell_id, me, target)
+--- Can the player cast an OFFENSIVE spell on target right now?
+--- Extends can_cast_target with a hostility check (me:can_attack) and
+--- a self-cast guard so damage spells never fire on friendly units.
+---@param spell_id number|nil
+---@param me game_object
+---@param target game_object
+---@return boolean
+function utils.can_cast_hostile(spell_id, me, target)
+    if not me or not target then return false end
+    -- Never cast damage spells on self
+    if utils.same_unit(me, target) then return false end
+    -- Target must be attackable by the player (fails for friendlies, self, neutral)
+    if not me:can_attack(target) then return false end
+    return utils.can_cast_target(spell_id, me, target)
 end
 
 
@@ -182,6 +181,17 @@ end
 
 
 
+function utils.has_buff(unit, buff_table)
+    if not unit or not unit:is_valid() or not buff_table then
+        return false
+    end
+    -- Use game_object API directly: check buff slot then aura slot
+    local entry = unit:get_buff_data(buff_table)
+    if entry and entry.is_active then return true end
+    entry = unit:get_aura_data(buff_table)
+    return entry ~= nil and entry.is_active == true
+end
+
 function utils.has_debuff(unit, debuff_table)
     if not unit or not unit:is_valid() or not debuff_table then return false end
     -- Try debuff first, fall back to aura (covers all unit types including dummies)
@@ -205,6 +215,33 @@ local function can_issue_queue_request(kind, spell_id, target, interval_s)
         return false
     end
     queue_request_timestamps[key] = now
+    return true
+end
+
+function utils.can_cast_self(spell_id, me)
+    if not spell_id or not me or not me:is_valid() then
+        return false
+    end
+    if not core.spell_book.is_spell_learned(spell_id) then
+        return false
+    end
+    if core.spell_book.get_spell_cooldown(spell_id) > 0 then
+        return false
+    end
+    if not core.spell_book.is_usable_spell(spell_id) then
+        return false
+    end
+    return true
+end
+
+function utils.cast_self(spell_id, me)
+    if not spell_id or not me or not me:is_valid() then
+        return false
+    end
+    if not can_issue_queue_request("spell_target", spell_id, me, SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    spell_queue:queue_spell_target(spell_id, me, 1)
     return true
 end
 

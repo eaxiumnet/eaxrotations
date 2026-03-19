@@ -98,7 +98,7 @@ function ooc_manager.try_drink(me, menu, utils)
         if consumables then
             for _, c in ipairs(consumables) do
                 if c.is_food_or_drink and c.item then
-                    local id = c.item:get_item_id and c.item:get_item_id()
+                    local id = type(c.item.get_item_id) == "function" and c.item:get_item_id()
                     if id and id > 0 and me:get_item_cooldown(id) <= 0 then
                         if core.input.use_item(id) then
                             utils.log_debug(menu, "OOC: Drinking")

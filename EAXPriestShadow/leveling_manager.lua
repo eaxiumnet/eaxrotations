@@ -120,7 +120,7 @@ local function should_wand(me, target, menu)
         local ok2, v = pcall(function() return menu.wand_at_hp:get() end)
         if ok2 and type(v) == "number" then wand_hp = v / 100.0 end
     end
-    local t_hp = target:get_health_percentage and (target:get_health_percentage() / 100) or 1.0
+    local t_hp = (type(target.get_health_percentage) == "function" and (target:get_health_percentage() / 100)) or 1.0
     if t_hp <= wand_hp then return true end
 
     return false
@@ -189,7 +189,7 @@ function leveling_manager.should_wand_for_spirit_tap(me, target, menu)
     local ok2, data = pcall(function() return buff_manager:get_buff_data(me, SPIRIT_TAP_BUFF) end)
     if ok2 and data and data.is_active then return false end
     if not target or target:is_dead() then return false end
-    local hp = target:get_health_percentage and (target:get_health_percentage() / 100) or 1.0
+    local hp = (type(target.get_health_percentage) == "function" and (target:get_health_percentage() / 100)) or 1.0
     return hp <= 0.25
 end
 

@@ -105,18 +105,10 @@ end
 ---@param me game_object
 ---@param target game_object
 ---@return boolean
-function utils.can_cast_hostile(spell_id, me, target)
-    if not me or not target then return false end
-    -- Never cast damage spells on self
-    if utils.same_unit(me, target) then return false end
-    -- Target must be attackable by the player (fails for friendlies, self, neutral)
-    if not me:can_attack(target) then return false end
-    
-    function utils.same_unit(a, b)
+function utils.same_unit(a, b)
     if not a or not b then return false end
     if a == b then return true end
     if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
-    -- GUID comparison is authoritative — two different mobs can share a name
     local function safe_guid(u)
         if type(u.get_guid) ~= "function" then return nil end
         local ok, g = pcall(function() return u:get_guid() end)
@@ -124,7 +116,6 @@ function utils.can_cast_hostile(spell_id, me, target)
     end
     local ga, gb = safe_guid(a), safe_guid(b)
     if ga and gb then return ga == gb end
-    -- Fallback: name match only for players (NPCs commonly share names)
     local a_player = type(a.is_player) == "function" and a:is_player()
     local b_player = type(b.is_player) == "function" and b:is_player()
     if a_player and b_player then
@@ -135,7 +126,11 @@ function utils.can_cast_hostile(spell_id, me, target)
     return false
 end
 
-return utils.can_cast_target(spell_id, me, target)
+function utils.can_cast_hostile(spell_id, me, target)
+    if not me or not target then return false end
+    if utils.same_unit(me, target) then return false end
+    if not me:can_attack(target) then return false end
+    return utils.can_cast_target(spell_id, me, target)
 end
 
 
@@ -208,13 +203,38 @@ function utils.has_buff(unit, buff_table)
     if not unit or not unit:is_valid() or not buff_table then
         return false
     end
-    for i = 1, #buff_table do
-        local entry = buff_manager:get_buff_data(unit, buff_table[i])
-        if entry and entry.is_active then
-            return true
-        end
+    -- Use game_object API directly: check buff slot then aura slot
+    local entry = unit:get_buff_data(buff_table)
+    if entry and entry.is_active then return true end
+    entry = unit:get_aura_data(buff_table)
+    return entry ~= nil and entry.is_active == true
+end
+
+function utils.can_cast_self(spell_id, me)
+    if not spell_id or not me or not me:is_valid() then
+        return false
     end
-    return false
+    if not core.spell_book.is_spell_learned(spell_id) then
+        return false
+    end
+    if core.spell_book.get_spell_cooldown(spell_id) > 0 then
+        return false
+    end
+    if not core.spell_book.is_usable_spell(spell_id) then
+        return false
+    end
+    return true
+end
+
+function utils.cast_self(spell_id, me)
+    if not spell_id or not me or not me:is_valid() then
+        return false
+    end
+    if not can_issue_queue_request("spell_target", spell_id, me, SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    spell_queue:queue_spell_target(spell_id, me, 1)
+    return true
 end
 
 function utils.cast_target(spell_id, target)
