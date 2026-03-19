@@ -1,38 +1,24 @@
-# EAX Mage Arcane
+# EAX Mage Arcane — v2.1.0
 
-Minimal Arcane Mage rotation for TBC-flavored Project Sylvanas play.
-
-## What It Is
-
-`EAXMageArcane` is a lightweight Arcane Mage plugin focused on Arcane Blast pressure, Arcane Missiles stack dumps, mana gem support, and Evocation recovery.
+Arcane Mage rotation automation for TBC on Project Sylvanas.
 
 ## Rotation
+- `Arcane Blast` builds stacks and is the primary damage cast.
+- `Arcane Missiles` fires during Clearcasting procs.
+- `Arcane Power` and `Presence of Mind` line up for burst windows.
+- `Evocation` OOC for mana recovery.
+- `Mana Gem` used during combat for mana sustain.
+- `Fire Blast` as a GCD filler or movement cast.
 
-- **Burst** - `Arcane Power` and self-cast trinkets open high-mana burn windows.
-- **Primary** - `Arcane Blast` builds and sustains pressure.
-- **Stack Dump** - `Arcane Missiles` clears stacked `Arcane Blast` pressure in sustain windows, on Clearcasting, or when mana dips.
-- **Movement** - `Fire Blast` is the moving fallback.
+## New in 2.1.0
+- **Arcane Intellect:** Auto-maintained as a self-buff.
+- **Cone of Cold:** Defensive/AoE toggle (default on).
 
-## Mana
-
-- **Mana Gem** below a configurable mana threshold while in combat.
-- **Evocation** below a configurable mana threshold when Arcane needs to recover.
-
-## Modes
-
-- **Auto** - Detects group size from party members.
-- **Solo** - Looser burst gating to keep questing fluid.
-- **Dungeon** - Balanced burn and sustain.
-- **Raid** - Higher mana requirement before opening burst cooldowns.
+## Menu Options
+- Use Arcane Blast, Arcane Missiles, Arcane Power, Evocation
+- Use Cone of Cold, Frost Nova, Ice Block
 
 ## Install
-
-1. Put the `EAXMageArcane` folder inside your Sylvanas `scripts` folder.
-2. Reload Sylvanas or restart the client.
-3. Open the menu and enable `EAX Mage Arcane`.
-
-## Notes
-
-- Folder: `scripts/EAXMageArcane`
-- Spec gate: Mage Arcane (`get_specialization_id() == 1`)
-- Primary design target: Arcane Blast / Arcane Missiles / Arcane Power / Evocation
+1. Extract `EAXMageArcane` into your Sylvanas `scripts` folder.
+2. Reload or restart.
+3. Enable `EAX Mage Arcane` in the menu.

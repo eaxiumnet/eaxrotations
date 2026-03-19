@@ -139,6 +139,49 @@ local function reset_combo_points_if_needed(me, target)
     runtime.combo_target = target
 end
 
+
+local function try_vanish(me, target)
+    if not menu.use_vanish or not menu.use_vanish:get_state() then return false end
+    if not runtime.vanish_id then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > 0.30 then return false end  -- emergency only
+    if not utils.can_cast_self(runtime.vanish_id, me) then return false end
+    if utils.cast_self(runtime.vanish_id, me) then
+        utils.log_debug(menu, "Vanish (emergency)")
+        return true
+    end
+    return false
+end
+
+local function try_sprint_rogue(me, target)
+    if not menu.use_sprint or not menu.use_sprint:get_state() then return false end
+    if not runtime.sprint_id then return false end
+    if not target or not target:is_valid() then return false end
+    if utils.has_buff(me, spells.BUFF_SPRINT) then return false end
+    -- Use sprint when target is out of melee range
+    if utils.is_melee_target(me, target) then return false end
+    if not utils.can_cast_self(runtime.sprint_id, me) then return false end
+    if utils.cast_self(runtime.sprint_id, me) then
+        utils.log_debug(menu, "Sprint")
+        return true
+    end
+    return false
+end
+
+local function try_blind(me, target)
+    if not menu.use_blind or not menu.use_blind:get_state() then return false end
+    if not runtime.blind_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > 0.35 then return false end  -- defensive use when low
+    if not utils.can_cast_hostile(runtime.blind_id, me, target) then return false end
+    if utils.cast_target(runtime.blind_id, target) then
+        utils.log_debug(menu, "Blind (defensive)")
+        return true
+    end
+    return false
+end
+
 local function try_kick(me, target)
     if not menu.use_kick:get_state() then
         return false
@@ -426,6 +469,9 @@ local function do_rotation(me, target)
         return true
     end
 
+    if try_vanish(me, target) then return true end
+    if try_sprint_rogue(me, target) then return true end
+    if try_blind(me, target) then return true end
     if try_kick(me, target) then
         return true
     end

@@ -53,7 +53,7 @@ menu.use_unstable_affliction              = core.menu.checkbox(true, "eax_afflic
 menu.use_corruption                       = core.menu.checkbox(true, "eax_affliction_use_corruption")
 menu.use_siphon_life                      = core.menu.checkbox(true, "eax_affliction_use_siphon_life")
 menu.use_curse                            = core.menu.checkbox(true, "eax_affliction_use_curse")
-menu.prefer_doom                          = core.menu.checkbox(false, "eax_affliction_prefer_doom")
+menu.prefer_doom                          = core.menu.checkbox(true, "eax_affliction_prefer_doom")
 menu.use_shadow_bolt                      = core.menu.checkbox(true, "eax_affliction_use_shadow_bolt")
 menu.use_drain_soul                       = core.menu.checkbox(true, "eax_affliction_use_drain_soul")
 menu.use_life_tap                         = core.menu.checkbox(true, "eax_affliction_use_life_tap")
@@ -116,4 +116,6 @@ function menu.render()
     end)
 end
 
+menu.use_curse_of_elements = core.menu.checkbox(true, "eaxaff_curse_of_elements")
+menu.use_death_coil       = core.menu.checkbox(true, "eaxaff_death_coil")
 return menu

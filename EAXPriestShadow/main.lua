@@ -118,6 +118,45 @@ end
 
 -- --- Vampiric Embrace buff maintenance (v1.4) -----------------------------
 
+
+local function try_psychic_scream(me, target)
+    if not menu.use_psychic_scream or not menu.use_psychic_scream:get_state() then return false end
+    if not runtime.psychic_scream_id then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > 0.40 then return false end
+    if not utils.can_cast_self(runtime.psychic_scream_id, me) then return false end
+    if utils.cast_self(runtime.psychic_scream_id, me) then
+        utils.log_debug(menu, "Psychic Scream (defensive)")
+        return true
+    end
+    return false
+end
+
+local function try_fade(me)
+    if not menu.use_fade or not menu.use_fade:get_state() then return false end
+    if not runtime.fade_id then return false end
+    if utils.has_buff(me, spells.BUFF_FADE) then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > 0.50 then return false end
+    if not utils.can_cast_self(runtime.fade_id, me) then return false end
+    if utils.cast_self(runtime.fade_id, me) then
+        utils.log_debug(menu, "Fade")
+        return true
+    end
+    return false
+end
+
+local function try_inner_fire_shadow(me)
+    if not runtime.inner_fire_id then return false end
+    if utils.has_buff(me, spells.BUFF_INNER_FIRE) then return false end
+    if not utils.can_cast_self(runtime.inner_fire_id, me) then return false end
+    if utils.cast_self(runtime.inner_fire_id, me) then
+        utils.log_debug(menu, "Inner Fire")
+        return true
+    end
+    return false
+end
+
 local function try_vampiric_embrace(me)
     if not resolved.vampiric_embrace then return false end
     if utils.has_buff(me, spells.BUFF_VAMPIRIC_EMBRACE) then return false end

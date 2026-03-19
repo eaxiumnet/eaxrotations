@@ -120,4 +120,6 @@ function menu.render()
     end)
 end
 
+menu.use_blast_wave       = core.menu.checkbox(true,  "eaxmagefire_use_blast_wave")
+menu.use_dragons_breath  = core.menu.checkbox(true,  "eaxmagefire_use_dragons_breath")
 return menu

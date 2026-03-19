@@ -114,4 +114,6 @@ function menu.render()
     end)
 end
 
+menu.use_psychic_scream = core.menu.checkbox(true, "eaxpriestshadow_psychic_scream")
+menu.use_fade          = core.menu.checkbox(true, "eaxpriestshadow_fade")
 return menu

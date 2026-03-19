@@ -1,41 +1,30 @@
-# EAX Rogue Assassination
+# EAX Rogue Assassination — v2.1.0
 
-Minimal Assassination Rogue rotation for TBC.
-
-## What It Is
-
-`EAXRogueAssassination` is a lightweight Project Sylvanas plugin for Assassination Rogues. It prioritizes poison-aware finishers, maintains Slice and Dice, and uses Mutilate as the main builder.
+Assassination Rogue automation for TBC on Project Sylvanas.
 
 ## Rotation
+- `Mutilate` is the primary combo point builder.
+- `Slice and Dice` maintained before falling off.
+- `Envenom` at 4-5 CP when Deadly Poison is stacked.
+- `Eviscerate` as fallback finisher when poison stacks are low.
+- `Rupture` for sustained fights (now enabled by default).
+- `Cold Blood` reserved for finisher windows in dungeon/raid.
+- `Garrote` as a stealth opener bleed.
+- `Shiv` for guaranteed poison application.
 
-- **Mutilate** builds combo points quickly.
-- **Slice and Dice** refreshes before it falls off.
-- **Envenom** fires at 4-5 combo points when Deadly Poison is stacked.
-- **Eviscerate** is the fallback finisher when poison stacks are low.
-- **Rupture** is optional for sustained fights.
-- **Cold Blood** is reserved for dungeon and raid finisher windows.
+## New in 2.1.0
+- **Combo points fixed:** Now reads via `me:get_power(COMBOPOINTS_TBC)` on the player — was previously reading from the target mob, always returning 0.
+- **Vanish:** Auto-triggers at <30% HP as emergency escape.
+- **Sprint:** Auto-triggers when target is out of melee range.
+- **Blind:** Auto-triggers at <35% HP for defensive CC.
+- **Rupture:** Enabled by default.
 
-## Modes
-
-- **Auto** detects Solo, Dungeon, or Raid from group state.
-- **Solo** plays the default poison-first loop.
-- **Dungeon** enables stronger finisher burst behavior.
-- **Raid** keeps the same poison priorities and saves Cold Blood for raid-target finishers.
-
-## Poison Focus
-
-- Tracks **Deadly Poison** on the current target.
-- Assumes the player is handling weapon poison application manually.
-- Includes poison item references in `spells.lua` for documentation and future extension.
+## Menu Options
+- Use Mutilate, Envenom, Rupture, Eviscerate, Cold Blood
+- Use Vanish, Sprint, Blind, Evasion, Feint
+- Envenom/Rupture CP thresholds
 
 ## Install
-
-1. Put the `EAXRogueAssassination` folder inside your Sylvanas `scripts` folder.
-2. Reload Sylvanas or restart the client.
-3. Open the menu and enable `EAX Rogue Assassination`.
-
-## Notes
-
-- Current repo folder: `EAXRogueAssassination`
-- Plugin name in-game: `EAX Rogue Assassination`
-- Required files: `header.lua`, `main.lua`, `menu.lua`, `spells.lua`, `utils.lua`, `README.md`
+1. Extract `EAXRogueAssassination` into your Sylvanas `scripts` folder.
+2. Reload or restart.
+3. Enable `EAX Rogue Assassination` in the menu.

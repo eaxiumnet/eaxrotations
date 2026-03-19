@@ -61,6 +61,10 @@ local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 local function resolve_spells()
+    runtime.molten_armor_id      = utils.resolve_spell_id(spells.MOLTEN_ARMOR)
+    runtime.blast_wave_id        = utils.resolve_spell_id(spells.BLAST_WAVE)
+    runtime.dragons_breath_id    = utils.resolve_spell_id(spells.DRAGONS_BREATH)
+    runtime.arcane_intellect_id  = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
     runtime.scorch_id = utils.resolve_spell_id(spells.SCORCH)
     runtime.fireball_id = utils.resolve_spell_id(spells.FIREBALL)
     runtime.pyroblast_id = utils.resolve_spell_id(spells.PYROBLAST)
@@ -355,6 +359,42 @@ local function try_flamestrike(me, target)
     return false
 end
 
+
+local function try_molten_armor(me)
+    if not runtime.molten_armor_id then return false end
+    if utils.has_buff(me, spells.BUFF_MOLTEN_ARMOR) then return false end
+    if not utils.can_cast_self(runtime.molten_armor_id, me) then return false end
+    if utils.cast_self(runtime.molten_armor_id, me) then
+        utils.log_debug(menu, "Molten Armor")
+        return true
+    end
+    return false
+end
+
+local function try_blast_wave(me, target)
+    if not menu.use_blast_wave or not menu.use_blast_wave:get_state() then return false end
+    if not runtime.blast_wave_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not utils.can_cast_hostile(runtime.blast_wave_id, me, target) then return false end
+    if utils.cast_target(runtime.blast_wave_id, target) then
+        utils.log_debug(menu, "Blast Wave")
+        return true
+    end
+    return false
+end
+
+local function try_dragons_breath(me, target)
+    if not menu.use_dragons_breath or not menu.use_dragons_breath:get_state() then return false end
+    if not runtime.dragons_breath_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not utils.can_cast_hostile(runtime.dragons_breath_id, me, target) then return false end
+    if utils.cast_target(runtime.dragons_breath_id, target) then
+        utils.log_debug(menu, "Dragon's Breath")
+        return true
+    end
+    return false
+end
+
 local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
     if not is_gcd_ready() then return false end
@@ -384,6 +424,9 @@ local function do_rotation(me, target)
         return true
     end
 
+    if try_molten_armor(me) then return true end
+    if try_blast_wave(me, target) then return true end
+    if try_dragons_breath(me, target) then return true end
     if try_combustion(me, target) then return true end
     if try_trinkets(me) then return true end
     if try_flamestrike(me, target) then return true end

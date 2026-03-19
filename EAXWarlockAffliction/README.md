@@ -1,14 +1,28 @@
-# EAX Warlock Affliction
+# EAX Warlock Affliction — v2.1.0
 
-Affliction-focused rotation helper for Sylvannas that keeps DoTs rolling, uses Drain Soul as an execute, and Life Tap when mana dips.
+Affliction Warlock DPS automation for TBC on Project Sylvanas.
 
-## Highlights
-- DoT maintenance for Unstable Affliction, Corruption, Siphon Life, and the preferred curse (Agony/Doom).
-- Drain Soul execute below 25% health and Shadow Bolt filler when DoTs are settled.
-- Automatic Life Tap to refill mana above the configured health threshold.
-- Four-mode profile (Auto/Solo/Dungeon/Raid) plus debug and toggle key support.
+## Rotation
+- Maintains `Unstable Affliction`, `Corruption`, `Siphon Life`, and `Curse of Agony`.
+- `Curse of Doom` preferred in sustained fights (enabled by default).
+- `Haunt` on cooldown when available.
+- `Shadow Bolt` as the primary filler cast.
+- `Drain Soul` in execute range for soul shard generation.
+- `Howl of Terror` for defensive AoE fear.
+- `Seed of Corruption` for AoE DoT spread.
+- `Life Tap` for mana sustain.
 
-## Controls
-- `Enabled` / `Toggle Key` / `Debug` at the top of the menu.
-- Mode combobox follows the expected four-state pattern for party size overrides.
-- Dedicated toggles for each DoT, curse preference, Drain Soul, Shadow Bolt, and Life Tap threshold.
+## New in 2.1.0
+- **Fel Armor:** Auto-maintained as a self-buff.
+- **Curse of Elements:** Auto-applied to target (toggle, default on) — increases magic damage taken.
+- **Death Coil:** Auto-fires at <40% own HP for defensive use.
+- **Prefer Doom:** Enabled by default.
+
+## Menu Options
+- Use Unstable Affliction, Corruption, Siphon Life, Curse of Agony/Doom
+- Use Curse of Elements, Death Coil, Howl of Terror, Seed of Corruption
+
+## Install
+1. Extract `EAXWarlockAffliction` into your Sylvanas `scripts` folder.
+2. Reload or restart.
+3. Enable `EAX Warlock Affliction` in the menu.

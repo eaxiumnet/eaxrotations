@@ -1,9 +1,19 @@
-# EAX Warlock Destruction
+# EAX Warlock Destruction — v2.1.0
 
-Destruction rotation helper that keeps Immolate up, chains Conflagrate burst windows, and swaps between Fire/Shadow nukes through the profile selector.
+Destruction Warlock DPS automation for TBC on Project Sylvanas.
 
-## Highlights
-- Immolate maintenance paired with Conflagrate and Shadowfury when enemies cast.
-- Profile combobox that lets you force Fire (Incinerate) or Shadow (Shadow Bolt) or fall back to the best learned nuke.
-- Simple Life Tap automation per mode so mana is topped off only when health is safe (Auto/Solo/Dungeon/Raid aware).
-- Debug logging, mode overrides, and toggle key for quick experimentation.
+## Rotation
+- `Immolate` maintained as a DoT (required for Conflagrate).
+- `Conflagrate` on cooldown when Immolate is active.
+- `Incinerate` as the primary filler cast.
+- `Shadow Bolt` as a secondary filler.
+- `Chaos Bolt` for burst (if available).
+- `Shadowfury` for AoE stun.
+- `Curse of Agony` / `Curse of Elements` maintained.
+- `Seed of Corruption` for AoE spread.
+- `Life Tap` for mana sustain.
+
+## Install
+1. Extract `EAXWarlockDestruction` into your Sylvanas `scripts` folder.
+2. Reload or restart.
+3. Enable `EAX Warlock Destruction` in the menu.

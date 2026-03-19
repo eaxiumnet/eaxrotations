@@ -71,6 +71,8 @@ local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 local function resolve_spells()
     runtime.moonkin_form_id = utils.resolve_spell_id(spells.MOONKIN_FORM)
     runtime.faerie_fire_id = utils.resolve_spell_id(spells.FAERIE_FIRE)
+    runtime.berserk_id  = utils.resolve_spell_id(spells.BERSERK)
+    runtime.typhoon_id  = utils.resolve_spell_id(spells.TYPOON)
     runtime.moonfire_id = utils.resolve_spell_id(spells.MOONFIRE)
     runtime.insect_swarm_id = utils.resolve_spell_id(spells.INSECT_SWARM)
     runtime.wrath_id = utils.resolve_spell_id(spells.WRATH)

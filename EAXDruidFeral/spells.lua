@@ -96,4 +96,17 @@ spells.BUFF_TRAVEL_FORM    = { 783 }
 spells.DEBUFF_POUNCE       = { 27006, 9005, 9004, 8998 }
 spells.DEBUFF_BASH         = { 8983, 5211 }
 
+-- Buffs
+spells.BUFF_MARK_OF_THE_WILD   = { 1126, 5232, 5234, 6756, 8907, 9884, 9885, 26990 }
+spells.BUFF_LEADER_OF_THE_PACK = { 17007 }
+
+-- CC
+spells.CYCLONE          = { 33786 }
+spells.ENTANGLING_ROOTS = { 26989, 19970, 19971, 19972, 19973, 19974, 1062, 339 }
+spells.HIBERNATE        = { 18658, 18657, 2637 }
+
+-- Debuffs
+spells.DEBUFF_CYCLONE          = { 33786 }
+spells.DEBUFF_ENTANGLING_ROOTS = { 26989, 19970, 19971, 19972, 19973, 19974, 1062, 339 }
+
 return spells

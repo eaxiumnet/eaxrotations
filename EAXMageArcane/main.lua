@@ -65,6 +65,8 @@ local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 local function resolve_spells()
+    runtime.arcane_intellect_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
+    runtime.cone_of_cold_id     = utils.resolve_spell_id(spells.CONE_OF_COLD)
     runtime.arcane_blast_id = utils.resolve_spell_id(spells.ARCANE_BLAST)
     runtime.arcane_missiles_id = utils.resolve_spell_id(spells.ARCANE_MISSILES)
     runtime.arcane_power_id = utils.resolve_spell_id(spells.ARCANE_POWER)
@@ -379,6 +381,30 @@ local function try_presence_of_mind(me)
     return false
 end
 
+
+
+local function try_arcane_intellect(me)
+    if not runtime.arcane_intellect_id then return false end
+    if utils.has_buff(me, spells.BUFF_ARCANE_INTELLECT) then return false end
+    if not utils.can_cast_self(runtime.arcane_intellect_id, me) then return false end
+    if utils.cast_self(runtime.arcane_intellect_id, me) then
+        utils.log_debug(menu, "Arcane Intellect")
+        return true
+    end
+    return false
+end
+
+local function try_cone_of_cold(me, target)
+    if not menu.use_cone_of_cold or not menu.use_cone_of_cold:get_state() then return false end
+    if not runtime.cone_of_cold_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not utils.can_cast_hostile(runtime.cone_of_cold_id, me, target) then return false end
+    if utils.cast_target(runtime.cone_of_cold_id, target) then
+        utils.log_debug(menu, "Cone of Cold")
+        return true
+    end
+    return false
+end
 
 local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end

@@ -79,6 +79,15 @@ local function update_set_bonus(me)
     end
 end
 
+
+local function try_inner_fire_disc(me)
+    if not runtime.inner_fire_id then return false end
+    if utils.has_buff(me, spells.BUFF_INNER_FIRE) then return false end
+    if not utils.can_cast_self(runtime.inner_fire_id, me) then return false end
+    if utils.cast_self(runtime.inner_fire_id, me) then return true end
+    return false
+end
+
 local function try_power_infusion(me)
     if not resolved.power_infusion or not menu.power_infusion_enabled:get_state() then
         return false

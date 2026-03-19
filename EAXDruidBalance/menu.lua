@@ -61,7 +61,7 @@ menu.use_starfall                         = core.menu.checkbox(true, "eaxdruidba
 menu.starfall_aoe_targets                 = core.menu.slider_int(1, 6, 3, "eaxdruidbalance_starfall_aoe_targets")
 menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidbalance_use_innervate")
 menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 30, "eaxdruidbalance_innervate_mana_pct")
-menu.use_tranquility                      = core.menu.checkbox(false, "eaxdruidbalance_use_tranquility")
+menu.use_tranquility                      = core.menu.checkbox(true, "eaxdruidbalance_use_tranquility")
 menu.tranquility_hp_pct                   = core.menu.slider_int(20, 70, 35, "eaxdruidbalance_tranquility_hp_pct")
 menu.wrath_during_lunar                   = core.menu.checkbox(true, "eaxdruidbalance_wrath_during_lunar")
 
@@ -126,4 +126,6 @@ function menu.render()
     end)
 end
 
+menu.use_berserk  = core.menu.checkbox(true, "eaxbal_berserk")
+menu.use_typhoon = core.menu.checkbox(true, "eaxbal_typhoon")
 return menu

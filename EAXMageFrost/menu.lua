@@ -114,4 +114,6 @@ function menu.render()
     end)
 end
 
+menu.use_ice_barrier  = core.menu.checkbox(true,  "eaxmagefrost_use_ice_barrier")
+menu.use_cone_of_cold = core.menu.checkbox(true,  "eaxmagefrost_use_cone_of_cold")
 return menu

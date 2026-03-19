@@ -85,6 +85,9 @@ local runtime = {
     barkskin_id = nil,
     claw_id = nil,
     innervate_id = nil,
+    cyclone_id = nil,
+    entangling_roots_id = nil,
+    war_stomp_id = nil,
 }
 
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
@@ -124,6 +127,10 @@ local function resolve_spells()
     runtime.barkskin_id            = utils.resolve_spell_id(spells.BARKSKIN)
     runtime.claw_id                = utils.resolve_spell_id(spells.CLAW)
     runtime.innervate_id           = utils.resolve_spell_id(spells.INNERVATE)
+    runtime.ooc_mark_of_the_wild_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD)
+    runtime.cyclone_id             = utils.resolve_spell_id(spells.CYCLONE)
+    runtime.entangling_roots_id    = utils.resolve_spell_id(spells.ENTANGLING_ROOTS)
+    runtime.war_stomp_id           = utils.resolve_spell_id(spells.WAR_STOMP)
 end
 
 local function log_resolved_spells()
@@ -269,8 +276,16 @@ end
 
 local function try_shift_form(me, lane)
     if not menu.auto_form:get_state() then return false end
-    -- Do not shift into combat forms while OOC in travel form
-    if not me:is_in_combat() and utils.has_buff(me, spells.BUFF_TRAVEL_FORM) then return false end
+    -- Stay in travel form while OOC — only shift into combat forms when in combat
+    if not me:is_in_combat() then return false end
+    -- Don't shift to cat while out of melee range — feral charge needs bear to close
+    -- the gap first. Shift to cat only once we are in melee.
+    if lane == "cat" and runtime.feral_charge_bear_id then
+        local target = me:get_target()
+        if target and target:is_valid() and not target:is_dead() and me:can_attack(target) then
+            if not utils.is_melee_target(me, target) then return false end
+        end
+    end
 
     if lane == "cat" then
         if not runtime.cat_form_id or utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
@@ -765,10 +780,7 @@ local function try_travel_form(me)
     if me:is_in_combat() then return false end
     if me:is_mounted() then return false end
     if utils.has_buff(me, spells.BUFF_TRAVEL_FORM) then return false end
-    -- Only enter travel form when not in any shapeshift form
-    -- (entering combat will automatically cancel travel form)
-    if utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
-    if utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
+    -- After combat ends, shift back to travel form from any combat form
     if not utils.can_cast_self(runtime.travel_form_id, me) then return false end
     if utils.cast_self(runtime.travel_form_id, me) then
         utils.log_debug(menu, "Travel Form (OOC)")
@@ -845,6 +857,123 @@ try_claw = function(me, target)
     return false
 end
 
+-- ── Helpers for smart CC decisions ───────────────────────────────────────
+
+-- Count enemies in melee range hitting me or party
+local function count_melee_attackers(me)
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
+            local ok, tgt = pcall(function() return obj:get_target() end)
+            if ok and tgt and tgt:is_valid() then
+                local targeting_me    = utils.same_unit(tgt, me)
+                local targeting_party = tgt:is_party_member()
+                if (targeting_me or targeting_party) and utils.is_melee_target(me, obj) then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
+-- True if unit is a healer (by role or class heuristic)
+local HEALER_CLASSES = { [2]=true, [5]=true, [7]=true, [11]=true } -- Paladin, Priest, Shaman, Druid
+local function is_healer(unit)
+    local ok_r, role = pcall(function() return unit:get_group_role() end)
+    if ok_r and role == 1 then return true end  -- 1 = healer role
+    -- Fallback: class heuristic for PvP where role isn't set
+    local ok_c, cls = pcall(function() return unit:get_class() end)
+    if ok_c and HEALER_CLASSES[cls] then
+        -- Only count as healer if they're actually casting
+        local ok_cast, casting = pcall(function() return unit:is_casting_spell() end)
+        local ok_chan, channing = pcall(function() return unit:is_channelling_spell() end)
+        return (ok_cast and casting) or (ok_chan and channing)
+    end
+    return false
+end
+
+-- True if target is actively casting/channelling a heal on someone we're fighting
+local function is_healing_our_target(unit, me)
+    local ok_cast, casting = pcall(function() return unit:is_casting_spell() end)
+    local ok_chan, channing = pcall(function() return unit:is_channelling_spell() end)
+    if not ((ok_cast and casting) or (ok_chan and channing)) then return false end
+    local ok_t, spell_tgt = pcall(function() return unit:get_active_spell_target() end)
+    if not ok_t or not spell_tgt or not spell_tgt:is_valid() then return false end
+    -- Target of the heal must be an enemy of me (they're healing a mob/player fighting us)
+    local ok_atk, can_atk = pcall(function() return me:can_attack(spell_tgt) end)
+    return ok_atk and can_atk
+end
+
+-- True if target is moving away (kiting us)
+local function is_kiting(me, target)
+    local ok1, pos_me  = pcall(function() return me:get_position() end)
+    local ok2, pos_tgt = pcall(function() return target:get_position() end)
+    local ok3, moving  = pcall(function() return target:is_moving() end)
+    if not ok1 or not ok2 or not ok3 or not moving then return false end
+    -- Check if target is moving and not in melee range
+    return moving and not utils.is_melee_target(me, target)
+end
+
+-- ── War Stomp (Tauren racial AoE stun) ────────────────────────────────────
+local function try_war_stomp(me, target)
+    if not menu.use_war_stomp or not menu.use_war_stomp:get_state() then return false end
+    if not runtime.war_stomp_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not utils.is_melee_target(me, target) then return false end
+    if not utils.can_cast_self(runtime.war_stomp_id, me) then return false end
+    -- Auto: fire when 2+ enemies are in melee hitting us/party (AoE value)
+    -- or when we are low HP and need to buy time
+    local attackers = count_melee_attackers(me)
+    local my_hp = me:get_health_percentage() / 100
+    local should_stomp = attackers >= 2 or my_hp < 0.35
+    if not should_stomp then return false end
+    if utils.cast_self(runtime.war_stomp_id, me) then
+        utils.log_debug(menu, "War Stomp (attackers=" .. attackers .. " hp=" .. string.format("%.0f%%", my_hp * 100) .. ")")
+        note_cast()
+        return true
+    end
+    return false
+end
+
+-- ── Cyclone (CC vs healers actively healing enemies) ──────────────────────
+local function try_cyclone(me, target)
+    if not menu.use_cyclone or not menu.use_cyclone:get_state() then return false end
+    if not runtime.cyclone_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if utils.has_debuff(target, spells.DEBUFF_CYCLONE) then return false end
+    -- Auto: only cyclone if target is a healer actively healing an enemy
+    -- OR if target is casting/channelling (interrupt isn't available / on CD)
+    local should_cyclone = is_healing_our_target(target, me) or is_healer(target)
+    if not should_cyclone then return false end
+    if not utils.can_cast_hostile(runtime.cyclone_id, me, target) then return false end
+    if utils.cast_target(runtime.cyclone_id, target) then
+        utils.log_debug(menu, "Cyclone (healer/caster)")
+        note_cast()
+        return true
+    end
+    return false
+end
+
+-- ── Entangling Roots (root kiting targets or casters running away) ─────────
+local function try_entangling_roots(me, target)
+    if not menu.use_entangling_roots or not menu.use_entangling_roots:get_state() then return false end
+    if not runtime.entangling_roots_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if utils.has_debuff(target, spells.DEBUFF_ENTANGLING_ROOTS) then return false end
+    -- Auto: root when target is kiting us (moving, out of melee)
+    if not is_kiting(me, target) then return false end
+    if not utils.can_cast_hostile(runtime.entangling_roots_id, me, target) then return false end
+    if utils.cast_target(runtime.entangling_roots_id, target) then
+        utils.log_debug(menu, "Entangling Roots (kiting)")
+        note_cast()
+        return true
+    end
+    return false
+end
+
 local function do_cat_rotation(me, target)
     local target_hp_pct = utils.get_health_pct(target)
 
@@ -858,6 +987,11 @@ local function do_cat_rotation(me, target)
     -- Gap closer
     if try_feral_charge_bear(me, target) then return true end
     if try_dash(me) then return true end
+
+    -- CC (use before burning resources)
+    if try_war_stomp(me, target) then return true end
+    if try_cyclone(me, target) then return true end
+    if try_entangling_roots(me, target) then return true end
 
     if try_tigers_fury(me) then return true end
     if try_maim(me, target) then return true end

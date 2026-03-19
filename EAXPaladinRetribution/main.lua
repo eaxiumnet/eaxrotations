@@ -65,6 +65,9 @@ local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
 local MODE_REFRESH_INTERVAL = 3.0
 
 local function resolve_spells()
+    runtime.hammer_of_wrath_id = utils.resolve_spell_id(spells.HAMMER_OF_WRATH)
+    runtime.divine_plea_id     = utils.resolve_spell_id(spells.DIVINE_PLEA)
+    runtime.lay_on_hands_id    = utils.resolve_spell_id(spells.LAY_ON_HANDS)
     runtime.crusader_strike_id = utils.resolve_spell_id(spells.CRUSADER_STRIKE)
     runtime.divine_storm_id      = utils.resolve_spell_id(spells.DIVINE_STORM)
     runtime.avenging_wrath_id    = utils.resolve_spell_id(spells.AVENGING_WRATH)

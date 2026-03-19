@@ -1,34 +1,26 @@
-# EAX Mage Fire
+# EAX Mage Fire — v2.1.0
 
-Minimal Fire Mage rotation for TBC-flavored Project Sylvanas play.
-
-## What It Is
-
-`EAXMageFire` is a lightweight Fire Mage plugin centered on Scorch stack upkeep, Fireball filler casts, and Combustion burst support.
+Fire Mage rotation automation for TBC on Project Sylvanas.
 
 ## Rotation
+- `Scorch` maintains Fire Vulnerability stacks on target.
+- `Fireball` is the primary filler cast.
+- `Pyroblast` fires in Hot Streak proc windows.
+- `Combustion` lined up with trinkets for burst.
+- `Fire Blast` used as a movement cast.
+- `Flamestrike` for multi-target AoE.
 
-- **Setup** - `Scorch` builds and refreshes Fire Vulnerability stacks.
-- **Primary** - `Fireball` is the default filler.
-- **Burst** - `Combustion` and self-cast trinkets line up in combat.
-- **Proc Window** - `Pyroblast` is reserved for available burst/proc windows.
-- **Movement** - `Fire Blast` is the moving fallback.
+## New in 2.1.0
+- **Molten Armor:** Auto-maintained as a self-buff at all times.
+- **Blast Wave:** AoE knockback/damage toggle (default on).
+- **Dragon's Breath:** Cone disorient toggle (default on).
 
-## Modes
-
-- **Auto** - Detects group size from party members.
-- **Solo** - Conservative trinket usage unless already bursting.
-- **Dungeon** - Standard Scorch maintenance with burst on pull.
-- **Raid** - Full Scorch stack support for raid debuff maintenance.
+## Menu Options
+- Use Scorch, Fireball, Pyroblast, Combustion, Flamestrike
+- Use Blast Wave, Dragon's Breath
+- AoE enemy count threshold
 
 ## Install
-
-1. Put the `EAXMageFire` folder inside your Sylvanas `scripts` folder.
-2. Reload Sylvanas or restart the client.
-3. Open the menu and enable `EAX Mage Fire`.
-
-## Notes
-
-- Folder: `scripts/EAXMageFire`
-- Spec gate: Mage Fire (`get_specialization_id() == 2`)
-- Primary design target: Scorch / Fireball / Combustion
+1. Extract `EAXMageFire` into your Sylvanas `scripts` folder.
+2. Reload or restart.
+3. Enable `EAX Mage Fire` in the menu.

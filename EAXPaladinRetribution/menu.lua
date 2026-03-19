@@ -53,7 +53,7 @@ menu.use_seal_twist                       = core.menu.checkbox(true, "eaxpr_use_
 menu.seal_twist_window                    = core.menu.slider_int(200, 1200, 450, "eaxpr_seal_twist_window")
 menu.seal_twist_cooldown                  = core.menu.slider_int(800, 4000, 1600, "eaxpr_seal_twist_cooldown")
 menu.allow_twist_dungeon                  = core.menu.checkbox(true, "eaxpr_twist_dungeon")
-menu.allow_twist_raid                     = core.menu.checkbox(false, "eaxpr_twist_raid")
+menu.allow_twist_raid                     = core.menu.checkbox(true, "eaxpr_twist_raid")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
@@ -109,4 +109,7 @@ function menu.render()
     end)
 end
 
+menu.use_hammer_of_wrath = core.menu.checkbox(true, "eaxpret_hammer_of_wrath")
+menu.use_divine_plea    = core.menu.checkbox(true, "eaxpret_divine_plea")
+menu.use_lay_on_hands   = core.menu.checkbox(true, "eaxpret_lay_on_hands")
 return menu

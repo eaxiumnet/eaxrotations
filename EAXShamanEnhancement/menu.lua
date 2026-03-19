@@ -61,7 +61,7 @@ menu.dual_wield_focus                     = core.menu.checkbox(true, "dual_wield
 menu.auto_totems                          = core.menu.checkbox(true, "auto_totems")
 menu.auto_totem_wrath                     = core.menu.checkbox(true, "auto_totem_wrath")
 menu.auto_totem_windfury                  = core.menu.checkbox(true, "auto_totem_windfury")
-menu.prepull_totems                       = core.menu.checkbox(false, "prepull_totems")
+menu.prepull_totems                       = core.menu.checkbox(true, "prepull_totems")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback

@@ -122,4 +122,5 @@ function menu.render()
     end)
 end
 
+menu.use_cone_of_cold = core.menu.checkbox(true, "eaxmagearcane_use_cone_of_cold")
 return menu

@@ -102,6 +102,8 @@ local TOTEM_ROTATION = {
 }
 
 local function resolve_spells()
+    runtime.earth_shock_id  = utils.resolve_spell_id(spells.EARTH_SHOCK)
+    runtime.frost_shock_id  = utils.resolve_spell_id(spells.FROST_SHOCK)
     runtime.lightning_bolt_id = utils.resolve_spell_id(spells.LIGHTNING_BOLT)
     runtime.chain_lightning_id = utils.resolve_spell_id(spells.CHAIN_LIGHTNING)
     runtime.flame_shock_id = utils.resolve_spell_id(spells.FLAME_SHOCK)
@@ -255,6 +257,37 @@ local function ensure_totems(me)
             end
         end
     end
+end
+
+
+local function try_earth_shock_interrupt(me, target)
+    if not menu.use_earth_shock or not menu.use_earth_shock:get_state() then return false end
+    if not runtime.earth_shock_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    local ok, casting = pcall(function() return target:is_casting_spell() end)
+    local ok2, channing = pcall(function() return target:is_channelling_spell() end)
+    if not ((ok and casting) or (ok2 and channing)) then return false end
+    if not utils.can_cast_hostile(runtime.earth_shock_id, me, target) then return false end
+    if utils.cast_target(runtime.earth_shock_id, target) then
+        utils.log_debug(menu, "Earth Shock (interrupt)")
+        return true
+    end
+    return false
+end
+
+local function try_frost_shock_slow(me, target)
+    if not menu.use_frost_shock or not menu.use_frost_shock:get_state() then return false end
+    if not runtime.frost_shock_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    -- Use frost shock to slow melee attackers chasing us
+    local ok, moving = pcall(function() return target:is_moving() end)
+    if not (ok and moving) then return false end
+    if not utils.can_cast_hostile(runtime.frost_shock_id, me, target) then return false end
+    if utils.cast_target(runtime.frost_shock_id, target) then
+        utils.log_debug(menu, "Frost Shock (slow)")
+        return true
+    end
+    return false
 end
 
 local function try_burst(me, target)
@@ -486,6 +519,8 @@ local function do_rotation(me, target)
     end
 
     ensure_totems(me)
+    if try_earth_shock_interrupt(me, target) then return true end
+    if try_frost_shock_slow(me, target) then return true end
     if try_burst(me, target) then return true end
     if try_lava_burst(me, target) then return true end
     if try_flame_shock(me, target) then

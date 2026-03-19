@@ -1,42 +1,47 @@
-# EAX Druid Feral
+# EAX Druid Feral — v2.1.0
 
-EAX Druid Feral is a dual-role Project Sylvanas plugin that keeps both Cat DPS and Bear Tank logic inside one addon folder. It watches form state, routes into the correct lane automatically, and still lets you force Cat or Bear if you want a fixed profile.
+Dual-lane Cat DPS and Bear Tank automation for TBC Feral Druid on Project Sylvanas.
 
-## Lane Handling
+## Rotation
 
-- `Auto Detect` uses current form first, then falls back to the last practical lane.
-- `Force Cat` locks the plugin to the Cat DPS lane.
-- `Force Bear` locks the plugin to the Bear Tank lane.
-- `Auto Form` can shift into Cat or Bear automatically for the selected lane.
+### Cat (DPS)
+- Maintains `Mangle (Cat)` debuff and `Rake` bleed uptime.
+- Builds combo points with `Shred` (from behind) or `Claw`/`Mangle` as fallback.
+- Spends CPs on `Rip` first, then `Ferocious Bite` in execute windows when Rip is stable.
+- Uses `Tiger's Fury` for energy recovery. `Maim` as a stun finisher when not behind.
+- Opens from stealth with `Pounce` (stun) or `Ravage` (high damage).
+- `Feral Charge` closes the gap from range then shifts back to Cat once in melee.
 
-## Cat Rotation
+### Bear (Tank)
+- Maintains `Mangle (Bear)`, `Demoralizing Roar`, `Lacerate`, and `Faerie Fire (Feral)`.
+- Queues `Maul` as a rage dump. `Swipe` when pack size hits the configured threshold.
+- Auto-casts `Growl` when the current target is not targeting you.
+- `Frenzied Regeneration` and `Berserk` for survival and threat windows.
 
-- Maintain `Mangle (Cat)` and `Rake`.
-- Build combo points with `Shred`.
-- Spend combo points on `Rip`, then use `Ferocious Bite` in execute windows when `Rip` is already stable.
-- Use `Tiger's Fury` when energy is low.
+## CC & Utility (new in 2.1.0)
+- **War Stomp** — fires automatically when 2+ melee attackers are in range or HP < 35%.
+- **Cyclone** — fires automatically when the target is a healer actively healing an enemy.
+- **Entangling Roots** — fires automatically when the target is kiting (moving, out of melee).
 
-## Bear Rotation
+## Form Management (updated in 2.1.0)
+- OOC: stays in Travel Form. Combat forms only engage when in combat.
+- After Feral Charge (Bear), waits until in melee range before shifting back to Cat.
+- Travel Form re-applied automatically when leaving combat.
 
-- Maintain `Mangle (Bear)` and `Faerie Fire (Feral)`.
-- Queue `Maul` as a rage dump and `Swipe` when pack size reaches the configured threshold.
-- Auto-cast `Growl` when the current target is not on you.
-- Use `Frenzied Regeneration` and `Berserk` for survival and threat windows.
+## Combo Points (fixed in 2.1.0)
+- Now reads via `me:get_power(enums.power_type.COMBOPOINTS_TBC)` on the player.
+- Previous builds called `get_power()` on the target mob which always returned 0.
+- Cast-callback fallback still active as last resort.
 
-## Modes
-
-- `Auto` resolves to `Solo`, `Dungeon`, or `Raid` from current group size.
-- `Solo` naturally favors Cat play unless you force Bear or are already in Bear Form.
-- `Dungeon` and `Raid` keep the same lane logic while making Bear cooldown use more practical for packs and threat windows.
+## Menu Options
+- Lane: Auto / Force Cat / Force Bear
+- Auto Form, Powershift (Wolfshead), Feral Charge
+- Use Shred, Mangle, Rake, Rip, Ferocious Bite, Tiger's Fury, Maim, Pounce, Ravage
+- Use War Stomp, Cyclone, Entangling Roots
+- Bear: Mangle, Maul, Swipe, Growl, Frenzied Regeneration, Berserk, Bash
+- HP thresholds for Frenzied Regeneration and Ferocious Bite
 
 ## Install
-
-1. Put the `EAXDruidFeral` folder inside your Sylvanas `scripts` folder.
-2. Reload Sylvanas or restart the client.
-3. Open the menu and enable `EAX Druid Feral`.
-
-## Notes
-
-- Repo folder: `scripts/EAXDruidFeral`
-- Plugin name in-game: `EAX Druid Feral`
-- Files included: `header.lua`, `main.lua`, `menu.lua`, `spells.lua`, `utils.lua`, `README.md`
+1. Extract `EAXDruidFeral` into your Sylvanas `scripts` folder.
+2. Reload or restart.
+3. Enable `EAX Druid Feral` in the menu.

@@ -48,7 +48,7 @@ menu.use_mutilate                         = core.menu.checkbox(true, "eaxrogueas
 menu.use_slice_and_dice                   = core.menu.checkbox(true, "eaxrogueassassination_use_slice_and_dice")
 menu.use_envenom                          = core.menu.checkbox(true, "eaxrogueassassination_use_envenom")
 menu.use_eviscerate                       = core.menu.checkbox(true, "eaxrogueassassination_use_eviscerate")
-menu.use_rupture                          = core.menu.checkbox(false, "eaxrogueassassination_use_rupture")
+menu.use_rupture                          = core.menu.checkbox(true, "eaxrogueassassination_use_rupture")
 menu.use_kick                             = core.menu.checkbox(true, "eaxrogueassassination_use_kick")
 menu.use_cold_blood                       = core.menu.checkbox(true, "eaxrogueassassination_use_cold_blood")
 menu.snd_refresh_seconds                  = core.menu.slider_int(1, 6, 3, "eaxrogueassassination_snd_refresh_seconds")
@@ -115,4 +115,7 @@ function menu.render()
     end)
 end
 
+menu.use_vanish = core.menu.checkbox(true, "eaxrogueassassination_use_vanish")
+menu.use_sprint = core.menu.checkbox(true, "eaxrogueassassination_use_sprint")
+menu.use_blind  = core.menu.checkbox(true, "eaxrogueassassination_use_blind")
 return menu

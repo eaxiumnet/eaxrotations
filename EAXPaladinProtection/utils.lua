@@ -155,16 +155,26 @@ function utils.count_enemies_within_radius(me, radius)
     return count
 end
 
+local AUTO_TARGET_MAX_RANGE = 30.0
+
 function utils.find_best_target(me)
     local target = me and me:get_target()
     if utils.is_valid_hostile_target(me, target) then
         return target
     end
 
+    local function in_range(unit)
+        local ok1, pm = pcall(function() return me:get_position() end)
+        local ok2, pu = pcall(function() return unit:get_position() end)
+        if not ok1 or not ok2 or not pm or not pu then return true end
+        local dx, dy, dz = pm.x-pu.x, pm.y-pu.y, pm.z-pu.z
+        return (dx*dx+dy*dy+dz*dz) <= (AUTO_TARGET_MAX_RANGE*AUTO_TARGET_MAX_RANGE)
+    end
+
     local visible = core.object_manager.get_visible_objects()
     for i = 1, #visible do
         local candidate = visible[i]
-        if utils.is_valid_hostile_target(me, candidate) then
+        if utils.is_valid_hostile_target(me, candidate) and in_range(candidate) then
             return candidate
         end
     end

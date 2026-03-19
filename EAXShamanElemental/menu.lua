@@ -67,7 +67,7 @@ menu.auto_totems                          = core.menu.checkbox(true, "auto_totem
 menu.auto_totem_wrath                     = core.menu.checkbox(true, "auto_totem_wrath")
 menu.auto_totem_mana                      = core.menu.checkbox(true, "auto_totem_mana")
 menu.totem_twist_interval                 = core.menu.slider_int(20, 60, 30, "totem_twist_interval")
-menu.prepull_totems                       = core.menu.checkbox(false, "prepull_totems")
+menu.prepull_totems                       = core.menu.checkbox(true, "prepull_totems")
 
 mana_conservator.register_menu_items(menu, "eax_shaman_elemental")
 
@@ -137,4 +137,6 @@ function menu.render()
     end)
 end
 
+menu.use_earth_shock  = core.menu.checkbox(true, "eaxshamanele_earth_shock")
+menu.use_frost_shock  = core.menu.checkbox(true, "eaxshamanele_frost_shock")
 return menu

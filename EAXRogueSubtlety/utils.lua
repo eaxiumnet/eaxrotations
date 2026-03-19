@@ -112,11 +112,26 @@ function utils.get_selected_mode(menu)
 -- 3. A hostile unit attacking any party member
 -- 4. Any nearby hostile unit
 -- Returns nil if no valid target found.
+-- Max range for auto target acquisition.
+-- Covers melee + max gap-closer range. Units beyond this are ignored
+-- unless they are actively attacking us or party.
+local AUTO_TARGET_MAX_RANGE = 30.0
+
 function utils.find_best_target(me)
     if not me or not me:is_valid() then return nil end
 
     local function is_hostile(unit)
         return unit and unit:is_valid() and not unit:is_dead() and me:can_attack(unit)
+    end
+
+    local function in_range(unit, max_range)
+        local ok1, pos_me = pcall(function() return me:get_position() end)
+        local ok2, pos_u  = pcall(function() return unit:get_position() end)
+        if not ok1 or not ok2 or not pos_me or not pos_u then return true end
+        local dx = pos_me.x - pos_u.x
+        local dy = pos_me.y - pos_u.y
+        local dz = pos_me.z - pos_u.z
+        return (dx*dx + dy*dy + dz*dz) <= (max_range * max_range)
     end
 
     -- Priority 1: keep current target if it is already a valid hostile
@@ -126,30 +141,30 @@ function utils.find_best_target(me)
     end
 
     local objects = core.object_manager.get_all_objects()
-    local best_attacking_me   = nil
+    local best_attacking_me    = nil
     local best_attacking_party = nil
-    local best_any            = nil
+    local best_any             = nil
 
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) then
             local obj_target = obj:get_target()
 
-            -- Priority 2: unit actively targeting me
+            -- Priority 2: unit actively targeting me (no range cap)
             if obj_target and utils.same_unit(obj_target, me) then
                 if not best_attacking_me then
                     best_attacking_me = obj
                 end
 
-            -- Priority 3: unit targeting a party member
+            -- Priority 3: unit targeting a party member (no range cap)
             elseif obj_target and obj_target:is_valid()
                 and obj_target:is_party_member() then
                 if not best_attacking_party then
                     best_attacking_party = obj
                 end
 
-            -- Priority 4: any hostile (fallback)
-            else
+            -- Priority 4: any hostile within range only
+            elseif in_range(obj, AUTO_TARGET_MAX_RANGE) then
                 if not best_any then
                     best_any = obj
                 end

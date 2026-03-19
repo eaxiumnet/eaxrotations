@@ -1,35 +1,25 @@
-# EAX Druid Balance
+# EAX Druid Balance — v2.1.0
 
-EAX Druid Balance is a lightweight TBC-style Project Sylvanas rotation plugin for Balance Druids. It keeps Moonkin Form active, maintains `Moonfire` and `Insect Swarm`, uses `Faerie Fire` for armor reduction, and pivots between `Starfire` and `Wrath` based on available Eclipse-style buffs.
+Balance Druid (Moonkin) automation for TBC on Project Sylvanas.
 
 ## Rotation
+- Maintains `Moonfire` and `Insect Swarm` DoT uptime.
+- Primary filler: `Starfire`. Secondary: `Wrath`.
+- `Force of Nature` on cooldown when available.
+- `Starfall` on cooldown in AoE situations.
+- `Hurricane` for multi-target pack damage.
 
-- Keep `Moonkin Form` active when the option is enabled.
-- Refresh `Moonfire` and `Insect Swarm` inside the configured refresh window.
-- Maintain `Faerie Fire` early so cast windows are not wasted on missing debuffs.
-- Use `Force of Nature` after DoTs are established, and `Starfall` when enemy count or raid pressure justifies it.
-- Default to `Starfire`, swapping to `Wrath` when a Lunar Eclipse-style buff is detected.
+## New in 2.1.0
+- **Berserk:** Auto-fires on pull when in combat for the haste window.
+- **Typhoon:** Auto-fires at <50% HP as a defensive knockback.
+- **Tranquility:** Enabled by default for group emergency healing.
+- **Mark of the Wild:** OOC group buffing now working correctly.
 
-## Modes
-
-- `Auto` resolves to `Solo`, `Dungeon`, or `Raid` from current group size.
-- `Solo` stays conservative with cooldowns unless multiple enemies are close.
-- `Dungeon` and `Raid` allow more aggressive `Starfall` and cooldown usage.
-
-## Utility
-
-- `Innervate` can recover mana automatically at a configurable threshold.
-- `Tranquility` can be enabled as an emergency self-preservation button.
-- Debug logging traces rotation decisions without changing the control panel footprint.
+## Menu Options
+- Use Moonfire, Insect Swarm, Starfire, Wrath, Force of Nature
+- Use Hurricane, Starfall, Tranquility, Berserk, Typhoon
 
 ## Install
-
-1. Put the `EAXDruidBalance` folder inside your Sylvanas `scripts` folder.
-2. Reload Sylvanas or restart the client.
-3. Open the menu and enable `EAX Druid Balance`.
-
-## Notes
-
-- Repo folder: `scripts/EAXDruidBalance`
-- Plugin name in-game: `EAX Druid Balance`
-- Files included: `header.lua`, `main.lua`, `menu.lua`, `spells.lua`, `utils.lua`, `README.md`
+1. Extract `EAXDruidBalance` into your Sylvanas `scripts` folder.
+2. Reload or restart.
+3. Enable `EAX Druid Balance` in the menu.

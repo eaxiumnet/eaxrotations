@@ -66,6 +66,9 @@ local LIFE_TAP_MANA_PCT = 0.45
 local DRAIN_SOUL_HP_PCT = 0.25
 
 local function resolve_spells()
+    runtime.fel_armor_id          = utils.resolve_spell_id(spells.FEL_ARMOR)
+    runtime.curse_of_elements_id  = utils.resolve_spell_id(spells.CURSE_OF_ELEMENTS)
+    runtime.death_coil_id         = utils.resolve_spell_id(spells.DEATH_COIL)
     runtime.unstable_affliction_id = utils.resolve_spell_id(spells.UNSTABLE_AFFLICTION)
     runtime.corruption_id = utils.resolve_spell_id(spells.CORRUPTION)
     runtime.siphon_life_id = utils.resolve_spell_id(spells.SIPHON_LIFE)
@@ -203,6 +206,45 @@ local function should_refresh_debuff(target, debuff_ids, threshold_ms)
     end
     local remaining = utils.get_debuff_remaining_ms(target, debuff_ids)
     return remaining <= threshold_ms
+end
+
+
+local function try_fel_armor(me)
+    if not runtime.fel_armor_id then return false end
+    if utils.has_buff(me, spells.BUFF_FEL_ARMOR) then return false end
+    if not utils.can_cast_self(runtime.fel_armor_id, me) then return false end
+    if utils.cast_self(runtime.fel_armor_id, me) then
+        utils.log_debug(menu, "Fel Armor")
+        return true
+    end
+    return false
+end
+
+local function try_curse_of_elements(me, target)
+    if not menu.use_curse_of_elements or not menu.use_curse_of_elements:get_state() then return false end
+    if not runtime.curse_of_elements_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS) then return false end
+    if not utils.can_cast_hostile(runtime.curse_of_elements_id, me, target) then return false end
+    if utils.cast_target(runtime.curse_of_elements_id, target) then
+        utils.log_debug(menu, "Curse of Elements")
+        return true
+    end
+    return false
+end
+
+local function try_death_coil(me, target)
+    if not menu.use_death_coil or not menu.use_death_coil:get_state() then return false end
+    if not runtime.death_coil_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    local hp = me:get_health_percentage() / 100
+    if hp > 0.40 then return false end  -- defensive
+    if not utils.can_cast_hostile(runtime.death_coil_id, me, target) then return false end
+    if utils.cast_target(runtime.death_coil_id, target) then
+        utils.log_debug(menu, "Death Coil (defensive)")
+        return true
+    end
+    return false
 end
 
 local function try_cast_spell(me, spell_id, target, label)

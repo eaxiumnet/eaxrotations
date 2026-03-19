@@ -1,9 +1,18 @@
-# EAX Warlock Demonology
+# EAX Warlock Demonology — v2.1.0
 
-Pet-centric rotation helper focused on keeping Soul Link and the Felguard uptime while casting Soul Fire and Shadow Bolt when the windows allow.
+Demonology Warlock DPS automation for TBC on Project Sylvanas.
 
-## Highlights
-- Recasts Felguard automatically using the configurable pet check interval.
-- Maintains Soul Link for shared health while handling Soul Fire burst and Shadow Bolt filler.
-- Shadowfury engages casting targets and Life Tap keeps mana topped off when health permits per mode (Auto/Solo/Dungeon/Raid).
-- Debug logging and a toggle key help diagnose pet/pulse decisions.
+## Rotation
+- `Shadow Bolt` as the primary filler cast.
+- `Immolate` maintained as a DoT.
+- `Curse of Agony` / `Curse of Doom` maintained.
+- `Soul Fire` for burst opener.
+- `Shadowfury` for AoE stun.
+- `Metamorphosis` for burst window (if talented).
+- Pet management: Summons Felguard by default.
+- `Life Tap` for mana sustain.
+
+## Install
+1. Extract `EAXWarlockDemonology` into your Sylvanas `scripts` folder.
+2. Reload or restart.
+3. Enable `EAX Warlock Demonology` in the menu.
