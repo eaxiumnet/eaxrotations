@@ -78,12 +78,14 @@ end
 -- Try utility/interrupt racial (Arcane Torrent, War Stomp).
 -- target may be nil for non-targeted racials.
 function racial_manager.try_utility(me, target)
+    -- Only use offensive racials on actual enemies
+    if not target or not target:is_valid() or not me:can_attack(target) then return false end
     -- Arcane Torrent: use as interrupt fallback
-    if target and (target:is_casting_spell() or target:is_channelling_spell()) then
+    if target:is_casting_spell() or target:is_channelling_spell() then
         if try_racial(me, "arcane_torrent") then return true end
     end
     -- War Stomp: use as interrupt or when overwhelmed (2+ melee)
-    if target and target:is_casting_spell() then
+    if target:is_casting_spell() then
         if try_racial(me, "war_stomp") then return true end
     end
     return false

@@ -97,7 +97,8 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_evasion", label = "Evasion", tip = "Emergency dodge cooldown", hp_key = "use_evasion_hp_pct", hp_label = "Evasion HP %" },
+        { key = "use_cloak", label = "Cloak of Shadows", tip = "Dispel magic debuffs and gain immunity", hp_key = "use_cloak_hp_pct", hp_label = "Cloak of Shadows HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -115,4 +116,8 @@ function menu.render()
     end)
 end
 
+menu.use_evasion = core.menu.checkbox(true, "eaxroguesubtlety_use_evasion")
+menu.use_evasion_hp_pct = core.menu.slider_int(0, 100, 35, "eaxroguesubtlety_evas_hp")
+menu.use_cloak = core.menu.checkbox(true, "eaxroguesubtlety_use_cloak")
+menu.use_cloak_hp_pct = core.menu.slider_int(0, 100, 60, "eaxroguesubtlety_cloak_hp")
 return menu

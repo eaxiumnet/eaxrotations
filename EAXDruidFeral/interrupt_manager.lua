@@ -164,34 +164,62 @@ function interrupt_manager.get_priority(target)
     return get_interrupt_priority(target)
 end
 
+-- Per-spell cast timestamps to prevent spam-casting CC/interrupt spells.
+-- CC spells like Cyclone have long durations — we must not recast until
+-- the spell_book cooldown clears AND enough time has passed.
+local _last_cast = {}
+local CC_RECAST_DELAY = {
+    [33786] = 20.0,  -- Cyclone (20s duration)
+    [8983]  = 10.0,  -- Bash (10s CD)
+    [5211]  = 10.0,  -- Bash
+    [1822]  = 10.0,  -- Bash
+    [20066] = 10.0,  -- Hammer of Justice
+    [19647] = 20.0,  -- Shadowfury
+}
+local DEFAULT_CC_RECAST_DELAY = 2.0  -- minimum gap for any interrupt spell
+
+local function _can_recast(spell_id)
+    local delay = CC_RECAST_DELAY[spell_id] or DEFAULT_CC_RECAST_DELAY
+    local last = _last_cast[spell_id] or 0
+    return (core.time() - last) >= delay
+end
+
+local function _mark_cast(spell_id)
+    _last_cast[spell_id] = core.time()
+end
+
 function interrupt_manager.try_interrupt(me, target, class_name, utils_module)
     if not interrupt_manager.should_interrupt(target) then return false end
-    
+
     local spells = interrupt_manager.get_interrupt_spells(class_name)
     if #spells == 0 then return false end
-    
+
     for _, spell in ipairs(spells) do
         if spell.type == "fast" then
             local spell_id = utils_module.resolve_spell_id(spell.id)
-            if spell_id and utils_module.can_cast_target(spell_id, me, target) then
-                if utils_module.cast_target(spell_id, me, target) then
+            if spell_id and _can_recast(spell_id)
+               and utils_module.can_cast_hostile(spell_id, me, target) then
+                if utils_module.cast_target(spell_id, target) then
+                    _mark_cast(spell_id)
                     return true
                 end
             end
         end
     end
-    
+
     for _, spell in ipairs(spells) do
         if spell.type ~= "fast" then
             local spell_id = utils_module.resolve_spell_id(spell.id)
-            if spell_id and utils_module.can_cast_target(spell_id, me, target) then
-                if utils_module.cast_target(spell_id, me, target) then
+            if spell_id and _can_recast(spell_id)
+               and utils_module.can_cast_hostile(spell_id, me, target) then
+                if utils_module.cast_target(spell_id, target) then
+                    _mark_cast(spell_id)
                     return true
                 end
             end
         end
     end
-    
+
     return false
 end
 

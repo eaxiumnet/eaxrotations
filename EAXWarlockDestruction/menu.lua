@@ -96,7 +96,7 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_drain_life_def", label = "Drain Life", tip = "Emergency self-heal via Drain Life", hp_key = "use_drain_life_def_hp_pct", hp_label = "Drain Life HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -114,4 +114,6 @@ function menu.render()
     end)
 end
 
+menu.use_drain_life_def = core.menu.checkbox(true, "eaxdest_drain_life_def")
+menu.use_drain_life_def_hp_pct = core.menu.slider_int(0, 100, 35, "eaxdest_drain_life_hp")
 return menu

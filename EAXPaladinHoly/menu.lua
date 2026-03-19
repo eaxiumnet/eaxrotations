@@ -99,7 +99,8 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_divine_shield", label = "Divine Shield", tip = "Emergency immunity bubble", hp_key = "use_divine_shield_hp_pct", hp_label = "Divine Shield HP %" },
+        { key = "use_lay_on_hands", label = "Lay on Hands", tip = "Emergency full heal on self", hp_key = "use_lay_on_hands_hp_pct", hp_label = "Lay on Hands HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -117,4 +118,8 @@ function menu.render()
     end)
 end
 
+menu.use_divine_shield = core.menu.checkbox(true, "eaxpholy_divine_shield")
+menu.use_divine_shield_hp_pct = core.menu.slider_int(0, 100, 20, "eaxpholy_divine_shield_hp")
+menu.use_lay_on_hands = core.menu.checkbox(true, "eaxpholy_lay_on_hands")
+menu.use_lay_on_hands_hp_pct = core.menu.slider_int(0, 100, 10, "eaxpholy_loh_hp")
 return menu

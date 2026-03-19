@@ -44,6 +44,7 @@ local UPDATE_INTERVAL = 0.12
 local NOTIFICATION_LABEL = "EAX Paladin Protection"
 
 local runtime = {
+    divine_shield_id = nil,
     redemption_id = nil,
     hammer_of_justice_id = nil,
     righteous_fury_id = nil,
@@ -342,6 +343,7 @@ local function on_update()
     racial_manager.try_defensive(me)
 
     -- Defensive abilities
+    if try_divine_shield_emergency(me) then return true end
     if defensive_manager.try_defensive(me, "paladin", utils) then
         return
     end

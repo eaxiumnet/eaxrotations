@@ -36,6 +36,7 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
+    cloak_id = nil,
     premeditation_id = nil,
     cheap_shot_id = nil,
     ambush_id = nil,
@@ -69,6 +70,7 @@ local function resolve_spells()
     runtime.shadowstep_id = utils.resolve_spell_id(spells.SHADOWSTEP)
     runtime.preparation_id = utils.resolve_spell_id(spells.PREPARATION)
     runtime.vanish_id = utils.resolve_spell_id(spells.VANISH)
+    runtime.cloak_id = utils.resolve_spell_id({ 31224 })
 end
 
 local function log_resolved_spells()
@@ -407,6 +409,19 @@ local function try_feint(me)
 end
 
 
+local function try_cloak_of_shadows(me)
+    if not menu.use_cloak or not menu.use_cloak:get_state() then return false end
+    if not runtime.cloak_id then return false end
+    local hp = me:get_health_percentage() / 100
+    local threshold = menu.use_cloak_hp_pct and (menu.use_cloak_hp_pct:get() / 100) or 0.60
+    if hp > threshold then return false end
+    if not utils.can_cast_self(runtime.cloak_id, me) then return false end
+    if utils.cast_self(runtime.cloak_id, me) then
+        utils.log_debug(menu, "Cloak of Shadows")
+        return true
+    end
+    return false
+end
 local function do_rotation(me, target)
     if not is_gcd_ready() then
         return false
@@ -434,6 +449,7 @@ local function do_rotation(me, target)
     -- Defensive abilities
     ttd_tracker.update(target)
 
+    if try_cloak_of_shadows(me) then return true end
     if defensive_manager.try_defensive(me, "rogue", utils) then
         return true
     end

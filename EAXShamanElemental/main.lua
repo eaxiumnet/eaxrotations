@@ -6,6 +6,8 @@ local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")

@@ -6,6 +6,12 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 local color     = require("color")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
+local enums = (function()
+    local ok, e = pcall(require, "common/enums")
+    return ok and e or nil
+end)()
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -41,6 +47,9 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
+    barkskin_id = nil,
+    locked_target_guid = nil,   -- GUID of target we are currently DoTing
+    locked_target_ref  = nil,   -- object reference
     rebirth_id = nil,
     moonkin_form_id = nil,
     faerie_fire_id = nil,
@@ -62,6 +71,10 @@ local runtime = {
     set_multiplier = 1.0,
     ooc_mark_of_the_wild_id = nil,
     remove_curse_id = nil,
+    berserk_id = nil,
+    typhoon_id = nil,
+    gift_of_the_wild_id = nil,
+    mark_of_the_wild_id = nil,
 }
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
@@ -85,7 +98,11 @@ local function resolve_spells()
     runtime.innervate_id = utils.resolve_spell_id(spells.INNERVATE)
     runtime.tranquility_id = utils.resolve_spell_id(spells.TRANQUILITY)
     runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
-    runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
+    runtime.remove_curse_id        = utils.resolve_spell_id(spells.REMOVE_CURSE)
+    runtime.ooc_mark_of_the_wild_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD)
+    runtime.gift_of_the_wild_id    = utils.resolve_spell_id(spells.GIFT_OF_THE_WILD)
+    runtime.mark_of_the_wild_id    = utils.resolve_spell_id(spells.MARK_OF_THE_WILD)
+    runtime.barkskin_id = utils.resolve_spell_id(spells.BARKSKIN)
 end
 
 local function log_resolved_spells()
@@ -239,7 +256,7 @@ local function try_faerie_fire(me, target)
     if not utils.can_cast_hostile(runtime.faerie_fire_id, me, target) then return false end
 
     if utils.cast_target(runtime.faerie_fire_id, target) then
-        mark_pending_cast(runtime.faerie_fire_id, PENDING_CAST_TIMEOUT_S)
+        mark_pending_cast(runtime.faerie_fire_id, 5.0)
         utils.log_debug(menu, "Faerie Fire refresh")
         note_cast()
         return true
@@ -410,7 +427,7 @@ local function try_primary_nuke(me, target)
         mark_pending_cast(spell_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, spell_name)
         note_cast()
-                esp_renderer.on_cast(runtime.spell_id, "Starfire", color.purple(220))
+                esp_renderer.on_cast(spell_id, spell_name, color.purple(220))
         return true
     end
 
@@ -451,12 +468,60 @@ local function try_remove_curse_balance(me, target)
     return false
 end
 
+
+-- ── Target lock ──────────────────────────────────────────────────────────────
+-- Balance applies multiple DoTs to one target before nuking. Without a target
+-- lock, find_best_target can switch mid-rotation causing DoTs to be applied to
+-- different mobs every tick.
+local function get_locked_target(me)
+    if runtime.locked_target_ref and runtime.locked_target_ref:is_valid()
+       and not runtime.locked_target_ref:is_dead()
+       and me:can_attack(runtime.locked_target_ref) then
+        return runtime.locked_target_ref
+    end
+    -- Lock expired or target dead — clear
+    runtime.locked_target_guid = nil
+    runtime.locked_target_ref  = nil
+    return nil
+end
+
+local function set_locked_target(target)
+    if not target or not target:is_valid() then return end
+    local ok, guid = pcall(function() return target:get_guid() end)
+    runtime.locked_target_guid = ok and guid or nil
+    runtime.locked_target_ref  = target
+end
+
+local function should_switch_target(me, current_lock, new_target)
+    if not current_lock then return true end  -- no lock, take any target
+    if not new_target then return false end
+    -- Switch if new target has neither DoT — saves applying to a fresh kill target
+    local has_mf  = utils.get_debuff_remaining_ms(current_lock, spells.DEBUFF_MOONFIRE) > 0
+    local has_is  = utils.get_debuff_remaining_ms(current_lock, spells.DEBUFF_INSECT_SWARM) > 0
+    -- Keep lock if current target still has DoTs running
+    if has_mf or has_is then return false end
+    return true
+end
+
+local function try_barkskin_defensive(me)
+    if not menu.use_barkskin or not menu.use_barkskin:get_state() then return false end
+    if not runtime.barkskin_id then return false end
+    if utils.has_buff(me, spells.BUFF_BARKSKIN) then return false end
+    local hp = me:get_health_percentage() / 100
+    local threshold = menu.use_barkskin_hp_pct and (menu.use_barkskin_hp_pct:get() / 100) or 0.40
+    if hp > threshold then return false end
+    if not utils.can_cast_self(runtime.barkskin_id, me) then return false end
+    if utils.cast_self(runtime.barkskin_id, me) then
+        utils.log_debug(menu, "Barkskin (defensive)")
+        return true
+    end
+    return false
+end
 local function update_rotation(me, target, menu, utils)
     if mana_conservator.on_update(me, target, menu, utils) then return end
 
     if not is_gcd_ready() then return false end
 
-    ttd_tracker.update(target)
     local mode = get_effective_mode()
     local mana_pct = utils.get_mana_pct(me)
     local enemy_count = utils.enemy_count_in_radius(me, 12)
@@ -467,17 +532,29 @@ local function update_rotation(me, target, menu, utils)
     if try_tranquility(me) then return true end
 
     if not is_valid_hostile_target(me, target) then
+        runtime.locked_target_guid = nil
+        runtime.locked_target_ref  = nil
         return false
     end
 
-    if try_faerie_fire(me, target) then return true end
-    if try_remove_curse_balance(me, target) then return true end
-    if try_moonfire(me, target) then return true end
-    if try_insect_swarm(me, target) then return true end
-    if try_force_of_nature(me, target, mana_pct) then return true end
+    -- Target lock: stick to one target while applying DoTs
+    local locked = get_locked_target(me)
+    if should_switch_target(me, locked, target) then
+        set_locked_target(target)
+        locked = target
+    end
+    local dot_target = locked or target
+
+    ttd_tracker.update(dot_target)
+
+    if try_faerie_fire(me, dot_target) then return true end
+    if try_remove_curse_balance(me, dot_target) then return true end
+    if try_moonfire(me, dot_target) then return true end
+    if try_insect_swarm(me, dot_target) then return true end
+    if try_force_of_nature(me, dot_target, mana_pct) then return true end
     if try_hurricane(me, enemy_count, mana_pct) then return true end
-    if try_primary_nuke(me, target) then return true end
-    if try_adaptive_nuke(me, target, mana_pct) then return true end
+    if try_primary_nuke(me, dot_target) then return true end
+    if try_adaptive_nuke(me, dot_target, mana_pct) then return true end
 
     return false
 end
@@ -517,6 +594,10 @@ core.register_on_update_callback(function()
                buff_ids = spells.BUFF_MARK_OF_THE_WILD,
                name = "Mark Of The Wild",
                toggle = menu.ooc_group_buff },
+            { spell_id = runtime.gift_of_the_wild_id,
+               buff_ids = spells.BUFF_GIFT_OF_THE_WILD,
+               name = "Gift Of The Wild",
+               toggle = menu.ooc_group_buff },
         },
     })
     if me:is_dead() then return end
@@ -548,6 +629,7 @@ core.register_on_update_callback(function()
     racial_manager.try_defensive(me)
 
     -- Defensive abilities
+    if try_barkskin_defensive(me) then return true end
     if defensive_manager.try_defensive(me, "druid", utils) then
         return
     end

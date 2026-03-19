@@ -98,7 +98,8 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_drain_life_def", label = "Drain Life", tip = "Emergency self-heal via Drain Life", hp_key = "use_drain_life_def_hp_pct", hp_label = "Drain Life HP %" },
+        { key = "use_soulstone", label = "Soulstone", tip = "Pre-apply Soulstone before combat for self-rez" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -118,4 +119,7 @@ end
 
 menu.use_curse_of_elements = core.menu.checkbox(true, "eaxaff_curse_of_elements")
 menu.use_death_coil       = core.menu.checkbox(true, "eaxaff_death_coil")
+menu.use_drain_life_def = core.menu.checkbox(true, "eaxaff_drain_life_def")
+menu.use_drain_life_def_hp_pct = core.menu.slider_int(0, 100, 35, "eaxaff_drain_life_hp")
+menu.use_soulstone = core.menu.checkbox(true, "eaxaff_soulstone")
 return menu

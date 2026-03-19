@@ -113,4 +113,6 @@ function menu.render()
     end)
 end
 
+menu.use_cloak = core.menu.checkbox(true, "eaxroguecombat_use_cloak")
+menu.use_cloak_hp_pct = core.menu.slider_int(0, 100, 60, "eaxroguecombat_cloak_hp")
 return menu

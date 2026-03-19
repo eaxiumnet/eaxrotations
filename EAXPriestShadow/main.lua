@@ -35,6 +35,7 @@ local defensive_manager = require("defensive_manager")
 local mana_conservator = require("mana_conservator")
 
 local runtime = {
+    dispersion_id = nil,
     resurrection_id = nil,
     flash_heal_id = nil,
     mode_cache = "solo",
@@ -342,6 +343,7 @@ core.register_on_update_callback(function()
         -- Defensive abilities
     ttd_tracker.update(target)
 
+        if try_dispersion(me) then return true end
         if defensive_manager.try_defensive(me, "priest", utils) then
             return
         end

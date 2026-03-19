@@ -98,7 +98,7 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_desperate_prayer", label = "Desperate Prayer", tip = "Emergency instant self-heal", hp_key = "use_desperate_prayer_hp_pct", hp_label = "Desperate Prayer HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -116,4 +116,6 @@ function menu.render()
     end)
 end
 
+menu.use_desperate_prayer = core.menu.checkbox(true, "eaxpholy_desperate_prayer")
+menu.use_desperate_prayer_hp_pct = core.menu.slider_int(0, 100, 40, "eaxpholy_desp_prayer_hp")
 return menu

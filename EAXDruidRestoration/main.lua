@@ -6,6 +6,8 @@ local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
 local color     = require("color")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -37,6 +39,7 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
+    barkskin_id = nil,
     rebirth_id = nil,
     mark_of_the_wild_id = nil,
     lifebloom_id = nil,
@@ -72,6 +75,7 @@ local function resolve_spells()
     runtime.natures_swiftness_id = utils.resolve_spell_id(spells.NATURES_SWIFTNESS)
     runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
     runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
+    runtime.barkskin_id = utils.resolve_spell_id(spells.BARKSKIN)
 end
 
 local function log_resolved_spells()
@@ -418,6 +422,20 @@ local function try_remove_curse_resto(me)
     return false
 end
 
+local function try_barkskin_defensive(me)
+    if not menu.use_barkskin or not menu.use_barkskin:get_state() then return false end
+    if not runtime.barkskin_id then return false end
+    if utils.has_buff(me, spells.BUFF_BARKSKIN) then return false end
+    local hp = me:get_health_percentage() / 100
+    local threshold = menu.use_barkskin_hp_pct and (menu.use_barkskin_hp_pct:get() / 100) or 0.40
+    if hp > threshold then return false end
+    if not utils.can_cast_self(runtime.barkskin_id, me) then return false end
+    if utils.cast_self(runtime.barkskin_id, me) then
+        utils.log_debug(menu, "Barkskin (defensive)")
+        return true
+    end
+    return false
+end
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
@@ -539,6 +557,7 @@ core.register_on_update_callback(function()
     racial_manager.try_utility(me, target)
     racial_manager.try_defensive(me)
 
+    if try_barkskin_defensive(me) then return true end
     if defensive_manager.try_defensive(me, "druid", utils) then
         return
     end

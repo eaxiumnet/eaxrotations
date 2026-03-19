@@ -56,6 +56,7 @@ local MODE_RAID = "raid"
 local MODE_REFRESH_INTERVAL = 1.0
 
 local runtime = {
+    divine_shield_id = nil,
     redemption_id = nil,
     divine_plea_id = nil,
     jow_id = nil,
@@ -88,6 +89,7 @@ local function resolve_spells()
     runtime.avenging_wrath_id = utils.resolve_spell_id(spells.AVENGING_WRATH)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
     runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
+    runtime.divine_shield_id = utils.resolve_spell_id(spells.DIVINE_SHIELD)
 end
 
 local function log_resolved_spells()
@@ -445,7 +447,7 @@ local function try_judgment_of_wisdom(me, target)
     if utils.has_debuff(target, spells.DEBUFF_JOW) then return false end
     local mode = runtime.cached_mode or "solo"
     if mode == "solo" then return false end
-    if not utils.can_cast_target(runtime.jow_id, me, target) then return false end
+    if not utils.can_cast_hostile(runtime.jow_id, me, target) then return false end
     utils.cast_target(runtime.jow_id, target, "Judgment of Wisdom")
     return true
 end
@@ -502,6 +504,7 @@ local function on_update()
     racial_manager.try_utility(me, target)
     racial_manager.try_defensive(me)
 
+    if try_divine_shield_emergency(me) then return true end
     if defensive_manager.try_defensive(me, "paladin", utils) then
         return
     end

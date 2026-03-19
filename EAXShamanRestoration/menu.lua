@@ -168,7 +168,7 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_shamanistic_rage", label = "Shamanistic Rage", tip = "Emergency mana regen and damage reduction", hp_key = "use_shamanistic_rage_hp_pct", hp_label = "Shamanistic Rage HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -186,4 +186,6 @@ function menu.render()
     end)
 end
 
+menu.use_shamanistic_rage = core.menu.checkbox(true, "eaxshamrest_sham_rage")
+menu.use_shamanistic_rage_hp_pct = core.menu.slider_int(0, 100, 30, "eaxshamrest_sham_hp")
 return menu

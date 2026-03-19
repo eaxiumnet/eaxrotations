@@ -98,7 +98,8 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_pain_suppression", label = "Pain Suppression", tip = "Emergency 40% damage reduction on self", hp_key = "use_pain_suppression_hp_pct", hp_label = "Pain Suppression HP %" },
+        { key = "use_power_word_shield_self", label = "PW: Shield (Self)", tip = "Maintain Power Word Shield on self", hp_key = "use_power_word_shield_self_hp_pct", hp_label = "PW: Shield (Self) HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -116,4 +117,8 @@ function menu.render()
     end)
 end
 
+menu.use_pain_suppression = core.menu.checkbox(true, "eaxpdisc_pain_suppression")
+menu.use_pain_suppression_hp_pct = core.menu.slider_int(0, 100, 30, "eaxpdisc_pain_supp_hp")
+menu.use_power_word_shield_self = core.menu.checkbox(true, "eaxpdisc_pw_shield_self")
+menu.use_power_word_shield_self_hp_pct = core.menu.slider_int(0, 100, 80, "eaxpdisc_pw_shield_hp")
 return menu

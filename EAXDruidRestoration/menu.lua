@@ -120,7 +120,7 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_barkskin", label = "Barkskin", tip = "Emergency damage reduction", hp_key = "use_barkskin_hp_pct", hp_label = "Barkskin HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -138,4 +138,6 @@ function menu.render()
     end)
 end
 
+menu.use_barkskin = core.menu.checkbox(true, "eaxrest_use_barkskin")
+menu.use_barkskin_hp_pct = core.menu.slider_int(0, 100, 40, "eaxrest_barkskin_hp")
 return menu

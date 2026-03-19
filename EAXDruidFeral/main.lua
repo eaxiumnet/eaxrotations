@@ -882,6 +882,10 @@ end
 -- True if unit is a healer (by role or class heuristic)
 local HEALER_CLASSES = { [2]=true, [5]=true, [7]=true, [11]=true } -- Paladin, Priest, Shaman, Druid
 local function is_healer(unit)
+    if not unit or not unit:is_valid() then return false end
+    -- Only evaluate players — NPCs don't have meaningful healer roles
+    local ok_p, is_p = pcall(function() return unit:is_player() end)
+    if not (ok_p and is_p) then return false end
     local ok_r, role = pcall(function() return unit:get_group_role() end)
     if ok_r and role == 1 then return true end  -- 1 = healer role
     -- Fallback: class heuristic for PvP where role isn't set
@@ -923,14 +927,14 @@ local function try_war_stomp(me, target)
     if not runtime.war_stomp_id then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not utils.is_melee_target(me, target) then return false end
+    if is_pending_cast(runtime.war_stomp_id) then return false end
     if not utils.can_cast_self(runtime.war_stomp_id, me) then return false end
-    -- Auto: fire when 2+ enemies are in melee hitting us/party (AoE value)
-    -- or when we are low HP and need to buy time
     local attackers = count_melee_attackers(me)
     local my_hp = me:get_health_percentage() / 100
     local should_stomp = attackers >= 2 or my_hp < 0.35
     if not should_stomp then return false end
     if utils.cast_self(runtime.war_stomp_id, me) then
+        mark_pending_cast(runtime.war_stomp_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "War Stomp (attackers=" .. attackers .. " hp=" .. string.format("%.0f%%", my_hp * 100) .. ")")
         note_cast()
         return true
@@ -943,13 +947,23 @@ local function try_cyclone(me, target)
     if not menu.use_cyclone or not menu.use_cyclone:get_state() then return false end
     if not runtime.cyclone_id then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
+    -- Must be an actual enemy — never cast on self or friendlies
+    if utils.same_unit(me, target) then return false end
+    if not me:can_attack(target) then return false end
+    -- Pending cast guard — Cyclone debuff takes time to land, don't spam
+    if is_pending_cast(runtime.cyclone_id) then return false end
     if utils.has_debuff(target, spells.DEBUFF_CYCLONE) then return false end
     -- Auto: only cyclone if target is a healer actively healing an enemy
     -- OR if target is casting/channelling (interrupt isn't available / on CD)
     local should_cyclone = is_healing_our_target(target, me) or is_healer(target)
     if not should_cyclone then return false end
     if not utils.can_cast_hostile(runtime.cyclone_id, me, target) then return false end
+    local ok_name, tname = pcall(function() return target:get_name() end)
+    local ok_p, is_p = pcall(function() return target:is_player() end)
+    local ok_atk, can_atk = pcall(function() return me:can_attack(target) end)
+    utils.log_debug(menu, "[Cyclone] target=" .. tostring(tname) .. " is_player=" .. tostring(is_p) .. " can_attack=" .. tostring(can_atk))
     if utils.cast_target(runtime.cyclone_id, target) then
+        mark_pending_cast(runtime.cyclone_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Cyclone (healer/caster)")
         note_cast()
         return true
@@ -962,11 +976,14 @@ local function try_entangling_roots(me, target)
     if not menu.use_entangling_roots or not menu.use_entangling_roots:get_state() then return false end
     if not runtime.entangling_roots_id then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
+    if utils.same_unit(me, target) then return false end
+    if is_pending_cast(runtime.entangling_roots_id) then return false end
     if utils.has_debuff(target, spells.DEBUFF_ENTANGLING_ROOTS) then return false end
     -- Auto: root when target is kiting us (moving, out of melee)
     if not is_kiting(me, target) then return false end
     if not utils.can_cast_hostile(runtime.entangling_roots_id, me, target) then return false end
     if utils.cast_target(runtime.entangling_roots_id, target) then
+        mark_pending_cast(runtime.entangling_roots_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Entangling Roots (kiting)")
         note_cast()
         return true

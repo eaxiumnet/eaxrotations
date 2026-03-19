@@ -96,7 +96,8 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_dispersion", label = "Dispersion", tip = "Emergency 90% damage reduction and mana regen", hp_key = "use_dispersion_hp_pct", hp_label = "Dispersion HP %" },
+        { key = "use_psychic_scream_def", label = "Psychic Scream", tip = "AoE fear when overwhelmed", hp_key = "use_psychic_scream_def_hp_pct", hp_label = "Psychic Scream HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -116,4 +117,8 @@ end
 
 menu.use_psychic_scream = core.menu.checkbox(true, "eaxpriestshadow_psychic_scream")
 menu.use_fade          = core.menu.checkbox(true, "eaxpriestshadow_fade")
+menu.use_dispersion = core.menu.checkbox(true, "eaxpshadow_dispersion")
+menu.use_dispersion_hp_pct = core.menu.slider_int(0, 100, 30, "eaxpshadow_dispersion_hp")
+menu.use_psychic_scream_def = core.menu.checkbox(true, "eaxpshadow_ps_def")
+menu.use_psychic_scream_def_hp_pct = core.menu.slider_int(0, 100, 40, "eaxpshadow_ps_hp")
 return menu

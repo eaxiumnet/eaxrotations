@@ -91,7 +91,7 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        -- (none detected)
+        { key = "use_divine_shield", label = "Divine Shield", tip = "Emergency immunity bubble", hp_key = "use_divine_shield_hp_pct", hp_label = "Divine Shield HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -112,4 +112,6 @@ end
 menu.use_hammer_of_wrath = core.menu.checkbox(true, "eaxpret_hammer_of_wrath")
 menu.use_divine_plea    = core.menu.checkbox(true, "eaxpret_divine_plea")
 menu.use_lay_on_hands   = core.menu.checkbox(true, "eaxpret_lay_on_hands")
+menu.use_divine_shield = core.menu.checkbox(true, "eaxpret_divine_shield")
+menu.use_divine_shield_hp_pct = core.menu.slider_int(0, 100, 20, "eaxpret_divine_shield_hp")
 return menu

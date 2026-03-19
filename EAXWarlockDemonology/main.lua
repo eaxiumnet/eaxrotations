@@ -41,6 +41,7 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
+    drain_life_id = nil,
     soul_link_id = nil,
     soul_fire_id = nil,
     shadow_bolt_id = nil,
@@ -412,6 +413,20 @@ local function try_soul_shard_farm(me, target, drain_soul_id)
 end
 
 
+local function try_drain_life_defensive(me, target)
+    if not menu.use_drain_life_def or not menu.use_drain_life_def:get_state() then return false end
+    if not runtime.drain_life_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    local hp = me:get_health_percentage() / 100
+    local threshold = menu.use_drain_life_def_hp_pct and (menu.use_drain_life_def_hp_pct:get() / 100) or 0.35
+    if hp > threshold then return false end
+    if not utils.can_cast_hostile(runtime.drain_life_id, me, target) then return false end
+    if utils.cast_target(runtime.drain_life_id, target) then
+        utils.log_debug(menu, "Drain Life (defensive)")
+        return true
+    end
+    return false
+end
 local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
     if not is_gcd_ready() then
@@ -439,6 +454,7 @@ local function do_rotation(me, target)
     -- Defensive abilities
     ttd_tracker.update(target)
 
+    if try_drain_life_defensive(me, target) then return true end
     if defensive_manager.try_defensive(me, "warlock", utils) then
         return
     end

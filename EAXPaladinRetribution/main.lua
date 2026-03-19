@@ -38,6 +38,7 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
+    divine_shield_id = nil,
     redemption_id = nil,
     crusader_strike_id = nil,
     divine_storm_id = nil,
@@ -81,6 +82,7 @@ local function resolve_spells()
     runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
     runtime.judgement_ids.wisdom = utils.resolve_spell_id(spells.JUDGEMENT_OF_WISDOM)
     runtime.judgement_ids.crusader = utils.resolve_spell_id(spells.JUDGEMENT_OF_THE_CRUSADER)
+    runtime.divine_shield_id = utils.resolve_spell_id(spells.DIVINE_SHIELD)
 end
 
 local function log_resolved_spells()
@@ -508,6 +510,7 @@ core.register_on_update_callback(function()
     -- Defensive abilities
     ttd_tracker.update(target)
 
+    if try_divine_shield_emergency(me) then return true end
     if defensive_manager.try_defensive(me, "paladin", utils) then
         return
     end

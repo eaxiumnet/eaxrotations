@@ -132,4 +132,6 @@ function menu.render()
     end)
 end
 
+menu.use_shamanistic_rage = core.menu.checkbox(true, "eaxshamenhance_sham_rage")
+menu.use_shamanistic_rage_hp_pct = core.menu.slider_int(0, 100, 30, "eaxshamenhance_sham_hp")
 return menu
