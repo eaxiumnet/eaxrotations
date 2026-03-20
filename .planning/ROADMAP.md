@@ -130,6 +130,15 @@ WARR-01, WARR-02, WARR-03, HUNT-01, HUNT-02, HUNT-03, MAGE-01, MAGE-02, MAGE-03,
 ### Requirements
 VIS-01, VIS-02, VIS-03, VIS-04, AUTO-01, AUTO-02, AUTO-03, AUTO-04, QUAL-01, QUAL-02, QUAL-03
 
+**Plans:** 5 plans
+
+Plans:
+- [ ] 04-polish-competitive-features-01-PLAN.md - Build shared visual telemetry modules (DPS/HPS, cooldown, TTD, aura snapshot)
+- [ ] 04-polish-competitive-features-02-PLAN.md - Roll out visual HUD wiring across all spec renderers and mains
+- [ ] 04-polish-competitive-features-03-PLAN.md - Build shared automation core (vendor, consumables, mount)
+- [ ] 04-polish-competitive-features-04-PLAN.md - Integrate automation managers and toggles across all specs
+- [ ] 04-polish-competitive-features-05-PLAN.md - Add validation framework, benchmark tool, and regression checklist
+
 ### Key Files
 - `common/eax_shared/dps_meter.lua`
 - `common/eax_shared/consumables.lua`
