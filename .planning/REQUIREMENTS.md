@@ -88,10 +88,10 @@
 
 ### Automation
 
-- [ ] **AUTO-01**: Add auto-repair — repair when durability drops below threshold
-- [ ] **AUTO-02**: Add auto-sell grey items
-- [ ] **AUTO-03**: Add consumables management — track and use potions, food, flasks
-- [ ] **AUTO-04**: Add auto-dismount in combat, auto-mount out of combat
+- [x] **AUTO-01**: Add auto-repair — repair when durability drops below threshold
+- [x] **AUTO-02**: Add auto-sell grey items
+- [x] **AUTO-03**: Add consumables management — track and use potions, food, flasks
+- [x] **AUTO-04**: Add auto-dismount in combat, auto-mount out of combat
 
 ### Quality
 
@@ -173,10 +173,10 @@ Phase mapping populated during roadmap creation.
 | VIS-02 | Phase 4 | Pending |
 | VIS-03 | Phase 4 | Pending |
 | VIS-04 | Phase 4 | Pending |
-| AUTO-01 | Phase 4 | Pending |
-| AUTO-02 | Phase 4 | Pending |
-| AUTO-03 | Phase 4 | Pending |
-| AUTO-04 | Phase 4 | Pending |
+| AUTO-01 | Phase 4 | Complete |
+| AUTO-02 | Phase 4 | Complete |
+| AUTO-03 | Phase 4 | Complete |
+| AUTO-04 | Phase 4 | Complete |
 | QUAL-01 | Phase 4 | Pending |
 | QUAL-02 | Phase 4 | Pending |
 | QUAL-03 | Phase 4 | Pending |

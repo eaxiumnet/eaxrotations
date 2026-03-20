@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
+current_plan: 2
 status: unknown
-stopped_at: Session resumed, proceeding to finalize Phase 03 verification/closure
-last_updated: "2026-03-20T12:24:52.872Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-03-20T12:45:07.513Z"
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 17
+  completed_phases: 2
+  total_plans: 22
   completed_plans: 17
 ---
 
@@ -21,7 +21,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 
 **Core value:** Every spec executes the mathematically optimal rotation while maintaining survival and encounter-specific awareness.
 
-**Current focus:** Phase 04 — polish-&-competitive-features
+**Current focus:** Phase 04 — polish-competitive-features
 
 ## Current Status
 
@@ -31,8 +31,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Requirements defined
 - [x] Roadmap created
 - [x] Phase 03 planned (9 plans)
-- **Current Plan:** Not started
-- **Total Plans in Phase:** 11
+- **Current Plan:** 2
+- **Total Plans in Phase:** 5
 
 ## Roadmap
 
@@ -77,6 +77,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [Phase 03]: Prioritize try_conflagrate before try_shadowfury in Destruction to consume Immolate proc windows immediately.
 - [Phase 03]: Fury fast-1H execute only activates when both mainhand and offhand speeds resolve and are <= 2.0s
 - [Phase 03]: Fury execute cast/queue decisions are gated by shared swing_timer safety checks to prevent white-swing clipping
+- [Phase 04]: Use core.input.use_container_item with bag scans to sell only quality-0 items.
+- [Phase 04]: Mount manager dismounts on combat and mounts only when out-of-combat and stationary.
 
 ## Recent Commits
 
@@ -110,9 +112,10 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 | Phase 03 P07 | 22 min | 3 tasks | 3 files |
 | Phase 03 P11 | 2 min | 2 tasks | 1 files |
 | Phase 03 P10 | 3 min | 2 tasks | 1 files |
+| Phase 04 P03 | 6 min | 2 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-03-20T12:50:00.000Z
-Stopped at: Phase 03 completed (11/11 plans, verification passed + human approved)
+Last session: 2026-03-20T12:45:07.510Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
