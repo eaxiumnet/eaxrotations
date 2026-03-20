@@ -36,6 +36,8 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
+---@type swing_timer
+local swing_timer = require("eax_shared/swing_timer")
 
 local MODE_REFRESH_INTERVAL_S = 5
 local MISSING_SPELL_REFRESH_INTERVAL_S = 1.0
@@ -418,30 +420,31 @@ local function try_whirlwind(me, target, rage)
 end
 
 local function try_slam(me, target, rage)
-    if not menu.use_slam:get_state()
-        or not target
-        or not runtime.slam_id
-        or rage < SLAM_COST
-    then
-        return false
-    end
+     if not menu.use_slam:get_state()
+         or not target
+         or not runtime.slam_id
+         or rage < SLAM_COST
+     then
+         return false
+     end
 
-    local ms_cd = runtime.mortal_strike_id and core.spell_book.get_spell_cooldown(runtime.mortal_strike_id) or 0
-    if ms_cd <= 1.5 then
-        return false
-    end
+     local ms_cd = runtime.mortal_strike_id and core.spell_book.get_spell_cooldown(runtime.mortal_strike_id) or 0
+     if ms_cd <= 1.5 then
+         return false
+     end
 
-    if not utils.can_slam_without_clipping(me, runtime.slam_id, menu.slam_safety_buffer_ms:get()) then
-        return false
-    end
+     -- Use swing timer for safety buffer to prevent clipping
+     if not swing_timer.is_swing_safe(me, menu.slam_safety_buffer_ms:get() / 1000) then
+         return false
+     end
 
-    if utils.cast_target(runtime.slam_id, target) then
-        utils.log_debug(menu, "Slam weave")
-        return true
-    end
+     if utils.cast_target(runtime.slam_id, target) then
+         utils.log_debug(menu, "Slam weave")
+         return true
+     end
 
-    return false
-end
+     return false
+ end
 
 
 -- --- Charge opener --------------------------------------------------------

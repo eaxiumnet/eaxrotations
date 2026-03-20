@@ -772,6 +772,32 @@ local function try_pummel(me, target)
     return false
 end
 
+local function try_heroic_strike(me, target, rage, target_hp_pct, is_aoe)
+    -- Only consider heroic strike in execute phase (below 20% HP)
+    if target_hp_pct >= EXECUTE_HP_THRESHOLD then
+        return false
+    end
+    if not menu.use_heroic_strike:get_state() or not runtime.heroic_strike_id then
+        return false
+    end
+    if rage < menu.heroic_strike_rage:get() then
+        return false
+    end
+    if not utils.can_cast_melee(runtime.heroic_strike_id, me) then
+        return false
+    end
+    if utils.is_spell_already_queued(runtime.heroic_strike_id) then
+        return false
+    end
+    if utils.cast_target(runtime.heroic_strike_id, target) then
+        runtime.last_on_next_attack_queue_at = core.time()
+        runtime.queued_on_next_attack_spell_id = runtime.heroic_strike_id
+        utils.log_debug(menu, "Queue: Heroic Strike")
+        return true
+    end
+    return false
+end
+
 local function offensive_potion_is_available(me)
     if not me then return false end
 
@@ -1274,7 +1300,14 @@ local function get_aoe_execute_target(me, fallback_target)
     return utils.find_execute_snipe_target(me, fallback_target, AOE_RADIUS)
 end
 
-local function try_slam_or_hamstring_filler(me, target, rage, target_hp_pct, label)
+local function try_slam_or_hamstring_filler(me, target, rage, target_hp_pct, label, is_aoe)
+    -- If we are in execute phase, try to queue Heroic Strike (single target) or Cleave (AoE)
+    if target_hp_pct < EXECUTE_HP_THRESHOLD then
+        if try_heroic_strike(me, target, rage, target_hp_pct, is_aoe) then
+            return true
+        end
+    end
+
     if not target or not utils.is_melee_target(me, target) then return false end
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
