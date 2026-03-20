@@ -55,7 +55,7 @@ COMBAT-02, COMBAT-03, COMBAT-04, INTER-01, INTER-02, INTER-03, ENCOUNT-01, ENCOU
 
 Plans:
 - [x] 02-core-combat-01-PLAN.md — DoT clip prevention + mana management
-- [ ] 02-core-combat-02-PLAN.md — Threat estimation + fade protection
+- [x] 02-core-combat-02-PLAN.md — Threat estimation + fade protection
 - [x] 02-core-combat-03-PLAN.md — Interrupt refinements + encounter expansion
 
 ### Key Files
@@ -125,7 +125,7 @@ VIS-01, VIS-02, VIS-03, VIS-04, AUTO-01, AUTO-02, AUTO-03, AUTO-04, QUAL-01, QUA
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|-------------|------------------|
 | 1 | Foundation | Shared infrastructure + critical fixes | 4 | Shared modules extracted, set bonus dynamic, swing timer library, all 27 specs refactored |
-| 2 | Core Combat | Cross-spec systems optimization | 10 | DoT clip prevention, interrupt refinement, encounter expansion |
+| 2 | Core Combat | Cross-spec systems optimization | 10 | DoT clip prevention, interrupt refinement, encounter expansion, threat estimation, mana management |
 | 3 | Per-Class | Every spec rotation optimized | 28 | All 27 specs match top rotation implementations |
 | 4 | Polish | Competitive features + automation | 11 | DPS meter, consumables, auto-repair, visual polish |
 
