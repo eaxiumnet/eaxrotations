@@ -33,6 +33,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
+---@type mana_manager
+local mana_manager = require("eax_shared/mana_manager")
 ---@type threat_manager
 local threat_manager = require("eax_shared/threat_manager")
 
@@ -58,6 +60,7 @@ local resolved = {
     pain_suppression = utils.resolve_spell_id(spells.PAIN_SUPPRESSION),
     prayer_of_mending = utils.resolve_spell_id(spells.PRAYER_OF_MENDING),
 }
+runtime.pw_shield_id = resolved.shield
 
 local function log_mode(mode)
     if menu.debug:get_state() and runtime.last_mode_log ~= mode then
@@ -131,15 +134,47 @@ local function try_pain_suppression(me, mode)
     return false
 end
 
+local function get_tank_unit(me)
+    local units = utils.get_party_units(me)
+    for _, unit in ipairs(units) do
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local class = unit:get_class()
+            if class == 1 or class == 2 or class == 6 then -- Warrior, Paladin, Druid
+                return unit
+            end
+        end
+    end
+    return nil
+end
+
 local function try_shield(me)
     if not resolved.shield then
         return false
     end
+    -- Check cooldown
+    local cd = core.spell_book.get_spell_cooldown(resolved.shield)
+    if cd > 0 then
+        return false
+    end
 
+    local enc = encounter_manager.get_policy(me)
     local threshold = menu.shield_threshold:get() / 100
-    local candidate = utils.find_low_health_ally(me, threshold, true)
+    local candidate = nil
+    
+    -- If tank damage heavy, prioritize tank
+    if enc.tank_damage_heavy then
+        candidate = get_tank_unit(me)
+        if candidate and (utils.has_buff(candidate, spells.POWER_WORD_SHIELD) or utils.has_debuff(candidate, spells.BUFF_WEAKENED_SOUL) or utils.get_health_pct(candidate) > threshold) then
+            candidate = nil
+        end
+    end
+    
+    -- Fallback to low health ally
+    if not candidate then
+        candidate = utils.find_low_health_ally(me, threshold, true)
+    end
 
-    if candidate and not utils.has_buff(candidate, spells.POWER_WORD_SHIELD) then
+    if candidate and not utils.has_buff(candidate, spells.POWER_WORD_SHIELD) and not utils.has_debuff(candidate, spells.BUFF_WEAKENED_SOUL) then
         return utils.cast_target(resolved.shield, candidate, nil)
     end
 
@@ -308,6 +343,12 @@ core.register_on_update_callback(function()
     end
     -- Encounter policy (boss-specific rotation adjustments)
     local enc = encounter_manager.get_policy(me)
+    -- Mana potion check (proactive mana management)
+    if mana_manager.should_use_mana_potion(me, 30) then
+        if mana_manager.use_mana_potion() then
+            return
+        end
+    end
 
     -- Racial CDs
     racial_manager.try_offensive(me)
