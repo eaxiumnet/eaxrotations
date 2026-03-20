@@ -13,7 +13,7 @@ Milestone v1.0 (Phases 1-4) is complete. This roadmap defines milestone v1.1 Com
 
 - [x] **Phase 5: Reactive Contract + API Gate** - Establish deterministic context, reasoned decisions, and fail-closed `@.api` enforcement.
 - [x] **Phase 6: 27-Spec Reactive Wiring** - Integrate the shared reactive engine into every canonical combat spec.
-- [ ] **Phase 7: Role Intelligence Tuning** - Deliver DPS, healer, and tank behavior quality with urgency-aware control logic.
+- [x] **Phase 7: Role Intelligence Tuning** - Deliver DPS, healer, and tank behavior quality with urgency-aware control logic.
 - [ ] **Phase 8: Benchmark Matrix Hardening** - Enforce 27-spec KPI/variance matrix gates for milestone sign-off.
 
 ## Phase Details
@@ -63,10 +63,10 @@ Plans:
 
 Plans:
 - [x] 07-role-intelligence-tuning-01-PLAN.md - Build the shared role-policy contract and richer normalized snapshot inputs.
-- [ ] 07-role-intelligence-tuning-02-PLAN.md - Roll shared tank-first triage and anti-overheal logic into all healer specs.
+- [x] 07-role-intelligence-tuning-02-PLAN.md - Roll shared tank-first triage and anti-overheal logic into all healer specs.
 - [x] 07-role-intelligence-tuning-03-PLAN.md - Roll shared threat-recovery and proactive defensive posture into all tank specs.
-- [ ] 07-role-intelligence-tuning-04-PLAN.md - Roll shared DPS danger-window burst holds and cast-abort logic into all non-healer DPS specs.
-- [ ] 07-role-intelligence-tuning-05-PLAN.md - Add blocking role-parity validation and benchmark-visible role-quality telemetry.
+- [x] 07-role-intelligence-tuning-04-PLAN.md - Roll shared DPS danger-window burst holds and cast-abort logic into all non-healer DPS specs.
+- [x] 07-role-intelligence-tuning-05-PLAN.md - Add blocking role-parity validation and benchmark-visible role-quality telemetry.
 
 ### Phase 8: Benchmark Matrix Hardening
 **Goal**: Users can trust milestone quality because release gates require passing 27-spec performance and behavior KPIs.
@@ -84,7 +84,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Reactive Contract + API Gate | 5/5 | Complete | 2026-03-20 |
 | 6. 27-Spec Reactive Wiring | 2/2 | Complete | 2026-03-20 |
-| 7. Role Intelligence Tuning | 2/5 | In Progress | - |
+| 7. Role Intelligence Tuning | 5/5 | Complete | 2026-03-20 |
 | 8. Benchmark Matrix Hardening | 0/TBD | Not started | - |
 
 ---

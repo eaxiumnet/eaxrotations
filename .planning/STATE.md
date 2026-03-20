@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-03-20T21:58:22.212Z"
+status: READY
+stopped_at: Completed 07-05-PLAN.md
+last_updated: "2026-03-20T22:10:55.598Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -19,14 +19,14 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-03-20)
 
 **Core value:** Every spec executes the mathematically optimal rotation while maintaining survival and encounter-specific awareness.
-**Current focus:** Phase 07 — role-intelligence-tuning
+**Current focus:** Phase 08 — benchmark-matrix-hardening
 
 ## Current Position
 
-Phase: 07
-Phase Name: role-intelligence-tuning
-Plan: 3 of 5
-Status: EXECUTING
+Phase: 08
+Phase Name: benchmark-matrix-hardening
+Plan: 0 of TBD
+Status: READY
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Status: EXECUTING
 | Phase 07 P03 | 6 min | 2 tasks | 5 files |
 | Phase 07 P02 | 11 min | 2 tasks | 7 files |
 | Phase 07 P04 | 16 min | 2 tasks | 22 files |
+| Phase 07 P05 | 6 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 07]: Use one shared dps_risk module for hold, drop, and abort thresholds so all DPS specs react consistently.
 - [Phase 07]: Build live DPS snapshots from combat_context via dps_runtime instead of duplicating threat and danger reads in each spec.
 - [Phase 07]: Keep interrupts aggressive by only gating burst, threat drops, and risky cast commits, not interrupt winners.
+- [Phase 07]: Keep tools/rotation_validation.lua as the single blocking gate and extend it with per-family role parity summaries. — Phase 07 needs one deterministic validation surface that fails fast on healer, tank, or DPS regressions instead of splitting checks across multiple scripts.
+- [Phase 07]: Store role_signal and role_target_kind in the shared meter so dry-run and live benchmark rows share one telemetry contract. — Phase 08 matrix work needs one normalized source for role-quality telemetry instead of special-casing dry-run output.
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:58:22.208Z
-Stopped at: Completed 07-04-PLAN.md
+Last session: 2026-03-20T22:10:55.596Z
+Stopped at: Completed 07-05-PLAN.md
 Resume file: None
