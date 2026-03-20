@@ -68,7 +68,7 @@ assert(blocked_output:find("FAIL: api hard gate ::", 1, true), "missing API hard
 
 local canonical_spec_path = "EAXWarriorArms/main.lua"
 local canonical_original = read_file(canonical_spec_path)
-local broken_adapter = canonical_original:gsub('throughput_resume = %b{}', '', 1)
+local broken_adapter = canonical_original:gsub('throughput_resume = %b{},', '', 1)
 assert(broken_adapter ~= canonical_original, "expected to remove throughput_resume from canonical fixture")
 
 write_file(canonical_spec_path, broken_adapter)
