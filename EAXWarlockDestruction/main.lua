@@ -275,6 +275,12 @@ local function try_conflagrate(me, target)
     if not menu.use_conflagrate:get_state() or not runtime.conflagrate_id then
         return false
     end
+    -- Only cast Conflagrate when Immolate is present on target
+    if not utils.has_debuff(target, spells.DEBUFF_IMMOLATE) then
+        return false
+    end
+    -- TODO: Backdraft stack management (if we have Backdraft buff, prioritize Incinerate)
+    -- For now, cast Conflagrate on cooldown when Immolate present
     return try_cast_spell(me, runtime.conflagrate_id, target, "Conflagrate")
 end
 
