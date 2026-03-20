@@ -554,17 +554,15 @@ local function try_avenging_wrath(me)
     return false
 end
 
-local function try_divine_storm(me, target)
+local function try_divine_storm(me, target, enemy_count)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_divine_storm or not menu.use_divine_storm:get_state() then return false end
     if not runtime.divine_storm_id then return false end
+    if enemy_count < 3 then return false end
+    if runtime.holy_power < 3 then return false end
     if not utils.can_cast_hostile(runtime.divine_storm_id, me, target) then return false end
     if utils.cast_target(runtime.divine_storm_id, target, "Divine Storm") then
-        if runtime.holy_power >= 3 then
-            spend_holy_power(3)
-        else
-            gain_holy_power(1)
-        end
+        spend_holy_power(3)
         utils.log_debug(menu, "Divine Storm")
                 esp_renderer.on_cast(runtime.divine_storm_id, "Divine Storm", color.gold(220))
         return true
@@ -661,7 +659,7 @@ core.register_on_update_callback(function()
     -- Offensive CDs
     try_avenging_wrath(me)
     if try_divine_favor(me) then return end
-    if is_aoe_rotation(enemy_count) and runtime.holy_power >= 3 and try_divine_storm(me, target) then return end
+    if is_aoe_rotation(enemy_count) and try_divine_storm(me, target, enemy_count) then return end
     if maybe_cast_templars_verdict(me, target) then return end
     if maybe_cast_inquisition(me) then return end
     if try_exorcism(me, target) then return end
@@ -673,7 +671,7 @@ core.register_on_update_callback(function()
         return
     end
 
-    if is_aoe_rotation(enemy_count) and try_divine_storm(me, target) then return end
+    if is_aoe_rotation(enemy_count) and try_divine_storm(me, target, enemy_count) then return end
     if try_consecration(me, target) then return end
 
     if begin_seal_twist(me, target) then
