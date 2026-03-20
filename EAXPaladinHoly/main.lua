@@ -69,6 +69,10 @@ local runtime = {
     blessing_might_id = nil,
     cleanse_id = nil,
     hand_of_freedom_id = nil,
+    word_of_glory_id = nil,
+    light_of_dawn_id = nil,
+    beacon_of_light_id = nil,
+    holy_power = 0,
     mode_cache = MODE_SOLO,
     mode_cache_refreshed_at = 0,
     last_toggle_state = false,
@@ -76,10 +80,38 @@ local runtime = {
     ooc_blessing_of_wisdom_id = nil,
 }
 
+local HOLY_AOE_RADIUS = 20
+
+local HOLY_EXTRA_SPELLS = {
+    WORD_OF_GLORY = { 85673 },
+    LIGHT_OF_DAWN = { 85222 },
+}
+
+local function clamp_holy_power(value)
+    if value < 0 then
+        return 0
+    end
+    if value > 3 then
+        return 3
+    end
+    return value
+end
+
+local function gain_holy_power(amount)
+    runtime.holy_power = clamp_holy_power(runtime.holy_power + (amount or 0))
+end
+
+local function spend_holy_power(amount)
+    runtime.holy_power = clamp_holy_power(runtime.holy_power - (amount or 0))
+end
+
 local function resolve_spells()
     runtime.holy_light_id = utils.resolve_spell_id(spells.HOLY_LIGHT)
     runtime.flash_of_light_id = utils.resolve_spell_id(spells.FLASH_OF_LIGHT)
     runtime.holy_shock_id = utils.resolve_spell_id(spells.HOLY_SHOCK)
+    runtime.word_of_glory_id = utils.resolve_spell_id(spells.WORD_OF_GLORY or HOLY_EXTRA_SPELLS.WORD_OF_GLORY)
+    runtime.light_of_dawn_id = utils.resolve_spell_id(spells.LIGHT_OF_DAWN or HOLY_EXTRA_SPELLS.LIGHT_OF_DAWN)
+    runtime.beacon_of_light_id = utils.resolve_spell_id(spells.BEACON_OF_LIGHT)
     runtime.blessing_light_id = utils.resolve_spell_id(spells.BLESSING_OF_LIGHT)
     runtime.blessing_wisdom_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM)
     runtime.blessing_might_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT)
@@ -287,6 +319,68 @@ local function find_heal_target(me, mode)
     return best, best_pct
 end
 
+local function count_injured_allies(me, hp_threshold)
+    local count = 0
+    local threshold = hp_threshold or 0.85
+    local candidates = gather_heal_candidates(me)
+    for _, unit in ipairs(candidates) do
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local hp_pct = utils.get_health_pct(unit)
+            if hp_pct <= threshold then
+                local in_range = true
+                if me.get_distance then
+                    local ok, dist = pcall(function() return me:get_distance(unit) end)
+                    if ok and type(dist) == "number" then
+                        in_range = dist <= HOLY_AOE_RADIUS
+                    end
+                end
+                if in_range then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
+local function find_beacon_target(me)
+    local fallback = me
+    local candidates = gather_heal_candidates(me)
+    for _, unit in ipairs(candidates) do
+        if unit and unit:is_valid() and not unit:is_dead() then
+            fallback = unit
+            if unit.get_class then
+                local ok, class_name = pcall(function() return string.lower(unit:get_class() or "") end)
+                if ok and (class_name == "warrior" or class_name == "paladin" or class_name == "druid") then
+                    return unit
+                end
+            end
+        end
+    end
+    return fallback
+end
+
+local function try_beacon_of_light(me)
+    if not runtime.beacon_of_light_id then
+        return false
+    end
+    local beacon_target = find_beacon_target(me)
+    if not beacon_target or not beacon_target:is_valid() or beacon_target:is_dead() then
+        return false
+    end
+    if utils.has_buff(beacon_target, spells.BUFF_BEACON_OF_LIGHT or spells.BEACON_OF_LIGHT) then
+        return false
+    end
+    if not utils.can_cast_target(runtime.beacon_of_light_id, me, beacon_target) then
+        return false
+    end
+    if not utils.cast_target(runtime.beacon_of_light_id, beacon_target) then
+        return false
+    end
+    utils.log_debug(menu, "Beacon of Light")
+    return true
+end
+
 local function has_dispellable_debuff(unit)
     if not unit or not unit:is_valid() then
         return false
@@ -402,9 +496,12 @@ local function try_cast_heal(me, target, hp_pct)
 
     if menu.use_holy_shock:get_state() and runtime.holy_shock_id then
         local threshold = menu.holy_shock_hp_pct:get() / 100
-        if hp_pct <= threshold and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock") then
-                    esp_renderer.on_cast(nil, "Holy Light", color.yellow(220))
-        return true
+        if hp_pct <= 0.99 and (hp_pct <= threshold or runtime.holy_power < 3)
+            and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock")
+        then
+            gain_holy_power(1)
+            esp_renderer.on_cast(runtime.holy_shock_id, "Holy Shock", color.yellow(220))
+            return true
         end
     end
 
@@ -538,7 +635,10 @@ local function on_update()
     refresh_mode_cache()
     local mode = get_effective_mode()
 
-    -- OOC: only allow blessing maintenance, not heals/cleanse
+    -- OOC: maintain beacon and blessings, not direct heals/cleanse
+    if try_beacon_of_light(me) then
+        return
+    end
     if ensure_blessings(me) then
         return
     end
@@ -550,6 +650,23 @@ local function on_update()
     end
 
     local target, hp_pct = find_heal_target(me, mode)
+    local injured_allies = count_injured_allies(me, 0.80)
+
+    if runtime.holy_power >= 3 and runtime.light_of_dawn_id and injured_allies >= 3 then
+        if utils.can_cast_self(runtime.light_of_dawn_id, me) and utils.cast_self(runtime.light_of_dawn_id, me) then
+            spend_holy_power(3)
+            utils.log_debug(menu, "Light of Dawn")
+            return
+        end
+    end
+
+    if runtime.holy_power >= 3 and runtime.word_of_glory_id and target and target:is_valid() then
+        if try_cast_spell(runtime.word_of_glory_id, me, target, "Word of Glory") then
+            spend_holy_power(3)
+            return
+        end
+    end
+
     if try_hand_of_freedom(me) then return end
     if try_cleanse(me, target) then
         return
