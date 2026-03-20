@@ -66,6 +66,22 @@ local function strip_line(line)
     return stripped
 end
 
+local function is_function_definition(line)
+    if line:match("^%s*local%s+function%s+[%a_][%w_]*%s*%(") then
+        return true
+    end
+
+    if line:match("^%s*function%s+[%a_][%w_%.:]*%s*%(") then
+        return true
+    end
+
+    if line:match("[%a_][%w_%.]*%s*=%s*function%s*%(") then
+        return true
+    end
+
+    return false
+end
+
 local function command_lines(command)
     local handle = io.popen(command)
     if not handle then
@@ -150,6 +166,22 @@ local function add_violation(violations, seen, path, line_no, call)
     }
 end
 
+local function scan_rooted_calls(line, allowlist, violations, seen, path, line_no)
+    for call in line:gmatch("([%a_][%w_]*%.[%a_][%w_%.]*)%s*%(") do
+        if not call:match("^ffi%.") and not call:match("^debug%.") and not allowlist.roots[call] then
+            add_violation(violations, seen, path, line_no, call)
+        end
+    end
+end
+
+local function scan_method_calls(line, allowlist, violations, seen, path, line_no)
+    for method in line:gmatch(":%s*([%a_][%w_]*)%s*%(") do
+        if not allowlist.methods[method] then
+            add_violation(violations, seen, path, line_no, ":" .. method)
+        end
+    end
+end
+
 local function scan_file(path, allowlist, violations, seen)
     local content = read_file(path)
     if not content then
@@ -169,6 +201,10 @@ local function scan_file(path, allowlist, violations, seen)
             end
         end
 
+        if not is_function_definition(line) then
+            scan_rooted_calls(line, allowlist, violations, seen, path, line_no)
+            scan_method_calls(line, allowlist, violations, seen, path, line_no)
+        end
     end
 end
 
@@ -182,6 +218,8 @@ function M.scan_paths(paths)
 
     local violations = {}
     local seen = {}
+    allowlist.roots = allowlist.roots or {}
+    allowlist.methods = allowlist.methods or {}
     for _, path in ipairs(paths or {}) do
         scan_file(normalize_path(path), allowlist, violations, seen)
     end
