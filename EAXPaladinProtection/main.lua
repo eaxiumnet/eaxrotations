@@ -10,6 +10,12 @@ local eax_utils = require("eax_utils")
 local interrupt_manager = require("common/eax_shared/interrupt_manager")
 ---@type ooc_manager
 local ooc_manager = require("common/eax_shared/ooc_manager")
+---@type vendor_automation
+local vendor_automation = require("common/eax_shared/vendor_automation")
+---@type consumables_manager
+local consumables_manager = require("common/eax_shared/consumables_manager")
+---@type mount_manager
+local mount_manager = require("common/eax_shared/mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
@@ -24,6 +30,110 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("pprot", "Paladin Prot")
+
+
+-- Phase 04 visual telemetry wiring
+local dps_meter = require("common/eax_shared/dps_meter")
+local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
+local visual_state = require("common/eax_shared/visual_state")
+
+local _visual_ttd_tracker = nil
+local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
+if _visual_ttd_ok and _visual_ttd_mod then
+    _visual_ttd_tracker = _visual_ttd_mod
+end
+
+local _visual_runtime = {
+    in_combat = false,
+    last_me_hp_pct = nil,
+    last_target_hp_pct = nil,
+}
+
+local _visual_on_cast = esp_renderer.on_cast
+function esp_renderer.on_cast(spell_id, name, col, target_name)
+    if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
+        local now_s = core.time()
+        local cd_s = tonumber(core.spell_book.get_spell_cooldown(spell_id)) or 0
+        cooldown_tracker.set_next_spell(spell_id, now_s, cd_s)
+    end
+    return _visual_on_cast(spell_id, name, col, target_name)
+end
+
+local function visual_get_ttd_seconds(target)
+    if not _visual_ttd_tracker or not _visual_ttd_tracker.get then return "--" end
+    local ok, value = pcall(function() return _visual_ttd_tracker.get(target) end)
+    if not ok then return "--" end
+    local ttd_value = tonumber(value)
+    if not ttd_value then return "--" end
+    return ttd_value
+end
+
+local function visual_build_tracked_auras(me, target)
+    local tracked_auras = {}
+    if me and me:is_in_combat() then
+        tracked_auras[#tracked_auras + 1] = { label = "Combat", active = true }
+    end
+    if target and target:is_valid() and not target:is_dead() then
+        if target:is_casting_spell() then
+            tracked_auras[#tracked_auras + 1] = { label = "Cast", active = true }
+        end
+        if target:is_channelling_spell() then
+            tracked_auras[#tracked_auras + 1] = { label = "Channel", active = true }
+        end
+    end
+    return tracked_auras
+end
+
+local function visual_update_snapshot(me, target)
+    if not me then return end
+    local in_combat = me:is_in_combat()
+    if in_combat and not _visual_runtime.in_combat then
+        dps_meter.on_combat_start()
+        _visual_runtime.in_combat = true
+        _visual_runtime.last_me_hp_pct = nil
+        _visual_runtime.last_target_hp_pct = nil
+    elseif (not in_combat) and _visual_runtime.in_combat then
+        dps_meter.on_combat_end()
+        _visual_runtime.in_combat = false
+        _visual_runtime.last_me_hp_pct = nil
+        _visual_runtime.last_target_hp_pct = nil
+    end
+
+    local me_hp_pct = tonumber(me:get_health_percentage())
+    if in_combat and _visual_runtime.last_me_hp_pct and me_hp_pct and me_hp_pct > _visual_runtime.last_me_hp_pct then
+        dps_meter.on_heal(me_hp_pct - _visual_runtime.last_me_hp_pct)
+    end
+    _visual_runtime.last_me_hp_pct = me_hp_pct
+
+    local target_hp_pct = nil
+    if target and target:is_valid() and not target:is_dead() then
+        target_hp_pct = tonumber(target:get_health_percentage())
+    end
+    if in_combat and _visual_runtime.last_target_hp_pct and target_hp_pct and target_hp_pct < _visual_runtime.last_target_hp_pct then
+        dps_meter.on_damage(_visual_runtime.last_target_hp_pct - target_hp_pct)
+    end
+    _visual_runtime.last_target_hp_pct = target_hp_pct
+
+    local snapshot = visual_state.build_snapshot({
+        now_s = core.time(),
+        ttd_seconds = visual_get_ttd_seconds(target),
+        tracked_auras = visual_build_tracked_auras(me, target),
+    })
+
+    if esp_renderer.update_visual_snapshot then
+        esp_renderer.update_visual_snapshot(snapshot)
+    elseif esp_renderer.set_visual_snapshot then
+        esp_renderer.set_visual_snapshot(snapshot)
+    end
+end
+
+core.register_on_update_callback(function()
+    if not menu or not menu.enabled or not menu.enabled:get_state() then return end
+    local me = core.object_manager.get_local_player()
+    if not me or me:is_dead() then return end
+    local target = me:get_target()
+    visual_update_snapshot(me, target)
+end)
 ---@type racial_manager
 local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
@@ -447,6 +557,31 @@ local function on_update()
                toggle = menu.ooc_group_buff },
         },
     })
+    if menu.auto_mount and menu.auto_dismount and (menu.auto_mount:get_state() or menu.auto_dismount:get_state()) then
+        mount_manager.update_mount_state(me, menu, utils)
+    end
+
+    if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
+        consumables_manager.try_use_ooc_food_drink(me, menu, utils)
+    end
+
+    if menu.auto_repair and menu.auto_repair:get_state() then
+        vendor_automation.try_auto_repair(me, menu, utils)
+    end
+
+    if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
+        vendor_automation.try_auto_sell_greys(me, menu, utils)
+    end
+
+    if me:is_in_combat() then
+        if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
+            consumables_manager.try_use_combat_consumable(me, menu, utils)
+        end
+        if menu.auto_flask and menu.auto_flask:get_state() then
+            consumables_manager.try_maintain_flask(me, menu, utils)
+        end
+    end
+
     if eax_utils.is_eating_or_drinking(me) then return end
 
     refresh_mode_cache(now)
