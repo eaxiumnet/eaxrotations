@@ -39,6 +39,8 @@ local ooc_manager = require("common/eax_shared/ooc_manager")
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
 local encounter_manager = require("common/eax_shared/encounter_manager")
+---@type totem_manager
+local totem_manager = require("common/eax_shared/totem_manager")
 
 
 ---@type esp_renderer
@@ -278,6 +280,10 @@ end
 
 local function try_cast_ally(me, target, spell_id, label)
     if not spell_id or not target or not target:is_valid() or target:is_dead() then return false end
+    if not totem_manager.can_cast_spell(label) then
+        totem_manager.try_workaround(me, label)
+        return false
+    end
     if is_pending(spell_id) then return false end
     if not utils.cast_target(spell_id, target, nil) then return false end
     mark_pending(spell_id)
@@ -290,6 +296,10 @@ end
 
 local function try_cast_self(me, spell_id, label)
     if not spell_id or not me or not me:is_valid() then return false end
+    if not totem_manager.can_cast_spell(label) then
+        totem_manager.try_workaround(me, label)
+        return false
+    end
     if is_pending(spell_id) then return false end
     if not utils.cast_self(spell_id, me) then return false end
     mark_pending(spell_id)
@@ -301,6 +311,10 @@ end
 
 local function try_cast_self_fast(me, spell_id, label)
     if not spell_id or not me or not me:is_valid() then return false end
+    if not totem_manager.can_cast_spell(label) then
+        totem_manager.try_workaround(me, label)
+        return false
+    end
     if is_pending(spell_id) then return false end
     if not utils.cast_self_fast(spell_id, me) then return false end
     mark_pending(spell_id, 0.5)
@@ -312,6 +326,10 @@ end
 local function try_cast_hostile(me, target, spell_id, label)
     if not spell_id or not target or not target:is_valid() or target:is_dead() then return false end
     if not utils.is_valid_hostile(me, target) then return false end
+    if not totem_manager.can_cast_spell(label) then
+        totem_manager.try_workaround(me, label)
+        return false
+    end
     if is_pending(spell_id) then return false end
     if not utils.cast_target(spell_id, target, nil) then return false end
     mark_pending(spell_id)

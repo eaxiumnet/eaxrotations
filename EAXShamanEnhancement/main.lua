@@ -16,6 +16,8 @@ local ooc_manager = require("common/eax_shared/ooc_manager")
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
 local encounter_manager = require("common/eax_shared/encounter_manager")
+---@type totem_manager
+local totem_manager = require("common/eax_shared/totem_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -226,6 +228,10 @@ local function try_cast_target(me, target, spell_id, label)
     if not utils.is_valid_hostile(me, target) then
         return false
     end
+    if not totem_manager.can_cast_spell(label) then
+        totem_manager.try_workaround(me, label)
+        return false
+    end
     if is_pending_cast(spell_id) then
         return false
     end
@@ -242,6 +248,10 @@ end
 
 local function try_cast_self(me, spell_id, label)
     if not spell_id or not me or not me:is_valid() then return false end
+    if not totem_manager.can_cast_spell(label) then
+        totem_manager.try_workaround(me, label)
+        return false
+    end
     if is_pending_cast(spell_id) then return false end
     if not utils.can_cast_self(spell_id, me) then return false end
     if not utils.cast_self(spell_id, me) then return false end
