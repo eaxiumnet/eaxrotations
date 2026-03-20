@@ -88,7 +88,7 @@ Plans:
 WARR-01, WARR-02, WARR-03, HUNT-01, HUNT-02, HUNT-03, MAGE-01, MAGE-02, MAGE-03, MAGE-04, LOCK-01, LOCK-02, LOCK-03, PRST-01, PRST-02, PRST-03, DRUID-01, DRUID-02, DRUID-03, PAL-01, PAL-02, PAL-03, SHAM-01, SHAM-02, SHAM-03, ROGUE-01, ROGUE-02, ROGUE-03
 
 ### Plans
-9 plans
+11 plans
 
 ### Plans
 - [x] 03-per-class-rotation-deep-dives-01-PLAN.md — Warrior specs: Slam weave, execute phase, stance dance
@@ -100,6 +100,8 @@ WARR-01, WARR-02, WARR-03, HUNT-01, HUNT-02, HUNT-03, MAGE-01, MAGE-02, MAGE-03,
 - [x] 03-per-class-rotation-deep-dives-07-PLAN.md — Paladin specs: Ret CS/Divine Storm, Holy Shock/FoL priority, Prot Holy Wrath/Avengers Shield
 - [x] 03-per-class-rotation-deep-dives-08-PLAN.md — Shaman specs: Totem scanning, Enh Stormstrike/Lava Lash, Ele Chain Lightning/Lava Burst
 - [x] 03-per-class-rotation-deep-dives-09-PLAN.md — Rogue specs: Subtlety Backstab/Hemo, SnD refresh timing, Combat Blade Flurry
+- [ ] 03-per-class-rotation-deep-dives-10-PLAN.md — Gap closure: Fury execute fast-1H + swing timer wiring (WARR-02)
+- [ ] 03-per-class-rotation-deep-dives-11-PLAN.md — Gap closure: Destruction Conflagrate proc gating cleanup (LOCK-02)
 
 ### Key Files
 - All 27 `main.lua` (rotation priority tuning)
