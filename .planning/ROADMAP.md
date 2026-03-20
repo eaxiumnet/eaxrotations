@@ -44,7 +44,11 @@ Plans:
   1. Every canonical combat spec executes through the shared reactive engine without breaking existing cast lanes.
   2. Each spec exposes the required adapter contract so shared reactive actions resolve correctly for that spec.
   3. Coverage checks produce an explicit 27-spec pass/fail parity report with no missing wiring.
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 06-27-spec-reactive-wiring-01-PLAN.md - Extend the shared runtime into a real adapter executor with noop telemetry and representative role proofs.
+- [ ] 06-27-spec-reactive-wiring-02-PLAN.md - Roll the adapter contract across all 27 specs and enforce blocking reactive parity validation.
 
 ### Phase 7: Role Intelligence Tuning
 **Goal**: Users observe role-correct reactive behavior quality for DPS, healers, and tanks under encounter pressure.
