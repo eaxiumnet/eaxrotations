@@ -82,10 +82,61 @@ end
 local function base_context()
     return {
         meta = { fail_safe = false, now_s = 42 },
-        self = { hp_pct = 0.25, incoming_heal_pct = 0, threat_pct = 0.2, is_tank = false },
-        target = { exists = true, is_casting = true, is_channeling = false, interruptible = true },
-        party = { any_ally_critical = false },
+        self = {
+            hp_pct = 0.25,
+            incoming_heal_pct = 0,
+            incoming_damage_pct_2s = 0,
+            threat_pct = 0.2,
+            role = "damager",
+            is_tank = false,
+        },
+        target = {
+            exists = true,
+            is_casting = true,
+            is_channeling = false,
+            interruptible = true,
+            cast_progress_pct = 0,
+            victim_role = "damager",
+            victim_is_self = false,
+        },
+        party = {
+            any_ally_critical = false,
+            group_collapse_risk = 0,
+            members = {},
+            tank = nil,
+            urgent_ally = nil,
+        },
+        encounter = {
+            interrupt_priority = false,
+            tank_damage_heavy = false,
+        },
     }
+end
+
+local function merge_context(base, overrides)
+    local merged = {}
+    for section, values in pairs(base) do
+        if type(values) == "table" then
+            merged[section] = {}
+            for key, value in pairs(values) do
+                merged[section][key] = value
+            end
+        else
+            merged[section] = values
+        end
+    end
+
+    for section, values in pairs(overrides or {}) do
+        if type(values) == "table" and type(merged[section]) == "table" then
+            for key, value in pairs(values) do
+                merged[section][key] = value
+            end
+        else
+            merged[section] = values
+        end
+    end
+
+    return merged
 end
 
 local function assert_snapshot(action_id, reason_code, reactive_status)
@@ -97,6 +148,8 @@ end
 
 local current_target = make_unit("current-target")
 local urgent_target = make_unit("urgent-target")
+local tank_target = make_unit("tank-target")
+local ally_target = make_unit("ally-target")
 
 local common_stubs = {
     ["eax_shared/combat_context"] = {
@@ -111,7 +164,8 @@ local common_stubs = {
     },
     ["eax_shared/reactive_engine"] = {
         try_handle = function(ctx, deps)
-            assert(ctx.self.hp_pct == 0.25, "runtime should pass built context")
+            assert(type(ctx.self) == "table", "runtime should pass built context")
+            assert(type(ctx.self.hp_pct) == "number", "runtime should preserve self hp_pct")
             assert(type(deps.state) == "table", "runtime should forward state")
             return {
                 acted = true,
@@ -167,6 +221,147 @@ run_with_core({
     assert(handled_calls == 1, "real handler should execute exactly once")
     assert_snapshot("interrupt_control", "INTERRUPT_DANGER", "handled")
 end)
+
+local function load_runtime_with_real_policy(ctx)
+    package.loaded["eax_shared/reactive_engine"] = nil
+    package.loaded["eax_shared/role_policy"] = nil
+    return load_runtime({
+        ["eax_shared/combat_context"] = {
+            build = function(me, target, spec_meta, deps)
+                assert(me == "me", "me should be forwarded")
+                assert(target == current_target, "target should be forwarded")
+                assert(spec_meta == nil, "spec_meta should stay nil")
+                assert(type(deps.health_prediction) == "table", "health_prediction should be loaded")
+                return ctx
+            end,
+        },
+        ["health_prediction"] = {
+            get_incoming_damage = function() return 0 end,
+            get_role_id = function() return 2 end,
+            is_tank = function() return false end,
+        },
+    })
+end
+
+local function run_policy_case(case)
+    run_with_core({
+        input = {
+            set_target = function(unit)
+                assert(unit == case.expected_target or unit == current_target, "set_target should use the case target")
+                return true
+            end,
+        },
+    }, function()
+        local handled_calls = 0
+        local reactive_runtime = load_runtime_with_real_policy(case.ctx)
+        dps_meter.reset()
+
+        local _, result = reactive_runtime.update_tick("me", current_target, {
+            state = {},
+            adapter = make_adapter({
+                actions = {
+                    [case.expected_action] = {
+                        handler = function(action_ctx, action_deps)
+                            handled_calls = handled_calls + 1
+                            assert(action_ctx == case.ctx, "handler should receive the policy-built context")
+                            assert(action_deps.action_id == case.expected_action, "handler should receive the winning action")
+                            return true
+                        end,
+                    },
+                },
+                resolve_target = function(action_id, action_ctx)
+                    assert(action_id == case.expected_action, "resolve_target should receive the winning action")
+                    assert(action_ctx == case.ctx, "resolve_target should receive the built context")
+                    return case.expected_target
+                end,
+            }),
+        })
+
+        assert(
+            result.action_id == case.expected_action,
+            case.name .. " should select the expected action (got " .. tostring(result.action_id) .. ")"
+        )
+        assert(
+            result.reactive_status == "handled",
+            case.name .. " should execute the adapter handler (got " .. tostring(result.reactive_status) .. ")"
+        )
+        assert(handled_calls == 1, case.name .. " should execute exactly one handler")
+        assert_snapshot(case.expected_action, case.expected_reason, "handled")
+    end)
+end
+
+run_policy_case({
+    name = "healer tank-first life_save_ally",
+    expected_action = "life_save_ally",
+    expected_reason = "LIFE_SAVE_ALLY",
+    expected_target = tank_target,
+    ctx = merge_context(base_context(), {
+        self = { role = "healer", hp_pct = 0.88 },
+        target = { exists = false, is_casting = false, interruptible = false },
+        party = {
+            tank = { guid = "tank-target", unit = tank_target, hp_pct = 0.31, incoming_heal_pct = 0.05, role = "tank", is_tank = true },
+            urgent_ally = { guid = "ally-target", unit = ally_target, hp_pct = 0.24, incoming_heal_pct = 0.00, role = "damager", is_tank = false },
+            members = {},
+            group_collapse_risk = 0.55,
+        },
+    }),
+})
+
+run_policy_case({
+    name = "tank anti_aggro recovery",
+    expected_action = "anti_aggro",
+    expected_reason = "ANTI_AGGRO",
+    expected_target = urgent_target,
+    ctx = merge_context(base_context(), {
+        self = { role = "tank", is_tank = true, hp_pct = 0.68, incoming_damage_pct_2s = 0.12 },
+        target = { victim_role = "healer", victim_is_self = false, is_casting = false, interruptible = false },
+        party = { group_collapse_risk = 0.58 },
+    }),
+})
+
+run_policy_case({
+    name = "dps threat-drop gating",
+    expected_action = "anti_aggro",
+    expected_reason = "ANTI_AGGRO",
+    expected_target = current_target,
+    ctx = merge_context(base_context(), {
+        self = { role = "damager", hp_pct = 0.74, threat_pct = 0.96, incoming_damage_pct_2s = 0.22 },
+        target = { is_casting = false, interruptible = false },
+        party = { group_collapse_risk = 0.32 },
+    }),
+})
+
+run_policy_case({
+    name = "dps self-save gating",
+    expected_action = "life_save_self",
+    expected_reason = "LIFE_SAVE_SELF",
+    expected_target = current_target,
+    ctx = merge_context(base_context(), {
+        self = { role = "damager", hp_pct = 0.18, threat_pct = 0.96, incoming_damage_pct_2s = 0.44 },
+        target = { is_casting = false, interruptible = false },
+        party = { group_collapse_risk = 0.18 },
+    }),
+})
+
+run_policy_case({
+    name = "urgency-aware interrupt_control",
+    expected_action = "interrupt_control",
+    expected_reason = "INTERRUPT_DANGER",
+    expected_target = urgent_target,
+    ctx = merge_context(base_context(), {
+        self = { role = "damager", hp_pct = 0.82 },
+        target = {
+            exists = true,
+            is_casting = true,
+            interruptible = true,
+            cast_progress_pct = 0.72,
+            victim_role = "tank",
+            victim_is_self = false,
+        },
+        encounter = { interrupt_priority = true },
+        party = { group_collapse_risk = 0.40 },
+    }),
+})
 
 run_with_core({
     input = {
