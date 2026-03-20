@@ -60,10 +60,67 @@ local runtime = {
     ooc_blessing_of_might_id = nil,
     ooc_blessing_of_wisdom_id = nil,
     hand_of_freedom_id = nil,
+    hammer_of_the_righteous_id = nil,
+    templars_verdict_id = nil,
+    inquisition_id = nil,
+    judgement_id = nil,
+    holy_power = 0,
 }
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
 local MODE_REFRESH_INTERVAL = 3.0
+local RET_AOE_RADIUS = 8
+
+local RET_EXTRA_SPELLS = {
+    HAMMER_OF_THE_RIGHTEOUS = { 53595 },
+    TEMPLARS_VERDICT = { 85256 },
+    INQUISITION = { 84963 },
+    JUDGEMENT = { 20271 },
+}
+
+local function clamp_holy_power(value)
+    if value < 0 then
+        return 0
+    end
+    if value > 3 then
+        return 3
+    end
+    return value
+end
+
+local function spend_holy_power(amount)
+    runtime.holy_power = clamp_holy_power(runtime.holy_power - (amount or 0))
+end
+
+local function gain_holy_power(amount)
+    runtime.holy_power = clamp_holy_power(runtime.holy_power + (amount or 0))
+end
+
+local function count_nearby_enemies(me)
+    local ok_count, count = pcall(function()
+        return utils.count_enemies_within_radius(me, RET_AOE_RADIUS)
+    end)
+    if ok_count and type(count) == "number" then
+        return count
+    end
+    local ok_enemy_count, alt_count = pcall(function()
+        return utils.enemy_count_in_radius(me, RET_AOE_RADIUS)
+    end)
+    if ok_enemy_count and type(alt_count) == "number" then
+        return alt_count
+    end
+    return 1
+end
+
+local function should_refresh_inquisition(me)
+    if not runtime.inquisition_id then
+        return false
+    end
+    if utils.has_buff(me, { 84963 }) then
+        return false
+    end
+    return runtime.holy_power >= 1
+end
 
 local function resolve_spells()
     runtime.hammer_of_wrath_id = utils.resolve_spell_id(spells.HAMMER_OF_WRATH)
@@ -71,6 +128,10 @@ local function resolve_spells()
     runtime.lay_on_hands_id    = utils.resolve_spell_id(spells.LAY_ON_HANDS)
     runtime.crusader_strike_id = utils.resolve_spell_id(spells.CRUSADER_STRIKE)
     runtime.divine_storm_id      = utils.resolve_spell_id(spells.DIVINE_STORM)
+    runtime.hammer_of_the_righteous_id = utils.resolve_spell_id(spells.HAMMER_OF_THE_RIGHTEOUS or RET_EXTRA_SPELLS.HAMMER_OF_THE_RIGHTEOUS)
+    runtime.templars_verdict_id = utils.resolve_spell_id(spells.TEMPLARS_VERDICT or RET_EXTRA_SPELLS.TEMPLARS_VERDICT)
+    runtime.inquisition_id = utils.resolve_spell_id(spells.INQUISITION or RET_EXTRA_SPELLS.INQUISITION)
+    runtime.judgement_id = utils.resolve_spell_id(spells.JUDGEMENT or RET_EXTRA_SPELLS.JUDGEMENT)
     runtime.avenging_wrath_id    = utils.resolve_spell_id(spells.AVENGING_WRATH)
     runtime.seal_command_id = utils.resolve_spell_id(spells.SEAL_OF_COMMAND)
     runtime.seal_righteousness_id = utils.resolve_spell_id(spells.SEAL_OF_RIGHTEOUSNESS)
@@ -363,15 +424,12 @@ local function maybe_cast_judgement(me, target)
     end
 
     local mode_key = selected_judgement_key()
-    local debuff = mode_key == "crusader" and spells.DEBUFF_JUDGEMENT_OF_THE_CRUSADER or spells.DEBUFF_JUDGEMENT_OF_WISDOM
-    if utils.has_debuff(target, debuff) then
-        return false
-    end
-    local spell_id = runtime.judgement_ids[mode_key]
+    local spell_id = runtime.judgement_id or runtime.judgement_ids[mode_key]
     if not spell_id then
         return false
     end
     if utils.cast_target(spell_id, target) then
+        gain_holy_power(1)
         note_cast()
         utils.log_debug(menu, "Judgement -> " .. (mode_key == "crusader" and "Crusader" or "Wisdom"))
                 esp_renderer.on_cast(runtime.spell_id, "Judgement", color.yellow(220))
@@ -394,9 +452,79 @@ local function maybe_cast_crusader_strike(me, target)
         return false
     end
     if utils.cast_target(runtime.crusader_strike_id, target) then
+        gain_holy_power(1)
         note_cast()
         utils.log_debug(menu, "Crusader Strike")
                 esp_renderer.on_cast(runtime.crusader_strike_id, "Crusader Strike", color.gold(220))
+        return true
+    end
+    return false
+end
+
+local function maybe_cast_hammer_of_the_righteous(me, target, enemy_count)
+    if enemy_count < 3 then
+        return false
+    end
+    if not runtime.hammer_of_the_righteous_id then
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() or not utils.is_melee_target(me, target) then
+        return false
+    end
+    if not is_gcd_ready() then
+        return false
+    end
+    if not utils.can_cast_hostile(runtime.hammer_of_the_righteous_id, me, target) then
+        return false
+    end
+    if utils.cast_target(runtime.hammer_of_the_righteous_id, target) then
+        gain_holy_power(1)
+        note_cast()
+        utils.log_debug(menu, "Hammer of the Righteous")
+        return true
+    end
+    return false
+end
+
+local function maybe_cast_inquisition(me)
+    if not should_refresh_inquisition(me) then
+        return false
+    end
+    if not is_gcd_ready() then
+        return false
+    end
+    if not utils.can_cast_self(runtime.inquisition_id, me) then
+        return false
+    end
+    if utils.cast_self(runtime.inquisition_id, me) then
+        spend_holy_power(1)
+        note_cast()
+        utils.log_debug(menu, "Inquisition")
+        return true
+    end
+    return false
+end
+
+local function maybe_cast_templars_verdict(me, target)
+    if runtime.holy_power < 3 then
+        return false
+    end
+    if not runtime.templars_verdict_id then
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() or not utils.is_melee_target(me, target) then
+        return false
+    end
+    if not is_gcd_ready() then
+        return false
+    end
+    if not utils.can_cast_hostile(runtime.templars_verdict_id, me, target) then
+        return false
+    end
+    if utils.cast_target(runtime.templars_verdict_id, target) then
+        spend_holy_power(3)
+        note_cast()
+        utils.log_debug(menu, "Templar's Verdict")
         return true
     end
     return false
@@ -428,6 +556,11 @@ local function try_divine_storm(me, target)
     if not runtime.divine_storm_id then return false end
     if not utils.can_cast_hostile(runtime.divine_storm_id, me, target) then return false end
     if utils.cast_target(runtime.divine_storm_id, target, "Divine Storm") then
+        if runtime.holy_power >= 3 then
+            spend_holy_power(3)
+        else
+            gain_holy_power(1)
+        end
         utils.log_debug(menu, "Divine Storm")
                 esp_renderer.on_cast(runtime.divine_storm_id, "Divine Storm", color.gold(220))
         return true
@@ -477,6 +610,7 @@ core.register_on_update_callback(function()
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and not me:can_attack(focus_target) then focus_target = nil end
     local target = focus_target or utils.find_best_target(me)
+    local enemy_count = count_nearby_enemies(me)
     
     -- Self-emergency
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
@@ -523,14 +657,19 @@ core.register_on_update_callback(function()
     -- Offensive CDs
     try_avenging_wrath(me)
     if try_divine_favor(me) then return end
-    if try_divine_storm(me, target) then return end
+    if enemy_count >= 3 and runtime.holy_power >= 3 and try_divine_storm(me, target) then return end
+    if maybe_cast_templars_verdict(me, target) then return end
+    if maybe_cast_inquisition(me) then return end
     if try_exorcism(me, target) then return end
+
+    if maybe_cast_hammer_of_the_righteous(me, target, enemy_count) then return end
 
     if maybe_cast_judgement(me, target) then
         return
     end
 
     if maybe_cast_crusader_strike(me, target) then return end
+    if enemy_count >= 3 and try_divine_storm(me, target) then return end
     if try_consecration(me, target) then return end
 
     if begin_seal_twist(me, target) then
