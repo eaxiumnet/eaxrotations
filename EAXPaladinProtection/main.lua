@@ -59,15 +59,54 @@ local runtime = {
     ooc_blessing_of_might_id = nil,
     ooc_blessing_of_sanctuary_id = nil,
     hand_of_freedom_id = nil,
+    holy_wrath_id = nil,
+    shield_of_the_righteous_id = nil,
+    hammer_of_the_righteous_id = nil,
+    crusader_strike_id = nil,
+    lay_on_hands_id = nil,
+    holy_power = 0,
 }
+
+local PROT_EXTRA_SPELLS = {
+    SHIELD_OF_THE_RIGHTEOUS = { 53600 },
+}
+
+local GRAND_CRUSADER_BUFFS = { 85416, 90174 }
+
+local function clamp_holy_power(value)
+    if value < 0 then
+        return 0
+    end
+    if value > 3 then
+        return 3
+    end
+    return value
+end
+
+local function gain_holy_power(amount)
+    runtime.holy_power = clamp_holy_power(runtime.holy_power + (amount or 0))
+end
+
+local function spend_holy_power(amount)
+    runtime.holy_power = clamp_holy_power(runtime.holy_power - (amount or 0))
+end
+
+local function has_grand_crusader_proc(me)
+    return utils.has_buff(me, GRAND_CRUSADER_BUFFS)
+end
 
 local function resolve_spells()
     runtime.righteous_fury_id = utils.resolve_spell_id(spells.RIGHTEOUS_FURY)
     runtime.holy_shield_id = utils.resolve_spell_id(spells.HOLY_SHIELD)
+    runtime.holy_wrath_id = utils.resolve_spell_id(spells.HOLY_WRATH)
     runtime.consecration_id = utils.resolve_spell_id(spells.CONSECRATION)
     runtime.avengers_shield_id = utils.resolve_spell_id(spells.AVENGERS_SHIELD)
+    runtime.shield_of_the_righteous_id = utils.resolve_spell_id(spells.SHIELD_OF_THE_RIGHTEOUS or PROT_EXTRA_SPELLS.SHIELD_OF_THE_RIGHTEOUS)
+    runtime.hammer_of_the_righteous_id = utils.resolve_spell_id(spells.HAMMER_OF_THE_RIGHTEOUS)
+    runtime.crusader_strike_id = utils.resolve_spell_id(spells.CRUSADER_STRIKE)
     runtime.judgement_id = utils.resolve_spell_id(spells.JUDGEMENT)
     runtime.hammer_of_justice_id = utils.resolve_spell_id(spells.HAMMER_OF_JUSTICE)
+    runtime.lay_on_hands_id = utils.resolve_spell_id(spells.LAY_ON_HANDS)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
     runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
 end
@@ -211,16 +250,19 @@ local function try_avengers_shield(me, target, mode)
         return false
     end
 
-    if mode == MODE_RAID then
+    if runtime.holy_power < 3 and not has_grand_crusader_proc(me) then
         return false
     end
 
-    if not target or utils.is_melee_target(me, target) then
+    if not target then
         return false
     end
 
     if utils.can_cast_hostile(runtime.avengers_shield_id, me, target) then
         if utils.cast_target(runtime.avengers_shield_id, target) then
+            if runtime.holy_power >= 3 then
+                spend_holy_power(3)
+            end
             utils.log_debug(menu, "Cast Avenger's Shield")
             notify_cast("paladin:avengers_shield", "Avenger's Shield", color.green(220))
                     esp_renderer.on_cast(nil, "Avenger's Shield", color.gold(220))
@@ -241,11 +283,107 @@ local function try_judgement(me, target)
     end
 
     if utils.cast_target(runtime.judgement_id, target) then
+        gain_holy_power(1)
         utils.log_debug(menu, "Cast Judgement")
         notify_cast("paladin:judgement", "Judgement", color.gold(220))
         return true
     end
 
+    return false
+end
+
+local function try_holy_wrath(me)
+    if not runtime.holy_wrath_id then
+        return false
+    end
+    if enc and not enc.aoe_safe then
+        return false
+    end
+    if utils.get_mana_pct(me) < 0.20 then
+        return false
+    end
+    if not utils.can_cast_self(runtime.holy_wrath_id, me) then
+        return false
+    end
+    if utils.cast_self(runtime.holy_wrath_id, me) then
+        utils.log_debug(menu, "Holy Wrath")
+        return true
+    end
+    return false
+end
+
+local function try_hammer_of_the_righteous(me, target, enemy_count)
+    if enemy_count < 3 then
+        return false
+    end
+    if not runtime.hammer_of_the_righteous_id then
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+    if not utils.can_cast_hostile(runtime.hammer_of_the_righteous_id, me, target) then
+        return false
+    end
+    if utils.cast_target(runtime.hammer_of_the_righteous_id, target) then
+        gain_holy_power(1)
+        return true
+    end
+    return false
+end
+
+local function try_crusader_strike(me, target)
+    if not runtime.crusader_strike_id then
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() or not utils.is_melee_target(me, target) then
+        return false
+    end
+    if not utils.can_cast_hostile(runtime.crusader_strike_id, me, target) then
+        return false
+    end
+    if utils.cast_target(runtime.crusader_strike_id, target) then
+        gain_holy_power(1)
+        return true
+    end
+    return false
+end
+
+local function try_shield_of_the_righteous(me, target)
+    if runtime.holy_power < 3 then
+        return false
+    end
+    if not runtime.shield_of_the_righteous_id then
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+    if not utils.can_cast_hostile(runtime.shield_of_the_righteous_id, me, target) then
+        return false
+    end
+    if utils.cast_target(runtime.shield_of_the_righteous_id, target) then
+        spend_holy_power(3)
+        return true
+    end
+    return false
+end
+
+local function try_lay_on_hands_emergency(me)
+    if not menu.use_lay_on_hands:get_state() or not runtime.lay_on_hands_id then
+        return false
+    end
+    local hp_threshold = menu.use_lay_on_hands_hp_pct:get() / 100
+    if (me:get_health_percentage() / 100) > hp_threshold then
+        return false
+    end
+    if not utils.can_cast_self(runtime.lay_on_hands_id, me) then
+        return false
+    end
+    if utils.cast_self(runtime.lay_on_hands_id, me) then
+        utils.log_debug(menu, "Lay on Hands")
+        return true
+    end
     return false
 end
 
@@ -344,6 +482,7 @@ local function on_update()
 
     -- Defensive abilities
     if try_divine_shield_emergency(me) then return true end
+    if try_lay_on_hands_emergency(me) then return true end
     if defensive_manager.try_defensive(me, "paladin", utils) then
         return
     end
@@ -369,7 +508,22 @@ local function on_update()
         return
     end
 
+    if try_holy_wrath(me) then
+        return
+    end
+
+    if try_shield_of_the_righteous(me, target) then
+        return
+    end
+
     local enemy_count = utils.count_enemies_within_radius(me, menu.consecration_radius:get())
+    if try_hammer_of_the_righteous(me, target, enemy_count) then
+        return
+    end
+    if try_crusader_strike(me, target) then
+        return
+    end
+
     if try_consecration(me, enemy_count) then
         return
     end
