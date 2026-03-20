@@ -147,6 +147,8 @@ esp_renderer.set_context(spells, utils, runtime)
 -- Energy pooling: at CP=4, wait for this much energy before the final Shred
 -- so you can chain Shred → finisher without an energy gap.
 local ENERGY_POOL_FOR_SHRED = 75
+-- Ferocious Bite costs 35 energy per combo point (max 175 at 5 CP).
+local ENERGY_POOL_FOR_BITE = 175
 
 local function resolve_spells()
     runtime.cat_form_id = utils.resolve_spell_id(spells.CAT_FORM)
@@ -553,6 +555,17 @@ local function try_ferocious_bite(me, target, target_hp_pct)
         end
     end
 
+    -- Energy pooling: only cast bite if we have enough energy for the full cost.
+    -- Bite costs 35 energy per combo point.
+    local bite_cost = runtime.combo_points * 35
+    local energy = utils.get_energy(me)
+    if energy < bite_cost then
+        -- Not enough energy yet; pool energy by waiting.
+        return false
+    end
+    -- Also avoid capping energy while waiting for bite: if energy is high enough
+    -- but we're still pooling for other finishers? Not needed.
+
     if is_pending_cast(runtime.ferocious_bite_id) then return false end
     if not utils.can_cast_hostile(runtime.ferocious_bite_id, me, target) then return false end
 
@@ -763,7 +776,8 @@ local function try_shred_or_filler(me, target)
         -- Not behind: fall through to Mangle/Claw builders
     end
 
-    if runtime.mangle_cat_id and menu.use_mangle_cat:get_state()
+    -- Only use Mangle filler if we have less than 5 combo points
+    if cp < 5 and runtime.mangle_cat_id and menu.use_mangle_cat:get_state()
        and not is_pending_cast(runtime.mangle_cat_id)
        and not mangle_debuff_confirmed_by_other(target, spells.DEBUFF_MANGLE, me)
        and not mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me)
@@ -776,8 +790,8 @@ local function try_shred_or_filler(me, target)
         end
     end
 
-    -- Claw: last resort builder when Shred blocked and Mangle on CD
-    if try_claw(me, target) then return true end
+    -- Claw: last resort builder when Shred blocked and Mangle on CD, only if CP < 5
+    if cp < 5 and try_claw(me, target) then return true end
 
     return false
 end
