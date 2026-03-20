@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-03-20T21:47:58.000Z"
+stopped_at: Completed 07-04-PLAN.md
+last_updated: "2026-03-20T21:58:22.212Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 11
 ---
 
 # Project State
@@ -57,6 +57,8 @@ Status: EXECUTING
 | Phase 06 P02 | 3 min | 2 tasks | 30 files |
 | Phase 07 P01 | 5 min | 2 tasks | 6 files |
 | Phase 07 P03 | 6 min | 2 tasks | 5 files |
+| Phase 07 P02 | 11 min | 2 tasks | 7 files |
+| Phase 07 P04 | 16 min | 2 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -90,6 +92,11 @@ Recent decisions affecting current work:
 - [Phase 07]: Keep tank recovery scoring shared
 - [Phase 07]: Tank anti_aggro now chooses peel or personals from a shared pressure snapshot
 - [Phase 07]: Tank interrupt retargeting reuses shared recovery target selection
+- [Phase 07]: Healer specs now consume one shared triage helper, with each adapter building local member snapshots instead of adding new runtime plumbing.
+- [Phase 07]: Group stabilization now outranks single-target tank saves when three or more allies are collapsing, so healer cooldowns can prevent wipes instead of tunneling one unit.
+- [Phase 07]: Use one shared dps_risk module for hold, drop, and abort thresholds so all DPS specs react consistently.
+- [Phase 07]: Build live DPS snapshots from combat_context via dps_runtime instead of duplicating threat and danger reads in each spec.
+- [Phase 07]: Keep interrupts aggressive by only gating burst, threat drops, and risky cast commits, not interrupt winners.
 
 ### Pending Todos
 
@@ -102,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:50:00.950Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-03-20T21:58:22.208Z
+Stopped at: Completed 07-04-PLAN.md
 Resume file: None
