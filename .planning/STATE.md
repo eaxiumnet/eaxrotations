@@ -2,13 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
+current_plan: 4
 status: unknown
-last_updated: "2026-03-20T04:43:21.340Z"
+last_updated: "2026-03-20T04:56:58.191Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 15
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # State
@@ -29,6 +30,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Requirements defined
 - [x] Roadmap created
 - [x] Phase 03 planned (9 plans)
+- **Current Plan:** 4
+- **Total Plans in Phase:** 9
 
 ## Roadmap
 
@@ -49,6 +52,9 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - **Sunwell bosses already in BOSS_DB** — brutallus, felmyst, eredar twins, m'uru, kil'jaeden present from previous work
 - [Phase 03]: Used swing_timer.is_swing_safe() instead of utils.can_slam_without_clipping() for more accurate Slam weaving that accounts for actual weapon swing timing
 - [Phase 03]: Implemented Heroic Strike as fast one-hander alternative in Fury execute phase when appropriate, leveraging existing queue lane mechanics
+- [Phase 03]: Added Molten Fury execute detection using encounter_manager burn_until_pct for boss-specific timing
+- [Phase 03]: Implemented FSCT timing using swing_timer.can_cast_before_swing to prevent auto clipping
+- [Phase 03]: Integrated mana_manager for mana potion usage across all three specs
 
 ## Recent Commits
 
@@ -73,3 +79,4 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 
 ---
 *Last updated: 2026-03-20 — Phase 2 complete: 3/3 plans done**
+| Phase 03 P03 | 10 | 3 tasks | 2 files |

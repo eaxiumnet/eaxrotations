@@ -44,10 +44,10 @@
 - [ ] **HUNT-03**: Implement melee weaving for BM Hunter — Arcane/FM shot between autos
 
 #### Mage
-- [ ] **MAGE-01**: Implement Arcane Mage 3-stack burn phase — AB spam, all CDs, Evocation timing
-- [ ] **MAGE-02**: Add Fire Mage Scorch stack management — 5 Improved Scorch before Fireball
-- [ ] **MAGE-03**: Add Fire Mage Molten Fury execute awareness — plan cooldowns for 20% HP
-- [ ] **MAGE-04**: Add Frost Mage FSCT timing — cast time < swing time awareness
+- [x] **MAGE-01**: Implement Arcane Mage 3-stack burn phase — AB spam, all CDs, Evocation timing
+- [x] **MAGE-02**: Add Fire Mage Scorch stack management — 5 Improved Scorch before Fireball
+- [x] **MAGE-03**: Add Fire Mage Molten Fury execute awareness — plan cooldowns for 20% HP
+- [x] **MAGE-04**: Add Frost Mage FSCT timing — cast time < swing time awareness
 
 #### Warlock
 - [ ] **LOCK-01**: Implement Affliction DoT clip prevention — Corruption, Immolate, Siphon Life, UA
@@ -147,10 +147,10 @@ Phase mapping populated during roadmap creation.
 | HUNT-01 | Phase 3 | Pending |
 | HUNT-02 | Phase 3 | Pending |
 | HUNT-03 | Phase 3 | Pending |
-| MAGE-01 | Phase 3 | Pending |
-| MAGE-02 | Phase 3 | Pending |
-| MAGE-03 | Phase 3 | Pending |
-| MAGE-04 | Phase 3 | Pending |
+| MAGE-01 | Phase 3 | Complete |
+| MAGE-02 | Phase 3 | Complete |
+| MAGE-03 | Phase 3 | Complete |
+| MAGE-04 | Phase 3 | Complete |
 | LOCK-01 | Phase 3 | Pending |
 | LOCK-02 | Phase 3 | Pending |
 | LOCK-03 | Phase 3 | Pending |
