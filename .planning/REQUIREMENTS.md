@@ -65,9 +65,9 @@
 - [x] **DRUID-03**: Implement Feral Druid CP / energy management with bite timing
 
 #### Paladin
-- [ ] **PAL-01**: Add Ret Paladin Crusader Strike on cooldown, Divine Storm on AOE
-- [ ] **PAL-02**: Add Holy Paladin Holy Shock / Flash of Light priority
-- [ ] **PAL-03**: Add Prot Paladin Holy Wrath / Avengers Shield priority
+- [x] **PAL-01**: Add Ret Paladin Crusader Strike on cooldown, Divine Storm on AOE
+- [x] **PAL-02**: Add Holy Paladin Holy Shock / Flash of Light priority
+- [x] **PAL-03**: Add Prot Paladin Holy Wrath / Avengers Shield priority
 
 #### Shaman
 - [x] **SHAM-01**: Implement totem item scanning — check bag for totem items before casting
@@ -160,9 +160,9 @@ Phase mapping populated during roadmap creation.
 | DRUID-01 | Phase 3 | Complete |
 | DRUID-02 | Phase 3 | Complete |
 | DRUID-03 | Phase 3 | Complete |
-| PAL-01 | Phase 3 | Pending |
-| PAL-02 | Phase 3 | Pending |
-| PAL-03 | Phase 3 | Pending |
+| PAL-01 | Phase 3 | Complete |
+| PAL-02 | Phase 3 | Complete |
+| PAL-03 | Phase 3 | Complete |
 | SHAM-01 | Phase 3 | Complete |
 | SHAM-02 | Phase 3 | Complete |
 | SHAM-03 | Phase 3 | Complete |
