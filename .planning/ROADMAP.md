@@ -12,7 +12,7 @@ Milestone v1.0 (Phases 1-4) is complete. This roadmap defines milestone v1.1 Com
 ## Phases
 
 - [x] **Phase 5: Reactive Contract + API Gate** - Establish deterministic context, reasoned decisions, and fail-closed `@.api` enforcement.
-- [ ] **Phase 6: 27-Spec Reactive Wiring** - Integrate the shared reactive engine into every canonical combat spec.
+- [x] **Phase 6: 27-Spec Reactive Wiring** - Integrate the shared reactive engine into every canonical combat spec.
 - [ ] **Phase 7: Role Intelligence Tuning** - Deliver DPS, healer, and tank behavior quality with urgency-aware control logic.
 - [ ] **Phase 8: Benchmark Matrix Hardening** - Enforce 27-spec KPI/variance matrix gates for milestone sign-off.
 
@@ -48,7 +48,7 @@ Plans:
 
 Plans:
 - [x] 06-27-spec-reactive-wiring-01-PLAN.md - Extend the shared runtime into a real adapter executor with noop telemetry and representative role proofs.
-- [ ] 06-27-spec-reactive-wiring-02-PLAN.md - Roll the adapter contract across all 27 specs and enforce blocking reactive parity validation.
+- [x] 06-27-spec-reactive-wiring-02-PLAN.md - Roll the adapter contract across all 27 specs and enforce blocking reactive parity validation.
 
 ### Phase 7: Role Intelligence Tuning
 **Goal**: Users observe role-correct reactive behavior quality for DPS, healers, and tanks under encounter pressure.
@@ -76,7 +76,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 5. Reactive Contract + API Gate | 5/5 | Complete | 2026-03-20 |
-| 6. 27-Spec Reactive Wiring | 1/2 | In Progress | - |
+| 6. 27-Spec Reactive Wiring | 2/2 | Complete | 2026-03-20 |
 | 7. Role Intelligence Tuning | 0/TBD | Not started | - |
 | 8. Benchmark Matrix Hardening | 0/TBD | Not started | - |
 

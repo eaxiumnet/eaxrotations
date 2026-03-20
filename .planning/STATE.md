@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-stopped_at: Completed 06-27-spec-reactive-wiring-01-PLAN.md
-last_updated: "2026-03-20T18:38:02.248Z"
+status: active
+stopped_at: Completed 06-27-spec-reactive-wiring-02-PLAN.md
+last_updated: "2026-03-20T18:51:51.539Z"
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-03-20)
 
 **Core value:** Every spec executes the mathematically optimal rotation while maintaining survival and encounter-specific awareness.
-**Current focus:** Phase 06 — 27-spec-reactive-wiring
+**Current focus:** Phase 07 — role-intelligence-tuning
 
 ## Current Position
 
-Phase: 06 (27-spec-reactive-wiring) — EXECUTING
-Plan: 2 of 2
+Phase: 07 (role-intelligence-tuning) — READY
+Plan: 0 of TBD
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Plan: 2 of 2
 | Phase 05 P04 | 19 min | 2 tasks | 6 files |
 | Phase 05 P05 | 2 min | 2 tasks | 28 files |
 | Phase 06 P01 | 6 min | 2 tasks | 7 files |
+| Phase 06 P02 | 3 min | 2 tasks | 30 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 06]: Keep reactive winner selection in the shared runtime, but require per-spec adapters to declare explicit handlers or noop=unsupported for all six branches.
 - [Phase 06]: Expose reactive_status as handled/noop_unsupported/skipped_unsafe/none so unsupported or unsafe winners stay visible in telemetry and benchmarks.
 - [Phase 06]: Let the shared runtime own urgent retarget and snap-back behavior while representative specs only resolve targets and invoke existing cast lanes.
+- [Phase 06]: Every canonical spec now declares the same six-key reactive_adapter surface with explicit noop coverage for unsupported categories.
+- [Phase 06]: tools/rotation_validation.lua stays the single blocking gate and now prints deterministic per-spec reactive parity lines plus PASS: reactive parity 27/27.
 
 ### Pending Todos
 
@@ -90,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T18:38:02.246Z
-Stopped at: Completed 06-27-spec-reactive-wiring-01-PLAN.md
+Last session: 2026-03-20T18:51:51.536Z
+Stopped at: Completed 06-27-spec-reactive-wiring-02-PLAN.md
 Resume file: None
