@@ -57,6 +57,11 @@ local runtime = {
 }
 
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
+local SUB_FINISHER_COMBO_POINTS = 5
+
+local function is_behind_target(me, target)
+    return encounter_manager.is_target_behind(me, target)
+end
 
 local function resolve_spells()
     runtime.premeditation_id = utils.resolve_spell_id(spells.PREMEDITATION)
@@ -228,7 +233,7 @@ local function try_shadowstep(me, target)
     if current_mode() == "solo" then
         return false
     end
-    if utils.can_cast_hostile(runtime.backstab_id, me, target) then
+    if is_behind_target(me, target) then
         return false
     end
     if not utils.can_cast_hostile(runtime.shadowstep_id, me, target) then
@@ -248,10 +253,10 @@ local function try_preparation(me)
     if not menu.use_preparation:get_state() then
         return false
     end
-    if not runtime.preparation_id or current_mode() ~= "raid" then
+    if not runtime.preparation_id then
         return false
     end
-    if not me:is_in_combat() or runtime.combo_points < 4 then
+    if not me:is_in_combat() then
         return false
     end
     if not utils.can_cast_self(runtime.preparation_id, me) then
@@ -351,7 +356,10 @@ local function try_backstab(me, target)
     if not runtime.backstab_id or not utils.can_attack(me, target) then
         return false
     end
-    if runtime.combo_points >= 5 then
+    if runtime.combo_points >= SUB_FINISHER_COMBO_POINTS then
+        return false
+    end
+    if not is_behind_target(me, target) then
         return false
     end
     if not utils.can_cast_hostile(runtime.backstab_id, me, target) then
@@ -375,7 +383,10 @@ local function try_hemorrhage(me, target)
     if not runtime.hemorrhage_id or not utils.can_attack(me, target) then
         return false
     end
-    if runtime.combo_points >= 5 then
+    if runtime.combo_points >= SUB_FINISHER_COMBO_POINTS then
+        return false
+    end
+    if is_behind_target(me, target) then
         return false
     end
     if not utils.can_cast_hostile(runtime.hemorrhage_id, me, target) then
@@ -431,11 +442,8 @@ local function do_rotation(me, target)
     end
 
     -- Interrupt
-    -- Interrupt
-    if target and interrupt_manager
-    -- Encounter policy (boss-specific rotation adjustments)
     local enc = encounter_manager.get_policy(me)
-.should_interrupt(target) then
+    if target and interrupt_manager.should_interrupt(target) and not enc.hold_cooldowns then
         if interrupt_manager.try_interrupt(me, target, "rogue", utils) then
             return true
         end

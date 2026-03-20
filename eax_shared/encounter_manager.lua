@@ -261,6 +261,31 @@ local function count_nearby_enemies(me, range_yards)
     return count
 end
 
+function encounter_manager.enemy_count_in_range(me, range_yards)
+    if not me or not me:is_valid() then
+        return 0
+    end
+    return count_nearby_enemies(me, range_yards or 10)
+end
+
+function encounter_manager.is_target_behind(me, target)
+    if not me or not target or not target:is_valid() then
+        return false
+    end
+
+    local ok_behind, behind = pcall(function() return me:is_behind(target) end)
+    if ok_behind and behind ~= nil then
+        return behind
+    end
+
+    local ok_behind_unit, behind_unit = pcall(function() return me:is_behind_unit(target) end)
+    if ok_behind_unit and behind_unit ~= nil then
+        return behind_unit
+    end
+
+    return false
+end
+
 -- Movement phase encounters — bosses with movement mechanics
 local MOVEMENT_PHASE_BOSSES = {
     ["prince malchezaar"]         = { min_range = 20 },
