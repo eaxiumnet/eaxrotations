@@ -35,6 +35,10 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 local mana_conservator = require("mana_conservator")
 ---@type threat_manager
 local threat_manager = require("eax_shared/threat_manager")
+---@type swing_timer
+local swing_timer = require("eax_shared/swing_timer")
+---@type mana_manager
+local mana_manager = require("eax_shared/mana_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
@@ -272,6 +276,13 @@ local function try_frostbolt(me, target)
     if is_pending_cast(runtime.frostbolt_id) or utils.is_spell_already_queued(runtime.frostbolt_id) then return false end
     if not utils.can_cast_hostile(runtime.frostbolt_id, me, target) then return false end
 
+    -- FSCT timing: only cast if we can finish before next swing (cast time < swing time)
+    local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.frostbolt_id)
+    local cast_time_s = cast_time_ms / 1000
+    if not swing_timer.can_cast_before_swing(me, cast_time_s) then
+        return false
+    end
+
     if utils.cast_target(runtime.frostbolt_id, target, "Frostbolt") then
         mark_pending_cast(runtime.frostbolt_id, PENDING_CAST_TIMEOUT_S)
         note_cast()
@@ -389,6 +400,13 @@ local function do_rotation(me, target)
     if ok and should_fade then
         pcall(function() threat_manager.try_fade(me) end)
         return true
+    end
+
+    -- Mana potion check (before main damage spells)
+    if mana_manager.should_use_mana_potion(me, 30) then
+        if mana_manager.use_mana_potion() then
+            return true
+        end
     end
 
     if try_water_elemental(me, target) then return true end
