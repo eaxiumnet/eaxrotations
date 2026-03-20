@@ -496,7 +496,9 @@ local function try_cast_heal(me, target, hp_pct)
 
     if menu.use_holy_shock:get_state() and runtime.holy_shock_id then
         local threshold = menu.holy_shock_hp_pct:get() / 100
-        if hp_pct <= 0.99 and (hp_pct <= threshold or runtime.holy_power < 3)
+        local target_injured = hp_pct <= 0.99
+        local should_generate_holy_power = runtime.holy_power < 3
+        if target_injured and (hp_pct <= threshold or should_generate_holy_power)
             and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock")
         then
             gain_holy_power(1)
@@ -611,8 +613,9 @@ local function on_update()
     -- Focus Target Priority - heal focus target first
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target then
-        local focus_hp = focus_target:get_health_percentage()
-        if focus_hp < menu.flash_of_light_hp_pct:get() then
+        local focus_hp = (focus_target:get_health_percentage() or 100) / 100
+        local focus_flash_threshold = (menu.flash_of_light_hp_pct:get() or 0) / 100
+        if focus_hp <= focus_flash_threshold then
             if try_cast_heal(me, focus_target, focus_hp) then
                 return
             end
