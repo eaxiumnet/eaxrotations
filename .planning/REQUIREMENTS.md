@@ -70,9 +70,9 @@
 - [ ] **PAL-03**: Add Prot Paladin Holy Wrath / Avengers Shield priority
 
 #### Shaman
-- [ ] **SHAM-01**: Implement totem item scanning — check bag for totem items before casting
-- [ ] **SHAM-02**: Add Enhancement Stormstrike priority, Lava Lash timing
-- [ ] **SHAM-03**: Add Elemental chain lightning / lava burst burst phase
+- [x] **SHAM-01**: Implement totem item scanning — check bag for totem items before casting
+- [x] **SHAM-02**: Add Enhancement Stormstrike priority, Lava Lash timing
+- [x] **SHAM-03**: Add Elemental chain lightning / lava burst burst phase
 
 #### Rogue
 - [x] **ROGUE-01**: Implement Subtlety Rogue Backstab / Hemorrhage rotation
@@ -163,9 +163,9 @@ Phase mapping populated during roadmap creation.
 | PAL-01 | Phase 3 | Pending |
 | PAL-02 | Phase 3 | Pending |
 | PAL-03 | Phase 3 | Pending |
-| SHAM-01 | Phase 3 | Pending |
-| SHAM-02 | Phase 3 | Pending |
-| SHAM-03 | Phase 3 | Pending |
+| SHAM-01 | Phase 3 | Complete |
+| SHAM-02 | Phase 3 | Complete |
+| SHAM-03 | Phase 3 | Complete |
 | ROGUE-01 | Phase 3 | Complete |
 | ROGUE-02 | Phase 3 | Complete |
 | ROGUE-03 | Phase 3 | Complete |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 2
+current_plan: 3
 status: unknown
-stopped_at: Completed 03-09-PLAN.md
-last_updated: "2026-03-20T06:52:05.534Z"
+stopped_at: Completed 03-08-PLAN.md
+last_updated: "2026-03-20T06:58:44.896Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # State
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Requirements defined
 - [x] Roadmap created
 - [x] Phase 03 planned (9 plans)
-- **Current Plan:** 2
+- **Current Plan:** 3
 - **Total Plans in Phase:** 9
 
 ## Roadmap
@@ -68,6 +68,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [Phase 03]: Use encounter_manager helpers for behind-target and enemy-count checks in Rogue rotations.
 - [Phase 03]: Standardize Slice and Dice refresh policy to <=2s urgency with >10s clip guard across Rogue specs.
 - [Phase 03]: Gate Combat Killing Spree to active Blade Flurry windows for synchronized multi-target burst.
+- [Phase 03]: Applied shared totem cast gating across all shaman specs for consistent missing-item handling.
+- [Phase 03]: Used encounter_manager burn windows plus bloodlust checks to bias Elemental burst priorities.
 
 ## Recent Commits
 
@@ -97,9 +99,10 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 | Phase 03 P06 | 8 min | 3 tasks | 2 files |
 | Phase 03 P05 | 10 min | 3 tasks | 3 files |
 | Phase 03 P09 | 6 min | 3 tasks | 4 files |
+| Phase 03 P08 | 2 min | 3 tasks | 4 files |
 
 ## Session Continuity
 
-Last session: 2026-03-20T06:52:05.532Z
-Stopped at: Completed 03-09-PLAN.md
+Last session: 2026-03-20T06:58:44.894Z
+Stopped at: Completed 03-08-PLAN.md
 Resume file: None
