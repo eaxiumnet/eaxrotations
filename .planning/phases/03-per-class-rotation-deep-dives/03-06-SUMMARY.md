@@ -59,7 +59,7 @@ Each task was committed atomically:
 1. **Task 1 & 2: Balance Druid eclipse detection and DoT clip prevention** - `0101253` (feat)
 2. **Task 3: Feral Druid combo point and energy management** - `6d59665` (feat)
 
-**Plan metadata:** (pending final commit)
+**Plan metadata:** `75d3c39` (docs: complete plan)
 
 ## Files Created/Modified
 - `EAXDruidBalance/main.lua` - Added eclipse detection, energy tracking, and priority rotation
@@ -90,3 +90,5 @@ None - no external service configuration required.
 ---
 *Phase: 03-per-class-rotation-deep-dives*
 *Completed: 2026-03-20*
+
+## Self-Check: PASSED
