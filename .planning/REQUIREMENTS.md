@@ -60,9 +60,9 @@
 - [ ] **PRST-03**: Add Disc Priest PW:S shield management
 
 #### Druid
-- [ ] **DRUID-01**: Implement Balance DoT clip prevention — Insect Swarm, Moonfire
-- [ ] **DRUID-02**: Add Balance Druid eclipse detection and burst phase
-- [ ] **DRUID-03**: Implement Feral Druid CP / energy management with bite timing
+- [x] **DRUID-01**: Implement Balance DoT clip prevention — Insect Swarm, Moonfire
+- [x] **DRUID-02**: Add Balance Druid eclipse detection and burst phase
+- [x] **DRUID-03**: Implement Feral Druid CP / energy management with bite timing
 
 #### Paladin
 - [ ] **PAL-01**: Add Ret Paladin Crusader Strike on cooldown, Divine Storm on AOE
@@ -157,9 +157,9 @@ Phase mapping populated during roadmap creation.
 | PRST-01 | Phase 3 | Pending |
 | PRST-02 | Phase 3 | Pending |
 | PRST-03 | Phase 3 | Pending |
-| DRUID-01 | Phase 3 | Pending |
-| DRUID-02 | Phase 3 | Pending |
-| DRUID-03 | Phase 3 | Pending |
+| DRUID-01 | Phase 3 | Complete |
+| DRUID-02 | Phase 3 | Complete |
+| DRUID-03 | Phase 3 | Complete |
 | PAL-01 | Phase 3 | Pending |
 | PAL-02 | Phase 3 | Pending |
 | PAL-03 | Phase 3 | Pending |

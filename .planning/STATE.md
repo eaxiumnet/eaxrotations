@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 5
+current_plan: 6
 status: unknown
-last_updated: "2026-03-20T04:58:23.570Z"
+last_updated: "2026-03-20T05:03:17.782Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 15
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # State
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Requirements defined
 - [x] Roadmap created
 - [x] Phase 03 planned (9 plans)
-- **Current Plan:** 5
+- **Current Plan:** 6
 - **Total Plans in Phase:** 9
 
 ## Roadmap
@@ -58,6 +58,9 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [Phase 03]: Assumed base weapon speed 2.8 seconds for haste breakpoint calculation (placeholder until API provides ranged speed) — Ranged weapon base speed not directly available via API, used typical value for detection.
 - [Phase 03]: Used swing_timer.can_cast_before_swing with 0.1s safety buffer for all casted shots — Prevents auto shot clipping while allowing maximum shot density.
 - [Phase 03]: Reordered Beast Mastery rotation to prioritize Arcane Shot before Steady Shot for melee weaving — Plan required melee weaving of Arcane Shot between auto shots, original order had Steady Shot first.
+- [Phase 03]: Implemented eclipse detection using existing Lunar/Solar eclipse buffs (IDs 48518/48517) rather than custom energy tracking — Simpler and matches server implementation
+- [Phase 03]: Added energy pooling for Ferocious Bite to prevent wasting combo points when energy insufficient — Ensures optimal bite timing and prevents CP waste
+- [Phase 03]: Added combo point cap check in Mangle and Claw filler abilities to avoid overcapping — Prevents CP waste and ensures finishers at 5 CP
 
 ## Recent Commits
 
@@ -84,3 +87,4 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 *Last updated: 2026-03-20 — Phase 2 complete: 3/3 plans done**
 | Phase 03 P03 | 10 | 3 tasks | 2 files |
 | Phase 03 P02 | 10 min | 3 tasks | 3 files |
+| Phase 03 P06 | 8 min | 3 tasks | 2 files |
