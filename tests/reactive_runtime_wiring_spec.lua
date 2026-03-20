@@ -1,0 +1,32 @@
+local CANONICAL_SPECS = {
+    "EAXDruidBalance",
+    "EAXDruidFeral",
+    "EAXDruidRestoration",
+    "EAXHunterBeastMastery",
+    "EAXHunterMarksmanship",
+    "EAXHunterSurvival",
+    "EAXMageArcane",
+    "EAXMageFire",
+    "EAXMageFrost",
+    "EAXPaladinHoly",
+    "EAXPaladinProtection",
+    "EAXPaladinRetribution",
+    "EAXPriestDiscipline",
+    "EAXPriestHoly",
+    "EAXPriestShadow",
+    "EAXRogueAssassination",
+    "EAXRogueCombat",
+    "EAXRogueSubtlety",
+    "EAXShamanElemental",
+    "EAXShamanEnhancement",
+    "EAXShamanRestoration",
+    "EAXWarlockAffliction",
+    "EAXWarlockDemonology",
+    "EAXWarlockDestruction",
+    "EAXWarriorArms",
+    "EAXWarriorFury",
+    "EAXWarriorProtection",
+}
+
+assert(#CANONICAL_SPECS == 27, "expected 27 canonical specs")
+assert(false, "TODO: implement reactive runtime parity assertions")
