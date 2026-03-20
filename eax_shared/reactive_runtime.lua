@@ -226,6 +226,56 @@ local function execute_adapter(me, target, ctx, result, deps, adapter)
     return "handled"
 end
 
+local function clamp01(value)
+    local n = tonumber(value) or 0
+    if n < 0 then
+        return 0
+    end
+    if n > 1 then
+        return 1
+    end
+    return n
+end
+
+local function role_telemetry(ctx, result)
+    local action_id = (result or {}).action_id or "none"
+    local self_ctx = (ctx or {}).self or {}
+    local party = (ctx or {}).party or {}
+    local target_ctx = (ctx or {}).target or {}
+    local role = self_ctx.role or "unknown"
+
+    if action_id == "life_save_self" then
+        return "none", "self"
+    end
+
+    if action_id == "life_save_ally" and role == "healer" then
+        local tank = party.tank or {}
+        local group_collapse_risk = clamp01(party.group_collapse_risk)
+        if tank.guid and clamp01(tank.hp_pct) <= 0.55 and clamp01(tank.incoming_heal_pct) < 0.25 then
+            return "tank_save", "tank"
+        end
+        if group_collapse_risk >= 0.60 then
+            return "group_stabilize", "ally"
+        end
+        return "triage_save", "ally"
+    end
+
+    if action_id == "anti_aggro" and role == "tank" then
+        return "threat_recovery", "hostile"
+    end
+
+    if action_id == "throughput_resume" and role == "damager" then
+        if clamp01(self_ctx.incoming_damage_pct_2s) >= 0.30
+            or clamp01(self_ctx.threat_pct) >= 0.85
+            or (target_ctx.interrupt_priority == true)
+            or ((ctx or {}).encounter or {}).dangerous_control_window == true then
+            return "danger_hold", "hostile"
+        end
+    end
+
+    return "none", "none"
+end
+
 function reactive_runtime.update_tick(me, target, deps)
     deps = deps or {}
     local adapter = validate_adapter(deps.adapter)
@@ -247,12 +297,15 @@ function reactive_runtime.update_tick(me, target, deps)
     local reactive_status = execute_adapter(me, target, ctx, result, deps, adapter)
     result.reactive_status = reactive_status
 
+    local role_signal, role_target_kind = role_telemetry(ctx, result)
     dps_meter.set_reactive_state({
         reactive_action = result.action_id or "none",
         action_id = result.action_id or "none",
         reason_code = result.reason_code or "NO_ACTION",
         reactive_status = reactive_status,
         context_fail_safe = ctx.meta.fail_safe == true,
+        role_signal = role_signal,
+        role_target_kind = role_target_kind,
     })
 
     return ctx, result

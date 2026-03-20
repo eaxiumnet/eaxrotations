@@ -1,5 +1,38 @@
 local dps_meter = {}
 
+local VALID_ROLE_SIGNALS = {
+    tank_save = true,
+    triage_save = true,
+    group_stabilize = true,
+    threat_recovery = true,
+    danger_hold = true,
+    none = true,
+}
+
+local VALID_ROLE_TARGET_KINDS = {
+    self = true,
+    tank = true,
+    ally = true,
+    hostile = true,
+    none = true,
+}
+
+local function normalize_role_signal(value)
+    local signal = tostring(value or "none")
+    if VALID_ROLE_SIGNALS[signal] then
+        return signal
+    end
+    return "none"
+end
+
+local function normalize_role_target_kind(value)
+    local kind = tostring(value or "none")
+    if VALID_ROLE_TARGET_KINDS[kind] then
+        return kind
+    end
+    return "none"
+end
+
 local function now_s()
     if core and core.time then
         local t = core.time()
@@ -23,6 +56,8 @@ local function zero_snapshot()
         reason_code = "NO_ACTION",
         reactive_status = "none",
         context_fail_safe = false,
+        role_signal = "none",
+        role_target_kind = "none",
     }
 end
 
@@ -33,6 +68,8 @@ local function zero_reactive_state()
         reason_code = "NO_ACTION",
         reactive_status = "none",
         context_fail_safe = false,
+        role_signal = "none",
+        role_target_kind = "none",
     }
 end
 
@@ -75,6 +112,8 @@ local function build_snapshot(damage_total, healing_total, duration_s, in_combat
         reason_code = state.reactive.reason_code,
         reactive_status = state.reactive.reactive_status,
         context_fail_safe = state.reactive.context_fail_safe,
+        role_signal = state.reactive.role_signal,
+        role_target_kind = state.reactive.role_target_kind,
     }
 end
 
@@ -141,6 +180,8 @@ function dps_meter.set_reactive_state(payload)
         reason_code = tostring(payload.reason_code or "NO_ACTION"),
         reactive_status = tostring(payload.reactive_status or "none"),
         context_fail_safe = payload.context_fail_safe == true,
+        role_signal = normalize_role_signal(payload.role_signal),
+        role_target_kind = normalize_role_target_kind(payload.role_target_kind),
     }
 end
 
@@ -162,6 +203,8 @@ function dps_meter.get_snapshot()
         reason_code = state.reactive.reason_code,
         reactive_status = state.reactive.reactive_status,
         context_fail_safe = state.reactive.context_fail_safe,
+        role_signal = state.reactive.role_signal,
+        role_target_kind = state.reactive.role_target_kind,
     }
 end
 
