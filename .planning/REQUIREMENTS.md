@@ -20,16 +20,16 @@
 
 ### Interrupt System
 
-- [ ] **INTER-01**: Refine interrupt spell weights — add missing dangerous spell IDs from sim data
-- [ ] **INTER-02**: Add minimum cast time check — don't interrupt casts with <200ms remaining
-- [ ] **INTER-03**: Expand interrupt target selection — prioritize healing over CC over offensive
+- [x] **INTER-01**: Refine interrupt spell weights — add missing dangerous spell IDs from sim data
+- [x] **INTER-02**: Add minimum cast time check — don't interrupt casts with <200ms remaining
+- [x] **INTER-03**: Expand interrupt target selection — prioritize healing over CC over offensive
 
 ### Encounter Awareness
 
-- [ ] **ENCOUNT-01**: Expand boss database — add missing encounters, refine policies
-- [ ] **ENCOUNT-02**: Add AoE safe detection for all dungeon/raid encounters
-- [ ] **ENCOUNT-03**: Implement cooldown hold for burn phases (Gruul, Magtheridon, etc.)
-- [ ] **ENCOUNT-04**: Add movement phase awareness — pre-position, cast while moving
+- [x] **ENCOUNT-01**: Expand boss database — add missing encounters, refine policies
+- [x] **ENCOUNT-02**: Add AoE safe detection for all dungeon/raid encounters
+- [x] **ENCOUNT-03**: Implement cooldown hold for burn phases (Gruul, Magtheridon, etc.)
+- [x] **ENCOUNT-04**: Add movement phase awareness — pre-position, cast while moving
 
 ### Per-Class Rotation Optimization
 
@@ -134,13 +134,13 @@ Phase mapping populated during roadmap creation.
 | COMBAT-02 | Phase 2 | Pending |
 | COMBAT-03 | Phase 2 | Pending |
 | COMBAT-04 | Phase 2 | Pending |
-| INTER-01 | Phase 2 | Pending |
-| INTER-02 | Phase 2 | Pending |
-| INTER-03 | Phase 2 | Pending |
-| ENCOUNT-01 | Phase 2 | Pending |
-| ENCOUNT-02 | Phase 2 | Pending |
-| ENCOUNT-03 | Phase 2 | Pending |
-| ENCOUNT-04 | Phase 2 | Pending |
+| INTER-01 | Phase 2 | Complete |
+| INTER-02 | Phase 2 | Complete |
+| INTER-03 | Phase 2 | Complete |
+| ENCOUNT-01 | Phase 2 | Complete |
+| ENCOUNT-02 | Phase 2 | Complete |
+| ENCOUNT-03 | Phase 2 | Complete |
+| ENCOUNT-04 | Phase 2 | Complete |
 | WARR-01 | Phase 3 | Pending |
 | WARR-02 | Phase 3 | Pending |
 | WARR-03 | Phase 3 | Pending |
