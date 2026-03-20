@@ -65,8 +65,8 @@ os.remove(runtime_dir)
 assert(code == 1, "main should return non-zero for runtime violations")
 
 local joined = table.concat(output, "\n")
-assert(joined:find("FAIL: " .. runtime_path .. ":3 -> ffi%.C", 1, false), "expected ffi violation output")
-assert(joined:find("FAIL: " .. runtime_path .. ":4 -> os%.execute", 1, false), "expected os.execute violation output")
+assert(joined:find("FAIL: " .. runtime_path .. ":3 -> ffi.C", 1, true), "expected ffi violation output")
+assert(joined:find("FAIL: " .. runtime_path .. ":4 -> os.execute", 1, true), "expected os.execute violation output")
 assert(not joined:find(ignored_path, 1, true), "default runtime scan should ignore non-runtime files")
 
 print("api_hard_gate_spec: ok")
