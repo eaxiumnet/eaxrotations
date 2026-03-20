@@ -47,7 +47,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-27-spec-reactive-wiring-01-PLAN.md - Extend the shared runtime into a real adapter executor with noop telemetry and representative role proofs.
+- [x] 06-27-spec-reactive-wiring-01-PLAN.md - Extend the shared runtime into a real adapter executor with noop telemetry and representative role proofs.
 - [ ] 06-27-spec-reactive-wiring-02-PLAN.md - Roll the adapter contract across all 27 specs and enforce blocking reactive parity validation.
 
 ### Phase 7: Role Intelligence Tuning
@@ -76,7 +76,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 5. Reactive Contract + API Gate | 5/5 | Complete | 2026-03-20 |
-| 6. 27-Spec Reactive Wiring | 0/TBD | Not started | - |
+| 6. 27-Spec Reactive Wiring | 1/2 | In Progress | - |
 | 7. Role Intelligence Tuning | 0/TBD | Not started | - |
 | 8. Benchmark Matrix Hardening | 0/TBD | Not started | - |
 

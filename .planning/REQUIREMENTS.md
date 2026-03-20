@@ -20,8 +20,8 @@
 
 ### 27-Spec Reactive Wiring
 
-- [ ] **WIRE-01**: Shared reactive engine is integrated into all 27 canonical combat specs without breaking existing cast lanes.
-- [ ] **WIRE-02**: All specs implement adapter contracts for shared reactive decisions while preserving movement-excluded behavior.
+- [x] **WIRE-01**: Shared reactive engine is integrated into all 27 canonical combat specs without breaking existing cast lanes.
+- [x] **WIRE-02**: All specs implement adapter contracts for shared reactive decisions while preserving movement-excluded behavior.
 - [ ] **WIRE-03**: Cross-spec wiring parity checks report pass/fail coverage for all 27 specs.
 
 ### Role Intelligence Tuning
@@ -61,8 +61,8 @@
 | APIG-01 | Phase 5 | Complete |
 | APIG-02 | Phase 5 | Complete |
 | APIG-03 | Phase 5 | Complete |
-| WIRE-01 | Phase 6 | Pending |
-| WIRE-02 | Phase 6 | Pending |
+| WIRE-01 | Phase 6 | Complete |
+| WIRE-02 | Phase 6 | Complete |
 | WIRE-03 | Phase 6 | Pending |
 | ROLE-01 | Phase 7 | Pending |
 | ROLE-02 | Phase 7 | Pending |

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Phase 6 context gathered
-last_updated: "2026-03-20T18:20:04.821Z"
+stopped_at: Completed 06-27-spec-reactive-wiring-01-PLAN.md
+last_updated: "2026-03-20T18:38:02.248Z"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-03-20)
 
 **Core value:** Every spec executes the mathematically optimal rotation while maintaining survival and encounter-specific awareness.
-**Current focus:** Phase 06 — 27-spec reactive wiring
+**Current focus:** Phase 06 — 27-spec-reactive-wiring
 
 ## Current Position
 
-Phase: 05 (reactive-contract-api-gate) — COMPLETE
-Plan: 5 of 5
+Phase: 06 (27-spec-reactive-wiring) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Plan: 5 of 5
 | Phase 05 P03 | 2 min | 2 tasks | 6 files |
 | Phase 05 P04 | 19 min | 2 tasks | 6 files |
 | Phase 05 P05 | 2 min | 2 tasks | 28 files |
+| Phase 06 P01 | 6 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Kept reactive_runtime.update_tick in the visual snapshot lane so all specs consume the shared contract without changing cast behavior before Phase 06.
 - [Phase 05]: Stored bridge hold data in _visual_runtime.reactive_state for per-spec tick-to-tick carryover without introducing new globals.
 - [Phase 05]: Locked reason_code and reactive_action HUD strings out of Phase 05 with a parity regression so live debug UI stays deferred.
+- [Phase 06]: Keep reactive winner selection in the shared runtime, but require per-spec adapters to declare explicit handlers or noop=unsupported for all six branches.
+- [Phase 06]: Expose reactive_status as handled/noop_unsupported/skipped_unsafe/none so unsupported or unsafe winners stay visible in telemetry and benchmarks.
+- [Phase 06]: Let the shared runtime own urgent retarget and snap-back behavior while representative specs only resolve targets and invoke existing cast lanes.
 
 ### Pending Todos
 
@@ -86,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T18:20:04.818Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-27-spec-reactive-wiring/06-CONTEXT.md
+Last session: 2026-03-20T18:38:02.246Z
+Stopped at: Completed 06-27-spec-reactive-wiring-01-PLAN.md
+Resume file: None
