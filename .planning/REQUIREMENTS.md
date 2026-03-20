@@ -95,9 +95,9 @@
 
 ### Quality
 
-- [ ] **QUAL-01**: Create rotation validation framework — per-spec rotation correctness check
-- [ ] **QUAL-02**: Add DPS benchmark tool — measure rotation effectiveness vs baseline
-- [ ] **QUAL-03**: Create spec regression checklist — verify all specs still work after changes
+- [x] **QUAL-01**: Create rotation validation framework — per-spec rotation correctness check
+- [x] **QUAL-02**: Add DPS benchmark tool — measure rotation effectiveness vs baseline
+- [x] **QUAL-03**: Create spec regression checklist — verify all specs still work after changes
 
 ## v2 Requirements
 
@@ -177,9 +177,9 @@ Phase mapping populated during roadmap creation.
 | AUTO-02 | Phase 4 | Complete |
 | AUTO-03 | Phase 4 | Complete |
 | AUTO-04 | Phase 4 | Complete |
-| QUAL-01 | Phase 4 | Pending |
-| QUAL-02 | Phase 4 | Pending |
-| QUAL-03 | Phase 4 | Pending |
+| QUAL-01 | Phase 4 | Complete |
+| QUAL-02 | Phase 4 | Complete |
+| QUAL-03 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 53 total

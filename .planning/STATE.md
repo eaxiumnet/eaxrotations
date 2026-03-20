@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 5
 status: unknown
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-03-20T13:06:05.755Z"
+stopped_at: Completed 04-05-PLAN.md
+last_updated: "2026-03-20T13:20:27.640Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
 ---
 
 # State
@@ -85,6 +85,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [Phase 04]: Used a resilient visual_get_ttd_seconds fallback to '--' whenever a spec lacks usable ttd_tracker output.
 - [Phase 04]: Use per-spec menu key prefixes for automation toggle storage to avoid cross-spec collisions.
 - [Phase 04]: Keep shared automation execution gated by menu state checks in the runtime loop.
+- [Phase 04]: Validation scope pinned to 27 canonical combat specs to avoid non-rotation plugin false failures.
+- [Phase 04]: Benchmark dry-run emits deterministic snapshot rows for comparable DPS/HPS baselines.
 
 ## Recent Commits
 
@@ -122,9 +124,10 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 | Phase 04 P01 | 13 min | 2 tasks | 5 files |
 | Phase 04 P02 | 6 min | 2 tasks | 54 files |
 | Phase 04 P04 | 51 min | 2 tasks | 54 files |
+| Phase 04 P05 | 11 min | 2 tasks | 6 files |
 
 ## Session Continuity
 
-Last session: 2026-03-20T13:06:05.753Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-03-20T13:20:27.637Z
+Stopped at: Completed 04-05-PLAN.md
 Resume file: None
