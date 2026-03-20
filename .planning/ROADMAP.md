@@ -21,8 +21,8 @@ FOUND-01, FOUND-02, FOUND-03, COMBAT-01
 **Plans:** 3 plans
 
 Plans:
-- [ ] 01-foundation-01-PLAN.md — Extract 5 shared managers to common/eax_shared/
-- [ ] 01-foundation-02-PLAN.md — Create set_bonus.lua and swing_timer.lua
+- [x] 01-foundation-01-PLAN.md — Extract 5 shared managers to common/eax_shared/
+- [x] 01-foundation-02-PLAN.md — Create set_bonus.lua and swing_timer.lua
 - [ ] 01-foundation-03-PLAN.md — Refactor all 27 specs to require shared modules
 
 ### Key Files
