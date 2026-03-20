@@ -199,6 +199,10 @@ function M.scan_paths(paths)
     return #violations == 0, violations
 end
 
+function M.discover_runtime_paths()
+    return list_runtime_paths()
+end
+
 function M.main(argv)
     local paths = argv
     if type(paths) ~= "table" or #paths == 0 then

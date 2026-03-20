@@ -1,5 +1,8 @@
 local M = {}
 
+local api_hard_gate_chunk = assert(loadfile("tools/api_hard_gate.lua"))
+local api_hard_gate = api_hard_gate_chunk("tools.api_hard_gate")
+
 local REQUIRED_IMPORTS = {
     "visual_state",
     "vendor_automation",
@@ -132,6 +135,19 @@ function M.main()
 
     if failed > 0 then
         print(string.format("FAIL: %d/%d specs failed validation", failed, #specs))
+    end
+
+    local gate_ok, gate_failures = api_hard_gate.scan_paths(api_hard_gate.discover_runtime_paths())
+    if gate_ok then
+        print("PASS: api hard gate")
+    else
+        for _, violation in ipairs(gate_failures) do
+            print(string.format("FAIL: %s:%d -> %s", violation.path, violation.line, violation.call))
+        end
+        print(string.format("FAIL: api hard gate :: %d violations", #gate_failures))
+    end
+
+    if failed > 0 or not gate_ok then
         return 1
     end
 
