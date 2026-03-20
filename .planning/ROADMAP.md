@@ -27,7 +27,11 @@ Milestone v1.0 (Phases 1-4) is complete. This roadmap defines milestone v1.1 Com
   2. Reactive actions consistently follow one observable precedence ladder (life-save first, then control, then safety, then throughput).
   3. Validation runs fail immediately when non-`@.api` calls are introduced in behavior code.
   4. Validation/release checks block milestone sign-off until API hard-gate compliance passes.
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [x] 05-reactive-contract-api-gate-01-PLAN.md - Create the shared combat snapshot and deterministic reactive decision contract.
+- [ ] 05-reactive-contract-api-gate-02-PLAN.md - Add generated API allowlist enforcement and wire it into the blocking validation flow.
 
 ### Phase 6: 27-Spec Reactive Wiring
 **Goal**: Users can run any of the 27 specs with the same shared reactive decision layer active and adapter parity enforced.
@@ -64,7 +68,7 @@ Milestone v1.0 (Phases 1-4) is complete. This roadmap defines milestone v1.1 Com
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5. Reactive Contract + API Gate | 0/TBD | Not started | - |
+| 5. Reactive Contract + API Gate | 1/2 | In Progress | 2026-03-20 |
 | 6. 27-Spec Reactive Wiring | 0/TBD | Not started | - |
 | 7. Role Intelligence Tuning | 0/TBD | Not started | - |
 | 8. Benchmark Matrix Hardening | 0/TBD | Not started | - |

@@ -8,9 +8,9 @@
 
 ### Reactive Contract + Context
 
-- [ ] **REACT-01**: System produces a normalized combat context snapshot each tick (self, target, party, encounter) with nil-safe defaults.
-- [ ] **REACT-02**: System enforces a deterministic decision ladder (life-save > interrupt/control > anti-overheal/anti-aggro > throughput).
-- [ ] **REACT-03**: Every reactive action emits a reason code for telemetry and debugging.
+- [x] **REACT-01**: System produces a normalized combat context snapshot each tick (self, target, party, encounter) with nil-safe defaults.
+- [x] **REACT-02**: System enforces a deterministic decision ladder (life-save > interrupt/control > anti-overheal/anti-aggro > throughput).
+- [x] **REACT-03**: Every reactive action emits a reason code for telemetry and debugging.
 
 ### API Hard Gate
 
@@ -55,9 +55,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REACT-01 | Phase 5 | Pending |
-| REACT-02 | Phase 5 | Pending |
-| REACT-03 | Phase 5 | Pending |
+| REACT-01 | Phase 5 | Complete |
+| REACT-02 | Phase 5 | Complete |
+| REACT-03 | Phase 5 | Complete |
 | APIG-01 | Phase 5 | Pending |
 | APIG-02 | Phase 5 | Pending |
 | APIG-03 | Phase 5 | Pending |
