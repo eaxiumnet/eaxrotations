@@ -246,4 +246,123 @@ function encounter_manager.is_instanced()
     return false
 end
 
+-- AoE detection — scan for nearby enemies
+-- Returns estimated number of hostile targets within range of player
+local function count_nearby_enemies(me, range_yards)
+    local count = 0
+    local enemies = core.object_manager.get_units_in_range(me, range_yards or 10)
+    if enemies then
+        for _, unit in ipairs(enemies) do
+            if unit and unit:is_valid() and not unit:is_dead() and me:can_attack(unit) then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+-- Movement phase encounters — bosses with movement mechanics
+local MOVEMENT_PHASE_BOSSES = {
+    ["prince malchezaar"]         = { min_range = 20 },
+    ["gruul the dragonkiller"]    = { min_range = 18 },
+    ["magtheridon"]               = { min_range = 15 },
+    ["alar"]                      = { min_range = 20 },
+    ["void reaver"]               = { min_range = 20 },
+    ["high astromancer solarian"] = { min_range = 20 },
+    ["teron gorefiend"]           = { aoe_safe = false },
+    ["illidan stormrage"]         = { movement_phase = true },
+    ["lady vashj"]                = { movement_phase = true },
+    ["brutallus"]                 = { movement_phase = true },
+    ["felmyst"]                   = { movement_phase = true },
+}
+
+-- Burn phase encounters — hold cooldowns until target reaches threshold HP
+local BURN_PHASE_BOSSES = {
+    ["gruul the dragonkiller"]    = { burn_until_pct = 0.30 },
+    ["magtheridon"]               = { burn_until_pct = 0.35 },
+    ["selin fireheart"]           = { burn_until_pct = 0.30 },
+    ["the curator"]               = { burn_until_pct = 0.15 },
+    ["brutallus"]                 = { burn_until_pct = 0.30 },
+    ["m'uru"]                     = { burn_until_pct = 0.20 },
+    ["kil'jaeden"]                = { burn_until_pct = 0.30 },
+    ["teron gorefiend"]            = { burn_until_pct = 0.30 },
+    ["gurtogg bloodboil"]         = { burn_until_pct = 0.25 },
+}
+
+-- Check if current encounter is AoE-safe
+-- Returns false if too many enemies nearby (prevents face-pull in dungeons)
+function encounter_manager.is_aoe_safe(me)
+    local policy = encounter_manager.get_policy(me)
+    if not policy.aoe_safe then
+        local nearby = count_nearby_enemies(me, 10)
+        if nearby > 3 then
+            return false  -- Multiple targets, AoE encounter
+        end
+    end
+    return true
+end
+
+-- Check if current encounter has a movement phase
+-- Returns true if player is moving or within minimum range of a movement boss
+function encounter_manager.is_movement_phase(me)
+    local policy = encounter_manager.get_policy(me)
+    if not policy or not policy.encounter_id then return false end
+    local entry = MOVEMENT_PHASE_BOSSES[policy.encounter_id]
+    if entry and entry.movement_phase then
+        -- Check if player is currently moving
+        local ok_moving, is_moving = pcall(function() return core.navigation.is_moving() end)
+        if ok_moving and is_moving then
+            return true
+        end
+        -- Check if boss is at min_range
+        local ok_tgt, tgt = pcall(function() return me:get_target() end)
+        if ok_tgt and tgt and tgt:is_valid() then
+            local ok_dist, dist = pcall(function() return core.navigation.get_distance_to(tgt) end)
+            if ok_dist and dist and entry.min_range and dist < entry.min_range then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Get minimum range for current encounter
+function encounter_manager.get_min_range(me)
+    local policy = encounter_manager.get_policy(me)
+    if policy and policy.min_range then
+        return policy.min_range
+    end
+    return nil
+end
+
+-- Check if player should hold cooldowns for burn phase
+-- @param me player unit
+-- @return boolean (hold_cds), number (burn_until_pct)
+function encounter_manager.should_hold_cooldowns(me)
+    local policy = encounter_manager.get_policy(me)
+    if not policy then return false, 0 end
+    if not policy.hold_cooldowns then return false, 0 end
+
+    local target = me:get_target()
+    if not target or not target:is_valid() then return false, 0 end
+
+    local ok_hp, hp_pct = pcall(function() return target:get_health_percentage() end)
+    if not ok_hp then return false, 0 end
+    hp_pct = hp_pct / 100
+
+    local burn_entry = BURN_PHASE_BOSSES[policy.encounter_id]
+    local burn_until_pct = burn_entry and burn_entry.burn_until_pct or 0.30
+
+    if hp_pct > burn_until_pct then
+        return true, burn_until_pct
+    end
+    return false, burn_until_pct
+end
+
+-- Get burn phase target HP threshold for a given encounter
+function encounter_manager.get_burn_threshold(encounter_id)
+    local entry = BURN_PHASE_BOSSES[encounter_id]
+    return entry and entry.burn_until_pct or 0.30
+end
+
 return encounter_manager
