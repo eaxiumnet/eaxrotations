@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 3
+current_plan: 4
 status: unknown
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-20T12:51:41.441Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-03-20T13:01:13.965Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 22
-  completed_plans: 18
+  completed_plans: 19
 ---
 
 # State
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Requirements defined
 - [x] Roadmap created
 - [x] Phase 03 planned (9 plans)
-- **Current Plan:** 3
+- **Current Plan:** 4
 - **Total Plans in Phase:** 5
 
 ## Roadmap
@@ -81,6 +81,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [Phase 04]: Mount manager dismounts on combat and mounts only when out-of-combat and stationary.
 - [Phase 04]: Normalized unknown TTD to '--' for HUD-safe visual snapshot contract
 - [Phase 04]: Guarded DPS/HPS division with duration >= 0.1s threshold in shared meter
+- [Phase 04]: Wrapped esp_renderer.on_cast in each main.lua to capture recommended spell cooldown telemetry without touching spell-priority logic.
+- [Phase 04]: Used a resilient visual_get_ttd_seconds fallback to '--' whenever a spec lacks usable ttd_tracker output.
 
 ## Recent Commits
 
@@ -116,9 +118,10 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 | Phase 03 P10 | 3 min | 2 tasks | 1 files |
 | Phase 04 P03 | 6 min | 2 tasks | 3 files |
 | Phase 04 P01 | 13 min | 2 tasks | 5 files |
+| Phase 04 P02 | 6 min | 2 tasks | 54 files |
 
 ## Session Continuity
 
-Last session: 2026-03-20T12:51:41.437Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-03-20T13:01:13.962Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
