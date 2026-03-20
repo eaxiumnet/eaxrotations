@@ -80,12 +80,18 @@ local function resolve_spells()
     runtime.banish_id = utils.resolve_spell_id(spells.BANISH)
     runtime.felguard_id = utils.resolve_spell_id(spells.SUMMON_FELGUARD)
     runtime.life_tap_id = utils.resolve_spell_id(spells.LIFE_TAP)
+    runtime.metamorphosis_id = utils.resolve_spell_id(spells.METAMORPHOSIS)
+    runtime.immolation_aura_id = utils.resolve_spell_id(spells.IMMOLATION_AURA)
+    runtime.shadow_cleave_id = utils.resolve_spell_id(spells.SHADOW_CLEAVE)
 end
 
 local function log_spells()
     core.log("[EAX Warlock Demonology] Modes: Soul Fire=" .. tostring(runtime.soul_fire_id)
         .. " Shadow Fury=" .. tostring(runtime.shadowfury_id)
-        .. " Felguard=" .. tostring(runtime.felguard_id))
+        .. " Felguard=" .. tostring(runtime.felguard_id)
+        .. " Metamorphosis=" .. tostring(runtime.metamorphosis_id)
+        .. " Immolation Aura=" .. tostring(runtime.immolation_aura_id)
+        .. " Shadow Cleave=" .. tostring(runtime.shadow_cleave_id))
 end
 
 resolve_spells()
@@ -255,6 +261,45 @@ local function ensure_felguard(me)
     end
     runtime.last_felguard_attempt = now
     return try_cast_self(me, runtime.felguard_id, "Summon Felguard")
+end
+
+local function try_metamorphosis(me)
+    if not runtime.metamorphosis_id then return false end
+    if utils.has_buff(me, spells.BUFF_METAMORPHOSIS) then return false end
+    if not utils.can_cast_self(runtime.metamorphosis_id, me) then return false end
+    if utils.cast_self(runtime.metamorphosis_id, me) then
+        utils.log_debug(menu, "Metamorphosis")
+        return true
+    end
+    return false
+end
+
+local function try_immolation_aura(me)
+    if not runtime.immolation_aura_id then return false end
+    if not utils.can_cast_self(runtime.immolation_aura_id, me) then return false end
+    if utils.cast_self(runtime.immolation_aura_id, me) then
+        utils.log_debug(menu, "Immolation Aura")
+        return true
+    end
+    return false
+end
+
+local function try_shadow_cleave(me, target)
+    if not runtime.shadow_cleave_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not utils.can_cast_hostile(runtime.shadow_cleave_id, me, target) then return false end
+    if utils.cast_target(runtime.shadow_cleave_id, target) then
+        utils.log_debug(menu, "Shadow Cleave")
+        return true
+    end
+    return false
+end
+
+local function try_demon_rotation(me, target)
+    -- In Metamorphosis form
+    if try_immolation_aura(me) then return true end
+    if try_shadow_cleave(me, target) then return true end
+    return false
 end
 
 local function try_banish(me, target)
@@ -490,6 +535,15 @@ local function do_rotation(me, target)
     end
 
     local effective_mode = get_effective_mode()
+
+    -- Metamorphosis activation and demon form rotation
+    if try_metamorphosis(me) then return end
+    if utils.has_buff(me, spells.BUFF_METAMORPHOSIS) then
+        if try_demon_rotation(me, target) then return end
+        -- In demon form but nothing cast, still skip normal rotation
+        try_life_tap(me, effective_mode)
+        return
+    end
     if ensure_felguard(me) then
         return
     end
