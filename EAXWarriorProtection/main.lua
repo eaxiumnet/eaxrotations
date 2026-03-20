@@ -2514,22 +2514,555 @@ reactive_adapter = {
         interrupt_control = {
             handler = function(_, action_deps)
                 local interrupt_target = action_deps.target or action_deps.current_target
-                if not interrupt_target or not interrupt_target:is_valid() then
+                if not is_valid_hostile_target(action_deps.me, interrupt_target) then
                     return false
                 end
 
-                if not interrupt_manager.should_interrupt(interrupt_target) then
-                    return false
+                if interrupt_manager.should_interrupt(interrupt_target)
+                    and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
+                then
+                    return true
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
+                return try_interrupt_action_on_target(action_deps.me, interrupt_target, "Reactive")
             end,
         },
         anti_overheal = { noop = "unsupported" },
         anti_aggro = { noop = "unsupported" },
         throughput_resume = { noop = "unsupported" },
     },
+    resolve_target = function(action_id, _, action_deps)
+        if action_id ~= "interrupt_control" then
+            return nil
+        end
+
+        return resolve_reactive_interrupt_target(action_deps.me, action_deps.current_target)
+    end,
 }
+
+local function try_intimidating_shout_keybind(me, target)
+    local is_pressed = menu.intimidating_shout_key:get_state()
+    local was_pressed = runtime.prev_intimidating_shout_state
+    runtime.prev_intimidating_shout_state = is_pressed
+
+    if menu.intimidating_shout_key:get_key_code() == 7 then return false end
+    if not is_pressed or was_pressed then return false end
+    if not runtime.intimidating_shout_id then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if not utils.is_melee_target(me, target) then return false end
+
+    if utils.can_cast_melee(runtime.intimidating_shout_id, me) and utils.cast_target(runtime.intimidating_shout_id, target) then
+        utils.log_debug(menu, "Manual: Intimidating Shout")
+        notify_cast(
+            "simpleprot:cast:intimidating_shout",
+            "Manual Intimidating Shout",
+            color.yellow(220),
+            1.0
+        )
+        note_cast()
+        return true
+    end
+
+    return false
+end
+
+try_rend = function(me, target, rage, target_hp_pct)
+    if not menu.use_rend:get_state() or not runtime.rend_id then return false end
+    if target_hp_pct < EXECUTE_HP_THRESHOLD then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if not utils.is_melee_target(me, target) then return false end
+    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_REND) > 0 then return false end
+
+    if utils.can_cast_melee(runtime.rend_id, me) and utils.cast_target(runtime.rend_id, target) then
+        utils.log_debug(menu, "ST: Rend")
+        notify_cast("simpleprot:cast:rend", "Rend", color.red(220), 0.9)
+        note_cast()
+        return true
+    end
+
+    return false
+end
+
+try_hamstring_filler = function(me, target, rage, target_hp_pct)
+    if not menu.use_hamstring:get_state() or not runtime.hamstring_id then return false end
+    if target_hp_pct < EXECUTE_HP_THRESHOLD then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if not utils.is_melee_target(me, target) then return false end
+
+    local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_HAMSTRING)
+    if remaining >= UTILITY_DEBUFF_REFRESH_MS then
+        return false
+    end
+
+    return stage_stance_action(me, {
+        key = "hamstring",
+        action_id = runtime.hamstring_id,
+        action_label = "Hamstring",
+        required_stance = "battle",
+        required_stance_id = runtime.battle_stance_id,
+        cast_mode = "target",
+        target = target,
+        notify_id = "simpleprot:cast:hamstring",
+        notify_message = "Hamstring",
+        notify_color = color.blue(220),
+        notify_duration_s = 0.9,
+        log_message = "ST: Hamstring (" .. tostring(remaining) .. "ms)",
+    }, rage, HAMSTRING_COST)
+end
+
+try_intercept = function(me, target, rage, context_label)
+    if not runtime.intercept_id then return false end
+    if not me:is_in_combat() then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if same_unit(runtime.auto_intercept_retry_target, target) and core.time() < runtime.auto_intercept_retry_until then
+        return false
+    end
+    if same_unit(runtime.auto_intercept_target, target) then return false end
+    if utils.is_melee_target(me, target) then return false end
+
+    local distance = utils.get_distance_to_target(me, target)
+    if distance < menu.intercept_min_range:get() then return false end
+
+    local max_range = core.spell_book.get_spell_max_range(runtime.intercept_id)
+    if max_range and max_range > 0 then
+        local max_distance = max_range + (target:get_bounding_radius() or 0)
+        if distance > max_distance then
+            return false
+        end
+    end
+
+    return stage_stance_action(me, {
+        key = "intercept",
+        action_id = runtime.intercept_id,
+        action_label = "Intercept",
+        required_stance = "berserker",
+        required_stance_id = runtime.berserker_stance_id,
+        cast_mode = "target",
+        target = target,
+        notify_id = "simpleprot:cast:intercept",
+        notify_message = "Intercept",
+        notify_color = color.cyan(220),
+        notify_duration_s = 1.0,
+        log_message = (context_label or "Utility")
+            .. ": Intercept ("
+            .. string.format("%.1f", distance)
+            .. " yd)",
+    }, rage, INTERCEPT_COST)
+end
+
+-- Heroic Strike/Cleave queue
+local function do_queue_lane(me, target, rage, is_aoe)
+    if not target or not utils.is_melee_target(me, target) then return false end
+    if utils.is_spell_already_queued(runtime.heroic_strike_id) or utils.is_spell_already_queued(runtime.cleave_id) then
+        return false
+    end
+
+    local reserve_rage = 0
+    if runtime.shield_slam_id then reserve_rage = math.max(reserve_rage, SHIELD_SLAM_COST) end
+
+    local rage_cap = menu.heroic_strike_rage_cap:get()
+    local at_rage_cap = rage >= rage_cap
+
+    local next_swing_ms = utils.get_next_swing_ms(me, 2)
+    local in_swing_window = next_swing_ms > 0 and next_swing_ms <= QUEUE_SWING_WINDOW_MS
+
+    -- Only queue if in swing window OR rage is at cap (dump to avoid wasting generation)
+    if not in_swing_window and not at_rage_cap then
+        return false
+    end
+
+    if is_aoe then
+        if not menu.use_cleave:get_state() or not runtime.cleave_id then return false end
+        if rage < menu.cleave_rage:get() or rage <= (reserve_rage + 5) then return false end
+
+        if utils.can_cast_melee(runtime.cleave_id, me) and utils.cast_target_fast(runtime.cleave_id, target) then
+            utils.log_debug(menu, at_rage_cap and "Queue: Cleave (rage cap dump)" or "Queue: Cleave")
+            return true
+        end
+        return false
+    end
+
+    if not menu.use_heroic_strike:get_state() or not runtime.heroic_strike_id then return false end
+    if rage < menu.heroic_strike_rage:get() or rage <= (reserve_rage + 5) then return false end
+
+    if utils.can_cast_melee(runtime.heroic_strike_id, me) and utils.cast_target_fast(runtime.heroic_strike_id, target) then
+        utils.log_debug(menu, at_rage_cap and "Queue: Heroic Strike (rage cap dump)" or "Queue: Heroic Strike")
+        return true
+    end
+
+    return false
+end
+
+-- Main update callback
+local function on_spell_cast(data)
+    if not data or not data.spell_id then
+        return
+    end
+
+    local me = core.object_manager.get_local_player()
+    if data.caster and (not me or not same_unit(data.caster, me)) then
+        return
+    end
+
+    local pending = runtime.pending_casts[data.spell_id]
+    if not pending then
+        return
+    end
+
+    if pending.on_confirm then
+        pending.on_confirm()
+    end
+
+    clear_pending_cast(data.spell_id)
+end
+
+local function on_update()
+    control_panel_utility:on_update(menu)
+    handle_toggle()
+
+    if not menu.enabled:get_state() then return end
+
+    -- OOC management (drink/eat/rez/group buffs)
+    ooc_manager.on_update(me, menu, utils)
+    local me = core.object_manager.get_local_player()
+    if not me then return end
+    if me:is_dead() then return end
+    if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
+        mount_manager.update_mount_state(me, menu, utils)
+    end
+
+    if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
+        consumables_manager.try_use_ooc_food_drink(me, menu, utils)
+    end
+
+    if menu.auto_repair and menu.auto_repair:get_state() then
+        vendor_automation.try_auto_repair(me, menu, utils)
+    end
+
+    if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
+        vendor_automation.try_auto_sell_greys(me, menu, utils)
+    end
+
+    if me:is_in_combat() then
+        if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
+            consumables_manager.try_use_combat_consumable(me, menu, utils)
+        end
+        if menu.auto_flask and menu.auto_flask:get_state() then
+            consumables_manager.try_maintain_flask(me, menu, utils)
+        end
+    end
+
+    if eax_utils.is_eating_or_drinking(me) then return end
+    if me:is_mounted() then return end
+
+    refresh_mode_cache()
+
+    if utils.throttle("update_set_bonus", 5.0) then
+        update_set_bonus(me)
+    end
+
+    refresh_pending_casts()
+    local mode_policy = get_mode_policy()
+
+    if menu.debug:get_state() then
+        local now_ms = core.game_time()
+        if now_ms - runtime.last_mode_debug_at >= MODE_DEBUG_INTERVAL_MS then
+            runtime.last_mode_debug_at = now_ms
+            
+
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Warrior Prot] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxwarriorprotection_enabled_cp")
+        if menu.enabled:get_state() then
+        if menu.use_cooldowns then
+            local cur_wpr_cds = menu.use_cooldowns:get_state()
+            local nxt_wpr_cds = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WPr] Cooldowns", cur_wpr_cds, 0, false, "eax_wpr_cds_cp")
+            if nxt_wpr_cds ~= cur_wpr_cds then menu.use_cooldowns:set(nxt_wpr_cds) end
+        end
+        if menu.use_racial then
+            local cur_wpr_racial = menu.use_racial:get_state()
+            local nxt_wpr_racial = control_panel_utility:insert_key_checkbox_(
+                elements, "[EAX WPr] Use Racial", cur_wpr_racial, 0, false, "eax_wpr_racial_cp")
+            if nxt_wpr_racial ~= cur_wpr_racial then menu.use_racial:set(nxt_wpr_racial) end
+        end
+        end
+        return elements
+    end)
+end
+
+-- -- EAX Conflict Detection -------------------------------------------------
+-- Registers this spec at load time; warns at runtime only if both are enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Warrior"
+    local _eax_spec  = "Protection"
+    -- Register this spec for its class (last-loaded wins for tracking)
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = core.time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
+core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
+        end
+    end
+
+    if utils.is_casting_or_channeling(me) then return end
+
+    local primary_target = utils.find_best_target(me)
+    
+    -- Interrupt
+    if primary_target and primary_target:is_valid() and me:can_attack(primary_target) and interrupt_manager.should_interrupt(primary_target) then
+        if interrupt_manager.try_interrupt(me, primary_target, "warrior", utils) then
+            return
+        end
+    end
+
+    -- Defensive abilities
+    -- Racial abilities
+    racial_manager.try_offensive(me)
+    racial_manager.try_utility(me, target)
+    racial_manager.try_defensive(me)
+
+    if defensive_manager.try_defensive(me, "warrior", utils) then
+        return
+    end
+
+    ttd_tracker.update(target)
+    
+    -- Focus Target Priority
+    local focus_target = eax_utils.get_focus_target(menu)
+    if focus_target and focus_target:is_valid() and me:can_attack(focus_target) then
+        primary_target = focus_target
+    end
+    
+    if me:is_in_combat() and not is_valid_hostile_target(me, primary_target) then
+        local attacker = find_nearest_attacker(me)
+        if attacker then primary_target = attacker end
+    end
+
+    local primary_target_valid = is_valid_hostile_target(me, primary_target)
+
+    -- Self-emergency healing
+    local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
+    local my_hp = me:get_health_percentage() / 100
+    if my_hp < self_threshold and primary_target_valid then
+        if try_last_stand(me, my_hp) then return end
+        if try_shield_wall(me, my_hp) then return end
+    end
+
+    if not me:is_in_combat() then
+        if runtime.burst_window_active or next(runtime.burst_attempted) ~= nil then
+            reset_burst_state()
+        end
+        if runtime.pending_stance_action then
+            clear_pending_stance_action("left combat")
+        end
+        runtime.auto_intercept_target = nil
+        runtime.auto_intercept_retry_target = nil
+        runtime.auto_intercept_retry_until = 0
+        runtime.last_core_action_at = core.time()
+        runtime.combat_entered_at = 0
+        clear_recovery_target()
+    else
+        if runtime.combat_entered_at == 0 then
+            runtime.combat_entered_at = core.time()
+        end
+        if not primary_target_valid and runtime.burst_window_active and not runtime.recovery_target then
+            close_burst_window("target invalid", false)
+        end
+    end
+
+    local recovery = {
+        target = nil,
+        score = 0,
+        active_candidates = 0,
+        off_me_count = 0,
+    }
+    if me:is_in_combat() then
+        recovery = select_recovery_target(me, primary_target, mode_policy)
+    end
+
+    local action_target = recovery.target or primary_target
+    local action_target_valid = is_valid_hostile_target(me, action_target)
+    if not action_target_valid and primary_target_valid then
+        action_target = primary_target
+        action_target_valid = true
+    end
+
+    if me:is_in_combat() and action_target_valid then
+        utils.ensure_melee_auto_attack(me, action_target)
+    end
+
+    local panic_target = primary_target_valid and primary_target or action_target
+    if try_intimidating_shout_keybind(me, panic_target) then return end
+
+    local rage = utils.get_rage(me)
+    if me:is_in_combat() and try_recovery_lane(me, primary_target, recovery, rage, mode_policy) then
+        maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
+        return
+    end
+
+    if me:is_in_combat() then
+        local hp_pct = utils.get_health_pct(me)
+        if do_emergency_defensive_lane(me, action_target, hp_pct) then
+            maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
+            return
+        end
+    end
+
+    if process_pending_stance_action(me) then return end
+    if runtime.pending_stance_action then return end
+
+    if me:is_in_combat() then
+        -- Don't return home if we're mid-way through a staged stance action
+        -- (e.g. swapped to Berserker for Recklessness but haven't cast it yet).
+        if not runtime.pending_stance_action then
+            if try_return_home_stance(me) then return end
+            local current_stance = utils.get_current_stance(me)
+            if current_stance ~= nil and current_stance ~= get_home_stance() then return end
+        end
+    end
+
+    if not action_target_valid then
+        if try_shout(me) then return end
+        return
+    end
+
+    if not me:is_in_combat() then
+        if try_prepull_bloodrage(me, action_target) then return end
+    end
+
+    if mode_policy.allow_intercept and menu.use_intercept:get_state() then
+        -- In solo mode, don't intercept during the opening 2 seconds of combat
+        -- (target closes to melee before the stance swap resolves, causing wasted swaps).
+        local combat_age = runtime.combat_entered_at > 0 and (core.time() - runtime.combat_entered_at) or 0
+        if combat_age >= 2.0 or not me:is_in_combat() then
+            if try_intercept(me, action_target, rage, "Utility") then return end
+        end
+    end
+
+    if try_shout(me) then return end
+
+    rage = utils.get_rage(me)
+    if try_bloodrage(me, rage) then return end
+
+    local target_hp_pct = utils.get_health_pct(action_target)
+    local aoe_count = utils.enemy_count_in_radius(me, AOE_RADIUS)
+    local is_aoe = aoe_count >= menu.aoe_enemy_count:get()
+    local gcd_lane_ready = is_gcd_lane_ready()
+    if mode_policy.name == "solo" then
+        if gcd_lane_ready and do_core_lane(me, action_target, rage, target_hp_pct, is_aoe) then
+            return
+        end
+
+        if gcd_lane_ready and do_utility_lane(me, action_target, rage, target_hp_pct, is_aoe, mode_policy) then
+            return
+        end
+
+        if do_mitigation_lane(me, action_target, rage, mode_policy, utils.get_health_pct(me)) then
+            maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
+            return
+        end
+    else
+        if do_mitigation_lane(me, action_target, rage, mode_policy, utils.get_health_pct(me)) then
+            maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
+            return
+        end
+
+        if gcd_lane_ready and do_core_lane(me, action_target, rage, target_hp_pct, is_aoe) then
+            return
+        end
+
+        if gcd_lane_ready and do_utility_lane(me, action_target, rage, target_hp_pct, is_aoe, mode_policy) then
+            return
+        end
+    end
+
+    if do_burst_lane(me, action_target, rage, mode_policy) then
+        maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
+        return
+    end
+
+    if do_queue_lane(me, action_target, rage, is_aoe) then
+        maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
+        return
+    end
+
+    maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
+end
+
+-- Control panel callback
+local function on_control_panel()
+    local elements = {}
+    local toggle_key_code = menu.toggle_key:get_key_code()
+    local display_name = "[EAX Warrior Protection] Enabled"
+    if toggle_key_code ~= 7 then
+        display_name = "[EAX Warrior Protection] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
+    end
+
+    local current_state = menu.enabled:get_state()
+    local new_state = control_panel_utility:insert_key_checkbox_(
+        elements,
+        display_name,
+        current_state,
+        0,
+        false,
+        "simpleprot_enabled_control_panel"
+    )
+
+    if new_state ~= current_state then
+        menu.enabled:set(new_state)
+    end
+
+    return elements
+end
+
+-- Register callbacks
 
 local function on_render()
     esp_renderer.on_render(menu)
