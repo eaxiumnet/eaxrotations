@@ -38,6 +38,8 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local dps_risk = require("eax_shared/dps_risk")
+local dps_runtime = require("eax_shared/dps_runtime")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -814,7 +816,10 @@ core.register_on_update_callback(function()
     end
 
     -- Racial CDs
-    racial_manager.try_offensive(me)
+    local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
+    if not hold_offense then
+        racial_manager.try_offensive(me)
+    end
     racial_manager.try_utility(me, target)
     racial_manager.try_defensive(me)
 
@@ -832,8 +837,8 @@ core.register_on_update_callback(function()
     end
 
     -- Offensive CDs
-    try_avenging_wrath(me)
-    if try_divine_favor(me) then return end
+    if not hold_offense then try_avenging_wrath(me) end
+    if not hold_offense and try_divine_favor(me) then return end
     if is_aoe_rotation(enemy_count) and try_divine_storm(me, target, enemy_count) then return end
     if maybe_cast_templars_verdict(me, target) then return end
     if maybe_cast_inquisition(me) then return end

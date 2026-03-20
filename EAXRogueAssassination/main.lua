@@ -38,6 +38,8 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local dps_risk = require("eax_shared/dps_risk")
+local dps_runtime = require("eax_shared/dps_runtime")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -419,7 +421,7 @@ local function try_envenom(me, target)
         return false
     end
 
-    if try_cold_blood(me) then
+    if not hold_offense and try_cold_blood(me) then
                 esp_renderer.on_cast(nil, "Envenom", color.green(220))
         return true
     end
@@ -473,7 +475,7 @@ local function try_eviscerate(me, target)
         return false
     end
 
-    if try_cold_blood(me) then
+    if not hold_offense and try_cold_blood(me) then
         return true
     end
 
@@ -595,7 +597,10 @@ local function do_rotation(me, target)
     end
 
     -- Racial CDs
-    racial_manager.try_offensive(me)
+    local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
+    if not hold_offense then
+        racial_manager.try_offensive(me)
+    end
     racial_manager.try_utility(me, target)
     racial_manager.try_defensive(me)
 
@@ -698,6 +703,10 @@ reactive_adapter = {
         anti_overheal = { noop = "unsupported" },
         anti_aggro = {
             handler = function(_, action_deps)
+                local snapshot = dps_runtime.build_snapshot(action_deps.me, action_deps.current_target, encounter_manager, ttd_tracker)
+                if not dps_risk.should_drop_threat(snapshot) then
+                    return false
+                end
                 return try_vanish(action_deps.me, action_deps.current_target)
             end,
         },

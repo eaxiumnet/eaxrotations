@@ -33,6 +33,8 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local dps_risk = require("eax_shared/dps_risk")
+local dps_runtime = require("eax_shared/dps_runtime")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -645,7 +647,6 @@ local function do_rotation(me, t)
     try_trueshot_aura(me)
     try_aspect_viper(me)
     try_aspect(me)
-    try_rapid_fire(me)
 
     -- Update haste breakpoint detection
     rt.haste_breakpoint = get_haste_breakpoint(me)
@@ -655,9 +656,13 @@ local function do_rotation(me, t)
     end
 
     enc = encounter_manager.get_policy(me)
-    racial_manager.try_offensive(me)
+    local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, t, encounter_manager, ttd_tracker))
+    if not hold_offense then
+        racial_manager.try_offensive(me)
+    end
     racial_manager.try_utility(me, t)
     racial_manager.try_defensive(me)
+    if not hold_offense then try_rapid_fire(me) end
     if defensive_manager.try_defensive(me, "hunter", utils) then return end
     ttd_tracker.update(t)
 
@@ -782,6 +787,10 @@ reactive_adapter = {
         anti_overheal = { noop = "unsupported" },
         anti_aggro = {
             handler = function(_, action_deps)
+                local snapshot = dps_runtime.build_snapshot(action_deps.me, action_deps.current_target, encounter_manager, ttd_tracker)
+                if not dps_risk.should_drop_threat(snapshot) then
+                    return false
+                end
                 return try_feign_death(action_deps.me)
             end,
         },

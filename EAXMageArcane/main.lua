@@ -37,6 +37,8 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local dps_risk = require("eax_shared/dps_risk")
+local dps_runtime = require("eax_shared/dps_runtime")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -562,12 +564,27 @@ local function do_rotation(me, target)
     -- Threat fade protection — don't pull aggro from tank
     local current_target = me:get_target()
     local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
-    if ok and should_fade then
+    if ok and should_fade and dps_risk.should_drop_threat(dps_runtime.build_snapshot(me, current_target, encounter_manager, ttd_tracker)) then
         pcall(function() threat_manager.try_fade(me) end)
         return true
     end
 
     ttd_tracker.update(target)
+
+    if (me:is_casting_spell() or me:is_channelling_spell()) and dps_risk.should_abort_commit(
+        dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker),
+        {
+            kind = me:is_channelling_spell() and "channel" or "cast",
+            progress_pct = 0.20,
+            remaining_s = 1.0,
+            projected_damage_pct = 0.06,
+        }
+    ) then
+        if SpellStopCasting then
+            SpellStopCasting()
+            return true
+        end
+    end
 
 
 
@@ -577,7 +594,10 @@ local function do_rotation(me, target)
     enc = encounter_manager.get_policy(me)
 
     -- Racial CDs
-    racial_manager.try_offensive(me)
+    local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
+    if not hold_offense then
+        racial_manager.try_offensive(me)
+    end
     racial_manager.try_utility(me, target)
     racial_manager.try_defensive(me)
 
@@ -590,9 +610,9 @@ local function do_rotation(me, target)
 
     if try_mana_gem(me) then return true end
     if try_evocation(me) then return true end
-    if try_presence_of_mind(me) then return true end
-    if try_arcane_power(me, target) then return true end
-    if try_trinkets(me) then return true end
+    if not hold_offense and try_presence_of_mind(me) then return true end
+    if not hold_offense and try_arcane_power(me, target) then return true end
+    if not hold_offense and try_trinkets(me) then return true end
     if try_fire_blast_move(me, target) then return true end
     if try_arcane_missiles(me, target) then return true end
     if try_arcane_blast(me, target) then return true end
@@ -636,6 +656,10 @@ reactive_adapter = {
         anti_overheal = { noop = "unsupported" },
         anti_aggro = {
             handler = function(_, action_deps)
+                local snapshot = dps_runtime.build_snapshot(action_deps.me, action_deps.current_target, encounter_manager, ttd_tracker)
+                if not dps_risk.should_drop_threat(snapshot) then
+                    return false
+                end
                 local ok, faded = pcall(function()
                     return threat_manager.try_fade(action_deps.me)
                 end)
