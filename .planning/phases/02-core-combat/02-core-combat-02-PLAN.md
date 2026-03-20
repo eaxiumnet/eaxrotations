@@ -2,8 +2,9 @@
 phase: 02-core-combat
 plan: 02
 type: execute
-wave: 1
-depends_on: []
+wave: 2
+depends_on:
+  - 02-core-combat-01
 files_modified:
   - eax_shared/threat_manager.lua
   - EAXWarlockAffliction/main.lua
