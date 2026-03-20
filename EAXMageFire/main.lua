@@ -64,6 +64,7 @@ local runtime = {
     pending_casts = {},
     set_multiplier = 1.0,
     ooc_arcane_intellect_id = nil,
+    is_execute = false,
 }
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
@@ -434,6 +435,21 @@ local function do_rotation(me, target)
     if leveling_manager.try_wand(me, target, menu) then return true end
     -- Encounter policy (boss-specific rotation adjustments)
     enc = encounter_manager.get_policy(me)
+
+    -- Execute phase detection for Molten Fury (target <20% HP or boss burn_until_pct)
+    local is_execute = false
+    if target and target:is_valid() then
+        local target_hp = target:get_health_percentage() / 100
+        if target_hp <= 0.20 then
+            is_execute = true
+        elseif enc and enc.burn_until_pct and target_hp <= enc.burn_until_pct then
+            is_execute = true
+        end
+    end
+    runtime.is_execute = is_execute
+    if is_execute then
+        utils.log_debug(menu, "Molten Fury execute phase")
+    end
 
     -- Interrupt
     if target and interrupt_manager.should_interrupt(target) then
