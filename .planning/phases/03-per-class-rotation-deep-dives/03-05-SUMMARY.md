@@ -130,6 +130,8 @@ Each task was committed atomically:
 - Both specs integrated with mana_manager for proactive mana potion usage
 - Ready for further priest optimizations (Holy spec) or other class deep dives in Phase 3
 
+## Self-Check: PASSED
+
 ---
 *Phase: 03-per-class-rotation-deep-dives*
 *Completed: 2026-03-20*

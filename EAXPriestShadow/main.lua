@@ -55,7 +55,7 @@ local runtime = {
     last_set_check = 0,
     ooc_divine_spirit_id = nil,
     ooc_power_word_fort_id = nil,
-    shadow_orb_stacks = 0,
+    shadow_orb_stacks = 0, -- Shadow Orbs stacks
     shadow_orb_last_gain = 0,
     tracked_orb_stacks = 0,
 }
