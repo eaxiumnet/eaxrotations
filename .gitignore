@@ -13,3 +13,4 @@ Thumbs.db
 
 # Shared modules (auto-generated/built)
 eax_shared/dot_manager.lua
+eax_shared/mana_manager.lua
