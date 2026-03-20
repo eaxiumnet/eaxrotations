@@ -51,7 +51,20 @@ local INTERRUPT_SPELLS = {
     },
 }
 
+-- Minimum cast time remaining to bother interrupting (ms)
+-- Server latency means we can't react if cast finishes in < 200ms
+local MIN_CAST_TIME_MS = 200
+
+-- Class IDs for healer detection
+local HEALER_CLASSES = {
+    [5] = true,   -- Priest
+    [6] = true,   -- Druid
+    [2] = true,   -- Paladin
+    [7] = true,   -- Shaman
+}
+
 local DANGEROUS_SPELLS = {
+    -- Existing healing spells
     [635]   = 90,  [25292] = 90,  [27135] = 90,
     [20473] = 85,  [19750] = 75,  [27137] = 75,
     [2061]  = 85,  [25233] = 85,  [2060]  = 80,
@@ -77,6 +90,19 @@ local DANGEROUS_SPELLS = {
     [24974] = 50,
     [688]   = 70,  [691]   = 70,  [712]   = 70,
     [697]   = 70,  [30146] = 70,
+    -- Boss encounter dangerous casts
+    [30511] = 92,  -- Magtheridon Shadow Nova
+    [36092] = 95,  -- M'uru Void Blast
+    [45742] = 95,  -- Kil'jaeden Flame Spike
+    [45770] = 92,  -- Kil'jaeden Shadow Spike
+    [34917] = 90,  -- Vampiric Touch (shadow priest)
+    [26555] = 85,  -- Void Reaver Pounding
+    -- Additional healer spells with priority
+    [5040]  = 85,  -- Nourish
+    [26980] = 85,  -- Healing Touch rank 13
+    [20787] = 80,  -- Regrowth rank 9
+    [26981] = 80,  -- Rejuvenation rank 13
+    [25423] = 88,  -- Chain Heal rank 4
 }
 
 local function get_interrupt_priority(target)
@@ -96,11 +122,85 @@ function interrupt_manager.should_interrupt(target)
     if not target then return false end
     if not target:is_casting_spell() and not target:is_channelling_spell() then return false end
     if target:is_casting_spell() and not target:is_active_spell_interruptable() then return false end
+
+    -- Don't interrupt if cast finishes in < 200ms (server latency means too late)
+    local remaining_ms = 0
+    if target:is_casting_spell() then
+        local ok_rem, rem = pcall(function() return target:get_spell_cast_time_remaining() end)
+        if ok_rem and rem then remaining_ms = rem end
+    elseif target:is_channelling_spell() then
+        local ok_rem, rem = pcall(function() return target:get_channel_cast_time_remaining() end)
+        if ok_rem and rem then remaining_ms = rem end
+    end
+    if remaining_ms > 0 and remaining_ms < MIN_CAST_TIME_MS then
+        return false
+    end
+
     return true
 end
 
 function interrupt_manager.get_priority(target)
     return get_interrupt_priority(target)
+end
+
+-- Check if a target should be interrupted and return its priority score
+-- @return should_interrupt (boolean), priority_score (number)
+function interrupt_manager.should_interrupt_target(target)
+    if not target then return false, 0 end
+    if not interrupt_manager.should_interrupt(target) then return false, 0 end
+
+    -- Get spell priority
+    local spell_priority = 25
+    local ok_id, spell_id = pcall(function() return target:get_active_spell_id() end)
+    if ok_id and spell_id and DANGEROUS_SPELLS[spell_id] then
+        spell_priority = DANGEROUS_SPELLS[spell_id]
+    end
+
+    -- Healer bonus: +50 if casting a heal on a player
+    local healer_bonus = 0
+    local ok_cls, cls = pcall(function() return target:get_class() end)
+    if ok_cls and cls and HEALER_CLASSES[cls] then
+        -- Check if target is casting on a player (healing)
+        local ok_tgt, cast_target = pcall(function() return target:get_target() end)
+        if ok_tgt and cast_target and cast_target:is_valid() then
+            local ok_tcls, tcls = pcall(function() return cast_target:get_class() end)
+            if ok_tcls and tcls then
+                -- Healer casting on any player gets bonus
+                healer_bonus = 50
+            end
+        end
+    end
+
+    local total_priority = spell_priority + healer_bonus
+    return true, total_priority
+end
+
+-- Find the best interrupt target from all nearby enemies
+-- @param me player unit
+-- @return best target (unit) or nil
+function interrupt_manager.get_best_interrupt_target(me)
+    if not me then return nil end
+
+    -- Get enemies in interrupt range (~10 yards for most classes)
+    local ok_units, enemies = pcall(function()
+        return core.object_manager.get_units_in_range(me, 10)
+    end)
+    if not ok_units or not enemies then return nil end
+
+    local best_target = nil
+    local best_priority = 0
+
+    for _, unit in ipairs(enemies) do
+        if unit and unit:is_valid() and not unit:is_dead() and me:can_attack(unit) then
+            local should_int, priority = interrupt_manager.should_interrupt_target(unit)
+            if should_int and priority > best_priority then
+                best_priority = priority
+                best_target = unit
+            end
+        end
+    end
+
+    return best_target
 end
 
 local _last_cast = {}
