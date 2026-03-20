@@ -139,7 +139,8 @@ function M.main()
     return 0
 end
 
-if ... == nil then
+local module_name = ...
+if module_name ~= "tools.rotation_validation" then
     os.exit(M.main(), true)
 end
 
