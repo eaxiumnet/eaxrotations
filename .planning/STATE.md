@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 4
+current_plan: 2
 status: unknown
-stopped_at: Completed 03-07-PLAN.md
-last_updated: "2026-03-20T07:02:11.508Z"
+stopped_at: Completed 03-11-PLAN.md
+last_updated: "2026-03-20T12:00:01.044Z"
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 15
-  completed_plans: 14
+  completed_phases: 1
+  total_plans: 17
+  completed_plans: 15
 ---
 
 # State
@@ -31,8 +31,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Requirements defined
 - [x] Roadmap created
 - [x] Phase 03 planned (9 plans)
-- **Current Plan:** 4
-- **Total Plans in Phase:** 9
+- **Current Plan:** 2
+- **Total Plans in Phase:** 11
 
 ## Roadmap
 
@@ -73,6 +73,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [Phase 03]: Retribution Divine Storm now spends 3 Holy Power only in 3+ target AoE windows
 - [Phase 03]: Holy focus-target healing normalizes API health percent values to 0-1 before threshold logic
 - [Phase 03]: Protection checks Avenger's Shield before Shield of the Righteous when Holy Power/proc conditions are met
+- [Phase 03]: Use is_conflagrate_proc_ready to centralize deterministic Conflagrate gating with spell-ready, target-valid, lockout, and Immolate checks.
+- [Phase 03]: Prioritize try_conflagrate before try_shadowfury in Destruction to consume Immolate proc windows immediately.
 
 ## Recent Commits
 
@@ -104,9 +106,10 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 | Phase 03 P09 | 6 min | 3 tasks | 4 files |
 | Phase 03 P08 | 2 min | 3 tasks | 4 files |
 | Phase 03 P07 | 22 min | 3 tasks | 3 files |
+| Phase 03 P11 | 2 min | 2 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-03-20T07:02:11.505Z
-Stopped at: Completed 03-07-PLAN.md
+Last session: 2026-03-20T12:00:01.042Z
+Stopped at: Completed 03-11-PLAN.md
 Resume file: None

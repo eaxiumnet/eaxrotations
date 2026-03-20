@@ -51,7 +51,7 @@
 
 #### Warlock
 - [ ] **LOCK-01**: Implement Affliction DoT clip prevention — Corruption, Immolate, Siphon Life, UA
-- [ ] **LOCK-02**: Add Destro Lock Conflagrate on proc timing
+- [x] **LOCK-02**: Add Destro Lock Conflagrate on proc timing
 - [ ] **LOCK-03**: Implement Demo Lock Metamorphosis / Felguard rotation
 
 #### Priest
@@ -152,7 +152,7 @@ Phase mapping populated during roadmap creation.
 | MAGE-03 | Phase 3 | Complete |
 | MAGE-04 | Phase 3 | Complete |
 | LOCK-01 | Phase 3 | Pending |
-| LOCK-02 | Phase 3 | Pending |
+| LOCK-02 | Phase 3 | Complete |
 | LOCK-03 | Phase 3 | Pending |
 | PRST-01 | Phase 3 | Complete |
 | PRST-02 | Phase 3 | Complete |
