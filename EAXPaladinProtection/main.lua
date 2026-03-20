@@ -512,6 +512,10 @@ local function on_update()
         return
     end
 
+    if try_avengers_shield(me, target, mode) then
+        return
+    end
+
     if try_shield_of_the_righteous(me, target) then
         return
     end
@@ -525,10 +529,6 @@ local function on_update()
     end
 
     if try_consecration(me, enemy_count) then
-        return
-    end
-
-    if try_avengers_shield(me, target, mode) then
         return
     end
 
