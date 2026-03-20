@@ -28,6 +28,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Research complete
 - [x] Requirements defined
 - [x] Roadmap created
+- [x] Phase 03 planned (9 plans)
 
 ## Roadmap
 
@@ -37,7 +38,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 |---|-------|--------|
 | 1 | Foundation | Complete |
 | 2 | Core Combat Systems | Complete |
-| 3 | Per-Class Rotation Deep Dives | Pending |
+| 3 | Per-Class Rotation Deep Dives | Planned |
 | 4 | Polish & Competitive Features | Pending |
 
 ## Decisions Made

@@ -87,6 +87,20 @@ Plans:
 ### Requirements
 WARR-01, WARR-02, WARR-03, HUNT-01, HUNT-02, HUNT-03, MAGE-01, MAGE-02, MAGE-03, MAGE-04, LOCK-01, LOCK-02, LOCK-03, PRST-01, PRST-02, PRST-03, DRUID-01, DRUID-02, DRUID-03, PAL-01, PAL-02, PAL-03, SHAM-01, SHAM-02, SHAM-03, ROGUE-01, ROGUE-02, ROGUE-03
 
+### Plans
+9 plans
+
+### Plans
+- [x] 03-per-class-rotation-deep-dives-01-PLAN.md — Warrior specs: Slam weave, execute phase, stance dance
+- [x] 03-per-class-rotation-deep-dives-02-PLAN.md — Hunter specs: Steady shot/Aimed Shot, melee weaving, haste breakpoints
+- [x] 03-per-class-rotation-deep-dives-03-PLAN.md — Mage specs: Arcane burn phase, Fire Scorch management, Frost FSCT timing
+- [x] 03-per-class-rotation-deep-dives-04-PLAN.md — Warlock specs: Affliction DoT prevention, Destruction Conflagrate on proc, Demo Metamorphosis/Felguard
+- [x] 03-per-class-rotation-deep-dives-05-PLAN.md — Priest specs: Shadow DoT prevention, Mind Blast timing, Disc PW:S management
+- [x] 03-per-class-rotation-deep-dives-06-PLAN.md — Druid specs: Balance DoT prevention/eclipse, Feral CP/energy management
+- [x] 03-per-class-rotation-deep-dives-07-PLAN.md — Paladin specs: Ret CS/Divine Storm, Holy Shock/FoL priority, Prot Holy Wrath/Avengers Shield
+- [x] 03-per-class-rotation-deep-dives-08-PLAN.md — Shaman specs: Totem scanning, Enh Stormstrike/Lava Lash, Ele Chain Lightning/Lava Burst
+- [x] 03-per-class-rotation-deep-dives-09-PLAN.md — Rogue specs: Subtlety Backstab/Hemo, SnD refresh timing, Combat Blade Flurry
+
 ### Key Files
 - All 27 `main.lua` (rotation priority tuning)
 - All 27 `spells.lua` (spell data validation)
