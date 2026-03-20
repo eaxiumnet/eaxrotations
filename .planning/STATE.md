@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-20T21:37:20.065Z"
+status: executing
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-03-20T21:47:58.000Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 
 Phase: 07
 Phase Name: role-intelligence-tuning
-Plan: 2 of 5
+Plan: 3 of 5
 Status: EXECUTING
 
 ## Performance Metrics
@@ -56,6 +56,7 @@ Status: EXECUTING
 | Phase 06 P01 | 6 min | 2 tasks | 7 files |
 | Phase 06 P02 | 3 min | 2 tasks | 30 files |
 | Phase 07 P01 | 5 min | 2 tasks | 6 files |
+| Phase 07 P03 | 6 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Recent decisions affecting current work:
 - [Phase 06]: tools/rotation_validation.lua stays the single blocking gate and now prints deterministic per-spec reactive parity lines plus PASS: reactive parity 27/27.
 - [Phase 07]: Role-aware branch winners stay inside the existing six-branch reactive contract by routing runtime defaults through eax_shared/role_policy.lua.
 - [Phase 07]: combat_context now exposes normalized party, tank, urgent-ally, and cast-victim fields so downstream specs can tune behavior without inventing their own scans.
+- [Phase 07]: Keep tank recovery scoring shared
+- [Phase 07]: Tank anti_aggro now chooses peel or personals from a shared pressure snapshot
+- [Phase 07]: Tank interrupt retargeting reuses shared recovery target selection
 
 ### Pending Todos
 
@@ -98,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:37:20.063Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-03-20T21:50:00.950Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None
