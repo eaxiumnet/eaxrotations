@@ -45,6 +45,9 @@ write_file(runtime_path, table.concat({
     "core.log('allowed rooted call')",
     "core.input.use_item(6948)",
     "local health = me:get_health()",
+    "local aura = { buff_name = 'Boom' }",
+    "local lowered = aura.buff_name:lower()",
+    "local smallest = math.min(1, 2)",
     "local target = me:get_target()",
     "core.not_real_api()",
     "local secret = me:get_secret_value()",
@@ -70,12 +73,14 @@ os.remove(runtime_dir)
 assert(code == 1, "main should return non-zero for runtime violations")
 
 local joined = table.concat(output, "\n")
-assert(joined:find("FAIL: " .. runtime_path .. ":6 -> core.not_real_api", 1, true), "expected rooted allowlist violation output")
-assert(joined:find("FAIL: " .. runtime_path .. ":7 -> :get_secret_value", 1, true), "expected method allowlist violation output")
-assert(joined:find("FAIL: " .. runtime_path .. ":8 -> ffi.C", 1, true), "expected ffi violation output")
-assert(joined:find("FAIL: " .. runtime_path .. ":9 -> os.execute", 1, true), "expected os.execute violation output")
+assert(joined:find("FAIL: " .. runtime_path .. ":9 -> core.not_real_api", 1, true), "expected rooted allowlist violation output")
+assert(joined:find("FAIL: " .. runtime_path .. ":10 -> :get_secret_value", 1, true), "expected method allowlist violation output")
+assert(joined:find("FAIL: " .. runtime_path .. ":11 -> ffi.C", 1, true), "expected ffi violation output")
+assert(joined:find("FAIL: " .. runtime_path .. ":12 -> os.execute", 1, true), "expected os.execute violation output")
 assert(not joined:find("core.log", 1, true), "allowlisted rooted calls should not be reported")
 assert(not joined:find(":get_health", 1, true), "allowlisted methods should not be reported")
+assert(not joined:find("math.min", 1, true), "Lua builtin rooted calls should stay out of scope")
+assert(not joined:find(":lower", 1, true), "builtin string methods should stay out of scope")
 assert(not joined:find(ignored_path, 1, true), "default runtime scan should ignore non-runtime files")
 
 print("api_hard_gate_spec: ok")

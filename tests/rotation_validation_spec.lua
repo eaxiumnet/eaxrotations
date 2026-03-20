@@ -14,6 +14,13 @@ local function read_file(path)
     return content
 end
 
+local function write_file(path, content)
+    local file, write_err = io.open(path, "w")
+    assert(file, "expected file to exist: " .. path .. " :: " .. tostring(write_err))
+    file:write(content)
+    file:close()
+end
+
 local function capture_print(fn)
     local lines = {}
     local original_print = print
@@ -30,6 +37,30 @@ local function capture_print(fn)
     assert(ok, result)
     return result, lines
 end
+
+local runtime_dir = "EAXApiGateSpec"
+local runtime_path = runtime_dir .. "/main.lua"
+
+os.execute("mkdir " .. runtime_dir .. " >nul 2>nul")
+write_file(runtime_path, table.concat({
+    "local visual_state = require('visual_state')",
+    "local vendor_automation = require('vendor_automation')",
+    "local consumables_manager = require('consumables_manager')",
+    "local mount_manager = require('mount_manager')",
+    "core.not_real_api()",
+}, "\n"))
+
+local blocked_code, blocked_lines = capture_print(function()
+    return script.main()
+end)
+
+os.remove(runtime_path)
+os.remove(runtime_dir)
+
+assert(blocked_code == 1, "rotation_validation main should fail when API gate violations exist")
+
+local blocked_output = table.concat(blocked_lines, "\n")
+assert(blocked_output:find("FAIL: api hard gate ::", 1, true), "missing API hard gate failure summary")
 
 local code, lines = capture_print(function()
     return script.main()
