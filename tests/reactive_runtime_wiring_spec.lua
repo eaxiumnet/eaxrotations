@@ -31,7 +31,18 @@ local CANONICAL_SPECS = {
 local REQUIRED_SUBSTRINGS = {
     'require("eax_shared/reactive_runtime")',
     'reactive_state = {}',
+    'local reactive_adapter = {',
     'reactive_runtime.update_tick(me, target, {',
+    'adapter = reactive_adapter',
+}
+
+local REQUIRED_ACTION_KEYS = {
+    'life_save_self',
+    'life_save_ally',
+    'interrupt_control',
+    'anti_overheal',
+    'anti_aggro',
+    'throughput_resume',
 }
 
 local BANNED_SUBSTRINGS = {
@@ -60,6 +71,12 @@ for _, spec in ipairs(CANONICAL_SPECS) do
     for _, required in ipairs(REQUIRED_SUBSTRINGS) do
         assert(content:find(required, 1, true), spec .. " missing required wiring: " .. required)
     end
+
+    for _, action_key in ipairs(REQUIRED_ACTION_KEYS) do
+        assert(content:find(action_key, 1, true), spec .. " missing reactive action key: " .. action_key)
+    end
+
+    assert(content:find('noop = "unsupported"', 1, true), spec .. " missing explicit unsupported noop marker")
 
     for _, banned in ipairs(BANNED_SUBSTRINGS) do
         assert(not content:find(banned, 1, true), spec .. " leaked deferred HUD debug field: " .. banned)
