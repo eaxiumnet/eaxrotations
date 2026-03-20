@@ -54,12 +54,15 @@ COMBAT-02, COMBAT-03, COMBAT-04, INTER-01, INTER-02, INTER-03, ENCOUNT-01, ENCOU
 **Plans:** 3 plans
 
 Plans:
-- [ ] 02-core-combat-01-PLAN.md — DoT clip prevention + mana management
+- [x] 02-core-combat-01-PLAN.md — DoT clip prevention + mana management
 - [ ] 02-core-combat-02-PLAN.md — Threat estimation + fade protection
-- [ ] 02-core-combat-03-PLAN.md — Interrupt refinements + encounter expansion
+- [x] 02-core-combat-03-PLAN.md — Interrupt refinements + encounter expansion
 
 ### Key Files
-- `common/eax_shared/` (DoT clip helpers)
+- `eax_shared/dot_manager.lua` — DoT clip prevention with safe refresh thresholds
+- `eax_shared/mana_manager.lua` — Proactive mana management for casters
+- `eax_shared/threat_manager.lua` — Threat estimation with tank tracking
+- All caster spec `main.lua` (DoT refresh + mana management wired)
 - All 27 `main.lua` (rotation timing)
 - All 27 `encounter_manager.lua`
 - All 27 `spells.lua` (expanded spell databases)
