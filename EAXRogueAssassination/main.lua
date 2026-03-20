@@ -31,6 +31,11 @@ local ttd_tracker = require("ttd_tracker")
 local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
+---@type threat_manager
+local threat_manager = require("eax_shared/threat_manager")
+
+-- Guard to init threat_manager only once at startup
+local threat_initialized = false
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")

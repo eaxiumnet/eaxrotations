@@ -14,9 +14,9 @@
 ### Core Combat
 
 - [ ] **COMBAT-01**: Implement swing timer library in `common/eax_shared/swing_timer.lua` — get next swing time, safe queue check, safety buffer support
-- [ ] **COMBAT-02**: Add DoT clip prevention to all DoT-casting specs — never refresh before final tick, track remaining duration
+- [x] **COMBAT-02**: Add DoT clip prevention to all DoT-casting specs — never refresh before final tick, track remaining duration
 - [ ] **COMBAT-03**: Implement threat estimation — track estimated DPS, warn or fade before threat pull
-- [ ] **COMBAT-04**: Add mana management for casters — pre-pull consumables, OOM prevention, Evocation timing
+- [x] **COMBAT-04**: Add mana management for casters — pre-pull consumables, OOM prevention, Evocation timing
 
 ### Interrupt System
 
@@ -131,9 +131,9 @@ Phase mapping populated during roadmap creation.
 | FOUND-02 | Phase 1 | Pending |
 | FOUND-03 | Phase 1 | Pending |
 | COMBAT-01 | Phase 2 | Pending |
-| COMBAT-02 | Phase 2 | Pending |
+| COMBAT-02 | Phase 2 | Complete |
 | COMBAT-03 | Phase 2 | Pending |
-| COMBAT-04 | Phase 2 | Pending |
+| COMBAT-04 | Phase 2 | Complete |
 | INTER-01 | Phase 2 | Complete |
 | INTER-02 | Phase 2 | Complete |
 | INTER-03 | Phase 2 | Complete |

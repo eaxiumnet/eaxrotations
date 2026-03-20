@@ -26,6 +26,12 @@ local ttd_tracker   = require("ttd_tracker")
 local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
+---@type threat_manager
+local threat_manager = require("eax_shared/threat_manager")
+
+-- Guard to init threat_manager only once at startup
+local threat_initialized = false
+
 ---@type control_panel_helper
 local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
@@ -785,6 +791,7 @@ local function on_update()
     if not menu.enabled or not menu.enabled:get_state() then return end
     local me = get_me()
     if not me or me:is_dead() then return end
+    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     ooc_manager.on_update(me, menu, utils, {})
     if eax_utils.is_eating_or_drinking(me) then return end
     local focus = eax_utils.get_focus_target(menu)

@@ -14,16 +14,16 @@ local color     = require("color")
 local buff_manager = require("common/modules/buff_manager")
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("common/eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("common/eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -70,14 +70,9 @@ end, color.orange(230), color.cyan(60), "bear")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
----@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
-
--- Guard to init threat_manager only once at startup
-local threat_initialized = false
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -105,6 +100,8 @@ local runtime = {
     lacerate_id = nil,
     last_shift_at = 0,
     bear_charge_shift_at = 0,  -- timestamp of last bear-shift-for-charge; suppresses snap-back
+    prowl_active = false,       -- tracked via spell cast callback, reliable on all servers
+    cat_form_active = false,    -- tracked via spell cast callback
     maim_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
@@ -144,6 +141,29 @@ local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 -- Wire up HUD context now that runtime exists
 esp_renderer.set_context(spells, utils, runtime)
+
+-- Override utils.is_prowling and utils.is_in_cat_form with runtime-tracked versions.
+-- The spell cast callback tracks these reliably on all servers; buff detection is
+-- kept as a fallback in case the callback fires before we initialise.
+local _orig_is_prowling    = utils.is_prowling
+local _orig_is_in_cat_form = utils.is_in_cat_form
+
+function utils.is_prowling(unit, prowl_ids)
+    local me = core.object_manager.get_local_player()
+    if me and unit and utils.same_unit(unit, me) then
+        -- Prefer runtime state tracked from spell cast callback
+        if runtime.prowl_active then return true end
+    end
+    return _orig_is_prowling(unit, prowl_ids)
+end
+
+function utils.is_in_cat_form(unit, spells_ref)
+    local me = core.object_manager.get_local_player()
+    if me and unit and utils.same_unit(unit, me) then
+        if runtime.cat_form_active then return true end
+    end
+    return _orig_is_in_cat_form(unit, spells_ref)
+end
 -- Energy pooling: at CP=4, wait for this much energy before the final Shred
 -- so you can chain Shred → finisher without an energy gap.
 local ENERGY_POOL_FOR_SHRED = 75
@@ -195,9 +215,16 @@ local function log_resolved_spells()
     core.log("[EAX Druid Feral] Resolved: CatMangle=" .. tostring(runtime.mangle_cat_id)
         .. " Shred=" .. tostring(runtime.shred_id)
         .. " Rip=" .. tostring(runtime.rip_id)
+        .. " Rake=" .. tostring(runtime.rake_id)
         .. " BearMangle=" .. tostring(runtime.mangle_bear_id)
         .. " Swipe=" .. tostring(runtime.swipe_id)
-        .. " Growl=" .. tostring(runtime.growl_id))
+        .. " Growl=" .. tostring(runtime.growl_id)
+        .. " Prowl=" .. tostring(runtime.prowl_id)
+        .. " Pounce=" .. tostring(runtime.pounce_id)
+        .. " Ravage=" .. tostring(runtime.ravage_id)
+        .. " TigersFury=" .. tostring(runtime.tigers_fury_id)
+        .. " Claw=" .. tostring(runtime.claw_id)
+        .. " FerociousBite=" .. tostring(runtime.ferocious_bite_id))
 end
 
 local function update_set_bonus(me)
@@ -214,6 +241,29 @@ end
 
 resolve_spells()
 log_resolved_spells()
+
+-- Patch CP spell sets with any server-resolved IDs that weren't in the
+-- original rank tables (private servers often use non-standard spell IDs)
+local function patch_cp_sets_with_resolved()
+    local builder_ids = {
+        runtime.shred_id, runtime.rake_id, runtime.mangle_cat_id,
+        runtime.claw_id, runtime.pounce_id, runtime.ravage_id,
+    }
+    for _, id in ipairs(builder_ids) do
+        if id then CP_BUILDERS[id] = true end
+    end
+    local finisher_ids = {
+        runtime.rip_id, runtime.ferocious_bite_id, runtime.maim_id,
+    }
+    for _, id in ipairs(finisher_ids) do
+        if id then CP_FINISHERS[id] = true end
+    end
+    -- Also patch stealth breakers
+    if runtime.shred_id    then STEALTH_BREAKING_IDS[runtime.shred_id]    = true end
+    if runtime.mangle_cat_id then STEALTH_BREAKING_IDS[runtime.mangle_cat_id] = true end
+    if runtime.rake_id     then STEALTH_BREAKING_IDS[runtime.rake_id]     = true end
+    if runtime.claw_id     then STEALTH_BREAKING_IDS[runtime.claw_id]     = true end
+end
 
 local function note_cast()
     runtime.last_cast_time = core.time()
@@ -338,13 +388,8 @@ local function get_requested_lane(me)
 end
 
 local function handle_toggle()
-    local current = menu.toggle_key:get_state()
-    if current and not runtime.prev_toggle_state then
-        local was_enabled = menu.enabled:get_state()
-        menu.enabled:set(not was_enabled)
-        utils.log_debug(menu, "Toggle -> " .. tostring(not was_enabled))
-    end
-    runtime.prev_toggle_state = current
+    -- key_checkbox manages its own toggle state natively via the keybind.
+    -- No manual edge-detection needed.
 end
 
 local function try_shift_form(me, lane)
@@ -1364,6 +1409,9 @@ end
 local function do_cat_rotation(me, target)
     local target_hp_pct = utils.get_health_pct(target)
     local in_stealth = utils.is_prowling(me, spells.BUFF_PROWL)
+    if in_stealth then
+        utils.log_debug(menu, "[Stealth] Prowl detected — using stealth openers only")
+    end
 
     -- Defensive / self-cast (always safe, don't break stealth)
     if try_barkskin(me) then return true end
@@ -1375,6 +1423,19 @@ local function do_cat_rotation(me, target)
     if in_stealth then
         if try_pounce(me, target) then return true end
         if try_ravage(me, target) then return true end
+        -- Fallback: if neither pounce nor ravage is learned (low level),
+        -- use Claw as opener then break stealth naturally on the first attack
+        if not runtime.pounce_id and not runtime.ravage_id then
+            if runtime.claw_id and utils.is_melee_target(me, target)
+               and utils.can_cast_hostile(runtime.claw_id, me, target) then
+                if utils.cast_target(runtime.claw_id, target) then
+                    mark_pending_cast(runtime.claw_id, PENDING_CAST_TIMEOUT_S)
+                    utils.log_debug(menu, "Claw (stealth opener fallback)")
+                    note_cast()
+                    return true
+                end
+            end
+        end
         return false
     end
 
@@ -1896,6 +1957,34 @@ build_cp_spell_sets()
 local _last_cp_increment_time = 0
 local _last_cast_seen = {}
 
+-- Spell IDs that indicate prowl/stealth was just activated
+local PROWL_SPELL_IDS = {}
+for _, id in ipairs(spells.PROWL) do PROWL_SPELL_IDS[id] = true end
+
+-- Spell IDs for cat form
+local CAT_FORM_SPELL_IDS = {}
+for _, id in ipairs(spells.CAT_FORM) do CAT_FORM_SPELL_IDS[id] = true end
+
+-- Spell IDs for bear/dire bear form
+local BEAR_FORM_SPELL_IDS = {}
+for _, id in ipairs(spells.BEAR_FORM) do BEAR_FORM_SPELL_IDS[id] = true end
+for _, id in ipairs(spells.DIRE_BEAR_FORM) do BEAR_FORM_SPELL_IDS[id] = true end
+
+-- Any hostile spell that breaks stealth
+local STEALTH_BREAKING_IDS = {}
+local function add_stealth_breakers(tbl)
+    if not tbl then return end
+    for _, id in ipairs(tbl) do STEALTH_BREAKING_IDS[id] = true end
+end
+add_stealth_breakers(spells.FAERIE_FIRE_FERAL)
+add_stealth_breakers(spells.FAERIE_FIRE)
+add_stealth_breakers(spells.MANGLE_CAT)
+add_stealth_breakers(spells.RAKE)
+add_stealth_breakers(spells.SHRED)
+add_stealth_breakers(spells.CLAW)
+add_stealth_breakers(spells.POUNCE)
+add_stealth_breakers(spells.RAVAGE)
+
 local function on_spell_cast(data)
     if not data or not data.spell_id then return end
 
@@ -1908,6 +1997,24 @@ local function on_spell_cast(data)
 
     local sid = data.spell_id
     local now = core.time()
+
+    -- Track form and stealth state from cast events — most reliable method
+    -- since buff detection is unreliable on some private servers.
+    if PROWL_SPELL_IDS[sid] then
+        runtime.prowl_active    = true
+        runtime.cat_form_active = true
+        utils.log_debug(menu, "[State] Prowl activated")
+    elseif CAT_FORM_SPELL_IDS[sid] then
+        runtime.cat_form_active = true
+        runtime.prowl_active    = false  -- casting cat form explicitly breaks stealth
+        utils.log_debug(menu, "[State] Cat Form activated")
+    elseif BEAR_FORM_SPELL_IDS[sid] then
+        runtime.cat_form_active = false
+        runtime.prowl_active    = false
+    elseif CP_BUILDERS[sid] or CP_FINISHERS[sid] or STEALTH_BREAKING_IDS[sid] then
+        -- Any hostile action breaks stealth
+        runtime.prowl_active = false
+    end
 
     if CP_BUILDERS[sid] then
         -- Deduplicate: if ANY builder already incremented CP very recently,
@@ -1951,7 +2058,6 @@ core.register_on_spell_cast_callback(on_spell_cast)
 core.register_on_update_callback(function()
     local me = core.object_manager.get_local_player()
     if not me then return end
-    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
 
     if utils.throttle("eaxdruidferal_mode_refresh", 5.0) then
         runtime.cached_mode = detect_mode(me)
@@ -1964,6 +2070,19 @@ core.register_on_update_callback(function()
     handle_toggle()
 
     if not menu.enabled:get_state() then return end
+
+    -- Validate tracked form state periodically using buff_manager as a cross-check.
+    -- If buff_manager says we're not in cat form but we think we are, correct it.
+    if utils.throttle("eaxdruidferal_form_validate", 1.0) then
+        local in_cat_api  = _orig_is_in_cat_form and _orig_is_in_cat_form(me, spells) or false
+        local in_bear_api = utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM)
+        local in_travel   = utils.has_buff(me, spells.BUFF_TRAVEL_FORM)
+        -- If buff_manager confirms a non-cat form, trust it over our tracked state
+        if in_bear_api or in_travel then
+            runtime.cat_form_active = false
+            runtime.prowl_active    = false
+        end
+    end
 
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils, {
@@ -2071,10 +2190,12 @@ if control_panel_utility then
             local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
             if nxt ~= cur then item:set(nxt) end
         end
-        local toggle_key = menu.toggle_key:get_key_code()
+        local toggle_key_code = 7
+        pcall(function() toggle_key_code = menu.enabled:get_key_code() end)
         local label = "EAX Druid Feral] Enabled"
-        if toggle_key ~= 7 then
-            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        if toggle_key_code ~= 7 and key_helper then
+            local ok, name = pcall(function() return key_helper:get_key_name(toggle_key_code) end)
+            if ok and name then label = label .. " (" .. name .. ")" end
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxdruidferal_enabled_cp")

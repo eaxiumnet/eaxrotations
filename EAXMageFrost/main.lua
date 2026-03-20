@@ -33,6 +33,11 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
+---@type threat_manager
+local threat_manager = require("eax_shared/threat_manager")
+
+-- Guard to init threat_manager only once at startup
+local threat_initialized = false
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -378,6 +383,14 @@ local function do_rotation(me, target)
         return true
     end
 
+    -- Threat fade protection — don't pull aggro from tank
+    local current_target = me:get_target()
+    local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
+    if ok and should_fade then
+        pcall(function() threat_manager.try_fade(me) end)
+        return true
+    end
+
     if try_water_elemental(me, target) then return true end
     if try_ice_barrier(me) then return true end
     if try_cone_of_cold_frost(me, target) then return true end
@@ -453,6 +466,7 @@ core.register_on_update_callback(function()
     local me = core.object_manager.get_local_player()
     if not me then return end
     if me:is_dead() then return end
+    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     if eax_utils.is_eating_or_drinking(me) then return end
 
     local focus_target = eax_utils.get_focus_target(menu)

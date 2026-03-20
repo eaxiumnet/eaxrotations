@@ -38,6 +38,11 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 local ttd_tracker = require("ttd_tracker")
 ---@type dot_manager
 local dot_manager = require("eax_shared/dot_manager")
+---@type threat_manager
+local threat_manager = require("eax_shared/threat_manager")
+
+-- Guard to init threat_manager only once at startup
+local threat_initialized = false
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -720,6 +725,7 @@ end)
 core.register_on_update_callback(function()
     local me = core.object_manager.get_local_player()
     if not me then return end
+    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
 
     if utils.throttle("eaxdruidrestoration_mode_refresh", 5.0) then
         runtime.cached_mode = detect_mode(me)
@@ -777,6 +783,14 @@ core.register_on_update_callback(function()
 
     if try_barkskin_defensive(me) then return true end
     if defensive_manager.try_defensive(me, "druid", utils) then
+        return
+    end
+
+    -- Threat fade protection — don't pull aggro from tank
+    local current_target = me:get_target()
+    local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
+    if ok and should_fade then
+        pcall(function() threat_manager.try_fade(me) end)
         return
     end
 

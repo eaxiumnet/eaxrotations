@@ -36,6 +36,11 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
 local dot_manager = require("eax_shared/dot_manager")
+---@type threat_manager
+local threat_manager = require("eax_shared/threat_manager")
+
+-- Guard to init threat_manager only once at startup
+local threat_initialized = false
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -487,6 +492,16 @@ local function do_rotation(me, target)
     if defensive_manager.try_defensive(me, "warlock", utils) then
         return
     end
+
+    -- Threat fade protection — don't pull aggro from tank
+    if me:is_in_combat() then
+        local current_target = me:get_target()
+        local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
+        if ok and should_fade then
+            pcall(function() threat_manager.try_fade(me) end)
+            return
+        end
+    end
     
     local effective_mode = get_effective_mode()
     if try_immolate(me, target) then
@@ -531,6 +546,7 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then
         return
     end
+    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
         ooc_manager.on_update(me, menu, utils)
     if eax_utils.is_eating_or_drinking(me) then return end
     local focus_target = eax_utils.get_focus_target(menu)
