@@ -51,6 +51,13 @@ Plans:
 ### Requirements
 COMBAT-02, COMBAT-03, COMBAT-04, INTER-01, INTER-02, INTER-03, ENCOUNT-01, ENCOUNT-02, ENCOUNT-03, ENCOUNT-04
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-core-combat-01-PLAN.md — DoT clip prevention + mana management
+- [ ] 02-core-combat-02-PLAN.md — Threat estimation + fade protection
+- [ ] 02-core-combat-03-PLAN.md — Interrupt refinements + encounter expansion
+
 ### Key Files
 - `common/eax_shared/` (DoT clip helpers)
 - All 27 `main.lua` (rotation timing)
