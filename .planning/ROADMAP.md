@@ -33,7 +33,7 @@ Plans:
 - [x] 05-reactive-contract-api-gate-01-PLAN.md - Create the shared combat snapshot and deterministic reactive decision contract.
 - [x] 05-reactive-contract-api-gate-02-PLAN.md - Add generated API allowlist enforcement and wire it into the blocking validation flow.
 - [x] 05-reactive-contract-api-gate-03-PLAN.md - Add the shared runtime telemetry bridge and align benchmark live rows to runtime reactive telemetry.
-- [ ] 05-reactive-contract-api-gate-04-PLAN.md - TBD.
+- [x] 05-reactive-contract-api-gate-04-PLAN.md - Close the strict API hard-gate gap with allowlist-backed rooted and method enforcement.
 - [ ] 05-reactive-contract-api-gate-05-PLAN.md - TBD.
 
 ### Phase 6: 27-Spec Reactive Wiring
@@ -71,7 +71,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5. Reactive Contract + API Gate | 3/5 | In Progress | - |
+| 5. Reactive Contract + API Gate | 4/5 | In Progress | - |
 | 6. 27-Spec Reactive Wiring | 0/TBD | Not started | - |
 | 7. Role Intelligence Tuning | 0/TBD | Not started | - |
 | 8. Benchmark Matrix Hardening | 0/TBD | Not started | - |

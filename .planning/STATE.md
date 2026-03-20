@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-20T15:58:45.481Z"
+status: unknown
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-03-20T16:14:40.063Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 ## Current Position
 
 Phase: 05 (reactive-contract-api-gate) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Plan: 4 of 5
 | Phase 05 P01 | 4 min | 2 tasks | 6 files |
 | Phase 05 P02 | 9 min | 2 tasks | 8 files |
 | Phase 05 P03 | 2 min | 2 tasks | 6 files |
+| Phase 05 P04 | 19 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Keep tools/rotation_validation.lua as the single blocking command and append API gate status after spec validation.
 - [Phase 05]: Let reactive_runtime.update_tick own the shared per-tick bridge from normalized context to telemetry persistence.
 - [Phase 05]: Keep reactive_action as the canonical benchmark field while falling back to action_id for older snapshots.
+- [Phase 05]: Strict hard-gate enforcement applies to documented API namespaces and runtime object receivers, not arbitrary Lua builtins or repo-local helper DSLs.
+- [Phase 05]: The authoritative .api surface now includes missing runtime aliases and helper entrypoints so clean validation can pass honestly under the generated allowlist.
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T15:58:45.479Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-03-20T16:14:05.037Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None
