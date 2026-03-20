@@ -55,6 +55,9 @@ local runtime = {
     last_set_check = 0,
     ooc_divine_spirit_id = nil,
     ooc_power_word_fort_id = nil,
+    shadow_orb_stacks = 0,
+    shadow_orb_last_gain = 0,
+    tracked_orb_stacks = 0,
 }
 
 local resolved = {
@@ -68,6 +71,7 @@ local resolved = {
     mind_flay = utils.resolve_spell_id(spells.MIND_FLAY),
     shadowform = utils.resolve_spell_id(spells.SHADOWFORM),
     shadowfiend = utils.resolve_spell_id(spells.SHADOWFIEND),
+    shadow_weaving_buff = 25423, -- Shadow Weaving buff ID
 }
 
 local function log_mode(mode)
@@ -92,6 +96,24 @@ local function update_set_bonus(me)
             end
         end
         runtime.set_multiplier = best_multiplier
+    end
+end
+
+local function update_shadow_orb_stacks(me)
+    local buff_stacks = utils.get_buff_stacks(me, spells.BUFF_SHADOW_WEAVING)
+    if buff_stacks > 0 then
+        runtime.shadow_orb_stacks = buff_stacks
+        runtime.tracked_orb_stacks = 0  -- buff overrides tracked
+        runtime.shadow_orb_last_gain = core.time()
+        return
+    end
+    -- Use tracked stacks (from Mind Flay casts)
+    runtime.shadow_orb_stacks = runtime.tracked_orb_stacks
+    -- Decay stacks after 10 seconds of no gain
+    local now = core.time()
+    if runtime.shadow_orb_stacks > 0 and (now - runtime.shadow_orb_last_gain) > 10 then
+        runtime.tracked_orb_stacks = 0
+        runtime.shadow_orb_stacks = 0
     end
 end
 
@@ -212,6 +234,12 @@ local function try_mind_blast(me, target)
         return false
     end
 
+    -- Shadow Orbs: cast Mind Blast when 3+ stacks (Shadow Weaving or tracked)
+    if runtime.shadow_orb_stacks >= 3 then
+        runtime.tracked_orb_stacks = 0  -- consume tracked stacks
+        return utils.cast_target(resolved.mind_blast, target, nil)
+    end
+
     local dot_window_ms = menu.dot_refresh_window:get() * 1000
     local burst_window_ms = menu.mind_blast_burst_window:get() * 1000
     local vt_remain = utils.get_buff_remaining_ms(target, spells.VAMPIRIC_TOUCH)
@@ -232,7 +260,11 @@ local function try_mind_flay(me, target)
     if not resolved.mind_flay or not target then
         return false
     end
-
+    -- Increment Shadow Orb stacks (max 3) if no Shadow Weaving buff
+    if utils.get_buff_stacks(me, spells.BUFF_SHADOW_WEAVING) == 0 then
+        runtime.tracked_orb_stacks = math.min(runtime.tracked_orb_stacks + 1, 3)
+        runtime.shadow_orb_last_gain = core.time()
+    end
     return utils.cast_target(resolved.mind_flay, target, nil)
 end
 
@@ -317,6 +349,7 @@ core.register_on_update_callback(function()
     if eax_utils.is_eating_or_drinking(me) then return end
 
     update_set_bonus(me)
+    update_shadow_orb_stacks(me)
 
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
