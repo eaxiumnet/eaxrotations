@@ -2130,7 +2130,7 @@ local function on_update()
     if not me then return end
 
     if me:is_dead() then return end
-    if menu.auto_mount and menu.auto_dismount and (menu.auto_mount:get_state() or menu.auto_dismount:get_state()) then
+    if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end
 

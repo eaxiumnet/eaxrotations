@@ -699,7 +699,7 @@ local function on_update()
     if not me or me:is_dead() then return end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     ooc_manager.on_update(me, menu, utils, {})
-    if menu.auto_mount and menu.auto_dismount and (menu.auto_mount:get_state() or menu.auto_dismount:get_state()) then
+    if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end
 

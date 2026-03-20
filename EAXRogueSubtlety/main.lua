@@ -670,7 +670,7 @@ core.register_on_update_callback(function()
         return
     end
         ooc_manager.on_update(me, menu, utils)
-    if menu.auto_mount and menu.auto_dismount and (menu.auto_mount:get_state() or menu.auto_dismount:get_state()) then
+    if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end
 
