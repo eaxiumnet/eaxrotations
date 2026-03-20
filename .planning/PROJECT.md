@@ -55,6 +55,8 @@ What needs to be built or fixed to reach #1:
 
 The codebase (v2.1.0) is a mature, working plugin suite. Each spec follows a consistent architecture: `main.lua` (rotation logic), `spells.lua` (spell ID rank tables), `utils.lua` (casting/targeting helpers), and shared manager modules. The main bottleneck to reaching #1 is not missing features — it's **rotation optimization depth** and **set bonus accuracy**. The codebase was last updated 2026-03-17 with combo point and ESP/HUD fixes.
 
+Phase 4 (Polish & Competitive Features) is complete: shared telemetry, shared automation modules, spec-wide HUD/automation wiring, and validation/benchmark tooling are now in place.
+
 Reference implementations for spell priority and set bonuses:
 - `/c/618497f1/scripts/tbc/sim/*/` — complete spell lists and set bonus patterns
 - `/c/618497f1/scripts/PublicGithubs/BRLite-main/` — rotation examples
@@ -83,4 +85,4 @@ Repository: https://github.com/eaxiumnet/eax-tbc-classic-rotations
 | Manual-only testing | No TBC server API available for automated validation | ⚠️ Regression risk |
 
 ---
-*Last updated: 2026-03-20 after initialization*
+*Last updated: 2026-03-20 after Phase 04 completion*
