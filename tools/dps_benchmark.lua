@@ -58,7 +58,22 @@ local function mock_snapshot(index)
         duration_s = duration_s,
         dps = damage_total / duration_s,
         hps = healing_total / duration_s,
+        reactive_action = "none",
+        reason_code = "NO_ACTION",
     }
+end
+
+local function snapshot_field(snapshot, key, fallback)
+    if type(snapshot) ~= "table" then
+        return fallback
+    end
+
+    local value = snapshot[key]
+    if value == nil or value == "" then
+        return fallback
+    end
+
+    return value
 end
 
 local function benchmark_rows(args)
@@ -84,18 +99,20 @@ function M.run_benchmark(argv)
     local args = parse_args(argv)
     local rows = benchmark_rows(args)
 
-    print("schema: spec,damage_total,healing_total,dps,hps,duration_s")
-    print("spec,damage_total,healing_total,dps,hps,duration_s")
+    print("schema: spec,damage_total,healing_total,dps,hps,duration_s,reactive_action,reason_code")
+    print("spec,damage_total,healing_total,dps,hps,duration_s,reactive_action,reason_code")
     for _, row in ipairs(rows) do
         local snapshot = row.snapshot
         print(string.format(
-            "%s,%.0f,%.0f,%.2f,%.2f,%.2f",
+            "%s,%.0f,%.0f,%.2f,%.2f,%.2f,%s,%s",
             row.spec,
             as_number(snapshot.damage_total),
             as_number(snapshot.healing_total),
             as_number(snapshot.dps),
             as_number(snapshot.hps),
-            as_number(snapshot.duration_s)
+            as_number(snapshot.duration_s),
+            tostring(snapshot_field(snapshot, "reactive_action", "none")),
+            tostring(snapshot_field(snapshot, "reason_code", "NO_ACTION"))
         ))
     end
 
