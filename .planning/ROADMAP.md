@@ -100,6 +100,8 @@ WARR-01, WARR-02, WARR-03, HUNT-01, HUNT-02, HUNT-03, MAGE-01, MAGE-02, MAGE-03,
 - [x] 03-per-class-rotation-deep-dives-07-PLAN.md — Paladin specs: Ret CS/Divine Storm, Holy Shock/FoL priority, Prot Holy Wrath/Avengers Shield
 - [x] 03-per-class-rotation-deep-dives-08-PLAN.md — Shaman specs: Totem scanning, Enh Stormstrike/Lava Lash, Ele Chain Lightning/Lava Burst
 - [x] 03-per-class-rotation-deep-dives-09-PLAN.md — Rogue specs: Subtlety Backstab/Hemo, SnD refresh timing, Combat Blade Flurry
+- [x] 03-10-PLAN.md — Gap closure: Fury execute fast-1H + swing-safe gating
+- [x] 03-11-PLAN.md — Gap closure: Destro Conflagrate proc-aware immediate consumption
 - [ ] 03-per-class-rotation-deep-dives-10-PLAN.md — Gap closure: Fury execute fast-1H + swing timer wiring (WARR-02)
 - [ ] 03-per-class-rotation-deep-dives-11-PLAN.md — Gap closure: Destruction Conflagrate proc gating cleanup (LOCK-02)
 
