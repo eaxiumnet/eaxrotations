@@ -59,7 +59,14 @@ Plans:
   2. Healer specs prioritize effective healing targets using incoming-heal and overheal-aware triage.
   3. Tank specs react to spike damage and threat instability with timely defensive and utility usage.
   4. Interrupt/fear/control decisions prioritize dangerous casts by urgency and encounter context instead of static ordering.
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 07-role-intelligence-tuning-01-PLAN.md - Build the shared role-policy contract and richer normalized snapshot inputs.
+- [ ] 07-role-intelligence-tuning-02-PLAN.md - Roll shared tank-first triage and anti-overheal logic into all healer specs.
+- [ ] 07-role-intelligence-tuning-03-PLAN.md - Roll shared threat-recovery and proactive defensive posture into all tank specs.
+- [ ] 07-role-intelligence-tuning-04-PLAN.md - Roll shared DPS danger-window burst holds and cast-abort logic into all non-healer DPS specs.
+- [ ] 07-role-intelligence-tuning-05-PLAN.md - Add blocking role-parity validation and benchmark-visible role-quality telemetry.
 
 ### Phase 8: Benchmark Matrix Hardening
 **Goal**: Users can trust milestone quality because release gates require passing 27-spec performance and behavior KPIs.
