@@ -4,6 +4,7 @@ assert(chunk, "expected tools/rotation_validation.lua to exist: " .. tostring(er
 local script = chunk("tools.rotation_validation")
 assert(type(script) == "table", "rotation_validation should return a module table")
 assert(type(script.validate_spec) == "function", "validate_spec must be defined")
+assert(type(script.validate_role_parity) == "function", "validate_role_parity must be defined")
 assert(type(script.main) == "function", "main must be defined")
 
 local function read_file(path)
@@ -94,6 +95,7 @@ assert(code == 0, "rotation_validation main should succeed on a clean repo")
 local output = table.concat(lines, "\n")
 assert(output:find("PASS: api hard gate", 1, true), "missing API hard gate pass summary")
 assert(output:find("PASS: reactive parity 27/27", 1, true), "missing reactive parity pass summary")
+assert(output:find("PASS: role parity 27/27", 1, true), "missing role parity pass summary")
 
 local checklist = read_file(".planning/phases/05-reactive-contract-api-gate/05-API-GATE-CHECKLIST.md")
 assert(checklist:find("| Allowlist generation |", 1, true), "missing allowlist generation checklist row")
