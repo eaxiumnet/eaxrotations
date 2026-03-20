@@ -11,13 +11,13 @@ local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("interrupt_manager")
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager = require("common/eax_shared/ooc_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("encounter_manager")
+local encounter_manager = require("common/eax_shared/encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -28,9 +28,9 @@ esp_renderer.init("combat", "Rogue Combat")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("racial_manager")
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("defensive_manager")
+local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")

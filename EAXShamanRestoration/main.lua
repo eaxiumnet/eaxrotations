@@ -32,13 +32,13 @@ local spells = require("spells")
 local utils  = require("utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("interrupt_manager")
+local interrupt_manager = require("common/eax_shared/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager = require("common/eax_shared/ooc_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("encounter_manager")
+local encounter_manager = require("common/eax_shared/encounter_manager")
 
 
 ---@type esp_renderer
@@ -47,9 +47,9 @@ esp_renderer.init("sresto", "Shaman Resto")
 ---@type color
 local color = require("color")
 ---@type racial_manager
-local racial_manager = require("racial_manager")
+local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("defensive_manager")
+local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
