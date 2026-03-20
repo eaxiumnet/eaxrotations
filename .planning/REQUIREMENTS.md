@@ -75,9 +75,9 @@
 - [ ] **SHAM-03**: Add Elemental chain lightning / lava burst burst phase
 
 #### Rogue
-- [ ] **ROGUE-01**: Implement Subtlety Rogue Backstab / Hemorrhage rotation
-- [ ] **ROGUE-02**: Add Rogue SnD refresh timing — don't let it expire, don't clip too early
-- [ ] **ROGUE-03**: Add Rogue Blade Flurry on multi-target
+- [x] **ROGUE-01**: Implement Subtlety Rogue Backstab / Hemorrhage rotation
+- [x] **ROGUE-02**: Add Rogue SnD refresh timing — don't let it expire, don't clip too early
+- [x] **ROGUE-03**: Add Rogue Blade Flurry on multi-target
 
 ### Visual & Polish
 
@@ -166,9 +166,9 @@ Phase mapping populated during roadmap creation.
 | SHAM-01 | Phase 3 | Pending |
 | SHAM-02 | Phase 3 | Pending |
 | SHAM-03 | Phase 3 | Pending |
-| ROGUE-01 | Phase 3 | Pending |
-| ROGUE-02 | Phase 3 | Pending |
-| ROGUE-03 | Phase 3 | Pending |
+| ROGUE-01 | Phase 3 | Complete |
+| ROGUE-02 | Phase 3 | Complete |
+| ROGUE-03 | Phase 3 | Complete |
 | VIS-01 | Phase 4 | Pending |
 | VIS-02 | Phase 4 | Pending |
 | VIS-03 | Phase 4 | Pending |
