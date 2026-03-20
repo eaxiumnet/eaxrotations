@@ -1,5 +1,19 @@
 local dps_meter = require("eax_shared/dps_meter")
 
+local function run_with_core_time(core_stub, fn)
+    local original_core = _G.core
+    _G.core = core_stub
+    local ok, err = pcall(fn)
+    _G.core = original_core
+    if not ok then
+        error(err)
+    end
+end
+
+local function assert_counter(snapshot, key, expected)
+    assert(snapshot[key] == expected, key .. " should be " .. tostring(expected) .. ", got " .. tostring(snapshot[key]))
+end
+
 local function with_stub_modules(overrides, fn)
     local originals = {}
     for name, module in pairs(overrides) do
@@ -42,15 +56,7 @@ local function load_runtime(stubs)
     end)
 end
 
-local function run_with_core(core_stub, fn)
-    local original_core = _G.core
-    _G.core = core_stub
-    local ok, err = pcall(fn)
-    _G.core = original_core
-    if not ok then
-        error(err)
-    end
-end
+local run_with_core = run_with_core_time
 
 local function make_adapter(overrides)
     local adapter = {
@@ -220,6 +226,13 @@ run_with_core({
     assert(result.reactive_status == "handled", "handled adapter executions should be marked")
     assert(handled_calls == 1, "real handler should execute exactly once")
     assert_snapshot("interrupt_control", "INTERRUPT_DANGER", "handled")
+    local snapshot = dps_meter.get_snapshot()
+    assert(snapshot.sample_count == 1, "runtime tick should increment sample_count")
+    assert(snapshot.tps == 0, "single tick at zero elapsed time should keep tps at zero")
+    assert_counter(snapshot, "reactive_event_count", 1)
+    assert_counter(snapshot, "noop_unsupported_count", 0)
+    assert_counter(snapshot, "unsafe_skip_count", 0)
+    assert_counter(snapshot, "fail_safe_tick_count", 0)
 end)
 
 local function load_runtime_with_real_policy(ctx)
@@ -380,6 +393,7 @@ run_with_core({
 
     assert(result.reactive_status == "noop_unsupported", "explicit noop branches should report noop_unsupported")
     assert_snapshot("interrupt_control", "INTERRUPT_DANGER", "noop_unsupported")
+    assert_counter(dps_meter.get_snapshot(), "noop_unsupported_count", 1)
 end)
 
 run_with_core({
@@ -418,6 +432,81 @@ run_with_core({
     assert(result.reactive_status == "skipped_unsafe", "unsafe retargets should report skipped_unsafe")
     assert(handler_called == false, "unsafe retargets should not execute the handler")
     assert_snapshot("interrupt_control", "INTERRUPT_DANGER", "skipped_unsafe")
+    assert_counter(dps_meter.get_snapshot(), "unsafe_skip_count", 1)
+end)
+
+run_with_core({
+    time = (function()
+        local times = { 0, 5, 10, 10 }
+        local index = 0
+        return function()
+            index = index + 1
+            return times[index] or times[#times]
+        end
+    end)(),
+    input = {
+        set_target = function(unit)
+            assert(unit == current_target, "stable target flow should keep the current target")
+            return true
+        end,
+    },
+}, function()
+    local threat_values = { 0.10, 0.45, 0.70 }
+    local threat_index = 0
+    local reactive_runtime = load_runtime({
+        ["eax_shared/combat_context"] = {
+            build = function()
+                threat_index = threat_index + 1
+                local ctx = base_context()
+                ctx.self.threat_pct = threat_values[threat_index] or threat_values[#threat_values]
+                ctx.meta.now_s = threat_index * 5
+                ctx.meta.fail_safe = threat_index == 3
+                return ctx
+            end,
+        },
+        ["eax_shared/reactive_engine"] = {
+            try_handle = function(_, deps)
+                local outcomes = {
+                    { action_id = "throughput_resume", reason_code = "THROUGHPUT_RESUME" },
+                    { action_id = "none", reason_code = "NO_ACTION" },
+                    { action_id = "throughput_resume", reason_code = "THROUGHPUT_RESUME" },
+                }
+                return outcomes[(deps.state.tick_count or 0) + 1] or outcomes[#outcomes]
+            end,
+        },
+        ["health_prediction"] = {
+            get_incoming_damage = function() return 0 end,
+            get_role_id = function() return 2 end,
+            is_tank = function() return false end,
+        },
+    })
+
+    dps_meter.reset()
+    dps_meter.on_combat_start()
+    local state = { tick_count = 0 }
+    local adapter = make_adapter({
+        actions = {
+            throughput_resume = {
+                handler = function(_, action_deps)
+                    action_deps.state.tick_count = action_deps.state.tick_count + 1
+                    return true
+                end,
+            },
+        },
+    })
+
+    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter })
+    state.tick_count = 1
+    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter })
+    state.tick_count = 2
+    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter })
+
+    local snapshot = dps_meter.get_snapshot()
+    assert(snapshot.threat_total > 0, "runtime threat samples should accumulate positive deltas")
+    assert(snapshot.tps > 0, "runtime threat samples should produce non-zero tps")
+    assert_counter(snapshot, "sample_count", 3)
+    assert_counter(snapshot, "reactive_event_count", 2)
+    assert_counter(snapshot, "fail_safe_tick_count", 1)
 end)
 
 print("reactive_runtime_spec: ok")
