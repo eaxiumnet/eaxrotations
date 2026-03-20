@@ -34,6 +34,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
+---@type dot_manager
+local dot_manager = require("eax_shared/dot_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -284,18 +286,21 @@ end
 
 
 local function try_refresh_dots(me, target)
-    if menu.use_unstable_affliction:get_state() and should_refresh_debuff(target, spells.UNSTABLE_AFFLICTION, DOT_REFRESH_MS) then
+    if menu.use_unstable_affliction:get_state()
+        and dot_manager.can_refresh_dot(target, spells.UNSTABLE_AFFLICTION, runtime.unstable_affliction_id, utils.get_debuff_remaining_ms) then
         if try_cast_spell(me, runtime.unstable_affliction_id, target, "Unstable Affliction") then
-                    esp_renderer.on_cast(nil, "Refresh DoTs", color.purple(220))
-        return true
+            esp_renderer.on_cast(nil, "Refresh DoTs", color.purple(220))
+            return true
         end
     end
-    if menu.use_corruption:get_state() and should_refresh_debuff(target, spells.CORRUPTION, DOT_REFRESH_MS) then
+    if menu.use_corruption:get_state()
+        and dot_manager.can_refresh_dot(target, spells.CORRUPTION, runtime.corruption_id, utils.get_debuff_remaining_ms) then
         if try_cast_spell(me, runtime.corruption_id, target, "Corruption") then
             return true
         end
     end
-    if menu.use_siphon_life:get_state() and should_refresh_debuff(target, spells.SIPHON_LIFE, DOT_REFRESH_MS) then
+    if menu.use_siphon_life:get_state()
+        and dot_manager.can_refresh_dot(target, spells.SIPHON_LIFE, runtime.siphon_life_id, utils.get_debuff_remaining_ms) then
         if try_cast_spell(me, runtime.siphon_life_id, target, "Siphon Life") then
             return true
         end

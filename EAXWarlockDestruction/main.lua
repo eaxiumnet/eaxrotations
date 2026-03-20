@@ -34,6 +34,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
+---@type dot_manager
+local dot_manager = require("eax_shared/dot_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -243,9 +245,9 @@ local function try_immolate(me, target)
     if not menu.use_immolate:get_state() or not runtime.immolate_id then
         return false
     end
+    -- Use dot_manager for safe refresh timing (never clips final tick)
     if utils.has_debuff(target, spells.IMMOLATE) then
-        local remaining = utils.get_debuff_remaining_ms(target, spells.IMMOLATE)
-        if remaining > 3000 then
+        if not dot_manager.can_refresh_dot(target, spells.IMMOLATE, runtime.immolate_id, utils.get_debuff_remaining_ms) then
             return false
         end
     end

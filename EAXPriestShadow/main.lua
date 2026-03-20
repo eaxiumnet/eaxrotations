@@ -33,6 +33,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
+---@type dot_manager
+local dot_manager = require("eax_shared/dot_manager")
 
 local runtime = {
     dispersion_id = nil,
@@ -102,17 +104,16 @@ local function ensure_shadowform(me)
     return false
 end
 
-local function refresh_dot(me, target, spell_id, buff_ids, window_ms)
+local function refresh_dot(me, target, spell_id, debuff_ids, window_ms)
     if not spell_id or not target then
         return false
     end
 
-    local remaining = utils.get_buff_remaining_ms(target, buff_ids)
-    if remaining <= window_ms then
-        return utils.cast_target(spell_id, target, nil)
+    -- Use dot_manager for safe refresh timing (never clips final tick)
+    if not dot_manager.can_refresh_dot(target, debuff_ids, spell_id, utils.get_debuff_remaining_ms) then
+        return false
     end
-
-    return false
+    return utils.cast_target(spell_id, target, nil)
 end
 
 
@@ -191,9 +192,10 @@ end
 local function try_devouring_plague(me, target)
     if not resolved.devouring_plague or not target then return false end
     if not menu.use_devouring_plague or not menu.use_devouring_plague:get_state() then return false end
-    local dot_window_ms = menu.dot_refresh_window:get() * 1000
-    local remain = utils.get_debuff_remaining_ms(target, spells.DEVOURING_PLAGUE)
-    if remain > dot_window_ms then return false end
+    -- Use dot_manager for safe refresh timing (never clips final tick)
+    if not dot_manager.can_refresh_dot(target, spells.DEVOURING_PLAGUE, resolved.devouring_plague, utils.get_debuff_remaining_ms) then
+        return false
+    end
     return utils.cast_target(resolved.devouring_plague, target, nil)
 end
 
@@ -348,11 +350,10 @@ core.register_on_update_callback(function()
             return
         end
 
-        local dot_window_ms = menu.dot_refresh_window:get() * 1000
         try_vampiric_embrace(me)
         try_inner_fire(me)
-        refresh_dot(me, target, resolved.vampiric_touch, spells.VAMPIRIC_TOUCH, dot_window_ms)
-        refresh_dot(me, target, resolved.shadow_word_pain, spells.SHADOW_WORD_PAIN, dot_window_ms)
+        refresh_dot(me, target, resolved.vampiric_touch, spells.VAMPIRIC_TOUCH)
+        refresh_dot(me, target, resolved.shadow_word_pain, spells.SHADOW_WORD_PAIN)
         if try_devouring_plague(me, target) then return end
 
         if not try_mind_blast(me, target) then

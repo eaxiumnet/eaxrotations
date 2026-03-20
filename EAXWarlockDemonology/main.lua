@@ -34,6 +34,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
+---@type dot_manager
+local dot_manager = require("eax_shared/dot_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")

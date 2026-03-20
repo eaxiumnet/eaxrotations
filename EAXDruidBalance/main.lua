@@ -37,9 +37,8 @@ local ttd_tracker = require("ttd_tracker")
 local racial_manager = require("common/eax_shared/racial_manager")
 ---@type defensive_manager
 local defensive_manager = require("common/eax_shared/defensive_manager")
-
----@type mana_conservator
-local mana_conservator = require("mana_conservator")
+---@type dot_manager
+local dot_manager = require("eax_shared/dot_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -268,8 +267,10 @@ local function try_moonfire(me, target)
     if not menu.use_moonfire or not menu.use_moonfire:get_state() then return false end
     if not runtime.moonfire_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE) > refresh_ms then return false end
+    -- Use dot_manager for safe refresh timing (never clips final tick)
+    if not dot_manager.can_refresh_dot(target, spells.DEBUFF_MOONFIRE, runtime.moonfire_id, utils.get_debuff_remaining_ms) then
+        return false
+    end
     if is_pending_cast(runtime.moonfire_id) then return false end
     if not utils.can_cast_hostile(runtime.moonfire_id, me, target) then return false end
     if utils.cast_target(runtime.moonfire_id, target) then
@@ -286,8 +287,10 @@ local function try_insect_swarm(me, target)
     if not menu.use_insect_swarm or not menu.use_insect_swarm:get_state() then return false end
     if not runtime.insect_swarm_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM) > refresh_ms then return false end
+    -- Use dot_manager for safe refresh timing (never clips final tick)
+    if not dot_manager.can_refresh_dot(target, spells.DEBUFF_INSECT_SWARM, runtime.insect_swarm_id, utils.get_debuff_remaining_ms) then
+        return false
+    end
     if is_pending_cast(runtime.insect_swarm_id) then return false end
     if not utils.can_cast_hostile(runtime.insect_swarm_id, me, target) then return false end
     if utils.cast_target(runtime.insect_swarm_id, target) then
