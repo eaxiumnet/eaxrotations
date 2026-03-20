@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 2
+current_plan: 3
 status: unknown
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-03-20T12:45:07.513Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-20T12:51:41.441Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 22
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # State
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Requirements defined
 - [x] Roadmap created
 - [x] Phase 03 planned (9 plans)
-- **Current Plan:** 2
+- **Current Plan:** 3
 - **Total Plans in Phase:** 5
 
 ## Roadmap
@@ -79,6 +79,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [Phase 03]: Fury execute cast/queue decisions are gated by shared swing_timer safety checks to prevent white-swing clipping
 - [Phase 04]: Use core.input.use_container_item with bag scans to sell only quality-0 items.
 - [Phase 04]: Mount manager dismounts on combat and mounts only when out-of-combat and stationary.
+- [Phase 04]: Normalized unknown TTD to '--' for HUD-safe visual snapshot contract
+- [Phase 04]: Guarded DPS/HPS division with duration >= 0.1s threshold in shared meter
 
 ## Recent Commits
 
@@ -113,9 +115,10 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 | Phase 03 P11 | 2 min | 2 tasks | 1 files |
 | Phase 03 P10 | 3 min | 2 tasks | 1 files |
 | Phase 04 P03 | 6 min | 2 tasks | 3 files |
+| Phase 04 P01 | 13 min | 2 tasks | 5 files |
 
 ## Session Continuity
 
-Last session: 2026-03-20T12:45:07.510Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-03-20T12:51:41.437Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None

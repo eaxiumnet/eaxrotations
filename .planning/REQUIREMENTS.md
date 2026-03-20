@@ -81,10 +81,10 @@
 
 ### Visual & Polish
 
-- [ ] **VIS-01**: Implement DPS/HPS meter in ESP — track damage/healing per fight
-- [ ] **VIS-02**: Add cooldown timer display in HUD — next ability available
-- [ ] **VIS-03**: Add TTD display in HUD — time-to-death for current target
-- [ ] **VIS-04**: Add buff/debuff tracker display in ESP
+- [x] **VIS-01**: Implement DPS/HPS meter in ESP — track damage/healing per fight
+- [x] **VIS-02**: Add cooldown timer display in HUD — next ability available
+- [x] **VIS-03**: Add TTD display in HUD — time-to-death for current target
+- [x] **VIS-04**: Add buff/debuff tracker display in ESP
 
 ### Automation
 
@@ -169,10 +169,10 @@ Phase mapping populated during roadmap creation.
 | ROGUE-01 | Phase 3 | Complete |
 | ROGUE-02 | Phase 3 | Complete |
 | ROGUE-03 | Phase 3 | Complete |
-| VIS-01 | Phase 4 | Pending |
-| VIS-02 | Phase 4 | Pending |
-| VIS-03 | Phase 4 | Pending |
-| VIS-04 | Phase 4 | Pending |
+| VIS-01 | Phase 4 | Complete |
+| VIS-02 | Phase 4 | Complete |
+| VIS-03 | Phase 4 | Complete |
+| VIS-04 | Phase 4 | Complete |
 | AUTO-01 | Phase 4 | Complete |
 | AUTO-02 | Phase 4 | Complete |
 | AUTO-03 | Phase 4 | Complete |
