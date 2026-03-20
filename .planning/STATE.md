@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_plan: Not started
-status: unknown
-stopped_at: Phase 04 completed and verified
-last_updated: "2026-03-20T13:45:00.000Z"
+milestone: v1.1
+milestone_name: combat-intelligence
+current_plan: —
+status: defining_requirements
+stopped_at: Milestone v1.1 started
+last_updated: "2026-03-20T14:00:00.000Z"
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 22
-  completed_plans: 22
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # State
@@ -21,18 +21,17 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 
 **Core value:** Every spec executes the mathematically optimal rotation while maintaining survival and encounter-specific awareness.
 
-**Current focus:** Milestone v1.0 complete
+**Current focus:** Milestone v1.1 — defining requirements
 
 ## Current Status
 
 - [x] Project initialized
 - [x] Codebase mapped
-- [x] Research complete
-- [x] Requirements defined
-- [x] Roadmap created
-- [x] Phase 03 planned (9 plans)
-- **Current Plan:** Not started
-- **Total Plans in Phase:** 5
+- [ ] Research complete (v1.1)
+- [ ] Requirements defined (v1.1)
+- [ ] Roadmap created (v1.1)
+- **Current Plan:** —
+- **Total Plans in Phase:** —
 
 ## Roadmap
 

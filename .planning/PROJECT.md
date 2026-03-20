@@ -8,6 +8,15 @@ EAX TBC Classic Rotations are 27 WoW TBC Classic (patch 2.4.3) combat automation
 
 Every spec executes the mathematically optimal rotation for its class while maintaining survival and encounter-specific awareness — making assisted gameplay indistinguishable from expert manual play.
 
+## Current Milestone: v1.1 Combat Intelligence
+
+**Goal:** Deliver full movement-excluded combat automation across all 27 specs with encounter-aware reactive intelligence under strict `@.api` usage.
+
+**Target features:**
+- Full reactive behavior stack (incoming damage/heal/overheal aware) for DPS, HPS, and tanking
+- Complete opener/cooldown/utility/interrupt/control behavior per class/spec using valid TBC spells/talents
+- Hard API compliance gate (`@.api`-only) plus benchmark matrix pass for all 27 specs
+
 ## Requirements
 
 ### Validated
@@ -34,15 +43,11 @@ Shipped and working:
 
 What needs to be built or fixed to reach #1:
 
-- [ ] **Set bonus detection** — replace hardcoded TBC_SETS table with dynamic gear scanning using `ItemSetXxx.CharacterHasSetBonus()` pattern; covers all T4/T5/T6 sets
-- [ ] **Shaman totem handling** — TBC requires totem items in bag (Air Totem 5178 etc.); wire `core.input.use_item()` for totem placement
-- [ ] **DPS/HPS optimization per spec** — review each spec's priority list against reference implementations (BRLite, ni-main, simc) for mathematically correct APM and cooldown alignment
-- [ ] **Interrupt accuracy** — refine spell priority weights, add missing dangerous spell IDs, reduce false interrupts
-- [ ] **Encounter behaviors** — expand boss-specific policies (hold cooldowns, burn phases, AoE gating)
-- [ ] **Shared module extraction** — extract duplicate `interrupt_manager.lua`, `defensive_manager.lua`, `encounter_manager.lua`, `ooc_manager.lua` into `common/eax_shared/`
-- [ ] **OOC automation expansion** — auto-sell grey items, auto-repair, auto-consumables management
-- [ ] **ESP/HUD improvements** — DPS/HPS meter, TTD display, buff/debuff tracking, cooldown timers
-- [ ] **DPS benchmarking** — integrated damage/healing meter to measure rotation effectiveness
+- [ ] **Reactive intelligence framework** — incoming damage, incoming heals, and overheal-aware decisions across all roles
+- [ ] **Full per-spec behavior parity** — complete openers, DPS/HPS/tank rotations, cooldowns, utility, interrupts, fear/control responses for all 27 specs
+- [ ] **Encounter-aware response depth** — dungeon/raid behavior policies including defensive/offensive timing and threat/heal context
+- [ ] **Strict API hard gate** — enforce `@.api`-only access with validation that fails on non-compliant calls
+- [ ] **Benchmark matrix completion** — pass standardized DPS/HPS/TPS + behavior benchmarks for all specs
 
 ### Out of Scope
 
@@ -85,4 +90,4 @@ Repository: https://github.com/eaxiumnet/eax-tbc-classic-rotations
 | Manual-only testing | No TBC server API available for automated validation | ⚠️ Regression risk |
 
 ---
-*Last updated: 2026-03-20 after Phase 04 completion*
+*Last updated: 2026-03-20 after milestone v1.1 kickoff*
