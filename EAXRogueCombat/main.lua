@@ -202,10 +202,25 @@ local function try_blade_flurry(me, target)
     if not runtime.blade_flurry_id or not me:is_in_combat() then
         return false
     end
-    if utils.get_buff_remaining_ms(me, spells.BUFF_BLADE_FLURRY) > 0 then
+    local enemy_count = encounter_manager.enemy_count_in_range(me, 8)
+    local blade_flurry_active = utils.get_buff_remaining_ms(me, spells.BUFF_BLADE_FLURRY) > 0
+
+    if blade_flurry_active and enemy_count < 2 then
+        if not utils.can_cast_self(runtime.blade_flurry_id, me) then
+            return false
+        end
+        if utils.cast_self_fast(runtime.blade_flurry_id, me, "Blade Flurry Off") then
+            utils.log_debug(menu, "Blade Flurry Off")
+            note_cast()
+            return true
+        end
         return false
     end
-    if utils.enemy_count_in_radius(me, 8) < menu.aoe_enemy_count:get() and current_mode() == "solo" then
+
+    if blade_flurry_active then
+        return false
+    end
+    if enemy_count < 2 then
         return false
     end
     if not utils.can_cast_self(runtime.blade_flurry_id, me) then
@@ -314,7 +329,11 @@ local function try_eviscerate(me, target)
     if not runtime.eviscerate_id or not utils.can_attack(me, target) then
         return false
     end
-    if runtime.combo_points < menu.finish_combo_points:get() then
+    local min_combo_points = menu.finish_combo_points:get()
+    if utils.get_buff_remaining_ms(me, spells.BUFF_BLADE_FLURRY) > 0 then
+        min_combo_points = COMBAT_FINISHER_COMBO_POINTS
+    end
+    if runtime.combo_points < min_combo_points then
         return false
     end
     if utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE) < 2000 then
@@ -386,7 +405,7 @@ local function try_killing_spree(me, target)
     if not menu.use_killing_spree or not menu.use_killing_spree:get_state() then return false end
     if not runtime.killing_spree_id then return false end
     if not me:is_in_combat() then return false end
-    -- Use with Blade Flurry for maximum effect
+    if utils.get_buff_remaining_ms(me, spells.BUFF_BLADE_FLURRY) <= 0 then return false end
     if not utils.can_cast_hostile(runtime.killing_spree_id, me, target) then return false end
     if utils.cast_target(runtime.killing_spree_id, target, "Killing Spree") then
         utils.log_debug(menu, "Killing Spree")
