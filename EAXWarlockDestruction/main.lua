@@ -529,10 +529,10 @@ local function do_rotation(me, target)
     if try_immolate(me, target) then
         return
     end
-    if try_shadowfury(me, target) then
+    if try_conflagrate(me, target) then
         return
     end
-    if try_conflagrate(me, target) then
+    if try_shadowfury(me, target) then
         return
     end
     local profile = get_profile()
