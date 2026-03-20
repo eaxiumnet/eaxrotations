@@ -37,6 +37,7 @@ esp_renderer.init("fire", "Mage Fire")
 local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
+local reactive_runtime = require("eax_shared/reactive_runtime")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -48,6 +49,7 @@ local _visual_runtime = {
     in_combat = false,
     last_me_hp_pct = nil,
     last_target_hp_pct = nil,
+    reactive_state = {},
 }
 
 local _visual_on_cast = esp_renderer.on_cast
@@ -114,6 +116,12 @@ local function visual_update_snapshot(me, target)
         dps_meter.on_damage(_visual_runtime.last_target_hp_pct - target_hp_pct)
     end
     _visual_runtime.last_target_hp_pct = target_hp_pct
+
+    reactive_runtime.update_tick(me, target, {
+        encounter_manager = encounter_manager,
+        state = _visual_runtime.reactive_state,
+        spec = "EAXMageFire",
+    })
 
     local snapshot = visual_state.build_snapshot({
         now_s = core.time(),
