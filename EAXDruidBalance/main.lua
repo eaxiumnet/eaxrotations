@@ -81,6 +81,8 @@ local runtime = {
     typhoon_id = nil,
     gift_of_the_wild_id = nil,
     mark_of_the_wild_id = nil,
+    eclipse_energy = 0,  -- 0-100, track energy towards eclipse
+    eclipse_type = nil,  -- "solar" or "lunar" when eclipse active
 }
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
@@ -351,17 +353,49 @@ local function try_starfall(me, enemy_count, mode)
     return false
 end
 
--- --- TBC Balance nuke selection -------------------------------------------
--- TBC has NO Eclipse mechanic (WotLK+). Rotation is:
---   Starfire (highest DPS, long cast) when mana is healthy
---   Wrath (cheaper, shorter cast) when mana is low or moving
+-- --- TBC Balance nuke selection with Eclipse detection -------------------------
+-- Eclipse mechanic: detect Lunar/Solar eclipse buffs and prioritize accordingly.
+-- Lunar Eclipse: buff 48518 -> spam Starfire (unless moving)
+-- Solar Eclipse: buff 48517 -> spam Wrath
+-- Outside eclipse: Starfire for high mana, Wrath for low mana or moving.
+-- Track eclipse energy from Wrath (solar) and Starfire (lunar) casts.
 local STARFIRE_MANA_FLOOR = 0.30
+
+local function update_eclipse_state(me)
+    local eclipse = nil
+    if utils.has_buff(me, spells.BUFF_LUNAR_ECLIPSE) then
+        eclipse = "lunar"
+    elseif utils.has_buff(me, spells.BUFF_SOLAR_ECLIPSE) then
+        eclipse = "solar"
+    end
+    -- If eclipse just activated, reset energy
+    if eclipse and eclipse ~= runtime.eclipse_type then
+        runtime.eclipse_energy = 0
+        runtime.eclipse_type = eclipse
+    elseif not eclipse and runtime.eclipse_type then
+        -- Eclipse faded
+        runtime.eclipse_type = nil
+        runtime.eclipse_energy = 0
+    end
+    return eclipse
+end
+
+local function get_eclipse_state(me)
+    return runtime.eclipse_type
+end
+
+local function add_eclipse_energy(spell_id)
+    if spell_id == runtime.wrath_id then
+        runtime.eclipse_energy = math.min(100, runtime.eclipse_energy + 10)  -- approximate
+    elseif spell_id == runtime.starfire_id then
+        runtime.eclipse_energy = math.min(100, runtime.eclipse_energy + 20)  -- starfire gives more
+    end
+end
 
 local function try_nuke(me, target, mana_pct)
     if not is_valid_hostile_target(me, target) then return false end
-    -- Moving: only Wrath is castable (it's instant in some server configs,
-    -- and shorter than Starfire regardless)
     local moving = me:is_moving()
+    local eclipse = update_eclipse_state(me)
 
     -- Clearcasting proc: spend it on Starfire (highest value free cast)
     local clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
@@ -370,6 +404,7 @@ local function try_nuke(me, target, mana_pct)
            and utils.can_cast_hostile(runtime.starfire_id, me, target) then
             if utils.cast_target(runtime.starfire_id, target) then
                 mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S)
+                add_eclipse_energy(runtime.starfire_id)
                 utils.log_debug(menu, "Starfire [Clearcasting]")
                 note_cast()
                 esp_renderer.on_cast(runtime.starfire_id, "Starfire [CC]", color.gold(240))
@@ -378,12 +413,44 @@ local function try_nuke(me, target, mana_pct)
         end
     end
 
+    -- Lunar Eclipse: spam Starfire (unless moving, then Wrath)
+    if eclipse == "lunar" and not moving and runtime.starfire_id then
+        if not is_pending_cast(runtime.starfire_id)
+           and utils.can_cast_hostile(runtime.starfire_id, me, target) then
+            if utils.cast_target(runtime.starfire_id, target) then
+                mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S)
+                add_eclipse_energy(runtime.starfire_id)
+                utils.log_debug(menu, "Starfire [Lunar Eclipse]")
+                note_cast()
+                esp_renderer.on_cast(runtime.starfire_id, "Starfire [Lunar]", color.purple(240))
+                return true
+            end
+        end
+    end
+
+    -- Solar Eclipse: spam Wrath
+    if eclipse == "solar" and runtime.wrath_id then
+        if not is_pending_cast(runtime.wrath_id)
+           and utils.can_cast_hostile(runtime.wrath_id, me, target) then
+            if utils.cast_target(runtime.wrath_id, target) then
+                mark_pending_cast(runtime.wrath_id, PENDING_CAST_TIMEOUT_S)
+                add_eclipse_energy(runtime.wrath_id)
+                utils.log_debug(menu, "Wrath [Solar Eclipse]")
+                note_cast()
+                esp_renderer.on_cast(runtime.wrath_id, "Wrath [Solar]", color.orange(220))
+                return true
+            end
+        end
+    end
+
+    -- No eclipse or moving during lunar: use standard priority
     -- High mana + not moving: Starfire
     if not moving and mana_pct >= STARFIRE_MANA_FLOOR and runtime.starfire_id then
         if not is_pending_cast(runtime.starfire_id)
            and utils.can_cast_hostile(runtime.starfire_id, me, target) then
             if utils.cast_target(runtime.starfire_id, target) then
                 mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S)
+                add_eclipse_energy(runtime.starfire_id)
                 utils.log_debug(menu, "Starfire")
                 note_cast()
                 esp_renderer.on_cast(runtime.starfire_id, "Starfire", color.purple(220))
@@ -398,6 +465,7 @@ local function try_nuke(me, target, mana_pct)
            and utils.can_cast_hostile(runtime.wrath_id, me, target) then
             if utils.cast_target(runtime.wrath_id, target) then
                 mark_pending_cast(runtime.wrath_id, PENDING_CAST_TIMEOUT_S)
+                add_eclipse_energy(runtime.wrath_id)
                 local reason = moving and "Wrath [moving]" or "Wrath [mana]"
                 utils.log_debug(menu, reason)
                 note_cast()
