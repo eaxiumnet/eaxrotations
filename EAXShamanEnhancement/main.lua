@@ -88,7 +88,10 @@ local runtime = {
     prev_toggle_state = false,
     last_stormstrike_at = 0,
     totem_last_apply = {},
+    last_potion_at = 0,
 }
+
+local MANA_POTION_IDS = { 33447, 22832, 13444, 6149, 3827 }
 
 local TOTEM_ROTATION = {
     { name = "wrath", id_field = "totem_of_wrath_id", toggle = menu.auto_totem_wrath, label = "Totem of Wrath" },
@@ -284,10 +287,32 @@ local function try_shamanistic_rage(me)
     if not menu.use_cooldowns:get_state() or not runtime.shamanistic_rage_id then
         return false
     end
-    local hp_pct = utils.get_health_pct(me)
     local mana_pct = utils.get_mana_pct(me)
-    if hp_pct <= (menu.shamanistic_rage_hp:get() / 100) or mana_pct <= (menu.shamanistic_rage_mana:get() / 100) then
+    if mana_pct <= (menu.shamanistic_rage_mana:get() / 100) then
         return try_cast_self(me, runtime.shamanistic_rage_id, "Shamanistic Rage")
+    end
+    return false
+end
+
+local function try_mana_potion(me)
+    if not menu.use_cooldowns:get_state() then
+        return false
+    end
+    local mana_pct = utils.get_mana_pct(me)
+    if mana_pct > 0.35 then
+        return false
+    end
+    local now = core.time()
+    if (now - runtime.last_potion_at) < 120.0 then
+        return false
+    end
+    for _, item_id in ipairs(MANA_POTION_IDS) do
+        local cd = me:get_item_cooldown(item_id)
+        if cd <= 0 and core.input.use_item(item_id) then
+            runtime.last_potion_at = now
+            utils.log_debug(menu, "Mana Potion (" .. tostring(item_id) .. ")")
+            return true
+        end
     end
     return false
 end
@@ -401,7 +426,48 @@ end
 
 local function try_lava_lash(me, target)
     if not runtime.lava_lash_id then return false end      -- nil = talent not taken
+    local stormstrike_cd = runtime.stormstrike_id and core.spell_book.get_spell_cooldown(runtime.stormstrike_id) or 0
+    if stormstrike_cd <= 0 then
+        return false
+    end
+    local has_wf = utils.has_buff(me, spells.BUFF_WINDFURY_WEAPON)
+    local has_ft = utils.has_buff(me, spells.BUFF_FLAMETONGUE_WEAPON)
+    if not (has_wf or has_ft) then
+        return false
+    end
     return try_cast_target(me, target, runtime.lava_lash_id, "Lava Lash")
+end
+
+local function has_flame_shock(target)
+    return utils.has_debuff(target, spells.DEBUFF_FLAME_SHOCK)
+        or utils.has_debuff(target, spells.BUFF_FLAME_SHOCK)
+        or utils.has_debuff(target, spells.FLAME_SHOCK)
+end
+
+local function try_flame_shock(me, target)
+    if not runtime.flame_shock_id or not target then
+        return false
+    end
+    if has_flame_shock(target) then
+        return false
+    end
+    if utils.get_mana_pct(me) < 0.20 then
+        return false
+    end
+    return try_cast_target(me, target, runtime.flame_shock_id, "Flame Shock")
+end
+
+local function try_earth_shock(me, target)
+    if not runtime.earth_shock_id or not target then
+        return false
+    end
+    if not has_flame_shock(target) then
+        return false
+    end
+    if utils.get_mana_pct(me) < 0.18 then
+        return false
+    end
+    return try_cast_target(me, target, runtime.earth_shock_id, "Earth Shock")
 end
 
 
@@ -623,10 +689,13 @@ local function do_rotation(me, target)
     ttd_tracker.update(target)
 
     -- Offensive CDs
+    if try_mana_potion(me) then return true end
     if try_feral_spirit(me, target) then return true end
     if try_shamanistic_rage(me) then return true end
     if try_stormstrike(me, target) then return true end
     if try_lava_lash(me, target) then return true end
+    if try_flame_shock(me, target) then return true end
+    if try_earth_shock(me, target) then return true end
     if try_chain_lightning_weave(me, target) then return true end
     if try_shock(me, target) then return true end
     -- Auto-attack fallback for leveling 1-70
