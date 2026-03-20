@@ -270,17 +270,33 @@ local function try_shadowfury(me, target)
     return try_cast_spell(me, runtime.shadowfury_id, target, "Shadowfury")
 end
 
-local function try_conflagrate(me, target)
-    if enc and enc.hold_cooldowns then return false end
+local function is_conflagrate_proc_ready(me, target)
     if not menu.use_conflagrate:get_state() or not runtime.conflagrate_id then
         return false
     end
-    -- Only cast Conflagrate when Immolate is present on target
-    if not utils.has_debuff(target, spells.DEBUFF_IMMOLATE) then
+    if not is_valid_target(me, target) then
         return false
     end
-    -- TODO: Backdraft stack management (if we have Backdraft buff, prioritize Incinerate)
-    -- For now, cast Conflagrate on cooldown when Immolate present
+    if is_pending_cast(runtime.conflagrate_id) then
+        return false
+    end
+    if core.spell_book.get_global_cooldown() > 0 then
+        return false
+    end
+
+    local has_immolate_proc_window = utils.has_debuff(target, spells.DEBUFF_IMMOLATE)
+    if not has_immolate_proc_window then
+        return false
+    end
+
+    return utils.can_cast_hostile(runtime.conflagrate_id, me, target)
+end
+
+local function try_conflagrate(me, target)
+    if enc and enc.hold_cooldowns then return false end
+    if not is_conflagrate_proc_ready(me, target) then
+        return false
+    end
     return try_cast_spell(me, runtime.conflagrate_id, target, "Conflagrate")
 end
 
