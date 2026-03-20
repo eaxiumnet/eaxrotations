@@ -1,416 +1,324 @@
--- esp_renderer.lua  v5.0.0
--- Screen-space HUD rendered via core.register_on_render_callback
--- Draggable via mouse, minimize button, scale setting
--- ps_theme colour palette
+-- esp_renderer.lua
+-- In-world and on-screen visual overlay for EAX rotation plugins.
+-- Shows next spell HUD, visual telemetry rows, and proc bars.
+-- v2.1.0 - Unified telemetry contract for Phase 04
 
 local esp_renderer = {}
 
-local _color_api, _vec2, _icons, _color
+-- Lazy imports
+local _color, _vec2, _icons, _color_api
 local function load_deps()
-    if _color_api then return end
+    if _color then return end
+    _color = require("color")
+    _vec2 = require("common/geometry/vector_2")
     _color_api = require("common/color")
-    _vec2      = require("common/geometry/vector_2")
-    _color     = require("color")
-    local ok, r = pcall(require, "common/utility/icons_helper")
-    if ok and r then _icons = r end
+    local ok, result = pcall(require, "common/utility/icons_helper")
+    if ok and result then _icons = result end
 end
 
-local function rgba(r,g,b,a)
-    if not _color_api then _color_api = require("common/color") end
-    return _color_api.new(r,g,b,a)
-end
 local function to_api(c)
-    if not c then return rgba(255,255,255,255) end
-    if type(c) == "table" and c.r ~= nil then
-        return rgba(c.r, c.g or 255, c.b or 255, c.a or 255)
+    if not c then return _color_api.new(255, 255, 255, 255) end
+    if type(c) == "table" then
+        return _color_api.new(c.r or 255, c.g or 255, c.b or 255, c.a or 255)
     end
     return c
 end
-local function v2(x,y)
-    if not _vec2 then _vec2 = require("common/geometry/vector_2") end
-    return _vec2.new(x,y)
+
+local function metric_string(value)
+    if value == nil then
+        return "--"
+    end
+
+    local n = tonumber(value)
+    if not n then
+        return tostring(value)
+    end
+
+    return tostring(math.floor(n + 0.5))
 end
 
--- ── State ─────────────────────────────────────────────────────────────────────
-local _spec_name = "Druid Feral"
-local _last = { spell_id=nil, spell_name="", spell_col=nil, target_name="", set_at=0 }
+local function normalize_aura_entry(entry)
+    if type(entry) ~= "table" then
+        return nil
+    end
+
+    local label = entry.label or entry.name or entry.id
+    if label == nil then
+        return nil
+    end
+
+    local aura = {
+        label = tostring(label),
+        active = entry.active ~= false,
+    }
+
+    if entry.color then
+        aura.color = entry.color
+    end
+
+    return aura
+end
+
+local function resolve_tracked_auras(tracked_auras)
+    if type(tracked_auras) ~= "table" then
+        return {}
+    end
+
+    local resolved = {}
+    for i = 1, #tracked_auras do
+        local aura = normalize_aura_entry(tracked_auras[i])
+        if aura then
+            resolved[#resolved + 1] = aura
+        end
+        if #resolved >= 4 then
+            break
+        end
+    end
+
+    return resolved
+end
+
+-- Per-spec state
+local _spec_id = "eax"
+local _spec_name = "EAX"
+local _state = {
+    spell_id = nil,
+    spell_name = "",
+    spell_col = nil,
+    target_name = "",
+    set_at = 0,
+}
+
+local _visual = {
+    dps = 0,
+    hps = 0,
+    cooldown_s = 0,
+    ttd_s = "--",
+    tracked_auras = {},
+}
+
 local DECAY_S = 3.0
-local proc_list = {}
-local _sp, _ut, _rt
+local proc_entries = {}
 
--- ── Window state (persisted across frames) ────────────────────────────────────
-local win = {
-    x         = 20,
-    y         = 200,
-    w         = 230,
-    minimized = false,
-    -- drag state
-    dragging  = false,
-    drag_ox   = 0,
-    drag_oy   = 0,
-}
+-- Layout
+local HUD_W = 250
+local HUD_ICON = 46
+local HUD_PAD = 8
+local HUD_TEXT = 13
+local HUD_SMALL = 10
+local HUD_PROC_H = 16
+local HUD_RADIUS = 5
+local HUD_METRIC_H = 15
+local HUD_AURA_H = 16
+local HUD_AURA_SPACING = 4
 
--- ── Colours (ps_theme palette) ────────────────────────────────────────────────
-local C = {
-    bg         = function() return rgba( 16,  9,  4, 240) end,
-    bg_row     = function() return rgba( 22, 12,  5, 220) end,
-    border     = function() return rgba(240, 140, 50, 160) end,
-    title_bg   = function() return rgba( 10,  5,  2, 255) end,
-    accent     = function() return rgba(220, 120, 30, 255) end,
-    text_on    = function() return rgba(255, 160, 70, 255) end,
-    text_dim   = function() return rgba(110,  60, 15, 220) end,
-    text_white = function() return rgba(230, 220, 200, 255) end,
-    green      = function() return rgba(100, 210,  90, 255) end,
-    red        = function() return rgba(220,  70,  60, 255) end,
-    gold       = function() return rgba(240, 185,  20, 255) end,
-    pip_on     = function() return rgba(230, 150,  25, 255) end,
-    pip_off    = function() return rgba( 50,  28,   5, 200) end,
-}
-
-local FBAR_COL = {
-    cat    = function() return rgba(210, 130,  40, 255) end,
-    bear   = function() return rgba( 80, 145, 210, 255) end,
-    travel = function() return rgba( 70, 175,  85, 255) end,
-    prowl  = function() return rgba(160, 100, 220, 255) end,
-    caster = function() return rgba(140, 140, 160, 255) end,
-}
-local function form_col(form) return (FBAR_COL[form] or FBAR_COL.caster)() end
-
-local FNAME = { cat="Cat", bear="Bear", travel="Travel", prowl="Stealth", caster="Caster" }
-local RNAME = { cat="Energy", bear="Rage", travel="", prowl="Energy", caster="Mana" }
-
--- ── Layout constants ──────────────────────────────────────────────────────────
-local TITLE_H = 20
-local ROW_H   = 18
-local PAD     = 8
-local RAD     = 4
-local FONT    = 12
-local FONT_SM = 10
-
--- ── Drawing helpers ───────────────────────────────────────────────────────────
-local function filled(x, y, w, h, col, rad)
-    core.graphics.rect_2d_filled(v2(x,y), w, h, col, rad or 0)
-end
-local function outline(x, y, w, h, col, rad)
-    core.graphics.rect_2d(v2(x,y), w, h, col, 1, rad or 0)
-end
-local function txt(str, x, y, sz, col)
-    core.graphics.text_2d(str, v2(x,y), sz, col, false)
-end
-local function txt_w(str, sz)
-    local ok, w = pcall(function()
-        return core.graphics.get_text_width(str, sz)
-    end)
-    return ok and w or #str * (sz * 0.55)
-end
-
--- ── Form detection ─────────────────────────────────────────────────────────────
-local function get_form(me)
-    if not (_sp and _ut) then return "caster", 0, 100 end
-    if _ut.is_prowling(me, _sp.BUFF_PROWL)          then return "prowl",  _ut.get_energy(me), 100 end
-    if _ut.has_buff(me, _sp.BUFF_CAT_FORM)        then return "cat",    _ut.get_energy(me), 100 end
-    if _ut.has_buff(me, _sp.BUFF_BEAR_FORM) or
-       _ut.has_buff(me, _sp.BUFF_DIRE_BEAR_FORM)  then return "bear",   _ut.get_rage(me),   100 end
-    if _ut.has_buff(me, _sp.BUFF_TRAVEL_FORM)     then return "travel", 0,                  0   end
-    local ok, mp = pcall(function()
-        return math.floor(me:get_power(0) / me:get_max_power(0) * 100)
-    end)
-    return "caster", ok and mp or 0, 100
-end
-
--- ── Input handling ────────────────────────────────────────────────────────────
--- Dragging is only allowed when the bot menu is open to avoid interfering
--- with the game camera (left click rotates camera in-game).
-local VK_LBUTTON = 0x01
-local _was_pressed = false
-
-local function handle_input(title_h, menu)
-    -- Only process clicks when the menu is open — prevents camera interference
-    if not core.graphics.is_menu_open() then
-        win.dragging = false
-        _was_pressed = false
-        return
-    end
-
-    local ok, cur = pcall(function() return core.get_cursor_position() end)
-    if not ok or not cur then return end
-    local mx, my = cur.x, cur.y
-
-    local pressed   = core.input.is_key_pressed(VK_LBUTTON)
-    local just_down = pressed and not _was_pressed
-    local just_up   = not pressed and _was_pressed
-    _was_pressed = pressed
-
-    local btn_w  = title_h - 4
-    local btn_x1 = win.x + win.w - btn_w - 2
-    local btn_x2 = win.x + win.w - 2
-    local btn_y1 = win.y + 2
-    local btn_y2 = win.y + title_h - 2
-
-    local in_title = mx >= win.x and mx <= win.x + win.w
-                 and my >= win.y and my <= win.y + title_h
-    local in_btn   = mx >= btn_x1 and mx <= btn_x2
-                 and my >= btn_y1 and my <= btn_y2
-
-    if just_down then
-        if in_btn then
-            win.minimized = not win.minimized
-        elseif in_title then
-            win.dragging = true
-            win.drag_ox  = mx - win.x
-            win.drag_oy  = my - win.y
-        end
-    end
-
-    if just_up then
-        win.dragging = false
-        -- Save position back to menu sliders so it persists
-        if menu.esp_hud_x then
-            local ok1 = pcall(function() menu.esp_hud_x:set(math.floor(win.x)) end)
-        end
-        if menu.esp_hud_y then
-            local ok2 = pcall(function() menu.esp_hud_y:set(math.floor(win.y)) end)
-        end
-    end
-
-    if win.dragging and pressed then
-        win.x = mx - win.drag_ox
-        win.y = my - win.drag_oy
-    end
-end
-
--- ── Main draw ─────────────────────────────────────────────────────────────────
-local function draw(menu)
-    load_deps()
-
-    local me = core.object_manager.get_local_player()
-    if not me then return end
-
-    local scale   = menu.hud_scale and menu.hud_scale:get() or 1.0
-    win.w         = math.floor(230 * scale)
-    local row_h   = math.floor(ROW_H   * scale)
-    local title_h = math.floor(TITLE_H * scale)
-    local pad     = math.floor(PAD     * scale)
-    local fs      = math.floor(FONT    * scale)
-    local fs_sm   = math.floor(FONT_SM * scale)
-
-    -- Sync position from menu sliders (so sliders always work as fallback)
-    if not win.dragging then
-        win.x = menu.esp_hud_x and menu.esp_hud_x:get() or win.x
-        win.y = menu.esp_hud_y and menu.esp_hud_y:get() or win.y
-    end
-
-    handle_input(title_h, menu)
-
-    local x, y, w = win.x, win.y, win.w
-
-    -- ── Total height ──────────────────────────────────────────────────────────
-    local decayed  = (core.time() - _last.set_at) > DECAY_S
-    local form, res, res_max = get_form(me)
-    local cp       = _rt and _rt.combo_points or 0
-    local hp       = math.floor(me:get_health_percentage())
-    local fc       = form_col(form)
-    local is_cat   = form == "cat" or form == "prowl"
-    local is_bear  = form == "bear"
-
-    -- Filter procs for current role
-    local visible_procs = {}
-    for _, p in ipairs(proc_list) do
-        if not p.role or p.role == "any"
-        or (p.role == "cat"  and is_cat)
-        or (p.role == "bear" and is_bear) then
-            table.insert(visible_procs, p)
-        end
-    end
-
-    local content_h = 0
-    if not win.minimized then
-        content_h = content_h + row_h          -- form / spec
-        content_h = content_h + row_h          -- action
-        content_h = content_h + row_h          -- HP
-        if res_max > 0 then
-            content_h = content_h + row_h + 4  -- resource bar
-        end
-        if is_cat then
-            content_h = content_h + row_h      -- CP pips
-        end
-        if #visible_procs > 0 then
-            content_h = content_h + 4          -- small gap
-            content_h = content_h + #visible_procs * (row_h - 2)
-        end
-        content_h = content_h + pad
-    end
-    local total_h = title_h + content_h
-
-    -- ── Background ────────────────────────────────────────────────────────────
-    filled(x, y, w, total_h, C.bg(), RAD)
-
-    -- ── Title bar ─────────────────────────────────────────────────────────────
-    filled(x, y, w, title_h, C.title_bg(), RAD)
-    -- Amber glow line under title
-    filled(x, y + title_h - 1, w, 1, C.accent(), 0)
-    -- Border
-    outline(x, y, w, total_h, C.border(), RAD)
-
-    -- Title text: "Druid Feral"
-    local title_str = "  " .. _spec_name
-    txt(title_str, x + pad, y + math.floor((title_h - fs) / 2), fs, C.accent())
-
-    -- Minimize button [ – ] or [ + ]
-    local btn_sz  = title_h - 4
-    local btn_x   = x + w - btn_sz - 2
-    local btn_y   = y + 2
-    filled(btn_x, btn_y, btn_sz, btn_sz, C.bg_row(), 2)
-    outline(btn_x, btn_y, btn_sz, btn_sz, C.text_dim(), 2)
-    local btn_lbl = win.minimized and "+" or "-"
-    txt(btn_lbl,
-        btn_x + math.floor((btn_sz - txt_w(btn_lbl, fs_sm)) / 2),
-        btn_y + math.floor((btn_sz - fs_sm) / 2),
-        fs_sm, C.text_on())
-
-    if win.minimized then return end
-
-    -- ── Content rows ──────────────────────────────────────────────────────────
-    local ry = y + title_h + 2
-
-    -- Form + spec line
-    local fname = (FNAME[form] or form) .. "  -  " .. (RNAME[form] or "")
-    txt("  " .. fname, x + pad, ry + math.floor((row_h - fs) / 2), fs, fc)
-    ry = ry + row_h
-
-    -- Last action
-    local action = (not decayed and _last.spell_name ~= "") and _last.spell_name or "---"
-    local ac = decayed and C.text_dim() or (to_api(_last.spell_col) or C.text_on())
-    txt("  " .. action, x + pad, ry + math.floor((row_h - fs) / 2), fs, ac)
-    -- Target name right-aligned
-    if not decayed and _last.target_name ~= "" then
-        local tgt = _last.target_name .. "  "
-        local tw  = txt_w(tgt, fs_sm)
-        txt(tgt, x + w - tw, ry + math.floor((row_h - fs_sm) / 2) + 1, fs_sm, C.text_dim())
-    end
-    ry = ry + row_h
-
-    -- HP row
-    local hp_col = hp > 30 and C.green() or C.red()
-    local hp_str = string.format("  HP   %d%%", hp)
-    txt(hp_str, x + pad, ry + math.floor((row_h - fs) / 2), fs, hp_col)
-    -- HP mini-bar
-    local bar_x  = x + pad + txt_w(hp_str, fs) + 4
-    local bar_w  = w - (bar_x - x) - pad
-    local bar_y  = ry + math.floor((row_h - 5) / 2)
-    filled(bar_x, bar_y, bar_w, 5, C.bg_row(), 2)
-    filled(bar_x, bar_y, math.floor(bar_w * hp / 100), 5, hp_col, 2)
-    outline(bar_x, bar_y, bar_w, 5, C.text_dim(), 2)
-    ry = ry + row_h
-
-    -- Resource bar
-    if res_max > 0 then
-        local rl  = RNAME[form] or ""
-        local pct = res_max > 0 and (res / res_max) or 0
-        local rc  = fc
-        local rs  = string.format("  %s   %d", rl, math.floor(res))
-        txt(rs, x + pad, ry + math.floor((row_h - fs) / 2), fs, rc)
-        local rb_x  = x + pad + txt_w(rs, fs) + 4
-        local rb_w  = w - (rb_x - x) - pad
-        local rb_y  = ry + math.floor((row_h - 5) / 2)
-        filled(rb_x, rb_y, rb_w, 5, C.bg_row(), 2)
-        filled(rb_x, rb_y, math.floor(rb_w * pct), 5, rc, 2)
-        outline(rb_x, rb_y, rb_w, 5, C.text_dim(), 2)
-        ry = ry + row_h + 4
-    end
-
-    -- Combo point pips (cat only)
-    if is_cat then
-        txt("  CP", x + pad, ry + math.floor((row_h - fs) / 2), fs, C.text_dim())
-        local pip_start = x + pad + txt_w("  CP", fs) + 6
-        local pip_w     = math.floor((w - (pip_start - x) - pad) / 5) - 2
-        local pip_h     = row_h - 6
-        local pip_y     = ry + 3
-        for i = 1, 5 do
-            local pc = i <= cp and C.pip_on() or C.pip_off()
-            filled(pip_start + (i-1)*(pip_w+2), pip_y, pip_w, pip_h, pc, 2)
-            outline(pip_start + (i-1)*(pip_w+2), pip_y, pip_w, pip_h, C.text_dim(), 2)
-        end
-        ry = ry + row_h
-    end
-
-    -- Proc rows
-    if #visible_procs > 0 then
-        ry = ry + 4
-        local proc_row_h = row_h - 2
-        for _, p in ipairs(visible_procs) do
-            local active = false
-            pcall(function() active = p.active_fn() end)
-            local pc  = active and (to_api(p.active_col) or C.accent()) or C.text_dim()
-            local dot = active and "* " or "- "
-            txt("  " .. dot .. "  " .. p.label,
-                x + pad, ry + math.floor((proc_row_h - fs_sm) / 2), fs_sm, pc)
-            ry = ry + proc_row_h
-        end
-    end
-end
-
--- ── Public API ─────────────────────────────────────────────────────────────────
-function esp_renderer.init(_, display_name)
-    _spec_name = display_name or "Druid Feral"
+function esp_renderer.init(spec_id, display_name)
+    _spec_id = spec_id or "eax"
+    _spec_name = display_name or spec_id or "EAX"
 end
 
 function esp_renderer.on_cast(spell_id, name, col, target_name)
-    _last.spell_id    = spell_id
-    _last.spell_name  = name or ""
-    _last.spell_col   = col
-    _last.target_name = target_name or ""
-    _last.set_at      = core.time()
+    _state.spell_id = spell_id
+    _state.spell_name = name or ""
+    _state.spell_col = col
+    _state.target_name = target_name or ""
+    _state.set_at = core.time()
 end
 
-function esp_renderer.add_proc(label, active_fn, active_col, _, role)
-    table.insert(proc_list, { label=label, active_fn=active_fn,
-                               active_col=active_col, role=role })
+function esp_renderer.update_visual_snapshot(snapshot)
+    snapshot = snapshot or {}
+    _visual.dps = tonumber(snapshot.dps) or 0
+    _visual.hps = tonumber(snapshot.hps) or 0
+    _visual.cooldown_s = tonumber(snapshot.cooldown_s) or 0
+    _visual.ttd_s = snapshot.ttd_s == nil and "--" or snapshot.ttd_s
+    _visual.tracked_auras = resolve_tracked_auras(snapshot.tracked_auras)
 end
 
-function esp_renderer.clear_procs() proc_list = {} end
+esp_renderer.set_visual_snapshot = esp_renderer.update_visual_snapshot
+
+function esp_renderer.add_proc(label, active_fn, active_col, inactive_col)
+    table.insert(proc_entries, {
+        label = label,
+        active_fn = active_fn,
+        active_col = active_col,
+        inactive_col = inactive_col,
+    })
+end
+
+function esp_renderer.clear_procs()
+    proc_entries = {}
+end
 
 function esp_renderer.notify(uid, plugin_label, msg, dur, col)
     load_deps()
     if not core.graphics.is_notification_active(uid) then
-        core.graphics.add_notification(uid, plugin_label or "EAX",
-            msg, dur or 2.0, to_api(col or _color.gold(220)))
+        core.graphics.add_notification(uid, plugin_label or "EAX", msg, dur or 2.0, to_api(col or _color.gold(220)))
     end
 end
 
-function esp_renderer.set_context(sp, ut, rt) _sp=sp; _ut=ut; _rt=rt end
+local function draw_metric_row(x, y, label, value)
+    core.graphics.text_2d(label, _vec2.new(x, y), HUD_SMALL, _color_api.new(110, 118, 140, 210), false)
+    core.graphics.text_2d(metric_string(value), _vec2.new(x + 26, y), HUD_SMALL, _color_api.new(225, 235, 255, 230), false)
+end
+
+local function draw_aura_strip(x, y)
+    local aura_count = #_visual.tracked_auras
+    if aura_count <= 0 then
+        return
+    end
+
+    local max_slots = 4
+    local slot_w = math.floor((HUD_W - HUD_PAD * 2 - HUD_AURA_SPACING * (max_slots - 1)) / max_slots)
+
+    for i = 1, aura_count do
+        local aura = _visual.tracked_auras[i]
+        local ax = x + (i - 1) * (slot_w + HUD_AURA_SPACING)
+        local active = aura.active ~= false
+        local bg_col = active and _color_api.new(30, 50, 65, 170) or _color_api.new(25, 28, 38, 160)
+        local border_col = active and _color_api.new(110, 175, 200, 180) or _color_api.new(70, 75, 95, 120)
+        local text_col = active and _color_api.new(225, 245, 255, 235) or _color_api.new(140, 145, 160, 190)
+
+        if aura.color then
+            border_col = to_api(aura.color)
+        end
+
+        core.graphics.rect_2d_filled(_vec2.new(ax, y), slot_w, HUD_AURA_H, bg_col, 3)
+        core.graphics.rect_2d(_vec2.new(ax, y), slot_w, HUD_AURA_H, border_col, 1, 3)
+        core.graphics.text_2d(aura.label, _vec2.new(ax + 4, y + 3), HUD_SMALL, text_col, false)
+    end
+end
+
+-- Draw HUD
+local function draw_hud(menu)
+    load_deps()
+    if not menu.esp_show_hud or not menu.esp_show_hud:get_state() then return end
+
+    if (core.time() - _state.set_at) > DECAY_S then
+        _state.spell_name = ""
+        _state.target_name = ""
+        _state.spell_id = nil
+    end
+
+    local x = menu.esp_hud_x and menu.esp_hud_x:get() or 20
+    local y = menu.esp_hud_y and menu.esp_hud_y:get() or 200
+
+    local proc_count = #proc_entries
+    local aura_count = #_visual.tracked_auras
+    local metrics_h = HUD_METRIC_H * 2 + 4
+    local aura_h = aura_count > 0 and (HUD_AURA_H + HUD_PAD) or 0
+    local hud_h = HUD_PAD + HUD_SMALL + 4 + HUD_ICON + HUD_PAD + metrics_h + HUD_PAD + aura_h + HUD_PAD
+    if proc_count > 0 then
+        hud_h = hud_h + proc_count * (HUD_PROC_H + 3) + HUD_PAD
+    end
+
+    core.graphics.rect_2d_filled(_vec2.new(x, y), HUD_W, hud_h, _color_api.new(8, 10, 14, 185), HUD_RADIUS)
+    core.graphics.rect_2d_filled(_vec2.new(x, y), HUD_W, HUD_SMALL + 4, _color_api.new(55, 35, 110, 200), HUD_RADIUS)
+    core.graphics.rect_2d(_vec2.new(x, y), HUD_W, hud_h, _color_api.new(80, 60, 160, 180), 1, HUD_RADIUS)
+
+    core.graphics.text_2d(_spec_name, _vec2.new(x + HUD_PAD, y + 3), HUD_SMALL, _color_api.new(210, 200, 255, 230), false)
+
+    local row_y = y + HUD_SMALL + 6
+    local icon_x = x + HUD_PAD
+    local icon_y = row_y + HUD_PAD
+
+    if _state.spell_id and _icons then
+        local ok = pcall(function()
+            _icons:draw_spell_icon(_state.spell_id, _vec2.new(icon_x, icon_y), HUD_ICON, HUD_ICON, to_api(_color.white(240)), false, {
+                size = "large",
+                persist_to_disk = true,
+            })
+        end)
+        if not ok then
+            core.graphics.rect_2d_filled(_vec2.new(icon_x, icon_y), HUD_ICON, HUD_ICON, _color_api.new(40, 45, 60, 200), 4)
+        end
+    else
+        core.graphics.rect_2d_filled(_vec2.new(icon_x, icon_y), HUD_ICON, HUD_ICON, _color_api.new(25, 28, 38, 180), 4)
+        core.graphics.rect_2d(_vec2.new(icon_x, icon_y), HUD_ICON, HUD_ICON, _color_api.new(60, 65, 80, 140), 1, 4)
+    end
+
+    core.graphics.rect_2d(_vec2.new(icon_x, icon_y), HUD_ICON, HUD_ICON, _color_api.new(100, 80, 180, 160), 1, 4)
+
+    local tx = icon_x + HUD_ICON + HUD_PAD
+    local spell_label = (_state.spell_name ~= "") and _state.spell_name or "Waiting..."
+    local spell_col = to_api(_state.spell_col or _color.gold(230))
+    core.graphics.text_2d(spell_label, _vec2.new(tx, icon_y + 6), HUD_TEXT, spell_col, false)
+
+    if _state.target_name ~= "" then
+        core.graphics.text_2d("on " .. _state.target_name, _vec2.new(tx, icon_y + HUD_TEXT + 10), HUD_SMALL, _color_api.new(150, 210, 150, 200), false)
+    end
+
+    core.graphics.text_2d("Next Action", _vec2.new(tx, icon_y + HUD_ICON - HUD_SMALL - 2), HUD_SMALL, _color_api.new(120, 125, 145, 160), false)
+
+    local metrics_y = icon_y + HUD_ICON + 6
+    draw_metric_row(x + HUD_PAD, metrics_y, "DPS", _visual.dps)
+    draw_metric_row(x + HUD_PAD + 92, metrics_y, "HPS", _visual.hps)
+    draw_metric_row(x + HUD_PAD, metrics_y + HUD_METRIC_H, "CD", _visual.cooldown_s)
+    draw_metric_row(x + HUD_PAD + 92, metrics_y + HUD_METRIC_H, "TTD", _visual.ttd_s)
+
+    local next_y = metrics_y + metrics_h + 3
+    if aura_count > 0 then
+        draw_aura_strip(x + HUD_PAD, next_y)
+        next_y = next_y + HUD_AURA_H + HUD_PAD
+    end
+
+    if proc_count > 0 then
+        local bar_y = next_y
+        for _, proc in ipairs(proc_entries) do
+            local active = false
+            pcall(function() active = proc.active_fn() end)
+
+            local fill_col = active and to_api(proc.active_col or _color.green(200)) or _color_api.new(30, 33, 42, 160)
+
+            core.graphics.rect_2d_filled(_vec2.new(x + HUD_PAD, bar_y), HUD_W - HUD_PAD * 2, HUD_PROC_H, _color_api.new(18, 20, 28, 160), 3)
+            if active then
+                core.graphics.rect_2d_filled(_vec2.new(x + HUD_PAD, bar_y), HUD_W - HUD_PAD * 2, HUD_PROC_H, fill_col, 3)
+            end
+            core.graphics.rect_2d(_vec2.new(x + HUD_PAD, bar_y), HUD_W - HUD_PAD * 2, HUD_PROC_H, _color_api.new(70, 75, 95, 120), 1, 3)
+            core.graphics.text_2d(proc.label, _vec2.new(x + HUD_PAD + 5, bar_y + 3), HUD_SMALL, active and to_api(_color.white(235)) or _color_api.new(130, 135, 150, 180), false)
+
+            bar_y = bar_y + HUD_PROC_H + 3
+        end
+    end
+end
+
+-- 3D floating text above target
+local function draw_target_esp(menu)
+    load_deps()
+    if not menu.esp_show_target or not menu.esp_show_target:get_state() then return end
+    if _state.spell_name == "" then return end
+    if (core.time() - _state.set_at) > DECAY_S then return end
+
+    local me = core.object_manager.get_local_player()
+    if not me then return end
+    local target = me:get_target()
+    if not target or not target:is_valid() or target:is_dead() then return end
+
+    local pos = target:get_position()
+    if not pos then return end
+
+    local ok3, vec3 = pcall(require, "common/geometry/vector_3")
+    local wpos = ok3 and vec3.new(pos.x, pos.y, pos.z + 2.2) or { x = pos.x, y = pos.y, z = pos.z + 2.2 }
+
+    local label = "[ " .. _state.spell_name .. " ]"
+    local col = to_api(_state.spell_col or _color.gold(220))
+
+    pcall(function()
+        core.graphics.text_3d(label, wpos, 12, col, true)
+    end)
+end
 
 function esp_renderer.on_render(menu)
     local ok, err = pcall(function()
-        if not (menu.esp_show_hud and menu.esp_show_hud:get_state()) then return end
-        draw(menu)
-
-        -- 3D world label
-        if menu.esp_show_target and menu.esp_show_target:get_state() then
-            if _last.spell_name ~= "" and (core.time() - _last.set_at) <= DECAY_S then
-                load_deps()
-                local me = core.object_manager.get_local_player()
-                if me then
-                    local target = me:get_target()
-                    if target and target:is_valid() and not target:is_dead() then
-                        local pos = target:get_position()
-                        if pos then
-                            local ok3, vec3 = pcall(require, "common/geometry/vector_3")
-                            local wpos = ok3 and vec3.new(pos.x,pos.y,pos.z+2.2)
-                                              or {x=pos.x,y=pos.y,z=pos.z+2.2}
-                            core.graphics.text_3d("[ ".._last.spell_name.." ]", wpos,
-                                12, to_api(_last.spell_col or _color.gold(200)), true)
-                        end
-                    end
-                end
-            end
-        end
+        draw_hud(menu)
+        draw_target_esp(menu)
     end)
-    if not ok then core.log("[EAX HUD] error: " .. tostring(err)) end
+    if not ok then
+        core.log("[EAX ESP] render error: " .. tostring(err))
+    end
 end
 
--- No longer needed but kept for safety
-function esp_renderer.on_render_hud(menu) end
-
+-- Legacy aliases
 esp_renderer.set_next_action = esp_renderer.on_cast
+esp_renderer.notify = esp_renderer.notify
+
 return esp_renderer
