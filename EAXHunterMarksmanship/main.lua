@@ -28,6 +28,8 @@ local racial_manager = require("common/eax_shared/racial_manager")
 local defensive_manager = require("common/eax_shared/defensive_manager")
 ---@type threat_manager
 local threat_manager = require("eax_shared/threat_manager")
+---@type swing_timer
+local swing_timer = require("common/eax_shared/swing_timer")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
@@ -82,6 +84,7 @@ local rt = {
     last_intimidation_cast_count = 0,
     last_trap_time      = 0,
     last_spell_refresh  = 0,
+    haste_breakpoint    = "2:1",
     cached_mode         = "solo",
     prev_toggle_state   = false,
 }
@@ -144,6 +147,18 @@ local function auto_eta(me)
     return 9999
 end
 local function allow_instant(me) return auto_eta(me) > AUTO_CLIP_MS end
+local function can_cast_casted_spell(me, cast_time) return swing_timer.can_cast_before_swing(me, cast_time, 0.1) end
+local function get_haste_breakpoint(me)
+    local eta = auto_eta(me) -- ms
+    local effective_speed = eta / 1000
+    local base_speed = 2.8 -- typical base weapon speed assumption
+    local haste = (base_speed / effective_speed) - 1
+    if haste < 0.15 then return "2:1"
+    elseif haste < 0.45 then return "1:1"
+    elseif haste < 0.75 then return "1:2"
+    else return "1:3"
+    end
+end
 local function mana_pct(me)
     local ok,mp = pcall(function() return me:get_power(0) end)
     local ok2,mm = pcall(function() return me:get_max_power(0) end)
@@ -353,6 +368,7 @@ local function try_aimed_shot(me, t)
     if not menu.use_aimed_shot or not menu.use_aimed_shot:get_state() then return false end
     if not rt.aimed_shot_id then return false end
     if is_moving() then return false end
+    if not can_cast_casted_spell(me, 2.0) then return false end
     if not utils.can_cast_hostile(rt.aimed_shot_id, me, t) then return false end
     if utils.cast_target(rt.aimed_shot_id, t) then
         utils.log_debug(menu, "Aimed Shot")
@@ -391,6 +407,7 @@ local function try_steady_shot(me, t)
     if not menu.use_steady_shot or not menu.use_steady_shot:get_state() then return false end
     if not rt.steady_shot_id then return false end
     if is_moving() then return false end
+    if not can_cast_casted_spell(me, 1.5) then return false end
     if rt.last_steady_shot_cast_count == core.spell_book.get_spell_cast_count(rt.steady_shot_id) then return false end
     if not utils.can_cast_hostile(rt.steady_shot_id, me, t) then return false end
     if utils.cast_target(rt.steady_shot_id, t) then
@@ -508,6 +525,9 @@ local function do_rotation(me, t)
     try_aspect_viper(me)
     try_aspect(me)
     try_rapid_fire(me)
+
+    -- Update haste breakpoint detection
+    rt.haste_breakpoint = get_haste_breakpoint(me)
 
     if interrupt_manager.should_interrupt(t) then
         interrupt_manager.try_interrupt(me, t, "hunter", utils)
