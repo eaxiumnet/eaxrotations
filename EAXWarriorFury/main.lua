@@ -156,6 +156,7 @@ local CHARGE_STANCE_RETRY_DELAY = 0.75
 local ON_NEXT_ATTACK_QUEUE_INTERVAL = 0.30
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
+local EXECUTE_SWING_SAFETY_BUFFER_S = 0.10
 local SHAMAN_CLASS_ID = 7
 local MODE_OPTIONS = { "Auto", "Solo", "Dungeon", "Raid" }
 local MODE_DEBUG_INTERVAL_MS = 10000
@@ -602,6 +603,14 @@ local function is_fast_one_hand_execute_setup(me)
     end
 
     return mainhand_speed <= 2.0 and offhand_speed <= 2.0
+end
+
+local function is_execute_swing_safe(me)
+    if swing_timer.is_swing_safe(me, EXECUTE_SWING_SAFETY_BUFFER_S) then
+        return true
+    end
+
+    return swing_timer.can_cast_before_swing(me, 0.25, EXECUTE_SWING_SAFETY_BUFFER_S)
 end
 
 local function handle_toggle()
@@ -1441,6 +1450,9 @@ end
 
 local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     if try_tc_dance_return(me) then return true end
+    local execute_phase_active = target_hp_pct <= 0.20
+    local fast_one_hand_execute = execute_phase_active and is_fast_one_hand_execute_setup(me)
+    local execute_swing_safe = (not execute_phase_active) or is_execute_swing_safe(me)
     local bt_can_cast = runtime.bloodthirst_id
         and rage >= BLOODTHIRST_COST
         and utils.can_cast_hostile_no_usable(runtime.bloodthirst_id, me, target)
@@ -1453,6 +1465,22 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
     local ex_can_cast = should_cast_execute(target_hp_pct, rage)
         and utils.can_cast_hostile_no_usable(runtime.execute_id, me, target)
         or false
+
+    if execute_phase_active and fast_one_hand_execute then
+        -- Fast-1H execute lane: explicit execute-first behavior with queue support.
+        if execute_swing_safe and ex_can_cast and not is_pending_or_current(runtime.execute_id) then
+            if utils.cast_target(runtime.execute_id, target) then
+                mark_pending_cast(runtime.execute_id, PENDING_CAST_TIMEOUT_S)
+                utils.log_debug(menu, "ST Execute (fast-1H): Execute")
+                note_cast()
+                return true
+            end
+        end
+
+        if try_heroic_strike(me, target, rage, target_hp_pct, false) then
+            return true
+        end
+    end
 
     if bt_can_cast and not is_pending_or_current(runtime.bloodthirst_id) then
         if utils.cast_target(runtime.bloodthirst_id, target) then
@@ -1472,10 +1500,14 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
         end
     end
 
-    if ex_can_cast and not is_pending_or_current(runtime.execute_id) then
+    if execute_swing_safe and ex_can_cast and not is_pending_or_current(runtime.execute_id) then
         if utils.cast_target(runtime.execute_id, target) then
             mark_pending_cast(runtime.execute_id, PENDING_CAST_TIMEOUT_S)
-            utils.log_debug(menu, "ST: Execute")
+            if execute_phase_active and not fast_one_hand_execute then
+                utils.log_debug(menu, "ST Execute (non-fast): Execute")
+            else
+                utils.log_debug(menu, "ST: Execute")
+            end
             note_cast()
             return true
         end
@@ -1918,6 +1950,10 @@ local function do_queue_lane(me, target, rage, target_hp_pct, is_aoe)
     if runtime.last_on_next_attack_queue_at > 0
         and (core.time() - runtime.last_on_next_attack_queue_at) < ON_NEXT_ATTACK_QUEUE_INTERVAL
     then
+        return false
+    end
+
+    if target_hp_pct <= 0.20 and not is_execute_swing_safe(me) then
         return false
     end
 
