@@ -11,7 +11,7 @@ Milestone v1.0 (Phases 1-4) is complete. This roadmap defines milestone v1.1 Com
 
 ## Phases
 
-- [x] **Phase 5: Reactive Contract + API Gate** - Establish deterministic context, reasoned decisions, and fail-closed `@.api` enforcement.
+- [ ] **Phase 5: Reactive Contract + API Gate** - Establish deterministic context, reasoned decisions, and fail-closed `@.api` enforcement.
 - [ ] **Phase 6: 27-Spec Reactive Wiring** - Integrate the shared reactive engine into every canonical combat spec.
 - [ ] **Phase 7: Role Intelligence Tuning** - Deliver DPS, healer, and tank behavior quality with urgency-aware control logic.
 - [ ] **Phase 8: Benchmark Matrix Hardening** - Enforce 27-spec KPI/variance matrix gates for milestone sign-off.
@@ -27,11 +27,14 @@ Milestone v1.0 (Phases 1-4) is complete. This roadmap defines milestone v1.1 Com
   2. Reactive actions consistently follow one observable precedence ladder (life-save first, then control, then safety, then throughput).
   3. Validation runs fail immediately when non-`@.api` calls are introduced in behavior code.
   4. Validation/release checks block milestone sign-off until API hard-gate compliance passes.
-**Plans**: 2 plans
+**Plans**: 5 plans
 
 Plans:
 - [x] 05-reactive-contract-api-gate-01-PLAN.md - Create the shared combat snapshot and deterministic reactive decision contract.
 - [x] 05-reactive-contract-api-gate-02-PLAN.md - Add generated API allowlist enforcement and wire it into the blocking validation flow.
+- [x] 05-reactive-contract-api-gate-03-PLAN.md - Add the shared runtime telemetry bridge and align benchmark live rows to runtime reactive telemetry.
+- [ ] 05-reactive-contract-api-gate-04-PLAN.md - TBD.
+- [ ] 05-reactive-contract-api-gate-05-PLAN.md - TBD.
 
 ### Phase 6: 27-Spec Reactive Wiring
 **Goal**: Users can run any of the 27 specs with the same shared reactive decision layer active and adapter parity enforced.
@@ -68,7 +71,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5. Reactive Contract + API Gate | 2/2 | Complete | 2026-03-20 |
+| 5. Reactive Contract + API Gate | 3/5 | In Progress | - |
 | 6. 27-Spec Reactive Wiring | 0/TBD | Not started | - |
 | 7. Role Intelligence Tuning | 0/TBD | Not started | - |
 | 8. Benchmark Matrix Hardening | 0/TBD | Not started | - |
