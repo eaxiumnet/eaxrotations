@@ -44,6 +44,7 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local tank_recovery = require("eax_shared/tank_recovery")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -1992,6 +1993,128 @@ local function do_rotation(me, target)
     return do_bear_rotation(me, target)
 end
 
+local GROUP_ROLE_HEALER = 1
+local GROUP_ROLE_DAMAGER = 2
+
+local function safe_get_guid(unit)
+    if not unit or type(unit.get_guid) ~= "function" then
+        return nil
+    end
+
+    local ok, guid = pcall(function() return unit:get_guid() end)
+    if not ok or guid == nil then
+        return nil
+    end
+
+    return tostring(guid)
+end
+
+local function get_cast_progress_pct(unit)
+    if not unit or not unit:is_valid() then
+        return 0
+    end
+
+    if type(unit.get_channeling_or_casting_pct) == "function" then
+        local ok, pct = pcall(function() return unit:get_channeling_or_casting_pct() end)
+        if ok and pct then
+            return math.max(0, math.min((tonumber(pct) or 0) / 100, 1))
+        end
+    end
+
+    return 0
+end
+
+local function classify_recovery_victim(me, victim)
+    if not victim or not victim:is_valid() or utils.same_unit(me, victim) or not victim:is_party_member() then
+        return nil
+    end
+
+    local ok, role_id = pcall(function() return victim:get_group_role() end)
+    if not ok then
+        return nil
+    end
+
+    if role_id == GROUP_ROLE_HEALER then
+        return "healer"
+    end
+    if role_id == GROUP_ROLE_DAMAGER then
+        return "damager"
+    end
+
+    return nil
+end
+
+local function is_interruptible_enemy(unit)
+    if not unit or not unit:is_valid() then
+        return false
+    end
+    if unit:is_casting_spell() then
+        return unit:is_active_spell_interruptable()
+    end
+    return unit:is_channelling_spell()
+end
+
+local function build_tank_recovery_state(me, ctx)
+    local candidates = {}
+    local helper_candidates = {}
+    local by_guid = {}
+    local off_me_count = 0
+    local dangerous_count = 0
+    local objects = core.object_manager.get_all_objects()
+
+    for i = 1, #objects do
+        local unit = objects[i]
+        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead() and me:can_attack(unit) and unit:is_in_combat() then
+            local victim = unit:get_target()
+            local victim_role = classify_recovery_victim(me, victim)
+            if victim_role then
+                local guid = safe_get_guid(unit)
+                if guid then
+                    local dangerous = unit:is_casting_spell() or unit:is_channelling_spell()
+                    off_me_count = off_me_count + 1
+                    if dangerous then
+                        dangerous_count = dangerous_count + 1
+                    end
+                    local candidate = {
+                        guid = guid,
+                        unit = unit,
+                        victim_role = victim_role,
+                        dangerous_caster = dangerous,
+                        interruptible = is_interruptible_enemy(unit),
+                        cast_progress_pct = get_cast_progress_pct(unit),
+                    }
+                    candidates[#candidates + 1] = candidate
+                    helper_candidates[#helper_candidates + 1] = candidate
+                    by_guid[guid] = candidate
+                end
+            end
+        end
+    end
+
+    local snapshot = {
+        self = {
+            hp_pct = (((ctx or {}).self or {}).hp_pct) or (me:get_health_percentage() / 100),
+            incoming_damage_pct_2s = (((ctx or {}).self or {}).incoming_damage_pct_2s) or 0,
+            incoming_heal_pct = (((ctx or {}).self or {}).incoming_heal_pct) or 0,
+        },
+        party = {
+            group_collapse_risk = (((ctx or {}).party or {}).group_collapse_risk) or 0,
+            threat_instability = math.min(1, (off_me_count * 0.45) + (dangerous_count > 0 and 0.20 or 0)),
+        },
+    }
+
+    local choice = tank_recovery.select_recovery_target(me, {
+        snapshot = snapshot,
+        candidates = helper_candidates,
+    })
+
+    return {
+        snapshot = snapshot,
+        candidates = candidates,
+        target = choice and by_guid[choice.guid] and by_guid[choice.guid].unit or nil,
+    }
+end
+
 
 reactive_adapter = {
     spec = "EAXDruidFeral",
@@ -2017,9 +2140,46 @@ reactive_adapter = {
             end,
         },
         anti_overheal = { noop = "unsupported" },
-        anti_aggro = { noop = "unsupported" },
+        anti_aggro = {
+            handler = function(ctx, action_deps)
+                local recovery_state = build_tank_recovery_state(action_deps.me, ctx)
+                if tank_recovery.should_prioritize_defensive(recovery_state.snapshot, {
+                    candidates = recovery_state.candidates,
+                }) then
+                    if try_survival_instincts(action_deps.me) then return true end
+                    if try_frenzied_regeneration(action_deps.me) then return true end
+                    if try_barkskin(action_deps.me) then return true end
+                    return defensive_manager.try_defensive(action_deps.me, "druid", utils)
+                end
+
+                local recovery_target = action_deps.target or recovery_state.target or action_deps.current_target
+                if not recovery_target or not recovery_target:is_valid() then
+                    return false
+                end
+
+                if try_challenging_roar(action_deps.me) then return true end
+                if try_taunt_off_party(action_deps.me) then return true end
+                if try_growl(action_deps.me, recovery_target) then return true end
+                return try_bash(action_deps.me, recovery_target)
+            end,
+        },
         throughput_resume = { noop = "unsupported" },
     },
+    resolve_target = function(action_id, ctx, action_deps)
+        if action_id == "interrupt_control" then
+            local current = action_deps.current_target
+            if current and current:is_valid() and interrupt_manager.should_interrupt(current) then
+                return current
+            end
+        end
+
+        if action_id == "interrupt_control" or action_id == "anti_aggro" then
+            local recovery_state = build_tank_recovery_state(action_deps.me, ctx)
+            return recovery_state.target
+        end
+
+        return nil
+    end,
 }
 
 local function on_render()

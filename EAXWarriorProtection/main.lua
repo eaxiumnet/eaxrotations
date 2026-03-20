@@ -32,6 +32,7 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local tank_recovery = require("eax_shared/tank_recovery")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -706,6 +707,9 @@ local function select_recovery_target(me, primary_target, mode_policy)
     end
 
     local best = nil
+    local helper_candidates = {}
+    local helper_by_guid = {}
+    local dangerous_count = 0
     local objects = core.object_manager.get_visible_objects()
     for i = 1, #objects do
         local candidate = build_recovery_candidate(me, objects[i])
@@ -714,10 +718,46 @@ local function select_recovery_target(me, primary_target, mode_policy)
                 recovery.active_candidates = recovery.active_candidates + 1
                 recovery.off_me_count = recovery.off_me_count + 1
             end
+            if candidate.dangerous then
+                dangerous_count = dangerous_count + 1
+            end
+            local guid = safe_get_guid(candidate.target)
+            if guid then
+                helper_candidates[#helper_candidates + 1] = {
+                    guid = guid,
+                    victim_role = candidate.victim_role,
+                    dangerous_caster = candidate.dangerous,
+                    interruptible = candidate.interruptible,
+                    cast_progress_pct = candidate.progress_pct / 100,
+                    elite = is_elite_or_boss(candidate.target),
+                }
+                helper_by_guid[guid] = candidate
+            end
             if not best or candidate.score > best.score then
                 best = candidate
             end
         end
+    end
+
+    local threat_instability = math.min(1, (recovery.off_me_count * 0.40) + (dangerous_count > 0 and 0.20 or 0))
+    local shared_choice = tank_recovery.select_recovery_target(me, {
+        snapshot = {
+            self = {
+                hp_pct = utils.get_health_pct(me),
+                incoming_damage_pct_2s = 0,
+                incoming_heal_pct = 0,
+            },
+            party = {
+                group_collapse_risk = recovery.off_me_count > 0 and 0.50 or 0,
+                threat_instability = threat_instability,
+            },
+        },
+        candidates = helper_candidates,
+    })
+    if shared_choice and shared_choice.guid then
+        best = helper_by_guid[shared_choice.guid] or best
+    elseif recovery.off_me_count > 0 then
+        best = nil
     end
 
     local current = nil
@@ -2528,15 +2568,37 @@ reactive_adapter = {
             end,
         },
         anti_overheal = { noop = "unsupported" },
-        anti_aggro = { noop = "unsupported" },
+        anti_aggro = {
+            handler = function(ctx, action_deps)
+                if tank_recovery.should_prioritize_defensive(ctx) then
+                    return defensive_manager.try_defensive(action_deps.me, "warrior", utils)
+                end
+
+                local recovery_target = action_deps.target or action_deps.current_target
+                if not is_valid_hostile_target(action_deps.me, recovery_target) then
+                    return false
+                end
+
+                if try_threat_recovery_action_on_target(action_deps.me, recovery_target, "Reactive Recovery") then
+                    return true
+                end
+
+                return try_interrupt_action_on_target(action_deps.me, recovery_target, "Reactive Recovery")
+            end,
+        },
         throughput_resume = { noop = "unsupported" },
     },
     resolve_target = function(action_id, _, action_deps)
-        if action_id ~= "interrupt_control" then
-            return nil
+        if action_id == "interrupt_control" then
+            return resolve_reactive_interrupt_target(action_deps.me, action_deps.current_target)
         end
 
-        return resolve_reactive_interrupt_target(action_deps.me, action_deps.current_target)
+        if action_id == "anti_aggro" then
+            local recovery = select_recovery_target(action_deps.me, action_deps.current_target, get_mode_policy())
+            return recovery and recovery.target or nil
+        end
+
+        return nil
     end,
 }
 
