@@ -66,9 +66,9 @@ assert(unstable.verdict == "fail", "variance above 0.05 should fail")
 assert(table.concat(unstable.blockers, " | "):find("variance"), "variance failure should name variance blocker")
 
 local near_fail = matrix.summarize_spec_runs({
-    build_live_row("EAXMageArcane", "dps", 97.5, nil, { run_id = "run-1" }),
-    build_live_row("EAXMageArcane", "dps", 98.5, nil, { run_id = "run-2" }),
-    build_live_row("EAXMageArcane", "dps", 99.0, nil, { run_id = "run-3" }),
+    build_live_row("EAXMageArcane", "dps", 100.5, nil, { run_id = "run-1" }),
+    build_live_row("EAXMageArcane", "dps", 101.5, nil, { run_id = "run-2" }),
+    build_live_row("EAXMageArcane", "dps", 102.0, nil, { run_id = "run-3" }),
 }, thresholds)
 assert(near_fail.verdict == "pass", "within the 3 percent margin should still pass")
 assert(near_fail.near_fail == true, "passes close to threshold should be tagged near_fail")
