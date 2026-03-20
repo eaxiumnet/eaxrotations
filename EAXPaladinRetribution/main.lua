@@ -486,6 +486,10 @@ local function maybe_cast_hammer_of_the_righteous(me, target, enemy_count)
     return false
 end
 
+local function is_aoe_rotation(enemy_count)
+    return enemy_count >= 3 and (not enc or enc.aoe_safe)
+end
+
 local function maybe_cast_inquisition(me)
     if not should_refresh_inquisition(me) then
         return false
@@ -657,19 +661,19 @@ core.register_on_update_callback(function()
     -- Offensive CDs
     try_avenging_wrath(me)
     if try_divine_favor(me) then return end
-    if enemy_count >= 3 and runtime.holy_power >= 3 and try_divine_storm(me, target) then return end
+    if is_aoe_rotation(enemy_count) and runtime.holy_power >= 3 and try_divine_storm(me, target) then return end
     if maybe_cast_templars_verdict(me, target) then return end
     if maybe_cast_inquisition(me) then return end
     if try_exorcism(me, target) then return end
 
-    if maybe_cast_hammer_of_the_righteous(me, target, enemy_count) then return end
+    if is_aoe_rotation(enemy_count) and maybe_cast_hammer_of_the_righteous(me, target, enemy_count) then return end
+    if maybe_cast_crusader_strike(me, target) then return end
 
     if maybe_cast_judgement(me, target) then
         return
     end
 
-    if maybe_cast_crusader_strike(me, target) then return end
-    if enemy_count >= 3 and try_divine_storm(me, target) then return end
+    if is_aoe_rotation(enemy_count) and try_divine_storm(me, target) then return end
     if try_consecration(me, target) then return end
 
     if begin_seal_twist(me, target) then
