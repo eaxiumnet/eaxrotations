@@ -18,6 +18,19 @@ local function zero_snapshot()
         dps = 0,
         hps = 0,
         in_combat = false,
+        reactive_action = "none",
+        action_id = "none",
+        reason_code = "NO_ACTION",
+        context_fail_safe = false,
+    }
+end
+
+local function zero_reactive_state()
+    return {
+        reactive_action = "none",
+        action_id = "none",
+        reason_code = "NO_ACTION",
+        context_fail_safe = false,
     }
 end
 
@@ -27,6 +40,7 @@ local state = {
     damage_total = 0,
     healing_total = 0,
     last_snapshot = zero_snapshot(),
+    reactive = zero_reactive_state(),
 }
 
 local function as_amount(amount)
@@ -54,7 +68,15 @@ local function build_snapshot(damage_total, healing_total, duration_s, in_combat
         dps = dps,
         hps = hps,
         in_combat = in_combat,
+        reactive_action = state.reactive.reactive_action,
+        action_id = state.reactive.action_id,
+        reason_code = state.reactive.reason_code,
+        context_fail_safe = state.reactive.context_fail_safe,
     }
+end
+
+local function clear_reactive_state()
+    state.reactive = zero_reactive_state()
 end
 
 function dps_meter.on_combat_start()
@@ -62,6 +84,7 @@ function dps_meter.on_combat_start()
     state.started_at = now_s()
     state.damage_total = 0
     state.healing_total = 0
+    clear_reactive_state()
 end
 
 function dps_meter.on_damage(amount)
@@ -95,6 +118,7 @@ function dps_meter.on_combat_end()
     state.started_at = 0
     state.damage_total = 0
     state.healing_total = 0
+    clear_reactive_state()
 end
 
 function dps_meter.reset()
@@ -103,6 +127,17 @@ function dps_meter.reset()
     state.damage_total = 0
     state.healing_total = 0
     state.last_snapshot = zero_snapshot()
+    clear_reactive_state()
+end
+
+function dps_meter.set_reactive_state(payload)
+    payload = payload or {}
+    state.reactive = {
+        reactive_action = tostring(payload.reactive_action or payload.action_id or "none"),
+        action_id = tostring(payload.action_id or payload.reactive_action or "none"),
+        reason_code = tostring(payload.reason_code or "NO_ACTION"),
+        context_fail_safe = payload.context_fail_safe == true,
+    }
 end
 
 function dps_meter.get_snapshot()
@@ -118,6 +153,10 @@ function dps_meter.get_snapshot()
         dps = state.last_snapshot.dps,
         hps = state.last_snapshot.hps,
         in_combat = false,
+        reactive_action = state.reactive.reactive_action,
+        action_id = state.reactive.action_id,
+        reason_code = state.reactive.reason_code,
+        context_fail_safe = state.reactive.context_fail_safe,
     }
 end
 
