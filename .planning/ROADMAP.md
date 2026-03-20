@@ -62,7 +62,7 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 07-role-intelligence-tuning-01-PLAN.md - Build the shared role-policy contract and richer normalized snapshot inputs.
+- [x] 07-role-intelligence-tuning-01-PLAN.md - Build the shared role-policy contract and richer normalized snapshot inputs.
 - [ ] 07-role-intelligence-tuning-02-PLAN.md - Roll shared tank-first triage and anti-overheal logic into all healer specs.
 - [ ] 07-role-intelligence-tuning-03-PLAN.md - Roll shared threat-recovery and proactive defensive posture into all tank specs.
 - [ ] 07-role-intelligence-tuning-04-PLAN.md - Roll shared DPS danger-window burst holds and cast-abort logic into all non-healer DPS specs.
@@ -84,7 +84,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Reactive Contract + API Gate | 5/5 | Complete | 2026-03-20 |
 | 6. 27-Spec Reactive Wiring | 2/2 | Complete | 2026-03-20 |
-| 7. Role Intelligence Tuning | 0/TBD | Not started | - |
+| 7. Role Intelligence Tuning | 1/5 | In Progress | - |
 | 8. Benchmark Matrix Hardening | 0/TBD | Not started | - |
 
 ---

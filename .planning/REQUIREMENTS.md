@@ -26,10 +26,10 @@
 
 ### Role Intelligence Tuning
 
-- [ ] **ROLE-01**: DPS behavior reacts to incoming damage/threat and encounter windows with defensive/offensive cooldown timing.
-- [ ] **ROLE-02**: Healer behavior uses incoming-heal and overheal-aware triage to prioritize effective healing.
-- [ ] **ROLE-03**: Tank behavior responds to spike damage, incoming heals, and threat stability with defensive and utility timing.
-- [ ] **ROLE-04**: Interrupt/fear/control utility uses urgency-aware logic based on cast danger, role context, and encounter policy.
+- [x] **ROLE-01**: DPS behavior reacts to incoming damage/threat and encounter windows with defensive/offensive cooldown timing.
+- [x] **ROLE-02**: Healer behavior uses incoming-heal and overheal-aware triage to prioritize effective healing.
+- [x] **ROLE-03**: Tank behavior responds to spike damage, incoming heals, and threat stability with defensive and utility timing.
+- [x] **ROLE-04**: Interrupt/fear/control utility uses urgency-aware logic based on cast danger, role context, and encounter policy.
 
 ### Benchmark Matrix Hardening
 
@@ -64,10 +64,10 @@
 | WIRE-01 | Phase 6 | Complete |
 | WIRE-02 | Phase 6 | Complete |
 | WIRE-03 | Phase 6 | Complete |
-| ROLE-01 | Phase 7 | Pending |
-| ROLE-02 | Phase 7 | Pending |
-| ROLE-03 | Phase 7 | Pending |
-| ROLE-04 | Phase 7 | Pending |
+| ROLE-01 | Phase 7 | Complete |
+| ROLE-02 | Phase 7 | Complete |
+| ROLE-03 | Phase 7 | Complete |
+| ROLE-04 | Phase 7 | Complete |
 | MATX-01 | Phase 8 | Pending |
 | MATX-02 | Phase 8 | Pending |
 | MATX-03 | Phase 8 | Pending |
