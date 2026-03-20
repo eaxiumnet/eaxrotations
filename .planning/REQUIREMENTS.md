@@ -14,9 +14,9 @@
 
 ### API Hard Gate
 
-- [ ] **APIG-01**: Validation fails when non-`@.api` calls are detected in runtime behavior code.
-- [ ] **APIG-02**: API allowlist is generated/maintained from current `.api` surface and used as a fail-closed gate.
-- [ ] **APIG-03**: Release/validation workflow blocks milestone sign-off when API-hard-gate checks fail.
+- [x] **APIG-01**: Validation fails when non-`@.api` calls are detected in runtime behavior code.
+- [x] **APIG-02**: API allowlist is generated/maintained from current `.api` surface and used as a fail-closed gate.
+- [x] **APIG-03**: Release/validation workflow blocks milestone sign-off when API-hard-gate checks fail.
 
 ### 27-Spec Reactive Wiring
 
@@ -58,9 +58,9 @@
 | REACT-01 | Phase 5 | Complete |
 | REACT-02 | Phase 5 | Complete |
 | REACT-03 | Phase 5 | Complete |
-| APIG-01 | Phase 5 | Pending |
-| APIG-02 | Phase 5 | Pending |
-| APIG-03 | Phase 5 | Pending |
+| APIG-01 | Phase 5 | Complete |
+| APIG-02 | Phase 5 | Complete |
+| APIG-03 | Phase 5 | Complete |
 | WIRE-01 | Phase 6 | Pending |
 | WIRE-02 | Phase 6 | Pending |
 | WIRE-03 | Phase 6 | Pending |

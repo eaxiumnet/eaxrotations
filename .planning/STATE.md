@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-20T15:29:29.262Z"
+status: active
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-20T15:35:18.561Z"
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 
 ## Current Position
 
-Phase: 05 (reactive-contract-api-gate) — EXECUTING
+Phase: 05 (reactive-contract-api-gate) — COMPLETE
 Plan: 2 of 2
 
 ## Performance Metrics
@@ -47,6 +47,7 @@ Plan: 2 of 2
 - Trend: Stable
 
 | Phase 05 P01 | 4 min | 2 tasks | 6 files |
+| Phase 05 P02 | 9 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Normalize combat percentages to 0..1 in one shared snapshot — Prevents downstream specs from mixing 0..100 and 0..1 scales across reactive logic.
 - [Phase 05]: Return one primary reason code and action id per tick with a short hold buffer — Phase 06 wiring needs deterministic one-winner outputs and brief non-throughput stability.
 - [Phase 05]: Expose reactive telemetry in benchmark output first using none/NO_ACTION placeholders — The contract becomes visible before live spec wiring exists, without implying real runtime integration yet.
+- [Phase 05]: Generate and commit tools/api_allowlist.lua from repo .api files so validation stays deterministic and local-first.
+- [Phase 05]: Keep tools/rotation_validation.lua as the single blocking command and append API gate status after spec validation.
 
 ### Pending Todos
 
@@ -73,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T15:29:29.260Z
-Stopped at: Completed 05-01-PLAN.md
-Resume file: .planning/phases/05-reactive-contract-api-gate/05-reactive-contract-api-gate-02-PLAN.md
+Last session: 2026-03-20T15:35:18.559Z
+Stopped at: Completed 05-02-PLAN.md
+Resume file: None
