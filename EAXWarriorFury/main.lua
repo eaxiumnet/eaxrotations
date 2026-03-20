@@ -44,6 +44,8 @@ local color = require("color")
 ---@type vec2
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
+---@type swing_timer
+local swing_timer = require("common/eax_shared/swing_timer")
 
 local runtime = {
     bloodthirst_id = nil,
@@ -565,6 +567,41 @@ local function should_cast_execute(target_hp_pct, rage)
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
     return bt_cd > 1.5
+end
+
+local function get_weapon_speed_seconds(me, hand)
+    if not me then return nil end
+
+    local speed_getter = nil
+    if hand == "mainhand" and me.get_attack_time then
+        speed_getter = me.get_attack_time
+    elseif hand == "offhand" and me.get_offhand_attack_time then
+        speed_getter = me.get_offhand_attack_time
+    end
+
+    if not speed_getter then
+        return nil
+    end
+
+    local ok, speed = pcall(function()
+        return speed_getter(me)
+    end)
+
+    if not ok or type(speed) ~= "number" or speed <= 0 then
+        return nil
+    end
+
+    return speed
+end
+
+local function is_fast_one_hand_execute_setup(me)
+    local mainhand_speed = get_weapon_speed_seconds(me, "mainhand")
+    local offhand_speed = get_weapon_speed_seconds(me, "offhand")
+    if not mainhand_speed or not offhand_speed then
+        return false
+    end
+
+    return mainhand_speed <= 2.0 and offhand_speed <= 2.0
 end
 
 local function handle_toggle()
