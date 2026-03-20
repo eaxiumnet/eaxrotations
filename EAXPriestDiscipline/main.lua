@@ -51,6 +51,8 @@ local _visual_runtime = {
     reactive_state = {},
 }
 
+local reactive_adapter = {}
+
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
@@ -117,6 +119,7 @@ local function visual_update_snapshot(me, target)
     _visual_runtime.last_target_hp_pct = target_hp_pct
 
     reactive_runtime.update_tick(me, target, {
+        adapter = reactive_adapter,
         encounter_manager = encounter_manager,
         state = _visual_runtime.reactive_state,
         spec = "EAXPriestDiscipline",
@@ -395,6 +398,61 @@ local function try_cast_spell(me, target, spell_id)
     end
     return false
 end
+
+reactive_adapter = {
+    spec = "EAXPriestDiscipline",
+    actions = {
+        life_save_self = {
+            handler = function(_, action_deps)
+                return try_penance(action_deps.me, action_deps.me)
+                    or try_pw_shield(action_deps.me, action_deps.me)
+                    or try_cast_spell(action_deps.me, action_deps.me, resolved.shield)
+                    or try_cast_spell(action_deps.me, action_deps.me, resolved.renew)
+            end,
+        },
+        life_save_ally = {
+            handler = function(_, action_deps)
+                local ally_target = action_deps.target
+                    or utils.find_low_health_ally(action_deps.me, menu.shield_threshold:get() / 100, true)
+                if not ally_target or not ally_target:is_valid() then
+                    return false
+                end
+
+                return try_penance(action_deps.me, ally_target)
+                    or try_pw_shield(action_deps.me, ally_target)
+                    or try_cast_spell(action_deps.me, ally_target, resolved.shield)
+                    or try_cast_spell(action_deps.me, ally_target, resolved.renew)
+            end,
+        },
+        interrupt_control = { noop = "unsupported" },
+        anti_overheal = {
+            handler = function(_, action_deps)
+                if not eax_utils.should_stopcasting(action_deps.me, menu) then
+                    return false
+                end
+
+                if SpellStopCasting then
+                    SpellStopCasting()
+                    return true
+                end
+
+                return false
+            end,
+        },
+        anti_aggro = {
+            handler = function(_, action_deps)
+                local ok, faded = pcall(function()
+                    return threat_manager.try_fade(action_deps.me)
+                end)
+                if not ok then
+                    return false
+                end
+                return faded ~= false
+            end,
+        },
+        throughput_resume = { noop = "unsupported" },
+    },
+}
 
 local function on_render()
     esp_renderer.on_render(menu)

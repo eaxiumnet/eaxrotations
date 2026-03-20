@@ -349,7 +349,17 @@ reactive_adapter = {
                 return false
             end,
         },
-        anti_aggro = { noop = "unsupported" },
+        anti_aggro = {
+            handler = function(_, action_deps)
+                local ok, faded = pcall(function()
+                    return threat_manager.try_fade(action_deps.me)
+                end)
+                if not ok then
+                    return false
+                end
+                return faded ~= false
+            end,
+        },
         throughput_resume = { noop = "unsupported" },
     },
     resolve_target = function(action_id, _, action_deps)

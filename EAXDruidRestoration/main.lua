@@ -56,6 +56,8 @@ local _visual_runtime = {
     reactive_state = {},
 }
 
+local reactive_adapter = {}
+
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
@@ -122,6 +124,7 @@ local function visual_update_snapshot(me, target)
     _visual_runtime.last_target_hp_pct = target_hp_pct
 
     reactive_runtime.update_tick(me, target, {
+        adapter = reactive_adapter,
         encounter_manager = encounter_manager,
         state = _visual_runtime.reactive_state,
         spec = "EAXDruidRestoration",
@@ -829,6 +832,65 @@ local function do_rotation(me, target)
     return false
 end
 
+
+reactive_adapter = {
+    spec = "EAXDruidRestoration",
+    actions = {
+        life_save_self = {
+            handler = function(_, action_deps)
+                local my_hp = utils.get_health_pct(action_deps.me)
+                local mana_pct = utils.get_mana_pct(action_deps.me)
+                return try_natures_swiftness_regrowth(action_deps.me, action_deps.me, my_hp)
+                    or try_swiftmend(action_deps.me, action_deps.me, my_hp)
+                    or try_regrowth(action_deps.me, action_deps.me, my_hp, mana_pct)
+                    or try_healing_touch(action_deps.me, action_deps.me, my_hp, mana_pct)
+            end,
+        },
+        life_save_ally = {
+            handler = function(_, action_deps)
+                local units = utils.get_group_units(action_deps.me, true)
+                local lowest, lowest_hp_pct = utils.get_lowest_health_unit(units)
+                local tank = pick_tank_unit(action_deps.me, units, get_effective_mode())
+                local heal_target, heal_hp = pick_priority_heal_target(action_deps.me, tank, lowest, lowest_hp_pct)
+                local mana_pct = utils.get_mana_pct(action_deps.me)
+                if not heal_target or not heal_target:is_valid() then
+                    return false
+                end
+                return try_natures_swiftness_regrowth(action_deps.me, heal_target, heal_hp)
+                    or try_swiftmend(action_deps.me, heal_target, heal_hp)
+                    or try_regrowth(action_deps.me, heal_target, heal_hp, mana_pct)
+                    or try_healing_touch(action_deps.me, heal_target, heal_hp, mana_pct)
+            end,
+        },
+        interrupt_control = { noop = "unsupported" },
+        anti_overheal = {
+            handler = function(_, action_deps)
+                if not eax_utils.should_stopcasting(action_deps.me, menu) then
+                    return false
+                end
+
+                if SpellStopCasting then
+                    SpellStopCasting()
+                    return true
+                end
+
+                return false
+            end,
+        },
+        anti_aggro = {
+            handler = function(_, action_deps)
+                local ok, faded = pcall(function()
+                    return threat_manager.try_fade(action_deps.me)
+                end)
+                if not ok then
+                    return false
+                end
+                return faded ~= false
+            end,
+        },
+        throughput_resume = { noop = "unsupported" },
+    },
+}
 
 local function on_render()
     esp_renderer.on_render(menu)

@@ -52,6 +52,8 @@ local _visual_runtime = {
     reactive_state = {},
 }
 
+local reactive_adapter = {}
+
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
@@ -118,6 +120,7 @@ local function visual_update_snapshot(me, target)
     _visual_runtime.last_target_hp_pct = target_hp_pct
 
     reactive_runtime.update_tick(me, target, {
+        adapter = reactive_adapter,
         encounter_manager = encounter_manager,
         state = _visual_runtime.reactive_state,
         spec = "EAXWarlockAffliction",
@@ -696,6 +699,45 @@ local function do_rotation(me, target)
     try_life_tap(me)
 end
 
+
+reactive_adapter = {
+    spec = "EAXWarlockAffliction",
+    actions = {
+        life_save_self = {
+            handler = function(_, action_deps)
+                return defensive_manager.try_defensive(action_deps.me, "warlock", utils)
+            end,
+        },
+        life_save_ally = { noop = "unsupported" },
+        interrupt_control = {
+            handler = function(_, action_deps)
+                local interrupt_target = action_deps.target or action_deps.current_target
+                if not interrupt_target or not interrupt_target:is_valid() then
+                    return false
+                end
+
+                if not interrupt_manager.should_interrupt(interrupt_target) then
+                    return false
+                end
+
+                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warlock", utils)
+            end,
+        },
+        anti_overheal = { noop = "unsupported" },
+        anti_aggro = {
+            handler = function(_, action_deps)
+                local ok, faded = pcall(function()
+                    return threat_manager.try_fade(action_deps.me)
+                end)
+                if not ok then
+                    return false
+                end
+                return faded ~= false
+            end,
+        },
+        throughput_resume = { noop = "unsupported" },
+    },
+}
 
 local function on_render()
     esp_renderer.on_render(menu)
