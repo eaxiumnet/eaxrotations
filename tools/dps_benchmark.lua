@@ -111,7 +111,7 @@ function M.run_benchmark(argv)
             as_number(snapshot.dps),
             as_number(snapshot.hps),
             as_number(snapshot.duration_s),
-            tostring(snapshot_field(snapshot, "reactive_action", "none")),
+            tostring(snapshot_field(snapshot, "reactive_action", snapshot_field(snapshot, "action_id", "none"))),
             tostring(snapshot_field(snapshot, "reason_code", "NO_ACTION"))
         ))
     end
