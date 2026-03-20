@@ -34,9 +34,9 @@
 ### Per-Class Rotation Optimization
 
 #### Warrior
-- [ ] **WARR-01**: Optimize Arms slam weave — swing timer check with configurable safety buffer
-- [ ] **WARR-02**: Optimize Fury execute phase — 2 fast 1-handers below 20% HP
-- [ ] **WARR-03**: Add stance dance for Prot Warrior — shield slam priority with rage management
+- [x] **WARR-01**: Optimize Arms slam weave — swing timer check with configurable safety buffer
+- [x] **WARR-02**: Optimize Fury execute phase — 2 fast 1-handers below 20% HP
+- [x] **WARR-03**: Add stance dance for Prot Warrior — shield slam priority with rage management
 
 #### Hunter
 - [ ] **HUNT-01**: Implement MM Hunter steady shot / aimed shot rotation with auto shot alignment
@@ -141,9 +141,9 @@ Phase mapping populated during roadmap creation.
 | ENCOUNT-02 | Phase 2 | Complete |
 | ENCOUNT-03 | Phase 2 | Complete |
 | ENCOUNT-04 | Phase 2 | Complete |
-| WARR-01 | Phase 3 | Pending |
-| WARR-02 | Phase 3 | Pending |
-| WARR-03 | Phase 3 | Pending |
+| WARR-01 | Phase 3 | Complete |
+| WARR-02 | Phase 3 | Complete |
+| WARR-03 | Phase 3 | Complete |
 | HUNT-01 | Phase 3 | Pending |
 | HUNT-02 | Phase 3 | Pending |
 | HUNT-03 | Phase 3 | Pending |
