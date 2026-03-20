@@ -37,6 +37,7 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local healer_triage = require("eax_shared/healer_triage")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -311,9 +312,106 @@ local function try_cast_spell(me, target, spell_id)
     return false
 end
 
+local function unit_guid(unit)
+    if not unit or not unit.get_guid then
+        return nil
+    end
+    local ok, guid = pcall(function() return unit:get_guid() end)
+    if ok and guid ~= nil then
+        return tostring(guid)
+    end
+    return nil
+end
+
+local function unit_incoming_heal_pct(unit)
+    if not unit or not unit.get_incoming_heals or not unit.get_max_health then
+        return 0
+    end
+    local ok_heals, incoming = pcall(function() return unit:get_incoming_heals() end)
+    local ok_max, max_health = pcall(function() return unit:get_max_health() end)
+    if not ok_heals or not ok_max or not max_health or max_health <= 0 then
+        return 0
+    end
+    return math.max(0, math.min((tonumber(incoming) or 0) / max_health, 1))
+end
+
+local function is_tank_unit(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return false
+    end
+    if unit.get_group_role then
+        local ok, role_id = pcall(function() return unit:get_group_role() end)
+        if ok and role_id == 0 then
+            return true
+        end
+    end
+    if unit.get_class then
+        local ok, class_name = pcall(function() return string.lower(unit:get_class() or "") end)
+        if ok and (class_name == "warrior" or class_name == "paladin" or class_name == "druid") then
+            return true
+        end
+    end
+    return false
+end
+
+local function build_triage_members(me)
+    local members = {
+        {
+            guid = unit_guid(me) or "self",
+            unit = me,
+            hp_pct = utils.get_health_pct(me),
+            incoming_heal_pct = unit_incoming_heal_pct(me),
+            role = "healer",
+            is_tank = false,
+        },
+    }
+    local seen = { [unit_guid(me) or "self"] = true }
+    local units = utils.get_party_units(me)
+    for i = 1, #units do
+        local unit = units[i]
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local guid = unit_guid(unit) or ("party-" .. i)
+            if not seen[guid] then
+                seen[guid] = true
+                members[#members + 1] = {
+                    guid = guid,
+                    unit = unit,
+                    hp_pct = utils.get_health_pct(unit),
+                    incoming_heal_pct = unit_incoming_heal_pct(unit),
+                    role = is_tank_unit(unit) and "tank" or "damager",
+                    is_tank = is_tank_unit(unit),
+                }
+            end
+        end
+    end
+    return members
+end
+
+local function resolve_reactive_triage(me)
+    local summary = healer_triage.select_target(me, build_triage_members(me), {})
+    if not summary or not summary.target or not summary.target.is_valid or not summary.target:is_valid() then
+        return nil, nil
+    end
+    return summary, summary.target
+end
+
 local function resolve_reactive_heal_target(me)
-    local threshold = menu.greater_heal_threshold:get() / 100
-    return utils.find_low_health_ally(me, threshold, true)
+    local _, target = resolve_reactive_triage(me)
+    return target
+end
+
+local function should_cancel_reactive_cast(me, target)
+    if not eax_utils.should_stopcasting(me, menu) then
+        return false
+    end
+    local summary = healer_triage.select_target(me, build_triage_members(me), {})
+    local snapshot = {
+        hp_pct = target and utils.get_health_pct(target) or utils.get_health_pct(me),
+        incoming_heal_pct = target and unit_incoming_heal_pct(target) or unit_incoming_heal_pct(me),
+        collapse_risk = summary and summary.collapse_risk == true,
+        group_count = summary and summary.group_count or 0,
+    }
+    return healer_triage.should_cancel_overheal(snapshot, {})
 end
 
 reactive_adapter = {
@@ -325,8 +423,12 @@ reactive_adapter = {
             end,
         },
         life_save_ally = {
-            handler = function(_, action_deps)
-                local ally_target = action_deps.target or resolve_reactive_heal_target(action_deps.me)
+            handler = function(action_ctx, action_deps)
+                local summary, ally_target = resolve_reactive_triage(action_deps.me)
+                if summary and summary.reason == "group_stabilize" and try_prayer_of_healing(action_deps.me) then
+                    return true
+                end
+                ally_target = action_deps.target or ally_target
                 if not ally_target or not ally_target:is_valid() then
                     return false
                 end
@@ -337,7 +439,7 @@ reactive_adapter = {
         interrupt_control = { noop = "unsupported" },
         anti_overheal = {
             handler = function(_, action_deps)
-                if not eax_utils.should_stopcasting(action_deps.me, menu) then
+                if not should_cancel_reactive_cast(action_deps.me, action_deps.current_target) then
                     return false
                 end
 

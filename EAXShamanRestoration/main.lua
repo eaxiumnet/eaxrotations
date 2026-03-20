@@ -59,6 +59,7 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local healer_triage = require("eax_shared/healer_triage")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -899,6 +900,76 @@ local function try_lesser_healing_wave(me)
     return try_cast_ally(me, entry.unit, rt.lesser_healing_wave_id, "Lesser Healing Wave")
 end
 
+local function unit_guid(unit)
+    if not unit or not unit.get_guid then
+        return nil
+    end
+    local ok, guid = pcall(function() return unit:get_guid() end)
+    if ok and guid ~= nil then
+        return tostring(guid)
+    end
+    return nil
+end
+
+local function unit_incoming_heal_pct(unit)
+    if not unit or not unit.get_incoming_heals or not unit.get_max_health then
+        return 0
+    end
+    local ok_heals, incoming = pcall(function() return unit:get_incoming_heals() end)
+    local ok_max, max_health = pcall(function() return unit:get_max_health() end)
+    if not ok_heals or not ok_max or not max_health or max_health <= 0 then
+        return 0
+    end
+    return math.max(0, math.min((tonumber(incoming) or 0) / max_health, 1))
+end
+
+local function build_shaman_triage(me)
+    heal_engine.update(me)
+    local members = {
+        {
+            guid = unit_guid(me) or "self",
+            unit = me,
+            hp_pct = heal_engine.get_eff_pct(me),
+            incoming_heal_pct = unit_incoming_heal_pct(me),
+            role = "healer",
+            is_tank = false,
+        },
+    }
+    local tank = heal_engine.lowest_tank()
+    local tank_guid = unit_guid(tank)
+    for i = 1, #heal_engine.friends do
+        local entry = heal_engine.friends[i]
+        local unit = entry and entry.unit or nil
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local guid = unit_guid(unit) or ("friend-" .. i)
+            local is_tank = guid == tank_guid
+            members[#members + 1] = {
+                guid = guid,
+                unit = unit,
+                hp_pct = entry.eff_pct or heal_engine.get_eff_pct(unit),
+                incoming_heal_pct = unit_incoming_heal_pct(unit),
+                role = is_tank and "tank" or "damager",
+                is_tank = is_tank,
+            }
+        end
+    end
+    return healer_triage.select_target(me, members, {}), tank
+end
+
+local function should_cancel_shaman_cast(me, target)
+    if not eax_utils.should_stopcasting(me, menu) then
+        return false
+    end
+    local summary = select(1, build_shaman_triage(me))
+    local snapshot = {
+        hp_pct = target and heal_engine.get_eff_pct(target) or heal_engine.get_eff_pct(me),
+        incoming_heal_pct = target and unit_incoming_heal_pct(target) or unit_incoming_heal_pct(me),
+        collapse_risk = summary and summary.collapse_risk == true,
+        group_count = summary and summary.group_count or 0,
+    }
+    return healer_triage.should_cancel_overheal(snapshot, {})
+end
+
 -- --- PvP utilities -----------------------------------------------------------
 
 local function try_pvp_utilities(me)
@@ -1189,12 +1260,17 @@ reactive_adapter = {
         },
         life_save_ally = {
             handler = function(_, action_deps)
-                heal_engine.update(action_deps.me)
-                local entry = heal_engine.friends[1]
-                local ally_target = entry and entry.unit or nil
+                local summary, tank = build_shaman_triage(action_deps.me)
+                local ally_target = summary and summary.target or nil
                 local spell_id = rt.lesser_healing_wave_id or rt.healing_wave_id
                 if not ally_target or not ally_target:is_valid() then
                     return false
+                end
+                if summary and summary.reason == "group_stabilize" and try_chain_heal(action_deps.me) then
+                    return true
+                end
+                if summary and healer_triage.should_spend_emergency(summary, {}) and summary.is_tank and try_natures_swiftness(action_deps.me, tank or ally_target) then
+                    return true
                 end
                 return try_cast_ally(action_deps.me, ally_target, spell_id, "Reactive Heal")
             end,
@@ -1202,7 +1278,7 @@ reactive_adapter = {
         interrupt_control = { noop = "unsupported" },
         anti_overheal = {
             handler = function(_, action_deps)
-                if not eax_utils.should_stopcasting(action_deps.me, menu) then
+                if not should_cancel_shaman_cast(action_deps.me, action_deps.current_target) then
                     return false
                 end
 

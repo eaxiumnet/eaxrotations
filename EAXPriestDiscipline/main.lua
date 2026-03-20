@@ -37,6 +37,7 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local healer_triage = require("eax_shared/healer_triage")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -399,6 +400,87 @@ local function try_cast_spell(me, target, spell_id)
     return false
 end
 
+local function unit_guid(unit)
+    if not unit or not unit.get_guid then
+        return nil
+    end
+    local ok, guid = pcall(function() return unit:get_guid() end)
+    if ok and guid ~= nil then
+        return tostring(guid)
+    end
+    return nil
+end
+
+local function unit_incoming_heal_pct(unit)
+    if not unit or not unit.get_incoming_heals or not unit.get_max_health then
+        return 0
+    end
+    local ok_heals, incoming = pcall(function() return unit:get_incoming_heals() end)
+    local ok_max, max_health = pcall(function() return unit:get_max_health() end)
+    if not ok_heals or not ok_max or not max_health or max_health <= 0 then
+        return 0
+    end
+    return math.max(0, math.min((tonumber(incoming) or 0) / max_health, 1))
+end
+
+local function build_disc_triage_members(me)
+    local members = {
+        {
+            guid = unit_guid(me) or "self",
+            unit = me,
+            hp_pct = utils.get_health_pct(me),
+            incoming_heal_pct = unit_incoming_heal_pct(me),
+            role = "healer",
+            is_tank = false,
+        },
+    }
+    local seen = { [unit_guid(me) or "self"] = true }
+    local units = utils.get_party_units(me)
+    local tank = get_tank_unit(me)
+    local tank_guid = unit_guid(tank)
+    for i = 1, #units do
+        local unit = units[i]
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local guid = unit_guid(unit) or ("party-" .. i)
+            if not seen[guid] then
+                seen[guid] = true
+                local is_tank = guid == tank_guid
+                members[#members + 1] = {
+                    guid = guid,
+                    unit = unit,
+                    hp_pct = utils.get_health_pct(unit),
+                    incoming_heal_pct = unit_incoming_heal_pct(unit),
+                    role = is_tank and "tank" or "damager",
+                    is_tank = is_tank,
+                }
+            end
+        end
+    end
+    return members
+end
+
+local function resolve_disc_triage(me)
+    local summary = healer_triage.select_target(me, build_disc_triage_members(me), {})
+    if not summary or not summary.target or not summary.target.is_valid or not summary.target:is_valid() then
+        return nil, nil
+    end
+    return summary, summary.target
+end
+
+local function should_cancel_disc_cast(me, target)
+    if not eax_utils.should_stopcasting(me, menu) then
+        return false
+    end
+    local summary = healer_triage.select_target(me, build_disc_triage_members(me), {})
+    local snapshot = {
+        hp_pct = target and utils.get_health_pct(target) or utils.get_health_pct(me),
+        incoming_heal_pct = target and unit_incoming_heal_pct(target) or unit_incoming_heal_pct(me),
+        collapse_risk = summary and summary.collapse_risk == true,
+        group_count = summary and summary.group_count or 0,
+    }
+    return healer_triage.should_cancel_overheal(snapshot, {})
+end
+
 reactive_adapter = {
     spec = "EAXPriestDiscipline",
     actions = {
@@ -412,8 +494,14 @@ reactive_adapter = {
         },
         life_save_ally = {
             handler = function(_, action_deps)
-                local ally_target = action_deps.target
-                    or utils.find_low_health_ally(action_deps.me, menu.shield_threshold:get() / 100, true)
+                local summary, ally_target = resolve_disc_triage(action_deps.me)
+                if summary and healer_triage.should_spend_emergency(summary, {}) then
+                    local mode = utils.get_effective_mode(menu, runtime)
+                    if try_pain_suppression(action_deps.me, mode) then
+                        return true
+                    end
+                end
+                ally_target = action_deps.target or ally_target
                 if not ally_target or not ally_target:is_valid() then
                     return false
                 end
@@ -427,7 +515,7 @@ reactive_adapter = {
         interrupt_control = { noop = "unsupported" },
         anti_overheal = {
             handler = function(_, action_deps)
-                if not eax_utils.should_stopcasting(action_deps.me, menu) then
+                if not should_cancel_disc_cast(action_deps.me, action_deps.current_target) then
                     return false
                 end
 

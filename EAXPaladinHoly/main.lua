@@ -37,6 +37,7 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local healer_triage = require("eax_shared/healer_triage")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -539,6 +540,74 @@ local function try_cast_spell(spell_id, me, target, label)
     return true
 end
 
+local function unit_guid(unit)
+    if not unit or not unit.get_guid then
+        return nil
+    end
+    local ok, guid = pcall(function() return unit:get_guid() end)
+    if ok and guid ~= nil then
+        return tostring(guid)
+    end
+    return nil
+end
+
+local function unit_incoming_heal_pct(unit)
+    if not unit or not unit.get_incoming_heals or not unit.get_max_health then
+        return 0
+    end
+    local ok_heals, incoming = pcall(function() return unit:get_incoming_heals() end)
+    local ok_max, max_health = pcall(function() return unit:get_max_health() end)
+    if not ok_heals or not ok_max or not max_health or max_health <= 0 then
+        return 0
+    end
+    return math.max(0, math.min((tonumber(incoming) or 0) / max_health, 1))
+end
+
+local function build_paladin_triage_members(me)
+    local candidates = gather_heal_candidates(me)
+    local members = {}
+    local beacon_target = find_beacon_target(me)
+    local beacon_guid = unit_guid(beacon_target)
+    for i = 1, #candidates do
+        local unit = candidates[i]
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local guid = unit_guid(unit) or ("candidate-" .. i)
+            local is_tank = guid == beacon_guid and guid ~= (unit_guid(me) or "self")
+            members[#members + 1] = {
+                guid = guid,
+                unit = unit,
+                hp_pct = utils.get_health_pct(unit),
+                incoming_heal_pct = unit_incoming_heal_pct(unit),
+                role = is_tank and "tank" or (unit == me and "healer" or "damager"),
+                is_tank = is_tank,
+            }
+        end
+    end
+    return members
+end
+
+local function resolve_paladin_triage(me)
+    local summary = healer_triage.select_target(me, build_paladin_triage_members(me), {})
+    if not summary or not summary.target or not summary.target.is_valid or not summary.target:is_valid() then
+        return nil, nil
+    end
+    return summary, summary.target
+end
+
+local function should_cancel_paladin_cast(me, target)
+    if not eax_utils.should_stopcasting(me, menu) then
+        return false
+    end
+    local summary = healer_triage.select_target(me, build_paladin_triage_members(me), {})
+    local snapshot = {
+        hp_pct = target and utils.get_health_pct(target) or utils.get_health_pct(me),
+        incoming_heal_pct = target and unit_incoming_heal_pct(target) or unit_incoming_heal_pct(me),
+        collapse_risk = summary and summary.collapse_risk == true,
+        group_count = summary and summary.group_count or 0,
+    }
+    return healer_triage.should_cancel_overheal(snapshot, {})
+end
+
 local function try_hand_of_freedom(me)
     if not menu.use_hand_of_freedom:get_state() then return false end
     if not runtime.hand_of_freedom_id then return false end
@@ -851,19 +920,25 @@ reactive_adapter = {
         },
         life_save_ally = {
             handler = function(_, action_deps)
-                local candidates = gather_heal_candidates(action_deps.me)
-                local ally_target = nil
-                local ally_hp = nil
-                for i = 1, #candidates do
-                    local candidate = candidates[i]
-                    if candidate and candidate:is_valid() and not candidate:is_dead() and candidate ~= action_deps.me then
-                        ally_target = candidate
-                        ally_hp = utils.get_health_pct(candidate)
-                        break
-                    end
-                end
+                local summary, ally_target = resolve_paladin_triage(action_deps.me)
+                local ally_hp = ally_target and utils.get_health_pct(ally_target) or nil
                 if not ally_target or not ally_hp then
                     return false
+                end
+
+                if summary and summary.reason == "group_stabilize" and runtime.holy_power >= 3 and runtime.light_of_dawn_id then
+                    if utils.can_cast_self(runtime.light_of_dawn_id, action_deps.me) and utils.cast_self(runtime.light_of_dawn_id, action_deps.me) then
+                        spend_holy_power(3)
+                        utils.log_debug(menu, "Light of Dawn")
+                        return true
+                    end
+                end
+
+                if summary and healer_triage.should_spend_emergency(summary, {}) and runtime.holy_power >= 3 and runtime.word_of_glory_id then
+                    if try_cast_spell(runtime.word_of_glory_id, action_deps.me, ally_target, "Word of Glory") then
+                        spend_holy_power(3)
+                        return true
+                    end
                 end
                 return try_cast_heal(action_deps.me, ally_target, ally_hp)
             end,
@@ -871,7 +946,7 @@ reactive_adapter = {
         interrupt_control = { noop = "unsupported" },
         anti_overheal = {
             handler = function(_, action_deps)
-                if not eax_utils.should_stopcasting(action_deps.me, menu) then
+                if not should_cancel_paladin_cast(action_deps.me, action_deps.current_target) then
                     return false
                 end
 

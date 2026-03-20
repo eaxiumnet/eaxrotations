@@ -42,6 +42,7 @@ local dps_meter = require("common/eax_shared/dps_meter")
 local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
 local visual_state = require("common/eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
+local healer_triage = require("eax_shared/healer_triage")
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -353,6 +354,66 @@ local function pick_priority_heal_target(me, tank, lowest, lowest_hp_pct)
     end
 
     return me, utils.get_health_pct(me)
+end
+
+local function unit_guid(unit)
+    if not unit or not unit.get_guid then
+        return nil
+    end
+    local ok, guid = pcall(function() return unit:get_guid() end)
+    if ok and guid ~= nil then
+        return tostring(guid)
+    end
+    return nil
+end
+
+local function unit_incoming_heal_pct(unit)
+    if not unit or not unit.get_incoming_heals or not unit.get_max_health then
+        return 0
+    end
+    local ok_heals, incoming = pcall(function() return unit:get_incoming_heals() end)
+    local ok_max, max_health = pcall(function() return unit:get_max_health() end)
+    if not ok_heals or not ok_max or not max_health or max_health <= 0 then
+        return 0
+    end
+    return math.max(0, math.min((tonumber(incoming) or 0) / max_health, 1))
+end
+
+local function build_druid_triage(me)
+    local units = utils.get_group_units(me, true)
+    local tank = pick_tank_unit(me, units, get_effective_mode())
+    local tank_guid = unit_guid(tank)
+    local members = {}
+    for i = 1, #units do
+        local unit = units[i]
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local guid = unit_guid(unit) or ("group-" .. i)
+            local is_tank = guid == tank_guid
+            members[#members + 1] = {
+                guid = guid,
+                unit = unit,
+                hp_pct = utils.get_health_pct(unit),
+                incoming_heal_pct = unit_incoming_heal_pct(unit),
+                role = is_tank and "tank" or (unit == me and "healer" or "damager"),
+                is_tank = is_tank,
+            }
+        end
+    end
+    return healer_triage.select_target(me, members, {}), units, tank
+end
+
+local function should_cancel_druid_cast(me, target)
+    if not eax_utils.should_stopcasting(me, menu) then
+        return false
+    end
+    local summary = select(1, build_druid_triage(me))
+    local snapshot = {
+        hp_pct = target and utils.get_health_pct(target) or utils.get_health_pct(me),
+        incoming_heal_pct = target and unit_incoming_heal_pct(target) or unit_incoming_heal_pct(me),
+        collapse_risk = summary and summary.collapse_risk == true,
+        group_count = summary and summary.group_count or 0,
+    }
+    return healer_triage.should_cancel_overheal(snapshot, {})
 end
 
 local function try_mark_of_the_wild(me)
@@ -848,13 +909,16 @@ reactive_adapter = {
         },
         life_save_ally = {
             handler = function(_, action_deps)
-                local units = utils.get_group_units(action_deps.me, true)
-                local lowest, lowest_hp_pct = utils.get_lowest_health_unit(units)
-                local tank = pick_tank_unit(action_deps.me, units, get_effective_mode())
-                local heal_target, heal_hp = pick_priority_heal_target(action_deps.me, tank, lowest, lowest_hp_pct)
+                local summary, units, tank = build_druid_triage(action_deps.me)
                 local mana_pct = utils.get_mana_pct(action_deps.me)
+                local heal_target = summary and summary.target or nil
+                local heal_hp = summary and summary.hp_pct or nil
                 if not heal_target or not heal_target:is_valid() then
                     return false
+                end
+                if summary and summary.reason == "group_stabilize" then
+                    if try_tranquility(action_deps.me, summary.group_count, heal_hp, get_effective_mode()) then return true end
+                    if try_wild_growth(action_deps.me, summary.group_count, mana_pct, units) then return true end
                 end
                 return try_natures_swiftness_regrowth(action_deps.me, heal_target, heal_hp)
                     or try_swiftmend(action_deps.me, heal_target, heal_hp)
@@ -865,7 +929,7 @@ reactive_adapter = {
         interrupt_control = { noop = "unsupported" },
         anti_overheal = {
             handler = function(_, action_deps)
-                if not eax_utils.should_stopcasting(action_deps.me, menu) then
+                if not should_cancel_druid_cast(action_deps.me, action_deps.current_target) then
                     return false
                 end
 
