@@ -10,3 +10,6 @@ Thumbs.db
 
 # Worktrees
 .worktrees/
+
+# Shared modules (auto-generated/built)
+eax_shared/dot_manager.lua
