@@ -47,6 +47,9 @@ local color = require("color")
 local GCD_INTERVAL = 1.5  -- actual TBC GCD duration
 local MODE_REFRESH_INTERVAL = 4.5
 local PENDING_CAST_TIMEOUT_S = 2.5  -- covers cast time + travel
+local LIGHTNING_SHIELD_STACK_FLOOR = 6
+local THUNDERSTORM_IDS = { 51490 }
+local BLOODLUST_HEROISM_BUFFS = { 2825, 32182 }
 
 local MODE_PROFILE = {
     solo = {
@@ -91,6 +94,7 @@ local runtime = {
     healing_wave_id     = nil,
     ghost_wolf_id       = nil,
     totemic_call_id     = nil,
+    thunderstorm_id     = nil,
     last_cast_time = 0,
     pending_casts = {},
     cached_mode = "solo",
@@ -98,6 +102,7 @@ local runtime = {
     totem_last_apply = {},
     last_ns_at = 0,
     set_multiplier = 1.0,
+    lightning_shield_stacks = 0,
 }
 
 local TOTEM_ROTATION = {
@@ -122,6 +127,7 @@ local function resolve_spells()
     runtime.healing_wave_id     = utils.resolve_spell_id(spells.HEALING_WAVE)
     runtime.ghost_wolf_id       = utils.resolve_spell_id(spells.GHOST_WOLF)
     runtime.totemic_call_id     = utils.resolve_spell_id(spells.TOTEMIC_CALL)
+    runtime.thunderstorm_id     = utils.resolve_spell_id(THUNDERSTORM_IDS)
     runtime.ancestral_spirit_id  = utils.resolve_spell_id(spells.ANCESTRAL_SPIRIT)
 end
 
@@ -370,7 +376,15 @@ local function try_chain_lightning(me, target)
     local profile = get_mode_profile()
     local threshold = math.max(menu.aoe_threshold:get(), profile.aoe_threshold)
     local enemy_count = utils.count_enemies_in_range(me, spells.CHAIN_LIGHTNING_RADIUS)
-    if enemy_count < threshold then
+    local burn_phase = false
+    if me and me:is_valid() and me:is_in_combat() then
+        local hold_cooldowns, burn_until_pct = encounter_manager.should_hold_cooldowns(me)
+        local target_hp = utils.get_health_pct(target)
+        burn_phase = (not hold_cooldowns and burn_until_pct > 0 and target_hp <= burn_until_pct)
+            or utils.has_buff(me, BLOODLUST_HEROISM_BUFFS)
+            or (enc and enc.burn_phase)
+    end
+    if enemy_count < threshold and not burn_phase then
         return false
     end
     local mana_pct = utils.get_mana_pct(me)
@@ -420,23 +434,43 @@ end
 -- -- Shield maintenance --------------------------------------------------------
 local function ensure_shield(me)
     local mode = menu.shield_mode and menu.shield_mode:get() or 2
-    -- 0=None, 1=Lightning, 2=Water, 3=Auto(Water at 60+)
+    -- 0=None, 1=Lightning, 2=Water, 3=Auto
     if mode == 0 then return false end
     local use_water
     if mode == 1 then use_water = false
     elseif mode == 2 then use_water = true
-    else use_water = (me:get_level() or 0) >= 60 end
+    else use_water = (not me:is_in_combat()) and (me:get_level() or 0) >= 60 end
 
     if use_water and runtime.water_shield_id then
         if not utils.has_buff(me, spells.BUFF_WATER_SHIELD) then
             return try_cast_self(me, runtime.water_shield_id, "Water Shield")
         end
     elseif not use_water and runtime.lightning_shield_id then
-        if not utils.has_buff(me, spells.BUFF_LIGHTNING_SHIELD) then
+        local ls = buff_manager:get_buff_data(me, spells.BUFF_LIGHTNING_SHIELD)
+        runtime.lightning_shield_stacks = (ls and ls.is_active and (ls.stacks or 0)) or 0
+        if (not ls or not ls.is_active) or runtime.lightning_shield_stacks < LIGHTNING_SHIELD_STACK_FLOOR then
             return try_cast_self(me, runtime.lightning_shield_id, "Lightning Shield")
         end
     end
     return false
+end
+
+local function try_thunderstorm(me, target)
+    if not runtime.thunderstorm_id or not target then
+        return false
+    end
+    local enemies = utils.count_enemies_in_range(me, 10)
+    local should_knockback = enemies >= 3
+    local should_interrupt = false
+    local ok, casting = pcall(function() return target:is_casting_spell() end)
+    local ok2, channing = pcall(function() return target:is_channelling_spell() end)
+    if (ok and casting) or (ok2 and channing) then
+        should_interrupt = true
+    end
+    if not should_knockback and not should_interrupt then
+        return false
+    end
+    return try_cast_self(me, runtime.thunderstorm_id, "Thunderstorm")
 end
 
 -- -- Self-healing --------------------------------------------------------------
@@ -534,6 +568,7 @@ local function do_rotation(me, target)
     if try_earth_shock_interrupt(me, target) then return true end
     if try_frost_shock_slow(me, target) then return true end
     if try_burst(me, target) then return true end
+    if try_thunderstorm(me, target) then return true end
     if try_lava_burst(me, target) then return true end
     if try_flame_shock(me, target) then
         return true
