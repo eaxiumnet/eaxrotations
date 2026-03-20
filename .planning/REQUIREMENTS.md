@@ -39,9 +39,9 @@
 - [x] **WARR-03**: Add stance dance for Prot Warrior — shield slam priority with rage management
 
 #### Hunter
-- [ ] **HUNT-01**: Implement MM Hunter steady shot / aimed shot rotation with auto shot alignment
-- [ ] **HUNT-02**: Add haste breakpoint detection — switch between 2:1, 1:1, 1:2, 1:3 based on weapon speed
-- [ ] **HUNT-03**: Implement melee weaving for BM Hunter — Arcane/FM shot between autos
+- [x] **HUNT-01**: Implement MM Hunter steady shot / aimed shot rotation with auto shot alignment
+- [x] **HUNT-02**: Add haste breakpoint detection — switch between 2:1, 1:1, 1:2, 1:3 based on weapon speed
+- [x] **HUNT-03**: Implement melee weaving for BM Hunter — Arcane/FM shot between autos
 
 #### Mage
 - [x] **MAGE-01**: Implement Arcane Mage 3-stack burn phase — AB spam, all CDs, Evocation timing
@@ -144,9 +144,9 @@ Phase mapping populated during roadmap creation.
 | WARR-01 | Phase 3 | Complete |
 | WARR-02 | Phase 3 | Complete |
 | WARR-03 | Phase 3 | Complete |
-| HUNT-01 | Phase 3 | Pending |
-| HUNT-02 | Phase 3 | Pending |
-| HUNT-03 | Phase 3 | Pending |
+| HUNT-01 | Phase 3 | Complete |
+| HUNT-02 | Phase 3 | Complete |
+| HUNT-03 | Phase 3 | Complete |
 | MAGE-01 | Phase 3 | Complete |
 | MAGE-02 | Phase 3 | Complete |
 | MAGE-03 | Phase 3 | Complete |
