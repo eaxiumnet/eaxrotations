@@ -39,6 +39,8 @@ local racial_manager = require("common/eax_shared/racial_manager")
 local defensive_manager = require("common/eax_shared/defensive_manager")
 ---@type dot_manager
 local dot_manager = require("eax_shared/dot_manager")
+---@type mana_manager
+local mana_manager = require("eax_shared/mana_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -540,6 +542,13 @@ local function update_rotation(me, target, menu, utils)
     if mana_conservator.on_update(me, target, menu, utils) then return end
 
     if not is_gcd_ready() then return false end
+
+    -- Mana potion check (before main damage spells)
+    if mana_manager.should_use_mana_potion(me, 30) then
+        if mana_manager.use_mana_potion() then
+            return true
+        end
+    end
 
     local mode = get_effective_mode()
     local mana_pct = utils.get_mana_pct(me)

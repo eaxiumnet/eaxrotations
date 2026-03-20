@@ -31,6 +31,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
+---@type mana_manager
+local mana_manager = require("eax_shared/mana_manager")
 
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
@@ -194,7 +196,8 @@ local function try_evocation(me)
     if not runtime.evocation_id then return false end
     if not me:is_in_combat() then return false end
     if me:is_channelling_spell() then return false end
-    if utils.get_mana_pct(me) > menu.evocation_pct:get() then return false end
+    -- Use mana_manager for proactive Evocation timing
+    if not mana_manager.should_evocate(me, "mage", menu) then return false end
     if is_pending_cast(runtime.evocation_id) or utils.is_spell_already_queued(runtime.evocation_id) then return false end
     if not utils.can_cast_self(runtime.evocation_id, me) then return false end
 
@@ -443,6 +446,13 @@ local function do_rotation(me, target)
     racial_manager.try_offensive(me)
     racial_manager.try_utility(me, target)
     racial_manager.try_defensive(me)
+
+    -- Mana potion check (before main damage spells)
+    if mana_manager.should_use_mana_potion(me, 30) then
+        if mana_manager.use_mana_potion() then
+            return true
+        end
+    end
 
     if try_mana_gem(me) then return true end
     if try_evocation(me) then return true end

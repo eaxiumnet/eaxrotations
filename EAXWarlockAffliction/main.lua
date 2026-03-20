@@ -36,6 +36,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
 local dot_manager = require("eax_shared/dot_manager")
+---@type mana_manager
+local mana_manager = require("eax_shared/mana_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -347,15 +349,11 @@ local function try_life_tap(me)
         return false
     end
     local mana_pct = utils.get_mana_pct(me)
-    local hp_pct = utils.get_health_pct(me)
-    local threshold = menu.life_tap_threshold:get() / 100
     -- Pre-regen: also tap when a major CD (Corruption, UA) coming off CD soon
     -- and we need mana to sustain, even if above the normal threshold
     local pre_regen_needed = mana_pct < 0.50
-    if mana_pct >= LIFE_TAP_MANA_PCT and not pre_regen_needed then
-        return false
-    end
-    if hp_pct < threshold then
+    -- Use mana_manager for clip-safe life tap (HP + mana + cooldown checks)
+    if not mana_manager.should_life_tap(me, menu) and not pre_regen_needed then
         return false
     end
     if not utils.can_cast_self(runtime.life_tap_id, me) then
@@ -530,7 +528,14 @@ local function do_rotation(me, target)
     if defensive_manager.try_defensive(me, "warlock", utils) then
         return
     end
-    
+
+    -- Mana potion check (before main damage spells)
+    if mana_manager.should_use_mana_potion(me, 30) then
+        if mana_manager.use_mana_potion() then
+            return
+        end
+    end
+
     if not try_refresh_dots(me, target) then
         if try_apply_curse(me, target) then
             return

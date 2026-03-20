@@ -36,6 +36,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
 local dot_manager = require("eax_shared/dot_manager")
+---@type mana_manager
+local mana_manager = require("eax_shared/mana_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -47,6 +49,7 @@ local runtime = {
     fireball_id = nil,
     pyroblast_id = nil,
     combustion_id = nil,
+    evocation_id = nil,
     fire_blast_id = nil,
     ice_block_id = nil,
     flamestrike_id = nil,
@@ -73,6 +76,7 @@ local function resolve_spells()
     runtime.combustion_id = utils.resolve_spell_id(spells.COMBUSTION)
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
     runtime.flamestrike_id = utils.resolve_spell_id(spells.FLAMESTRIKE)
+    runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
 end
 
 local function log_resolved_spells()
@@ -397,6 +401,25 @@ local function try_dragons_breath(me, target)
     return false
 end
 
+-- --- Evocation (Fire) ---------------------------------------------------------
+
+local function try_evocation(me)
+    if not menu.use_evocation or not menu.use_evocation:get_state() then return false end
+    if not runtime.evocation_id then return false end
+    if not me:is_in_combat() then return false end
+    if me:is_channelling_spell() then return false end
+    -- Use mana_manager for proactive Evocation timing
+    if not mana_manager.should_evocate(me, "mage", menu) then return false end
+    if is_pending_cast(runtime.evocation_id) then return false end
+    if not utils.can_cast_self(runtime.evocation_id, me) then return false end
+    if utils.cast_self(runtime.evocation_id, me, "Evocation") then
+        mark_pending_cast(runtime.evocation_id, PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Evocation")
+        return true
+    end
+    return false
+end
+
 local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
     if not is_gcd_ready() then return false end
@@ -422,9 +445,15 @@ local function do_rotation(me, target)
     -- Defensive abilities
     ttd_tracker.update(target)
 
-    if defensive_manager.try_defensive(me, "mage", utils) then
-        return true
+    -- Mana potion check (before main damage spells)
+    if mana_manager.should_use_mana_potion(me, 30) then
+        if mana_manager.use_mana_potion() then
+            return true
+        end
     end
+
+    -- Evocation (Fire mage mana recovery)
+    if try_evocation(me) then return true end
 
     if try_molten_armor(me) then return true end
     if try_blast_wave(me, target) then return true end

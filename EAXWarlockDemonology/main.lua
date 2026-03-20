@@ -36,6 +36,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
 local dot_manager = require("eax_shared/dot_manager")
+---@type mana_manager
+local mana_manager = require("eax_shared/mana_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -294,12 +296,16 @@ local function try_life_tap(me, mode)
     if not menu.use_life_tap:get_state() or not runtime.life_tap_id then
         return false
     end
-    local health_pct = utils.get_health_pct(me)
     local mana_pct = utils.get_mana_pct(me)
-    if mana_pct >= LIFE_TAP_MANA_PCT then
+    -- Pre-regen: also tap when a major CD (Shadow Bolt, Soul Fire) coming off CD soon
+    local pre_regen_needed = mana_pct < 0.50
+    -- Use mana_manager for clip-safe life tap (HP + mana + cooldown checks)
+    if not mana_manager.should_life_tap(me, menu) and not pre_regen_needed then
         return false
     end
+    -- Mode-specific HP threshold (keep for dungeon/raid tuning)
     local threshold = menu.life_tap_threshold:get() / 100
+    local health_pct = utils.get_health_pct(me)
     if mode == "raid" then
         threshold = math.max(threshold, 0.55)
     elseif mode == "dungeon" then
@@ -460,7 +466,14 @@ local function do_rotation(me, target)
     if defensive_manager.try_defensive(me, "warlock", utils) then
         return
     end
-    
+
+    -- Mana potion check (before main damage spells)
+    if mana_manager.should_use_mana_potion(me, 30) then
+        if mana_manager.use_mana_potion() then
+            return
+        end
+    end
+
     local effective_mode = get_effective_mode()
     if ensure_felguard(me) then
         return

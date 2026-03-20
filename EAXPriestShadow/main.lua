@@ -35,6 +35,8 @@ local defensive_manager = require("common/eax_shared/defensive_manager")
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
 local dot_manager = require("eax_shared/dot_manager")
+---@type mana_manager
+local mana_manager = require("eax_shared/mana_manager")
 
 local runtime = {
     dispersion_id = nil,
@@ -348,6 +350,13 @@ core.register_on_update_callback(function()
         if try_dispersion(me) then return true end
         if defensive_manager.try_defensive(me, "priest", utils) then
             return
+        end
+
+        -- Mana potion check (before DoT casting)
+        if mana_manager.should_use_mana_potion(me, 30) then
+            if mana_manager.use_mana_potion() then
+                return
+            end
         end
 
         try_vampiric_embrace(me)
