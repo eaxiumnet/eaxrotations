@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 6
+current_plan: 7
 status: unknown
-last_updated: "2026-03-20T05:03:17.782Z"
+last_updated: "2026-03-20T05:04:46.174Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 15
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # State
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [x] Requirements defined
 - [x] Roadmap created
 - [x] Phase 03 planned (9 plans)
-- **Current Plan:** 6
+- **Current Plan:** 7
 - **Total Plans in Phase:** 9
 
 ## Roadmap
@@ -61,6 +61,9 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 - [Phase 03]: Implemented eclipse detection using existing Lunar/Solar eclipse buffs (IDs 48518/48517) rather than custom energy tracking — Simpler and matches server implementation
 - [Phase 03]: Added energy pooling for Ferocious Bite to prevent wasting combo points when energy insufficient — Ensures optimal bite timing and prevents CP waste
 - [Phase 03]: Added combo point cap check in Mangle and Claw filler abilities to avoid overcapping — Prevents CP waste and ensures finishers at 5 CP
+- [Phase 03]: Added Shadow Weaving buff detection and tracked Shadow Orb stacks as proxy for Mind Blast proc timing — TBC does not have Shadow Orbs; using existing Shadow Weaving buff stacks or cast-counting provides similar proc-based Mind Blast timing
+- [Phase 03]: Implemented tank-priority shielding during tank_damage_heavy encounters using class detection — Healer AI should prioritize tank survival during heavy tank damage phases; class detection is a heuristic until threat_manager tank identification is integrated
+- [Phase 03]: Integrated mana_manager for proactive mana potion usage in both Shadow and Discipline specs — Proactive mana management prevents OOM situations; existing mana_manager module provides threshold-based potion usage
 
 ## Recent Commits
 
@@ -88,3 +91,4 @@ Research: Yes | Plan Check: Yes | Verifier: Yes
 | Phase 03 P03 | 10 | 3 tasks | 2 files |
 | Phase 03 P02 | 10 min | 3 tasks | 3 files |
 | Phase 03 P06 | 8 min | 3 tasks | 2 files |
+| Phase 03 P05 | 10 min | 3 tasks | 3 files |

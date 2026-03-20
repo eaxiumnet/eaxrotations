@@ -55,9 +55,9 @@
 - [ ] **LOCK-03**: Implement Demo Lock Metamorphosis / Felguard rotation
 
 #### Priest
-- [ ] **PRST-01**: Implement Shadow Priest DoT clip prevention — SW:P, Vampiric Touch
-- [ ] **PRST-02**: Add Shadow Priest Mind Blast timing — on proc or when GCD available
-- [ ] **PRST-03**: Add Disc Priest PW:S shield management
+- [x] **PRST-01**: Implement Shadow Priest DoT clip prevention — SW:P, Vampiric Touch
+- [x] **PRST-02**: Add Shadow Priest Mind Blast timing — on proc or when GCD available
+- [x] **PRST-03**: Add Disc Priest PW:S shield management
 
 #### Druid
 - [x] **DRUID-01**: Implement Balance DoT clip prevention — Insect Swarm, Moonfire
@@ -154,9 +154,9 @@ Phase mapping populated during roadmap creation.
 | LOCK-01 | Phase 3 | Pending |
 | LOCK-02 | Phase 3 | Pending |
 | LOCK-03 | Phase 3 | Pending |
-| PRST-01 | Phase 3 | Pending |
-| PRST-02 | Phase 3 | Pending |
-| PRST-03 | Phase 3 | Pending |
+| PRST-01 | Phase 3 | Complete |
+| PRST-02 | Phase 3 | Complete |
+| PRST-03 | Phase 3 | Complete |
 | DRUID-01 | Phase 3 | Complete |
 | DRUID-02 | Phase 3 | Complete |
 | DRUID-03 | Phase 3 | Complete |
