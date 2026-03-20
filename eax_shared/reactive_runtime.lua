@@ -237,10 +237,12 @@ local function execute_adapter(me, target, ctx, result, deps, adapter)
     end
 
     local handled = entry.handler(ctx, {
+        me = me,
         adapter = adapter,
         target = resolved_target,
         current_target = target,
         action_id = action_id,
+        state = deps.state,
         deps = deps,
     })
 

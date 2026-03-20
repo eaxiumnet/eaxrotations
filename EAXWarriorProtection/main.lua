@@ -46,6 +46,8 @@ local _visual_runtime = {
     reactive_state = {},
 }
 
+local reactive_adapter = {}
+
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
@@ -112,6 +114,7 @@ local function visual_update_snapshot(me, target)
     _visual_runtime.last_target_hp_pct = target_hp_pct
 
     reactive_runtime.update_tick(me, target, {
+        adapter = reactive_adapter,
         encounter_manager = encounter_manager,
         state = _visual_runtime.reactive_state,
         spec = "EAXWarriorProtection",
@@ -2483,6 +2486,59 @@ local function try_recovery_lane(me, primary_target, recovery, rage, mode_policy
 
     return false
 end
+
+local function resolve_reactive_interrupt_target(me, current_target)
+    if is_valid_hostile_target(me, current_target) and is_interruptible_caster(current_target) then
+        return current_target
+    end
+
+    local mode_policy = get_mode_policy()
+    local recovery = select_recovery_target(me, current_target, mode_policy)
+    local recovery_target = recovery and recovery.target or nil
+    if is_valid_hostile_target(me, recovery_target) and is_interruptible_caster(recovery_target) then
+        return recovery_target
+    end
+
+    return nil
+end
+
+reactive_adapter = {
+    spec = "EAXWarriorProtection",
+    actions = {
+        life_save_self = {
+            handler = function(_, action_deps)
+                return defensive_manager.try_defensive(action_deps.me, "warrior", utils)
+            end,
+        },
+        life_save_ally = { noop = "unsupported" },
+        interrupt_control = {
+            handler = function(_, action_deps)
+                local interrupt_target = action_deps.target or action_deps.current_target
+                if not is_valid_hostile_target(action_deps.me, interrupt_target) then
+                    return false
+                end
+
+                if interrupt_manager.should_interrupt(interrupt_target)
+                    and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
+                then
+                    return true
+                end
+
+                return try_interrupt_action_on_target(action_deps.me, interrupt_target, "Reactive")
+            end,
+        },
+        anti_overheal = { noop = "unsupported" },
+        anti_aggro = { noop = "unsupported" },
+        throughput_resume = { noop = "unsupported" },
+    },
+    resolve_target = function(action_id, _, action_deps)
+        if action_id ~= "interrupt_control" then
+            return nil
+        end
+
+        return resolve_reactive_interrupt_target(action_deps.me, action_deps.current_target)
+    end,
+}
 
 local function try_intimidating_shout_keybind(me, target)
     local is_pressed = menu.intimidating_shout_key:get_state()
