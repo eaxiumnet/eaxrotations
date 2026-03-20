@@ -76,7 +76,12 @@ Plans:
   1. Benchmark runs emit a complete 27-spec matrix covering DPS/HPS/TPS plus reactive behavior KPIs.
   2. Matrix outputs include run metadata, variance stats, and real-vs-mock tagging suitable for apples-to-apples comparisons.
   3. Milestone quality gate passes only when thresholds and regression checks succeed across the matrix.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 08-benchmark-matrix-hardening-01-PLAN.md - Define the shared matrix verdict contract and persist throughput/behavior KPI counters.
+- [ ] 08-benchmark-matrix-hardening-02-PLAN.md - Upgrade `tools/dps_benchmark.lua` into the 27-spec matrix runner and capture the approved live baseline.
+- [ ] 08-benchmark-matrix-hardening-03-PLAN.md - Make `tools/rotation_validation.lua` block on the benchmark matrix release gate.
 
 ## Progress
 
