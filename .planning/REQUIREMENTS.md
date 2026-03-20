@@ -55,27 +55,27 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REACT-01 | Unmapped | Pending |
-| REACT-02 | Unmapped | Pending |
-| REACT-03 | Unmapped | Pending |
-| APIG-01 | Unmapped | Pending |
-| APIG-02 | Unmapped | Pending |
-| APIG-03 | Unmapped | Pending |
-| WIRE-01 | Unmapped | Pending |
-| WIRE-02 | Unmapped | Pending |
-| WIRE-03 | Unmapped | Pending |
-| ROLE-01 | Unmapped | Pending |
-| ROLE-02 | Unmapped | Pending |
-| ROLE-03 | Unmapped | Pending |
-| ROLE-04 | Unmapped | Pending |
-| MATX-01 | Unmapped | Pending |
-| MATX-02 | Unmapped | Pending |
-| MATX-03 | Unmapped | Pending |
+| REACT-01 | Phase 5 | Pending |
+| REACT-02 | Phase 5 | Pending |
+| REACT-03 | Phase 5 | Pending |
+| APIG-01 | Phase 5 | Pending |
+| APIG-02 | Phase 5 | Pending |
+| APIG-03 | Phase 5 | Pending |
+| WIRE-01 | Phase 6 | Pending |
+| WIRE-02 | Phase 6 | Pending |
+| WIRE-03 | Phase 6 | Pending |
+| ROLE-01 | Phase 7 | Pending |
+| ROLE-02 | Phase 7 | Pending |
+| ROLE-03 | Phase 7 | Pending |
+| ROLE-04 | Phase 7 | Pending |
+| MATX-01 | Phase 8 | Pending |
+| MATX-02 | Phase 8 | Pending |
+| MATX-03 | Phase 8 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-20*
