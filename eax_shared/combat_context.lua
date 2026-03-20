@@ -71,6 +71,67 @@ local function copy_fields(source, defaults)
     return out
 end
 
+local function clamp01(value)
+    return math.max(0, math.min(as_number(value), 1))
+end
+
+local function same_unit(a, b)
+    if a ~= nil and a == b then
+        return true
+    end
+
+    if type(a) == "table" and type(b) == "table"
+        and type(a.get_guid) == "function" and type(b.get_guid) == "function" then
+        local a_guid = call_or_nil(a.get_guid, a)
+        local b_guid = call_or_nil(b.get_guid, b)
+        return a_guid ~= nil and a_guid == b_guid
+    end
+
+    return false
+end
+
+local function cast_progress_pct(unit)
+    local progress, ok = call_or_nil(unit.get_channeling_or_casting_pct, unit)
+    if ok then
+        return math.min(as_number(progress) / 100, 1), true
+    end
+
+    progress, ok = call_or_nil(unit.get_cast_pct, unit)
+    if ok then
+        return math.min(as_number(progress) / 100, 1), true
+    end
+
+    return 0, false
+end
+
+local function normalize_party_member(member)
+    if type(member) ~= "table" then
+        return nil
+    end
+
+    return {
+        guid = member.guid,
+        unit = member.unit,
+        hp_pct = clamp01(member.hp_pct),
+        incoming_heal_pct = clamp01(member.incoming_heal_pct),
+        role = member.role or "unknown",
+        is_tank = member.is_tank == true or member.role == "tank",
+    }
+end
+
+local function member_score(member)
+    if type(member) ~= "table" then
+        return 0
+    end
+
+    local uncovered = math.max(member.hp_pct - member.incoming_heal_pct, 0)
+    local danger = 1 - uncovered
+    if member.is_tank then
+        danger = danger + 0.10
+    end
+    return danger
+end
+
 function combat_context.default_context(now_s)
     return {
         meta = {
@@ -83,6 +144,7 @@ function combat_context.default_context(now_s)
             hp_pct = 0,
             incoming_heal_pct = 0,
             incoming_damage_2s = 0,
+            incoming_damage_pct_2s = 0,
             threat_pct = 0,
             role = "unknown",
             is_tank = false,
@@ -94,10 +156,17 @@ function combat_context.default_context(now_s)
             is_channeling = false,
             spell_id = 0,
             interruptible = false,
+            cast_progress_pct = 0,
+            victim_role = "unknown",
+            victim_is_self = false,
         },
         party = {
             lowest_hp_pct = 0,
             any_ally_critical = false,
+            members = {},
+            tank = nil,
+            urgent_ally = nil,
+            group_collapse_risk = 0,
         },
         encounter = {
             hold_cooldowns = false,
@@ -160,9 +229,16 @@ function combat_context.build(me, target, spec_meta, deps)
         local incoming_damage, damage_ok = call_or_nil(deps.health_prediction.get_incoming_damage, deps.health_prediction, me, 2.0)
         if damage_ok then
             ctx.self.incoming_damage_2s = as_number(incoming_damage)
+            local damage_pct, damage_pct_ok = ratio(incoming_damage, me_max_health)
+            if damage_pct_ok then
+                ctx.self.incoming_damage_pct_2s = damage_pct
+            else
+                fail_safe = true
+            end
         else
             fail_safe = true
             ctx.self.incoming_damage_2s = 0
+            ctx.self.incoming_damage_pct_2s = 0
         end
 
         local role_id, role_ok = call_or_nil(deps.health_prediction.get_role_id, deps.health_prediction, me)
@@ -239,6 +315,30 @@ function combat_context.build(me, target, spec_meta, deps)
         elseif ctx.target.is_casting then
             fail_safe = true
         end
+
+        if ctx.target.is_casting or ctx.target.is_channeling then
+            local progress_pct, progress_ok = cast_progress_pct(live_target)
+            if progress_ok then
+                ctx.target.cast_progress_pct = progress_pct
+            else
+                fail_safe = true
+            end
+
+            local victim, victim_ok = call_or_nil(live_target.get_target, live_target)
+            if victim_ok and victim ~= nil then
+                ctx.target.victim_is_self = same_unit(victim, me)
+                local victim_role, role_ok = call_or_nil(deps.health_prediction and deps.health_prediction.get_role_id, deps.health_prediction, victim)
+                if role_ok then
+                    ctx.target.victim_role = normalize_role(victim_role)
+                else
+                    fail_safe = true
+                end
+            elseif victim_ok then
+                ctx.target.victim_role = "unknown"
+            else
+                fail_safe = true
+            end
+        end
     else
         ctx.target.exists = false
     end
@@ -249,13 +349,30 @@ function combat_context.build(me, target, spec_meta, deps)
         if party_ok and type(party_members) == "table" then
             local lowest = 1
             local seen = false
+            local members = {}
+            local best_urgent = nil
+            local best_urgent_score = -1
             for _, member in ipairs(party_members) do
-                if type(member) == "table" then
-                    local member_hp = tonumber(member.hp_pct)
+                local normalized = normalize_party_member(member)
+                if normalized then
+                    members[#members + 1] = normalized
+                    local member_hp = tonumber(normalized.hp_pct)
                     if member_hp then
                         seen = true
                         if member_hp < lowest then
                             lowest = member_hp
+                        end
+                    end
+
+                    if normalized.is_tank and ctx.party.tank == nil then
+                        ctx.party.tank = normalized
+                    end
+
+                    if not normalized.is_tank then
+                        local score = member_score(normalized)
+                        if score > best_urgent_score then
+                            best_urgent_score = score
+                            best_urgent = normalized
                         end
                     end
                 end
@@ -263,6 +380,23 @@ function combat_context.build(me, target, spec_meta, deps)
             if seen then
                 ctx.party.lowest_hp_pct = math.max(0, math.min(lowest, 1))
                 ctx.party.any_ally_critical = ctx.party.lowest_hp_pct <= 0.25
+                ctx.party.members = members
+                ctx.party.urgent_ally = best_urgent
+                ctx.party.group_collapse_risk = clamp01((1 - ctx.party.lowest_hp_pct) + (ctx.encounter.raid_aoe_heavy and 0.15 or 0))
+            end
+
+            if ctx.party.tank == nil and ctx.target.victim_role == "tank" then
+                local victim, victim_ok = call_or_nil(live_target and live_target.get_target, live_target)
+                if victim_ok and victim ~= nil then
+                    ctx.party.tank = {
+                        guid = select(1, call_or_nil(victim.get_guid, victim)),
+                        unit = victim,
+                        hp_pct = 0,
+                        incoming_heal_pct = 0,
+                        role = "tank",
+                        is_tank = true,
+                    }
+                end
             end
         else
             fail_safe = true
@@ -282,8 +416,13 @@ function combat_context.build(me, target, spec_meta, deps)
         ctx.meta.fail_safe = true
         ctx.target.exists = false
         ctx.self.incoming_damage_2s = 0
+        ctx.self.incoming_damage_pct_2s = 0
         ctx.party.lowest_hp_pct = 0
         ctx.party.any_ally_critical = false
+        ctx.party.members = {}
+        ctx.party.tank = nil
+        ctx.party.urgent_ally = nil
+        ctx.party.group_collapse_risk = 0
     end
 
     return ctx
