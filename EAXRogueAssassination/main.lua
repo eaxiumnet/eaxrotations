@@ -61,6 +61,9 @@ local runtime = {
 }
 
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
+local ASSA_FINISHER_COMBO_POINTS = 5
+local SND_REFRESH_CRITICAL_MS = 2000
+local SND_CLIP_GUARD_MS = 10000
 
 local function resolve_spells()
     runtime.mutilate_id = utils.resolve_spell_id(spells.MUTILATE)
@@ -249,8 +252,18 @@ local function try_slice_and_dice(me)
         return false
     end
 
+    local policy = encounter_manager.get_policy(me)
+    local enemy_count = encounter_manager.enemy_count_in_range(me, 8)
+    local min_combo_points = (enemy_count >= 2 or (policy and policy.burn_phase)) and 3 or 4
+    if runtime.combo_points < min_combo_points or runtime.combo_points > ASSA_FINISHER_COMBO_POINTS then
+        return false
+    end
+
     local remaining_ms = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
-    if remaining_ms > (menu.snd_refresh_seconds:get() * 1000) then
+    if remaining_ms > SND_CLIP_GUARD_MS then
+        return false
+    end
+    if remaining_ms > SND_REFRESH_CRITICAL_MS and remaining_ms > 0 then
         return false
     end
     if not utils.can_cast_self(runtime.slice_and_dice_id, me) then
@@ -453,10 +466,8 @@ local function do_rotation(me, target)
     end
 
     -- Interrupt
-    if target and interrupt_manager
-    -- Encounter policy (boss-specific rotation adjustments)
     enc = encounter_manager.get_policy(me)
-.should_interrupt(target) then
+    if target and interrupt_manager.should_interrupt(target) and not enc.hold_cooldowns then
         if interrupt_manager.try_interrupt(me, target, "rogue", utils) then
             return true
         end
