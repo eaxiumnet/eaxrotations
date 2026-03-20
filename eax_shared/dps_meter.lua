@@ -21,6 +21,7 @@ local function zero_snapshot()
         reactive_action = "none",
         action_id = "none",
         reason_code = "NO_ACTION",
+        reactive_status = "none",
         context_fail_safe = false,
     }
 end
@@ -30,6 +31,7 @@ local function zero_reactive_state()
         reactive_action = "none",
         action_id = "none",
         reason_code = "NO_ACTION",
+        reactive_status = "none",
         context_fail_safe = false,
     }
 end
@@ -71,6 +73,7 @@ local function build_snapshot(damage_total, healing_total, duration_s, in_combat
         reactive_action = state.reactive.reactive_action,
         action_id = state.reactive.action_id,
         reason_code = state.reactive.reason_code,
+        reactive_status = state.reactive.reactive_status,
         context_fail_safe = state.reactive.context_fail_safe,
     }
 end
@@ -136,6 +139,7 @@ function dps_meter.set_reactive_state(payload)
         reactive_action = tostring(payload.reactive_action or payload.action_id or "none"),
         action_id = tostring(payload.action_id or payload.reactive_action or "none"),
         reason_code = tostring(payload.reason_code or "NO_ACTION"),
+        reactive_status = tostring(payload.reactive_status or "none"),
         context_fail_safe = payload.context_fail_safe == true,
     }
 end
@@ -156,6 +160,7 @@ function dps_meter.get_snapshot()
         reactive_action = state.reactive.reactive_action,
         action_id = state.reactive.action_id,
         reason_code = state.reactive.reason_code,
+        reactive_status = state.reactive.reactive_status,
         context_fail_safe = state.reactive.context_fail_safe,
     }
 end

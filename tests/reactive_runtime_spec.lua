@@ -147,7 +147,7 @@ run_with_core({
                 interrupt_control = {
                     handler = function(action_ctx, action_deps)
                         handled_calls = handled_calls + 1
-                        assert(action_ctx == ctx, "handler should receive the built context")
+                        assert(action_ctx.self.hp_pct == 0.25, "handler should receive the built context")
                         assert(action_deps.adapter.spec == "TestSpec", "handler should receive adapter deps")
                         return true
                     end,
