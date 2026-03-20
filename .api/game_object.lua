@@ -237,6 +237,36 @@
 ---@field get_active_channel_cast_end_time fun(self: game_object): number
 ---Returns the threat situation from the game_object to another game_object.
 ---@field get_threat_situation fun(self: game_object, obj: game_object): threat_table
+---Returns the current combo point count tracked on the unit.
+---@field get_combo_points fun(self: game_object): number
+---Returns the remaining active spell cast time in milliseconds.
+---@field get_spell_cast_time_remaining fun(self: game_object): number
+---Returns the remaining active channel time in milliseconds.
+---@field get_channel_cast_time_remaining fun(self: game_object): number
+---Returns the main-hand swing time in milliseconds.
+---@field get_attack_time fun(self: game_object): number
+---Returns the off-hand swing time in milliseconds.
+---@field get_offhand_attack_time fun(self: game_object): number
+---Returns the main-hand auto attack timer in milliseconds.
+---@field get_auto_attack_timer_ms fun(self: game_object): number
+---Returns the off-hand auto attack timer in milliseconds.
+---@field get_offhand_auto_attack_timer_ms fun(self: game_object): number
+---Returns the distance to another unit in yards.
+---@field get_distance_to fun(self: game_object, other: game_object): number
+---Returns the distance to another unit in yards.
+---@field get_distance fun(self: game_object, other: game_object): number
+---Returns whether another unit is in the same party.
+---@field is_party_member_of fun(self: game_object, other: game_object): boolean
+---Returns whether the unit has any buff from a list of spell IDs.
+---@field has_any_buff_of fun(self: game_object, spell_ids: number[]): boolean
+---Returns the current threat value against another unit.
+---@field get_threat fun(self: game_object, other: game_object): number
+---Returns the highest relevant threat value against another unit or their target context.
+---@field get_threat_or_highest_threat_on_target fun(self: game_object, other: game_object): number
+---Returns whether two units are grouped together.
+---@field is_in_group_with fun(self: game_object, other: game_object): boolean
+---Returns the item quality enum for item game objects.
+---@field get_quality fun(self: game_object): integer
 ---Returns resolved buff data for the specified aura spec (cached).
 ---@field get_buff_data fun(self: game_object, spec: buff_db | number[]): buff_manager_data|nil
 ---Returns resolved debuff data for the specified aura spec (cached).

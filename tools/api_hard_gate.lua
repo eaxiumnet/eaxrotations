@@ -168,15 +168,16 @@ end
 
 local function scan_rooted_calls(line, allowlist, violations, seen, path, line_no)
     for call in line:gmatch("([%a_][%w_]*%.[%a_][%w_%.]*)%s*%(") do
-        if not call:match("^ffi%.") and not call:match("^debug%.") and not allowlist.roots[call] then
+        local namespace = call:match("^([%a_][%w_]*)%.")
+        if namespace and allowlist.root_names[namespace] and not call:match("^ffi%.") and not call:match("^debug%.") and not allowlist.roots[call] then
             add_violation(violations, seen, path, line_no, call)
         end
     end
 end
 
 local function scan_method_calls(line, allowlist, violations, seen, path, line_no)
-    for method in line:gmatch(":%s*([%a_][%w_]*)%s*%(") do
-        if not allowlist.methods[method] then
+    for receiver, method in line:gmatch("([%a_][%w_]*)%s*:%s*([%a_][%w_]*)%s*%(") do
+        if allowlist.object_receivers[receiver] and not allowlist.methods[method] then
             add_violation(violations, seen, path, line_no, ":" .. method)
         end
     end
@@ -220,6 +221,30 @@ function M.scan_paths(paths)
     local seen = {}
     allowlist.roots = allowlist.roots or {}
     allowlist.methods = allowlist.methods or {}
+    allowlist.root_names = {}
+    for call in pairs(allowlist.roots) do
+        local namespace = call:match("^([%a_][%w_]*)%.")
+        if namespace then
+            allowlist.root_names[namespace] = true
+        end
+    end
+    allowlist.object_receivers = {
+        me = true,
+        player = true,
+        local_player = true,
+        target = true,
+        focus = true,
+        pet = true,
+        unit = true,
+        ally = true,
+        enemy = true,
+        member = true,
+        object = true,
+        obj = true,
+        corpse = true,
+        mouseover = true,
+        cp_obj = true,
+    }
     for _, path in ipairs(paths or {}) do
         scan_file(normalize_path(path), allowlist, violations, seen)
     end
