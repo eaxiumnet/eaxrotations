@@ -320,9 +320,20 @@ local function try_apply_curse(me, target)
     local curse_id = menu.prefer_doom:get_state() and runtime.curse_doom_id or runtime.curse_agony_id
     if not curse_id then curse_id = runtime.curse_agony_id or runtime.curse_doom_id end
     if not curse_id then return false end
-    if utils.has_debuff(target, spells.CURSE_OF_DOOM) or utils.has_debuff(target, spells.CURSE_OF_AGONY) then
+    
+    -- Determine which curse debuff IDs to check
+    local debuff_ids = nil
+    if curse_id == runtime.curse_doom_id then
+        debuff_ids = spells.DEBUFF_CURSE_OF_DOOM
+    elseif curse_id == runtime.curse_agony_id then
+        debuff_ids = spells.DEBUFF_CURSE_OF_AGONY
+    end
+    
+    -- Use dot_manager to check if safe to refresh (never clip final tick)
+    if not dot_manager.can_refresh_dot(target, debuff_ids, curse_id, utils.get_debuff_remaining_ms) then
         return false
     end
+    
     -- Amplify Curse before casting for +doom/+agony duration (v1.3)
     if runtime.amplify_curse_id and utils.can_cast_self(runtime.amplify_curse_id, me) then
         utils.cast_self_fast(runtime.amplify_curse_id, me)

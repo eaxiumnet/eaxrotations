@@ -48,6 +48,9 @@ dot_manager.DOT_DURATIONS = {
     [30405] = 15000,  -- Unstable Affliction rank 5: 5 ticks × 3s = 15s
     [30911] = 15000,  -- Siphon Life rank 7: 15s duration
     [27218] = 20000,  -- Curse of Agony rank 9: 10 ticks × 2s = 20s
+    [30910] = 60000,  -- Curse of Doom rank 3: 60s duration
+    [18692] = 60000,  -- Curse of Doom rank 2: 60s duration
+    [18691] = 60000,  -- Curse of Doom rank 1: 60s duration
     [27228] = 24000,  -- Curse of Elements rank 4: 12 ticks × 2s = 24s
 
     -- === Warlock Destruction DoTs ===
