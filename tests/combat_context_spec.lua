@@ -27,11 +27,17 @@ local function make_unit(fields)
         get_active_channel_spell_id = function()
             return fields.channel_spell_id
         end,
+        get_cast_pct = function()
+            return fields.cast_pct
+        end,
         is_active_spell_interruptable = function()
             return fields.interruptible
         end,
         get_threat_situation = function()
             return fields.threat_table
+        end,
+        get_role_id = function()
+            return fields.role_id
         end,
         is_valid = function()
             if fields.is_valid == nil then
@@ -41,6 +47,9 @@ local function make_unit(fields)
         end,
         is_dead = function()
             return fields.is_dead or false
+        end,
+        get_guid = function()
+            return fields.guid
         end,
     }
 end
@@ -57,11 +66,14 @@ local function make_deps(overrides)
                 end
                 return 250
             end,
-            get_role_id = function()
+            get_role_id = function(_, unit)
+                if unit and unit.get_role_id then
+                    return unit:get_role_id()
+                end
                 return 2
             end,
-            is_tank = function()
-                return false
+            is_tank = function(_, unit)
+                return unit and unit:get_role_id() == 0 or false
             end,
         },
         encounter_manager = {
@@ -77,8 +89,8 @@ local function make_deps(overrides)
         },
         party_reader = function()
             return {
-                { hp_pct = 0.42 },
-                { hp_pct = 0.18 },
+                { guid = "party-healer", hp_pct = 0.42, incoming_heal_pct = 0.05, role = "healer", is_tank = false },
+                { guid = "party-dps", hp_pct = 0.18, incoming_heal_pct = 0.00, role = "damager", is_tank = false },
             }
         end,
     }
@@ -116,7 +128,9 @@ do
         max_health = 1000,
         is_casting_spell = true,
         spell_id = 1234,
+        cast_pct = 61,
         interruptible = true,
+        target = make_unit({ guid = "tank-guid", role_id = 0 }),
     })
     local me = make_unit({
         health = 250,
@@ -130,8 +144,16 @@ do
     assert(ctx.self.hp_pct == 0.25, "self hp_pct should be normalized to 0..1")
     assert(ctx.self.incoming_heal_pct == 0.125, "incoming_heal_pct should be normalized to 0..1")
     assert(ctx.target.hp_pct == 0.25, "target hp_pct should be normalized to 0..1")
+    assert(ctx.self.incoming_damage_pct_2s == 0.25, "incoming_damage_pct_2s should be normalized to self max health")
     assert(ctx.party.lowest_hp_pct == 0.18, "party lowest_hp_pct should be normalized to 0..1")
     assert(ctx.party.any_ally_critical == true, "critical ally should be detected")
+    assert(type(ctx.party.members) == "table", "party members should be preserved for role policy")
+    assert(ctx.party.urgent_ally and ctx.party.urgent_ally.guid == "party-dps", "urgent_ally should identify the lowest uncovered ally")
+    assert(ctx.party.tank and ctx.party.tank.guid == "tank-guid", "party tank should be detected from party data or target victim")
+    assert(ctx.party.group_collapse_risk > 0, "group collapse risk should surface party danger")
+    assert(ctx.target.cast_progress_pct == 0.61, "cast progress should normalize to 0..1")
+    assert(ctx.target.victim_role == "tank", "target victim role should be normalized")
+    assert(ctx.target.victim_is_self == false, "target victim_is_self should reflect enemy cast target")
 end
 
 do
@@ -166,7 +188,9 @@ do
     assert(ctx.meta.valid == true, "fail-safe context should still be valid")
     assert(ctx.meta.fail_safe == true, "fail-safe should be enabled on incomplete reads")
     assert(ctx.self.incoming_damage_2s == 0, "throughput hints should zero when reads fail")
+    assert(ctx.self.incoming_damage_pct_2s == 0, "normalized damage hints should zero when reads fail")
     assert(ctx.party.lowest_hp_pct == 0, "party hints should zero when reads fail")
+    assert(ctx.party.urgent_ally == nil, "urgent ally should clear when reads fail")
     assert(ctx.target.exists == false, "target should fall back to non-existent in fail-safe mode")
 end
 
