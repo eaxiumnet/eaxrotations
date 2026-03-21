@@ -45,6 +45,7 @@ end
 
 local function zero_snapshot()
     return {
+        spec = nil,
         damage_total = 0,
         healing_total = 0,
         threat_total = 0,
@@ -70,6 +71,7 @@ end
 
 local function zero_reactive_state()
     return {
+        spec = nil,
         reactive_action = "none",
         action_id = "none",
         reason_code = "NO_ACTION",
@@ -94,6 +96,7 @@ local state = {
     last_threat_pct = 0,
     last_snapshot = zero_snapshot(),
     reactive = zero_reactive_state(),
+    combat_end_listeners = {},
 }
 
 local function as_amount(amount)
@@ -117,6 +120,7 @@ local function build_snapshot(damage_total, healing_total, threat_total, sample_
     end
 
     return {
+        spec = state.reactive.spec,
         damage_total = damage_total,
         healing_total = healing_total,
         threat_total = threat_total,
@@ -201,6 +205,18 @@ function dps_meter.increment_counter(counter_name, amount)
     state[counter_name] = state[counter_name] + (tonumber(amount) or 1)
 end
 
+function dps_meter.register_combat_end_listener(name, listener)
+    assert(type(name) == "string" and name ~= "", "combat-end listener name is required")
+
+    if listener == nil then
+        state.combat_end_listeners[name] = nil
+        return
+    end
+
+    assert(type(listener) == "function", "combat-end listener must be a function")
+    state.combat_end_listeners[name] = listener
+end
+
 function dps_meter.on_combat_end()
     local duration_s = 0
     if state.in_combat then
@@ -215,6 +231,10 @@ function dps_meter.on_combat_end()
         duration_s,
         false
     )
+
+    for _, listener in pairs(state.combat_end_listeners) do
+        pcall(listener, state.last_snapshot)
+    end
 
     state.in_combat = false
     state.started_at = 0
@@ -249,6 +269,7 @@ end
 function dps_meter.set_reactive_state(payload)
     payload = payload or {}
     state.reactive = {
+        spec = payload.spec,
         reactive_action = tostring(payload.reactive_action or payload.action_id or "none"),
         action_id = tostring(payload.action_id or payload.reactive_action or "none"),
         reason_code = tostring(payload.reason_code or "NO_ACTION"),
@@ -266,6 +287,7 @@ function dps_meter.get_snapshot()
     end
 
     return {
+        spec = state.last_snapshot.spec,
         damage_total = state.last_snapshot.damage_total,
         healing_total = state.last_snapshot.healing_total,
         threat_total = state.last_snapshot.threat_total,

@@ -133,7 +133,7 @@ snapshot.fail_safe_tick_count
     - .planning/phases/08-benchmark-matrix-hardening/08-VALIDATION.md
   </read_first>
   <files>benchmarks/phase08_live_baseline.csv</files>
-  <action>Run the updated benchmark command in the real Sylvanas/TBC runtime and save the approved baseline to `benchmarks/phase08_live_baseline.csv`. Use the exact command shape `lua tools/dps_benchmark.lua --matrix --live --runs 3 --label phase08-baseline --output benchmarks/phase08_live_baseline.csv`. Capture all 27 canonical specs with three live runs each. Do not use `--dry-run`, and do not hand-edit the resulting CSV after capture.</action>
+  <action>Capture the approved baseline from the real Sylvanas/TBC runtime using the in-runtime append/export flow. The updated runtime now auto-appends combat-end snapshots into loader `scripts_data/benchmarks/phase08_live_baseline.csv`, keyed by canonical spec and capped at three live runs per spec with `run_label=phase08-baseline`. Run one character/spec at a time until all 27 canonical specs have three captured runs, then copy the finished artifact back into the repo as `benchmarks/phase08_live_baseline.csv`. Do not use `--dry-run`, and do not hand-edit the resulting CSV after capture.</action>
   <acceptance_criteria>
     - `benchmarks/phase08_live_baseline.csv` exists
     - `benchmarks/phase08_live_baseline.csv` contains `evidence_mode`
@@ -146,9 +146,10 @@ snapshot.fail_safe_tick_count
     <automated>rtk lua tools/dps_benchmark.lua --dry-run --matrix</automated>
   </verify>
   <how-to-verify>
-    1. Copy the repo into the Sylvanas scripts folder or run it from the live scripts checkout.
-    2. Execute the command without `--dry-run` so each row is tagged `evidence_mode=live`.
-    3. Confirm the CSV contains 27 specs x 3 runs and keep the file in the repo at `benchmarks/phase08_live_baseline.csv`.
+    1. Copy the repo into the live Sylvanas scripts folder and load one canonical spec at a time in-game.
+    2. Let the updated runtime write combat-end rows into loader `scripts_data/benchmarks/phase08_live_baseline.csv`; each spec auto-stops at three captured runs.
+    3. Repeat across sessions/characters until the loader-side CSV contains all 27 canonical specs x 3 live runs.
+    4. Copy `scripts_data/benchmarks/phase08_live_baseline.csv` back into the repo as `benchmarks/phase08_live_baseline.csv` without editing it.
   </how-to-verify>
   <resume-signal>Type "done" after `benchmarks/phase08_live_baseline.csv` exists in the repo, or describe blockers.</resume-signal>
   <done>The repo has one checked-in live baseline matrix artifact that later release gating can evaluate deterministically.</done>

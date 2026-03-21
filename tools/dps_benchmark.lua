@@ -35,6 +35,10 @@ local CSV_KEYS = {
 }
 
 local SPEC_ROLE_INDEX = benchmark_thresholds.CANONICAL_SPEC_ROLE_MAP
+local RUNTIME_BASELINE_LABEL = "phase08-baseline"
+local RUNTIME_DATA_PATH = "benchmarks/phase08_live_baseline.csv"
+local RUNTIME_LOG_FILE = "phase08_live_baseline.log"
+local runtime_capture_installed = false
 
 local function as_number(value)
     return tonumber(value) or 0
@@ -64,6 +68,18 @@ local function file_exists(path)
         return true
     end
     return false
+end
+
+local function has_runtime_data_api()
+    return core
+        and type(core.create_data_folder) == "function"
+        and type(core.create_data_file) == "function"
+        and type(core.write_data_file) == "function"
+        and type(core.read_data_file) == "function"
+end
+
+local function has_runtime_log_api()
+    return core and type(core.create_log_file) == "function" and type(core.write_log_file) == "function"
 end
 
 local function parent_dir(path)
@@ -235,9 +251,15 @@ local function load_rows_from_file(path)
     end
 
     local handle = assert(io.open(path, "r"))
+    local content = handle:read("*a") or ""
+    handle:close()
+    return M.load_rows_from_string(content)
+end
+
+function M.load_rows_from_string(content)
     local rows = {}
     local first_line = true
-    for line in handle:lines() do
+    for line in (tostring(content or "") .. "\n"):gmatch("(.-)\r?\n") do
         if first_line and line == CSV_HEADER then
             first_line = false
         elseif line ~= "" and line ~= "schema: " .. CSV_HEADER then
@@ -277,7 +299,6 @@ local function load_rows_from_file(path)
             first_line = false
         end
     end
-    handle:close()
     return rows
 end
 
@@ -391,6 +412,113 @@ local function write_output(path, rows)
         handle:write(row_to_csv(row), "\n")
     end
     handle:close()
+end
+
+local function rows_to_csv_text(rows)
+    local lines = { CSV_HEADER }
+    for _, row in ipairs(rows) do
+        lines[#lines + 1] = row_to_csv(row)
+    end
+    return table.concat(lines, "\n") .. "\n"
+end
+
+local function runtime_log(message)
+    if not has_runtime_log_api() then
+        return
+    end
+
+    core.create_log_file(RUNTIME_LOG_FILE)
+    core.write_log_file(RUNTIME_LOG_FILE, tostring(message) .. "\n")
+end
+
+local function read_runtime_rows(path)
+    if not has_runtime_data_api() then
+        return {}
+    end
+    return M.load_rows_from_string(core.read_data_file(path) or "")
+end
+
+local function write_runtime_rows(path, rows)
+    core.create_data_folder("benchmarks")
+    core.create_data_file(path)
+    core.write_data_file(path, rows_to_csv_text(rows))
+end
+
+function M.capture_runtime_snapshot(snapshot, options)
+    options = options or {}
+    if not has_runtime_data_api() then
+        return false, "runtime data file APIs are unavailable"
+    end
+
+    snapshot = snapshot or {}
+    local spec = canonical_spec_name(snapshot)
+    if not spec then
+        runtime_log("skip runtime baseline capture: missing canonical spec")
+        return false, "missing canonical spec"
+    end
+    if as_number(snapshot.sample_count) < benchmark_thresholds.MIN_SAMPLE_COUNT then
+        runtime_log(string.format("skip runtime baseline capture for %s: sample_count below %d", spec, benchmark_thresholds.MIN_SAMPLE_COUNT))
+        return false, "sample_count below minimum"
+    end
+
+    local label = tostring(options.label or RUNTIME_BASELINE_LABEL)
+    local path = tostring(options.path or RUNTIME_DATA_PATH)
+    local existing_rows = read_runtime_rows(path)
+    local run_index = 1
+    for _, row in ipairs(existing_rows) do
+        if row.spec == spec and row.evidence_mode == "live" and row.run_label == label then
+            run_index = math.max(run_index, as_number(row.run_index) + 1)
+        end
+    end
+
+    if run_index > benchmark_thresholds.MIN_LIVE_RUNS then
+        runtime_log(string.format("skip runtime baseline capture for %s: already have %d runs", spec, benchmark_thresholds.MIN_LIVE_RUNS))
+        return false, "runs already complete"
+    end
+
+    local row = benchmark_matrix.build_row(spec, snapshot, {
+        evidence_mode = "live",
+        thresholds = benchmark_thresholds,
+        run_id = label .. "-" .. tostring(run_index),
+    })
+    row = set_row_metadata(with_snapshot_contract(row, snapshot), label, run_index)
+    existing_rows[#existing_rows + 1] = row
+
+    local summary = apply_summary_metadata(existing_rows)
+    write_runtime_rows(path, existing_rows)
+    runtime_log(string.format(
+        "captured %s run %d/%d -> %s (pass=%d fail=%d schema_only=%d)",
+        spec,
+        run_index,
+        benchmark_thresholds.MIN_LIVE_RUNS,
+        path,
+        as_number(summary.pass_count),
+        as_number(summary.fail_count),
+        as_number(summary.schema_only_count)
+    ))
+
+    return true, {
+        path = path,
+        spec = spec,
+        run_index = run_index,
+        summary = summary,
+    }
+end
+
+function M.install_runtime_capture()
+    if runtime_capture_installed or type(dps_meter.register_combat_end_listener) ~= "function" then
+        return false
+    end
+
+    dps_meter.register_combat_end_listener("phase08-runtime-capture", function(snapshot)
+        M.capture_runtime_snapshot(snapshot, {
+            label = RUNTIME_BASELINE_LABEL,
+            path = RUNTIME_DATA_PATH,
+        })
+    end)
+    runtime_capture_installed = true
+    runtime_log("installed phase08 runtime baseline capture")
+    return true
 end
 
 local function print_rows(rows)

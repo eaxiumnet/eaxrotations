@@ -141,6 +141,7 @@ assert(first_live_fields[23] == "0.00", "live rows should include variance_pct m
 local files = {}
 local log_messages = {}
 local registered_listener = nil
+local original_core = _G.core
 local runtime_meter = {
     register_combat_end_listener = function(name, listener)
         assert(name == "phase08-runtime-capture", "runtime capture should register under a stable listener name")
@@ -165,6 +166,7 @@ local runtime_core = {
     end,
 }
 
+_G.core = runtime_core
 local runtime_script = load_benchmark_module_with_stubs(runtime_meter, runtime_core)
 runtime_script.install_runtime_capture()
 assert(type(registered_listener) == "function", "runtime capture should install a combat-end listener")
@@ -194,6 +196,7 @@ registered_listener(runtime_snapshot)
 registered_listener(runtime_snapshot)
 registered_listener(runtime_snapshot)
 registered_listener(runtime_snapshot)
+_G.core = original_core
 
 local runtime_csv = files["benchmarks/phase08_live_baseline.csv"]
 assert(type(runtime_csv) == "string" and #runtime_csv > 0, "runtime capture should persist the baseline csv in scripts_data")

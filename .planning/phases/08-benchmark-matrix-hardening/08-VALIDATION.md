@@ -41,7 +41,7 @@ created: 2026-03-21
 | 08-01-01 | 01 | 1 | MATX-01, MATX-02 | unit | `rtk lua tests/benchmark_matrix_spec.lua` | ✅ | ⬜ pending |
 | 08-01-02 | 01 | 1 | MATX-01 | integration | `rtk lua tests/dps_meter_spec.lua && rtk lua tests/reactive_runtime_spec.lua` | ✅ | ⬜ pending |
 | 08-02-01 | 02 | 2 | MATX-01, MATX-02 | integration | `rtk lua tests/dps_benchmark_spec.lua && rtk lua tools/dps_benchmark.lua --dry-run` | ✅ | ⬜ pending |
-| 08-02-02 | 02 | 2 | MATX-02 | checkpoint | `rtk lua tools/dps_benchmark.lua --dry-run` | ❌ human creates `benchmarks/phase08_live_baseline.csv` | ⬜ pending |
+| 08-02-02 | 02 | 2 | MATX-02 | checkpoint | `rtk lua tools/dps_benchmark.lua --dry-run` | ❌ runtime appends to loader `scripts_data/benchmarks/phase08_live_baseline.csv`, then human copies approved artifact to `benchmarks/phase08_live_baseline.csv` | ⬜ pending |
 | 08-03-01 | 03 | 3 | MATX-03 | unit | `rtk lua tests/benchmark_gate_spec.lua && rtk lua tests/rotation_validation_spec.lua` | ✅ | ⬜ pending |
 | 08-03-02 | 03 | 3 | MATX-03 | integration | `rtk lua tests/benchmark_gate_spec.lua && rtk lua tests/rotation_validation_spec.lua && rtk lua tools/rotation_validation.lua` | ✅ | ⬜ pending |
 
@@ -59,7 +59,7 @@ Existing infrastructure covers all phase requirements.
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Capture the approved 27-spec live baseline matrix | MATX-02, MATX-03 | Real Sylvanas/TBC runtime evidence is not reproducible from the repo-only CLI harness | Run the updated benchmark command in the live environment for all 27 canonical specs with 3 runs each, save `benchmarks/phase08_live_baseline.csv`, confirm rows use `evidence_mode=live`, then resume execution |
+| Capture the approved 27-spec live baseline matrix | MATX-02, MATX-03 | Real Sylvanas/TBC runtime evidence is not reproducible from the repo-only CLI harness, and live capture now occurs from combat-end runtime hooks rather than an interactive console/CLI | Run the updated scripts in the live environment so combat-end snapshots accumulate inside loader `scripts_data/benchmarks/phase08_live_baseline.csv`, cycle through all 27 canonical specs until each has 3 runs, copy the finished CSV into repo `benchmarks/phase08_live_baseline.csv`, confirm rows use `evidence_mode=live`, then resume execution |
 
 ---
 

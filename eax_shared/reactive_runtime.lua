@@ -2,6 +2,12 @@ local combat_context = require("eax_shared/combat_context")
 local dps_meter = require("eax_shared/dps_meter")
 local reactive_engine = require("eax_shared/reactive_engine")
 local role_policy = require("eax_shared/role_policy")
+pcall(function()
+    local benchmark = require("tools/dps_benchmark")
+    if benchmark and benchmark.install_runtime_capture then
+        benchmark.install_runtime_capture()
+    end
+end)
 
 local reactive_runtime = {}
 
@@ -314,6 +320,7 @@ function reactive_runtime.update_tick(me, target, deps)
 
     local role_signal, role_target_kind = role_telemetry(ctx, result)
     dps_meter.set_reactive_state({
+        spec = deps.spec,
         reactive_action = result.action_id or "none",
         action_id = result.action_id or "none",
         reason_code = result.reason_code or "NO_ACTION",
