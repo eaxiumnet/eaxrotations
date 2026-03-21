@@ -1,119 +1,126 @@
-# Feature Landscape
+# Feature Research
 
-**Domain:** TBC Classic PvE combat rotation AI (movement-excluded)
-**Researched:** 2026-03-20
+**Domain:** TBC Classic Druid rotation reliability (Resto + Feral)
+**Researched:** 2026-03-21
+**Confidence:** HIGH (internal behavior), MEDIUM (ecosystem norms)
 
-## How Full Reactive Combat AI Typically Works
+## Feature Landscape
 
-Reactive combat AI systems in WoW-like ecosystems are usually implemented as a **priority decision loop** (snapshot state -> evaluate conditions -> pick highest-value legal action -> execute -> re-evaluate next tick/GCD). This matches SimulationCraft APL behavior and modern recommendation engines that adapt APL logic for live runtime decisions.
+### Table Stakes (Users Expect These)
 
-For this milestone, "full reactive" means role-specific decisions on top of normal DPS rotation:
+Features users assume exist for reliable Druid behavior in an established rotation suite.
 
-- **DPS:** maximize throughput while reacting to interrupts, threat spikes, defensives, and encounter policy (hold/use cooldowns).
-- **HPS:** triage targets by risk (incoming damage, current HP, expected overheal), choose efficient heal vs emergency heal, and reserve panic tools for lethal windows.
-- **Tank:** maintain threat lead and mitigation uptime, react to spike windows, and prioritize survivability/GCD safety over raw DPS.
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Resto hard role lock in grouped content (party/raid/dungeon/boss) | Healer specs are expected to prioritize healing/utility only in group PvE; intentional DPS in heal role is seen as griefing | MEDIUM | Depends on existing mode detection and role policy (`runtime.cached_mode`, `detect_mode`, `get_effective_mode`) and the current healing-first priority chain in `EAXDruidRestoration/main.lua`; add explicit DPS suppression guard before fallback branch. |
+| Resto solo-safe DPS policy | Solo resto should not idle forever, but should only DPS when no ally heal risk exists | MEDIUM | Build on current solo fallback path (`do_dps_fallback`) plus existing mana/health checks; add risk gates (self HP floor, mana floor, threat-safe, no pending heal emergency). |
+| Feral combo point source correctness on player object | Finisher reliability is impossible if CPs are read from target/object incorrectly | LOW | Already mostly implemented (`me:get_power(COMBOPOINTS_TBC)` in `EAXDruidFeral/main.lua`); table-stakes is making it deterministic and validated by telemetry when CP reads fail/desync. |
+| Feral finisher selection policy: Rip vs Bite by fight state | Standard feral expectation: sustain with Rip on longer targets, Bite for execute/die-soon windows | MEDIUM | Uses existing `try_rip`, `try_ferocious_bite`, bleed-immunity checks, and TTD tracker; tighten ordering rules to prevent missed finishers. |
+| Feral finisher timing policy (spend windows, no overcap waste) | Users expect 5 CP spend consistency and minimal CP/energy waste | HIGH | Depends on CP sync + energy pooling + GCD arbitration; requires anti-overcap logic when at high CP and builder would cap before finisher fires. |
+| Reliability validation loop for druid fixes | This milestone is explicitly trust-restoration; behavior must be repeatedly verifiable | MEDIUM | Leverage existing tooling (`tools/rotation_validation.lua`, `tools/dps_benchmark.lua`) with scenario checks for group lock, solo DPS gates, and finisher fire-rate consistency. |
 
-The common structure is:
+### Differentiators (Competitive Advantage)
 
-1. **State Snapshot Layer** (API-safe reads only)
-2. **Role Evaluators** (DPS/HPS/Tank scoring)
-3. **Reactive Overrides** (interrupt/defensive/utility preemption)
-4. **Action Arbitration** (one winner per decision frame, anti-thrash rules)
-5. **Execution + Telemetry** (cast result + benchmark/diagnostic outputs)
-
----
-
-## Table Stakes
-
-Features users expect in v1.1 reactive combat AI. Missing any of these will make "combat intelligence" feel incomplete.
-
-| Feature | Why Expected | Complexity | Dependencies on Existing System | Notes |
-|---------|--------------|------------|----------------------------------|-------|
-| Role-aware decision loop (DPS/HPS/Tank evaluators) | Core definition of "reactive AI"; static rotation is not enough | High | `main.lua` per spec, `spells.lua`, `utils.lua`, shared managers in `eax_shared/` | Must support preemption and one-action arbitration per tick |
-| Interrupt orchestration with cast-time and spell danger scoring | Standard in serious PvE automation | Medium | `eax_shared/interrupt_manager.lua`, encounter policy flags | Existing interrupt core is strong; needs tighter role/encounter integration |
-| Defensive ladder using incoming damage context (not HP% alone) | HP-only defensives are too late in spikes | High | `eax_shared/defensive_manager.lua`, encounter flags, threat data | Extend current threshold model with incoming-cast and burst-window awareness |
-| Utility reaction layer (dispel/decurse/purge/CC break/control) | Expected in dungeon/raid automation parity | High | `eax_shared/encounter_manager.lua`, class utility spell tables, API-safe debuff reads | Should be gated by encounter policy to avoid random utility spam |
-| Tank threat safety + aggro recovery behavior | Required for tank + high-output DPS stability | Medium | `eax_shared/threat_manager.lua`, taunt/fade/feint/salv logic per class | Threat manager exists; needs role-specific reaction policies |
-| Healing triage with overheal-aware spell selection | HPS quality depends on efficiency and target risk, not spam | High | Per-healer spec logic, mana manager, encounter policy | Requires explicit "effective heal" logic to avoid chronic overheal |
-| Cooldown policy by encounter phase (hold/burn/release) | Users expect boss-aware CD timing, not on-cooldown spam | Medium | `eax_shared/encounter_manager.lua`, per-spec cooldown lists | Burn-phase support exists; extend consistency across all 27 specs |
-| Strict `@.api` hard-gate enforcement for runtime calls | Explicit milestone requirement | High | `.api/` contracts, wrappers in `utils.lua`, validation tooling | Must fail fast on non-compliant calls; no soft warnings |
-| 27-spec benchmark matrix for DPS/HPS/TPS + behavior checks | Needed to prove parity and prevent regressions | Medium | `tools/dps_benchmark.lua`, `tools/rotation_validation.lua`, per-spec harness data | Current benchmark tooling is a base, needs behavior metrics beyond throughput |
-
----
-
-## Differentiators
-
-Features that move v1.1 from "good rotation pack" to "#1 combat intelligence suite".
+Features that are not required to ship, but materially improve confidence and market perception.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Unified reactive kernel + per-spec policy profiles | One decision architecture across 27 specs reduces drift and enables consistent behavior quality | High | Keep per-spec flavor, but centralize arbitration/preemption rules |
-| Predictive reaction windows (cast-end, spike, threat lead decay) | Reacts before failure events (late kicks, late defensives, late fades) | High | Uses near-future estimates from cast timers, threat trend, encounter flags |
-| Intent lock / anti-thrash arbitration | Prevents AI from oscillating between utility, defensive, and DPS actions every frame | Medium | Stabilizes output and improves human-like behavior |
-| Explainable decisions in telemetry ("why this action fired") | Faster tuning and trust; benchmark failures are diagnosable | Medium | Extend benchmark output with reason codes and policy branch IDs |
-| Role quality metrics, not just throughput | Distinguishes "high DPS but griefs group" from true intelligence | Medium | Track kick success quality, defensive timing quality, overheal %, threat incidents |
+| Context-aware Resto DPS gating (not just `mode == solo`) | Avoids dumb solo DPS behavior during high-risk moments and feels more human | MEDIUM | Extend solo fallback with dynamic risk scoring (incoming damage, mana trend, threat posture) using existing shared threat/mana helpers. |
+| Finisher reason telemetry (`why Rip`, `why Bite`, `why hold`) | Makes tuning and bug triage fast; users trust decisions they can audit | MEDIUM | Reuse existing debug/HUD channel and add reason codes around `try_rip`/`try_ferocious_bite` exits. |
+| Desync fail-safe recovery for feral CP state | Prevents silent finisher stalls from occasional API anomalies | HIGH | Add fallback reconcile path (short timeout + conservative builder reset) when CP appears stuck across multiple GCDs. |
+| Encounter-aware role strictness profiles | Lets healer lock be stricter in raids and more flexible in low-risk solo/daily play | MEDIUM | Integrates with current encounter manager and mode selector without new framework. |
 
----
+### Anti-Features (Commonly Requested, Often Problematic)
 
-## Anti-Features
+Features that seem attractive but reduce reliability for this milestone.
 
-Features to explicitly NOT build in this milestone.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Movement/pathing combat AI | Out of scope for this milestone; huge complexity explosion | Keep movement-excluded contract and maximize in-place decision quality |
-| PvP/reactive arena logic | Different objective function and control model | Keep PvE-only combat intelligence focus |
-| Direct memory or non-`@.api` access shortcuts | Violates hard-gate requirement and increases ban/risk profile | Enforce API wrapper layer and fail closed |
-| Per-spec bespoke reactive engines | 27-way logic drift, impossible maintenance | Shared kernel + spec policy tables |
-| "Perfect sim" overfitting | Runtime combat is noisy; hardcoded perfect scripts fail in real fights | Use robust priority + risk-aware heuristics with benchmark validation |
-
----
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| "Let Resto always weave DPS in groups" | Chases parse/throughput behavior | Violates healer role contract and causes avoidable deaths in unstable pulls | Keep strict group lock; allow only explicit utility/control casts and emergency-safe solo DPS. |
+| "Always Bite at 5 CP" | Simpler rule, easy to reason about | Loses sustained damage when Rip uptime should be maintained; ignores TTD and bleed immunity | Keep conditional Rip/Bite policy with TTD + execute thresholds. |
+| "Aggressive powershift/energy tricks as reliability fix" | Perceived DPS gain | Adds extra moving parts and can mask root CP finisher bugs | Fix CP/finisher arbitration first; tune powershift only after reliability passes. |
+| "Per-fight hand-tuned exceptions first" | Fast local wins | Creates brittle logic and maintenance drift across 27 specs | Implement generic policy guards and only add targeted exceptions after repeated evidence. |
 
 ## Feature Dependencies
 
 ```text
-API-safe State Snapshot
-  -> Role Evaluators (DPS/HPS/Tank)
-  -> Reactive Overrides (interrupt/defensive/utility)
-  -> Action Arbitration (priority + anti-thrash + legality)
-  -> Action Execution
-  -> Telemetry + 27-Spec Benchmark Matrix
+Resto Group Role Lock
+    └──requires──> Accurate Mode/Context Detection
+                         └──requires──> Stable Party/Raid Object Read
 
-Encounter Policy + Threat + Cooldown State
-  -> modifies Role Evaluators and Reactive Overrides at every decision point
+Resto Solo Safe DPS
+    └──requires──> Resto Group Role Lock
+    └──requires──> Risk Gates (HP/Mana/Threat/No-emergency-heal)
+
+Feral Reliable Finisher Execution
+    └──requires──> Correct CP Read on Player
+    └──requires──> Finisher Selection Policy (Rip vs Bite)
+    └──requires──> Energy/CP Spend Timing Arbitration
+
+Behavior Validation Loop
+    └──enhances──> Resto Group/Solo Policy
+    └──enhances──> Feral Finisher Reliability
 ```
 
-Key dependency chain for this milestone:
+### Dependency Notes
 
-1. `@.api` hard-gate wrappers
-2. Shared reactive decision kernel
-3. Role evaluators (DPS/HPS/Tank)
-4. Interrupt/utility/defensive preemption layer
-5. Benchmark matrix with behavior metrics
+- **Resto group lock requires context detection:** existing `detect_mode`/`get_effective_mode` already exists; reliability work is primarily policy enforcement, not new architecture.
+- **Resto solo DPS requires group lock first:** without an explicit lock, solo DPS rules leak into grouped scenarios.
+- **Feral finisher timing requires CP correctness:** if CP tracking is wrong, all higher-level finisher heuristics become noise.
+- **Validation loop depends on existing benchmark tools:** current tooling exists, but needs milestone-specific assertions (group no-DPS, solo safe-DPS, finisher spend cadence).
 
----
+## MVP Definition
 
-## MVP Recommendation (v1.1)
+### Launch With (v1.2 milestone close)
 
-Prioritize:
+- [x] Resto grouped-content DPS suppression policy with explicit allowlist for healing/utility only.
+- [x] Resto solo-safe DPS fallback gates (health/mana/threat/emergency-heal guard).
+- [x] Feral CP finisher reliability policy (Rip/Bite selection + spend timing).
+- [x] Repeatable druid reliability validation checklist integrated into existing validation scripts.
 
-1. **Reactive arbitration core + role evaluators**
-2. **Interrupt/defensive/utility preemption integration**
-3. **API hard-gate + benchmark matrix behavior pass across all 27 specs**
+### Add After Validation (v1.2.x)
 
-Defer:
+- [ ] Finisher reason telemetry + HUD indicators — add once baseline pass-rate is stable across test sessions.
+- [ ] Adaptive solo DPS aggressiveness profiles — add after no-regression confidence in grouped healer behavior.
 
-- **Deep predictive tuning per encounter**: valuable differentiator, but only after baseline reactive parity passes the 27-spec matrix.
+### Future Consideration (v2+)
 
----
+- [ ] Per-encounter policy packs for druid edge cases — defer until broader cross-spec reliability work resumes.
+- [ ] Cross-spec shared policy extraction for all healers/melee builders — defer until this druid milestone proves the model.
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Resto grouped-content DPS suppression | HIGH | MEDIUM | P1 |
+| Resto solo-safe DPS gating | HIGH | MEDIUM | P1 |
+| Feral CP finisher reliability (selection + timing) | HIGH | HIGH | P1 |
+| Druid-specific validation scenarios | HIGH | MEDIUM | P1 |
+| Finisher reason telemetry | MEDIUM | MEDIUM | P2 |
+| Adaptive risk profiles | MEDIUM | MEDIUM | P2 |
+
+**Priority key:**
+- P1: Must have for milestone close
+- P2: Should have after reliability baseline
+- P3: Nice to have, future consideration
+
+## Competitor Feature Analysis
+
+| Feature | Competitor A | Competitor B | Our Approach |
+|---------|--------------|--------------|--------------|
+| Resto healing priority in group play | Icy Veins TBC guidance emphasizes reactive healing/HoT maintenance and emergency tools over DPS rotation | Common private-server rotation packs often expose toggles but vary in safety defaults | Ship strict group healer lock as default and make solo DPS explicitly gated rather than always-on. |
+| Feral finisher usage | Icy Veins TBC guidance prioritizes Rip on live-long targets and Bite when target dies before Rip value | Community scripts commonly use simple CP threshold rules with mixed TTD handling | Keep CP thresholds, but add explicit TTD/execute and anti-waste timing checks for reliability. |
 
 ## Sources
 
-- Internal project context: `.planning/PROJECT.md` (HIGH)
-- Internal baseline requirements: `.planning/REQUIREMENTS.md` (HIGH)
-- Current shared behavior modules: `eax_shared/interrupt_manager.lua`, `eax_shared/defensive_manager.lua`, `eax_shared/threat_manager.lua`, `eax_shared/encounter_manager.lua` (HIGH)
-- Current benchmarking/validation tooling: `tools/dps_benchmark.lua`, `tools/rotation_validation.lua` (HIGH)
-- SimulationCraft Action Priority List model (priority-loop baseline): https://github.com/simulationcraft/simc/wiki/ActionLists (MEDIUM, current page edit Mar 13, 2026)
-- Hekili priority translation notes (live runtime adaptation of SimC priorities): https://github.com/Hekili/hekili/wiki/Priorities-and-Optimization (MEDIUM, current page edit Oct 25, 2024)
+- Project scope and constraints: `.planning/PROJECT.md` (HIGH)
+- Current Resto logic and mode handling: `EAXDruidRestoration/main.lua` (HIGH)
+- Current Feral CP and finisher logic: `EAXDruidFeral/main.lua` (HIGH)
+- Existing validation harnesses: `EAXDruidRestoration/tools/rotation_validation.lua`, `EAXDruidFeral/tools/rotation_validation.lua`, `tools/dps_benchmark.lua` (HIGH)
+- TBC Resto priority reference (updated Jan 12, 2026): https://www.icy-veins.com/tbc-classic/restoration-druid-healer-pve-rotation-cooldowns-abilities (MEDIUM)
+- TBC Feral finisher/powershift reference (updated Jan 12, 2026): https://www.icy-veins.com/tbc-classic/feral-druid-dps-pve-rotation-cooldowns-abilities (MEDIUM)
+- Ferocious Bite spell behavior reference (TBC DB): https://wowclassicdb.com/tbc/spell/24248 (LOW-MEDIUM; third-party DB parsing quality varies)
 
-Confidence note: role-specific reactive heuristics (especially HPS effective-heal and tank spike anticipation) are based on ecosystem practice plus internal architecture evidence, but without a single authoritative TBC-era "standard" spec document; treat fine-grain threshold tuning as phase-level calibration work.
+---
+*Feature research for: Druid reliability fixes milestone (Resto group-vs-solo, Feral finishers)*
+*Researched: 2026-03-21*

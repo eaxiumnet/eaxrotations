@@ -1,152 +1,149 @@
 # Project Research Summary
 
-**Project:** EAX TBC Classic Rotations (milestone v1.1 Combat Intelligence)
-**Domain:** TBC Classic PvE reactive rotation AI (movement-excluded)
-**Researched:** 2026-03-20
+**Project:** EAX TBC Classic Rotations (milestone v1.2 Druid Reliability)
+**Domain:** TBC Classic Druid rotation reliability (Restoration role policy + Feral finisher consistency)
+**Researched:** 2026-03-21
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This milestone is not a greenfield rotation rewrite; it is a reliability and intelligence upgrade for a mature 27-spec Lua suite running on Sylvanas APIs. The strongest expert pattern across all research is a shared reactive decision pipeline (context snapshot -> role policy -> preemptive override -> action arbitration) inserted ahead of existing per-spec lanes, rather than bespoke per-spec reactive engines.
+This research describes a targeted reliability milestone in a mature Lua rotation framework, not a stack rewrite. The product goal is strict behavior correctness in two high-trust paths: Restoration must never leak offensive behavior in grouped healer contexts, and Feral must spend combo points consistently with TBC-accurate finisher rules. Expert implementation pattern is to enforce policy gates at clear choke points in existing spec lanes while keeping shared runtime contracts stable.
 
-The recommended approach is to centralize v1.1 behavior into shared modules (`combat_context`, `reactive_engine`, `reactive_policies`, `benchmark_probe`) and keep per-spec `main.lua` files thin adapters. In parallel, enforce a strict `@.api` hard gate and promote benchmarking from throughput-only checks to a 27-spec matrix that includes behavior quality (interrupt timing, defensive latency, threat and overheal outcomes).
+The recommended approach is to add two focused shared/internal reliability modules (`group_context_gate` and `feral_finisher_state`) and wire them into `EAXDruidRestoration/main.lua` and `EAXDruidFeral/main.lua` before offensive/filler branches execute. Use API-first truth (`get_power(COMBOPOINTS_TBC)` and `get_combo_points_target`) for Feral state, and fail-closed grouped-healer lock semantics for Resto. Reuse current validation and benchmark tooling with new druid-specific assertions/counters rather than introducing new frameworks.
 
-The highest risks are performance regression in tick hot paths, false confidence from static-only validation, and API-compliance drift under delivery pressure. Mitigation is explicit: cached context reads with tick-budget instrumentation, a three-layer validation model (static + deterministic scenario + live), fail-closed allowlist enforcement, and matrix sign-off that excludes mock rows.
+The biggest risks are context drift, side-channel offense bypassing the healer no-DPS promise, and CP/energy logic deadlocks that starve finishers. Mitigation is explicit and evidence-based: single-source policy gating across all hostile-capable helpers, deterministic finisher gate before builders, bounded deferral rules, and benchmark-backed sign-off metrics (`group_hostile_cast_count`, CP-cap dwell, finisher latency/throughput).
 
 ## Key Findings
 
 ### Recommended Stack
 
-v1.1 should stay pure Lua with no runtime dependency changes, but add shared runtime modules plus stricter local tooling. Plugin code remains Lua 5.x-compatible for Sylvanas runtime; tooling scripts target local Lua 5.4.5 for deterministic validation and benchmark artifact generation.
+Keep the existing Lua 5.x Sylvanas runtime and current shared runtime architecture; this milestone should be solved with internal modules and stricter policy/state handling, not new dependencies.
 
 **Core technologies:**
-- `common/eax_shared/combat_context.lua`: normalized per-tick snapshot builder - prevents repeated ad-hoc data reads and scale mismatches.
-- `common/eax_shared/reactive_engine.lua` + `common/eax_shared/reactive_policies.lua`: deterministic role-aware arbitration - enables consistent reactive behavior across all 27 specs.
-- `common/eax_shared/benchmark_probe.lua` / `eax_shared/benchmark_metrics.lua`: reactive KPI capture - extends raw DPS into behavior-quality scoring.
-- `tools/api_surface_extract.lua` + `tools/api_hard_gate.lua`: API allowlist extraction and hard fail gate - enforces `@.api` contract as a blocker, not a warning.
-- `tools/dps_benchmark.lua --matrix` + `tools/benchmark_matrix.lua`: standardized 27-spec matrix output - required for cross-spec regression control.
+- `Lua 5.x` in Sylvanas plugins: existing runtime boundary; reliability fixes remain deterministic in current tick loop.
+- Sylvanas API surface (`game_object`, `core`): authoritative context and CP reads (`is_party_member`, `get_group_role`, `get_power`, `get_combo_points_target`).
+- `eax_shared` runtime path: reuse `combat_context`, `reactive_runtime`, `role_policy`, and `encounter_manager` integration points.
+- `eax_shared/group_context_gate.lua` (new): centralized grouped-vs-solo classification and healer DPS lock authority.
+- `eax_shared/feral_finisher_state.lua` (new): deterministic CP ownership/target/energy state and finisher gating.
+
+Critical compatibility requirement: use API-first CP reads (`COMBOPOINTS_TBC` + CP target) and treat cast-callback CP accounting as fallback only.
 
 ### Expected Features
 
-Research converges on one definition of "combat intelligence": role-aware reactions layered onto existing rotation throughput, with strict legal-call validation and measurable cross-spec quality.
-
 **Must have (table stakes):**
-- Role-aware decision loop (DPS/HPS/Tank) with one-action arbitration per tick.
-- Interrupt + defensive + utility preemption driven by context, not HP% only.
-- Threat safety/recovery and healer triage with overheal-aware decisions.
-- Encounter-phase cooldown policy (hold/burn/release).
-- Strict `@.api` hard-gate enforcement.
-- 27-spec benchmark matrix with DPS/HPS/TPS plus behavior checks.
+- Resto hard lock: no intentional DPS in party/raid/dungeon/boss healer contexts.
+- Resto solo-safe DPS: offensive fallback only under safe HP/mana/threat/no-emergency-heal conditions.
+- Feral finisher reliability: correct CP source, Rip/Bite selection by fight state, and anti-overcap spend timing.
+- Repeatable validation loop with druid-specific checks in existing validation/benchmark tools.
 
 **Should have (competitive):**
-- Unified reactive kernel with per-spec policy profiles.
-- Predictive reaction windows (cast-end, spike, threat decay).
-- Intent lock / anti-thrash controls.
-- Explainable decision telemetry (reason codes/branch IDs).
+- Context-aware solo DPS aggressiveness (beyond raw `mode == solo`).
+- Finisher reason telemetry (`why rip/bite/hold`) for fast tuning and trust.
+- Desync fail-safe recovery when CP state appears stuck.
 
 **Defer (v2+):**
-- Deep encounter-specific predictive tuning beyond baseline parity.
-- Movement/pathing AI and PvP logic (explicitly out of scope).
+- Per-encounter druid policy packs.
+- Cross-spec generalized extraction of healer/melee reliability policy after druid model proves stable.
 
 ### Architecture Approach
 
-Keep `EAX*/main.lua` as orchestration only, insert a shared context-first pipeline, and preserve existing rotation lanes as fallback. The architecture should separate "what to do" (shared engine/policies) from "how to cast" (spec adapters), then instrument every reactive decision for matrix-grade validation.
+The architecture recommendation is spec-local behavior fixes with shared runtime stability: keep `reactive_runtime` and branch ordering unchanged, and inject explicit policy gates right before throughput actions (`do_dps_fallback` for Resto, builder lane entry for Feral). Extend `menu.lua` defaults toward conservative reliability, and extend `tools/rotation_validation.lua`/`tools/dps_benchmark.lua` for objective milestone evidence.
 
 **Major components:**
-1. `main.lua` (27 specs) - wiring, guard checks, shared pipeline invocation, fallback to existing lanes.
-2. `common/eax_shared/combat_context.lua` - build a single normalized tick context (`self`, `target`, `party`, `encounter`).
-3. `common/eax_shared/reactive_engine.lua` - enforce precedence (`life_save > interrupt > anti-overheal > anti-aggro > burst policy`).
-4. `common/eax_shared/reactive_policies.lua` - central thresholds per role/spec to avoid drift.
-5. `common/eax_shared/benchmark_probe.lua` - runtime reasoned event counters merged into matrix reporting.
-6. `tools/api_hard_gate.lua` and updated `tools/rotation_validation.lua` - static compliance gate.
-7. Updated `tools/dps_benchmark.lua` matrix mode - standardized cross-spec verdict output.
+1. `EAXDruidRestoration/main.lua` - grouped-healer lock and solo-safe DPS gate before offensive paths.
+2. `EAXDruidFeral/main.lua` - deterministic finisher gate (CP target affinity, spend-before-build, anti-overcap).
+3. `eax_shared/reactive_runtime.lua` - unchanged integration bus and action sequencing contract.
+4. `eax_shared/group_context_gate.lua` (new) - single source of truth for Resto DPS eligibility.
+5. `eax_shared/feral_finisher_state.lua` (new) - CP/energy/target state machine for finisher decisions.
+6. `tools/rotation_validation.lua` and `tools/dps_benchmark.lua` - evidence gates for reliability sign-off.
 
 ### Critical Pitfalls
 
-1. **Tick-budget meltdown** - prevent with cheap-first checks, cached scans (100-250ms), table reuse, and p95/p99 loop telemetry.
-2. **Priority oscillation / cast thrash** - prevent with strict decision ladder, mutual exclusivity, hysteresis, and reason-coded actions.
-3. **False-positive validation** - prevent by separating static wiring checks from deterministic scenario replay and live runtime verification.
-4. **Benchmark contamination** - prevent with fixed protocol + metadata, real-vs-mock tagging, and median/IQR-based interpretation.
-5. **API compliance drift** - prevent with mandatory allowlist gate and shared adapter ownership of host/API calls.
+1. **Group-context drift leaks healer DPS** - enforce one fail-closed `is_group_healer_lock` evaluated at decision time.
+2. **Side-channel offense bypass** - gate all hostile-capable helpers (wand/melee/racial/utility) through the same policy wrapper.
+3. **UI override precedence breaks guarantees** - codify precedence as safety policy > role lock > user throughput preferences.
+4. **Wrong Ferocious Bite energy model** - separate minimum cast cost from optional extra-energy conversion; do not use CP*35 gating.
+5. **CP ownership/target desync and deadlocks** - API-first CP state machine, bounded finisher deferral, and CP-lock-aware targeting.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Reactive Contract and API Gate Foundations
-**Rationale:** Everything depends on a stable context schema and legal API surface before behavior tuning.
-**Delivers:** `combat_context` schema, nil contracts, reason-code standard, `api_surface_extract` + `api_hard_gate` integrated into `rotation_validation`.
-**Addresses:** API hard gate, state snapshot layer, action arbitration contract.
-**Avoids:** API compliance drift, nil-state crashes, false-green validation.
+### Phase 1: Role Policy Hard Lock Foundation
+**Rationale:** Trust-critical Resto no-DPS guarantee must be established before any tuning work.
+**Delivers:** `group_context_gate`, policy precedence rules, grouped-healer hard lock before all offensive paths, strict default toggles.
+**Addresses:** Resto grouped lock + solo dependency chain from FEATURES.
+**Avoids:** context drift and override-induced policy leaks from PITFALLS 1 and 3.
 
-### Phase 2: Shared Reactive Engine and Policy Wiring Across 27 Specs
-**Rationale:** Central engine must be wired uniformly before per-role tuning can be trusted.
-**Delivers:** `reactive_engine` + `reactive_policies`, adapter insertion in all `EAX*/main.lua`, backward-compatible manager context hints.
-**Uses:** New shared modules from stack recommendations.
-**Implements:** Architecture pattern of shared intent + spec execution adapters.
+### Phase 2: Feral Finisher State Machine and Integration Hardening
+**Rationale:** CP correctness and spender arbitration are the highest complexity/risk block and depend on stable phase-1 policy boundaries.
+**Delivers:** `feral_finisher_state`, API-first CP ownership/target rules, bite/rip decision correctness, bounded hold/preemption, cross-module hostile-gate consistency.
+**Uses:** stack recommendations for API-first reads and shared module integration.
+**Implements:** architecture pattern of finisher gate before builders.
+**Avoids:** finisher starvation, CP desync, and side-channel bypass pitfalls (2, 4, 5, 7).
 
-### Phase 3: Role Intelligence Pass (DPS/HPS/Tank Behavior Quality)
-**Rationale:** After universal wiring, tune role-specific logic where intelligence quality is actually felt.
-**Delivers:** Interrupt urgency, defensive timing from predicted damage, healer triage/overheal controls, tank threat recovery and cooldown phase policy.
-**Addresses:** Core table-stakes reactive features.
-**Avoids:** Throughput-only optimization and oscillation under pressure.
+### Phase 3: Targeting and CP-Preservation Cohesion
+**Rationale:** After core finisher logic is stable, resolve target-selection conflicts that waste capped CP.
+**Delivers:** CP-lock-aware selector behavior across normal/smart/focus targeting, explicit logged bypass paths, swap-at-cap telemetry.
+**Addresses:** finisher consistency under real encounter target churn.
+**Avoids:** target-switch waste pitfall (6).
 
-### Phase 4: Benchmark Matrix Hardening and Regression Enforcement
-**Rationale:** v1.1 sign-off requires proof across all specs, not anecdotal performance.
-**Delivers:** Matrix mode outputs with reactive KPIs, real-vs-mock run tagging, dispersion stats, fail thresholds, checklist sync.
-**Addresses:** 27-spec benchmark requirement and release confidence.
-**Avoids:** contaminated metrics and false-positive milestone completion.
+### Phase 4: Validation and Benchmark Gate
+**Rationale:** Milestone should close only with evidence, not code-path confidence.
+**Delivers:** druid scenario matrix, objective counters, repeated benchmark runs, acceptance thresholds for grouped no-DPS and feral spend cadence.
+**Addresses:** validation-loop table stake from FEATURES.
+**Avoids:** regression blind spots and "looks fixed" false positives (pitfall 8).
 
 ### Phase Ordering Rationale
 
-- Start with contracts and gates because every downstream phase can otherwise produce non-compliant or non-comparable results.
-- Wire all specs before deep tuning to avoid tuning against partial adoption and cross-spec drift.
-- Tune role intelligence before matrix hardening so KPIs capture intended behavior quality.
-- End with enforcement to lock regressions and support repeatable release criteria.
+- Put policy lock first because solo rules and integration hardening are unsafe without a fail-closed grouped-healer baseline.
+- Put finisher state machine second because CP truth and spender arbitration are prerequisites for meaningful targeting refinements.
+- Isolate targeting cohesion after finisher correctness to avoid conflating two root causes of spend failures.
+- End with evidence gate so sign-off reflects behavior across transitions, not one-off success cases.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 3:** healer effective-heal triage thresholds and tank spike prediction calibration are domain-sensitive and need targeted scenario research.
-- **Phase 4:** benchmark protocol calibration (encounter profiles, retry counts, dispersion thresholds) needs phase-level rigor to avoid noisy verdicts.
+- **Phase 2:** Ferocious Bite edge semantics and lag-tolerant CP reconciliation behavior need scenario-level calibration.
+- **Phase 3:** Target-selector interactions across smart/focus modes are integration-heavy and historically fragile.
 
-Phases with standard patterns (can likely skip `/gsd-research-phase`):
-- **Phase 1:** API allowlist extraction + fail-closed lint gate is well-bounded and source-backed.
-- **Phase 2:** shared-engine + adapter-boundary integration pattern is clear and already documented in architecture findings.
+Phases with standard patterns (skip `/gsd-research-phase`):
+- **Phase 1:** Role lock + policy precedence is strongly documented and directly grounded in current code paths.
+- **Phase 4:** Validation workflow structure is already established; only druid-specific metrics/checklists need extension.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Strong internal-source alignment (`PROJECT.md`, existing tools/modules, explicit version constraints). |
-| Features | HIGH | Milestone requirements and shared-manager baseline clearly define must-haves; only fine-grain thresholds need tuning. |
-| Architecture | HIGH | Directly grounded in current repo structure and concrete integration points across shared + per-spec code. |
-| Pitfalls | HIGH | Pitfalls map to known Lua/runtime/tooling failure modes and match current validation/benchmark gaps. |
+| Stack | HIGH | Strong internal-source backing and no dependency churn; recommendations align with existing APIs/runtime. |
+| Features | HIGH | Table-stakes and priority mapping are clear and consistent with milestone objectives. |
+| Architecture | HIGH | Concrete component boundaries, data flow, integration points, and validation points are explicit. |
+| Pitfalls | HIGH | Risks are specific, reproducible, and mapped to prevention phases with measurable warning signals. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- Healer and tank threshold calibration: finalize concrete trigger values via scenario-based replay + live runs before locking pass/fail KPI targets.
-- Benchmark standardization details: confirm exact encounter presets, fight duration, retries, and allowable variance bands for matrix gating.
-- Telemetry volume controls: validate default sampling/ring-buffer strategy so instrumentation does not degrade tick latency.
+- Exact threshold values for solo-safe DPS and finisher deferral windows still need empirical tuning in benchmark scenarios.
+- Side-channel hostile path inventory (wand/racial/utility helpers) should be fully enumerated during implementation to avoid missed gates.
+- CP anomaly handling under high-latency/private-server tick jitter needs explicit stress validation before final defaults are locked.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `.planning/research/STACK.md` - module/tooling recommendations, compatibility rules, integration sequence.
-- `.planning/research/FEATURES.md` - table-stakes vs differentiators, anti-features, dependency chain.
-- `.planning/research/ARCHITECTURE.md` - component boundaries, data flow, dependency-safe build order.
-- `.planning/research/PITFALLS.md` - critical/moderate/minor risk patterns and phase warnings.
-- `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`, `tools/rotation_validation.lua`, `tools/dps_benchmark.lua` (as cited in research files).
+- `.planning/research/STACK.md` - stack constraints, module recommendations, API compatibility, telemetry suggestions.
+- `.planning/research/FEATURES.md` - table stakes, differentiators, anti-features, and dependency graph.
+- `.planning/research/ARCHITECTURE.md` - component boundaries, patterns, integration points, phase-aware validation points.
+- `.planning/research/PITFALLS.md` - critical pitfalls, phase mapping, warning signs, and recovery strategies.
+- `.planning/PROJECT.md`, `.api/game_object.lua`, `.api/common/enums.lua`, `EAXDruidRestoration/main.lua`, `EAXDruidFeral/main.lua`, `tools/rotation_validation.lua`, `tools/dps_benchmark.lua` (as cited in research docs).
 
 ### Secondary (MEDIUM confidence)
-- SimulationCraft APL action-list reference - baseline priority-loop model.
-- Hekili priority adaptation notes - practical runtime translation patterns.
+- Icy Veins TBC Restoration and Feral rotation references - role expectations and Rip/Bite usage norms.
+- Warcraft Wiki and WowClassicDB Ferocious Bite/Combo Point references - expansion mechanics semantics and historical CP behavior.
 
 ### Tertiary (LOW confidence)
-- None required for core v1.1 conclusions.
+- None required for primary roadmap direction; low-confidence conclusions were not used as hard requirements.
 
 ---
-*Research completed: 2026-03-20*
+*Research completed: 2026-03-21*
 *Ready for roadmap: yes*
