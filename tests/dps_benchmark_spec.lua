@@ -7,7 +7,8 @@ local EXPECTED_SCHEMA = "spec,role,damage_total,healing_total,threat_total,dps,h
 
 local function split_csv(line)
     local fields = {}
-    for field in tostring(line):gmatch("([^,]+)") do
+    local source = tostring(line or "") .. ","
+    for field in source:gmatch("(.-),") do
         fields[#fields + 1] = field
     end
     return fields
@@ -81,6 +82,7 @@ dps_meter.reset()
 ok, run_err, output = capture_run({ "--matrix", "--live", "--runs", "2", "--label", "phase08-live" }, {
     get_snapshot = function()
         return {
+            spec = "EAXMageArcane",
             damage_total = 24000,
             healing_total = 3000,
             threat_total = 1200,
@@ -108,7 +110,7 @@ local live_rows = collect_data_rows(output)
 assert(#live_rows == 2, "--runs 2 should emit two live rows for the current spec")
 
 local first_live_fields = split_csv(live_rows[1])
-assert(first_live_fields[1] == "CURRENT_SPEC", "live mode should emit the current spec row")
+assert(first_live_fields[1] == "EAXMageArcane", "live mode should emit the active canonical spec row")
 assert(first_live_fields[5] == "1200", "live rows should export threat_total from the shared meter contract")
 assert(first_live_fields[8] == "20.00", "live rows should export tps from the shared meter contract")
 assert(first_live_fields[15] == "4", "live rows should export reactive_event_count")
