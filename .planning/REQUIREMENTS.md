@@ -33,8 +33,8 @@
 
 ### Benchmark Matrix Hardening
 
-- [ ] **MATX-01**: Benchmark tooling runs a 27-spec matrix with DPS/HPS/TPS and reactive behavior KPIs.
-- [ ] **MATX-02**: Matrix outputs include run metadata, variance stats, and real-vs-mock tagging for trustworthy comparisons.
+- [x] **MATX-01**: Benchmark tooling runs a 27-spec matrix with DPS/HPS/TPS and reactive behavior KPIs.
+- [x] **MATX-02**: Matrix outputs include run metadata, variance stats, and real-vs-mock tagging for trustworthy comparisons.
 - [ ] **MATX-03**: Milestone quality gate passes only when matrix thresholds and regression checks succeed.
 
 ## Future Requirements (Deferred)
@@ -68,8 +68,8 @@
 | ROLE-02 | Phase 7 | Complete |
 | ROLE-03 | Phase 7 | Complete |
 | ROLE-04 | Phase 7 | Complete |
-| MATX-01 | Phase 8 | Pending |
-| MATX-02 | Phase 8 | Pending |
+| MATX-01 | Phase 8 | Complete |
+| MATX-02 | Phase 8 | Complete |
 | MATX-03 | Phase 8 | Pending |
 
 **Coverage:**

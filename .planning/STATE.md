@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: READY
-stopped_at: Phase 8 context gathered
-last_updated: "2026-03-20T23:42:22.702Z"
+status: unknown
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-21T00:05:02.912Z"
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 15
+  completed_plans: 13
 ---
 
 # Project State
@@ -23,10 +23,8 @@ See: `.planning/PROJECT.md` (updated 2026-03-20)
 
 ## Current Position
 
-Phase: 08
-Phase Name: benchmark-matrix-hardening
-Plan: 0 of TBD
-Status: READY
+Phase: 08 (benchmark-matrix-hardening) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -60,6 +58,7 @@ Status: READY
 | Phase 07 P02 | 11 min | 2 tasks | 7 files |
 | Phase 07 P04 | 16 min | 2 tasks | 22 files |
 | Phase 07 P05 | 6 min | 2 tasks | 6 files |
+| Phase 08 P01 | 7 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -100,6 +99,9 @@ Recent decisions affecting current work:
 - [Phase 07]: Keep interrupts aggressive by only gating burst, threat drops, and risky cast commits, not interrupt winners.
 - [Phase 07]: Keep tools/rotation_validation.lua as the single blocking gate and extend it with per-family role parity summaries. — Phase 07 needs one deterministic validation surface that fails fast on healer, tank, or DPS regressions instead of splitting checks across multiple scripts.
 - [Phase 07]: Store role_signal and role_target_kind in the shared meter so dry-run and live benchmark rows share one telemetry contract. — Phase 08 matrix work needs one normalized source for role-quality telemetry instead of special-casing dry-run output.
+- [Phase 08]: Keep matrix verdict math in shared helper modules so benchmark and validation entrypoints reuse one deterministic contract.
+- [Phase 08]: Treat mock evidence as schema_only and release-nonpassing while exposing near_fail only as informational pass metadata.
+- [Phase 08]: Derive TPS and behavior KPI counters from shared runtime ticks instead of reopening all 27 spec files.
 
 ### Pending Todos
 
@@ -108,10 +110,9 @@ None yet.
 ### Blockers/Concerns
 
 - Healer/tank threshold calibration still needs phase-level tuning strategy during Phase 7 planning.
-- Matrix variance thresholds need explicit lock-in during Phase 8 planning.
 
 ## Session Continuity
 
-Last session: 2026-03-20T23:42:22.699Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-benchmark-matrix-hardening/08-CONTEXT.md
+Last session: 2026-03-21T00:05:02.910Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None
