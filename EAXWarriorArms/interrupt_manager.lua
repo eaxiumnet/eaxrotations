@@ -1,4 +1,4 @@
 -- interrupt_manager.lua
--- DEPRECATED: Re-exports from common/eax_shared/
+-- DEPRECATED: Re-exports from eax_shared/
 -- Will be removed in future version
-return require("common/eax_shared/interrupt_manager")
+return require("eax_shared/interrupt_manager")

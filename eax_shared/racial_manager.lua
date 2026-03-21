@@ -1,5 +1,5 @@
 -- racial_manager.lua
--- common/eax_shared/racial_manager.lua
+-- eax_shared/racial_manager.lua
 -- Handles racial ability cooldowns for all TBC Classic races.
 
 local racial_manager = {}

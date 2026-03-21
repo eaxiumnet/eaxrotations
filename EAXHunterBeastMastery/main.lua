@@ -9,19 +9,19 @@ local color   = require("color")
 ---@type buff_manager
 local buff_manager  = require("common/modules/buff_manager")
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("eax_shared/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager   = require("common/eax_shared/ooc_manager")
+local ooc_manager   = require("eax_shared/ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("common/eax_shared/vendor_automation")
+local vendor_automation = require("eax_shared/vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("common/eax_shared/consumables_manager")
+local consumables_manager = require("eax_shared/consumables_manager")
 ---@type mount_manager
-local mount_manager = require("common/eax_shared/mount_manager")
+local mount_manager = require("eax_shared/mount_manager")
 ---@type leveling_manager
 local leveling_manager  = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("common/eax_shared/encounter_manager")
+local encounter_manager = require("eax_shared/encounter_manager")
 local enc = nil
 ---@type esp_renderer
 local esp_renderer  = require("esp_renderer")
@@ -29,9 +29,9 @@ esp_renderer.init("bm", "Hunter BM")
 
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("common/eax_shared/dps_meter")
-local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
-local visual_state = require("common/eax_shared/visual_state")
+local dps_meter = require("eax_shared/dps_meter")
+local cooldown_tracker = require("eax_shared/cooldown_tracker")
+local visual_state = require("eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
 local dps_risk = require("eax_shared/dps_risk")
 local dps_runtime = require("eax_shared/dps_runtime")
@@ -146,13 +146,13 @@ end)
 ---@type ttd_tracker
 local ttd_tracker   = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("eax_shared/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("eax_shared/defensive_manager")
 ---@type threat_manager
 local threat_manager = require("eax_shared/threat_manager")
 ---@type swing_timer
-local swing_timer = require("common/eax_shared/swing_timer")
+local swing_timer = require("eax_shared/swing_timer")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false

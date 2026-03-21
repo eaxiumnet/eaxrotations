@@ -14,22 +14,22 @@ local enums = (function()
 end)()
 
 ---@type interrupt_manager
-local interrupt_manager = require("common/eax_shared/interrupt_manager")
+local interrupt_manager = require("eax_shared/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("common/eax_shared/ooc_manager")
+local ooc_manager = require("eax_shared/ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("common/eax_shared/vendor_automation")
+local vendor_automation = require("eax_shared/vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("common/eax_shared/consumables_manager")
+local consumables_manager = require("eax_shared/consumables_manager")
 ---@type mount_manager
-local mount_manager = require("common/eax_shared/mount_manager")
+local mount_manager = require("eax_shared/mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("common/eax_shared/encounter_manager")
+local encounter_manager = require("eax_shared/encounter_manager")
 
 
 ---@type esp_renderer
@@ -38,9 +38,9 @@ esp_renderer.init("resto", "Druid Resto")
 
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("common/eax_shared/dps_meter")
-local cooldown_tracker = require("common/eax_shared/cooldown_tracker")
-local visual_state = require("common/eax_shared/visual_state")
+local dps_meter = require("eax_shared/dps_meter")
+local cooldown_tracker = require("eax_shared/cooldown_tracker")
+local visual_state = require("eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
 local healer_triage = require("eax_shared/healer_triage")
 
@@ -152,9 +152,9 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type racial_manager
-local racial_manager = require("common/eax_shared/racial_manager")
+local racial_manager = require("eax_shared/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("common/eax_shared/defensive_manager")
+local defensive_manager = require("eax_shared/defensive_manager")
 
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
