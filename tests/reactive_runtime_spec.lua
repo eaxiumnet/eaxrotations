@@ -498,15 +498,16 @@ run_with_core({
         },
     })
 
-    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter })
+    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter, spec = "EAXMageArcane" })
     state.tick_count = 1
-    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter })
+    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter, spec = "EAXMageArcane" })
     state.tick_count = 2
-    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter })
+    reactive_runtime.update_tick("me", current_target, { state = state, adapter = adapter, spec = "EAXMageArcane" })
 
     local snapshot = dps_meter.get_snapshot()
     assert(snapshot.threat_total > 0, "runtime threat samples should accumulate positive deltas")
     assert(snapshot.tps > 0, "runtime threat samples should produce non-zero tps")
+    assert(snapshot.spec == "EAXMageArcane", "runtime snapshots should retain the current canonical spec")
     assert_counter(snapshot, "sample_count", 3)
     assert_counter(snapshot, "reactive_event_count", 2)
     assert_counter(snapshot, "fail_safe_tick_count", 1)

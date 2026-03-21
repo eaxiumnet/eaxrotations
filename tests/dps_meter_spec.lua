@@ -42,6 +42,13 @@ local function assert_snapshot_shape(snapshot)
     assert(type(snapshot.context_fail_safe) == "boolean", "context_fail_safe should be boolean")
 end
 
+local listener_calls = 0
+local listener_snapshot = nil
+dps_meter.register_combat_end_listener("dps_meter_spec", function(snapshot)
+    listener_calls = listener_calls + 1
+    listener_snapshot = snapshot
+end)
+
 -- Test 1: damage/healing accumulate during one combat window.
 dps_meter.reset()
 dps_meter.on_combat_start()
@@ -109,6 +116,19 @@ run_with_core_time({ 0, 5, 10, 10 }, function()
     assert(cleared_snapshot.noop_unsupported_count == 0, "reset should clear noop_unsupported_count")
     assert(cleared_snapshot.unsafe_skip_count == 0, "reset should clear unsafe_skip_count")
     assert(cleared_snapshot.fail_safe_tick_count == 0, "reset should clear fail_safe_tick_count")
+end)
+
+-- Test 6: combat-end listeners receive the finalized snapshot once per combat window.
+run_with_core_time({ 0, 10, 10 }, function()
+    listener_calls = 0
+    listener_snapshot = nil
+    dps_meter.reset()
+    dps_meter.on_combat_start()
+    dps_meter.on_damage(250)
+    dps_meter.on_combat_end()
+    assert(listener_calls == 1, "combat-end listeners should fire once")
+    assert(type(listener_snapshot) == "table", "combat-end listeners should receive a snapshot")
+    assert(listener_snapshot.damage_total == 250, "listener snapshot should include finalized damage")
 end)
 
 print("dps_meter_spec: ok")

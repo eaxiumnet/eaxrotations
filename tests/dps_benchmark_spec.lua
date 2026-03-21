@@ -40,6 +40,23 @@ local function capture_run(argv, injected_meter)
     return ok, run_err, output
 end
 
+local function load_benchmark_module_with_stubs(injected_meter, core_stub)
+    local original_core = _G.core
+    local original_meter = package.loaded["eax_shared/dps_meter"]
+    local original_module = package.loaded["tools.dps_benchmark"]
+
+    _G.core = core_stub
+    package.loaded["eax_shared/dps_meter"] = injected_meter
+    package.loaded["tools.dps_benchmark"] = nil
+
+    local script = chunk("tools.dps_benchmark")
+
+    _G.core = original_core
+    package.loaded["eax_shared/dps_meter"] = original_meter
+    package.loaded["tools.dps_benchmark"] = original_module
+    return script
+end
+
 local function collect_data_rows(lines)
     local rows = {}
     for _, line in ipairs(lines or {}) do
@@ -120,5 +137,69 @@ assert(first_live_fields[20] == "live", "live rows should tag evidence_mode=live
 assert(first_live_fields[21] == "phase08-live", "live rows should carry the provided run_label")
 assert(first_live_fields[22] == "1", "live rows should carry run_index metadata")
 assert(first_live_fields[23] == "0.00", "live rows should include variance_pct metadata")
+
+local files = {}
+local log_messages = {}
+local registered_listener = nil
+local runtime_meter = {
+    register_combat_end_listener = function(name, listener)
+        assert(name == "phase08-runtime-capture", "runtime capture should register under a stable listener name")
+        registered_listener = listener
+    end,
+}
+
+local runtime_core = {
+    create_data_folder = function() end,
+    create_data_file = function(path)
+        files[path] = files[path] or ""
+    end,
+    write_data_file = function(path, data)
+        files[path] = data
+    end,
+    read_data_file = function(path)
+        return files[path] or ""
+    end,
+    create_log_file = function() end,
+    write_log_file = function(path, message)
+        log_messages[#log_messages + 1] = path .. ":" .. message
+    end,
+}
+
+local runtime_script = load_benchmark_module_with_stubs(runtime_meter, runtime_core)
+runtime_script.install_runtime_capture()
+assert(type(registered_listener) == "function", "runtime capture should install a combat-end listener")
+
+local runtime_snapshot = {
+    spec = "EAXMageArcane",
+    damage_total = 36000,
+    healing_total = 0,
+    threat_total = 900,
+    dps = 600,
+    hps = 0,
+    tps = 15,
+    duration_s = 60,
+    reactive_action = "throughput_resume",
+    reason_code = "THROUGHPUT_RESUME",
+    reactive_status = "handled",
+    role_signal = "danger_hold",
+    role_target_kind = "hostile",
+    reactive_event_count = 5,
+    noop_unsupported_count = 0,
+    unsafe_skip_count = 0,
+    fail_safe_tick_count = 0,
+    sample_count = 40,
+}
+
+registered_listener(runtime_snapshot)
+registered_listener(runtime_snapshot)
+registered_listener(runtime_snapshot)
+registered_listener(runtime_snapshot)
+
+local runtime_csv = files["benchmarks/phase08_live_baseline.csv"]
+assert(type(runtime_csv) == "string" and #runtime_csv > 0, "runtime capture should persist the baseline csv in scripts_data")
+assert(select(2, runtime_csv:gsub("EAXMageArcane", "")) == 3, "runtime capture should cap each spec at three runs across sessions")
+assert(runtime_csv:find(",live,"), "runtime capture rows should be tagged as live evidence")
+assert(runtime_csv:find("phase08%-baseline"), "runtime capture rows should use the fixed baseline label")
+assert(#log_messages > 0, "runtime capture should write progress log messages")
 
 print("dps_benchmark_spec: ok")
