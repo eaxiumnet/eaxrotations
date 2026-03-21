@@ -1,12 +1,12 @@
 # EAX TBC Classic Rotations - Handover Document
 
-**Last Updated**: 2026-03-21
+**Last Updated**: 2026-03-21 (second pass)
 **Repo**: https://github.com/eaxiumnet/eax-tbc-classic-rotations
 **Local Path**: `C:\newbot\scripts`
 
 ## What Was Done
 
-### ✅ Completed This Session (2026-03-21)
+### ✅ Completed This Session (2026-03-21) — First Pass
 
 1. **Git Recovery** - Restored 174 uncommitted commits, cleaned up git state
 2. **Critical Bug Fix** - Fixed broken `require` paths: `common/eax_shared/` → `eax_shared/` across all 27 specs (all stubs were referencing non-existent paths)
@@ -28,7 +28,15 @@
    - Now: static table reused, zero allocations
 8. **Performance: Local API Caching** - Added `_core_time`, `_get_local_player`, `_get_gcd`, `_get_spell_cd` aliases in all 27 main.lua files
 9. **Performance: Pet Manager** - Removed unused `me_to_target` and `pet_to_me` distance calculations; replaced sqrt with squared-distance comparisons
-10. **.gitignore** - Added build artifacts (luac.out, nul, .tmp_wfu_luac.txt, EaxFishing_v2_0_1/)
+10. **.gitignore** - Added build artifacts (`luac.out`, `nul`, `.tmp_wfu_luac.txt`, `EaxFishing_v2_0_1/`)
+
+### ✅ Completed This Session (2026-03-21) — Second Pass (Runtime Fixes)
+
+1. **Critical Runtime Fix: spell_resolver.lua require** - All 27 specs had `require("eax_shared/spell_resolver")` in `utils.lua` that failed at runtime because there was no per-spec `eax_shared/` subfolder. Created 27 identical per-spec `spell_resolver.lua` stub files (4 lines each) that mirror the `defensive_manager.lua` pattern: `return require("eax_shared/spell_resolver")`. This bridges the relative require to the root `eax_shared/` module.
+
+2. **Critical Runtime Fix: EAXWarriorFury >60 upvalues** - `on_update()` captured 65 chunk-local identifiers (exceeding Lua's 60 upvalue limit). Root cause: debug block + control panel callback registration + conflict detection were ALL running inside `on_update()` every frame. Fix: (a) moved conflict detection `do` block to module scope (runs once at load, not every tick), (b) simplified debug block to just log output, (c) moved control panel callback registration to module scope alongside other callback registrations. Net result: ~6 upvalues eliminated from `on_update()`.
+
+3. **.gitignore updated** - Added `*.zip` (except plugins-listing), `sylvanas-dev-docs-llm/`, and `.api/` to prevent temp files from being tracked.
 
 ### ✅ Already Implemented (from previous work)
 

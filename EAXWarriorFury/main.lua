@@ -2192,92 +2192,7 @@ local function on_update()
             runtime.last_mode_debug_at = now_ms
             local eff = get_effective_mode()
             local sham = runtime.cached_has_shaman and "yes" or "no"
-            
-
-if control_panel_utility then
-    core.register_on_render_control_panel_callback(function()
-        local elements = {}
-        local function add_cb(label, item, uid)
-            if not item then return end
-            local cur = item:get_state()
-            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
-            if nxt ~= cur then item:set(nxt) end
-        end
-        local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Warrior Fury] Enabled"
-        if toggle_key ~= 7 then
-            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
-        end
-        label = "[" .. label
-        add_cb(label, menu.enabled, "eax_eaxwarriorfury_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_wfu_cds = menu.use_cooldowns:get_state()
-            local nxt_wfu_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WFu] Cooldowns", cur_wfu_cds, 0, false, "eax_wfu_cds_cp")
-            if nxt_wfu_cds ~= cur_wfu_cds then menu.use_cooldowns:set(nxt_wfu_cds) end
-        end
-        if menu.focus_priority then
-            local cur_wfu_focus = menu.focus_priority:get_state()
-            local nxt_wfu_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WFu] Focus Priority", cur_wfu_focus, 0, false, "eax_wfu_focus_cp")
-            if nxt_wfu_focus ~= cur_wfu_focus then menu.focus_priority:set(nxt_wfu_focus) end
-        end
-        if menu.use_racial then
-            local cur_wfu_racial = menu.use_racial:get_state()
-            local nxt_wfu_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WFu] Use Racial", cur_wfu_racial, 0, false, "eax_wfu_racial_cp")
-            if nxt_wfu_racial ~= cur_wfu_racial then menu.use_racial:set(nxt_wfu_racial) end
-        end
-        end
-        return elements
-    end)
-end
-
--- -- EAX Conflict Detection -------------------------------------------------
--- Registers this spec at load time; warns at runtime only if both are enabled.
-do
-    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
-    local _eax_class = "Warrior"
-    local _eax_spec  = "Fury"
-    -- Register this spec for its class (last-loaded wins for tracking)
-    if not _G.__EAX_LOADED[_eax_class] then
-        _G.__EAX_LOADED[_eax_class] = {}
-    end
-    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
-        return menu and menu.enabled and menu.enabled:get_state()
-    end
-    -- Runtime conflict check: fires on render, only warns when 2+ specs enabled
-    local _conflict_last_warn = 0
-    local _orig_render = on_render
-    on_render = function()
-        if _orig_render then _orig_render() end
-        local specs = _G.__EAX_LOADED[_eax_class]
-        if not specs then return end
-        local enabled_specs = {}
-        for spec_name, is_enabled_fn in pairs(specs) do
-            if is_enabled_fn and is_enabled_fn() then
-                table.insert(enabled_specs, spec_name)
-            end
-        end
-        if #enabled_specs < 2 then return end
-        local now = _core_time()
-        if (now - _conflict_last_warn) < 10 then return end
-        _conflict_last_warn = now
-        local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
-            .. names .. ". Disable all but one.")
-        core.graphics.add_notification(
-            "eax_conflict_" .. _eax_class,
-            "[EAX] Conflict!",
-            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
-            8.0,
-            require("common/color").new(255, 80, 80, 255)
-        )
-    end
-end
-
-core.log("[EAX Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | Shaman: " .. sham)
+            core.log("[EAX Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | Shaman: " .. sham)
         end
     end
 
@@ -2588,6 +2503,48 @@ local function on_spell_cast(data)
 end
 
 -- -- register callbacks ------------------------------------------------------
+
+-- -- EAX Conflict Detection (runs once at load) ------------------------------
+-- Registers this spec; warns at render time only if 2+ specs of same class enabled.
+do
+    if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
+    local _eax_class = "Warrior"
+    local _eax_spec  = "Fury"
+    if not _G.__EAX_LOADED[_eax_class] then
+        _G.__EAX_LOADED[_eax_class] = {}
+    end
+    _G.__EAX_LOADED[_eax_class][_eax_spec] = function()
+        return menu and menu.enabled and menu.enabled:get_state()
+    end
+    local _conflict_last_warn = 0
+    local _orig_render = on_render
+    on_render = function()
+        if _orig_render then _orig_render() end
+        local specs = _G.__EAX_LOADED[_eax_class]
+        if not specs then return end
+        local enabled_specs = {}
+        for spec_name, is_enabled_fn in pairs(specs) do
+            if is_enabled_fn and is_enabled_fn() then
+                table.insert(enabled_specs, spec_name)
+            end
+        end
+        if #enabled_specs < 2 then return end
+        local now = _core_time()
+        if (now - _conflict_last_warn) < 10 then return end
+        _conflict_last_warn = now
+        local names = table.concat(enabled_specs, " + ")
+        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+            .. names .. ". Disable all but one.")
+        core.graphics.add_notification(
+            "eax_conflict_" .. _eax_class,
+            "[EAX] Conflict!",
+            "Multiple " .. _eax_class .. " specs enabled: " .. names .. " - Disable all but one in the bot menu.",
+            8.0,
+            require("common/color").new(255, 80, 80, 255)
+        )
+    end
+end
+
 core.register_on_update_callback(on_update)
 core.register_on_spell_cast_callback(on_spell_cast)
 -- ESP only renders when this spec is enabled
@@ -2606,6 +2563,46 @@ _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
 -- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
+-- Fury-specific debug control panel (registered once at load, not every tick)
+if control_panel_utility then
+    core.register_on_render_control_panel_callback(function()
+        local elements = {}
+        local function add_cb(label, item, uid)
+            if not item then return end
+            local cur = item:get_state()
+            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+            if nxt ~= cur then item:set(nxt) end
+        end
+        local toggle_key = menu.toggle_key:get_key_code()
+        local label = "EAX Warrior Fury] Enabled"
+        if toggle_key ~= 7 then
+            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+        end
+        label = "[" .. label
+        add_cb(label, menu.enabled, "eax_eaxwarriorfury_enabled_cp")
+        if menu.enabled:get_state() then
+            if menu.use_cooldowns then
+                local cur_wfu_cds = menu.use_cooldowns:get_state()
+                local nxt_wfu_cds = control_panel_utility:insert_key_checkbox_(
+                    elements, "[EAX WFu] Cooldowns", cur_wfu_cds, 0, false, "eax_wfu_cds_cp")
+                if nxt_wfu_cds ~= cur_wfu_cds then menu.use_cooldowns:set(nxt_wfu_cds) end
+            end
+            if menu.focus_priority then
+                local cur_wfu_focus = menu.focus_priority:get_state()
+                local nxt_wfu_focus = control_panel_utility:insert_key_checkbox_(
+                    elements, "[EAX WFu] Focus Priority", cur_wfu_focus, 0, false, "eax_wfu_focus_cp")
+                if nxt_wfu_focus ~= cur_wfu_focus then menu.focus_priority:set(nxt_wfu_focus) end
+            end
+            if menu.use_racial then
+                local cur_wfu_racial = menu.use_racial:get_state()
+                local nxt_wfu_racial = control_panel_utility:insert_key_checkbox_(
+                    elements, "[EAX WFu] Use Racial", cur_wfu_racial, 0, false, "eax_wfu_racial_cp")
+                if nxt_wfu_racial ~= cur_wfu_racial then menu.use_racial:set(nxt_wfu_racial) end
+            end
+        end
+        return elements
+    end)
+end
 core.register_on_render_control_panel_callback(on_control_panel)
 
 -- -- public interface --------------------------------------------------------

@@ -22,3 +22,13 @@ nul
 
 # Deprecated plugins
 EaxFishing_v2_0_1/
+
+# Documentation zips (temp downloads)
+*.zip
+!plugins-listing*.zip
+
+# Local dev docs (not part of repo)
+sylvanas-dev-docs-llm/
+
+# Temp API files
+.api/
