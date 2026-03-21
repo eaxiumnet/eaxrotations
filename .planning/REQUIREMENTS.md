@@ -1,82 +1,62 @@
 # Requirements: EAX TBC Classic Rotations
 
-**Defined:** 2026-03-20
-**Milestone:** v1.1 Combat Intelligence
+**Defined:** 2026-03-21
+**Milestone:** v1.2 Rotation Reliability
 **Core Value:** Every spec executes the mathematically optimal rotation while maintaining survival and encounter-specific awareness.
 
-## v1.1 Requirements
+## v1.2 Requirements
 
-### Reactive Contract + Context
+### Restoration Policy
 
-- [x] **REACT-01**: System produces a normalized combat context snapshot each tick (self, target, party, encounter) with nil-safe defaults.
-- [x] **REACT-02**: System enforces a deterministic decision ladder (life-save > interrupt/control > anti-overheal/anti-aggro > throughput).
-- [x] **REACT-03**: Every reactive action emits a reason code for telemetry and debugging.
+- [ ] **REST-01**: User can run Restoration Druid in grouped content without intentional DPS casts (healing/utility-only policy).
+- [ ] **REST-02**: User can run Restoration Druid solo with offensive casts enabled only when safety gates are satisfied.
 
-### API Hard Gate
+### Feral Finisher Reliability
 
-- [x] **APIG-01**: Validation fails when non-`@.api` calls are detected in runtime behavior code.
-- [x] **APIG-02**: API allowlist is generated/maintained from current `.api` surface and used as a fail-closed gate.
-- [x] **APIG-03**: Release/validation workflow blocks milestone sign-off when API-hard-gate checks fail.
+- [ ] **FERA-01**: User can run Feral Druid without combo-point spend stalls at high combo points.
+- [ ] **FERA-02**: User can run Feral Druid with correct Rip or Ferocious Bite finisher selection by target-state window.
 
-### 27-Spec Reactive Wiring
+### Validation Evidence
 
-- [x] **WIRE-01**: Shared reactive engine is integrated into all 27 canonical combat specs without breaking existing cast lanes.
-- [x] **WIRE-02**: All specs implement adapter contracts for shared reactive decisions while preserving movement-excluded behavior.
-- [x] **WIRE-03**: Cross-spec wiring parity checks report pass/fail coverage for all 27 specs.
-
-### Role Intelligence Tuning
-
-- [x] **ROLE-01**: DPS behavior reacts to incoming damage/threat and encounter windows with defensive/offensive cooldown timing.
-- [x] **ROLE-02**: Healer behavior uses incoming-heal and overheal-aware triage to prioritize effective healing.
-- [x] **ROLE-03**: Tank behavior responds to spike damage, incoming heals, and threat stability with defensive and utility timing.
-- [x] **ROLE-04**: Interrupt/fear/control utility uses urgency-aware logic based on cast danger, role context, and encounter policy.
-
-### Benchmark Matrix Hardening
-
-- [x] **MATX-01**: Benchmark tooling runs a 27-spec matrix with DPS/HPS/TPS and reactive behavior KPIs.
-- [x] **MATX-02**: Matrix outputs include run metadata, variance stats, and real-vs-mock tagging for trustworthy comparisons.
-- [ ] **MATX-03**: Milestone quality gate passes only when matrix thresholds and regression checks succeed.
+- [ ] **VALD-01**: User can verify Restoration and Feral reliability behavior through repeatable druid scenario checks in validation tooling.
 
 ## Future Requirements (Deferred)
 
-- **FUT-01**: Encounter-specific predictive behavior packs beyond baseline parity (boss-by-boss advanced scripts).
-- **FUT-02**: Adaptive threshold learning from historical encounter logs.
-- **FUT-03**: User-facing policy editor for reactive behavior profiles.
+### Druid Reliability Enhancements
+
+- **REST-03**: User can tune adaptive solo Restoration DPS aggressiveness based on dynamic risk scoring.
+- **FERA-03**: User can recover automatically from combo-point desync/stuck-state anomalies with fail-safe logic.
+- **VALD-02**: User can review objective benchmark counters for grouped-hostile cast leakage and feral finisher cadence.
+
+### Cross-Milestone Deferred Infrastructure
+
+- **MATX-01**: Benchmark tooling runs a 27-spec matrix with DPS/HPS/TPS and reactive behavior KPIs.
+- **MATX-02**: Matrix outputs include run metadata, variance stats, and real-vs-mock tagging for trustworthy comparisons.
+- **MATX-03**: Milestone quality gate passes only when matrix thresholds and regression checks succeed.
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Movement/pathing automation | User explicitly keeps movement manual for this milestone |
-| PvP behavior engine | Milestone is PvE combat-intelligence focused |
-| Expansion support beyond TBC | Product scope remains TBC only |
+| Always-on Restoration DPS in grouped content | Violates healer-role reliability goal for this milestone |
+| Aggressive powershift or high-risk optimization as first fix | Reliability-first milestone prioritizes deterministic correctness over throughput tuning |
+| Per-encounter druid special-case scripts | Deferred until baseline druid reliability is stable and validated |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REACT-01 | Phase 5 | Complete |
-| REACT-02 | Phase 5 | Complete |
-| REACT-03 | Phase 5 | Complete |
-| APIG-01 | Phase 5 | Complete |
-| APIG-02 | Phase 5 | Complete |
-| APIG-03 | Phase 5 | Complete |
-| WIRE-01 | Phase 6 | Complete |
-| WIRE-02 | Phase 6 | Complete |
-| WIRE-03 | Phase 6 | Complete |
-| ROLE-01 | Phase 7 | Complete |
-| ROLE-02 | Phase 7 | Complete |
-| ROLE-03 | Phase 7 | Complete |
-| ROLE-04 | Phase 7 | Complete |
-| MATX-01 | Phase 8 | Complete |
-| MATX-02 | Phase 8 | Complete |
-| MATX-03 | Phase 8 | Pending |
+| REST-01 | TBA | Pending |
+| REST-02 | TBA | Pending |
+| FERA-01 | TBA | Pending |
+| FERA-02 | TBA | Pending |
+| VALD-01 | TBA | Pending |
 
 **Coverage:**
-- v1.1 requirements: 16 total
-- Mapped to phases: 16
-- Unmapped: 0
+- v1.2 requirements: 5 total
+- Mapped to phases: 0
+- Unmapped: 5
 
 ---
-*Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after milestone v1.1 definition*
+*Requirements defined: 2026-03-21*
+*Last updated: 2026-03-21 after milestone v1.2 requirement scoping*
