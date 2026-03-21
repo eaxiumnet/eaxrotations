@@ -14,3 +14,11 @@ Thumbs.db
 # Shared modules (auto-generated/built)
 # eax_shared/dot_manager.lua  -- now committed
 # eax_shared/mana_manager.lua  -- now committed
+
+# Build artifacts
+luac.out
+nul
+.tmp_wfu_luac.txt
+
+# Deprecated plugins
+EaxFishing_v2_0_1/
