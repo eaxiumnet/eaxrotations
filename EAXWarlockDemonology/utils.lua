@@ -250,6 +250,36 @@ function utils.cast_self(spell_id, me)
     return true
 end
 
+function utils.get_debuff_remaining_ms(unit, id_table)
+    if not unit or not id_table then
+        return 0
+    end
+    local data = buff_manager:get_debuff_data(unit, id_table)
+    if data and data.is_active then
+        return data.remaining or 0
+    end
+    return 0
+end
+
+function utils.has_debuff(unit, id_table)
+    if not unit or not unit:is_valid() or not id_table then return false end
+    local data = buff_manager:get_debuff_data(unit, id_table)
+    if data and data.is_active then return true end
+    data = buff_manager:get_aura_data(unit, id_table)
+    return data ~= nil and data.is_active
+end
+
+function utils.get_health_pct(unit)
+    if not unit then
+        return 0
+    end
+    local max_hp = unit:get_max_health()
+    if max_hp <= 0 then
+        return 0
+    end
+    return unit:get_health() / max_hp
+end
+
 function utils.get_buff_remaining_ms(unit, id_table)
     if not unit or not id_table then
         return 0
