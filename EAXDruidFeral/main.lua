@@ -46,6 +46,12 @@ local visual_state = require("eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
 local tank_recovery = require("eax_shared/tank_recovery")
 
+-- Hot-path local caching (performance critical)
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+local _get_spell_cd = core.spell_book.get_spell_cooldown
+
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
@@ -64,8 +70,8 @@ local reactive_adapter = {}
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
-        local now_s = core.time()
-        local cd_s = tonumber(core.spell_book.get_spell_cooldown(spell_id)) or 0
+        local now_s = _core_time()
+        local cd_s = tonumber(_get_spell_cd(spell_id)) or 0
         cooldown_tracker.set_next_spell(spell_id, now_s, cd_s)
     end
     return _visual_on_cast(spell_id, name, col, target_name)
@@ -80,20 +86,28 @@ local function visual_get_ttd_seconds(target)
     return ttd_value
 end
 
+local _visual_tracked_auras = { n = 0 }
+
 local function visual_build_tracked_auras(me, target)
-    local tracked_auras = {}
+    _visual_tracked_auras.n = 0
     if me and me:is_in_combat() then
-        tracked_auras[#tracked_auras + 1] = { label = "Combat", active = true }
+        _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+        _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Combat", active = true }
     end
     if target and target:is_valid() and not target:is_dead() then
         if target:is_casting_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Cast", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Cast", active = true }
         end
         if target:is_channelling_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Channel", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Channel", active = true }
         end
     end
-    return tracked_auras
+    for i = _visual_tracked_auras.n + 1, 4 do
+        _visual_tracked_auras[i] = nil
+    end
+    return _visual_tracked_auras
 end
 
 local function visual_update_snapshot(me, target)
@@ -134,7 +148,7 @@ local function visual_update_snapshot(me, target)
     })
 
     local snapshot = visual_state.build_snapshot({
-        now_s = core.time(),
+        now_s = _core_time(),
         ttd_seconds = visual_get_ttd_seconds(target),
         tracked_auras = visual_build_tracked_auras(me, target),
     })
@@ -148,7 +162,7 @@ end
 
 core.register_on_update_callback(function()
     if not menu or not menu.enabled or not menu.enabled:get_state() then return end
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or me:is_dead() then return end
     local target = me:get_target()
     visual_update_snapshot(me, target)
@@ -160,33 +174,33 @@ end)
 
 -- Cat lane procs
 esp_renderer.add_proc("Tiger's Fury", function()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     return me and utils.has_buff(me, spells.BUFF_TIGERS_FURY)
 end, color.gold(240), color.cyan(60), "cat")
 
 esp_renderer.add_proc("Clearcasting", function()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     return me and utils.has_buff(me, spells.BUFF_CLEARCASTING)
 end, color.cyan(240), color.cyan(50), "cat")
 
 esp_renderer.add_proc("Berserk", function()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     return me and utils.has_buff(me, spells.BUFF_BERSERK)
 end, color.orange(240), color.cyan(60), "any")
 
 -- Bear / Guardian lane procs
 esp_renderer.add_proc("Survival Instincts", function()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     return me and utils.has_buff(me, spells.BUFF_SURVIVAL_INSTINCTS)
 end, color.green(240), color.cyan(60), "bear")
 
 esp_renderer.add_proc("Frenzied Regen", function()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     return me and utils.has_buff(me, spells.BUFF_FRENZIED_REGENERATION)
 end, color.green(240), color.cyan(60), "bear")
 
 esp_renderer.add_proc("Enrage", function()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     return me and utils.has_buff(me, spells.BUFF_ENRAGE)
 end, color.orange(230), color.cyan(60), "bear")
 ---@type ttd_tracker
@@ -340,21 +354,21 @@ resolve_spells()
 log_resolved_spells()
 
 local function note_cast()
-    runtime.last_cast_time = core.time()
+    runtime.last_cast_time = _core_time()
 end
 
 local function is_gcd_ready()
-    if (core.time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
+    if (_core_time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
         return false
     end
-    return core.spell_book.get_global_cooldown() <= 0
+    return _get_gcd() <= 0
 end
 
 local function is_pending_cast(spell_id)
     if not spell_id then return false end
     local pending = runtime.pending_casts[spell_id]
     if not pending then return false end
-    if (core.time() - pending.requested_at) >= pending.timeout_s then
+    if (_core_time() - pending.requested_at) >= pending.timeout_s then
         runtime.pending_casts[spell_id] = nil
         return false
     end
@@ -364,34 +378,9 @@ end
 local function mark_pending_cast(spell_id, timeout_s)
     if not spell_id then return end
     runtime.pending_casts[spell_id] = {
-        requested_at = core.time(),
+        requested_at = _core_time(),
         timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S,
     }
-end
-
-local function detect_mode(me)
-    local objects = core.object_manager.get_all_objects()
-    local party_count = 0
-
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj
-            and obj:is_valid()
-            and obj:is_unit()
-            and not obj:is_dead()
-            and not utils.same_unit(me, obj)
-            and obj:is_party_member()
-        then
-            party_count = party_count + 1
-        end
-    end
-
-    if party_count == 0 then
-        return "solo"
-    elseif party_count <= 4 then
-        return "dungeon"
-    end
-    return "raid"
 end
 
 local function get_effective_mode()
@@ -502,7 +491,7 @@ local function try_shift_form(me, lane)
     if lane == "cat" then
         -- Suppress snap-back for 2s after we committed a bear shift for charge/regen
         local charge_shift_hold = 2.0
-        if (core.time() - runtime.bear_charge_shift_at) < charge_shift_hold then
+        if (_core_time() - runtime.bear_charge_shift_at) < charge_shift_hold then
             return false
         end
         -- Also hold if we're already in bear form — feral charge may be about to fire
@@ -635,7 +624,7 @@ local function try_rip(me, target)
         local has_tf     = utils.has_buff(me, spells.BUFF_TIGERS_FURY)
         local has_berserk = utils.has_buff(me, spells.BUFF_BERSERK)
         if not has_tf and not has_berserk then
-            local tf_cd = runtime.tigers_fury_id and core.spell_book.get_spell_cooldown(runtime.tigers_fury_id) or 99
+            local tf_cd = runtime.tigers_fury_id and _get_spell_cd(runtime.tigers_fury_id) or 99
             if tf_cd > 0 and tf_cd < 2.0 then
                 return false  -- TF incoming in <2s, wait to snapshot
             end
@@ -791,7 +780,7 @@ local function try_powershift(me)
     if energy <= 0 then return false end
     local threshold = has_wolfshead(me) and SHIFT_ENERGY_THRESHOLD or 15
     if energy >= threshold then return false end
-    local now = core.time()
+    local now = _core_time()
     local min_i = has_wolfshead(me) and SHIFT_MIN_INTERVAL_S or 2.0
     if (now - runtime.last_shift_at) < min_i then return false end
 
@@ -852,7 +841,7 @@ local function try_rake(me, target)
     if rake_rem <= 0 then
         local has_tf = utils.has_buff(me, spells.BUFF_TIGERS_FURY)
         if not has_tf then
-            local tf_cd = runtime.tigers_fury_id and core.spell_book.get_spell_cooldown(runtime.tigers_fury_id) or 99
+            local tf_cd = runtime.tigers_fury_id and _get_spell_cd(runtime.tigers_fury_id) or 99
             if tf_cd > 0 and tf_cd < 2.0 then
                 return false  -- TF incoming in <2s, wait to snapshot
             end
@@ -1164,7 +1153,7 @@ local function try_feral_charge_bear(me, target)
         if menu.auto_form:get_state() and runtime.bear_form_id then
             if utils.can_cast_self(runtime.bear_form_id, me) then
                 utils.cast_self(runtime.bear_form_id, me)
-                runtime.bear_charge_shift_at = core.time()
+                runtime.bear_charge_shift_at = _core_time()
                 utils.log_debug(menu, "Shifting Bear for Feral Charge")
             end
         end
@@ -1458,7 +1447,7 @@ local function try_cyclone(me, target)
     if in_cat or in_bear then return false end
     -- Bash must be on cooldown — if Bash is available, use that instead
     if runtime.bash_id then
-        local bash_cd = core.spell_book.get_spell_cooldown(runtime.bash_id)
+        local bash_cd = _get_spell_cd(runtime.bash_id)
         if bash_cd <= 0 and core.spell_book.is_usable_spell(runtime.bash_id) then
             return false  -- Bash is available, don't waste a Cyclone
         end
@@ -1611,7 +1600,7 @@ local function try_frenzied_regeneration(me)
             if not is_pending_cast(runtime.bear_form_id) and utils.can_cast_self(runtime.bear_form_id, me) then
                 utils.cast_self(runtime.bear_form_id, me)
                 mark_pending_cast(runtime.bear_form_id, PENDING_CAST_TIMEOUT_S)
-                runtime.bear_charge_shift_at = core.time()  -- suppress cat snap-back for 2s
+                runtime.bear_charge_shift_at = _core_time()  -- suppress cat snap-back for 2s
                 utils.log_debug(menu, "Shifting Bear for Frenzied Regen")
             end
         end
@@ -1857,7 +1846,7 @@ local function try_challenging_roar(me)
     if not party_member_in_danger(me) then return false end
     -- Growl should be on cooldown first — Challenging Roar is the AoE fallback
     if runtime.growl_id then
-        local growl_cd = core.spell_book.get_spell_cooldown(runtime.growl_id)
+        local growl_cd = _get_spell_cd(runtime.growl_id)
         if growl_cd <= 0 then return false end  -- growl is available, use that first
     end
     if is_pending_cast(runtime.challenging_roar_id) then return false end
@@ -1875,7 +1864,7 @@ end
 local function try_taunt_off_party(me)
     if not menu.auto_growl:get_state() then return false end
     if not runtime.growl_id then return false end
-    if core.spell_book.get_spell_cooldown(runtime.growl_id) > 0 then return false end
+    if _get_spell_cd(runtime.growl_id) > 0 then return false end
     if is_pending_cast(runtime.growl_id) then return false end
     local objects = core.object_manager.get_all_objects()
     for i = 1, #objects do
@@ -2224,14 +2213,14 @@ local function on_spell_cast(data)
     if not data or not data.spell_id then return end
 
     -- Only count spells cast by the local player
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me then return end
     if data.caster and data.caster:is_valid() then
         if not utils.same_unit(data.caster, me) then return end
     end
 
     local sid = data.spell_id
-    local now = core.time()
+    local now = _core_time()
 
     if CP_BUILDERS[sid] then
         -- Deduplicate: if ANY builder already incremented CP very recently,
@@ -2273,12 +2262,12 @@ end
 
 core.register_on_spell_cast_callback(on_spell_cast)
 core.register_on_update_callback(function()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me then return end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
 
     if utils.throttle("eaxdruidferal_mode_refresh", 5.0) then
-        runtime.cached_mode = detect_mode(me)
+        runtime.cached_mode = utils.detect_mode(me)
     end
 
     if utils.throttle("eaxdruidferal_set_bonus", 10.0) then
@@ -2485,7 +2474,7 @@ do
             end
         end
         if #enabled_specs < 2 then return end
-        local now = core.time()
+        local now = _core_time()
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")

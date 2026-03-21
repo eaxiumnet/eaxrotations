@@ -61,6 +61,12 @@ local visual_state = require("eax_shared/visual_state")
 local reactive_runtime = require("eax_shared/reactive_runtime")
 local healer_triage = require("eax_shared/healer_triage")
 
+-- Hot-path local caching (performance critical)
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+local _get_spell_cd = core.spell_book.get_spell_cooldown
+
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
@@ -79,8 +85,8 @@ local reactive_adapter = {}
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
-        local now_s = core.time()
-        local cd_s = tonumber(core.spell_book.get_spell_cooldown(spell_id)) or 0
+        local now_s = _core_time()
+        local cd_s = tonumber(_get_spell_cd(spell_id)) or 0
         cooldown_tracker.set_next_spell(spell_id, now_s, cd_s)
     end
     return _visual_on_cast(spell_id, name, col, target_name)
@@ -95,20 +101,28 @@ local function visual_get_ttd_seconds(target)
     return ttd_value
 end
 
+local _visual_tracked_auras = { n = 0 }
+
 local function visual_build_tracked_auras(me, target)
-    local tracked_auras = {}
+    _visual_tracked_auras.n = 0
     if me and me:is_in_combat() then
-        tracked_auras[#tracked_auras + 1] = { label = "Combat", active = true }
+        _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+        _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Combat", active = true }
     end
     if target and target:is_valid() and not target:is_dead() then
         if target:is_casting_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Cast", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Cast", active = true }
         end
         if target:is_channelling_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Channel", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Channel", active = true }
         end
     end
-    return tracked_auras
+    for i = _visual_tracked_auras.n + 1, 4 do
+        _visual_tracked_auras[i] = nil
+    end
+    return _visual_tracked_auras
 end
 
 local function visual_update_snapshot(me, target)
@@ -149,7 +163,7 @@ local function visual_update_snapshot(me, target)
     })
 
     local snapshot = visual_state.build_snapshot({
-        now_s = core.time(),
+        now_s = _core_time(),
         ttd_seconds = visual_get_ttd_seconds(target),
         tracked_auras = visual_build_tracked_auras(me, target),
     })
@@ -163,7 +177,7 @@ end
 
 core.register_on_update_callback(function()
     if not menu or not menu.enabled or not menu.enabled:get_state() then return end
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or me:is_dead() then return end
     local target = me:get_target()
     visual_update_snapshot(me, target)
@@ -269,7 +283,7 @@ local rt = {
     heroism_id             = nil,
     -- Weapon buff
     flametongue_id         = nil,
-    last_flametongue_at    = 0,  -- core.time() when last cast
+    last_flametongue_at    = 0,  -- _core_time() when last cast
     -- Timing
     last_cast_time         = 0,
     last_ns_at             = 0,
@@ -327,7 +341,7 @@ local function resolve_spells()
 end
 
 local function update_set_bonus()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me then return end
     
     local cyclone_mult = utils.get_set_multiplier(me, "Cyclone")
@@ -349,14 +363,6 @@ end
 
 -- --- Mode detection ----------------------------------------------------------
 
-local function detect_mode(me)
-    local allies = unit_helper:get_ally_list_around(me:get_position(), 100.0, true, true)
-    local n = #allies
-    if n == 0 then return "solo"
-    elseif n <= 4 then return "dungeon"
-    else return "raid" end
-end
-
 local function get_effective_mode()
     local sel = menu.mode:get()
     if sel == 2 then return "solo" end
@@ -373,14 +379,14 @@ end
 
 local function mark_pending(spell_id, timeout_s)
     if not spell_id then return end
-    rt.pending_casts[spell_id] = { requested_at = core.time(), timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S }
+    rt.pending_casts[spell_id] = { requested_at = _core_time(), timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S }
 end
 
 local function is_pending(spell_id)
     if not spell_id then return false end
     local p = rt.pending_casts[spell_id]
     if not p then return false end
-    if (core.time() - p.requested_at) >= p.timeout_s then
+    if (_core_time() - p.requested_at) >= p.timeout_s then
         rt.pending_casts[spell_id] = nil
         return false
     end
@@ -388,14 +394,14 @@ local function is_pending(spell_id)
 end
 
 local function note_cast()
-    rt.last_cast_time = core.time()
+    rt.last_cast_time = _core_time()
 end
 
 -- --- GCD check ---------------------------------------------------------------
 
 local function is_gcd_ready()
-    if (core.time() - rt.last_cast_time) < GCD_INTERVAL then return false end
-    return core.spell_book.get_global_cooldown() <= 0
+    if (_core_time() - rt.last_cast_time) < GCD_INTERVAL then return false end
+    return _get_gcd() <= 0
 end
 
 -- --- Cast wrappers -----------------------------------------------------------
@@ -470,7 +476,7 @@ local function try_reincarnation(me)
     if not menu.use_reincarnation:get_state() then return false end
     if not me:is_dead() then return false end
     if not core.spell_book.is_spell_learned(REINCARNATION_ID) then return false end
-    if core.spell_book.get_spell_cooldown(REINCARNATION_ID) > 0 then return false end
+    if _get_spell_cd(REINCARNATION_ID) > 0 then return false end
     -- Cast the self-rez directly (no GCD, no target needed)
     if core.spell_book.is_usable_spell(REINCARNATION_ID) then
         spell_queue:queue_spell_target(REINCARNATION_ID, me, 1)
@@ -510,10 +516,10 @@ local function ensure_flametongue(me)
         if mainExpMs and mainExpMs > FT_REFRESH_REMAINING_MS then return false end
     else
         -- Fallback: time-based tracking (in case GetWeaponEnchantInfo is not implemented)
-        if (core.time() - rt.last_flametongue_at) < FT_DURATION_S then return false end
+        if (_core_time() - rt.last_flametongue_at) < FT_DURATION_S then return false end
     end
     if try_cast_self(me, rt.flametongue_id, "Flametongue Weapon") then
-        rt.last_flametongue_at = core.time()
+        rt.last_flametongue_at = _core_time()
         return true
     end
     return false
@@ -560,7 +566,7 @@ local function try_drink(me)
     if utils.get_mana_pct(me) >= threshold then return false end
     -- HP must be full enough that we don't need to self-heal instead
     if utils.get_health_pct(me) < 0.50 then return false end
-    local now = core.time()
+    local now = _core_time()
     if (now - rt.last_drink_attempt_at) < 3.0 then return false end
     rt.last_drink_attempt_at = now
     -- Find a drink in bags using inventory consumables
@@ -594,7 +600,7 @@ local function try_mana_potion(me)
     if not me:is_in_combat() then return false end
     local threshold = menu.mana_potion_pct:get() / 100.0
     if utils.get_mana_pct(me) >= threshold then return false end
-    local now = core.time()
+    local now = _core_time()
     if (now - rt.last_potion_at) < 120.0 then return false end
     for _, item_id in ipairs(MANA_POTION_IDS) do
         local cd = me:get_item_cooldown(item_id)
@@ -629,7 +635,7 @@ local function try_totemic_recall(me)
     if not menu.use_totemic_recall:get_state() then return false end
     if not rt.totemic_recall_id then return false end
     if me:is_in_combat() then return false end
-    local now = core.time()
+    local now = _core_time()
     if (now - rt.last_totemic_recall_at) < TOTEMIC_RECALL_CD then return false end
     for i = 1, 4 do
         local totem = core.spell_book.get_totem_info(i)
@@ -660,12 +666,12 @@ local TOTEM_SLOTS = {
 local function ensure_totems(me)
     if not menu.auto_totems:get_state() then return end
     if not TOTEM_ROTATION then return end
-    local now = core.time()
+    local now = _core_time()
     for _, entry in ipairs(TOTEM_ROTATION) do
         if entry.toggle and entry.toggle:get_state() then
             local spell_id = rt[entry.id_field]
             if spell_id then
-                local cd = core.spell_book.get_spell_cooldown(spell_id)
+                local cd = _get_spell_cd(spell_id)
                 if cd <= 0 then
                     local last = rt.totem_last_apply[entry.name] or 0
                     local slot = TOTEM_SLOTS[entry.name]
@@ -693,7 +699,7 @@ end
 local function try_prepull_totems(me)
     if not menu.prepull_totems:get_state() then return false end
     if me:is_in_combat() then return false end
-    local now = core.time()
+    local now = _core_time()
     if (now - rt.last_prepull_totem_at) < 5.0 then return false end
     local enemies = unit_helper:get_enemy_list_around(me:get_position(), PREPULL_ENEMY_RANGE, false)
     if not enemies or #enemies == 0 then return false end
@@ -743,9 +749,9 @@ local function try_natures_swiftness(me, tank)
     if not menu.use_natures_swiftness:get_state() then return false end
     if not rt.nature_s_swift_id or not rt.healing_wave_id then return false end
     if not tank then return false end
-    local now = core.time()
+    local now = _core_time()
     if (now - rt.last_ns_at) < NS_COOLDOWN_MIN then return false end
-    if core.spell_book.get_spell_cooldown(rt.nature_s_swift_id) > 0 then return false end
+    if _get_spell_cd(rt.nature_s_swift_id) > 0 then return false end
     local emergency = eax_utils.get_self_heal_threshold(me, menu.ns_emergency_hp:get() / 100.0, menu)
     if heal_engine.get_eff_pct(tank) > emergency then return false end
     if not try_cast_self_fast(me, rt.nature_s_swift_id, "Nature's Swiftness") then return false end
@@ -766,8 +772,8 @@ local function try_bloodlust(me)
     local spell_id = rt.bloodlust_id or rt.heroism_id
     if not spell_id then return false end
     if is_pending(spell_id) then return false end
-    if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
-    local now = core.time()
+    if _get_spell_cd(spell_id) > 0 then return false end
+    local now = _core_time()
     if (now - rt.last_bloodlust_at) < BLOODLUST_CD then return false end
     -- Don't lust if we (or raid) already have Sated/Exhaustion
     if utils.has_buff(me, SATED_IDS) then return false end
@@ -795,14 +801,14 @@ local function try_proactive_mana_tide(me)
     if not menu.mana_tide_timing:get_state() then return false end
     if not rt.mana_tide_id then return false end
     if is_pending(rt.mana_tide_id) then return false end
-    if core.spell_book.get_spell_cooldown(rt.mana_tide_id) > 0 then return false end
+    if _get_spell_cd(rt.mana_tide_id) > 0 then return false end
     local threshold = menu.mana_tide_mana_pct:get() / 100.0
     if utils.get_mana_pct(me) > threshold then return false end
     if utils.get_mana_pct(me) > 0.40 then
         if not eax_utils.should_use_mana_tide(me, menu) then return false end
     end
     if try_cast_self(me, rt.mana_tide_id, "Mana Tide (proactive)") then
-        rt.totem_last_apply["mana_tide"] = core.time()
+        rt.totem_last_apply["mana_tide"] = _core_time()
         return true
     end
     return false
@@ -975,11 +981,11 @@ end
 local function try_pvp_utilities(me)
     if not menu.pvp_mode:get_state() then return false end
     if menu.pvp_use_grounding:get_state() and rt.grounding_totem_id then
-        local cd = core.spell_book.get_spell_cooldown(rt.grounding_totem_id)
+        local cd = _get_spell_cd(rt.grounding_totem_id)
         local last = rt.totem_last_apply["grounding"] or 0
-        if cd <= 0 and (core.time() - last) >= 15 then
+        if cd <= 0 and (_core_time() - last) >= 15 then
             if try_cast_self(me, rt.grounding_totem_id, "Grounding Totem") then
-                rt.totem_last_apply["grounding"] = core.time();         esp_renderer.on_cast(nil, "Chain Heal", color.green(220))
+                rt.totem_last_apply["grounding"] = _core_time();         esp_renderer.on_cast(nil, "Chain Heal", color.green(220))
                 esp_renderer.on_cast(nil, "Healing Wave", color.cyan(220))
         return true
             end
@@ -992,9 +998,9 @@ local function try_pvp_utilities(me)
                 local d = entry.buff_manager:get_debuff_data(unit, { fid })
                 if d and d.is_active then
                     local last = rt.totem_last_apply["tremor"] or 0
-                    if (core.time() - last) >= 30 then
+                    if (_core_time() - last) >= 30 then
                         if try_cast_self(me, rt.tremor_totem_id, "Tremor Totem") then
-                            rt.totem_last_apply["tremor"] = core.time(); return true
+                            rt.totem_last_apply["tremor"] = _core_time(); return true
                         end
                     end
                     break
@@ -1025,7 +1031,7 @@ local function try_dps_filler(me, target)
     if utils.get_mana_pct(me) < (math.max(menu.mana_floor:get(), profile.mana_floor) / 100.0) then return false end
     
     -- Cooldown check - prevent spam
-    local now = core.time()
+    local now = _core_time()
     if (now - rt.last_dps_at) < DPS_COOLDOWN_S then return false end
     
     -- Earth Shock: interrupt on cast
@@ -1221,7 +1227,7 @@ do
             end
         end
         if #enabled_specs < 2 then return end
-        local now = core.time()
+        local now = _core_time()
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
@@ -1306,11 +1312,11 @@ core.register_on_render_callback(function()
 end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
 
     if utils.throttle("mode_refresh", MODE_REFRESH_INTERVAL) then
         if me then
-            rt.cached_mode = detect_mode(me)
+            rt.cached_mode = utils.detect_mode(me)
             heal_engine.set_tank_priority(menu.tank_priority_weight:get())
         end
     end

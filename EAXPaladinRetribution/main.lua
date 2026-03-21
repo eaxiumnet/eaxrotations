@@ -41,6 +41,12 @@ local reactive_runtime = require("eax_shared/reactive_runtime")
 local dps_risk = require("eax_shared/dps_risk")
 local dps_runtime = require("eax_shared/dps_runtime")
 
+-- Hot-path local caching (performance critical)
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+local _get_spell_cd = core.spell_book.get_spell_cooldown
+
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
@@ -59,8 +65,8 @@ local reactive_adapter = {}
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
-        local now_s = core.time()
-        local cd_s = tonumber(core.spell_book.get_spell_cooldown(spell_id)) or 0
+        local now_s = _core_time()
+        local cd_s = tonumber(_get_spell_cd(spell_id)) or 0
         cooldown_tracker.set_next_spell(spell_id, now_s, cd_s)
     end
     return _visual_on_cast(spell_id, name, col, target_name)
@@ -75,20 +81,28 @@ local function visual_get_ttd_seconds(target)
     return ttd_value
 end
 
+local _visual_tracked_auras = { n = 0 }
+
 local function visual_build_tracked_auras(me, target)
-    local tracked_auras = {}
+    _visual_tracked_auras.n = 0
     if me and me:is_in_combat() then
-        tracked_auras[#tracked_auras + 1] = { label = "Combat", active = true }
+        _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+        _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Combat", active = true }
     end
     if target and target:is_valid() and not target:is_dead() then
         if target:is_casting_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Cast", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Cast", active = true }
         end
         if target:is_channelling_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Channel", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Channel", active = true }
         end
     end
-    return tracked_auras
+    for i = _visual_tracked_auras.n + 1, 4 do
+        _visual_tracked_auras[i] = nil
+    end
+    return _visual_tracked_auras
 end
 
 local function visual_update_snapshot(me, target)
@@ -129,7 +143,7 @@ local function visual_update_snapshot(me, target)
     })
 
     local snapshot = visual_state.build_snapshot({
-        now_s = core.time(),
+        now_s = _core_time(),
         ttd_seconds = visual_get_ttd_seconds(target),
         tracked_auras = visual_build_tracked_auras(me, target),
     })
@@ -143,7 +157,7 @@ end
 
 core.register_on_update_callback(function()
     if not menu or not menu.enabled or not menu.enabled:get_state() then return end
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or me:is_dead() then return end
     local target = me:get_target()
     visual_update_snapshot(me, target)
@@ -273,27 +287,8 @@ local function log_resolved_spells()
     core.log("[EAX Paladin Retribution] Resolved spells: CS=" .. tostring(runtime.crusader_strike_id))
 end
 
-local function detect_mode()
-    local objects = core.object_manager.get_visible_objects()
-    local party_count = 0
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() 
-           and obj:is_party_member() then
-            party_count = party_count + 1
-        end
-    end
-
-    if party_count == 0 then
-        return "solo"
-    elseif party_count <= 4 then
-        return "dungeon"
-    end
-    return "raid"
-end
-
 local function refresh_mode_cache()
-    runtime.cached_mode = detect_mode()
+    runtime.cached_mode = utils.detect_mode(me)
 end
 
 local function get_effective_mode()
@@ -311,14 +306,14 @@ local function get_effective_mode()
 end
 
 local function is_gcd_ready()
-    if (core.time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
+    if (_core_time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
         return false
     end
-    return core.spell_book.get_global_cooldown() <= 0
+    return _get_gcd() <= 0
 end
 
 local function note_cast()
-    runtime.last_cast_time = core.time()
+    runtime.last_cast_time = _core_time()
 end
 
 local function twists_allowed_in_mode(mode)
@@ -376,7 +371,7 @@ local function should_start_seal_twist(me, target)
         return false
     end
     local required_cooldown = menu.seal_twist_cooldown:get() / 1000
-    if (core.time() - runtime.last_twist_at) < required_cooldown then
+    if (_core_time() - runtime.last_twist_at) < required_cooldown then
         return false
     end
     return true
@@ -388,7 +383,7 @@ local function begin_seal_twist(me, target)
     end
     if utils.cast_self(runtime.seal_blood_id, me) then
         runtime.twist_state = "blood"
-        runtime.last_twist_at = core.time()
+        runtime.last_twist_at = _core_time()
         utils.log_debug(menu, "Seal twist -> Blood")
         note_cast()
         return true
@@ -427,7 +422,7 @@ local function continue_seal_twist(me)
     if runtime.twist_state == "command" then
         if utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
             runtime.twist_state = "idle"
-            runtime.last_twist_at = core.time()
+            runtime.last_twist_at = _core_time()
         end
     end
 
@@ -739,7 +734,7 @@ core.register_on_update_callback(function()
         return
     end
 
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or me:is_dead() then
         return
     end
@@ -942,7 +937,7 @@ do
             end
         end
         if #enabled_specs < 2 then return end
-        local now = core.time()
+        local now = _core_time()
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")

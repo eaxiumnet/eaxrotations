@@ -39,6 +39,12 @@ local reactive_runtime = require("eax_shared/reactive_runtime")
 local dps_risk = require("eax_shared/dps_risk")
 local dps_runtime = require("eax_shared/dps_runtime")
 
+-- Hot-path local caching (performance critical)
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+local _get_spell_cd = core.spell_book.get_spell_cooldown
+
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
@@ -57,8 +63,8 @@ local reactive_adapter = {}
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
-        local now_s = core.time()
-        local cd_s = tonumber(core.spell_book.get_spell_cooldown(spell_id)) or 0
+        local now_s = _core_time()
+        local cd_s = tonumber(_get_spell_cd(spell_id)) or 0
         cooldown_tracker.set_next_spell(spell_id, now_s, cd_s)
     end
     return _visual_on_cast(spell_id, name, col, target_name)
@@ -73,20 +79,28 @@ local function visual_get_ttd_seconds(target)
     return ttd_value
 end
 
+local _visual_tracked_auras = { n = 0 }
+
 local function visual_build_tracked_auras(me, target)
-    local tracked_auras = {}
+    _visual_tracked_auras.n = 0
     if me and me:is_in_combat() then
-        tracked_auras[#tracked_auras + 1] = { label = "Combat", active = true }
+        _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+        _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Combat", active = true }
     end
     if target and target:is_valid() and not target:is_dead() then
         if target:is_casting_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Cast", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Cast", active = true }
         end
         if target:is_channelling_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Channel", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Channel", active = true }
         end
     end
-    return tracked_auras
+    for i = _visual_tracked_auras.n + 1, 4 do
+        _visual_tracked_auras[i] = nil
+    end
+    return _visual_tracked_auras
 end
 
 local function visual_update_snapshot(me, target)
@@ -127,7 +141,7 @@ local function visual_update_snapshot(me, target)
     })
 
     local snapshot = visual_state.build_snapshot({
-        now_s = core.time(),
+        now_s = _core_time(),
         ttd_seconds = visual_get_ttd_seconds(target),
         tracked_auras = visual_build_tracked_auras(me, target),
     })
@@ -141,7 +155,7 @@ end
 
 core.register_on_update_callback(function()
     if not menu or not menu.enabled or not menu.enabled:get_state() then return end
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or me:is_dead() then return end
     local target = me:get_target()
     visual_update_snapshot(me, target)
@@ -238,7 +252,7 @@ local function has_missing_runtime_spell_ids()
 end
 
 local function refresh_missing_runtime_spell_ids()
-    local now = core.time()
+    local now = _core_time()
     if (now - runtime.last_spell_refresh_at) < MISSING_SPELL_REFRESH_INTERVAL_S then
         return
     end
@@ -248,34 +262,12 @@ local function refresh_missing_runtime_spell_ids()
     end
 end
 
-local function detect_mode()
-    local objects = core.object_manager.get_visible_objects()
-    local party_count = 0
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj
-            and obj:is_valid()
-            and obj:is_unit()
-            and not obj:is_dead()
-            and obj:is_party_member()
-        then
-            party_count = party_count + 1
-        end
-    end
-    if party_count == 0 then
-        return "solo"
-    elseif party_count <= 4 then
-        return "dungeon"
-    end
-    return "raid"
-end
-
 local function refresh_mode_cache()
-    local now = core.time()
+    local now = _core_time()
     if (now - runtime.mode_cache_refreshed_at) < MODE_REFRESH_INTERVAL_S and runtime.cached_mode then
         return
     end
-    runtime.cached_mode = detect_mode()
+    runtime.cached_mode = utils.detect_mode(me)
     runtime.mode_cache_refreshed_at = now
 end
 
@@ -515,7 +507,7 @@ local function try_whirlwind(me, target, rage)
         return false
     end
 
-    local ms_cd = runtime.mortal_strike_id and core.spell_book.get_spell_cooldown(runtime.mortal_strike_id) or 0
+    local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or 0
     if ms_cd <= 1.5 then
         return false
     end
@@ -551,7 +543,7 @@ local function try_slam(me, target, rage)
          return false
      end
 
-     local ms_cd = runtime.mortal_strike_id and core.spell_book.get_spell_cooldown(runtime.mortal_strike_id) or 0
+     local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or 0
      if ms_cd <= 1.5 then
          return false
      end
@@ -767,7 +759,7 @@ local function on_update()
         return
     end
 
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or not me:is_valid() then
         return
     end
@@ -987,7 +979,7 @@ do
             end
         end
         if #enabled_specs < 2 then return end
-        local now = core.time()
+        local now = _core_time()
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")

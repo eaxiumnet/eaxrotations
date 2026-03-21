@@ -59,23 +59,34 @@ local function normalize_aura_entry(entry)
     return aura
 end
 
+local _tracked_auras = { n = 0 }
+
 local function resolve_tracked_auras(tracked_auras)
+    _tracked_auras.n = 0
     if type(tracked_auras) ~= "table" then
-        return {}
+        for i = 1, 4 do
+            _tracked_auras[i] = nil
+        end
+        return _tracked_auras
     end
 
-    local resolved = {}
-    for i = 1, #tracked_auras do
+    local tracked_count = tracked_auras.n or #tracked_auras
+    for i = 1, tracked_count do
         local aura = normalize_aura_entry(tracked_auras[i])
         if aura then
-            resolved[#resolved + 1] = aura
+            _tracked_auras.n = _tracked_auras.n + 1
+            _tracked_auras[_tracked_auras.n] = aura
         end
-        if #resolved >= 4 then
+        if _tracked_auras.n >= 4 then
             break
         end
     end
 
-    return resolved
+    for i = _tracked_auras.n + 1, 4 do
+        _tracked_auras[i] = nil
+    end
+
+    return _tracked_auras
 end
 
 -- Per-spec state
@@ -94,7 +105,7 @@ local _visual = {
     hps = 0,
     cooldown_s = 0,
     ttd_s = "--",
-    tracked_auras = {},
+    tracked_auras = _tracked_auras,
 }
 
 local DECAY_S = 3.0
@@ -162,7 +173,7 @@ local function draw_metric_row(x, y, label, value)
 end
 
 local function draw_aura_strip(x, y)
-    local aura_count = #_visual.tracked_auras
+    local aura_count = _visual.tracked_auras.n or #_visual.tracked_auras
     if aura_count <= 0 then
         return
     end
@@ -203,7 +214,7 @@ local function draw_hud(menu)
     local y = menu.esp_hud_y and menu.esp_hud_y:get() or 200
 
     local proc_count = #proc_entries
-    local aura_count = #_visual.tracked_auras
+    local aura_count = _visual.tracked_auras.n or #_visual.tracked_auras
     local metrics_h = HUD_METRIC_H * 2 + 4
     local aura_h = aura_count > 0 and (HUD_AURA_H + HUD_PAD) or 0
     local hud_h = HUD_PAD + HUD_SMALL + 4 + HUD_ICON + HUD_PAD + metrics_h + HUD_PAD + aura_h + HUD_PAD

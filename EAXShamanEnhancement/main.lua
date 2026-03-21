@@ -41,6 +41,12 @@ local reactive_runtime = require("eax_shared/reactive_runtime")
 local dps_risk = require("eax_shared/dps_risk")
 local dps_runtime = require("eax_shared/dps_runtime")
 
+-- Hot-path local caching (performance critical)
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+local _get_spell_cd = core.spell_book.get_spell_cooldown
+
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
@@ -59,8 +65,8 @@ local reactive_adapter = {}
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
     if spell_id and core and core.time and core.spell_book and core.spell_book.get_spell_cooldown then
-        local now_s = core.time()
-        local cd_s = tonumber(core.spell_book.get_spell_cooldown(spell_id)) or 0
+        local now_s = _core_time()
+        local cd_s = tonumber(_get_spell_cd(spell_id)) or 0
         cooldown_tracker.set_next_spell(spell_id, now_s, cd_s)
     end
     return _visual_on_cast(spell_id, name, col, target_name)
@@ -75,20 +81,28 @@ local function visual_get_ttd_seconds(target)
     return ttd_value
 end
 
+local _visual_tracked_auras = { n = 0 }
+
 local function visual_build_tracked_auras(me, target)
-    local tracked_auras = {}
+    _visual_tracked_auras.n = 0
     if me and me:is_in_combat() then
-        tracked_auras[#tracked_auras + 1] = { label = "Combat", active = true }
+        _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+        _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Combat", active = true }
     end
     if target and target:is_valid() and not target:is_dead() then
         if target:is_casting_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Cast", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Cast", active = true }
         end
         if target:is_channelling_spell() then
-            tracked_auras[#tracked_auras + 1] = { label = "Channel", active = true }
+            _visual_tracked_auras.n = _visual_tracked_auras.n + 1
+            _visual_tracked_auras[_visual_tracked_auras.n] = { label = "Channel", active = true }
         end
     end
-    return tracked_auras
+    for i = _visual_tracked_auras.n + 1, 4 do
+        _visual_tracked_auras[i] = nil
+    end
+    return _visual_tracked_auras
 end
 
 local function visual_update_snapshot(me, target)
@@ -129,7 +143,7 @@ local function visual_update_snapshot(me, target)
     })
 
     local snapshot = visual_state.build_snapshot({
-        now_s = core.time(),
+        now_s = _core_time(),
         ttd_seconds = visual_get_ttd_seconds(target),
         tracked_auras = visual_build_tracked_auras(me, target),
     })
@@ -143,7 +157,7 @@ end
 
 core.register_on_update_callback(function()
     if not menu or not menu.enabled or not menu.enabled:get_state() then return end
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or me:is_dead() then return end
     local target = me:get_target()
     visual_update_snapshot(me, target)
@@ -282,26 +296,8 @@ local function log_resolved_spells()
     end
 end
 
-local function detect_mode()
-    local objects = core.object_manager.get_all_objects()
-    local party_count = 0
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() 
-           and obj:is_party_member() then
-            party_count = party_count + 1
-        end
-    end
-    if party_count == 0 then
-        return "solo"
-    elseif party_count <= 4 then
-        return "dungeon"
-    end
-    return "raid"
-end
-
 local function refresh_mode_cache()
-    runtime.cached_mode = detect_mode()
+    runtime.cached_mode = utils.detect_mode(me)
 end
 
 local function get_effective_mode()
@@ -320,7 +316,7 @@ end
 local function mark_pending_cast(spell_id, timeout)
     if not spell_id then return end
     runtime.pending_casts[spell_id] = {
-        requested_at = core.time(),
+        requested_at = _core_time(),
         timeout_s = timeout or PENDING_CAST_TIMEOUT_S,
     }
 end
@@ -329,7 +325,7 @@ local function is_pending_cast(spell_id)
     if not spell_id then return false end
     local pending = runtime.pending_casts[spell_id]
     if not pending then return false end
-    if (core.time() - pending.requested_at) >= pending.timeout_s then
+    if (_core_time() - pending.requested_at) >= pending.timeout_s then
         runtime.pending_casts[spell_id] = nil
         return false
     end
@@ -337,14 +333,14 @@ local function is_pending_cast(spell_id)
 end
 
 local function note_cast()
-    runtime.last_cast_time = core.time()
+    runtime.last_cast_time = _core_time()
 end
 
 local function is_gcd_ready()
-    if (core.time() - runtime.last_cast_time) < GCD_INTERVAL then
+    if (_core_time() - runtime.last_cast_time) < GCD_INTERVAL then
         return false
     end
-    return core.spell_book.get_global_cooldown() <= 0
+    return _get_gcd() <= 0
 end
 
 local function try_cast_target(me, target, spell_id, label)
@@ -390,7 +386,7 @@ end
 
 local function ensure_totems(me)
     if not menu.auto_totems:get_state() then return end
-    local now = core.time()
+    local now = _core_time()
     for _, entry in ipairs(TOTEM_ROTATION) do
         if entry.toggle:get_state() then
             local spell_id = runtime[entry.id_field]
@@ -425,7 +421,7 @@ local function try_mana_potion(me)
     if mana_pct > 0.35 then
         return false
     end
-    local now = core.time()
+    local now = _core_time()
     if (now - runtime.last_potion_at) < 120.0 then
         return false
     end
@@ -450,13 +446,13 @@ local function try_stormstrike(me, target)
         utils.log_debug(menu, "Stormstrike: target not in melee range")
         return false
     end
-    local cd = core.spell_book.get_spell_cooldown(runtime.stormstrike_id)
+    local cd = _get_spell_cd(runtime.stormstrike_id)
     if cd > 0 then
         utils.log_debug(menu, "Stormstrike: on cooldown " .. string.format("%.1f", cd) .. "s")
         return false
     end
     if try_cast_target(me, target, runtime.stormstrike_id, "Stormstrike") then
-        runtime.last_stormstrike_at = core.time()
+        runtime.last_stormstrike_at = _core_time()
         return true
     end
     return false
@@ -467,7 +463,7 @@ local function should_chain_lightning_weave()
         return false
     end
     local profile = get_mode_profile()
-    local now = core.time()
+    local now = _core_time()
     local clip_window = math.max(menu.swing_clip_ms:get(), profile.swing_clip_ms) / 1000
     return (now - runtime.last_stormstrike_at) >= clip_window
 end
@@ -512,10 +508,10 @@ local function try_weapon_imbues(me)
     if runtime.windfury_weapon_id then
         local wf_buff = bm:get_buff_data(me, spells.BUFF_WINDFURY_WEAPON)
         local has_wf = wf_buff and wf_buff.is_active
-        local needs = not has_wf and (core.time() - runtime.last_windfury_at) >= IMBUE_DURATION_S
+        local needs = not has_wf and (_core_time() - runtime.last_windfury_at) >= IMBUE_DURATION_S
         if needs and utils.can_cast_self(runtime.windfury_weapon_id, me) then
             if utils.cast_self(runtime.windfury_weapon_id, me) then
-                runtime.last_windfury_at = core.time()
+                runtime.last_windfury_at = _core_time()
                 esp_renderer.on_cast(runtime.windfury_weapon_id, "Windfury Weapon", color.yellow(220), "Self")
                 return true
             end
@@ -525,10 +521,10 @@ local function try_weapon_imbues(me)
     if runtime.flametongue_weapon_id then
         local ft_buff = bm:get_buff_data(me, spells.BUFF_FLAMETONGUE_WEAPON)
         local has_ft = ft_buff and ft_buff.is_active
-        local needs = not has_ft and (core.time() - runtime.last_flametongue_at) >= IMBUE_DURATION_S
+        local needs = not has_ft and (_core_time() - runtime.last_flametongue_at) >= IMBUE_DURATION_S
         if needs and utils.can_cast_self(runtime.flametongue_weapon_id, me) then
             if utils.cast_self(runtime.flametongue_weapon_id, me) then
-                runtime.last_flametongue_at = core.time()
+                runtime.last_flametongue_at = _core_time()
                 esp_renderer.on_cast(runtime.flametongue_weapon_id, "Flametongue Weapon", color.orange(220), "Self")
                 return true
             end
@@ -549,7 +545,7 @@ end
 
 local function try_lava_lash(me, target)
     if not runtime.lava_lash_id then return false end      -- nil = talent not taken
-    local stormstrike_cd = runtime.stormstrike_id and core.spell_book.get_spell_cooldown(runtime.stormstrike_id) or 0
+    local stormstrike_cd = runtime.stormstrike_id and _get_spell_cd(runtime.stormstrike_id) or 0
     if stormstrike_cd <= 0 then
         return false
     end
@@ -618,7 +614,7 @@ local function try_totem_twist(me)
     if me:is_moving() then return false end
     if not me:is_in_combat() then return false end
 
-    local now = core.time()
+    local now = _core_time()
     local time_since_wf = now - runtime.last_windfury_drop
 
     -- Drop Windfury Totem every 10 seconds
@@ -847,7 +843,7 @@ resolve_spells()
 log_resolved_spells()
 
 local function update_set_bonus()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me then return end
     
     local cyclone_mult = utils.get_set_multiplier(me, "Cyclone")
@@ -921,7 +917,7 @@ core.register_on_update_callback(function()
     ooc_manager.on_update(me, menu, utils, {
         rez_spell_id = runtime.ancestral_spirit_id,
     })
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or me:is_dead() then return end
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
@@ -1050,7 +1046,7 @@ do
             end
         end
         if #enabled_specs < 2 then return end
-        local now = core.time()
+        local now = _core_time()
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")

@@ -118,7 +118,51 @@ end
 -- Max range for auto target acquisition.
 -- Covers melee + max gap-closer range. Units beyond this are ignored
 -- unless they are actively attacking us or party.
-local AUTO_TARGET_MAX_RANGE = 30.0
+local MODE_DETECT_INTERVAL_S = 5.0
+local AUTO_TARGET_MAX_RANGE = 40.0
+local AUTO_TARGET_MAX_HOSTILES = 50
+local mode_cache = "solo"
+local mode_cache_refreshed_at = 0
+
+function utils.detect_mode(me)
+    local now = core.time()
+    if mode_cache_refreshed_at > 0 and (now - mode_cache_refreshed_at) < MODE_DETECT_INTERVAL_S then
+        return mode_cache
+    end
+
+    me = me or core.object_manager.get_local_player()
+    local party_count = 0
+    local objects = core.object_manager.get_all_objects()
+
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
+            local is_group_member = false
+
+            if utils.is_group_member then
+                is_group_member = utils.is_group_member(me, obj)
+            elseif obj:is_party_member() then
+                is_group_member = not (me and utils.same_unit and utils.same_unit(me, obj))
+            end
+
+            if is_group_member then
+                party_count = party_count + 1
+            end
+        end
+    end
+
+    if party_count == 0 then
+        mode_cache = "solo"
+    elseif party_count <= 4 then
+        mode_cache = "dungeon"
+    else
+        mode_cache = "raid"
+    end
+
+    mode_cache_refreshed_at = now
+    return mode_cache
+end
+
 
 function utils.find_best_target(me)
     if not me or not me:is_valid() then return nil end
@@ -127,55 +171,59 @@ function utils.find_best_target(me)
         return unit and unit:is_valid() and not unit:is_dead() and me:can_attack(unit)
     end
 
-    local function in_range(unit, max_range)
-        local ok1, pos_me = pcall(function() return me:get_position() end)
-        local ok2, pos_u  = pcall(function() return unit:get_position() end)
-        if not ok1 or not ok2 or not pos_me or not pos_u then return true end
-        local dx = pos_me.x - pos_u.x
-        local dy = pos_me.y - pos_u.y
-        local dz = pos_me.z - pos_u.z
-        return (dx*dx + dy*dy + dz*dz) <= (max_range * max_range)
-    end
-
-    -- Priority 1: keep current target if it is already a valid hostile
     local current = me:get_target()
     if is_hostile(current) then
         return current
     end
 
+    local pos_me = nil
+    do
+        local ok, value = pcall(function() return me:get_position() end)
+        if ok then
+            pos_me = value
+        end
+    end
+
+    local function in_range(unit, max_range)
+        if not pos_me then return true end
+
+        local ok, pos_u = pcall(function() return unit:get_position() end)
+        if not ok or not pos_u then return true end
+
+        local dx = pos_me.x - pos_u.x
+        local dy = pos_me.y - pos_u.y
+        local dz = pos_me.z - pos_u.z
+        return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
+    end
+
     local objects = core.object_manager.get_all_objects()
-    local best_attacking_me    = nil
     local best_attacking_party = nil
-    local best_any             = nil
+    local best_any = nil
+    local hostile_scanned = 0
 
     for i = 1, #objects do
         local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) then
+        if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
+            hostile_scanned = hostile_scanned + 1
+
             local obj_target = obj:get_target()
-
-            -- Priority 2: unit actively targeting me (no range cap)
             if obj_target and utils.same_unit(obj_target, me) then
-                if not best_attacking_me then
-                    best_attacking_me = obj
-                end
+                return obj
+            end
 
-            -- Priority 3: unit targeting a party member (no range cap)
-            elseif obj_target and obj_target:is_valid()
-                and obj_target:is_party_member() then
-                if not best_attacking_party then
-                    best_attacking_party = obj
-                end
+            if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
+                best_attacking_party = obj
+            elseif not best_any then
+                best_any = obj
+            end
 
-            -- Priority 4: any hostile within range only
-            elseif in_range(obj, AUTO_TARGET_MAX_RANGE) then
-                if not best_any then
-                    best_any = obj
-                end
+            if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
+                break
             end
         end
     end
 
-    return best_attacking_me or best_attacking_party or best_any
+    return best_attacking_party or best_any
 end
 
 
