@@ -181,14 +181,12 @@ local rt = {
     arcane_shot_id      = nil,
     steady_shot_id      = nil,
     multi_shot_id       = nil,
-    explosive_shot_id   = nil,
     hunters_mark_id     = nil,
     serpent_sting_id    = nil,
-    scorpid_sting_id    = nil,
-    viper_sting_id      = nil,
     aspect_hawk_id      = nil,
     viper_aspect_id     = nil,
     raptor_strike_id    = nil,
+    mongoose_bite_id    = nil,
     wing_clip_id        = nil,
     concussive_shot_id  = nil,
     kill_command_id     = nil,
@@ -204,22 +202,18 @@ local rt = {
     -- state
     last_wing_clip_cast_count = 0,
     last_concussive_cast_count = 0,
-    last_viper_sting_cast_count = 0,
     last_disengage_cast_count = 0,
     last_kill_command_cast_count = 0,
     last_hunters_mark_cast_count = 0,
     last_serpent_sting_cast_count = 0,
-    last_scorpid_sting_cast_count = 0,
     last_aspect_cast_count = 0,
     last_raptor_strike_cast_count = 0,
+    last_mongoose_bite_cast_count = 0,
     last_arcane_shot_cast_count = 0,
     last_aimed_shot_cast_count = 0,
     last_steady_shot_cast_count = 0,
     last_multi_shot_cast_count = 0,
-    last_explosive_shot_cast_count = 0,
-    last_bestial_wrath_cast_count = 0,
     last_rapid_fire_cast_count = 0,
-    last_intimidation_cast_count = 0,
     last_trap_time      = 0,
     last_spell_refresh  = 0,
     haste_breakpoint    = "2:1",
@@ -240,14 +234,12 @@ local function resolve()
     rt.arcane_shot_id      = utils.resolve_spell_id(spells.ARCANE_SHOT)
     rt.steady_shot_id      = utils.resolve_spell_id(spells.STEADY_SHOT)
     rt.multi_shot_id       = utils.resolve_spell_id(spells.MULTI_SHOT)
-    rt.explosive_shot_id   = utils.resolve_spell_id(spells.EXPLOSIVE_SHOT)
     rt.hunters_mark_id     = utils.resolve_spell_id(spells.HUNTERS_MARK)
     rt.serpent_sting_id    = utils.resolve_spell_id(spells.SERPENT_STING)
-    rt.scorpid_sting_id    = utils.resolve_spell_id(spells.SCORPID_STING)
-    rt.viper_sting_id      = utils.resolve_spell_id(spells.VIPER_STING)
     rt.aspect_hawk_id      = utils.resolve_spell_id(spells.ASPECT_OF_THE_HAWK)
     rt.viper_aspect_id     = utils.resolve_spell_id(spells.ASPECT_OF_THE_VIPER)
     rt.raptor_strike_id    = utils.resolve_spell_id(spells.RAPTOR_STRIKE)
+    rt.mongoose_bite_id    = utils.resolve_spell_id(spells.MONGOOSE_BITE)
     rt.wing_clip_id        = utils.resolve_spell_id(spells.WING_CLIP)
     rt.concussive_shot_id  = utils.resolve_spell_id(spells.CONCUSSIVE_SHOT)
     rt.kill_command_id     = utils.resolve_spell_id(spells.KILL_COMMAND)
@@ -449,47 +441,6 @@ local function try_serpent_sting(me, t)
     end
     return false
 end
-local function try_scorpid_sting(me, t)
-    if not menu.use_scorpid_sting or not menu.use_scorpid_sting:get_state() then return false end
-    if not rt.scorpid_sting_id then return false end
-    if active_mode()=="solo" then return false end
-    if has_debuff(t, spells.DEBUFF_SCORPID_STING) then return false end
-    if rt.last_scorpid_sting_cast_count == core.spell_book.get_spell_cast_count(rt.scorpid_sting_id) then return false end
-    if not allow_instant(me) then return false end
-    if not utils.can_cast_hostile(rt.scorpid_sting_id, me, t) then return false end
-    if utils.cast_target(rt.scorpid_sting_id, t) then
-        rt.last_scorpid_sting_cast_count = core.spell_book.get_spell_cast_count(rt.scorpid_sting_id)
-        utils.log_debug(menu, "Scorpid Sting"); return true
-    end
-    return false
-end
-local function try_viper_sting(me, t)
-    if not menu.use_viper_sting or not menu.use_viper_sting:get_state() then return false end
-    if not rt.viper_sting_id then return false end
-    if has_debuff(t, spells.DEBUFF_VIPER_STING) then return false end
-    if rt.last_viper_sting_cast_count == core.spell_book.get_spell_cast_count(rt.viper_sting_id) then return false end
-    if not allow_instant(me) then return false end
-    if not utils.can_cast_hostile(rt.viper_sting_id, me, t) then return false end
-    if utils.cast_target(rt.viper_sting_id, t) then
-        rt.last_viper_sting_cast_count = core.spell_book.get_spell_cast_count(rt.viper_sting_id)
-        utils.log_debug(menu, "Viper Sting"); return true
-    end
-    return false
-end
-local function try_explosive_shot(me, t)
-    if not menu.use_explosive_shot or not menu.use_explosive_shot:get_state() then return false end
-    if not rt.explosive_shot_id then return false end
-    if not allow_instant(me) then return false end
-    if rt.last_explosive_shot_cast_count == core.spell_book.get_spell_cast_count(rt.explosive_shot_id) then return false end
-    if not utils.can_cast_hostile(rt.explosive_shot_id, me, t) then return false end
-    if utils.cast_target(rt.explosive_shot_id, t) then
-        rt.last_explosive_shot_cast_count = core.spell_book.get_spell_cast_count(rt.explosive_shot_id)
-        utils.log_debug(menu, "Explosive Shot")
-        esp_renderer.on_cast(rt.explosive_shot_id, "Explosive Shot", color.red(240))
-        return true
-    end
-    return false
-end
 local function try_arcane_shot(me, t)
     if not menu.use_arcane_shot or not menu.use_arcane_shot:get_state() then return false end
     if not rt.arcane_shot_id then return false end
@@ -576,9 +527,22 @@ end
 local function try_raptor_strike(me, t)
     if not menu.use_raptor_strike or not menu.use_raptor_strike:get_state() then return false end
     if not rt.raptor_strike_id or dist(t)>5 then return false end
+    if rt.last_raptor_strike_cast_count == core.spell_book.get_spell_cast_count(rt.raptor_strike_id) then return false end
     if not utils.can_cast_hostile(rt.raptor_strike_id, me, t) then return false end
     if utils.cast_target(rt.raptor_strike_id, t) then
+        rt.last_raptor_strike_cast_count = core.spell_book.get_spell_cast_count(rt.raptor_strike_id)
         utils.log_debug(menu, "Raptor Strike"); return true
+    end
+    return false
+end
+local function try_mongoose_bite(me, t)
+    if not menu.use_mongoose_bite or not menu.use_mongoose_bite:get_state() then return false end
+    if not rt.mongoose_bite_id or dist(t) > 5 then return false end
+    if rt.last_mongoose_bite_cast_count == core.spell_book.get_spell_cast_count(rt.mongoose_bite_id) then return false end
+    if not utils.can_cast_hostile(rt.mongoose_bite_id, me, t) then return false end
+    if utils.cast_target(rt.mongoose_bite_id, t) then
+        rt.last_mongoose_bite_cast_count = core.spell_book.get_spell_cast_count(rt.mongoose_bite_id)
+        utils.log_debug(menu, "Mongoose Bite"); return true
     end
     return false
 end
@@ -637,8 +601,14 @@ local function try_trap(me, t)
     if (_core_time() - rt.last_trap_time) < interval then return false end
     local sel = menu.trap_selection and menu.trap_selection:get() or 1
     local tid
-    if sel == 1 then tid = rt.explosive_trap_id
-    elseif sel == 2 then tid = rt.immolation_trap_id
+    if sel == 1 then
+        if menu.use_immolation_trap and menu.use_immolation_trap:get_state() then
+            tid = rt.immolation_trap_id
+        end
+    elseif sel == 2 then
+        if menu.use_explosive_trap and menu.use_explosive_trap:get_state() then
+            tid = rt.explosive_trap_id
+        end
     elseif sel == 3 then tid = rt.freezing_trap_id end
     if not tid then return false end
     if utils.can_cast_self(tid, me) then
@@ -694,18 +664,15 @@ local function do_rotation(me, t)
 
     if d > 40 then return end
 
-    if try_scorpid_sting(me, t) then return end
-    if try_viper_sting(me, t) then return end
-
-    -- SV priority: Explosive Shot (sig) → Serpent Sting → Arcane Shot → Aimed → Multi → Steady
-    if try_explosive_shot(me, t) then return end
     if try_serpent_sting(me, t) then return end
-    if try_arcane_shot(me, t) then return end
+
     if try_aimed_shot(me, t) then return end
     if try_multi_shot(me, t) then return end
+    if try_arcane_shot(me, t) then return end
     if try_steady_shot(me, t) then return end
 
     if d <= 5 then
+        if try_mongoose_bite(me, t) then return end
         try_raptor_strike(me, t)
     end
     if me:is_in_combat() and not is_moving() then
@@ -849,7 +816,8 @@ if control_panel_utility then
         end
         add_cb(lbl_enabled, menu.enabled, "eax_sv_enabled_cp")
         if menu.enabled and menu.enabled:get_state() then
-            add_cb("[EAX SV] Explosive Shot",   menu.use_explosive_shot, "eax_sv_expshot_cp")
+            add_cb("[EAX SV] Serpent Sting",    menu.use_serpent_sting,  "eax_sv_serpent_cp")
+            add_cb("[EAX SV] Steady Shot",      menu.use_steady_shot,    "eax_sv_steady_cp")
             add_cb("[EAX SV] Rapid Fire",       menu.use_rapid_fire,     "eax_sv_rf_cp")
             add_cb("[EAX SV] Auto Viper",       menu.use_aspect_viper,   "eax_sv_viper_cp")
             add_cb("[EAX SV] Kill Command",     menu.use_kill_command,   "eax_sv_kc_cp")
