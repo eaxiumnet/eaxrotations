@@ -297,6 +297,21 @@ function reactive_runtime.update_tick(me, target, deps)
     local reactive_status = execute_adapter(me, target, ctx, result, deps, adapter)
     result.reactive_status = reactive_status
 
+    -- record_threat_sample owns sample_count increments for each runtime tick.
+    dps_meter.record_threat_sample((((ctx or {}).self or {}).threat_pct), (((ctx or {}).meta or {}).now_s))
+    if (result.action_id or "none") ~= "none" then
+        dps_meter.increment_counter("reactive_event_count")
+    end
+    if reactive_status == "noop_unsupported" then
+        dps_meter.increment_counter("noop_unsupported_count")
+    end
+    if reactive_status == "skipped_unsafe" then
+        dps_meter.increment_counter("unsafe_skip_count")
+    end
+    if ctx.meta.fail_safe == true then
+        dps_meter.increment_counter("fail_safe_tick_count")
+    end
+
     local role_signal, role_target_kind = role_telemetry(ctx, result)
     dps_meter.set_reactive_state({
         reactive_action = result.action_id or "none",

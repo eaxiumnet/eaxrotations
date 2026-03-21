@@ -199,6 +199,7 @@ run_with_core({
     local handled_calls = 0
     local reactive_runtime = load_runtime(common_stubs)
     dps_meter.reset()
+    dps_meter.on_combat_start()
 
     local ctx, result = reactive_runtime.update_tick("me", current_target, {
         state = {},
@@ -385,6 +386,7 @@ run_with_core({
 }, function()
     local reactive_runtime = load_runtime(common_stubs)
     dps_meter.reset()
+    dps_meter.on_combat_start()
 
     local _, result = reactive_runtime.update_tick("me", current_target, {
         state = {},
@@ -411,6 +413,7 @@ run_with_core({
 
     local reactive_runtime = load_runtime(common_stubs)
     dps_meter.reset()
+    dps_meter.on_combat_start()
 
     local _, result = reactive_runtime.update_tick("me", current_target, {
         state = {},
