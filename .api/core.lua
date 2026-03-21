@@ -604,21 +604,6 @@ function core.inventory.get_gold()
     return 0
 end
 
---- Returns the number of copies of an item in the player's inventory.
----@param item_id integer The item ID to count.
----@return integer count The number of matching items.
-function core.inventory.get_item_count(item_id)
-    return 0
-end
-
---- Returns the item ID found in a bag slot.
----@param bag_id integer The bag identifier.
----@param slot_id integer The slot index within the bag.
----@return integer item_id The item ID in the slot, or 0 when empty.
-function core.inventory.get_item_id_in_bag_slot(bag_id, slot_id)
-    return 0
-end
-
 ---@class game_ui
 core.game_ui = {}
 
@@ -814,12 +799,6 @@ end
 ---@param item_id integer The ID of the item to use.
 ---@return boolean Indicates whether the spell was successfully usage of the item
 function core.input.use_item_position(item_id, position)
-    return false
-end
-
---- Performs the druid quick shapeshift cat-form helper.
----@return boolean success Whether the shapeshift request was accepted.
-function core.input.quick_cat()
     return false
 end
 
@@ -1223,22 +1202,6 @@ function core.input.clear_dungeon_selections(index)
     return nil
 end
 
----@class navigation
-core.navigation = {}
-
---- Returns whether navigation is actively moving toward a destination.
----@return boolean moving True when a navigation path is currently active.
-function core.navigation.is_moving()
-    return false
-end
-
---- Returns the distance from the player to a world position.
----@param position vec3 Target world position.
----@return number distance Distance in yards.
-function core.navigation.get_distance_to(position)
-    return 0
-end
-
 ---@class object_manager
 core.object_manager = {}
 
@@ -1267,26 +1230,6 @@ function core.object_manager.get_visible_objects()
     return {}
 end
 
---- Retrieves units around a world position.
----@param position vec3 Center point.
----@param radius number Radius in yards.
----@return game_objects_table units Units inside the radius.
-function core.object_manager.get_units_in_range(position, radius)
-    return {}
-end
-
---- Retrieves current party members.
----@return game_objects_table party_members Party member units.
-function core.object_manager.get_party_members()
-    return {}
-end
-
---- Retrieves current raid members.
----@return game_objects_table raid_members Raid member units.
-function core.object_manager.get_raid_members()
-    return {}
-end
-
 --- Retrieves a list of game objects with all the arena frames.
 ---@return game_objects_table
 function core.object_manager.get_arena_frames()
@@ -1301,13 +1244,6 @@ end
 
 ---@class spell_book
 core.spell_book = {}
-
---- Casts a spell by ID using the spellbook helper.
----@param spell_id integer The spell ID to cast.
----@return boolean success Whether the cast request was accepted.
-function core.spell_book.cast_spell(spell_id)
-    return false
-end
 
 --- Retrieves the local_player specialization_id
 ---@return number The local_player specialization_id

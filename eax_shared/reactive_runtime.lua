@@ -11,6 +11,12 @@ end)
 
 local reactive_runtime = {}
 
+-- Throttle combat_context.build() to reduce 20+ pcall API calls per frame
+-- Context is refreshed every 2 seconds instead of every frame
+local CONTEXT_REFRESH = 2.0  -- seconds between context rebuilds
+local _last_context_build = 0
+local _cached_context = nil
+
 local REQUIRED_BRANCHES = {
     "life_save_self",
     "life_save_ally",
@@ -288,12 +294,20 @@ function reactive_runtime.update_tick(me, target, deps)
 
     target = restore_previous_target(me, target, deps.state, adapter, nil, deps)
 
-    local ctx = combat_context.build(me, target, nil, {
-        health_prediction = load_health_prediction(),
-        encounter_manager = deps.encounter_manager,
-        party_reader = deps.party_reader,
-        now_s = deps.now_s,
-    })
+    -- Throttle combat_context.build() to every CONTEXT_REFRESH seconds
+    -- Eliminates ~20+ pcall API calls per frame (massive CPU savings)
+    local now = deps.now_s or (core and core.time and core.time()) or 0
+    if (now - _last_context_build) >= CONTEXT_REFRESH then
+        _last_context_build = now
+        _cached_context = combat_context.build(me, target, nil, {
+            health_prediction = load_health_prediction(),
+            encounter_manager = deps.encounter_manager,
+            party_reader = deps.party_reader,
+            now_s = deps.now_s,
+        })
+    end
+
+    local ctx = _cached_context
 
     local result = reactive_engine.try_handle(ctx, {
         state = deps.state,
@@ -331,6 +345,13 @@ function reactive_runtime.update_tick(me, target, deps)
     })
 
     return ctx, result
+end
+
+--- Force a rebuild of the combat context on the next update_tick call.
+--- Call this when combat state changes significantly (e.g., new target, party change).
+function reactive_runtime.invalidate_context()
+    _last_context_build = 0
+    _cached_context = nil
 end
 
 return reactive_runtime

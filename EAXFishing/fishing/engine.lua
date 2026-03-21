@@ -162,13 +162,13 @@ function M.tick(ctx)
                                 catch_max_ms = deps.config.menu.catch_delay_max_ms:get()
                             end
                             -- Scale by behavior profile so reaction time varies naturally over session
-                            local reaction_s = Behavior.scaled_delay(state, now, catch_min_ms, catch_max_ms, "reaction")
+                            local reaction_s = Behavior.scaled_delay(state, now, catch_min_ms, catch_max_ms, "reaction", deps.config)
                             bite_reaction_deadline = bite_detected_time + reaction_s
                             local allow_escape = deps.config.menu.enable_fish_escape
                                 and deps.config.menu.enable_fish_escape:get_state()
                             if allow_escape then
                                 -- Scale escape window by behavior too
-                                local escape_extra = Behavior.scaled_delay(state, now, 800, 1800, "reaction")
+                                local escape_extra = Behavior.scaled_delay(state, now, 800, 1800, "reaction", deps.config)
                                 bite_escape_deadline = bite_reaction_deadline + escape_extra
                             end
                             local allow_miss = deps.config.menu.enable_missed_catches
@@ -385,7 +385,7 @@ function M.tick(ctx)
     
     -- Apply lure if needed
     if deps.config.menu.auto_lure and deps.config.menu.auto_lure:get_state() then
-        if not Lures.has_active_lure(ctx, me) and not Lures.has_main_hand_enchant(me) then
+        if not Lures.has_active_lure(ctx, me, now) then
             if Lures.try_apply_lure(ctx, me, now) then
                 state.fishing.status = "Applying lure..."
                 state.fishing.last_action_time = now

@@ -110,6 +110,7 @@ function M.create(now)
         lure = {
             assumed_expire_time = 0.0,
             lure_apply_delay_end = 0.0,
+            last_lure_apply_time = 0.0,  -- dedicated throttle, separate from gear equip
         },
         
         -- Vendor state
@@ -174,6 +175,10 @@ function M.reset_fishing(state)
     state.loot.last_time = 0.0
     state.loot.slot_index = 0
     state.loot.start_time = 0.0
+    -- FIXED: reset lure assumed expiry so bot re-applies lure after disable/re-enable
+    state.lure.assumed_expire_time = 0.0
+    state.lure.lure_apply_delay_end = 0.0
+    state.lure.last_lure_apply_time = 0.0
 end
 
 return M
