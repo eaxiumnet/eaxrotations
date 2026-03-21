@@ -46,17 +46,17 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REST-01 | TBA | Pending |
-| REST-02 | TBA | Pending |
-| FERA-01 | TBA | Pending |
-| FERA-02 | TBA | Pending |
-| VALD-01 | TBA | Pending |
+| REST-01 | Phase 9 | Pending |
+| REST-02 | Phase 9 | Pending |
+| FERA-01 | Phase 10 | Pending |
+| FERA-02 | Phase 10 | Pending |
+| VALD-01 | Phase 11 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 5 total
-- Mapped to phases: 0
-- Unmapped: 5
+- Mapped to phases: 5
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-21*
-*Last updated: 2026-03-21 after milestone v1.2 requirement scoping*
+*Last updated: 2026-03-21 after milestone v1.2 roadmap mapping*
