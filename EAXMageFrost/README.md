@@ -4,7 +4,7 @@ Frost Mage rotation automation for TBC on Project Sylvanas.
 
 ## Rotation
 - `Frostbolt` is the primary filler cast.
-- `Ice Lance` fires during Fingers of Frost / Brain Freeze procs.
+- `Ice Lance` fires on actual frozen targets or as a cheap instant while moving.
 - `Icy Veins` on cooldown for burst.
 - `Frost Nova` for AoE control and kiting.
 - `Cone of Cold` as AoE damage and slow.

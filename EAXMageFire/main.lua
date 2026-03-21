@@ -191,6 +191,7 @@ local runtime = {
     fireball_id = nil,
     pyroblast_id = nil,
     combustion_id = nil,
+    mage_armor_id = nil,
     evocation_id = nil,
     fire_blast_id = nil,
     ice_block_id = nil,
@@ -209,7 +210,7 @@ local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 local function resolve_spells()
-    runtime.molten_armor_id      = utils.resolve_spell_id(spells.MOLTEN_ARMOR)
+    runtime.mage_armor_id        = utils.resolve_spell_id(spells.MAGE_ARMOR)
     runtime.blast_wave_id        = utils.resolve_spell_id(spells.BLAST_WAVE)
     runtime.dragons_breath_id    = utils.resolve_spell_id(spells.DRAGONS_BREATH)
     runtime.arcane_intellect_id  = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
@@ -337,9 +338,7 @@ local function try_pyroblast(me, target)
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
 
-    local hot_streak = utils.has_buff(me, spells.BUFF_HOT_STREAK)
-    local combustion_window = utils.has_buff(me, spells.BUFF_COMBUSTION)
-    if not hot_streak and not combustion_window then return false end
+    if runtime.combustion_id and not utils.has_buff(me, spells.BUFF_COMBUSTION) then return false end
     if is_pending_cast(runtime.pyroblast_id) or utils.is_spell_already_queued(runtime.pyroblast_id) then return false end
     if not utils.can_cast_hostile(runtime.pyroblast_id, me, target) then return false end
 
@@ -489,12 +488,12 @@ local function try_flamestrike(me, target)
 end
 
 
-local function try_molten_armor(me)
-    if not runtime.molten_armor_id then return false end
-    if utils.has_buff(me, spells.BUFF_MOLTEN_ARMOR) then return false end
-    if not utils.can_cast_self(runtime.molten_armor_id, me) then return false end
-    if utils.cast_self(runtime.molten_armor_id, me) then
-        utils.log_debug(menu, "Molten Armor")
+local function try_mage_armor(me)
+    if not runtime.mage_armor_id then return false end
+    if utils.has_buff(me, spells.BUFF_MAGE_ARMOR) then return false end
+    if not utils.can_cast_self(runtime.mage_armor_id, me) then return false end
+    if utils.cast_self(runtime.mage_armor_id, me) then
+        utils.log_debug(menu, "Mage Armor")
         return true
     end
     return false
@@ -619,7 +618,7 @@ local function do_rotation(me, target)
     -- Evocation (Fire mage mana recovery)
     if try_evocation(me) then return true end
 
-    if try_molten_armor(me) then return true end
+    if try_mage_armor(me) then return true end
     if try_blast_wave(me, target) then return true end
     if try_dragons_breath(me, target) then return true end
     if not hold_offense and try_combustion(me, target) then return true end

@@ -190,7 +190,6 @@ local runtime = {
     ice_lance_id = nil,
     icy_veins_id = nil,
     water_elemental_id = nil,
-    fireball_id = nil,
     ice_block_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
@@ -211,7 +210,6 @@ local function resolve_spells()
     runtime.ice_lance_id = utils.resolve_spell_id(spells.ICE_LANCE)
     runtime.icy_veins_id = utils.resolve_spell_id(spells.ICY_VEINS)
     runtime.water_elemental_id = utils.resolve_spell_id(spells.WATER_ELEMENTAL)
-    runtime.fireball_id = utils.resolve_spell_id(spells.FIREBALL)
 end
 
 local function log_resolved_spells()
@@ -341,31 +339,12 @@ local function try_trinkets(me)
     return false
 end
 
-local function try_fireball_proc(me, target)
-    if not menu.use_fireball_proc:get_state() then return false end
-    if not runtime.fireball_id then return false end
-    if not is_valid_hostile_target(me, target) then return false end
-    if me:is_moving() then return false end
-    if not utils.has_buff(me, spells.BUFF_BRAIN_FREEZE) then return false end
-    if is_pending_cast(runtime.fireball_id) or utils.is_spell_already_queued(runtime.fireball_id) then return false end
-    if not utils.can_cast_hostile(runtime.fireball_id, me, target) then return false end
-
-    if utils.cast_target(runtime.fireball_id, target, "Fireball") then
-        mark_pending_cast(runtime.fireball_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Fireball (proc)")
-        note_cast()
-        return true
-    end
-
-    return false
-end
-
 local function try_ice_lance(me, target)
     if not menu.use_ice_lance:get_state() then return false end
     if not runtime.ice_lance_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
 
-    local frozen = utils.has_debuff(target, spells.DEBUFF_FROZEN) or utils.has_buff(me, spells.BUFF_FINGERS_OF_FROST)
+    local frozen = utils.has_debuff(target, spells.DEBUFF_FROZEN)
     local execute_target = utils.get_health_pct(target) <= menu.ice_lance_execute_hp:get()
     if not me:is_moving() and not frozen and not execute_target then
         return false
@@ -549,7 +528,6 @@ local function do_rotation(me, target)
     if try_cone_of_cold_frost(me, target) then return true end
     if not hold_offense and try_icy_veins(me, target) then return true end
     if not hold_offense and try_trinkets(me) then return true end
-    if try_fireball_proc(me, target) then return true end
     if try_ice_lance(me, target) then return true end
     if try_frostbolt(me, target) then return true end
 
