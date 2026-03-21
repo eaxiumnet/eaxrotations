@@ -188,6 +188,8 @@ local runtime = {
     consecration_id = nil,
     avengers_shield_id = nil,
     judgement_id = nil,
+    seal_of_righteousness_id = nil,
+    exorcism_id = nil,
     cached_mode = MODE_SOLO,
     mode_checked_at = 0,
     last_update_at = 0,
@@ -196,43 +198,11 @@ local runtime = {
     ooc_blessing_of_sanctuary_id = nil,
     hand_of_freedom_id = nil,
     holy_wrath_id = nil,
-    shield_of_the_righteous_id = nil,
-    hammer_of_the_righteous_id = nil,
-    crusader_strike_id = nil,
     lay_on_hands_id = nil,
-    holy_power = 0,
 }
 
 local GROUP_ROLE_HEALER = 1
 local GROUP_ROLE_DAMAGER = 2
-
-local PROT_EXTRA_SPELLS = {
-    SHIELD_OF_THE_RIGHTEOUS = { 53600 },
-}
-
-local GRAND_CRUSADER_BUFFS = { 85416, 90174 }
-
-local function clamp_holy_power(value)
-    if value < 0 then
-        return 0
-    end
-    if value > 3 then
-        return 3
-    end
-    return value
-end
-
-local function gain_holy_power(amount)
-    runtime.holy_power = clamp_holy_power(runtime.holy_power + (amount or 0))
-end
-
-local function spend_holy_power(amount)
-    runtime.holy_power = clamp_holy_power(runtime.holy_power - (amount or 0))
-end
-
-local function has_grand_crusader_proc(me)
-    return utils.has_buff(me, GRAND_CRUSADER_BUFFS)
-end
 
 local function resolve_spells()
     runtime.righteous_fury_id = utils.resolve_spell_id(spells.RIGHTEOUS_FURY)
@@ -240,10 +210,9 @@ local function resolve_spells()
     runtime.holy_wrath_id = utils.resolve_spell_id(spells.HOLY_WRATH)
     runtime.consecration_id = utils.resolve_spell_id(spells.CONSECRATION)
     runtime.avengers_shield_id = utils.resolve_spell_id(spells.AVENGERS_SHIELD)
-    runtime.shield_of_the_righteous_id = utils.resolve_spell_id(spells.SHIELD_OF_THE_RIGHTEOUS or PROT_EXTRA_SPELLS.SHIELD_OF_THE_RIGHTEOUS)
-    runtime.hammer_of_the_righteous_id = utils.resolve_spell_id(spells.HAMMER_OF_THE_RIGHTEOUS)
-    runtime.crusader_strike_id = utils.resolve_spell_id(spells.CRUSADER_STRIKE)
     runtime.judgement_id = utils.resolve_spell_id(spells.JUDGEMENT)
+    runtime.seal_of_righteousness_id = utils.resolve_spell_id(spells.SEAL_OF_RIGHTEOUSNESS)
+    runtime.exorcism_id = utils.resolve_spell_id(spells.EXORCISM)
     runtime.hammer_of_justice_id = utils.resolve_spell_id(spells.HAMMER_OF_JUSTICE)
     runtime.lay_on_hands_id = utils.resolve_spell_id(spells.LAY_ON_HANDS)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
@@ -374,12 +343,26 @@ local function try_consecration(me, enemy_count)
     return false
 end
 
-local function try_avengers_shield(me, target, mode)
-    if not menu.use_avengers_shield:get_state() or not runtime.avengers_shield_id then
+local function ensure_seal_of_righteousness(me)
+    if not runtime.seal_of_righteousness_id then
         return false
     end
 
-    if runtime.holy_power < 3 and not has_grand_crusader_proc(me) then
+    if utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS) then
+        return false
+    end
+
+    if utils.can_cast_self(runtime.seal_of_righteousness_id, me) and utils.cast_self(runtime.seal_of_righteousness_id, me) then
+        utils.log_debug(menu, "Seal of Righteousness")
+        notify_cast("paladin:seal_of_righteousness", "Seal of Righteousness", color.gold(220))
+        return true
+    end
+
+    return false
+end
+
+local function try_avengers_shield(me, target, mode)
+    if not menu.use_avengers_shield:get_state() or not runtime.avengers_shield_id then
         return false
     end
 
@@ -389,9 +372,6 @@ local function try_avengers_shield(me, target, mode)
 
     if utils.can_cast_hostile(runtime.avengers_shield_id, me, target) then
         if utils.cast_target(runtime.avengers_shield_id, target) then
-            if runtime.holy_power >= 3 then
-                spend_holy_power(3)
-            end
             utils.log_debug(menu, "Cast Avenger's Shield")
             notify_cast("paladin:avengers_shield", "Avenger's Shield", color.green(220))
                     esp_renderer.on_cast(nil, "Avenger's Shield", color.gold(220))
@@ -412,7 +392,6 @@ local function try_judgement(me, target)
     end
 
     if utils.cast_target(runtime.judgement_id, target) then
-        gain_holy_power(1)
         utils.log_debug(menu, "Cast Judgement")
         notify_cast("paladin:judgement", "Judgement", color.gold(220))
         return true
@@ -441,58 +420,22 @@ local function try_holy_wrath(me)
     return false
 end
 
-local function try_hammer_of_the_righteous(me, target, enemy_count)
-    if enemy_count < 3 then
-        return false
-    end
-    if not runtime.hammer_of_the_righteous_id then
+local function try_exorcism(me, target)
+    if not runtime.exorcism_id then
         return false
     end
     if not target or not target:is_valid() or target:is_dead() then
         return false
     end
-    if not utils.can_cast_hostile(runtime.hammer_of_the_righteous_id, me, target) then
+    if not (creature_utils.is_undead(target) or creature_utils.is_demon(target)) then
         return false
     end
-    if utils.cast_target(runtime.hammer_of_the_righteous_id, target) then
-        gain_holy_power(1)
-        return true
-    end
-    return false
-end
-
-local function try_crusader_strike(me, target)
-    if not runtime.crusader_strike_id then
+    if not utils.can_cast_hostile(runtime.exorcism_id, me, target) then
         return false
     end
-    if not target or not target:is_valid() or target:is_dead() or not utils.is_melee_target(me, target) then
-        return false
-    end
-    if not utils.can_cast_hostile(runtime.crusader_strike_id, me, target) then
-        return false
-    end
-    if utils.cast_target(runtime.crusader_strike_id, target) then
-        gain_holy_power(1)
-        return true
-    end
-    return false
-end
-
-local function try_shield_of_the_righteous(me, target)
-    if runtime.holy_power < 3 then
-        return false
-    end
-    if not runtime.shield_of_the_righteous_id then
-        return false
-    end
-    if not target or not target:is_valid() or target:is_dead() then
-        return false
-    end
-    if not utils.can_cast_hostile(runtime.shield_of_the_righteous_id, me, target) then
-        return false
-    end
-    if utils.cast_target(runtime.shield_of_the_righteous_id, target) then
-        spend_holy_power(3)
+    if utils.cast_target(runtime.exorcism_id, target) then
+        utils.log_debug(menu, "Exorcism")
+        notify_cast("paladin:exorcism", "Exorcism", color.yellow(220))
         return true
     end
     return false
@@ -658,7 +601,26 @@ local function on_update()
         return
     end
 
+    if ensure_seal_of_righteousness(me) then
+        return
+    end
+
     if ensure_holy_shield(me, target) then
+        return
+    end
+
+    if try_judgement(me, target) then
+        ensure_seal_of_righteousness(me)
+        return
+    end
+
+    local enemy_count = utils.count_enemies_within_radius(me, menu.consecration_radius:get())
+
+    if try_consecration(me, enemy_count) then
+        return
+    end
+
+    if try_exorcism(me, target) then
         return
     end
 
@@ -669,24 +631,6 @@ local function on_update()
     if try_avengers_shield(me, target, mode) then
         return
     end
-
-    if try_shield_of_the_righteous(me, target) then
-        return
-    end
-
-    local enemy_count = utils.count_enemies_within_radius(me, menu.consecration_radius:get())
-    if try_hammer_of_the_righteous(me, target, enemy_count) then
-        return
-    end
-    if try_crusader_strike(me, target) then
-        return
-    end
-
-    if try_consecration(me, enemy_count) then
-        return
-    end
-
-    try_judgement(me, target)
 end
 
 local function on_control_panel()

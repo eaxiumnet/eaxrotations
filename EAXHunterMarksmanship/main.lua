@@ -1,5 +1,5 @@
 -- main.lua  |  EAX Hunter Marksmanship  |  TBC
--- Priority: Chimera Shot > Aimed Shot > Serpent Sting > Arcane Shot > Multi > Steady
+-- Priority: Kill Command > Aimed Shot > Serpent Sting > Arcane Shot > Multi > Steady
 
 local menu    = require("menu")
 local spells  = require("spells")
@@ -181,7 +181,7 @@ local rt = {
     arcane_shot_id      = nil,
     steady_shot_id      = nil,
     multi_shot_id       = nil,
-    chimera_shot_id     = nil,
+    kill_command_id     = nil,
     hunters_mark_id     = nil,
     serpent_sting_id    = nil,
     scorpid_sting_id    = nil,
@@ -215,7 +215,6 @@ local rt = {
     last_aimed_shot_cast_count = 0,
     last_steady_shot_cast_count = 0,
     last_multi_shot_cast_count = 0,
-    last_chimera_shot_cast_count = 0,
     last_bestial_wrath_cast_count = 0,
     last_rapid_fire_cast_count = 0,
     last_intimidation_cast_count = 0,
@@ -239,7 +238,7 @@ local function resolve()
     rt.arcane_shot_id      = utils.resolve_spell_id(spells.ARCANE_SHOT)
     rt.steady_shot_id      = utils.resolve_spell_id(spells.STEADY_SHOT)
     rt.multi_shot_id       = utils.resolve_spell_id(spells.MULTI_SHOT)
-    rt.chimera_shot_id     = utils.resolve_spell_id(spells.CHIMERA_SHOT)
+    rt.kill_command_id     = utils.resolve_spell_id(spells.KILL_COMMAND)
     rt.hunters_mark_id     = utils.resolve_spell_id(spells.HUNTERS_MARK)
     rt.serpent_sting_id    = utils.resolve_spell_id(spells.SERPENT_STING)
     rt.scorpid_sting_id    = utils.resolve_spell_id(spells.SCORPID_STING)
@@ -447,7 +446,7 @@ end
 local function try_serpent_sting(me, t)
     if not menu.use_serpent_sting or not menu.use_serpent_sting:get_state() then return false end
     if not rt.serpent_sting_id then return false end
-    -- Chimera Shot refreshes sting - only apply if no sting present
+    -- Reapply Serpent Sting shortly before it falls off in TBC.
     if debuff_rem(t, spells.DEBUFF_SERPENT_STING) > 3000 then return false end
     if rt.last_serpent_sting_cast_count == core.spell_book.get_spell_cast_count(rt.serpent_sting_id) then return false end
     if not allow_instant(me) then return false end
@@ -487,16 +486,15 @@ local function try_viper_sting(me, t)
     end
     return false
 end
-local function try_chimera_shot(me, t)
-    if not menu.use_chimera_shot or not menu.use_chimera_shot:get_state() then return false end
-    if not rt.chimera_shot_id then return false end
-    if is_moving() then return false end
-    if rt.last_chimera_shot_cast_count == core.spell_book.get_spell_cast_count(rt.chimera_shot_id) then return false end
-    if not utils.can_cast_hostile(rt.chimera_shot_id, me, t) then return false end
-    if utils.cast_target(rt.chimera_shot_id, t) then
-        rt.last_chimera_shot_cast_count = core.spell_book.get_spell_cast_count(rt.chimera_shot_id)
-        utils.log_debug(menu, "Chimera Shot")
-        esp_renderer.on_cast(rt.chimera_shot_id, "Chimera Shot", color.cyan(240))
+local function try_kill_command(me, t)
+    if not rt.kill_command_id then return false end
+    if not pet_alive() then return false end
+    if rt.last_kill_command_cast_count == core.spell_book.get_spell_cast_count(rt.kill_command_id) then return false end
+    if not utils.can_cast_hostile(rt.kill_command_id, me, t) then return false end
+    if utils.cast_target(rt.kill_command_id, t) then
+        rt.last_kill_command_cast_count = core.spell_book.get_spell_cast_count(rt.kill_command_id)
+        utils.log_debug(menu, "Kill Command")
+        esp_renderer.on_cast(rt.kill_command_id, "Kill Command", color.gold(220))
         return true
     end
     return false
@@ -692,10 +690,10 @@ local function do_rotation(me, t)
     if try_scorpid_sting(me, t) then return end
     if try_viper_sting(me, t) then return end
 
-    -- MM priority: Chimera → Serpent Sting (keep up for Chimera) → Aimed → Arcane → Multi → Steady
-    if try_chimera_shot(me, t) then return end
-    if try_serpent_sting(me, t) then return end
+    -- MM priority: Kill Command -> Aimed -> Serpent Sting -> Arcane -> Multi -> Steady
+    if try_kill_command(me, t) then return end
     if try_aimed_shot(me, t) then return end
+    if try_serpent_sting(me, t) then return end
     if try_arcane_shot(me, t) then return end
     if try_multi_shot(me, t) then return end
     if try_steady_shot(me, t) then return end
@@ -844,7 +842,6 @@ if control_panel_utility then
         end
         add_cb(lbl_enabled, menu.enabled, "eax_mm_enabled_cp")
         if menu.enabled and menu.enabled:get_state() then
-            add_cb("[EAX MM] Chimera Shot",     menu.use_chimera_shot,   "eax_mm_chimera_cp")
             add_cb("[EAX MM] Rapid Fire",       menu.use_rapid_fire,     "eax_mm_rf_cp")
             add_cb("[EAX MM] Trueshot Aura",    menu.use_trueshot_aura,  "eax_mm_tsa_cp")
             add_cb("[EAX MM] Auto Viper",       menu.use_aspect_viper,   "eax_mm_viper_cp")

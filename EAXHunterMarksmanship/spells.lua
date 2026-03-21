@@ -7,7 +7,6 @@ spells.AIMED_SHOT   = { 19434, 19426, 19407, 19405, 19404, 19403, 19402, 19401, 
 spells.ARCANE_SHOT  = { 27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 14280, 3044, 3034, 3018, 3017, 2714 }
 spells.STEADY_SHOT  = { 34120 }
 spells.MULTI_SHOT   = { 27021, 14290, 14289, 14288, 14287, 14286, 2643 }
-spells.CHIMERA_SHOT = { 53209 }
 spells.AIMED_SHOT_INSTANT = { 20900 }   -- Improved Aimed Shot proc
 
 -- ── Pet abilities ─────────────────────────────────────────────────────────────
