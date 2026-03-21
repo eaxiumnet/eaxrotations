@@ -187,9 +187,9 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
         return
     end
 
-    local pet_to_target = dist_3d(pet_pos, target_pos)
-    local pet_to_me = dist_3d(pet_pos, me_pos)
-    local me_to_target = dist_3d(me_pos, target_pos)
+    -- Use squared distance to avoid sqrt (avoids math.sqrt overhead)
+    local dx,dy,dz = pet_pos.x-target_pos.x, pet_pos.y-target_pos.y, pet_pos.z-target_pos.z
+    local pet_to_target_sq = dx*dx+dy*dy+dz*dz
     st.pet_focus = get_pet_focus(pet)
 
     if st.state == STATE_IDLE then
@@ -210,7 +210,7 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
         return
     end
 
-    if pet_to_target > 30 then
+    if pet_to_target_sq > 900 then  -- 30^2 = 900
         if now - st.last_follow > 1.0 then
             core.input.set_pet_follow()
             st.last_follow = now
@@ -219,7 +219,7 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
         return
     end
 
-    if pet_to_target <= 5 then
+    if pet_to_target_sq <= 25 then  -- 5^2 = 25
         st.state = STATE_FIGHTING
     else
         st.state = STATE_ENGAGING
@@ -268,7 +268,7 @@ function pet_manager.try_mend(me, pet, st, rt, spells, utils, menu, now)
     local mp = me:get_position()
     if pp and mp then
         local dx,dy,dz = pp.x-mp.x, pp.y-mp.y, pp.z-mp.z
-        if math.sqrt(dx*dx+dy*dy+dz*dz) > 14 then return false end
+        if (dx*dx+dy*dy+dz*dz) > 196 then return false end  -- 14^2 = 196
     end
     if now - st.last_mend < 5.0 then return false end
     if utils.can_cast_self(rt.mend_pet_id, me) then
