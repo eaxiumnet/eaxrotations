@@ -2,6 +2,7 @@
 -- Detects BM Hunter talents via spell resolution, applies damage multipliers
 
 local talent_manager = {}
+local spell_resolver = require("eax_shared/spell_resolver")
 
 talent_manager.talents = {
     go_for_the_throat = false,
@@ -100,6 +101,9 @@ function talent_manager.update()
         talent_manager.multipliers.pet_damage,
         talent_manager.multipliers.player_damage,
         talent_manager.multipliers.ranged_speed))
+
+    -- Invalidate spell ID cache when talents change (player respecced)
+    spell_resolver.invalidate_cache()
 end
 
 function talent_manager.has_talent(name)

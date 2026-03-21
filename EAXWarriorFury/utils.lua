@@ -16,6 +16,9 @@ local buff_manager = require("common/modules/buff_manager")
 local spells = require("spells")
 
 local utils = {}
+
+-- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
+local spell_resolver = require("eax_shared/spell_resolver")
 utils._tracked_stance = nil
 
 local INVENTORY_SLOT_TRINKET_1 = 13
@@ -26,21 +29,13 @@ local queue_request_timestamps = {}
 local SPELL_QUEUE_INTERVAL_S = 0.25
 local FAST_SPELL_QUEUE_INTERVAL_S = 0.10
 
---- Walk a rank table (highest-first) and return the first spell ID the player knows.
----@param rank_table number[]
----@return number|nil
+-- Delegated to shared spell resolver with persistent cache
 function utils.resolve_spell_id(rank_table)
-    if not rank_table then return nil end
-    -- Accept a plain spell ID (number) as well as a ranked table
-    if type(rank_table) == "number" then
-        return core.spell_book.is_spell_learned(rank_table) and rank_table or nil
-    end
-    for i = 1, #rank_table do
-        if core.spell_book.is_spell_learned(rank_table[i]) then
-            return rank_table[i]
-        end
-    end
-    return nil
+    return spell_resolver.resolve_spell_id(rank_table)
+end
+
+function utils.invalidate_spell_cache()
+    spell_resolver.invalidate_cache()
 end
 
 --- Can the player cast this spell on a hostile target right now?

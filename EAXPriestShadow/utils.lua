@@ -9,24 +9,20 @@ local MODE_DETECT_INTERVAL_MS = 1500
 
 local utils = {}
 
+-- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
+local spell_resolver = require("eax_shared/spell_resolver")
+
 local function safe_value(value)
     return value or 0
 end
 
+-- Delegated to shared spell resolver with persistent cache
 function utils.resolve_spell_id(rank_table)
-    if not rank_table then return nil end
-    -- Accept a plain spell ID (number) as well as a ranked table
-    if type(rank_table) == "number" then
-        return core.spell_book.is_spell_learned(rank_table) and rank_table or nil
-    end
-    if type(rank_table) ~= "table" then return nil end
-    for i = 1, #rank_table do
-        local spell_id = rank_table[i]
-        if spell_id and core.spell_book.is_spell_learned(spell_id) then
-            return spell_id
-        end
-    end
-    return nil
+    return spell_resolver.resolve_spell_id(rank_table)
+end
+
+function utils.invalidate_spell_cache()
+    spell_resolver.invalidate_cache()
 end
 
 function utils.get_health_pct(unit)

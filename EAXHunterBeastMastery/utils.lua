@@ -5,6 +5,9 @@ local buff_manager = require("common/modules/buff_manager")
 
 local utils = {}
 
+-- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
+local spell_resolver = require("eax_shared/spell_resolver")
+
 local throttle_data = {}
 local queue_request_timestamps = {}
 local SPELL_QUEUE_INTERVAL_S = 0.25

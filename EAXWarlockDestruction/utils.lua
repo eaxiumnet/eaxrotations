@@ -8,6 +8,9 @@ local spell_queue = require("common/modules/spell_queue")
 local buff_manager = require("common/modules/buff_manager")
 
 local utils = {}
+
+-- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
+local spell_resolver = require("eax_shared/spell_resolver")
 local throttle_timestamps = {}
 local queue_timestamps = {}
 local SPELL_QUEUE_INTERVAL_S = 0.25
@@ -16,19 +19,13 @@ local function queue_key(kind, spell_id, target)
     return kind .. ":" .. tostring(spell_id) .. ":" .. tostring(target)
 end
 
+-- Delegated to shared spell resolver with persistent cache
 function utils.resolve_spell_id(rank_table)
-    if not rank_table then return nil end
-    -- Accept a plain spell ID (number) as well as a ranked table
-    if type(rank_table) == "number" then
-        return core.spell_book.is_spell_learned(rank_table) and rank_table or nil
-    end
-    for i = 1, #rank_table do
-        local spell_id = rank_table[i]
-        if spell_id and core.spell_book.is_spell_learned(spell_id) then
-            return spell_id
-        end
-    end
-    return nil
+    return spell_resolver.resolve_spell_id(rank_table)
+end
+
+function utils.invalidate_spell_cache()
+    spell_resolver.invalidate_cache()
 end
 
 function utils.can_cast_target(spell_id, me, target)
