@@ -1,64 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: unknown
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-03-21T00:05:02.912Z"
+milestone: v1.2
+milestone_name: Rotation Reliability
+status: defining_requirements
+stopped_at: Milestone v1.2 started
+last_updated: "2026-03-21T00:00:00.000Z"
 progress:
-  total_phases: 4
-  completed_phases: 3
-  total_plans: 15
-  completed_plans: 13
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-03-20)
+See: `.planning/PROJECT.md` (updated 2026-03-21)
 
 **Core value:** Every spec executes the mathematically optimal rotation while maintaining survival and encounter-specific awareness.
-**Current focus:** Phase 08 — benchmark-matrix-hardening
+**Current focus:** Milestone v1.2 requirements definition
 
 ## Current Position
 
-Phase: 08 (benchmark-matrix-hardening) — EXECUTING
-Plan: 2 of 3
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 22
-- Average duration: 10 min
-- Total execution time: 3.7 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1-4 (v1.0) | 22 | 3.7h | 10 min |
-| 5-8 (v1.1) | 1 | 4 min | 4 min |
-
-**Recent Trend:**
-
-- Last 5 plans: 6m, 51m, 11m, 6m, 13m
-- Trend: Stable
-
-| Phase 05 P01 | 4 min | 2 tasks | 6 files |
-| Phase 05 P02 | 9 min | 2 tasks | 8 files |
-| Phase 05 P03 | 2 min | 2 tasks | 6 files |
-| Phase 05 P04 | 19 min | 2 tasks | 6 files |
-| Phase 05 P05 | 2 min | 2 tasks | 28 files |
-| Phase 06 P01 | 6 min | 2 tasks | 7 files |
-| Phase 06 P02 | 3 min | 2 tasks | 30 files |
-| Phase 07 P01 | 5 min | 2 tasks | 6 files |
-| Phase 07 P03 | 6 min | 2 tasks | 5 files |
-| Phase 07 P02 | 11 min | 2 tasks | 7 files |
-| Phase 07 P04 | 16 min | 2 tasks | 22 files |
-| Phase 07 P05 | 6 min | 2 tasks | 6 files |
-| Phase 08 P01 | 7 min | 2 tasks | 7 files |
+Phase: Not started (defining requirements)
+Plan: -
+Status: Defining requirements
+Last activity: 2026-03-21 - Milestone v1.2 started
 
 ## Accumulated Context
 
@@ -99,9 +67,12 @@ Recent decisions affecting current work:
 - [Phase 07]: Keep interrupts aggressive by only gating burst, threat drops, and risky cast commits, not interrupt winners.
 - [Phase 07]: Keep tools/rotation_validation.lua as the single blocking gate and extend it with per-family role parity summaries. — Phase 07 needs one deterministic validation surface that fails fast on healer, tank, or DPS regressions instead of splitting checks across multiple scripts.
 - [Phase 07]: Store role_signal and role_target_kind in the shared meter so dry-run and live benchmark rows share one telemetry contract. — Phase 08 matrix work needs one normalized source for role-quality telemetry instead of special-casing dry-run output.
+- [Runtime fix]: Sylvanas plugin loader resolves `require("eax_shared/...")` relative to each plugin folder, so plugin-local `eax_shared/` bridge files are required when using repo-root shared modules.
+- [Runtime fix]: `eax_shared/threat_manager.lua` must expose a safe `init()` because multiple specs call `threat_manager.init(me)` during startup.
 - [Phase 08]: Keep matrix verdict math in shared helper modules so benchmark and validation entrypoints reuse one deterministic contract.
 - [Phase 08]: Treat mock evidence as schema_only and release-nonpassing while exposing near_fail only as informational pass metadata.
 - [Phase 08]: Derive TPS and behavior KPI counters from shared runtime ticks instead of reopening all 27 spec files.
+- [Milestone v1.1]: Defer full Phase 8 benchmark-gated sign-off so shipment is not blocked by manual all-spec live capture.
 
 ### Pending Todos
 
@@ -113,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-21T00:05:02.910Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-03-21T00:50:00.000Z
+Stopped at: Milestone v1.2 started (requirements pending)
 Resume file: None

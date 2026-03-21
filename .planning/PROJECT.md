@@ -8,14 +8,14 @@ EAX TBC Classic Rotations are 27 WoW TBC Classic (patch 2.4.3) combat automation
 
 Every spec executes the mathematically optimal rotation for its class while maintaining survival and encounter-specific awareness — making assisted gameplay indistinguishable from expert manual play.
 
-## Current Milestone: v1.1 Combat Intelligence
+## Current Milestone: v1.2 Rotation Reliability
 
-**Goal:** Deliver full movement-excluded combat automation across all 27 specs with encounter-aware reactive intelligence under strict `@.api` usage.
+**Goal:** Restore trust in live druid behavior by fixing role-correct combat decisions and combo-point finisher execution before expanding scope.
 
 **Target features:**
-- Full reactive behavior stack (incoming damage/heal/overheal aware) for DPS, HPS, and tanking
-- Complete opener/cooldown/utility/interrupt/control behavior per class/spec using valid TBC spells/talents
-- Hard API compliance gate (`@.api`-only) plus benchmark matrix pass for all 27 specs
+- Resto Druid group logic that never performs intentional DPS in grouped content
+- Resto Druid solo logic that safely allows offensive rotation only when not in party/raid context
+- Feral Druid combo-point finisher logic that reliably spends points at correct timing
 
 ## Requirements
 
@@ -43,11 +43,10 @@ Shipped and working:
 
 What needs to be built or fixed to reach #1:
 
-- [ ] **Reactive intelligence framework** — incoming damage, incoming heals, and overheal-aware decisions across all roles
-- [ ] **Full per-spec behavior parity** — complete openers, DPS/HPS/tank rotations, cooldowns, utility, interrupts, fear/control responses for all 27 specs
-- [ ] **Encounter-aware response depth** — dungeon/raid behavior policies including defensive/offensive timing and threat/heal context
-- [ ] **Strict API hard gate** — enforce `@.api`-only access with validation that fails on non-compliant calls
-- [ ] **Benchmark matrix completion** — pass standardized DPS/HPS/TPS + behavior benchmarks for all specs
+- [ ] **Resto role lock in groups** — in party/raid/dungeon/raid-boss contexts, Resto Druid performs healing/utility only and suppresses DPS casts
+- [ ] **Resto solo DPS policy** — in solo combat contexts, Resto Druid can DPS only within safe health/mana/threat conditions
+- [ ] **Feral combo-point finisher reliability** — Feral reliably spends combo points with correct finisher selection and minimum waste/overcap
+- [ ] **Behavior validation loop for Druid specs** — add repeatable validation checks and benchmark evidence for Resto/Feral fixes before milestone close
 
 ### Out of Scope
 
@@ -55,6 +54,7 @@ What needs to be built or fixed to reach #1:
 - Hardcore or solo-only variants
 - Fresh 1-70 leveling speedrun optimization
 - Battleground PvP modes
+- Full benchmark-matrix release gating for all 27 specs in v1.1 — deferred so shipment is not blocked by manual live matrix collection
 
 ## Context
 
@@ -88,6 +88,7 @@ Repository: https://github.com/eaxiumnet/eax-tbc-classic-rotations
 | OOC manager per spec | OOC behaviors vary by class (rez spells, buff types) | ⚠️ Duplicated across 27 specs |
 | No shared modules extracted | Faster initial development, simpler deployment | ⚠️ Maintenance burden at 27 specs |
 | Manual-only testing | No TBC server API available for automated validation | ⚠️ Regression risk |
+| Defer full matrix gate from v1.1 | User prioritized shipping and live plug-and-play quality over manual 27-spec benchmark collection | ✓ Intentional |
 
 ---
-*Last updated: 2026-03-20 after milestone v1.1 kickoff*
+*Last updated: 2026-03-21 after starting milestone v1.2 Rotation Reliability*
