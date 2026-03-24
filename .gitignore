@@ -21,6 +21,8 @@ nul
 .tmp_wfu_luac.txt
 .ruff_cache/
 .sisyphus/
+sylvanas-mcp/
+spell_ids_tbc (1).md
 
 # Deprecated plugins
 EaxFishing_v2_0_1/
