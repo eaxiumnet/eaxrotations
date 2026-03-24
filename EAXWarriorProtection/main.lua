@@ -4,41 +4,55 @@
 local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local eax_utils = require("eax_utils")
 
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
+
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("wprot", "Warrior Prot")
-
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local tank_recovery = require("eax_shared/tank_recovery")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local tank_recovery = require("tank_recovery")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -106,11 +120,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -156,9 +174,9 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type color
 local color = require("color")
@@ -233,6 +251,11 @@ local runtime = {
     burst_attempted = {},
     set_multiplier = 1.0,
 }
+
+local ctx_cache = rotation_context.new({
+    important_buffs = {},
+    important_debuffs = {},
+})
 
 -- Constants
 local SHIELD_SLAM_COST = 20
@@ -900,6 +923,10 @@ local function note_cast()
     runtime.last_cast_time = _core_time()
 end
 
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
 local function note_core_action()
     runtime.last_core_action_at = _core_time()
 end
@@ -918,141 +945,48 @@ end
 
 local function is_pending_cast(spell_id)
     if not spell_id then return false end
-
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then
-        return false
-    end
-
-    if (_core_time() - pending.requested_at) >= pending.timeout_s then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-
-    return true
+    return smart_cast_manager.is_pending(spell_id)
 end
 
-local function mark_pending_cast(spell_id, timeout_s, on_confirm)
+local function mark_pending_cast(spell_id, timeout_s, options)
     if not spell_id then return end
-
-    runtime.pending_casts[spell_id] = {
-        requested_at = _core_time(),
-        timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S,
-        on_confirm = on_confirm,
-    }
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
 end
 
 local function clear_pending_cast(spell_id)
     if not spell_id then return end
-    runtime.pending_casts[spell_id] = nil
+    smart_cast_manager.clear_pending(spell_id)
 end
 
 local function refresh_pending_casts()
-    local now = _core_time()
-
-    for spell_id, pending in pairs(runtime.pending_casts) do
-        if _get_spell_cd(spell_id) > 0 then
-            runtime.pending_casts[spell_id] = nil
-        elseif (now - pending.requested_at) >= pending.timeout_s then
-            runtime.pending_casts[spell_id] = nil
-            utils.log_debug(menu, "Pending cast expired: " .. tostring(spell_id))
-        end
-    end
 end
 
 local function is_pending_or_current(spell_id)
     return is_pending_cast(spell_id) or utils.is_spell_already_queued(spell_id)
 end
 
-local function get_solo_core_rage_reserve()
-    if menu.use_shield_slam:get_state() and runtime.shield_slam_id then
-        return SHIELD_SLAM_COST
-    end
-
-    if menu.use_devastate:get_state() and runtime.devastate_id then
-        return DEVASTATE_COST
-    end
-
-    if menu.use_revenge:get_state() and runtime.revenge_id then
-        return REVENGE_COST
-    end
-
-    return 0
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
-local function maybe_log_core_starvation(me, target, action_target_valid, rage, mode_policy)
-    if not menu.debug:get_state() then
-        return
-    end
-
-    if not me:is_in_combat() or not action_target_valid or runtime.last_core_action_at <= 0 then
-        return
-    end
-
-    -- Only fire if stuck for a meaningful time AND rage is genuinely exhausted (0),
-    -- not just the normal between-swing wait at 11-19 rage.
-    if (_core_time() - runtime.last_core_action_at) < CORE_STARVATION_TIMEOUT_S then
-        return
-    end
-
-    if rage > 0 then
-        return
-    end
-
-    if not utils.throttle("simpleprot:core_starvation", 2.0) then
-        return
-    end
-
-    local melee_started = has_melee_auto_started(me, target)
-    local in_melee = is_valid_hostile_target(me, target) and utils.is_melee_target(me, target) or false
-    local shield_block_active = utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
-    local shield_block_pending = is_pending_or_current(runtime.shield_block_id)
-    local revenge_usable = runtime.revenge_id and core.spell_book.is_usable_spell(runtime.revenge_id) or false
-    local target_hp = is_valid_hostile_target(me, target) and utils.get_health_pct(target) or 0
-
-    core.log("[EAX Warrior Protection] Core starvation: mode=" .. tostring(mode_policy.name)
-        .. " rage=" .. tostring(rage)
-        .. " auto=" .. tostring(melee_started)
-        .. " melee=" .. tostring(in_melee)
-        .. " sbuff=" .. tostring(shield_block_active)
-        .. " spending=" .. tostring(shield_block_pending)
-        .. " revenge=" .. tostring(revenge_usable)
-        .. " target_hp=" .. string.format("%.2f", target_hp))
-end
-
-local function add_notification_once(unique_id, label, message, duration_s, notification_color)
-    if not menu.show_notifications:get_state() then
-        return false
-    end
-
-    if core.graphics.is_notification_active(unique_id) then
-        return false
-    end
-
-    return core.graphics.add_notification(
-        unique_id,
-        label,
-        message,
-        duration_s or 0.9,
-        notification_color or color.gold(220)
-    )
-end
-
-local function notify_cast(unique_id, message, notification_color, duration_s)
-    return add_notification_once(
-        unique_id,
-        NOTIFICATION_LABEL,
-        message,
-        duration_s,
-        notification_color
-    )
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
 end
 
 local function is_gcd_lane_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
-        return false
-    end
-    return _get_gcd() <= 0
+    return is_gcd_ready()
 end
 
 local function get_home_stance()
@@ -1119,9 +1053,7 @@ local function stage_stance_action(me, action, rage, ability_cost)
         if utils.cast_self(action.required_stance_id, me) then
             runtime.pending_stance_action = action
             runtime.pending_stance_action_started_at = _core_time()
-            mark_pending_cast(action.required_stance_id, STANCE_PENDING_CAST_TIMEOUT_S, function()
-                runtime.pending_stance_action_started_at = _core_time()
-            end)
+            mark_pending_cast(action.required_stance_id, STANCE_PENDING_CAST_TIMEOUT_S)
             utils.set_tracked_stance(action.required_stance)
             utils.log_debug(menu, "Stance -> " .. action.required_stance .. " (" .. action.action_label .. ")")
             notify_cast(
@@ -1205,9 +1137,7 @@ local function process_pending_stance_action(me)
         end
 
         if utils.cast_self(action.required_stance_id, me) then
-            mark_pending_cast(action.required_stance_id, STANCE_PENDING_CAST_TIMEOUT_S, function()
-                runtime.pending_stance_action_started_at = _core_time()
-            end)
+            mark_pending_cast(action.required_stance_id, STANCE_PENDING_CAST_TIMEOUT_S)
             utils.set_tracked_stance(action.required_stance)
             utils.log_debug(menu, "Stance -> " .. action.required_stance .. " (" .. action.action_label .. ")")
             notify_cast(
@@ -1386,7 +1316,6 @@ end
 
 -- Thunder Clap
 local function try_thunder_clap(me, target, rage)
-    if enc and not enc.aoe_safe then return false end
     if not menu.use_thunder_clap:get_state() or not runtime.thunder_clap_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
     if rage < THUNDER_CLAP_COST then return false end
@@ -2058,11 +1987,11 @@ local function try_sunder_armor(me, target, target_hp_pct)
     return false
 end
 
-local function do_single_target_core_lane(me, target, rage, target_hp_pct)
+local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
     -- Shield Block synergy: Shield Slam crits guaranteed under Shield Block - rush it first
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
-        and rage >= SHIELD_SLAM_COST
+        and resource_gate.warrior.has_rage(ctx, 20)
         and utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
         and utils.can_cast_hostile(runtime.shield_slam_id, me, target)
     then
@@ -2070,13 +1999,14 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
             utils.log_debug(menu, "ST: Shield Slam (Shield Block synergy)")
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
 
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
-        and rage >= SHIELD_SLAM_COST
+        and resource_gate.warrior.has_rage(ctx, 20)
         and utils.can_cast_hostile(runtime.shield_slam_id, me, target)
     then
         if utils.cast_target(runtime.shield_slam_id, target) then
@@ -2084,13 +2014,14 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
             esp_renderer.on_cast(nil, "Shield Slam", color.red(220))
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
 
     if menu.use_revenge:get_state()
         and runtime.revenge_id
-        and rage >= REVENGE_COST
+        and resource_gate.warrior.has_rage(ctx, 5)
         and core.spell_book.is_usable_spell(runtime.revenge_id)
         and utils.can_cast_melee(runtime.revenge_id, me)
     then
@@ -2099,13 +2030,14 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
             esp_renderer.on_cast(nil, "Revenge", color.orange(220))
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
 
     if menu.use_devastate:get_state()
         and runtime.devastate_id
-        and rage >= DEVASTATE_COST
+        and resource_gate.warrior.has_rage(ctx, 15)
         and utils.can_cast_hostile(runtime.devastate_id, me, target)
     then
         if utils.cast_target(runtime.devastate_id, target) then
@@ -2113,6 +2045,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
             esp_renderer.on_cast(nil, "Devastate", color.yellow(220))
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
@@ -2123,14 +2056,15 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
 
     if menu.use_execute:get_state()
         and target_hp_pct < EXECUTE_HP_THRESHOLD
-        and rage >= menu.execute_min_rage:get()
         and runtime.execute_id
+        and resource_gate.warrior.has_rage(ctx, 15)
         and utils.can_cast_hostile(runtime.execute_id, me, target)
     then
         if utils.cast_target(runtime.execute_id, target) then
             utils.log_debug(menu, "ST: Execute")
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
@@ -2154,7 +2088,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
 end
 
 -- AoE core lane
-local function do_aoe_core_lane(me, target, rage)
+local function do_aoe_core_lane(me, target, ctx, rage)
     local primary_target = utils.find_best_aoe_target(me, target, AOE_RADIUS) or target
 
     if try_thunder_clap(me, primary_target, rage) then
@@ -2164,7 +2098,7 @@ local function do_aoe_core_lane(me, target, rage)
     -- Shield Block synergy: rush Shield Slam for guaranteed crit threat
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
-        and rage >= SHIELD_SLAM_COST
+        and resource_gate.warrior.has_rage(ctx, 20)
         and utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
         and utils.can_cast_hostile(runtime.shield_slam_id, me, primary_target)
     then
@@ -2172,26 +2106,28 @@ local function do_aoe_core_lane(me, target, rage)
             utils.log_debug(menu, "AoE: Shield Slam (Shield Block synergy)")
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
 
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
-        and rage >= SHIELD_SLAM_COST
+        and resource_gate.warrior.has_rage(ctx, 20)
         and utils.can_cast_hostile(runtime.shield_slam_id, me, primary_target)
     then
         if utils.cast_target(runtime.shield_slam_id, primary_target) then
             utils.log_debug(menu, "AoE: Shield Slam")
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
 
     if menu.use_revenge:get_state()
         and runtime.revenge_id
-        and rage >= REVENGE_COST
+        and resource_gate.warrior.has_rage(ctx, 5)
         and core.spell_book.is_usable_spell(runtime.revenge_id)
         and utils.can_cast_melee(runtime.revenge_id, me)
     then
@@ -2199,19 +2135,21 @@ local function do_aoe_core_lane(me, target, rage)
             utils.log_debug(menu, "AoE: Revenge")
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
 
     if menu.use_devastate:get_state()
         and runtime.devastate_id
-        and rage >= DEVASTATE_COST
+        and resource_gate.warrior.has_rage(ctx, 15)
         and utils.can_cast_hostile(runtime.devastate_id, me, primary_target)
     then
         if utils.cast_target(runtime.devastate_id, primary_target) then
             utils.log_debug(menu, "AoE: Devastate")
             note_cast()
             note_core_action()
+            invalidate_ctx()
             return true
         end
     end
@@ -2223,18 +2161,22 @@ local function do_aoe_core_lane(me, target, rage)
     return false
 end
 
-local function do_core_lane(me, target, rage, target_hp_pct, is_aoe)
+local function do_core_lane(me, target, ctx, rage, target_hp_pct, is_aoe)
     if is_aoe then
-        return do_aoe_core_lane(me, target, rage)
+        return do_aoe_core_lane(me, target, ctx, rage)
     end
 
-    return do_single_target_core_lane(me, target, rage, target_hp_pct)
+    return do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
 end
 
 local function do_utility_lane(me, target, rage, target_hp_pct, is_aoe, mode_policy)
     -- Demo Shout: use AoE primary target in AoE mode so it picks the right enemy
     local demo_target = is_aoe and (utils.find_best_aoe_target(me, target, AOE_RADIUS) or target) or target
     if try_demo_shout(me, demo_target) then
+        return true
+    end
+
+    if not is_aoe and try_thunder_clap(me, target, rage) then
         return true
     end
 
@@ -2708,7 +2650,7 @@ try_intercept = function(me, target, rage, context_label)
 end
 
 -- Heroic Strike/Cleave queue
-local function do_queue_lane(me, target, rage, is_aoe)
+local function do_queue_lane(me, target, ctx, rage, is_aoe)
     if not target or not utils.is_melee_target(me, target) then return false end
     if utils.is_spell_already_queued(runtime.heroic_strike_id) or utils.is_spell_already_queued(runtime.cleave_id) then
         return false
@@ -2740,10 +2682,12 @@ local function do_queue_lane(me, target, rage, is_aoe)
     end
 
     if not menu.use_heroic_strike:get_state() or not runtime.heroic_strike_id then return false end
+    if not resource_gate.warrior.can_queue_dump(ctx, 10, 60) then return false end
     if rage < menu.heroic_strike_rage:get() or rage <= (reserve_rage + 5) then return false end
 
     if utils.can_cast_melee(runtime.heroic_strike_id, me) and utils.cast_target_fast(runtime.heroic_strike_id, target) then
         utils.log_debug(menu, at_rage_cap and "Queue: Heroic Strike (rage cap dump)" or "Queue: Heroic Strike")
+        invalidate_ctx()
         return true
     end
 
@@ -2761,15 +2705,7 @@ local function on_spell_cast(data)
         return
     end
 
-    local pending = runtime.pending_casts[data.spell_id]
-    if not pending then
-        return
-    end
-
-    if pending.on_confirm then
-        pending.on_confirm()
-    end
-
+    smart_cast_manager.on_cast_success(data.spell_id)
     clear_pending_cast(data.spell_id)
 end
 
@@ -2948,8 +2884,7 @@ core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold and primary_target_valid then
-        if try_last_stand(me, my_hp) then return end
-        if try_shield_wall(me, my_hp) then return end
+        if do_emergency_defensive_lane(me, primary_target, my_hp) then return end
     end
 
     if not me:is_in_combat() then
@@ -3048,12 +2983,14 @@ core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
     rage = utils.get_rage(me)
     if try_bloodrage(me, rage) then return end
 
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, action_target, deps)
     local target_hp_pct = utils.get_health_pct(action_target)
     local aoe_count = utils.enemy_count_in_radius(me, AOE_RADIUS)
     local is_aoe = aoe_count >= menu.aoe_enemy_count:get()
     local gcd_lane_ready = is_gcd_lane_ready()
     if mode_policy.name == "solo" then
-        if gcd_lane_ready and do_core_lane(me, action_target, rage, target_hp_pct, is_aoe) then
+        if gcd_lane_ready and do_core_lane(me, action_target, ctx, rage, target_hp_pct, is_aoe) then
             return
         end
 
@@ -3071,7 +3008,7 @@ core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
             return
         end
 
-        if gcd_lane_ready and do_core_lane(me, action_target, rage, target_hp_pct, is_aoe) then
+        if gcd_lane_ready and do_core_lane(me, action_target, ctx, rage, target_hp_pct, is_aoe) then
             return
         end
 
@@ -3085,7 +3022,7 @@ core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
         return
     end
 
-    if do_queue_lane(me, action_target, rage, is_aoe) then
+    if do_queue_lane(me, action_target, ctx, rage, is_aoe) then
         maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
         return
     end

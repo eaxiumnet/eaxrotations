@@ -4,7 +4,8 @@ local BANNED_PATTERNS = {
     { pattern = "ffi%.", label = "ffi.C" },
     { pattern = "io%.popen", label = "io.popen" },
     { pattern = "os%.execute", label = "os.execute" },
-    { pattern = "debug%.", label = "debug.traceback" },
+    { pattern = "^debug[%.%[]", label = "debug namespace" },
+    { pattern = "[^%w%.:]debug[%.%[]", label = "debug namespace" },
 }
 
 local function normalize_path(path)

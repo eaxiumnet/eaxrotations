@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -59,10 +60,12 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 -- -- Class-specific elements ---------------------------------------------------
 menu.use_frostbolt                        = core.menu.checkbox(true, "eax_mage_frost_use_frostbolt")
 menu.use_ice_lance                        = core.menu.checkbox(true, "eax_mage_frost_use_ice_lance")
-menu.ice_lance_execute_hp                 = core.menu.slider_int(5, 40, 20, "eax_mage_frost_ice_lance_execute_hp")
 menu.use_icy_veins                        = core.menu.checkbox(true, "eax_mage_frost_use_icy_veins")
 menu.use_water_elemental                  = core.menu.checkbox(true, "eax_mage_frost_use_water_elemental")
 menu.use_trinkets                         = core.menu.checkbox(true, "eax_mage_frost_use_trinkets")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eax_mage_frost_use_cooldowns")
+menu.use_frost_nova                       = core.menu.checkbox(true, "eax_mage_frost_use_frost_nova")
+menu.use_presence_of_mind                 = core.menu.checkbox(true, "eax_mage_frost_use_presence_of_mind")
 menu.use_ice_block                        = core.menu.checkbox(true, "eax_mage_frost_use_ice_block")
 menu.ice_block_hp_pct                     = core.menu.slider_int(0, 100, 20, "eax_mage_frost_ice_block_hp_pct")
 
@@ -72,6 +75,17 @@ mana_conservator.register_menu_items(menu, "eax_mage_frost")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_frostbolt", label = "Frostbolt" },
+    { toggle = "use_ice_lance", label = "Ice Lance" },
+    { toggle = "use_icy_veins", label = "Icy Veins" },
+    { toggle = "use_water_elemental", label = "Water Elemental" },
+    { toggle = "use_ice_barrier", label = "Ice Barrier" },
+}, {
+    namespace = "eaxmagefrost",
+    log_prefix = "[EAX Mage Frost] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -93,10 +107,10 @@ function menu.render()
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_frostbolt:render("Frostbolt", "Primary filler spell")
-            menu.use_ice_lance:render("Ice Lance", "Use Ice Lance on frozen or execute-style targets")
-            menu.ice_lance_execute_hp:render("Ice Lance Execute HP %", "Use Ice Lance when targets are low and frozen")
+            menu.use_ice_lance:render("Ice Lance", "Use Ice Lance on frozen targets or while moving")
             menu.use_icy_veins:render("Icy Veins", "Use Icy Veins in combat")
             menu.use_water_elemental:render("Water Elemental", "Summon Water Elemental when available")
+            menu.use_cone_of_cold:render("Cone of Cold", "Use Cone of Cold for close-range AoE damage and slowing")
             menu.use_trinkets:render("Trinkets", "Use self-cast trinkets during burst windows")
         end)
 

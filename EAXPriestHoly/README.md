@@ -4,12 +4,11 @@ Holy Priest healing automation for TBC on Project Sylvanas.
 
 ## Rotation
 - `Renew` for sustained HoT uptime.
+- `Prayer of Mending` before heavier fallback casts.
+- `Circle of Healing` before heavier fallback casts.
+- `Prayer of Healing` for group AoE healing.
 - `Greater Heal` for large direct heals.
 - `Flash Heal` for emergency quick heals.
-- `Prayer of Mending` on cooldown.
-- `Prayer of Healing` for group AoE healing.
-- `Circle of Healing` for instant AoE.
-- `Divine Hymn` for raid emergency channel.
 - OOC: `Power Word: Fortitude`, `Divine Spirit`, `Shadow Protection`.
 
 ## Install

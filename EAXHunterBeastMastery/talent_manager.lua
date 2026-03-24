@@ -2,7 +2,7 @@
 -- Detects BM Hunter talents via spell resolution, applies damage multipliers
 
 local talent_manager = {}
-local spell_resolver = require("eax_shared/spell_resolver")
+local spell_resolver = require("spell_resolver")
 
 talent_manager.talents = {
     go_for_the_throat = false,

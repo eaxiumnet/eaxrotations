@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -61,6 +62,9 @@ menu.shield_threshold                     = core.menu.slider_int(10, 90, 60, "ea
 menu.renew_threshold                      = core.menu.slider_int(10, 90, 75, "eax_priest_discipline_renew_threshold")
 menu.renew_refresh_seconds                = core.menu.slider_int(1, 5, 2, "eax_priest_discipline_renew_refresh_seconds")
 menu.pain_suppression_threshold           = core.menu.slider_int(5, 40, 25, "eax_priest_discipline_pain_suppression_threshold")
+menu.use_pw_shield                        = core.menu.checkbox(true, "eax_priest_discipline_use_pw_shield")
+menu.use_penance                          = core.menu.checkbox(true, "eax_priest_discipline_use_penance")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eax_priest_discipline_use_cooldowns")
 menu.power_infusion_enabled               = core.menu.checkbox(true, "eax_priest_discipline_power_infusion")
 menu.power_infusion_threshold             = core.menu.slider_int(25, 75, 45, "eax_priest_discipline_power_infusion_threshold")
 menu.prayer_of_mending                    = core.menu.checkbox(true, "eax_priest_discipline_prayer_of_mending")
@@ -73,6 +77,17 @@ mana_conservator.register_menu_items(menu, "eax_priest_discipline")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "power_infusion_enabled", label = "Power Infusion" },
+    { toggle = "prayer_of_mending", label = "Prayer of Mending" },
+    { toggle = "overheal_protection", label = "Overheal Protection" },
+    { toggle = "use_pain_suppression", label = "Pain Suppression" },
+    { toggle = "use_power_word_shield_self", label = "PW Shield Self" },
+}, {
+    namespace = "eaxpriestdiscipline",
+    log_prefix = "[EAX Priest Discipline] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -98,15 +113,15 @@ function menu.render()
             menu.renew_refresh_seconds:render("Renew Refresh Window", "Refresh Renew when the buff has this many seconds left")
             menu.pain_suppression_threshold:render("Pain Suppression", "Drop Pain Suppression on targets below this percent")
             menu.power_infusion_enabled:render("Power Infusion", "Enable automatic Power Infusion windows")
-            menu.power_infusion_threshold:render("Power Infusion Trigger", "Use Power Infusion when an ally crosses this percent")
+            menu.power_infusion_threshold:render("Power Infusion Trigger", "Use Power Infusion as self-burst when healing pressure is present")
             menu.prayer_of_mending:render("Prayer of Mending", "Spread Prayer of Mending when Renew is already affecting the target")
             menu.prayer_of_mending_threshold:render("PoM Threshold", "Cast Prayer of Mending when an ally falls below this percent")
-            menu.overheal_protection:render("Overheal Protection", "Cancel slow heals when target is near full HP")
+            menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        { key = "use_pain_suppression", label = "Pain Suppression", tip = "Emergency 40% damage reduction on self", hp_key = "use_pain_suppression_hp_pct", hp_label = "Pain Suppression HP %" },
+        { key = "use_pain_suppression", label = "Pain Suppression", tip = "Emergency 40% damage reduction for ally or self triage", hp_key = "use_pain_suppression_hp_pct", hp_label = "Pain Suppression HP %" },
         { key = "use_power_word_shield_self", label = "PW: Shield (Self)", tip = "Maintain Power Word Shield on self", hp_key = "use_power_word_shield_self_hp_pct", hp_label = "PW: Shield (Self) HP %" },
         })
 

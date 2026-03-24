@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -14,6 +15,7 @@ local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
+local POISON_OPTIONS = { "Disabled", "Instant", "Deadly", "Wound", "Crippling", "Mind-Numbing" }
 
 -- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
@@ -55,6 +57,7 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 menu.use_premeditation                    = core.menu.checkbox(true, "eaxroguesubtlety_use_premeditation")
 menu.use_cheap_shot                       = core.menu.checkbox(true, "eaxroguesubtlety_use_cheap_shot")
 menu.use_ambush                           = core.menu.checkbox(true, "eaxroguesubtlety_use_ambush")
+menu.use_expose_armor                     = core.menu.checkbox(false, "eaxroguesubtlety_use_expose_armor")
 menu.use_backstab                         = core.menu.checkbox(true, "eaxroguesubtlety_use_backstab")
 menu.use_hemorrhage                       = core.menu.checkbox(true, "eaxroguesubtlety_use_hemorrhage")
 menu.use_slice_and_dice                   = core.menu.checkbox(true, "eaxroguesubtlety_use_slice_and_dice")
@@ -62,13 +65,28 @@ menu.use_rupture                          = core.menu.checkbox(true, "eaxroguesu
 menu.use_eviscerate                       = core.menu.checkbox(true, "eaxroguesubtlety_use_eviscerate")
 menu.use_shadowstep                       = core.menu.checkbox(true, "eaxroguesubtlety_use_shadowstep")
 menu.use_preparation                      = core.menu.checkbox(true, "eaxroguesubtlety_use_preparation")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eaxroguesubtlety_use_cooldowns")
+menu.use_feint                            = core.menu.checkbox(true, "eaxroguesubtlety_use_feint")
 menu.snd_refresh_seconds                  = core.menu.slider_int(1, 6, 3, "eaxroguesubtlety_snd_refresh_seconds")
 menu.finisher_combo_points                = core.menu.slider_int(3, 5, 4, "eaxroguesubtlety_finisher_combo_points")
+menu.main_hand_poison                     = core.menu.combobox(2, "eaxroguesubtlety_main_hand_poison")
+menu.off_hand_poison                      = core.menu.combobox(3, "eaxroguesubtlety_off_hand_poison")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_cheap_shot", label = "Cheap Shot" },
+    { toggle = "use_backstab", label = "Backstab" },
+    { toggle = "use_hemorrhage", label = "Hemorrhage" },
+    { toggle = "use_shadowstep", label = "Shadowstep" },
+    { toggle = "use_preparation", label = "Preparation" },
+}, {
+    namespace = "eaxroguesubtlety",
+    log_prefix = "[EAX Rogue Subtlety] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -91,7 +109,8 @@ function menu.render()
             ps.header("Spells & Abilities")
             menu.use_premeditation:render("Premeditation", "Build combo points before the opener")
             menu.use_cheap_shot:render("Cheap Shot", "Preferred control opener in dungeon and raid")
-            menu.use_ambush:render("Ambush", "Fallback stealth damage opener")
+            menu.use_ambush:render("Ambush", "Solo stealth damage opener")
+            menu.use_expose_armor:render("Expose Armor", "Group assignment: apply armor reduction when requested")
             menu.use_backstab:render("Backstab", "Primary behind-target builder")
             menu.use_hemorrhage:render("Hemorrhage", "Fallback builder when Backstab is not ideal")
             menu.use_slice_and_dice:render("Slice and Dice", "Maintain Slice and Dice before burst finishers")
@@ -120,6 +139,9 @@ function menu.render()
         menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
         menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
         menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
+        menu.auto_apply_poisons:render("Auto Apply Poisons", "Apply rogue weapon poisons out of combat when poison items are available")
+        menu.main_hand_poison:render("Main Hand Poison", POISON_OPTIONS)
+        menu.off_hand_poison:render("Off Hand Poison", POISON_OPTIONS)
         menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
         menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
         menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
@@ -135,4 +157,5 @@ menu.use_evasion = core.menu.checkbox(true, "eaxroguesubtlety_use_evasion")
 menu.use_evasion_hp_pct = core.menu.slider_int(0, 100, 35, "eaxroguesubtlety_evas_hp")
 menu.use_cloak = core.menu.checkbox(true, "eaxroguesubtlety_use_cloak")
 menu.use_cloak_hp_pct = core.menu.slider_int(0, 100, 60, "eaxroguesubtlety_cloak_hp")
+menu.auto_apply_poisons = core.menu.checkbox(true, "eaxroguesubtlety_auto_apply_poisons")
 return menu

@@ -10,7 +10,7 @@ local buff_manager = require("common/modules/buff_manager")
 local utils = {}
 
 -- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
-local spell_resolver = require("eax_shared/spell_resolver")
+local spell_resolver = require("spell_resolver")
 
 local throttle_timestamps = {}
 local queue_timestamps = {}
@@ -82,7 +82,9 @@ function utils.get_selected_mode(menu)
         return "raid"
     end
 
-    
+    return utils.detect_mode(core.object_manager.get_local_player())
+end
+
 -- Find the best hostile target using priority logic:
 -- 1. Current target if it is a valid hostile
 -- 2. A hostile unit that is actively targeting ME (attacking me)
@@ -147,6 +149,10 @@ function utils.find_best_target(me)
     local current = me:get_target()
     if is_hostile(current) then
         return current
+    end
+
+    if not me:is_in_combat() then
+        return nil
     end
 
     local pos_me = nil
@@ -222,9 +228,6 @@ function utils.same_unit(a, b)
     return false
 end
 
-return utils.detect_mode(core.object_manager.get_local_player())
-end
-
 function utils.can_attack(me, target)
     return me and target and target:is_valid() and not target:is_dead() and me:can_attack(target)
 end
@@ -246,7 +249,7 @@ function utils.can_cast_target(spell_id, me, target)
         return false
     end
 
-    return spell_helper:is_spell_castable(spell_id, me, target, false, false)
+    return spell_helper:is_spell_castable(spell_id, me, target, true, false)
 end
 
 --- Can the player cast an OFFENSIVE spell on target right now?
@@ -258,8 +261,9 @@ end
 ---@return boolean
 function utils.can_cast_hostile(spell_id, me, target)
     if not me or not target then return false end
+    local same_unit = utils.same_unit or function(a, b) return a == b end
     -- Never cast damage spells on self
-    if utils.same_unit(me, target) then return false end
+    if same_unit(me, target) then return false end
     -- Target must be attackable by the player (fails for friendlies, self, neutral)
     if not me:can_attack(target) then return false end
     return utils.can_cast_target(spell_id, me, target)
@@ -341,8 +345,8 @@ local INVENTORY_SLOT_FINGER = 10
 local INVENTORY_SLOT_TRINKET_1 = 12
 local INVENTORY_SLOT_TRINKET_2 = 13
 local INVENTORY_SLOT_BACK = 14
-local INVENTORY_SLOT_MAINHAND = 15
-local INVENTORY_SLOT_OFFHAND = 16
+local INVENTORY_SLOT_MAINHAND = 16
+local INVENTORY_SLOT_OFFHAND = 17
 local INVENTORY_SLOT_RANGED = 18
 
 local ALL_EQUIP_SLOTS = {

@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -63,6 +64,7 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 
 -- -- Class-specific elements ---------------------------------------------------
 menu.use_cooldowns                        = core.menu.checkbox(true, "use_cooldowns")
+menu.cooldowns_key                        = core.menu.keybind(7, false, "eaxshamanelemental_cooldowns_key")
 menu.aoe_threshold                        = core.menu.slider_int(1, 6, 3, "aoe_threshold")
 menu.mana_floor                           = core.menu.slider_int(5, 60, 25, "mana_floor")
 menu.execute_hp                           = core.menu.slider_int(0, 75, 50, "execute_hp")
@@ -83,6 +85,17 @@ mana_conservator.register_menu_items(menu, "eax_shaman_elemental")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_cooldowns", label = "Cooldowns" },
+    { toggle = "use_flame_shock", label = "Flame Shock" },
+    { toggle = "auto_totems", label = "Auto Totems" },
+    { toggle = "auto_totem_wrath", label = "Totem of Wrath" },
+    { toggle = "auto_totem_mana", label = "Mana Totem" },
+}, {
+    namespace = "eaxshamanelemental",
+    log_prefix = "[EAX Shaman Elemental] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 

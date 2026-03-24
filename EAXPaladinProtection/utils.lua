@@ -11,11 +11,32 @@ local buff_manager = require("common/modules/buff_manager")
 local utils = {}
 
 -- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
-local spell_resolver = require("eax_shared/spell_resolver")
+local spell_resolver = require("spell_resolver")
 local queue_request_timestamps = {}
 local throttle_timestamps = {}
 local SPELL_QUEUE_INTERVAL_S = 0.25
 local FAST_SPELL_QUEUE_INTERVAL_S = 0.10
+
+function utils.same_unit(a, b)
+    if not a or not b then return false end
+    if a == b then return true end
+    if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
+    local function safe_guid(u)
+        if type(u.get_guid) ~= "function" then return nil end
+        local ok, g = pcall(function() return u:get_guid() end)
+        return (ok and g ~= nil) and tostring(g) or nil
+    end
+    local ga, gb = safe_guid(a), safe_guid(b)
+    if ga and gb then return ga == gb end
+    local a_player = type(a.is_player) == "function" and a:is_player()
+    local b_player = type(b.is_player) == "function" and b:is_player()
+    if a_player and b_player then
+        local a_name = a:get_name() or ""
+        local b_name = b:get_name() or ""
+        return a_name ~= "" and a_name == b_name
+    end
+    return false
+end
 
 local function can_issue_queue_request(kind, spell_id, target, interval_s)
     local key = kind .. ":" .. tostring(spell_id) .. ":" .. tostring(target)
@@ -57,34 +78,12 @@ end
 ---@return boolean
 function utils.can_cast_hostile(spell_id, me, target)
     if not me or not target then return false end
+    local same_unit = utils.same_unit or function(a, b) return a == b end
     -- Never cast damage spells on self
-    if utils.same_unit(me, target) then return false end
+    if same_unit(me, target) then return false end
     -- Target must be attackable by the player (fails for friendlies, self, neutral)
     if not me:can_attack(target) then return false end
-    function utils.same_unit(a, b)
-    if not a or not b then return false end
-    if a == b then return true end
-    if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
-    -- GUID comparison is authoritative — two different mobs can share a name
-    local function safe_guid(u)
-        if type(u.get_guid) ~= "function" then return nil end
-        local ok, g = pcall(function() return u:get_guid() end)
-        return (ok and g ~= nil) and tostring(g) or nil
-    end
-    local ga, gb = safe_guid(a), safe_guid(b)
-    if ga and gb then return ga == gb end
-    -- Fallback: name match only for players (NPCs commonly share names)
-    local a_player = type(a.is_player) == "function" and a:is_player()
-    local b_player = type(b.is_player) == "function" and b:is_player()
-    if a_player and b_player then
-        local a_name = a:get_name() or ""
-        local b_name = b:get_name() or ""
-        return a_name ~= "" and a_name == b_name
-    end
-    return false
-end
-
-return utils.can_cast_target(spell_id, me, target)
+    return utils.can_cast_target(spell_id, me, target)
 end
 
 
@@ -104,6 +103,10 @@ function utils.cast_target(spell_id, target)
     return true
 end
 
+function utils.cast_target_fast(spell_id, target)
+    return utils.cast_target(spell_id, target)
+end
+
 function utils.cast_self(spell_id, me)
     if not spell_id or not me then return false end
     if not can_issue_queue_request("spell_self", spell_id, me, SPELL_QUEUE_INTERVAL_S) then
@@ -111,6 +114,27 @@ function utils.cast_self(spell_id, me)
     end
     spell_queue:queue_spell_target(spell_id, me, 1)
     return true
+end
+
+function utils.cast_unit(spell_id, me, unit)
+    if not spell_id or not me or not unit or not unit:is_valid() or unit:is_dead() then
+        return false
+    end
+    if not can_issue_queue_request("spell_unit", spell_id, unit, SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    spell_queue:queue_spell_target(spell_id, unit, 1)
+    return true
+end
+
+function utils.get_mana_pct(me)
+    if not me or not me:is_valid() then return 1.0 end
+    local ok, pct = pcall(function()
+        local max_m = me:get_max_power(0)
+        if max_m <= 0 then return 1.0 end
+        return me:get_power(0) / max_m
+    end)
+    return (ok and type(pct) == "number") and math.max(0, math.min(1, pct)) or 1.0
 end
 
 function utils.has_buff(unit, id_table)
@@ -207,7 +231,14 @@ function utils.find_best_target(me)
 
     local current = me:get_target()
     if is_hostile(current) then
-        return current
+        if me:is_in_combat() then
+            return current
+        end
+        return nil
+    end
+
+    if not me:is_in_combat() then
+        return nil
     end
 
     local pos_me = nil
@@ -261,7 +292,7 @@ function utils.find_best_target(me)
 end
 
 function utils.ensure_melee_attack(me, target)
-    if not me or not target or not target:is_valid() then return false end
+    if not me or not me:is_in_combat() or not target or not target:is_valid() then return false end
     if auto_attack:is_auto_attacking(target) then return true end
     return auto_attack:start_attack(target, auto_attack.ATTACK_TYPE.MELEE)
 end

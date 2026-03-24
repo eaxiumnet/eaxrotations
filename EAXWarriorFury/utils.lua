@@ -18,7 +18,7 @@ local spells = require("spells")
 local utils = {}
 
 -- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
-local spell_resolver = require("eax_shared/spell_resolver")
+local spell_resolver = require("spell_resolver")
 utils._tracked_stance = nil
 
 local INVENTORY_SLOT_TRINKET_1 = 13
@@ -60,8 +60,9 @@ end
 ---@return boolean
 function utils.can_cast_hostile(spell_id, me, target)
     if not me or not target then return false end
+    local same_unit = utils.same_unit or function(a, b) return a == b end
     -- Never cast damage spells on self
-    if utils.same_unit(me, target) then return false end
+    if same_unit(me, target) then return false end
     -- Target must be attackable by the player (fails for friendlies, self, neutral)
     if not me:can_attack(target) then return false end
     
@@ -86,6 +87,10 @@ function utils.can_cast_hostile(spell_id, me, target)
         return a_name ~= "" and a_name == b_name
     end
     return false
+end
+
+function utils.can_cast_hostile_no_usable(spell_id, me, target)
+    return utils.can_cast_hostile(spell_id, me, target)
 end
 
 return utils.can_cast_target(spell_id, me, target)
@@ -152,7 +157,14 @@ function utils.find_best_target(me)
 
     local current = me:get_target()
     if is_hostile(current) then
-        return current
+        if me:is_in_combat() then
+            return current
+        end
+        return nil
+    end
+
+    if not me:is_in_combat() then
+        return nil
     end
 
     local pos_me = nil
@@ -477,7 +489,7 @@ end
 ---@param target game_object
 ---@return boolean
 function utils.ensure_melee_auto_attack(me, target)
-    if not me or not target or not target:is_valid() or target:is_dead() then
+    if not me or not me:is_in_combat() or not target or not target:is_valid() or target:is_dead() then
         return false
     end
 

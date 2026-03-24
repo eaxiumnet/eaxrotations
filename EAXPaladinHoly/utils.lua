@@ -10,7 +10,7 @@ local buff_manager = require("common/modules/buff_manager")
 local utils = {}
 
 -- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
-local spell_resolver = require("eax_shared/spell_resolver")
+local spell_resolver = require("spell_resolver")
 
 local queue_request_timestamps = {}
 local SPELL_QUEUE_INTERVAL_S = 0.25
@@ -66,13 +66,11 @@ end
 function utils.has_buff(unit, buff_table)
     if not unit or not unit:is_valid() then return false end
     if not buff_table then return false end
-    for i = 1, #buff_table do
-        local data = buff_manager:get_buff_data(unit, buff_table[i])
-        if data and data.is_active then
-            return true
-        end
+    if type(buff_table) == "number" then
+        buff_table = { buff_table }
     end
-    return false
+    local data = buff_manager:get_buff_data(unit, buff_table)
+    return data ~= nil and data.is_active
 end
 
 -- Check if unit has debuff
@@ -138,35 +136,12 @@ end
 ---@return boolean
 function utils.can_cast_hostile(spell_id, me, target)
     if not me or not target then return false end
+    local same_unit = utils.same_unit or function(a, b) return a == b end
     -- Never cast damage spells on self
-    if utils.same_unit(me, target) then return false end
+    if same_unit(me, target) then return false end
     -- Target must be attackable by the player (fails for friendlies, self, neutral)
     if not me:can_attack(target) then return false end
-    
-    function utils.same_unit(a, b)
-    if not a or not b then return false end
-    if a == b then return true end
-    if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
-    -- GUID comparison is authoritative — two different mobs can share a name
-    local function safe_guid(u)
-        if type(u.get_guid) ~= "function" then return nil end
-        local ok, g = pcall(function() return u:get_guid() end)
-        return (ok and g ~= nil) and tostring(g) or nil
-    end
-    local ga, gb = safe_guid(a), safe_guid(b)
-    if ga and gb then return ga == gb end
-    -- Fallback: name match only for players (NPCs commonly share names)
-    local a_player = type(a.is_player) == "function" and a:is_player()
-    local b_player = type(b.is_player) == "function" and b:is_player()
-    if a_player and b_player then
-        local a_name = a:get_name() or ""
-        local b_name = b:get_name() or ""
-        return a_name ~= "" and a_name == b_name
-    end
-    return false
-end
-
-return utils.can_cast_target(spell_id, me, target)
+    return utils.can_cast_target(spell_id, me, target)
 end
 
 
@@ -234,7 +209,14 @@ function utils.find_best_target(me)
 
     local current = me:get_target()
     if is_hostile(current) then
-        return current
+        if me:is_in_combat() then
+            return current
+        end
+        return nil
+    end
+
+    if not me:is_in_combat() then
+        return nil
     end
 
     local pos_me = nil

@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -63,6 +64,10 @@ menu.greater_heal_threshold               = core.menu.slider_int(25, 70, 45, "ea
 menu.prayer_of_healing_enabled            = core.menu.checkbox(true, "eax_priest_holy_pohealing_enabled")
 menu.prayer_of_healing_threshold          = core.menu.slider_int(30, 70, 55, "eax_priest_holy_prayer_of_healing_threshold")
 menu.prayer_of_healing_count              = core.menu.slider_int(1, 5, 3, "eax_priest_holy_prayer_of_healing_count")
+menu.circle_of_healing_enabled            = core.menu.checkbox(true, "eax_priest_holy_coh_enabled")
+menu.circle_of_healing_threshold          = core.menu.slider_int(30, 70, 55, "eax_priest_holy_circle_of_healing_threshold")
+menu.circle_of_healing_count              = core.menu.slider_int(1, 5, 3, "eax_priest_holy_circle_of_healing_count")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eax_priest_holy_use_cooldowns")
 menu.auto_prayer_of_mending               = core.menu.checkbox(true, "eax_priest_holy_auto_pom")
 menu.prayer_of_mending_threshold          = core.menu.slider_int(25, 65, 50, "eax_priest_holy_pom_threshold")
 menu.overheal_protection                  = core.menu.checkbox(true, "eax_priest_holy_overheal_protection")
@@ -73,6 +78,17 @@ mana_conservator.register_menu_items(menu, "eax_priest_holy")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "prayer_of_healing_enabled", label = "Prayer of Healing" },
+    { toggle = "auto_prayer_of_mending", label = "Prayer of Mending" },
+    { toggle = "circle_of_healing_enabled", label = "Circle of Healing" },
+    { toggle = "overheal_protection", label = "Overheal Protection" },
+    { toggle = "use_desperate_prayer", label = "Desperate Prayer" },
+}, {
+    namespace = "eaxpriestholy",
+    log_prefix = "[EAX Priest Holy] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -99,9 +115,12 @@ function menu.render()
             menu.prayer_of_healing_enabled:render("Prayer of Healing", "Allow Prayer of Healing when multiple targets are hurt")
             menu.prayer_of_healing_threshold:render("PoH Threshold", "Health percent that counts targets toward PoH")
             menu.prayer_of_healing_count:render("PoH Count", "Minimum wounded allies to fire Prayer of Healing")
+            menu.circle_of_healing_enabled:render("Circle of Healing", "Allow Circle of Healing when multiple targets are hurt")
+            menu.circle_of_healing_threshold:render("CoH Threshold", "Health percent that counts targets toward Circle of Healing")
+            menu.circle_of_healing_count:render("CoH Count", "Minimum wounded allies to fire Circle of Healing")
             menu.auto_prayer_of_mending:render("Auto Prayer of Mending", "Refresh PoM on wounded allies without clipping Renew")
             menu.prayer_of_mending_threshold:render("PoM Threshold", "Health percent that triggers PoM refresh")
-            menu.overheal_protection:render("Overheal Protection", "Cancel slow heals when target is near full HP")
+            menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

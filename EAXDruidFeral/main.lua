@@ -2,34 +2,42 @@
 -- Dual-lane cat and bear rotation logic with automatic form detection.
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local enums = (function()
     local ok, e = pcall(require, "common/enums")
     return ok and e or nil
 end)()
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -37,20 +45,27 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("feral", "Druid Feral")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local tank_recovery = require("eax_shared/tank_recovery")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local tank_recovery = require("tank_recovery")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -118,11 +133,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -183,11 +202,6 @@ esp_renderer.add_proc("Clearcasting", function()
     return me and utils.has_buff(me, spells.BUFF_CLEARCASTING)
 end, color.cyan(240), color.cyan(50), "cat")
 
-esp_renderer.add_proc("Berserk", function()
-    local me = _get_local_player()
-    return me and utils.has_buff(me, spells.BUFF_BERSERK)
-end, color.orange(240), color.cyan(60), "any")
-
 -- Bear / Guardian lane procs
 esp_renderer.add_proc("Survival Instincts", function()
     local me = _get_local_player()
@@ -206,11 +220,11 @@ end, color.orange(230), color.cyan(60), "bear")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 ---@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
+local threat_manager = require("threat_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
@@ -236,7 +250,6 @@ local runtime = {
     swipe_id = nil,
     growl_id = nil,
     frenzied_regeneration_id = nil,
-    berserk_id = nil,
     demoralizing_roar_id = nil,
     lacerate_id = nil,
     last_shift_at = 0,
@@ -268,18 +281,21 @@ local runtime = {
     cyclone_id = nil,
     entangling_roots_id = nil,
     war_stomp_id = nil,
-    survival_instincts_id = nil,
     enrage_id = nil,
     challenging_roar_id = nil,
     healing_touch_id = nil,
 }
+
+local ctx_cache = rotation_context.new({
+    important_buffs = {},
+    important_debuffs = {},
+})
 
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 -- Wire up HUD context now that runtime exists
-esp_renderer.set_context(spells, utils, runtime)
 -- Energy pooling: at CP=4, wait for this much energy before the final Shred
 -- so you can chain Shred → finisher without an energy gap.
 local ENERGY_POOL_FOR_SHRED = 75
@@ -302,7 +318,6 @@ local function resolve_spells()
     runtime.growl_id = utils.resolve_spell_id(spells.GROWL)
     runtime.frenzied_regeneration_id = utils.resolve_spell_id(spells.FRENZIED_REGENERATION)
     runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
-    runtime.berserk_id            = utils.resolve_spell_id(spells.BERSERK)
     runtime.demoralizing_roar_id   = utils.resolve_spell_id(spells.DEMORALIZING_ROAR)
     runtime.lacerate_id             = utils.resolve_spell_id(spells.LACERATE)
     runtime.maim_id                = utils.resolve_spell_id(spells.MAIM)
@@ -323,7 +338,6 @@ local function resolve_spells()
     runtime.cyclone_id             = utils.resolve_spell_id(spells.CYCLONE)
     runtime.entangling_roots_id    = utils.resolve_spell_id(spells.ENTANGLING_ROOTS)
     runtime.war_stomp_id           = utils.resolve_spell_id(spells.WAR_STOMP)
-    runtime.survival_instincts_id  = utils.resolve_spell_id(spells.SURVIVAL_INSTINCTS)
     runtime.enrage_id              = utils.resolve_spell_id(spells.ENRAGE)
     runtime.challenging_roar_id    = utils.resolve_spell_id(spells.CHALLENGING_ROAR)
     runtime.healing_touch_id       = utils.resolve_spell_id(spells.HEALING_TOUCH)
@@ -355,32 +369,54 @@ log_resolved_spells()
 
 local function note_cast()
     runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function detect_ctx_form(me)
+    if utils.is_prowling(me, spells.BUFF_PROWL) or utils.is_in_cat_form(me, spells) then
+        return "cat"
+    end
+    if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then
+        return "bear"
+    end
+    if utils.has_buff(me, spells.BUFF_TRAVEL_FORM) then
+        return "travel"
+    end
+    return "caster"
 end
 
 local function is_gcd_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
-        return false
-    end
-    return _get_gcd() <= 0
+    return smart_cast_manager.is_gcd_ready()
 end
 
 local function is_pending_cast(spell_id)
     if not spell_id then return false end
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then return false end
-    if (_core_time() - pending.requested_at) >= pending.timeout_s then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-    return true
+    return smart_cast_manager.is_pending(spell_id)
 end
 
-local function mark_pending_cast(spell_id, timeout_s)
+local function mark_pending_cast(spell_id, timeout_s, options)
     if not spell_id then return end
-    runtime.pending_casts[spell_id] = {
-        requested_at = _core_time(),
-        timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S,
-    }
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function get_effective_mode()
@@ -567,10 +603,12 @@ local function try_faerie_fire(me, target)
     return false
 end
 
-local function try_tigers_fury(me, target)
+local function try_tigers_fury(me, target, ctx)
     if enc and enc.hold_cooldowns then return false end
     if not menu.use_tigers_fury:get_state() then return false end
     if not runtime.tigers_fury_id then return false end
+    local can_cast = resource_gate.feral.can_cat_builder(ctx, 0, runtime.combo_points, 5)
+    if not can_cast then return false end
     if utils.get_energy(me) > menu.tigers_fury_energy:get() then return false end
     if utils.has_buff(me, spells.BUFF_TIGERS_FURY) then return false end
     -- Never fire at high CP when a finisher is ready — the GCD is better spent
@@ -593,7 +631,9 @@ local function try_tigers_fury(me, target)
     if runtime.combo_points >= 4 then return false end
     -- Don't fire immediately after opener (CP=0-1) — wait until mid-builder phase
     -- so the damage bonus actually snapshots into meaningful hits
-    if runtime.combo_points < 2 then return false end
+    if runtime.combo_points < 2 then
+        if utils.get_energy(me) > (menu.tigers_fury_energy:get() / 2) then return false end
+    end
     if is_pending_cast(runtime.tigers_fury_id) then return false end
     if not utils.can_cast_self(runtime.tigers_fury_id, me) then return false end
 
@@ -608,22 +648,22 @@ local function try_tigers_fury(me, target)
 end
 
 
-local function try_rip(me, target)
+local function try_rip(me, target, ctx)
     if not menu.use_rip:get_state() then return false end
     if creature_utils.is_bleed_immune(target) then return false end
     local ttd = ttd_tracker.get(target)
     if ttd > 0 and ttd < 12 then return false end
     if not runtime.rip_id then return false end
+    local can_cast = resource_gate.feral.can_cat_finisher(ctx, 30, runtime.combo_points, menu.rip_combo_points:get())
+    if not can_cast then return false end
     if runtime.combo_points < menu.rip_combo_points:get() then return false end
     local rip_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP)
     if rip_rem > (menu.rip_refresh_seconds:get() * 1000) then return false end
-    -- Snapshotting: if Rip isn't active yet (or is almost gone) and we have
-    -- Tiger's Fury or Berserk available but not active, hold briefly.
-    -- Only delay if the buff is about to come off cooldown (CD < 2s).
+    -- Snapshotting: if Rip isn't active yet (or is almost gone) and Tiger's Fury
+    -- is about to come off cooldown, hold briefly.
     if rip_rem <= 0 then
-        local has_tf     = utils.has_buff(me, spells.BUFF_TIGERS_FURY)
-        local has_berserk = utils.has_buff(me, spells.BUFF_BERSERK)
-        if not has_tf and not has_berserk then
+        local has_tf = utils.has_buff(me, spells.BUFF_TIGERS_FURY)
+        if not has_tf then
             local tf_cd = runtime.tigers_fury_id and _get_spell_cd(runtime.tigers_fury_id) or 99
             if tf_cd > 0 and tf_cd < 2.0 then
                 return false  -- TF incoming in <2s, wait to snapshot
@@ -635,8 +675,7 @@ local function try_rip(me, target)
 
     if utils.cast_target(runtime.rip_id, target) then
         mark_pending_cast(runtime.rip_id, PENDING_CAST_TIMEOUT_S)
-        local snap = utils.has_buff(me, spells.BUFF_TIGERS_FURY) and " [TF]"
-                  or utils.has_buff(me, spells.BUFF_BERSERK) and " [Berserk]" or ""
+        local snap = utils.has_buff(me, spells.BUFF_TIGERS_FURY) and " [TF]" or ""
         utils.log_debug(menu, "Rip" .. snap)
         note_cast()
         return true
@@ -645,12 +684,15 @@ local function try_rip(me, target)
     return false
 end
 
-local function try_ferocious_bite(me, target, target_hp_pct)
+local function try_ferocious_bite(me, target, target_hp_pct, ctx)
     if not menu.use_ferocious_bite:get_state() then return false end
     if not runtime.ferocious_bite_id then return false end
     if runtime.combo_points < 1 then return false end
 
     local killshot_threshold = menu.bite_killshot_hp_pct:get() / 100
+    local min_cp = target_hp_pct <= killshot_threshold and 1 or 5
+    local can_cast = resource_gate.feral.can_cat_finisher(ctx, 35, runtime.combo_points, min_cp)
+    if not can_cast then return false end
 
     if target_hp_pct <= killshot_threshold then
         -- Killshot mode: target is low enough to finish off — dump any CPs now
@@ -718,12 +760,13 @@ local function mangle_debuff_confirmed_by_other(unit, id_table, me)
     return false
 end
 
-local function try_mangle_cat(me, target)
+local function try_mangle_cat(me, target, ctx)
     if not menu.use_mangle_cat:get_state() then return false end
     if not runtime.mangle_cat_id then return false end
+    local can_cast = resource_gate.feral.can_cat_builder(ctx, 35, runtime.combo_points, 5)
+    if not can_cast then return false end
     local mangle_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE)
-    -- During Berserk, Mangle CD is reduced — refresh aggressively
-    local refresh_threshold = utils.has_buff(me, spells.BUFF_BERSERK) and 3000 or 1500
+    local refresh_threshold = 1500
     if mangle_rem > refresh_threshold then return false end
     if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_MANGLE, me) then return false end
     if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me) then return false end
@@ -851,8 +894,7 @@ local function try_rake(me, target)
     -- Mark pending before attempting so server lag can't cause a double-cast
     mark_pending_cast(runtime.rake_id, PENDING_CAST_TIMEOUT_S)
     if utils.cast_target(runtime.rake_id, target) then
-        local snap = utils.has_buff(me, spells.BUFF_TIGERS_FURY) and " [TF]"
-                  or utils.has_buff(me, spells.BUFF_BERSERK) and " [Berserk]" or ""
+        local snap = utils.has_buff(me, spells.BUFF_TIGERS_FURY) and " [TF]" or ""
         utils.log_debug(menu, "Rake" .. snap)
         note_cast()
         return true
@@ -864,7 +906,7 @@ end
 
 local try_claw  -- forward declaration (defined after try_shred_or_filler)
 
-local function try_shred_or_filler(me, target)
+local function try_shred_or_filler(me, target, ctx)
     local cp = runtime.combo_points
     local energy = utils.get_energy(me)
 
@@ -875,6 +917,8 @@ local function try_shred_or_filler(me, target)
             if cp >= 4 and energy < ENERGY_POOL_FOR_SHRED then
                 return false  -- pool energy for the final Shred
             end
+            local can_shred = resource_gate.feral.can_cat_builder(ctx, 40, cp, 5)
+            if not can_shred then return false end
             if not is_pending_cast(runtime.shred_id) and utils.can_cast_hostile(runtime.shred_id, me, target) then
                 if utils.cast_target(runtime.shred_id, target) then
                     mark_pending_cast(runtime.shred_id, PENDING_CAST_TIMEOUT_S)
@@ -892,6 +936,7 @@ local function try_shred_or_filler(me, target)
        and not is_pending_cast(runtime.mangle_cat_id)
        and not mangle_debuff_confirmed_by_other(target, spells.DEBUFF_MANGLE, me)
        and not mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me)
+       and resource_gate.feral.can_cat_builder(ctx, 35, cp, 5)
        and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
         if utils.cast_target(runtime.mangle_cat_id, target) then
             mark_pending_cast(runtime.mangle_cat_id, PENDING_CAST_TIMEOUT_S)
@@ -1486,7 +1531,7 @@ local function try_entangling_roots(me, target)
     return false
 end
 
-local function do_cat_rotation(me, target)
+local function do_cat_rotation(me, target, ctx)
     local target_hp_pct = utils.get_health_pct(target)
     local in_stealth = utils.is_prowling(me, spells.BUFF_PROWL)
 
@@ -1546,17 +1591,17 @@ local function do_cat_rotation(me, target)
     end
 
     -- Finishers first — always spend CPs before anything else
-    if try_rip(me, target) then return true end
-    if try_ferocious_bite(me, target, target_hp_pct) then return true end
+    if try_rip(me, target, ctx) then return true end
+    if try_ferocious_bite(me, target, target_hp_pct, ctx) then return true end
     -- Maim: only at CP=5 when target is casting and Rip is not the right choice
     if try_maim(me, target) then return true end
     -- Tiger's Fury: energy recovery, fires during builder phase (CP < 4)
-    if try_tigers_fury(me, target) then return true end
+    if try_tigers_fury(me, target, ctx) then return true end
     -- Builder priority: Mangle (debuff) → Rake (bleed) → Shred/Claw
-    if try_mangle_cat(me, target) then return true end
+    if try_mangle_cat(me, target, ctx) then return true end
     if try_rake(me, target) then return true end
     if try_rake_trick(me, target) then return true end
-    if try_shred_or_filler(me, target) then return true end
+    if try_shred_or_filler(me, target, ctx) then return true end
     if try_powershift(me) then return true end
 
     -- Auto-attack fallback for leveling 1-70
@@ -1622,32 +1667,13 @@ local function try_frenzied_regeneration(me)
     return false
 end
 
-local function try_berserk(me, enemy_count, mode)
-    if enc and enc.hold_cooldowns then return false end
-    if not menu.use_berserk:get_state() then return false end
-    if not runtime.berserk_id then return false end
-    if not me:is_in_combat() then return false end
-    if utils.has_buff(me, spells.BUFF_BERSERK) then return false end
-    if mode == "solo" and enemy_count < menu.swipe_enemy_count:get() then return false end
-    if is_pending_cast(runtime.berserk_id) then return false end
-    if not utils.can_cast_self(runtime.berserk_id, me) then return false end
-
-    if utils.cast_self_fast(runtime.berserk_id, me) then
-        mark_pending_cast(runtime.berserk_id, FAST_PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Berserk")
-        note_cast()
-        return true
-    end
-
-    return false
-end
-
-local function try_mangle_bear(me, target)
+local function try_mangle_bear(me, target, ctx)
     if not menu.use_mangle_bear:get_state() then return false end
     if not runtime.mangle_bear_id then return false end
+    local can_cast = resource_gate.feral.has_bear_rage(ctx, 12)
+    if not can_cast then return false end
     local mangle_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE)
-    -- During Berserk, Mangle CD is 1.5s — spam it aggressively for threat
-    local refresh_threshold = utils.has_buff(me, spells.BUFF_BERSERK) and 3000 or 1500
+    local refresh_threshold = 1500
     if mangle_rem > refresh_threshold then return false end
     if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_MANGLE, me) then return false end
     if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me) then return false end
@@ -1664,10 +1690,12 @@ local function try_mangle_bear(me, target)
     return false
 end
 
-local function try_swipe(me, enemy_count, min_count_override)
+local function try_swipe(me, enemy_count, min_count_override, ctx)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_swipe:get_state() then return false end
     if not runtime.swipe_id then return false end
+    local can_cast = resource_gate.feral.has_bear_rage(ctx, 20)
+    if not can_cast then return false end
     local min_count = min_count_override or menu.swipe_enemy_count:get()
     if enemy_count < min_count then return false end
     if is_pending_cast(runtime.swipe_id) then return false end
@@ -1683,9 +1711,11 @@ local function try_swipe(me, enemy_count, min_count_override)
     return false
 end
 
-local function try_maul(me, target)
+local function try_maul(me, target, ctx)
     if not menu.use_maul:get_state() then return false end
     if not runtime.maul_id then return false end
+    local can_cast = resource_gate.feral.has_bear_rage(ctx, 15)
+    if not can_cast then return false end
     if utils.get_rage(me) < menu.maul_min_rage:get() then return false end
     if is_pending_cast(runtime.maul_id) then return false end
     if not utils.can_cast_melee(runtime.maul_id, me) then return false end
@@ -1707,6 +1737,7 @@ local function try_demoralizing_roar(me, target)
     if not menu.use_demoralizing_roar or not menu.use_demoralizing_roar:get_state() then return false end
     if not runtime.demoralizing_roar_id then return false end
     -- Demoralizing Roar is an AoE — check nearby enemies, not just the target
+    if utils.enemy_count_in_radius(me, 8) < 2 then return false end
     -- Use a generous remaining time so we don't recast constantly
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEMORALIZING_ROAR) > 4000 then return false end
     if is_pending_cast(runtime.demoralizing_roar_id) then return false end
@@ -1760,7 +1791,7 @@ local function try_lacerate(me, target)
 end
 
 
-local function do_bear_rotation(me, target)
+local function do_bear_rotation(me, target, ctx)
     local mode = get_effective_mode()
     local enemy_count = utils.enemy_count_in_radius(me, 8)
 
@@ -1770,12 +1801,11 @@ local function do_bear_rotation(me, target)
     if try_bash(me, target) then return true end
     if try_faerie_fire(me, target) then return true end
     if not utils.is_melee_target(me, target) then return false end
-    if try_berserk(me, enemy_count, mode) then return true end
     if try_demoralizing_roar(me, target) then return true end
-    if try_mangle_bear(me, target) then return true end
+    if try_mangle_bear(me, target, ctx) then return true end
     if try_lacerate(me, target) then return true end
-    if try_swipe(me, enemy_count) then return true end
-    if try_maul(me, target) then return true end
+    if try_swipe(me, enemy_count, nil, ctx) then return true end
+    if try_maul(me, target, ctx) then return true end
 
     return false
 end
@@ -1785,24 +1815,7 @@ end
 -- ─────────────────────────────────────────────────────────────────────────────
 
 local function try_survival_instincts(me)
-    if not menu.use_survival_instincts:get_state() then return false end
-    if not runtime.survival_instincts_id then return false end
-    if utils.has_buff(me, spells.BUFF_SURVIVAL_INSTINCTS) then return false end
-    local hp = me:get_health_percentage() / 100
-    if hp > (menu.survival_instincts_hp_pct:get() / 100) then return false end
-    -- Respect CD overlap setting — if Frenzied Regen is already active and
-    -- overlap is off, hold SI for when Regen expires
-    if not menu.tank_cd_overlap:get_state() then
-        if utils.has_buff(me, spells.BUFF_FRENZIED_REGENERATION) then return false end
-    end
-    if is_pending_cast(runtime.survival_instincts_id) then return false end
-    if not utils.can_cast_self(runtime.survival_instincts_id, me) then return false end
-    if utils.cast_self_fast(runtime.survival_instincts_id, me) then
-        mark_pending_cast(runtime.survival_instincts_id, FAST_PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Survival Instincts")
-        note_cast()
-        return true
-    end
+    -- Survival Instincts (61336) is a WotLK spell — not available in TBC. No-op.
     return false
 end
 
@@ -1890,7 +1903,7 @@ local function try_taunt_off_party(me)
     return false
 end
 
-local function do_guardian_rotation(me, target)
+local function do_guardian_rotation(me, target, ctx)
     local enemy_count = utils.enemy_count_in_radius(me, 8)
     local mode = get_effective_mode()
 
@@ -1915,14 +1928,13 @@ local function do_guardian_rotation(me, target)
     if try_faerie_fire(me, target) then return true end
     if not utils.is_melee_target(me, target) then return false end
 
-    if try_berserk(me, enemy_count, mode) then return true end
     if try_demoralizing_roar(me, target) then return true end
 
     -- Core threat rotation: Mangle → Lacerate stacks → Swipe AoE → Maul rage dump
-    if try_mangle_bear(me, target) then return true end
+    if try_mangle_bear(me, target, ctx) then return true end
     if try_lacerate(me, target) then return true end
-    if try_swipe(me, enemy_count, menu.guardian_swipe_enemy_count:get()) then return true end
-    if try_maul(me, target) then return true end
+    if try_swipe(me, enemy_count, menu.guardian_swipe_enemy_count:get(), ctx) then return true end
+    if try_maul(me, target, ctx) then return true end
 
     return false
 end
@@ -1933,6 +1945,12 @@ local function do_rotation(me, target)
     ttd_tracker.update(target)
     local lane = get_requested_lane(me)
     runtime.current_lane = lane
+
+    local current_form = detect_ctx_form(me)
+    if ctx_cache.form ~= current_form then
+        ctx_cache.form = current_form
+        invalidate_ctx()
+    end
 
     if try_root_escape(me) then return true end
     if try_shift_form(me, lane) then return true end
@@ -1969,17 +1987,21 @@ local function do_rotation(me, target)
         end
     end
 
+    local ctx = rotation_context.get(ctx_cache, me, target, {
+        now_s = _core_time,
+    })
+
     -- Prowl OOC when in cat form and no target yet
     if not me:is_in_combat() then
         if try_prowl(me) then return true end
     end
 
     if lane == "cat" then
-        return do_cat_rotation(me, target)
+        return do_cat_rotation(me, target, ctx)
     elseif lane == "guardian" then
-        return do_guardian_rotation(me, target)
+        return do_guardian_rotation(me, target, ctx)
     end
-    return do_bear_rotation(me, target)
+    return do_bear_rotation(me, target, ctx)
 end
 
 local GROUP_ROLE_HEALER = 1

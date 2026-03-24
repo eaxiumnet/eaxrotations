@@ -3,24 +3,25 @@
 Survival Hunter assistant for Project Sylvanas + TBC Classic.
 
 ## Focus
-- **Traps** (Explosive, Freezing, Snake, Wyvern) on a configurable interval.
-- **Wyvern Sting** to lock down primary targets.
-- **Expose Weakness** for raid or dungeon priority debuff uptime.
+- **Hunter's Mark** and **Serpent Sting** upkeep.
+- **Aimed Shot**, **Arcane Shot**, **Multi-Shot**, and **Steady Shot** as the core ranged kit.
+- **Traps** for utility, control, and pull management.
+- **Kill Command**, melee fallback, kiting, and pet tools for survival play.
 
 ## Modes
 - Auto mode keeps Solo/Dungeon/Raid thresholds automatically tuned by party size detection.
 - Manual Solo/Dungeon/Raid modes lock that assumption when you want strict behavior.
 
 ## Configuration
-- Use the menu to enable traps, switch the default trap, and tune the interval between casts.
-- Toggle Wyvern Sting and Expose Weakness to keep them on cooldown.
+- Use the menu to enable traps, choose the default trap, and tune trap timing.
+- Configure ranged priority, Kill Command, melee fallback, kiting, and pet support tools.
 
 ## Usage
 1. Drop `EAXHunterSurvival` into the Sylvanas `scripts/` folder.
 2. Reload the runtime or restart WoW.
 3. Enable the addon and choose your preferred trap and mode.
-4. Let the rotation try traps when the timer expires and keep debuffs refreshed.
+4. Let the rotation maintain Hunter's Mark / Serpent Sting, then fall back through the ranged kit, traps, and survival tools.
 
 ## Notes
 - Trap logic uses a timed gate to avoid overlapping drops; actual placement depends on the runtime's handling of area spells.
-- Wyvern Sting and Expose Weakness only cast when the target lacks the debuff and the ability is ready.
+- Kill Command, melee fallback, kiting, and pet tools are used when ranged options are unavailable or unsafe.

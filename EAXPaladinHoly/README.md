@@ -3,15 +3,15 @@
 Holy Paladin healing automation for TBC on Project Sylvanas.
 
 ## Rotation
-- `Holy Light` for large heals on tanks.
-- `Flash of Light` for fast emergency heals.
-- `Holy Shock` on cooldown for instant heal + Holy Power.
-- `Beacon of Light` maintained on the tank.
-- `Blessing of Wisdom` and `Blessing of Light` maintained on party.
-- `Lay on Hands` at critically low HP.
-- `Divine Plea` for mana recovery.
+- `Lay on Hands` for emergency saves below critical HP.
+- `Flash of Light` for fast emergency healing.
+- `Divine Illumination` before heavy healing windows to reduce mana costs.
+- `Holy Shock` on cooldown for instant healing.
+- `Holy Light` as the main large heal, especially on tanks.
+- `Avenging Wrath` for throughput when the party is under pressure.
+- `Blessing of Might` on likely tanks and `Blessing of Wisdom` on mana users.
 - `Hand of Freedom` for root/snare dispel.
-- `Cleanse` for debuff removal.
+- `Cleanse` / `Purify` for poison or disease removal.
 
 ## Install
 1. Extract `EAXPaladinHoly` into your Sylvanas `scripts` folder.

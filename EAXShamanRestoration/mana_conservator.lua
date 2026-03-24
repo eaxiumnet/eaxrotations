@@ -36,12 +36,17 @@ local conserve_mode_active   = false
 
 -- --- Helpers ------------------------------------------------------------------
 
+local function is_leveling_character(me)
+    if not me or not me.is_valid or not me:is_valid() or not me.get_level then return false end
+    return (me:get_level() or 70) < 70
+end
+
 local function get_mana_pct(me)
     local ok, enums = pcall(require, "common/enums")
     if not ok or not enums then
         -- Fallback: power type 0 = mana in TBC
-        local _ok, max_m = pcall(function() return me:get_max_power(0) end)
-        if not _ok or not max_m or max_m <= 0 then return 100 end
+        local max_m = pcall(function() return me:get_max_power(0) end)
+        if not max_m or max_m <= 0 then return 100 end
         return (me:get_power(0) / max_m) * 100
     end
     local max_mana = me:get_max_power(enums.power_type.MANA)
@@ -155,6 +160,10 @@ end
 ---@return boolean  suppress_rotation
 function mana_conservator.on_update(me, target, menu, utils)
     if not me or not me:is_valid() or me:is_dead() then return false end
+    if not is_leveling_character(me) then
+        conserve_mode_active = false
+        return false
+    end
     if not is_conserve_enabled(menu) then
         conserve_mode_active = false
         return false

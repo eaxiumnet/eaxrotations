@@ -2,8 +2,16 @@
 -- Callback registration, mode handling, and balance rotation logic.
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 ---@type buff_manager
@@ -14,15 +22,15 @@ local enums = (function()
 end)()
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
@@ -30,29 +38,39 @@ local leveling_manager = require("leveling_manager")
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
+
+---@type mana_conservator
+local mana_conservator = require("mana_conservator")
 esp_renderer.init("balance", "Druid Balance")
 
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -120,11 +138,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        -- Reset smart cast manager on combat start
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        -- Reset smart cast manager on combat end (keep adaptive stats)
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -172,15 +194,15 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 ---@type dot_manager
-local dot_manager = require("eax_shared/dot_manager")
+local dot_manager = require("dot_manager")
 ---@type mana_manager
-local mana_manager = require("eax_shared/mana_manager")
+local mana_manager = require("mana_manager")
 ---@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
+local threat_manager = require("threat_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
@@ -202,10 +224,7 @@ local runtime = {
     wrath_id = nil,
     starfire_id = nil,
     force_of_nature_id = nil,
-    starfall_id = nil,
     hurricane_id = nil,
-    wrath_id = nil,
-    starfire_id = nil,
     innervate_id = nil,
     tranquility_id = nil,
     prev_toggle_state = false,
@@ -215,13 +234,21 @@ local runtime = {
     set_multiplier = 1.0,
     ooc_mark_of_the_wild_id = nil,
     remove_curse_id = nil,
-    berserk_id = nil,
-    typhoon_id = nil,
     gift_of_the_wild_id = nil,
     mark_of_the_wild_id = nil,
-    eclipse_energy = 0,  -- 0-100, track energy towards eclipse
-    eclipse_type = nil,  -- "solar" or "lunar" when eclipse active
 }
+
+local ctx_cache = rotation_context.new({
+    important_buffs = {
+        spells.BUFF_INNERVATE,
+        spells.BUFF_MOONKIN_FORM,
+    },
+    important_debuffs = {
+        spells.DEBUFF_FAERIE_FIRE,
+        spells.DEBUFF_MOONFIRE,
+        spells.DEBUFF_INSECT_SWARM,
+    },
+})
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
@@ -230,17 +257,12 @@ local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 local function resolve_spells()
     runtime.moonkin_form_id = utils.resolve_spell_id(spells.MOONKIN_FORM)
     runtime.faerie_fire_id = utils.resolve_spell_id(spells.FAERIE_FIRE)
-    runtime.berserk_id  = utils.resolve_spell_id(spells.BERSERK)
-    runtime.typhoon_id  = utils.resolve_spell_id(spells.TYPHOON)
     runtime.moonfire_id = utils.resolve_spell_id(spells.MOONFIRE)
     runtime.insect_swarm_id = utils.resolve_spell_id(spells.INSECT_SWARM)
     runtime.wrath_id = utils.resolve_spell_id(spells.WRATH)
     runtime.starfire_id = utils.resolve_spell_id(spells.STARFIRE)
     runtime.force_of_nature_id = utils.resolve_spell_id(spells.FORCE_OF_NATURE)
-    runtime.starfall_id  = utils.resolve_spell_id(spells.STARFALL)
     runtime.hurricane_id = utils.resolve_spell_id(spells.HURRICANE)
-    runtime.wrath_id     = utils.resolve_spell_id(spells.WRATH)
-    runtime.starfire_id  = utils.resolve_spell_id(spells.STARFIRE)
     runtime.innervate_id = utils.resolve_spell_id(spells.INNERVATE)
     runtime.tranquility_id = utils.resolve_spell_id(spells.TRANQUILITY)
     runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
@@ -270,34 +292,53 @@ end
 resolve_spells()
 log_resolved_spells()
 
+-- Enhanced GCD management with smart cast manager
 local function note_cast()
     runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
 end
 
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
+-- Smart GCD ready check - uses actual GCD tracking
 local function is_gcd_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
-        return false
-    end
-    return _get_gcd() <= 0
+    -- Use smart_cast_manager for intelligent GCD detection
+    return smart_cast_manager.is_gcd_ready()
 end
 
+-- Smart pending cast check with adaptive timeouts
 local function is_pending_cast(spell_id)
     if not spell_id then return false end
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then return false end
-    if (_core_time() - pending.requested_at) >= pending.timeout_s then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-    return true
+    -- Use smart_cast_manager for adaptive pending management
+    return smart_cast_manager.is_pending(spell_id)
 end
 
-local function mark_pending_cast(spell_id, timeout_s)
+-- Smart pending cast marking with automatic categorization
+local function mark_pending_cast(spell_id, timeout_s, options)
     if not spell_id then return end
-    runtime.pending_casts[spell_id] = {
-        requested_at = _core_time(),
-        timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S,
-    }
+    options = options or {}
+    
+    -- Let smart_cast_manager handle adaptive timeouts
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function get_effective_mode()
@@ -374,16 +415,24 @@ local function try_tranquility(me)
     return false
 end
 
-local function try_faerie_fire(me, target)
+local function try_faerie_fire(me, target, mode)
     if not menu.use_faerie_fire or not menu.use_faerie_fire:get_state() then return false end
     if not runtime.faerie_fire_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    -- Faerie Fire lasts 5 minutes — only reapply when fully gone
+    local target_level = nil
+    if target.get_level then
+        local ok, value = pcall(function() return target:get_level() end)
+        if ok then
+            target_level = value
+        end
+    end
+    local is_group_mode = mode == "dungeon" or mode == "raid"
+    if not is_group_mode and target_level ~= -1 then return false end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) > 5000 then return false end
     if is_pending_cast(runtime.faerie_fire_id) then return false end
     if not utils.can_cast_hostile(runtime.faerie_fire_id, me, target) then return false end
     if utils.cast_target(runtime.faerie_fire_id, target) then
-        mark_pending_cast(runtime.faerie_fire_id, 5.0)
+        mark_pending_cast(runtime.faerie_fire_id, PENDING_CAST_TIMEOUT_S, { action_key = "faerie_fire", category = "dots" })
         utils.log_debug(menu, "Faerie Fire")
         note_cast()
         return true
@@ -395,14 +444,14 @@ local function try_moonfire(me, target)
     if not menu.use_moonfire or not menu.use_moonfire:get_state() then return false end
     if not runtime.moonfire_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    -- Use dot_manager for safe refresh timing (never clips final tick)
-    if not dot_manager.can_refresh_dot(target, spells.DEBUFF_MOONFIRE, runtime.moonfire_id, utils.get_debuff_remaining_ms) then
-        return false
-    end
+    local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
+    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE) > refresh_ms then return false end
+    -- Intelligent throttling - prevent spam but stay responsive for DoT refreshes
+    if should_throttle_dot("moonfire") then return false end
     if is_pending_cast(runtime.moonfire_id) then return false end
     if not utils.can_cast_hostile(runtime.moonfire_id, me, target) then return false end
     if utils.cast_target(runtime.moonfire_id, target) then
-        mark_pending_cast(runtime.moonfire_id, PENDING_CAST_TIMEOUT_S)
+        mark_pending_cast(runtime.moonfire_id, PENDING_CAST_TIMEOUT_S, { action_key = "moonfire", category = "dots" })
         utils.log_debug(menu, "Moonfire")
         note_cast()
         esp_renderer.on_cast(runtime.moonfire_id, "Moonfire", color.blue(220))
@@ -415,14 +464,14 @@ local function try_insect_swarm(me, target)
     if not menu.use_insect_swarm or not menu.use_insect_swarm:get_state() then return false end
     if not runtime.insect_swarm_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    -- Use dot_manager for safe refresh timing (never clips final tick)
-    if not dot_manager.can_refresh_dot(target, spells.DEBUFF_INSECT_SWARM, runtime.insect_swarm_id, utils.get_debuff_remaining_ms) then
-        return false
-    end
+    local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
+    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM) > refresh_ms then return false end
+    -- Intelligent throttling - prevent spam but stay responsive for DoT refreshes
+    if should_throttle_dot("insect_swarm") then return false end
     if is_pending_cast(runtime.insect_swarm_id) then return false end
     if not utils.can_cast_hostile(runtime.insect_swarm_id, me, target) then return false end
     if utils.cast_target(runtime.insect_swarm_id, target) then
-        mark_pending_cast(runtime.insect_swarm_id, PENDING_CAST_TIMEOUT_S)
+        mark_pending_cast(runtime.insect_swarm_id, PENDING_CAST_TIMEOUT_S, { action_key = "insect_swarm", category = "dots" })
         utils.log_debug(menu, "Insect Swarm")
         note_cast()
         return true
@@ -437,8 +486,6 @@ local function try_force_of_nature(me, target, mana_pct)
     if not me:is_in_combat() then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if mana_pct < 0.20 then return false end
-    if not utils.has_debuff(target, spells.DEBUFF_MOONFIRE) then return false end
-    if not utils.has_debuff(target, spells.DEBUFF_INSECT_SWARM) then return false end
     if is_pending_cast(runtime.force_of_nature_id) then return false end
     if not utils.can_cast_self(runtime.force_of_nature_id, me) then return false end
 
@@ -452,182 +499,57 @@ local function try_force_of_nature(me, target, mana_pct)
     return false
 end
 
-local function try_starfall(me, enemy_count, mode)
-    if enc and enc.hold_cooldowns then return false end
-    if enc and not enc.aoe_safe then return false end
-    if not menu.use_starfall or not menu.use_starfall:get_state() then return false end
-    if not runtime.starfall_id then return false end
-    if not me:is_in_combat() then return false end
-    if enemy_count < (menu.starfall_aoe_targets and menu.starfall_aoe_targets:get() or 3) and mode == "solo" then return false end
-    if is_pending_cast(runtime.starfall_id) then return false end
-    if not utils.can_cast_self(runtime.starfall_id, me) then return false end
-
-    if utils.cast_self(runtime.starfall_id, me) then
-        mark_pending_cast(runtime.starfall_id, FAST_PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Starfall")
+local function try_starfire(me, target)
+    if not is_valid_hostile_target(me, target) then return false end
+    if me:is_moving() then return false end
+    if not runtime.starfire_id then return false end
+    -- Intelligent filler throttling - smooth out cast cadence
+    if should_throttle_filler("starfire") then return false end
+    if is_pending_cast(runtime.starfire_id) then return false end
+    if not utils.can_cast_hostile(runtime.starfire_id, me, target) then return false end
+    if utils.cast_target(runtime.starfire_id, target) then
+        mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S, { action_key = "starfire", category = "long" })
+        utils.log_debug(menu, "Starfire")
         note_cast()
+        esp_renderer.on_cast(runtime.starfire_id, "Starfire", color.purple(220))
         return true
     end
-
     return false
 end
 
--- --- TBC Balance nuke selection with Eclipse detection -------------------------
--- Eclipse mechanic: detect Lunar/Solar eclipse buffs and prioritize accordingly.
--- Lunar Eclipse: buff 48518 -> spam Starfire (unless moving)
--- Solar Eclipse: buff 48517 -> spam Wrath
--- Outside eclipse: Starfire for high mana, Wrath for low mana or moving.
--- Track eclipse energy from Wrath (solar) and Starfire (lunar) casts.
-local STARFIRE_MANA_FLOOR = 0.30
-
-local function update_eclipse_state(me)
-    local eclipse = nil
-    if utils.has_buff(me, spells.BUFF_LUNAR_ECLIPSE) then
-        eclipse = "lunar"
-    elseif utils.has_buff(me, spells.BUFF_SOLAR_ECLIPSE) then
-        eclipse = "solar"
-    end
-    -- If eclipse just activated, reset energy
-    if eclipse and eclipse ~= runtime.eclipse_type then
-        runtime.eclipse_energy = 0
-        runtime.eclipse_type = eclipse
-    elseif not eclipse and runtime.eclipse_type then
-        -- Eclipse faded
-        runtime.eclipse_type = nil
-        runtime.eclipse_energy = 0
-    end
-    return eclipse
-end
-
-local function get_eclipse_state(me)
-    return runtime.eclipse_type
-end
-
-local function add_eclipse_energy(spell_id)
-    if spell_id == runtime.wrath_id then
-        runtime.eclipse_energy = math.min(100, runtime.eclipse_energy + 10)  -- approximate
-    elseif spell_id == runtime.starfire_id then
-        runtime.eclipse_energy = math.min(100, runtime.eclipse_energy + 20)  -- starfire gives more
-    end
-end
-
-local function try_nuke(me, target, mana_pct)
+local function try_wrath(me, target)
     if not is_valid_hostile_target(me, target) then return false end
-    local moving = me:is_moving()
-    local eclipse = update_eclipse_state(me)
-
-    -- Clearcasting proc: spend it on Starfire (highest value free cast)
-    local clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
-    if clearcasting and not moving and runtime.starfire_id then
-        if not is_pending_cast(runtime.starfire_id)
-           and utils.can_cast_hostile(runtime.starfire_id, me, target) then
-            if utils.cast_target(runtime.starfire_id, target) then
-                mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S)
-                add_eclipse_energy(runtime.starfire_id)
-                utils.log_debug(menu, "Starfire [Clearcasting]")
-                note_cast()
-                esp_renderer.on_cast(runtime.starfire_id, "Starfire [CC]", color.gold(240))
-                return true
-            end
-        end
-    end
-
-    -- Lunar Eclipse: spam Starfire (unless moving, then Wrath)
-    if eclipse == "lunar" and not moving and runtime.starfire_id then
-        if not is_pending_cast(runtime.starfire_id)
-           and utils.can_cast_hostile(runtime.starfire_id, me, target) then
-            if utils.cast_target(runtime.starfire_id, target) then
-                mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S)
-                add_eclipse_energy(runtime.starfire_id)
-                utils.log_debug(menu, "Starfire [Lunar Eclipse]")
-                note_cast()
-                esp_renderer.on_cast(runtime.starfire_id, "Starfire [Lunar]", color.purple(240))
-                return true
-            end
-        end
-    end
-
-    -- Solar Eclipse: spam Wrath
-    if eclipse == "solar" and runtime.wrath_id then
-        if not is_pending_cast(runtime.wrath_id)
-           and utils.can_cast_hostile(runtime.wrath_id, me, target) then
-            if utils.cast_target(runtime.wrath_id, target) then
-                mark_pending_cast(runtime.wrath_id, PENDING_CAST_TIMEOUT_S)
-                add_eclipse_energy(runtime.wrath_id)
-                utils.log_debug(menu, "Wrath [Solar Eclipse]")
-                note_cast()
-                esp_renderer.on_cast(runtime.wrath_id, "Wrath [Solar]", color.orange(220))
-                return true
-            end
-        end
-    end
-
-    -- No eclipse or moving during lunar: use standard priority
-    -- High mana + not moving: Starfire
-    if not moving and mana_pct >= STARFIRE_MANA_FLOOR and runtime.starfire_id then
-        if not is_pending_cast(runtime.starfire_id)
-           and utils.can_cast_hostile(runtime.starfire_id, me, target) then
-            if utils.cast_target(runtime.starfire_id, target) then
-                mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S)
-                add_eclipse_energy(runtime.starfire_id)
-                utils.log_debug(menu, "Starfire")
-                note_cast()
-                esp_renderer.on_cast(runtime.starfire_id, "Starfire", color.purple(220))
-                return true
-            end
-        end
-    end
-
-    -- Low mana OR moving: Wrath
-    if runtime.wrath_id then
-        if not is_pending_cast(runtime.wrath_id)
-           and utils.can_cast_hostile(runtime.wrath_id, me, target) then
-            if utils.cast_target(runtime.wrath_id, target) then
-                mark_pending_cast(runtime.wrath_id, PENDING_CAST_TIMEOUT_S)
-                add_eclipse_energy(runtime.wrath_id)
-                local reason = moving and "Wrath [moving]" or "Wrath [mana]"
-                utils.log_debug(menu, reason)
-                note_cast()
-                esp_renderer.on_cast(runtime.wrath_id, reason, color.blue(220))
-                return true
-            end
-        end
+    if not runtime.wrath_id then return false end
+    -- Intelligent filler throttling - smooth out cast cadence
+    if should_throttle_filler("wrath") then return false end
+    if is_pending_cast(runtime.wrath_id) then return false end
+    if not utils.can_cast_hostile(runtime.wrath_id, me, target) then return false end
+    if utils.cast_target(runtime.wrath_id, target) then
+        mark_pending_cast(runtime.wrath_id, PENDING_CAST_TIMEOUT_S, { action_key = "wrath", category = "filler" })
+        utils.log_debug(menu, me:is_moving() and "Wrath [moving]" or "Wrath")
+        note_cast()
+        esp_renderer.on_cast(runtime.wrath_id, "Wrath", color.blue(220))
+        return true
     end
     return false
 end
 
--- --- Hurricane AoE ---------------------------------------------------------
 local function try_hurricane(me, enemy_count, mana_pct)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_hurricane or not menu.use_hurricane:get_state() then return false end
     if not runtime.hurricane_id then return false end
-    local min_targets = menu.hurricane_min_targets and (menu.hurricane_min_targets and menu.hurricane_min_targets:get() or 4) or 4
+    local min_targets = menu.hurricane_min_targets and (menu.hurricane_min_targets and menu.hurricane_min_targets:get() or 3) or 3
     local mana_floor  = menu.hurricane_mana_floor and ((menu.hurricane_mana_floor and menu.hurricane_mana_floor:get() or 40) / 100) or 0.40
     if enemy_count < min_targets then return false end
     if mana_pct < mana_floor then return false end
     if me:is_moving() then return false end
+    -- Intelligent AoE throttling - prevent rapid hurricane spam
+    if should_throttle_aoe("hurricane") then return false end
     if not utils.can_cast_self(runtime.hurricane_id, me) then return false end
     if utils.cast_self(runtime.hurricane_id, me) then
+        mark_pending_cast(runtime.hurricane_id, PENDING_CAST_TIMEOUT_S, { action_key = "hurricane", category = "channel" })
         utils.log_debug(menu, "Hurricane (AoE x" .. tostring(enemy_count) .. ")")
         esp_renderer.on_cast(runtime.hurricane_id, "Hurricane", color.cyan(220))
-        note_cast()
-        return true
-    end
-    return false
-end
-
--- --- Typhoon (knockback / AoE slow) ----------------------------------------
-local function try_typhoon(me, enemy_count)
-    if enc and enc.hold_cooldowns then return false end
-    if not menu.use_typhoon or not menu.use_typhoon:get_state() then return false end
-    if not runtime.typhoon_id then return false end
-    local min_targets = menu.typhoon_min_targets and (menu.typhoon_min_targets and menu.typhoon_min_targets:get() or 3) or 3
-    if enemy_count < min_targets then return false end
-    if is_pending_cast(runtime.typhoon_id) then return false end
-    if not utils.can_cast_self(runtime.typhoon_id, me) then return false end
-    if utils.cast_self(runtime.typhoon_id, me) then
-        mark_pending_cast(runtime.typhoon_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Typhoon")
         note_cast()
         return true
     end
@@ -725,6 +647,7 @@ local function try_barkskin_defensive(me)
     if hp > threshold then return false end
     if not utils.can_cast_self(runtime.barkskin_id, me) then return false end
     if utils.cast_self(runtime.barkskin_id, me) then
+        invalidate_ctx()
         utils.log_debug(menu, "Barkskin (defensive)")
         return true
     end
@@ -734,6 +657,9 @@ local function update_rotation(me, target, menu, utils)
     if mana_conservator.on_update(me, target, menu, utils) then return end
 
     if not is_gcd_ready() then return false end
+
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
     -- Mana potion check (before main damage spells)
     if mana_manager.should_use_mana_potion(me, 30) then
@@ -767,15 +693,14 @@ local function update_rotation(me, target, menu, utils)
 
     ttd_tracker.update(dot_target)
 
-    if try_faerie_fire(me, dot_target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_faerie_fire(me, dot_target, mode) then return true end
     if try_remove_curse_balance(me) then return true end
-    if try_moonfire(me, dot_target) then return true end
-    if try_insect_swarm(me, dot_target) then return true end
-    if try_force_of_nature(me, dot_target, mana_pct) then return true end
-    if try_starfall(me, enemy_count, mode) then return true end
-    if try_hurricane(me, enemy_count, mana_pct) then return true end
-    if try_typhoon(me, enemy_count) then return true end
-    if try_nuke(me, dot_target, mana_pct) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_moonfire(me, dot_target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_insect_swarm(me, dot_target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.40) and try_hurricane(me, enemy_count, mana_pct) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_force_of_nature(me, dot_target, mana_pct) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_starfire(me, dot_target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_wrath(me, dot_target) then return true end
 
     return false
 end

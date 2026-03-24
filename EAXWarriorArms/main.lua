@@ -5,23 +5,31 @@
 local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
+
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -29,21 +37,28 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("arms", "Warrior Arms")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -111,11 +126,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -163,9 +182,9 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -174,16 +193,18 @@ local control_panel_utility = require("common/utility/control_panel_helper")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 ---@type swing_timer
-local swing_timer = require("eax_shared/swing_timer")
+local swing_timer = require("swing_timer")
 
 local MODE_REFRESH_INTERVAL_S = 5
 local MISSING_SPELL_REFRESH_INTERVAL_S = 1.0
 local MORTAL_STRIKE_COST = 30
 local WHIRLWIND_COST = 25
 local SLAM_COST = 15
+local THUNDER_CLAP_COST = 20
 local EXECUTE_MIN_RAGE = 15
 local EXECUTE_HP_THRESHOLD = 0.20
 local STANCE_BUFFER_RAGE = 5
+local ARMS_AOE_RADIUS = 8
 
 local runtime = {
     mortal_strike_id = nil,
@@ -191,6 +212,7 @@ local runtime = {
     whirlwind_id = nil,
     execute_id = nil,
     overpower_id = nil,
+    thunder_clap_id = nil,
     battle_shout_id = nil,
     commanding_shout_id = nil,
     demoralizing_shout_id = nil,
@@ -214,12 +236,18 @@ local runtime = {
     set_multiplier = 1.0,
 }
 
+local ctx_cache = rotation_context.new({
+    important_buffs = {},
+    important_debuffs = {},
+})
+
 local RUNTIME_SPELL_SPECS = {
     { field = "mortal_strike_id", ranks = spells.MORTAL_STRIKE },
     { field = "slam_id", ranks = spells.SLAM },
     { field = "whirlwind_id", ranks = spells.WHIRLWIND },
     { field = "execute_id", ranks = spells.EXECUTE },
     { field = "overpower_id", ranks = spells.OVERPOWER },
+    { field = "thunder_clap_id", ranks = spells.THUNDER_CLAP },
     { field = "battle_shout_id", ranks = spells.BATTLE_SHOUT },
     { field = "commanding_shout_id", ranks = spells.COMMANDING_SHOUT },
     { field = "demoralizing_shout_id", ranks = spells.DEMORALIZING_SHOUT },
@@ -260,6 +288,40 @@ local function refresh_missing_runtime_spell_ids()
     if has_missing_runtime_spell_ids() then
         resolve_spells()
     end
+end
+
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function refresh_mode_cache()
@@ -322,6 +384,22 @@ local function get_debuff_stack(target, id_table)
         return data.count or 0
     end
     return 0
+end
+
+local function count_nearby_enemies(me)
+    local ok_count, count = pcall(function()
+        return utils.count_enemies_within_radius(me, ARMS_AOE_RADIUS)
+    end)
+    if ok_count and type(count) == "number" then
+        return count
+    end
+    local ok_enemy_count, alt_count = pcall(function()
+        return utils.enemy_count_in_radius(me, ARMS_AOE_RADIUS)
+    end)
+    if ok_enemy_count and type(alt_count) == "number" then
+        return alt_count
+    end
+    return 1
 end
 
 local function try_battle_shout(me)
@@ -434,8 +512,13 @@ local function try_return_to_battle(me)
     return false
 end
 
-local function try_overpower(me, target)
+local function try_overpower(me, target, ctx)
     if not menu.use_overpower:get_state() or not target or not runtime.overpower_id then
+        return false
+    end
+
+    local can_cast = resource_gate.warrior.has_rage(ctx, 5)
+    if not can_cast then
         return false
     end
 
@@ -451,12 +534,16 @@ local function try_overpower(me, target)
     return false
 end
 
-local function try_mortal_strike(me, target, rage)
+local function try_mortal_strike(me, target, ctx)
     if not menu.use_mortal_strike:get_state()
         or not target
         or not runtime.mortal_strike_id
-        or rage < MORTAL_STRIKE_COST
     then
+        return false
+    end
+
+    local can_cast = resource_gate.warrior.has_rage(ctx, 20)
+    if not can_cast then
         return false
     end
 
@@ -473,13 +560,46 @@ local function try_mortal_strike(me, target, rage)
     return false
 end
 
-local function try_execute(me, target, rage, target_hp_pct)
+local function try_thunder_clap(me, target, ctx)
+    if not runtime.thunder_clap_id or not target then
+        return false
+    end
+    local can_cast = resource_gate.warrior.has_rage(ctx, 10)
+    if not can_cast then
+        return false
+    end
+    if not utils.is_melee_target(me, target) then
+        return false
+    end
+    -- Thunder Clap on Arms wastes rage on single target (debuff provided by tank anyway).
+    -- Only use on 3+ targets where the slow has AoE value.
+    local nearby = count_nearby_enemies(me)
+    if nearby < 3 then
+        return false
+    end
+    if not utils.can_cast_self(runtime.thunder_clap_id, me) then
+        return false
+    end
+    if utils.cast_self(runtime.thunder_clap_id, me) then
+        note_cast()
+        utils.log_debug(menu, "Thunder Clap")
+        esp_renderer.on_cast(runtime.thunder_clap_id, "Thunder Clap", color.blue(220))
+        return true
+    end
+    return false
+end
+
+local function try_execute(me, target, ctx, target_hp_pct)
     if not menu.use_execute:get_state()
         or not target
         or not runtime.execute_id
         or target_hp_pct > EXECUTE_HP_THRESHOLD
-        or rage < EXECUTE_MIN_RAGE
     then
+        return false
+    end
+
+    local can_cast = resource_gate.warrior.has_rage(ctx, 15)
+    if not can_cast then
         return false
     end
 
@@ -492,18 +612,26 @@ local function try_execute(me, target, rage, target_hp_pct)
     return false
 end
 
-local function try_whirlwind(me, target, rage)
+local function try_whirlwind(me, target, rage, ctx)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_whirlwind:get_state()
         or not target
         or not runtime.whirlwind_id
-        or rage < WHIRLWIND_COST
         or not runtime.berserker_stance_id
     then
         return false
     end
 
+    local can_cast = resource_gate.warrior.has_rage(ctx, 25)
+    if not can_cast then
+        return false
+    end
+
     if not utils.is_melee_target(me, target) then
+        return false
+    end
+
+    if count_nearby_enemies(me) < 3 then
         return false
     end
 
@@ -534,17 +662,29 @@ local function try_whirlwind(me, target, rage)
     return false
 end
 
-local function try_slam(me, target, rage)
+local function try_slam(me, target, ctx)
      if not menu.use_slam:get_state()
          or not target
          or not runtime.slam_id
-         or rage < SLAM_COST
      then
          return false
      end
 
-     local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or 0
+     local can_cast = resource_gate.warrior.has_rage(ctx, 20)
+     if not can_cast then
+         return false
+     end
+
+     if not utils.is_melee_target(me, target) then
+         return false
+     end
+
+      local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or 0
      if ms_cd <= 1.5 then
+         return false
+     end
+
+     if not swing_timer.is_in_post_swing_window(me, 0.35) then
          return false
      end
 
@@ -713,6 +853,9 @@ end
 local function do_core_lane(me, target, rage, target_hp_pct)
     utils.ensure_melee_auto_attack(me, target)
 
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
+
     -- TTD tracking
     ttd_tracker.update(target)
 
@@ -730,23 +873,33 @@ local function do_core_lane(me, target, rage, target_hp_pct)
     end
     try_sweeping_strikes(me)
 
-    if try_overpower(me, target) then
+    if try_overpower(me, target, ctx) then
+        invalidate_ctx()
         return true
     end
 
-    if try_execute(me, target, rage, target_hp_pct) then
+    if try_execute(me, target, ctx, target_hp_pct) then
+        invalidate_ctx()
         return true
     end
 
-    if try_mortal_strike(me, target, rage) then
+    if try_mortal_strike(me, target, ctx) then
+        invalidate_ctx()
         return true
     end
 
-    if try_whirlwind(me, target, rage) then
+    if try_thunder_clap(me, target, ctx) then
+        invalidate_ctx()
         return true
     end
 
-    if try_slam(me, target, rage) then
+    if try_whirlwind(me, target, rage, ctx) then
+        invalidate_ctx()
+        return true
+    end
+
+    if try_slam(me, target, ctx) then
+        invalidate_ctx()
         return true
     end
 
@@ -793,7 +946,7 @@ local function on_update()
 
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
-    if focus_target and focus_target:is_valid() then
+    if me:is_in_combat() and focus_target and focus_target:is_valid() then
         core.input.set_target(focus_target)
     end
     
@@ -996,4 +1149,3 @@ do
 end
 
 return { cleanup = cleanup }
-

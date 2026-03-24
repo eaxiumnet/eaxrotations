@@ -3,21 +3,22 @@
 Balance Druid (Moonkin) automation for TBC on Project Sylvanas.
 
 ## Rotation
+- Applies `Faerie Fire` to boss or elite targets when missing.
 - Maintains `Moonfire` and `Insect Swarm` DoT uptime.
-- Primary filler: `Starfire`. Secondary: `Wrath`.
+- Uses `Hurricane` on 3+ target packs when mana allows.
 - `Force of Nature` on cooldown when available.
-- `Starfall` on cooldown in AoE situations.
-- `Hurricane` for multi-target pack damage.
+- Primary filler: `Starfire` when stationary and in range; falls back to `Wrath` when needed.
+- Uses `Innervate` for low mana and `Tranquility` as an emergency self-save.
 
 ## New in 2.1.0
-- **Berserk:** Auto-fires on pull when in combat for the haste window.
-- **Typhoon:** Auto-fires at <50% HP as a defensive knockback.
+- **TBC Cleanup:** Removed Wrath-only `Eclipse`, `Starfall`, `Typhoon`, and `Berserk` logic.
+- **Moonkin Priority:** Rebuilt around TBC DoT upkeep into `Starfire`/`Wrath` filler casting.
 - **Tranquility:** Enabled by default for group emergency healing.
 - **Mark of the Wild:** OOC group buffing now working correctly.
 
 ## Menu Options
-- Use Moonfire, Insect Swarm, Starfire, Wrath, Force of Nature
-- Use Hurricane, Starfall, Tranquility, Berserk, Typhoon
+- Use Faerie Fire, Moonfire, Insect Swarm, Force of Nature
+- Use Hurricane, Innervate, Tranquility, and DoT refresh tuning
 
 ## Install
 1. Extract `EAXDruidBalance` into your Sylvanas `scripts` folder.

@@ -14,6 +14,24 @@ local last_group_buff       = {}
 local DRINK_BUFF_IDS = { 430, 2639, 1133, 10250, 22734, 27089, 29007, 46755 }
 local EAT_BUFF_IDS   = { 433, 787,  1131, 5004,  5005,  7737,  18191, 35270 }
 
+local function get_health_pct(me, utils)
+    if utils and type(utils.get_health_pct) == "function" then
+        local ok, value = pcall(utils.get_health_pct, me)
+        if ok and type(value) == "number" then
+            return value
+        end
+    end
+
+    if me and type(me.get_health_percentage) == "function" then
+        local ok, value = pcall(me.get_health_percentage, me)
+        if ok and type(value) == "number" then
+            return value / 100.0
+        end
+    end
+
+    return 1.0
+end
+
 local function has_any_buff(unit, ids)
     if not unit or not unit:is_valid() or not ids then return false end
     local data = buff_manager:get_buff_data(unit, ids)
@@ -101,7 +119,7 @@ function ooc_manager.try_eat(me, menu, utils)
     if has_any_buff(me, DRINK_BUFF_IDS) then return false end
 
     local threshold = menu.eat_threshold and (menu.eat_threshold:get() / 100.0) or 0.80
-    local hp_pct    = utils.get_health_pct(me)
+    local hp_pct    = get_health_pct(me, utils)
     if hp_pct >= threshold then return false end
 
     local now = core.time()

@@ -2,46 +2,61 @@
 -- EAX Warlock Demonology | Rotation logic
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 local enc = nil
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("demo", "Warlock Demo")
-
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -109,11 +124,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -162,18 +181,18 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
-local dot_manager = require("eax_shared/dot_manager")
+local dot_manager = require("dot_manager")
 ---@type mana_manager
-local mana_manager = require("eax_shared/mana_manager")
+local mana_manager = require("mana_manager")
 ---@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
+local threat_manager = require("threat_manager")
 
 local threat_initialized = false
 
@@ -211,6 +230,8 @@ local runtime = {
     pet_autocast_configured = false,
     set_multiplier = 1.0,
 }
+
+local ctx_cache = rotation_context.new({})
 
 local GCD_INTERVAL_S = 0.05
 local PENDING_CAST_TIMEOUT_S = 2.5
@@ -273,41 +294,43 @@ local function update_set_bonus()
     end
 end
 
-local function is_pending_cast(spell_id)
-    if not spell_id then
-        return false
-    end
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then
-        return false
-    end
-    if (_core_time() - pending) >= PENDING_CAST_TIMEOUT_S then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-    return true
-end
-
-local function mark_pending_cast(spell_id)
-    if spell_id then
-        runtime.pending_casts[spell_id] = _core_time()
-    end
-end
-
 local function note_cast()
     runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
 end
 
 local function is_gcd_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_INTERVAL_S then
-        return false
-    end
-    return _get_gcd() <= 0
+    return smart_cast_manager.is_gcd_ready()
 end
 
-local function refresh_mode_cache()
-    local me = _get_local_player()
-    runtime.cached_mode = utils.detect_mode(me)
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function get_effective_mode()
@@ -320,6 +343,14 @@ local function get_effective_mode()
         return "raid"
     end
     return runtime.cached_mode
+end
+
+local function refresh_mode_cache()
+    local me = _get_local_player()
+    if not me then
+        return
+    end
+    runtime.cached_mode = utils.detect_mode(me) or runtime.cached_mode or "solo"
 end
 
 local function handle_toggle()
@@ -407,6 +438,14 @@ local SUMMON_SPELLS = {
     felguard = spells.SUMMON_FELGUARD,
 }
 
+local PET_REQUIRES_SHARD = {
+    imp = false,
+    voidwalker = true,
+    succubus = true,
+    felhunter = true,
+    felguard = true,
+}
+
 local function get_pet_npc_id()
     local me = _get_local_player()
     if not me then return 0 end
@@ -423,15 +462,44 @@ local function current_pet_name()
     return "none"
 end
 
+local function count_soul_shards()
+    if not core or not core.inventory or not core.inventory.get_items_in_bag then
+        return 0
+    end
+
+    local total = 0
+    for bag = 0, 4 do
+        local ok, items = pcall(function()
+            return core.inventory.get_items_in_bag(bag)
+        end)
+        if ok and items then
+            for _, slot in ipairs(items) do
+                local item = slot and slot.object
+                if item and item.is_valid and item:is_valid() and item.get_item_id and item:get_item_id() == 6265 then
+                    if item.get_item_stack_count then
+                        total = total + (item:get_item_stack_count() or 1)
+                    else
+                        total = total + 1
+                    end
+                end
+            end
+        end
+    end
+
+    return total
+end
+
 local function desired_pet_name(mode)
-    if runtime.felguard_id then return "felguard" end
-    if mode == "raid" then return "imp" end
-    if mode == "dungeon" then return "felhunter" end
-    return "voidwalker"
+    local pet_mode = menu.preferred_pet and menu.preferred_pet:get() or 1
+    if pet_mode == 2 then return "imp" end
+    if pet_mode == 3 then return "voidwalker" end
+    if pet_mode == 4 then return "succubus" end
+    if pet_mode == 5 then return "felhunter" end
+    if pet_mode == 6 and runtime.felguard_id then return "felguard" end
+    return nil
 end
 
 local function try_summon_correct_pet(me, mode)
-    if not menu.ensure_felguard:get_state() then return false end
     if me:is_in_combat() then return false end
 
     local now = _core_time()
@@ -443,10 +511,24 @@ local function try_summon_correct_pet(me, mode)
 
     local current = current_pet_name()
     local desired = desired_pet_name(mode)
+    if not desired then return false end
     if current == desired then return false end
 
     local spell_table = SUMMON_SPELLS[desired]
     local spell_id = spell_table and utils.resolve_spell_id(spell_table) or nil
+    if PET_REQUIRES_SHARD[desired] and count_soul_shards() < 1 then
+        if utils.throttle("eax_demonology_pet_shard_warning", 10.0) then
+            core.log("[EAX Warlock Demonology] Cannot summon " .. desired .. ": need at least 1 Soul Shard.")
+            core.graphics.add_notification(
+                "eax_demonology_pet_shard_warning",
+                "[EAX] Pet Summon Blocked",
+                "Cannot summon " .. desired .. ": need at least 1 Soul Shard.",
+                6.0,
+                require("common/color").new(255, 180, 80, 255)
+            )
+        end
+        return false
+    end
     if not spell_id or not utils.can_cast_self(spell_id, me) then
         return false
     end
@@ -459,20 +541,21 @@ local function try_summon_correct_pet(me, mode)
     return false
 end
 
-local function ensure_pet_autocast()
-    if runtime.pet_autocast_configured then
-        return false
-    end
-    if not core.input or not core.input.enable_pet_autocast then
+local function is_within_range(a, b, max_range)
+    if not a or not b or not max_range then
         return false
     end
 
-    local configured = false
-    local ok_torment = pcall(function() core.input.enable_pet_autocast("Torment") end)
-    local ok_suffering = pcall(function() core.input.enable_pet_autocast("Suffering") end)
-    configured = ok_torment or ok_suffering
-    runtime.pet_autocast_configured = configured
-    return false
+    local ok_a, pos_a = pcall(function() return a:get_position() end)
+    local ok_b, pos_b = pcall(function() return b:get_position() end)
+    if not ok_a or not ok_b or not pos_a or not pos_b then
+        return false
+    end
+
+    local dx = pos_a.x - pos_b.x
+    local dy = pos_a.y - pos_b.y
+    local dz = pos_a.z - pos_b.z
+    return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
 end
 
 local function try_banish(me, target)
@@ -489,8 +572,7 @@ local function count_close_hostiles(me, radius)
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
-            local distance = obj:get_distance_to(me)
-            if distance and distance <= radius then
+            if is_within_range(me, obj, radius) then
                 count = count + 1
             end
         end
@@ -568,7 +650,7 @@ local function try_shadow_burn(me, target)
     if utils.get_health_pct(target) > SHADOW_BURN_HP_PCT then
         return false
     end
-    return try_cast_spell(me, runtime.shadow_burn_id, target, "Shadow Burn")
+    return try_cast_spell(me, runtime.shadow_burn_id, target, "Shadowburn")
 end
 
 local function try_drain_soul(me, target)
@@ -642,7 +724,8 @@ local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
     if not is_gcd_ready() then return end
 
-    ensure_pet_autocast()
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "warlock", utils) then
@@ -698,16 +781,19 @@ local function do_rotation(me, target)
     local effective_mode = get_effective_mode()
 
     if try_summon_correct_pet(me, effective_mode) then return end
-    if try_fel_armor(me) then return end
-    if ensure_soul_link(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_fel_armor(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and ensure_soul_link(me) then return end
     if try_banish(me, target) then return true end
-    if try_shadowfury(me, target) then return end
-    if try_apply_curse(me, target) then return end
-    if try_refresh_dots(me, target) then return end
-    if try_shadow_burn(me, target) then return end
-    if try_drain_soul(me, target) then return end
-    if try_soul_fire(me, target) then return end
-    if try_shadow_bolt(me, target) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_shadowfury(me, target) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) then
+        if ctx.self and ctx.self.soul_shards and ctx.self.soul_shards < 1 then return false end
+        if try_shadow_burn(me, target) then return end
+        if try_drain_soul(me, target) then return end
+        if try_soul_fire(me, target) then return end
+    end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_shadow_bolt(me, target) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_apply_curse(me, target) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_refresh_dots(me, target) then return end
     try_life_tap(me, effective_mode)
 end
 
@@ -808,6 +894,8 @@ core.register_on_update_callback(function()
     if eax_utils.is_eating_or_drinking(me) then return end
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    local effective_mode = get_effective_mode()
+    if not focus_target and try_summon_correct_pet(me, effective_mode) then return end
     local target = focus_target or utils.find_best_target(me)
     if not target then return end
 

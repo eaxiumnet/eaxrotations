@@ -5,25 +5,35 @@
 require("common/wow_api_clone")  -- exposes GetWeaponEnchantInfo for temp enchant detection
 local menu = require("menu")
 local spells = require("spells")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 ---@type totem_manager
-local totem_manager = require("eax_shared/totem_manager")
+local totem_manager = require("totem_manager")
+---@type swing_timer
+local swing_timer = require("swing_timer")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -31,21 +41,27 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("enhance", "Shaman Enh")
-
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -113,11 +129,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        runtime.last_windfury_drop = 0
+        runtime.totem_last_apply = {}
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -165,9 +185,9 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 ---@type key_helper
@@ -199,8 +219,6 @@ local runtime = {
     lightning_bolt_id = nil,
     totem_of_wrath_id = nil,
     windfury_totem_id = nil,
-    lava_lash_id = nil,
-    feral_spirit_id = nil,
     windfury_weapon_id = nil,
     water_shield_id      = nil,
     lightning_shield_id  = nil,
@@ -228,6 +246,11 @@ local runtime = {
     last_potion_at = 0,
 }
 
+local ctx_cache = rotation_context.new({
+    important_buffs = {},
+    important_debuffs = {},
+})
+
 local MANA_POTION_IDS = { 33447, 22832, 13444, 6149, 3827 }
 
 local TOTEM_ROTATION = {
@@ -251,8 +274,6 @@ local function resolve_spells()
     runtime.lightning_bolt_id = utils.resolve_spell_id(spells.LIGHTNING_BOLT)
     runtime.totem_of_wrath_id = utils.resolve_spell_id(spells.TOTEM_OF_WRATH)
     runtime.windfury_totem_id      = utils.resolve_spell_id(spells.WINDFURY_TOTEM)
-    runtime.lava_lash_id            = utils.resolve_spell_id(spells.LAVA_LASH)
-    runtime.feral_spirit_id         = utils.resolve_spell_id(spells.FERAL_SPIRIT)
     runtime.windfury_weapon_id    = utils.resolve_spell_id(spells.WINDFURY_WEAPON)
     runtime.water_shield_id      = utils.resolve_spell_id(spells.WATER_SHIELD)
     runtime.lightning_shield_id  = utils.resolve_spell_id(spells.LIGHTNING_SHIELD)
@@ -267,19 +288,14 @@ local function resolve_spells()
     runtime.mana_spring_id     = utils.resolve_spell_id(spells.MANA_SPRING_TOTEM)
     runtime.magma_totem_id         = utils.resolve_spell_id(spells.MAGMA_TOTEM)
     runtime.flametongue_weapon_id   = utils.resolve_spell_id(spells.FLAMETONGUE_WEAPON)
-    runtime.wind_shear_id = utils.resolve_spell_id(spells.WINDSHEAR)
     runtime.ancestral_spirit_id  = utils.resolve_spell_id(spells.ANCESTRAL_SPIRIT)
 end
 
 local function log_resolved_spells()
     utils.log_debug(menu, "Resolved Stormstrike=" .. tostring(runtime.stormstrike_id))
-    utils.log_debug(menu, "Resolved LavaLash=" .. tostring(runtime.lava_lash_id))
-    utils.log_debug(menu, "Resolved FeralSpirit=" .. tostring(runtime.feral_spirit_id))
     -- Always log these so player can see what's available
-    core.log("[EAX Enh] Stormstrike ID: " .. tostring(runtime.stormstrike_id)
-        .. " | LavaLash: " .. tostring(runtime.lava_lash_id)
-        .. " | FeralSpirit: " .. tostring(runtime.feral_spirit_id))
-    -- Scan for Stormstrike/Lava Lash if not found by ID table
+    core.log("[EAX Enh] Stormstrike ID: " .. tostring(runtime.stormstrike_id))
+    -- Scan for Stormstrike if not found by ID table
     if not runtime.stormstrike_id then
         -- Try scanning common TBC+custom server Stormstrike IDs
         local alt_ids = { 17364, 17423, 17424, 17425, 32175, 32176, 38967 }
@@ -313,34 +329,43 @@ local function get_mode_profile()
     return MODE_PROFILE[mode] or MODE_PROFILE.solo
 end
 
-local function mark_pending_cast(spell_id, timeout)
-    if not spell_id then return end
-    runtime.pending_casts[spell_id] = {
-        requested_at = _core_time(),
-        timeout_s = timeout or PENDING_CAST_TIMEOUT_S,
-    }
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
 end
 
-local function is_pending_cast(spell_id)
-    if not spell_id then return false end
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then return false end
-    if (_core_time() - pending.requested_at) >= pending.timeout_s then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-    return true
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
 end
 
 local function note_cast()
     runtime.last_cast_time = _core_time()
+    invalidate_ctx()
 end
 
-local function is_gcd_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_INTERVAL then
-        return false
-    end
-    return _get_gcd() <= 0
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function try_cast_target(me, target, spell_id, label)
@@ -402,8 +427,12 @@ local function ensure_totems(me)
     end
 end
 
-local function try_shamanistic_rage(me)
+local function try_shamanistic_rage(me, ctx)
     if not menu.use_cooldowns:get_state() or not runtime.shamanistic_rage_id then
+        return false
+    end
+    local can_cast = resource_gate.shaman.has_mana_pct(ctx, 0.15)
+    if not can_cast then
         return false
     end
     local mana_pct = utils.get_mana_pct(me)
@@ -436,12 +465,16 @@ local function try_mana_potion(me)
     return false
 end
 
-local function try_stormstrike(me, target)
+local function try_stormstrike(me, target, ctx)
     if not runtime.stormstrike_id then
         utils.log_debug(menu, "Stormstrike: no spell ID resolved (not learned?)")
         return false
     end
     if not target then return false end
+    local can_cast = resource_gate.shaman.has_mana_pct(ctx, 0.10)
+    if not can_cast then
+        return false
+    end
     if not utils.is_melee_target(me, target) then
         utils.log_debug(menu, "Stormstrike: target not in melee range")
         return false
@@ -468,11 +501,29 @@ local function should_chain_lightning_weave()
     return (now - runtime.last_stormstrike_at) >= clip_window
 end
 
-local function try_chain_lightning_weave(me, target)
+local function get_swing_clip_window_s()
+    local profile = get_mode_profile()
+    return math.max(menu.swing_clip_ms:get(), profile.swing_clip_ms) / 1000
+end
+
+local function is_melee_swing_safe(me, extra_buffer_s)
+    return swing_timer.is_swing_safe(me, get_swing_clip_window_s() + (extra_buffer_s or 0))
+end
+
+local function can_weave_chain_lightning(me)
+    return swing_timer.can_cast_before_swing(me, 1.5, get_swing_clip_window_s())
+end
+
+local function try_chain_lightning_weave(me, target, ctx)
     if not menu.use_chain_lightning_weave:get_state() or not runtime.chain_lightning_id or not target then
         return false
     end
+    local can_cast = resource_gate.shaman.has_mana_pct(ctx, 0.15)
+    if not can_cast then
+        return false
+    end
     if not should_chain_lightning_weave() then return false end
+    if not can_weave_chain_lightning(me) then return false end
     local profile = get_mode_profile()
     local enemies = utils.count_enemies_in_range(me, spells.CHAIN_LIGHTNING_RADIUS)
     if enemies < profile.aoe_threshold then return false end
@@ -481,8 +532,11 @@ local function try_chain_lightning_weave(me, target)
     return try_cast_target(me, target, runtime.chain_lightning_id, "Chain Lightning")
 end
 
-local function try_shock(me, target)
+local function try_shock(me, target, ctx)
     if not target or not utils.is_valid_hostile(me, target) then
+        return false
+    end
+    if not is_melee_swing_safe(me) then
         return false
     end
     local shock_index = menu.shock_mode:get()
@@ -490,6 +544,12 @@ local function try_shock(me, target)
     if not shock_entry then return false end
     local spell_id = runtime[shock_entry.id_field]
     if not spell_id then return false end
+    if shock_entry.id_field == "earth_shock_id" or shock_entry.id_field == "flame_shock_id" then
+        local can_cast = resource_gate.shaman.has_mana_pct(ctx, 0.10)
+        if not can_cast then
+            return false
+        end
+    end
     if utils.has_debuff(target, shock_entry.debuff) then return false end
     return try_cast_target(me, target, spell_id, shock_entry.label)
 end
@@ -498,36 +558,77 @@ end
 -- --- Weapon Imbue Maintenance (v1.1) --------------------------------------
 
 local IMBUE_DURATION_S = 29 * 60    -- fallback timer
+local ENCHANT_REFRESH_MS = 5 * 60 * 1000
+
+local function get_weapon_enchant_state()
+    if type(GetWeaponEnchantInfo) ~= "function" then
+        return nil
+    end
+
+    local ok, has_mh, mh_expiration_ms, _, _, has_oh, oh_expiration_ms = pcall(GetWeaponEnchantInfo)
+    if not ok then
+        return nil
+    end
+
+    return {
+        has_mh = has_mh == true,
+        mh_expiration_ms = tonumber(mh_expiration_ms) or 0,
+        has_oh = has_oh == true,
+        oh_expiration_ms = tonumber(oh_expiration_ms) or 0,
+    }
+end
+
+local function enchant_needs_refresh(is_active, expiration_ms, last_applied_at)
+    if is_active then
+        return expiration_ms > 0 and expiration_ms <= ENCHANT_REFRESH_MS
+    end
+
+    if last_applied_at <= 0 then
+        return true
+    end
+
+    return (_core_time() - last_applied_at) >= IMBUE_DURATION_S
+end
+
+local function try_cast_self_direct(me, spell_id, label, cast_color)
+    if not spell_id or not me or not me:is_valid() then return false end
+    if is_pending_cast(spell_id) then return false end
+    if not utils.can_cast_self(spell_id, me) then return false end
+    if not utils.cast_self(spell_id, me) then return false end
+    mark_pending_cast(spell_id)
+    note_cast()
+    esp_renderer.on_cast(spell_id, label, cast_color or color.yellow(220), "Self")
+    utils.log_debug(menu, label .. " cast")
+    return true
+end
 
 local function try_weapon_imbues(me)
     if not utils.throttle("weapon_imbue_check", 5.0) then return false end
-    local bm = require("common/modules/buff_manager")
+    if not is_melee_swing_safe(me) then return false end
+    local enchant_state = get_weapon_enchant_state()
 
     -- Main hand: Windfury Weapon
-    -- Check via time-based fallback: reapply every 25 minutes (buff lasts 30 min)
     if runtime.windfury_weapon_id then
-        local wf_buff = bm:get_buff_data(me, spells.BUFF_WINDFURY_WEAPON)
-        local has_wf = wf_buff and wf_buff.is_active
-        local needs = not has_wf and (_core_time() - runtime.last_windfury_at) >= IMBUE_DURATION_S
-        if needs and utils.can_cast_self(runtime.windfury_weapon_id, me) then
-            if utils.cast_self(runtime.windfury_weapon_id, me) then
-                runtime.last_windfury_at = _core_time()
-                esp_renderer.on_cast(runtime.windfury_weapon_id, "Windfury Weapon", color.yellow(220), "Self")
-                return true
-            end
+        local needs = enchant_needs_refresh(
+            enchant_state and enchant_state.has_mh,
+            enchant_state and enchant_state.mh_expiration_ms or 0,
+            runtime.last_windfury_at
+        )
+        if needs and try_cast_self_direct(me, runtime.windfury_weapon_id, "Windfury Weapon", color.yellow(220)) then
+            runtime.last_windfury_at = _core_time()
+            return true
         end
     end
     -- Off hand: Flametongue Weapon
     if runtime.flametongue_weapon_id then
-        local ft_buff = bm:get_buff_data(me, spells.BUFF_FLAMETONGUE_WEAPON)
-        local has_ft = ft_buff and ft_buff.is_active
-        local needs = not has_ft and (_core_time() - runtime.last_flametongue_at) >= IMBUE_DURATION_S
-        if needs and utils.can_cast_self(runtime.flametongue_weapon_id, me) then
-            if utils.cast_self(runtime.flametongue_weapon_id, me) then
-                runtime.last_flametongue_at = _core_time()
-                esp_renderer.on_cast(runtime.flametongue_weapon_id, "Flametongue Weapon", color.orange(220), "Self")
-                return true
-            end
+        local needs = enchant_needs_refresh(
+            enchant_state and enchant_state.has_oh,
+            enchant_state and enchant_state.oh_expiration_ms or 0,
+            runtime.last_flametongue_at
+        )
+        if needs and try_cast_self_direct(me, runtime.flametongue_weapon_id, "Flametongue Weapon", color.orange(220)) then
+            runtime.last_flametongue_at = _core_time()
+            return true
         end
     end
     return false
@@ -535,36 +636,21 @@ end
 
 -- --- Offensive CDs (v1.1) -------------------------------------------------
 
-local function try_feral_spirit(me, target)
-    if enc and enc.hold_cooldowns then return false end
-    if not menu.use_feral_spirit or not menu.use_feral_spirit:get_state() then return false end
-    if not runtime.feral_spirit_id then return false end   -- nil = talent not taken
-    if not me:is_in_combat() then return false end
-    return try_cast_self(me, runtime.feral_spirit_id, "Feral Spirit")
-end
-
-local function try_lava_lash(me, target)
-    if not runtime.lava_lash_id then return false end      -- nil = talent not taken
-    local stormstrike_cd = runtime.stormstrike_id and _get_spell_cd(runtime.stormstrike_id) or 0
-    if stormstrike_cd <= 0 then
-        return false
-    end
-    local has_wf = utils.has_buff(me, spells.BUFF_WINDFURY_WEAPON)
-    local has_ft = utils.has_buff(me, spells.BUFF_FLAMETONGUE_WEAPON)
-    if not (has_wf or has_ft) then
-        return false
-    end
-    return try_cast_target(me, target, runtime.lava_lash_id, "Lava Lash")
-end
-
 local function has_flame_shock(target)
     return utils.has_debuff(target, spells.DEBUFF_FLAME_SHOCK)
         or utils.has_debuff(target, spells.BUFF_FLAME_SHOCK)
         or utils.has_debuff(target, spells.FLAME_SHOCK)
 end
 
-local function try_flame_shock(me, target)
+local function try_flame_shock(me, target, ctx)
     if not runtime.flame_shock_id or not target then
+        return false
+    end
+    if not is_melee_swing_safe(me) then
+        return false
+    end
+    local can_cast = resource_gate.shaman.has_mana_pct(ctx, 0.10)
+    if not can_cast then
         return false
     end
     if has_flame_shock(target) then
@@ -576,8 +662,15 @@ local function try_flame_shock(me, target)
     return try_cast_target(me, target, runtime.flame_shock_id, "Flame Shock")
 end
 
-local function try_earth_shock(me, target)
+local function try_earth_shock(me, target, ctx)
     if not runtime.earth_shock_id or not target then
+        return false
+    end
+    if not is_melee_swing_safe(me) then
+        return false
+    end
+    local can_cast = resource_gate.shaman.has_mana_pct(ctx, 0.10)
+    if not can_cast then
         return false
     end
     if not has_flame_shock(target) then
@@ -613,18 +706,17 @@ local function try_totem_twist(me)
     if not utils.throttle("totem_twist_check", 2.0) then return false end
     if me:is_moving() then return false end
     if not me:is_in_combat() then return false end
+    if not is_melee_swing_safe(me) then return false end
+    if get_effective_mode() == "solo" then return false end
 
     local now = _core_time()
     local time_since_wf = now - runtime.last_windfury_drop
 
     -- Drop Windfury Totem every 10 seconds
     if time_since_wf >= WF_TOTEM_DURATION_S and runtime.windfury_totem_id then
-        if utils.can_cast_self(runtime.windfury_totem_id, me) then
-            utils.cast_self(runtime.windfury_totem_id, me)
+        if try_cast_self(me, runtime.windfury_totem_id, "Windfury Totem") then
             runtime.last_windfury_drop = now
-            utils.log_debug(menu, "Windfury Totem (twist)")
-            esp_renderer.on_cast(runtime.windfury_totem_id, "Lava Lash", color.red(220), "Self")
-        return true
+            return true
         end
     end
 
@@ -636,9 +728,7 @@ local function try_totem_twist(me)
         or utils.has_buff(me, spells.BUFF_WINDFURY_TOTEM)
     if not has_air_buff then
         local air_id = runtime.wrath_of_air_id or runtime.grace_of_air_id
-        if air_id and utils.can_cast_self(air_id, me) then
-            utils.cast_self(air_id, me)
-            utils.log_debug(menu, "Air Totem (twist filler)")
+        if air_id and try_cast_self(me, air_id, "Wrath of Air / Grace of Air") then
             return true
         end
     end
@@ -652,9 +742,8 @@ local function try_earth_totem(me)
     if not menu.use_earth_totem or not menu.use_earth_totem:get_state() then return false end
     if not utils.throttle("earth_totem_check", 30.0) then return false end
     if me:is_moving() then return false end
-    if runtime.strength_earth_id and utils.can_cast_self(runtime.strength_earth_id, me) then
-        utils.cast_self(runtime.strength_earth_id, me)
-        utils.log_debug(menu, "Strength of Earth Totem")
+    if not is_melee_swing_safe(me) then return false end
+    if runtime.strength_earth_id and try_cast_self(me, runtime.strength_earth_id, "Strength of Earth Totem") then
         return true
     end
     return false
@@ -664,9 +753,8 @@ local function try_water_totem(me)
     if not menu.use_water_totem or not menu.use_water_totem:get_state() then return false end
     if not utils.throttle("water_totem_check", 30.0) then return false end
     if me:is_moving() then return false end
-    if runtime.mana_spring_id and utils.can_cast_self(runtime.mana_spring_id, me) then
-        utils.cast_self(runtime.mana_spring_id, me)
-        utils.log_debug(menu, "Mana Spring Totem")
+    if not is_melee_swing_safe(me) then return false end
+    if runtime.mana_spring_id and try_cast_self(me, runtime.mana_spring_id, "Mana Spring Totem") then
         return true
     end
     return false
@@ -678,6 +766,7 @@ local function try_fire_totem(me, enemy_count)
     if not utils.throttle("fire_totem_check", 5.0) then return false end
     -- Don't drop totems while moving
     if me and me.is_moving and me:is_moving() then return false end
+    if not is_melee_swing_safe(me) then return false end
 
     -- Choose totem type by enemy count
     local totem_id = (enemy_count and enemy_count >= 3)
@@ -685,12 +774,14 @@ local function try_fire_totem(me, enemy_count)
         or runtime.searing_totem_id
 
     if not totem_id then return false end
-    if not utils.can_cast_self(totem_id, me) then return false end
-    -- Check if a fire totem is already active (simple CD check)
-    if utils.is_spell_already_queued and utils.is_spell_already_queued(totem_id) then return false end
-
-    if utils.cast_self(totem_id, me) then
-        utils.log_debug(menu, "Fire Totem dropped")
+    local label = (enemy_count and enemy_count >= 3) and "Magma Totem" or "Searing Totem"
+    local now = _core_time()
+    local last_apply = runtime.totem_last_apply.fire_totem or 0
+    if (now - last_apply) < FIRE_TOTEM_REFRESH_S then
+        return false
+    end
+    if try_cast_self(me, totem_id, label) then
+        runtime.totem_last_apply.fire_totem = now
         return true
     end
     return false
@@ -768,6 +859,9 @@ local function do_rotation(me, target)
     -- Lazy re-resolve: spells may not be learned yet at plugin load time
     if not runtime.stormstrike_id then resolve_spells() end
     if not is_gcd_ready() then return false end
+    local ctx = rotation_context.get(ctx_cache, me, target, {
+        now_s = _core_time,
+    })
     -- Interrupt (Earth Shock / Wind Shear)
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
@@ -796,30 +890,28 @@ local function do_rotation(me, target)
         return true
     end
 
-    ensure_totems(me)
     -- Weapon imbues (out of combat / throttled)
     try_weapon_imbues(me)
-
-    -- Totem maintenance
-    local _enh_enemies = utils.enemy_count_in_radius and utils.enemy_count_in_radius(me, 10) or 1
-    try_totem_twist(me)
-    try_fire_totem(me, _enh_enemies)
-    try_earth_totem(me)
-    try_water_totem(me)
 
     -- TTD tracking
     ttd_tracker.update(target)
 
     -- Offensive CDs
     if try_mana_potion(me) then return true end
-    if try_feral_spirit(me, target) then return true end
-    if try_shamanistic_rage(me) then return true end
-    if try_stormstrike(me, target) then return true end
-    if try_lava_lash(me, target) then return true end
-    if try_flame_shock(me, target) then return true end
-    if try_earth_shock(me, target) then return true end
-    if try_chain_lightning_weave(me, target) then return true end
-    if try_shock(me, target) then return true end
+    if try_shamanistic_rage(me, ctx) then return true end
+    if try_stormstrike(me, target, ctx) then return true end
+    if try_flame_shock(me, target, ctx) then return true end
+    if try_earth_shock(me, target, ctx) then return true end
+    if try_chain_lightning_weave(me, target, ctx) then return true end
+    if try_shock(me, target, ctx) then return true end
+
+    ensure_totems(me)
+    -- Totem maintenance
+    local _enh_enemies = utils.enemy_count_in_radius and utils.enemy_count_in_radius(me, 10) or 1
+    try_totem_twist(me)
+    try_fire_totem(me, _enh_enemies)
+    try_earth_totem(me)
+    try_water_totem(me)
     -- Auto-attack fallback for leveling 1-70
     if me:is_in_combat() and target and target:is_valid() and not target:is_dead()
        and me:can_attack(target) then

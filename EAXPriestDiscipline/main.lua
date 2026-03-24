@@ -2,48 +2,63 @@
 -- Priority rotation that keeps shields, Renew, Power Infusion, and Pain Suppression ready.
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local key_helper = require("common/utility/key_helper")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("disc", "Priest Disc")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local healer_triage = require("eax_shared/healer_triage")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local healer_triage = require("healer_triage")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -111,11 +126,13 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -163,21 +180,22 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
 ---@type mana_manager
-local mana_manager = require("eax_shared/mana_manager")
+local mana_manager = require("mana_manager")
 ---@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
+local threat_manager = require("threat_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
 
 local runtime = {
+    last_cast_time = 0,
     resurrection_id = nil,
     penance_id = nil,
     pw_shield_id = nil,
@@ -189,7 +207,10 @@ local runtime = {
     last_set_check = 0,
 }
 
+local ctx_cache = rotation_context.new({})
+
 local resolved = {
+    inner_fire = utils.resolve_spell_id(spells.INNER_FIRE),
     shield = utils.resolve_spell_id(spells.POWER_WORD_SHIELD),
     renew = utils.resolve_spell_id(spells.RENEW),
     power_infusion = utils.resolve_spell_id(spells.POWER_INFUSION),
@@ -197,6 +218,7 @@ local resolved = {
     prayer_of_mending = utils.resolve_spell_id(spells.PRAYER_OF_MENDING),
 }
 runtime.pw_shield_id = resolved.shield
+runtime.inner_fire_id = resolved.inner_fire
 
 local function log_mode(mode)
     if menu.debug:get_state() and runtime.last_mode_log ~= mode then
@@ -224,11 +246,50 @@ local function update_set_bonus(me)
 end
 
 
+local function note_cast()
+    runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
+end
+
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
+end
+
 local function try_inner_fire_disc(me)
     if not runtime.inner_fire_id then return false end
     if utils.has_buff(me, spells.BUFF_INNER_FIRE) then return false end
     if not utils.can_cast_self(runtime.inner_fire_id, me) then return false end
-    if utils.cast_self(runtime.inner_fire_id, me) then return true end
+    if utils.cast_self(runtime.inner_fire_id, me) then note_cast() return true end
     return false
 end
 
@@ -244,8 +305,9 @@ local function try_power_infusion(me)
     local threshold = menu.power_infusion_threshold:get() / 100
     local candidate = utils.find_low_health_ally(me, threshold, true)
 
-    if candidate then
-        return utils.cast_self(resolved.power_infusion, me)
+    if candidate and utils.cast_self(resolved.power_infusion, me) then
+        note_cast()
+        return true
     end
 
     return false
@@ -264,7 +326,8 @@ local function try_pain_suppression(me, mode)
     local candidate = utils.find_low_health_ally(me, threshold, false)
 
     if candidate and not utils.has_buff(candidate, spells.PAIN_SUPPRESSION) then
-        return utils.cast_target(resolved.pain_suppression, candidate, nil)
+        if utils.cast_target(resolved.pain_suppression, candidate, nil) then note_cast() return true end
+    return false
     end
 
     return false
@@ -311,7 +374,8 @@ local function try_shield(me)
     end
 
     if candidate and not utils.has_buff(candidate, spells.POWER_WORD_SHIELD) and not utils.has_debuff(candidate, spells.BUFF_WEAKENED_SOUL) then
-        return utils.cast_target(resolved.shield, candidate, nil)
+        if utils.cast_target(resolved.shield, candidate, nil) then note_cast() return true end
+    return false
     end
 
     return false
@@ -347,7 +411,8 @@ local function try_renew(me)
     end
 
     if candidate and not utils.has_buff(candidate, spells.RENEW) then
-        return utils.cast_target(resolved.renew, candidate, nil)
+        if utils.cast_target(resolved.renew, candidate, nil) then note_cast() return true end
+    return false
     end
 
     return false
@@ -362,7 +427,8 @@ local function try_prayer_of_mending(me)
     local candidate = utils.find_low_health_ally(me, threshold, true)
 
     if candidate and not utils.has_buff(candidate, spells.PRAYER_OF_MENDING) then
-        return utils.cast_target(resolved.prayer_of_mending, candidate, nil)
+        if utils.cast_target(resolved.prayer_of_mending, candidate, nil) then note_cast() return true end
+    return false
     end
 
     return false
@@ -380,7 +446,8 @@ local function try_pw_shield(me, target)
     local hp = utils.get_health_pct(target)
     if hp > 0.80 then return false end  -- only shield when taking damage
     esp_renderer.on_cast(nil, "PW:Shield", color.white(220))
-    return utils.cast_target(runtime.pw_shield_id, target, "PW:Shield")
+    if utils.cast_target(runtime.pw_shield_id, target, "PW:Shield") then note_cast() return true end
+    return false
 end
 
 -- --- Penance - Disc spec burst heal (v1.4) -------------------------------
@@ -393,7 +460,8 @@ local function try_penance(me, target)
     if hp > 0.70 then return false end
     if not utils.can_cast_target(runtime.penance_id, me, target) then return false end
     esp_renderer.on_cast(nil, "Penance", color.gold(220))
-    return utils.cast_target(runtime.penance_id, target, "Penance")
+    if utils.cast_target(runtime.penance_id, target, "Penance") then note_cast() return true end
+    return false
 end
 
 
@@ -404,11 +472,13 @@ local function try_cast_spell(me, target, spell_id)
     if not target or not target:is_valid() then return false end
     if target == me then
         if utils.can_cast_self(spell_id, me) then
-            return utils.cast_self(spell_id, me)
+            if utils.cast_self(spell_id, me) then note_cast() return true end
+    return false
         end
     else
         if utils.can_cast_target(spell_id, me, target) then
-            return utils.cast_target(spell_id, target, nil)
+            if utils.cast_target(spell_id, target, nil) then note_cast() return true end
+    return false
         end
     end
     return false
@@ -672,13 +742,17 @@ core.register_on_update_callback(function()
     end
 
     ttd_tracker.update(target)
+    try_inner_fire_disc(me)
+
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
     -- Focus Target Priority - heal focus target first
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target then
         local focus_hp = focus_target:get_health_percentage()
         if focus_hp < menu.shield_threshold:get() then
-            if try_cast_spell(me, focus_target, resolved.shield) then
+            if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_cast_spell(me, focus_target, resolved.shield) then
                 return
             end
         end
@@ -688,7 +762,7 @@ core.register_on_update_callback(function()
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
-        if try_cast_spell(me, me, resolved.shield) then
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_cast_spell(me, me, resolved.shield) then
             return
         end
     end
@@ -696,11 +770,11 @@ core.register_on_update_callback(function()
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
 
-    try_power_infusion(me)
-    try_pain_suppression(me, mode)
-    try_shield(me)
-    try_renew(me)
-    try_prayer_of_mending(me)
+    if try_pain_suppression(me, mode) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_shield(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_prayer_of_mending(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_renew(me) then return end
+    if try_power_infusion(me) then return end
 end)
 
 

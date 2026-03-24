@@ -7,7 +7,6 @@ Protection Paladin tank automation for TBC on Project Sylvanas.
 - `Judgement` on cooldown to maintain Judgement of Wisdom/Light.
 - `Holy Shield` maintained for block uptime.
 - `Consecration` for sustained AoE threat.
-- `Hammer of the Righteous` for multi-target cleave.
 - `Holy Wrath` for AoE undead/demon stun.
 - `Righteous Fury` maintained for threat generation.
 

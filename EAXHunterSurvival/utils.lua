@@ -1,7 +1,7 @@
 local utils = {}
 
 -- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
-local spell_resolver = require("eax_shared/spell_resolver")
+local spell_resolver = require("spell_resolver")
 
 ---@type spell_queue
 local spell_queue = require("common/modules/spell_queue")
@@ -125,7 +125,8 @@ end
 
 function utils.can_cast_hostile(spell_id, me, target)
     if not me or not target then return false end
-    if utils.same_unit(me, target) then return false end
+    local same_unit = utils.same_unit or function(a, b) return a == b end
+    if same_unit(me, target) then return false end
     if not me:can_attack(target) then return false end
     return utils.can_cast_target(spell_id, me, target)
 end
@@ -191,7 +192,14 @@ function utils.find_best_target(me)
 
     local current = me:get_target()
     if is_hostile(current) then
-        return current
+        if me:is_in_combat() then
+            return current
+        end
+        return nil
+    end
+
+    if not me:is_in_combat() then
+        return nil
     end
 
     local pos_me = nil

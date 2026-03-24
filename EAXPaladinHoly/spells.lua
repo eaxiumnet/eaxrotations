@@ -1,126 +1,107 @@
 -- spells.lua
--- EAX Paladin Holy | Spell Definitions
+-- EAX Paladin Holy | The Burning Crusade (patch 2.4.3)
 
 local spells = {}
 
 spells.HOLY_LIGHT = {
-    635,
-    639,
-    647,
-    1026,
-    1042,
-    3472,
-    10328,
-    10329,
-    25292,
     27135,
-    27136,
+    25292,
+    10329,
+    10328,
+    3472,
+    1042,
+    1026,
+    647,
+    639,
+    635,
 }
 
 spells.FLASH_OF_LIGHT = {
-    19750,
-    19939,
-    19940,
-    19941,
-    19942,
+    27134,
     19943,
-    27137,
+    19942,
+    19941,
+    19940,
+    19939,
+    19750,
 }
 
 spells.HOLY_SHOCK = {
-    20473,
-    20929,
+    27137,
     20930,
-    27174,
-    33072,
+    20929,
+    20473,
 }
 
 spells.BLESSING_OF_LIGHT = {
-    19977,
-    19978,
-    19979,
-    27144,
-    25890,
     27145,
-    27146,
-    27147,
+    19979,
+    19978,
+    19977,
 }
 
 spells.BLESSING_OF_WISDOM = {
-    19742,
-    19850,
-    19852,
-    19853,
-    27142,
     25894,
+    19853,
+    19852,
+    19850,
+    19742,
 }
 
 spells.BLESSING_OF_MIGHT = {
-    19740,
-    19834,
-    19835,
-    19836,
-    27140,
-    27141,
     25782,
+    19836,
+    19835,
+    19834,
+    19740,
 }
 
-spells.DIVINE_PLEA = { 54428 }
-spells.BEACON_OF_LIGHT = { 53563, 53562 }
-spells.HOLY_RADIANCE = { 25912, 25911, 25910, 25909, 25908, 25907, 25906, 13798 }
-spells.DIVINE_HYMN = { 64844, 64843, 64842, 64841, 64840, 64839, 64838 }
-spells.HOLY_NOVA = { 15237, 15239, 11687, 11686, 11685, 7285, 7284, 7283 }
+spells.LAY_ON_HANDS = {
+    2808,
+    2807,
+    2806,
+    1998,
+    1997,
+    1996,
+    633,
+}
 
-spells.LAY_ON_HANDS = { 633, 2810, 2808, 2807, 2806, 1998, 1997, 1996 }
-spells.DIVINE_SHIELD = { 642, 13874 }
-spells.BLESSING_OF_PROTECTION = { 1022, 5599, 5598, 1079 }
+spells.DIVINE_ILLUMINATION = { 20245 }
+spells.BUFF_DIVINE_ILLUMINATION = spells.DIVINE_ILLUMINATION
+spells.DIVINE_SHIELD = { 642 }
 spells.HAND_OF_FREEDOM = { 1044 }
 spells.BUFF_HAND_OF_FREEDOM = { 1044 }
-
-spells.CLEANSE = { 4982, 2137, 2136 }
-spells.PURIFY = { 1152, 1920, 1921 }
-
-spells.DEVOTION_AURA = { 465, 1032, 10290, 10291, 10292, 10293, 10294, 10295 }
-spells.AURA_MASTERY = { 31821 }
+spells.CLEANSE = { 4987 }
+spells.PURIFY = { 1152 }
+spells.REDEMPTION = { 20773, 20772, 7328, 7329, 2008, 2007, 2006 }
+spells.AVENGING_WRATH = { 31884 }
 
 spells.BUFF_BLESSING_OF_LIGHT = {
-    19977,
-    19978,
-    19979,
-    27144,
-    25890,
     27145,
-    27146,
-    27147,
+    19979,
+    19978,
+    19977,
 }
 
 spells.BUFF_BLESSING_OF_WISDOM = {
-    19742,
-    19850,
-    19852,
-    19853,
-    27142,
     25894,
+    19853,
+    19852,
+    19850,
+    19742,
 }
 
 spells.BUFF_BLESSING_OF_MIGHT = {
-    19740,
-    19834,
-    19835,
-    19836,
-    27140,
-    27141,
     25782,
+    19836,
+    19835,
+    19834,
+    19740,
 }
 
-spells.BUFF_BEACON_OF_LIGHT = { 53563, 53562 }
-spells.BUFF_AURA_MASTERY = { 31821 }
-spells.BUFF_DEVOTION_AURA = { 465, 1032, 10290, 10291, 10292, 10293, 10294, 10295 }
+spells.BUFF_AVENGING_WRATH = { 31884 }
 
 spells.BERSERKING = { 26297 }
-spells.DIVINE_STORM = { 53385, 41460 }
-spells.CRUSADER_STRIKE = { 35395 }
-
 spells.BUFF_BERSERKING = { 26297 }
 
 spells.HASTE_POTION = { 28508, 22832 }

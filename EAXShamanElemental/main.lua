@@ -3,28 +3,36 @@
 -- APIs validated against core, object_manager, and spellbook docs
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 ---@type totem_manager
-local totem_manager = require("eax_shared/totem_manager")
+local totem_manager = require("totem_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -32,21 +40,27 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("elemental", "Shaman Ele")
-
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -114,11 +128,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -166,9 +184,9 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
@@ -185,7 +203,6 @@ local GCD_INTERVAL = 1.5  -- actual TBC GCD duration
 local MODE_REFRESH_INTERVAL = 4.5
 local PENDING_CAST_TIMEOUT_S = 2.5  -- covers cast time + travel
 local LIGHTNING_SHIELD_STACK_FLOOR = 6
-local THUNDERSTORM_IDS = { 51490 }
 local BLOODLUST_HEROISM_BUFFS = { 2825, 32182 }
 
 local MODE_PROFILE = {
@@ -221,17 +238,14 @@ local runtime = {
     chain_lightning_id = nil,
     flame_shock_id = nil,
     elemental_mastery_id = nil,
-    lava_burst_id = nil,
     natures_swiftness_id = nil,
     totem_of_wrath_id = nil,
     mana_spring_id = nil,
-    wind_shear_id = nil,
     water_shield_id     = nil,
     lightning_shield_id = nil,
     healing_wave_id     = nil,
     ghost_wolf_id       = nil,
     totemic_call_id     = nil,
-    thunderstorm_id     = nil,
     last_cast_time = 0,
     pending_casts = {},
     cached_mode = "solo",
@@ -241,6 +255,8 @@ local runtime = {
     set_multiplier = 1.0,
     lightning_shield_stacks = 0,
 }
+
+local ctx_cache = rotation_context.new({})
 
 local TOTEM_ROTATION = {
     { name = "wrath", id_field = "totem_of_wrath_id", toggle = menu.auto_totem_wrath, label = "Totem of Wrath" },
@@ -254,17 +270,14 @@ local function resolve_spells()
     runtime.chain_lightning_id = utils.resolve_spell_id(spells.CHAIN_LIGHTNING)
     runtime.flame_shock_id = utils.resolve_spell_id(spells.FLAME_SHOCK)
     runtime.elemental_mastery_id = utils.resolve_spell_id(spells.ELEMENTAL_MASTERY)
-    runtime.lava_burst_id         = utils.resolve_spell_id(spells.LAVA_BURST)
     runtime.natures_swiftness_id = utils.resolve_spell_id(spells.NATURES_SWIFTNESS)
     runtime.totem_of_wrath_id = utils.resolve_spell_id(spells.TOTEM_OF_WRATH)
     runtime.mana_spring_id = utils.resolve_spell_id(spells.MANA_SPRING_TOTEM)
-    runtime.wind_shear_id       = utils.resolve_spell_id(spells.WINDSHEAR)
     runtime.water_shield_id     = utils.resolve_spell_id(spells.WATER_SHIELD)
     runtime.lightning_shield_id = utils.resolve_spell_id(spells.LIGHTNING_SHIELD)
     runtime.healing_wave_id     = utils.resolve_spell_id(spells.HEALING_WAVE)
     runtime.ghost_wolf_id       = utils.resolve_spell_id(spells.GHOST_WOLF)
     runtime.totemic_call_id     = utils.resolve_spell_id(spells.TOTEMIC_CALL)
-    runtime.thunderstorm_id     = utils.resolve_spell_id(THUNDERSTORM_IDS)
     runtime.ancestral_spirit_id  = utils.resolve_spell_id(spells.ANCESTRAL_SPIRIT)
 end
 
@@ -296,34 +309,43 @@ local function get_mode_profile()
     return MODE_PROFILE[mode] or MODE_PROFILE.solo
 end
 
-local function mark_pending_cast(spell_id, timeout)
-    if not spell_id then return end
-    runtime.pending_casts[spell_id] = {
-        requested_at = _core_time(),
-        timeout_s = timeout or PENDING_CAST_TIMEOUT_S,
-    }
+local function note_cast()
+    runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
 end
 
 local function is_pending_cast(spell_id)
     if not spell_id then return false end
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then return false end
-    if (_core_time() - pending.requested_at) >= pending.timeout_s then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-    return true
+    return smart_cast_manager.is_pending(spell_id)
 end
 
-local function note_cast()
-    runtime.last_cast_time = _core_time()
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
 end
 
-local function is_gcd_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_INTERVAL then
-        return false
-    end
-    return _get_gcd() <= 0
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function try_cast_target(me, target, spell_id, label)
@@ -406,6 +428,7 @@ local function try_earth_shock_interrupt(me, target)
     if not ((ok and casting) or (ok2 and channing)) then return false end
     if not utils.can_cast_hostile(runtime.earth_shock_id, me, target) then return false end
     if utils.cast_target(runtime.earth_shock_id, target) then
+        invalidate_ctx()
         utils.log_debug(menu, "Earth Shock (interrupt)")
         return true
     end
@@ -421,6 +444,7 @@ local function try_frost_shock_slow(me, target)
     if not (ok and moving) then return false end
     if not utils.can_cast_hostile(runtime.frost_shock_id, me, target) then return false end
     if utils.cast_target(runtime.frost_shock_id, target) then
+        invalidate_ctx()
         utils.log_debug(menu, "Frost Shock (slow)")
         return true
     end
@@ -539,17 +563,6 @@ local function try_lightning_bolt(me, target)
 end
 
 
--- --- Lava Burst (v1.2) ----------------------------------------------------
-
-local function try_lava_burst(me, target)
-    if not runtime.lava_burst_id then return false end   -- nil if not talented/trained
-    -- Lava Burst deals guaranteed crit when Flame Shock is on target
-    if not utils.has_debuff(target, spells.DEBUFF_FLAME_SHOCK) then return false end
-    return try_cast_target(me, target, runtime.lava_burst_id, "Lava Burst")
-end
-
-
-
 -- -- Shield maintenance --------------------------------------------------------
 local function ensure_shield(me)
     local mode = menu.shield_mode and menu.shield_mode:get() or 2
@@ -574,23 +587,6 @@ local function ensure_shield(me)
     return false
 end
 
-local function try_thunderstorm(me, target)
-    if not runtime.thunderstorm_id or not target then
-        return false
-    end
-    local enemies = utils.count_enemies_in_range(me, 10)
-    local should_knockback = enemies >= 3
-    local should_interrupt = false
-    local ok, casting = pcall(function() return target:is_casting_spell() end)
-    local ok2, channing = pcall(function() return target:is_channelling_spell() end)
-    if (ok and casting) or (ok2 and channing) then
-        should_interrupt = true
-    end
-    if not should_knockback and not should_interrupt then
-        return false
-    end
-    return try_cast_self(me, runtime.thunderstorm_id, "Thunderstorm")
-end
 
 -- -- Self-healing --------------------------------------------------------------
 local function try_self_heal(me)
@@ -659,6 +655,8 @@ local function do_rotation(me, target)
     if not is_gcd_ready() then
         return false
     end
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
         return true
@@ -705,15 +703,13 @@ local function do_rotation(me, target)
     if try_earth_shock_interrupt(me, target) then return true end
     if try_frost_shock_slow(me, target) then return true end
     if not hold_offense and try_burst(me, target) then return true end
-    if try_thunderstorm(me, target) then return true end
-    if try_lava_burst(me, target) then return true end
-    if try_flame_shock(me, target) then
+    if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.12) and try_flame_shock(me, target) then
         return true
     end
-    if try_chain_lightning(me, target) then
+    if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.18) and try_chain_lightning(me, target) then
         return true
     end
-    if try_lightning_bolt(me, target) then
+    if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.10) and try_lightning_bolt(me, target) then
         return true
     end
     return false

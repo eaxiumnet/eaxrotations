@@ -1,6 +1,29 @@
 # EAX TBC Classic Rotations - Handover Document
 
-**Last Updated**: 2026-03-21 (second pass)
+## OpenCode MCP Rule
+
+When working anywhere under `C:\newbot\scripts` or its subdirectories, use the `sylvanas` MCP server first for:
+
+- Project Sylvanas docs and API lookup
+- searching and reading local script files
+- inspecting runtime artifacts from `C:\newbot\scripts_data` and `C:\newbot\scripts_log`
+- checking current runtime issues before guessing about failures
+
+Prefer these `sylvanas` MCP tools when relevant:
+
+- `sylvanas_inspect_sylvanas_runtime_issues`
+- `sylvanas_list_sylvanas_runtime_artifacts`
+- `sylvanas_get_sylvanas_runtime_artifact`
+- `sylvanas_search_sylvanas_scripts`
+- `sylvanas_get_sylvanas_script_file`
+- `sylvanas_search_sylvanas_api`
+- `sylvanas_get_sylvanas_api_file`
+- `sylvanas_search_sylvanas_docs`
+- `sylvanas_resolve_sylvanas_symbol`
+
+For Sylvanas runtime debugging, check the runtime issue/artifact tools before proposing fixes.
+
+**Last Updated**: 2026-03-21 (third pass)
 **Repo**: https://github.com/eaxiumnet/eax-tbc-classic-rotations
 **Local Path**: `C:\newbot\scripts`
 
@@ -38,6 +61,31 @@
 
 3. **.gitignore updated** - Added `*.zip` (except plugins-listing), `sylvanas-dev-docs-llm/`, and `.api/` to prevent temp files from being tracked.
 
+### ✅ Completed This Session (2026-03-21) — Third Pass (TBC Rewrite Sweep)
+
+#### P1 rewrites completed
+1. **Hunter Survival** - Removed WotLK-only `Explosive Shot` and rebuilt the spec as a TBC trap/utility rotation around `Serpent Sting`, `Aimed Shot`, `Steady Shot`, and `Mongoose Bite`.
+2. **Warlock Demonology** - Removed `Metamorphosis`, `Immolation Aura`, and other non-TBC mechanics; rebuilt around TBC curse/DoT pressure and Shadow Bolt filler.
+3. **Mage Fire** - Removed `Hot Streak`/Wrath proc logic and corrected self-buff behavior toward TBC `Mage Armor` usage.
+4. **Mage Frost** - Removed `Fingers of Frost` / `Brain Freeze` behavior and returned the spec to a TBC Frostbolt-centered rotation.
+5. **Hunter Marksmanship** - Removed `Chimera Shot` and rebuilt the shot priority as TBC `Aimed Shot` / `Serpent Sting` / `Arcane Shot` / `Multi-Shot` / `Steady Shot`.
+6. **Paladin Protection** - Removed Holy Power, `Shield of the Righteous`, and `Hammer of the Righteous`; rebuilt around TBC `Holy Shield`, seal/judgement cadence, `Consecration`, `Exorcism`, and `Avenger's Shield`.
+
+#### P2 rewrites completed
+7. **Druid Balance** - Removed Eclipse, Starfall, Typhoon, and Berserk logic; rebuilt the rotation around `Moonfire`, `Insect Swarm`, `Starfire` / `Wrath`, `Hurricane`, and `Force of Nature`.
+8. **Druid Restoration** - Removed Lifebloom and Wild Growth; rebuilt healing around `Rejuvenation`, `Regrowth`, `Swiftmend`, `Healing Touch`, `Nature's Swiftness`, `Innervate`, and TBC DPS fallback.
+9. **Paladin Holy** - Removed Beacon, Divine Plea, Word of Glory, Light of Dawn, and Holy Power logic; restored TBC Holy healing with `Holy Light`, `Flash of Light`, `Holy Shock`, `Divine Illumination`, `Cleanse`, and blessings.
+10. **Priest Shadow** - Fixed hostile DoT timing to use debuff APIs, removed Shadow Orb / Wrath contamination, ensured `Shadow Word: Death` executes correctly, and added the missing hostile debuff helper in `utils.lua`.
+11. **Warlock Destruction** - Removed `Chaos Bolt`, added curse maintenance, and restored a TBC `Immolate` -> `Conflagrate` -> `Incinerate` / `Shadow Bolt` shell with execute/shard support.
+12. **Paladin Retribution** - Removed Holy Power finishers and `Divine Plea`, restored seal/judgement flow, added `Divine Illumination`, and wired missing menu toggles so the rewritten rotation actually executes.
+13. **Warrior Arms** - Wired `Thunder Clap` into single-target play, kept `Slam` as the primary filler, and restricted `Whirlwind` to AoE-oriented situations.
+14. **Shaman Elemental** - Removed `Lava Burst`, `Thunderstorm`, `Wind Shear`, and `Lava Flood`; restored a TBC `Flame Shock` / `Lightning Bolt` / `Chain Lightning` / `Earth Shock` rotation with existing mana-aware behavior.
+
+#### Verification completed
+- `luac -p` passes on every touched Lua file across: `EAXDruidBalance`, `EAXDruidRestoration`, `EAXPaladinHoly`, `EAXPaladinRetribution`, `EAXPriestShadow`, `EAXShamanElemental`, `EAXWarlockDestruction`, and `EAXWarriorArms`.
+- `lsp_diagnostics` reports **0 errors** in all eight rewritten spec directories above.
+- Root `README.md` now reflects the TBC-accuracy push, including the Holy Paladin `Divine Illumination` correction.
+
 ### ✅ Already Implemented (from previous work)
 
 - **Set Bonus Detection** - `eax_shared/set_bonus.lua` (443 lines, 60+ T4/T5/T6 sets)
@@ -54,6 +102,36 @@
 ---
 
 ## What Remains
+
+### Immediate / Manual Verification
+
+- **In-game validation still required** for all rewritten specs. Syntax and diagnostics are clean, but the original user requirement was to confirm sluggishness and rotation feel in the live Sylvanas runtime.
+- **Priority live checks:**
+  - Druid Balance / Restoration cast cadence and mana pacing
+  - Holy / Retribution Paladin seal, blessing, and GCD cadence
+  - Shadow Priest DoT refresh + `Shadow Word: Death` execute behavior
+  - Destruction Warlock curse maintenance and shard spend behavior
+  - Arms Warrior `Thunder Clap` frequency in single target
+  - Elemental Shaman mana floor behavior without Wrath spells
+
+### Remaining rotation work (lower priority than P1/P2)
+
+#### Follow-up fixes completed after the P2 sweep
+- **Affliction Warlock** - Removed lingering `Haunt` contamination from spell/docs and kept `Drain Soul` as the execute filler after DoT/curse upkeep.
+- **Assassination Rogue** - Added group-content `Expose Armor` maintenance when neither `Expose Armor` nor `Sunder Armor` is already present, and tightened `Envenom` finisher gating around the existing Deadly Poison requirement.
+- **Enhancement Shaman** - Removed lingering `Lava Lash` and `Feral Spirit` assumptions so the combat lane stays on TBC `Stormstrike` / shock / spell-weave behavior.
+- **Fury Warrior** - Moved `Overpower` and `Rend` behind the main Fury core so `Bloodthirst` / `Whirlwind` stay primary, and limited `Rend` to true spare Battle Stance windows.
+- **Subtlety Rogue** - Rebalanced stealth/control behavior so `Cheap Shot` stays a solo-control opener and `Shadowstep` / `Preparation` no longer pre-empt the steady PvE damage lane.
+- **Restoration Shaman** - Tightened stopcast logic to use triage-aware cancellation and fixed Tremor / Grounding totem edge cases around destroyed or already-active totems.
+- **Beast Mastery Hunter** - Polished `Kill Command` timing so it only fires once the pet is actually engaged on target, and aligned the menu/docs wording with that behavior.
+- **Warrior Protection** - Restored single-target `Thunder Clap` upkeep as a debuff-maintenance utility action and aligned the menu/docs with proactive group-mode `Shield Block` sequencing.
+
+These specs were previously graded as "mostly workable" but still have gaps worth revisiting:
+
+- **Enhancement Shaman** - Remove any lingering Wrath-era `Lava Lash` / `Feral Spirit` assumptions if still present
+- **Fury Warrior** - Overpower placement, Rend filler usage, and talent gating cleanup
+- **Subtlety Rogue** - PvP utility vs steady PvE rotation balance
+- **Restoration Shaman** - Stopcast behavior and Tremor/Totem edge cases
 
 ### New API Additions (2026-03-21)
 The following Sylvanas API features are now available and could be integrated:

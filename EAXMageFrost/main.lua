@@ -1,28 +1,36 @@
 -- EAX Mage Frost | main.lua
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -30,21 +38,27 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("frost", "Mage Frost")
-
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -112,11 +126,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -164,18 +182,18 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
 ---@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
+local threat_manager = require("threat_manager")
 ---@type swing_timer
-local swing_timer = require("eax_shared/swing_timer")
+local swing_timer = require("swing_timer")
 ---@type mana_manager
-local mana_manager = require("eax_shared/mana_manager")
+local mana_manager = require("mana_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
@@ -198,6 +216,16 @@ local runtime = {
     set_multiplier = 1.0,
     ooc_arcane_intellect_id = nil,
 }
+
+local ctx_cache = rotation_context.new({
+    important_buffs = {
+        spells.BUFF_ICY_VEINS,
+        spells.BUFF_ICE_BARRIER,
+    },
+    important_debuffs = {
+        spells.DEBUFF_FROZEN,
+    },
+})
 
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
@@ -249,36 +277,62 @@ end
 
 local function note_cast()
     runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
 end
 
 local function is_gcd_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
-        return false
-    end
-    return _get_gcd() <= 0
+    return smart_cast_manager.is_gcd_ready()
 end
 
 local function is_pending_cast(spell_id)
     if not spell_id then return false end
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then return false end
-    if (_core_time() - pending.requested_at) >= pending.timeout_s then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-    return true
+    return smart_cast_manager.is_pending(spell_id)
 end
 
-local function mark_pending_cast(spell_id, timeout_s)
+local function mark_pending_cast(spell_id, timeout_s, options)
     if not spell_id then return end
-    runtime.pending_casts[spell_id] = {
-        requested_at = _core_time(),
-        timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S,
-    }
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function is_valid_hostile_target(me, target)
     return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
+end
+
+local function is_within_range(a, b, max_range)
+    if not a or not b or not max_range then
+        return false
+    end
+
+    local ok_a, pos_a = pcall(function() return a:get_position() end)
+    local ok_b, pos_b = pcall(function() return b:get_position() end)
+    if not ok_a or not ok_b or not pos_a or not pos_b then
+        return false
+    end
+
+    local dx = pos_a.x - pos_b.x
+    local dy = pos_a.y - pos_b.y
+    local dz = pos_a.z - pos_b.z
+    return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
 end
 
 local function try_water_elemental(me, target)
@@ -345,8 +399,7 @@ local function try_ice_lance(me, target)
     if not is_valid_hostile_target(me, target) then return false end
 
     local frozen = utils.has_debuff(target, spells.DEBUFF_FROZEN)
-    local execute_target = utils.get_health_pct(target) <= menu.ice_lance_execute_hp:get()
-    if not me:is_moving() and not frozen and not execute_target then
+    if not me:is_moving() and not frozen then
         return false
     end
 
@@ -402,7 +455,7 @@ local function try_frost_nova(me)
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead()
-           and me:can_attack(obj) and obj:get_distance_to(me) <= 8 then
+           and me:can_attack(obj) and is_within_range(me, obj, 8) then
             melee_attacker = true
             break
         end
@@ -443,6 +496,7 @@ local function try_ice_barrier(me)
     if hp > 0.80 then return false end
     if not utils.can_cast_self(runtime.ice_barrier_id, me) then return false end
     if utils.cast_self(runtime.ice_barrier_id, me) then
+        invalidate_ctx()
         utils.log_debug(menu, "Ice Barrier")
         return true
     end
@@ -464,6 +518,9 @@ end
 local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
     if not is_gcd_ready() then return false end
+
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
 
     -- Wanding / mana conservation (leveling 1-70)
@@ -523,13 +580,13 @@ local function do_rotation(me, target)
         end
     end
 
-    if try_water_elemental(me, target) then return true end
-    if try_ice_barrier(me) then return true end
-    if try_cone_of_cold_frost(me, target) then return true end
-    if not hold_offense and try_icy_veins(me, target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_water_elemental(me, target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_ice_barrier(me) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cone_of_cold_frost(me, target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and not hold_offense and try_icy_veins(me, target) then return true end
     if not hold_offense and try_trinkets(me) then return true end
-    if try_ice_lance(me, target) then return true end
-    if try_frostbolt(me, target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_ice_lance(me, target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_frostbolt(me, target) then return true end
 
     return false
 end
@@ -556,6 +613,7 @@ local function try_ice_block(me)
     if utils.has_buff(me, spells.BUFF_ICE_BLOCK) then return false end
     if not utils.can_cast_self(runtime.ice_block_id, me) then return false end
     if utils.cast_self(runtime.ice_block_id, me) then
+        invalidate_ctx()
         utils.log_debug(menu, "Ice Block")
         return true
     end

@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -53,6 +54,7 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 
 -- -- Class-specific elements ---------------------------------------------------
 menu.use_battle_shout                     = core.menu.checkbox(true, "simplefury_use_battle_shout")
+menu.use_cooldowns                        = core.menu.checkbox(true, "simplefury_use_cooldowns")
 menu.use_bloodrage                        = core.menu.checkbox(true, "simplefury_use_bloodrage")
 menu.use_rampage                          = core.menu.checkbox(true, "simplefury_use_rampage")
 menu.use_execute                          = core.menu.checkbox(true, "simplefury_use_execute")
@@ -104,6 +106,17 @@ menu.stoneform_hp_pct                     = core.menu.slider_int(20, 80, 40, "si
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
 
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_rampage", label = "Rampage" },
+    { toggle = "use_execute", label = "Execute" },
+    { toggle = "use_slam_weave", label = "Slam Weave" },
+    { toggle = "use_sweeping_strikes", label = "Sweeping Strikes" },
+    { toggle = "use_death_wish", label = "Death Wish" },
+}, {
+    namespace = "eaxwarriorfury",
+    log_prefix = "[EAX Warrior Fury] ",
+})
+
 local _win  -- set once from main.lua via menu.set_window(win)
 
 function menu.set_window(win)
@@ -127,14 +140,14 @@ function menu.render()
             menu.use_bloodrage:render("Bloodrage", "Use Bloodrage when rage is low and HP is safe")
             menu.use_rampage:render("Rampage", "Maintain Rampage buff")
             menu.use_execute:render("Execute", "Use Execute only during BT/WW downtime below 20%")
-            menu.use_heroic_strike:render("Heroic Strike", "Queue Heroic Strike as a single-target swing dump")
+            menu.use_heroic_strike:render("Heroic Strike", "Queue Heroic Strike as a high-rage swing dump; do not starve Bloodthirst or Whirlwind for it")
             menu.use_cleave:render("Cleave", "Queue Cleave as an AoE swing dump")
             menu.use_pummel:render("Pummel", "Interrupt enemy casts")
             menu.use_berserker_rage:render("Berserker Rage", "Use Berserker Rage on cooldown in Berserker Stance while in combat")
             menu.use_sunder_armor:render("Sunder Armor", "Maintain Sunder Armor stacks on the current target when needed")
             menu.use_hamstring_filler:render("Hamstring Filler", "Use Hamstring as a GCD filler when BT and WW are on cooldown")
             menu.use_slam_weave:render("Slam Weave", "Weave Slam between auto attacks when BT/WW are on cooldown")
-            menu.use_overpower:render("Overpower Dance", "Stance dance to Battle Stance for Overpower when a dodge proc is available")
+            menu.use_overpower:render("Overpower Dance", "Opportunistically stance dance to Battle Stance for Overpower when a dodge proc is available")
             menu.use_intercept:render("Intercept", "Use Intercept as a gap closer while already in Berserker Stance")
             menu.use_charge_opener:render("Charge Opener", "Open from Charge range before combat, then return to Berserker Stance")
             menu.use_prepull_bloodrage:render("Pre-pull Bloodrage", "Use Bloodrage before combat when targeting a hostile enemy")
@@ -142,7 +155,7 @@ function menu.render()
             menu.use_commanding_shout:render("Commanding Shout", "Use Commanding Shout instead of Battle Shout when you prefer the HP buff")
             menu.show_notifications:render("Notifications", "Show short on-screen flashes and the optional proc overlay")
             menu.use_demo_shout:render("Demo Shout", "Maintain Demoralizing Shout on the current target")
-            menu.use_rend:render("Rend", "Apply Rend only during existing Battle Stance windows")
+            menu.use_rend:render("Rend", "Opportunistically apply Rend only during existing Battle Stance windows")
             menu.use_piercing_howl:render("Piercing Howl", "Slow nearby packs after the core AoE lane when no target already has the debuff")
             menu.use_thunder_clap_aoe:render("Thunder Clap (AoE)", "Use Thunder Clap opportunistically during Sweeping Strikes Battle windows")
             menu.use_sweeping_strikes:render("Sweeping Strikes", "Use Sweeping Strikes in AoE and stance dance for it")

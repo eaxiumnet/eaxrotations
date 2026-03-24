@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -14,6 +15,19 @@ local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
+
+settings.init({
+    spec_name = "eaxpaladinprotection",
+    class_name = "Paladin",
+    role = "tank",
+})
+
+local settings_tree = {
+    targeting = tgt_tree,
+    racial = racial_tree,
+    ooc = ooc_tree,
+    display = esp_tree,
+}
 
 -- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
@@ -46,6 +60,7 @@ menu.auto_flask                         = core.menu.checkbox(false, "eaxpaladinp
 menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxpaladinprotection_lev_conserve")
 menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxpaladinprotection_lev_mana_floor")
 menu.use_hand_of_freedom                  = core.menu.checkbox(true, "eaxpaladinprotection_use_hof")
+menu.use_hand_of_freedom_key              = core.menu.keybind(7, false, "eaxpaladinprotection_use_hof_key")
 menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinprotection_hof_slows")
 -- ESP
 menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
@@ -57,11 +72,15 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 menu.show_notifications                   = core.menu.checkbox(false, "eaxpaladinprot_notifications")
 menu.use_righteous_fury                   = core.menu.checkbox(true, "eaxpaladinprot_use_righteous_fury")
 menu.use_holy_shield                      = core.menu.checkbox(true, "eaxpaladinprot_use_holy_shield")
+menu.use_holy_shield_key                  = core.menu.keybind(7, false, "eaxpaladinprot_use_holy_shield_key")
 menu.use_consecration                     = core.menu.checkbox(true, "eaxpaladinprot_use_consecration")
+menu.use_consecration_key                 = core.menu.keybind(7, false, "eaxpaladinprot_use_consecration_key")
 menu.consecration_enemy_count             = core.menu.slider_int(2, 6, 3, "eaxpaladinprot_consecration_enemy_count")
 menu.consecration_radius                  = core.menu.slider_int(6, 12, 8, "eaxpaladinprot_consecration_radius")
 menu.use_avengers_shield                  = core.menu.checkbox(true, "eaxpaladinprot_use_avengers_shield")
+menu.use_avengers_shield_key              = core.menu.keybind(7, false, "eaxpaladinprot_use_avengers_shield_key")
 menu.use_judgement                        = core.menu.checkbox(true, "eaxpaladinprot_use_judgement")
+menu.ooc_group_buff_key                   = core.menu.keybind(7, false, "eaxpaladinprot_ooc_group_buff_key")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
@@ -82,7 +101,7 @@ function menu.render()
 
     root_tree:render("  Eax's Paladin Protection", function()
 
-        ps.render_controls(menu, "Eax's Paladin Protection")
+        settings.render_controls(menu, "Eax's Paladin Protection")
 
         -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
@@ -90,11 +109,16 @@ function menu.render()
             menu.show_notifications:render("Notifications", "Show short on-screen reminders")
             menu.use_righteous_fury:render("Righteous Fury", "Keep the threat buff active")
             menu.use_holy_shield:render("Holy Shield", "Maintain Holy Shield for mitigation and reflection")
+            menu.use_holy_shield_key:render("  Holy Shield Hotkey", "Toggle Holy Shield upkeep on/off")
             menu.use_consecration:render("Consecration", "Cast Consecration when enough enemies are nearby")
+            menu.use_consecration_key:render("  Consecration Hotkey", "Toggle Consecration on/off")
             menu.consecration_enemy_count:render("Consecration Count", "Minimum enemies within radius before Consecration")
             menu.consecration_radius:render("Consecration Radius", "Radius used when counting enemies for Consecration")
             menu.use_avengers_shield:render("Avenger's Shield", "Use Avenger's Shield when fighting from range")
+            menu.use_avengers_shield_key:render("  Avenger's Hotkey", "Toggle Avenger's Shield on/off")
             menu.use_judgement:render("Judgement", "Apply Judgement of the Crusader once per target when ready")
+            menu.ooc_group_buff_key:render("  Blessings Hotkey", "Toggle group blessings on/off")
+            menu.use_hand_of_freedom_key:render("  Freedom Hotkey", "Toggle Hand of Freedom on/off")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------
@@ -102,25 +126,17 @@ function menu.render()
         { key = "use_divine_shield", label = "Divine Shield", tip = "Emergency immunity bubble", hp_key = "use_divine_shield_hp_pct", hp_label = "Divine Shield HP %" },
         { key = "use_lay_on_hands", label = "Lay on Hands", tip = "Emergency full heal on self", hp_key = "use_lay_on_hands_hp_pct", hp_label = "Lay on Hands HP %" },
         })
-
         -- -- Targeting --------------------------------------------------------
-        ps.render_targeting(menu, tgt_tree)
+        settings.render_targeting(menu, settings_tree)
 
         -- -- Racial ------------------------------------------------------------
-        ps.render_racial(menu, racial_tree)
+        settings.render_racial(menu, settings_tree)
 
         -- -- Out-of-combat -----------------------------------------------------
-        menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
-        menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
-        menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
-        menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
-        menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
-        menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
-        menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
-        ps.render_ooc(menu, ooc_tree, false)
+        settings.render_ooc(menu, settings_tree)
 
         -- -- Display & HUD -----------------------------------------------------
-        ps.render_esp(menu, esp_tree)
+        settings.render_display(menu, settings_tree)
 
     end)
 end

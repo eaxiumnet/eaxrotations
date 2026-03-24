@@ -48,6 +48,11 @@ local last_wand_time = 0
 
 -- --- Mana utilities -----------------------------------------------------------
 
+local function is_leveling_character(me)
+    if not me or not me.is_valid or not me:is_valid() or not me.get_level then return false end
+    return (me:get_level() or 70) < 70
+end
+
 function leveling_manager.get_mana_pct(me)
     if not me or not me:is_valid() then return 1.0 end
     local ok, pct = pcall(function()
@@ -61,6 +66,7 @@ end
 
 -- Returns true if mana is above the casting floor (rotation can proceed normally)
 function leveling_manager.has_enough_mana(me, menu)
+    if not is_leveling_character(me) then return true end
     local floor = 0.20
     if menu and menu.leveling_mana_floor then
         local ok, v = pcall(function() return menu.leveling_mana_floor:get() end)
@@ -71,15 +77,11 @@ end
 
 -- Returns true when mana is below conservation threshold (skip expensive spells)
 function leveling_manager.is_conserving_mana(me, menu)
+    if not is_leveling_character(me) then return false end
     if not menu or not menu.leveling_conserve_mana then return false end
     local ok, enabled = pcall(function() return menu.leveling_conserve_mana:get_state() end)
     if not (ok and enabled) then return false end
-    local floor = 0.40
-    if menu and menu.leveling_mana_floor then
-        local ok, v = pcall(function() return menu.leveling_mana_floor:get() end)
-        if ok and type(v) == "number" then floor = v / 100.0 end
-    end
-    return leveling_manager.get_mana_pct(me) < floor
+    return leveling_manager.get_mana_pct(me) < 0.40
 end
 
 -- --- Wand detection -----------------------------------------------------------
@@ -103,6 +105,7 @@ end
 -- --- Wand logic ---------------------------------------------------------------
 
 local function should_wand(me, target, menu)
+    if not is_leveling_character(me) then return false end
     if not menu or not menu.use_wand then return false end
     local ok, enabled = pcall(function() return menu.use_wand:get_state() end)
     if not (ok and enabled) then return false end
@@ -125,7 +128,7 @@ local function should_wand(me, target, menu)
         local ok2, v = pcall(function() return menu.wand_at_hp:get() end)
         if ok2 and type(v) == "number" then wand_hp = v / 100.0 end
     end
-    local t_hp = (target.get_health_percentage) and (target:get_health_percentage() / 100) or 1.0
+    local t_hp = (type(target.get_health_percentage) == "function" and (target:get_health_percentage() / 100)) or 1.0
     if t_hp <= wand_hp then return true end
 
     return false
@@ -187,6 +190,7 @@ end
 -- Wand-finish targets below 25% to proc Spirit Tap mana regen on kill.
 
 function leveling_manager.should_wand_for_spirit_tap(me, target, menu)
+    if not is_leveling_character(me) then return false end
     if not menu or not menu.use_spirit_tap_wand then return false end
     local ok, enabled = pcall(function() return menu.use_spirit_tap_wand:get_state() end)
     if not (ok and enabled) then return false end
@@ -194,7 +198,7 @@ function leveling_manager.should_wand_for_spirit_tap(me, target, menu)
     local ok2, data = pcall(function() return buff_manager:get_buff_data(me, SPIRIT_TAP_BUFF) end)
     if ok2 and data and data.is_active then return false end
     if not target or target:is_dead() then return false end
-    local hp = (target.get_health_percentage) and (target:get_health_percentage() / 100) or 1.0
+    local hp = (type(target.get_health_percentage) == "function" and (target:get_health_percentage() / 100)) or 1.0
     return hp <= 0.25
 end
 

@@ -3,13 +3,11 @@
 Subtlety Rogue automation for TBC on Project Sylvanas.
 
 ## Rotation
-- Opens from stealth with `Cheap Shot` or `Ambush`.
+- Uses solo-only stealth openers (`Premeditation`, `Ambush`) and keeps `Cheap Shot` for solo control.
 - `Hemorrhage` or `Backstab` as primary combo point builders.
-- `Slice and Dice` maintained before falling off.
-- `Rupture` for bleed uptime.
-- `Eviscerate` as finisher.
-- `Shadowstep` for repositioning.
-- `Preparation` to reset cooldowns.
+- `Expose Armor` is available as a group assignment finisher.
+- `Slice and Dice`, `Rupture`, and `Eviscerate` remain the core PvE finisher lane.
+- `Shadowstep` and `Preparation` stay as utility instead of pre-empting the PvE damage lane.
 - `Cold Blood` for burst finisher windows.
 
 ## New in 2.1.0

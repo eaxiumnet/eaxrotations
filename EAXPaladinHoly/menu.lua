@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -14,6 +15,19 @@ local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
+
+settings.init({
+    spec_name = "eaxpaladinholy",
+    class_name = "Paladin",
+    role = "healer",
+})
+
+local settings_tree = {
+    targeting = tgt_tree,
+    racial = racial_tree,
+    ooc = ooc_tree,
+    display = esp_tree,
+}
 
 -- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
@@ -62,10 +76,17 @@ menu.use_flash_of_light                   = core.menu.checkbox(true, "use_flash_
 menu.flash_of_light_hp_pct                = core.menu.slider_int(40, 95, 75, "flash_of_light_hp_pct")
 menu.use_holy_shock                       = core.menu.checkbox(true, "use_holy_shock")
 menu.holy_shock_hp_pct                    = core.menu.slider_int(5, 60, 30, "holy_shock_hp_pct")
+menu.use_divine_illumination              = core.menu.checkbox(true, "eaxpaladinholy_use_divine_illumination")
+menu.use_avenging_wrath                   = core.menu.checkbox(true, "eaxpaladinholy_use_avenging_wrath")
+menu.use_cleanse                          = core.menu.checkbox(true, "eaxpaladinholy_use_cleanse")
+menu.use_cleanse_key                      = core.menu.keybind(7, false, "eaxpaladinholy_use_cleanse_key")
 menu.use_hand_of_freedom                  = core.menu.checkbox(true, "eaxpaladinholy_use_hof")
+menu.use_hand_of_freedom_key              = core.menu.keybind(7, false, "eaxpaladinholy_use_hof_key")
 menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinholy_hof_slows")
 menu.auto_blessings                       = core.menu.checkbox(true, "auto_blessings")
+menu.auto_blessings_key                   = core.menu.keybind(7, false, "eaxpaladinholy_auto_blessings_key")
 menu.use_predictive_healing               = core.menu.checkbox(true, "use_predictive_healing")
+menu.use_predictive_healing_key           = core.menu.keybind(7, false, "eaxpaladinholy_use_predictive_healing_key")
 menu.overheal_protection                  = core.menu.checkbox(true, "overheal_protection")
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -87,7 +108,7 @@ function menu.render()
 
     root_tree:render("  Eax's Paladin Holy", function()
 
-        ps.render_controls(menu, "Eax's Paladin Holy")
+        settings.render_controls(menu, "Eax's Paladin Holy")
 
         -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
@@ -96,13 +117,20 @@ function menu.render()
             menu.holy_light_hp_pct:render("Holy Light HP %", "Cast Holy Light when a target drops below this percent")
             menu.use_flash_of_light:render("Flash of Light", "Fast heals for raid/dungeon damage spikes")
             menu.flash_of_light_hp_pct:render("Flash HP %", "Use Flash when a target drops below this percent")
-            menu.use_holy_shock:render("Holy Shock", "Instant burst heal when health is low")
+            menu.use_holy_shock:render("Holy Shock", "Instant heal on cooldown for urgent targets")
             menu.holy_shock_hp_pct:render("Holy Shock HP %", "Threshold to consider Holy Shock")
+            menu.use_divine_illumination:render("Divine Illumination", "Use the TBC mana-cost reduction cooldown before heavy healing")
+            menu.use_avenging_wrath:render("Avenging Wrath", "Use healing throughput cooldown on pull pressure or group danger")
+            menu.use_cleanse:render("Cleanse", "Remove known poison or disease debuffs with Cleanse or Purify")
+            menu.use_cleanse_key:render("  Cleanse Hotkey", "Toggle Cleanse on/off")
             menu.use_hand_of_freedom:render("Hand of Freedom", "Cast Hand of Freedom on rooted/snared friendly units")
+            menu.use_hand_of_freedom_key:render("  Freedom Hotkey", "Toggle Hand of Freedom on/off")
             menu.hof_include_slows:render("Freedom on Slows", "Also use Hand of Freedom on slowed (not just rooted) allies")
-            menu.auto_blessings:render("Auto Blessings", "Keep Blessings of Light, Wisdom, and Might active on yourself")
+            menu.auto_blessings:render("Auto Blessings", "Keep Blessing of Might on tanks and Blessing of Wisdom on mana users")
+            menu.auto_blessings_key:render("  Blessings Hotkey", "Toggle Auto Blessings on/off")
             menu.use_predictive_healing:render("Predictive Healing", "Use incoming damage prediction to heal before damage lands")
-            menu.overheal_protection:render("Overheal Protection", "Cancel slow heals when target is near full HP")
+            menu.use_predictive_healing_key:render("  Predictive Hotkey", "Toggle Predictive Healing on/off")
+            menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------
@@ -110,25 +138,17 @@ function menu.render()
         { key = "use_divine_shield", label = "Divine Shield", tip = "Emergency immunity bubble", hp_key = "use_divine_shield_hp_pct", hp_label = "Divine Shield HP %" },
         { key = "use_lay_on_hands", label = "Lay on Hands", tip = "Emergency full heal on self", hp_key = "use_lay_on_hands_hp_pct", hp_label = "Lay on Hands HP %" },
         })
-
         -- -- Targeting --------------------------------------------------------
-        ps.render_targeting(menu, tgt_tree)
+        settings.render_targeting(menu, settings_tree)
 
         -- -- Racial ------------------------------------------------------------
-        ps.render_racial(menu, racial_tree)
+        settings.render_racial(menu, settings_tree)
 
         -- -- Out-of-combat -----------------------------------------------------
-        menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
-        menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
-        menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
-        menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
-        menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
-        menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
-        menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
-        ps.render_ooc(menu, ooc_tree, true)
+        settings.render_ooc(menu, settings_tree)
 
         -- -- Display & HUD -----------------------------------------------------
-        ps.render_esp(menu, esp_tree)
+        settings.render_display(menu, settings_tree)
 
     end)
 end

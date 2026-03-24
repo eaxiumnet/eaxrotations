@@ -10,6 +10,7 @@ Restoration Shaman healing automation for TBC on Project Sylvanas.
 - `Mana Tide Totem` on cooldown when mana is low.
 - `Healing Stream Totem` for passive group HoT.
 - `Grounding Totem` to absorb spells.
+- `Tremor Totem` reacts to fear effects in PvP mode without endlessly replacing other earth totems.
 - `Nature's Swiftness` + `Healing Wave` for emergency instant heal.
 - `Bloodlust/Heroism` on pull (enabled by default).
 - `Purge` on enemies with active buffs (enabled by default).

@@ -5,6 +5,7 @@ Assassination Rogue automation for TBC on Project Sylvanas.
 ## Rotation
 - `Mutilate` is the primary combo point builder.
 - `Slice and Dice` maintained before falling off.
+- `Expose Armor` is applied in group content when neither `Expose Armor` nor `Sunder Armor` is already up.
 - `Envenom` at 4-5 CP when Deadly Poison is stacked.
 - `Eviscerate` as fallback finisher when poison stacks are low.
 - `Rupture` for sustained fights (now enabled by default).

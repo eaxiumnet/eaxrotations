@@ -19,7 +19,7 @@ spells.SERPENT_STING  = { 27016, 13550, 13549, 13548, 13547, 1978 }
 spells.HUNTERS_MARK   = { 14325, 14323, 14322, 1130 }
 
 -- ── Aspects ───────────────────────────────────────────────────────────────────
-spells.ASPECT_OF_THE_HAWK   = { 27044, 25296, 14327, 14326, 14325, 14324, 14323, 14322, 13165 }
+spells.ASPECT_OF_THE_HAWK   = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 spells.ASPECT_OF_THE_MONKEY = { 13163 }
 spells.ASPECT_OF_THE_VIPER  = { 34074 }
 
@@ -35,7 +35,7 @@ spells.RAPID_FIRE = { 3045 }
 spells.DISENGAGE        = { 781 }
 spells.FEIGN_DEATH      = { 5384 }
 spells.WING_CLIP        = { 14268, 14267, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 14259, 2974 }
-spells.CONCUSSIVE_SHOT  = { 19407, 5116 }
+spells.CONCUSSIVE_SHOT  = { 5116 }
 spells.SCATTER_SHOT     = { 19503 }
 spells.RAPTOR_STRIKE    = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 14259, 14258, 2973 }
 spells.MONGOOSE_BITE    = { 14271, 14270, 14269 }
@@ -47,7 +47,7 @@ spells.WAR_STOMP  = { 20549 }
 spells.SHADOWMELD = { 58984 }
 
 -- ── Buff / Debuff check tables ────────────────────────────────────────────────
-spells.BUFF_ASPECT_OF_THE_HAWK  = { 27044, 25296, 14327, 14326, 14325, 14324, 14323, 14322, 13165 }
+spells.BUFF_ASPECT_OF_THE_HAWK  = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 spells.BUFF_ASPECT_OF_THE_VIPER = { 34074 }
 spells.BUFF_RAPID_FIRE          = { 3045 }
 spells.BUFF_BERSERKING          = { 26297 }

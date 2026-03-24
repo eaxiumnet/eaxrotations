@@ -11,19 +11,18 @@ spells.TRAVEL_FORM = { 783 }
 spells.AQUATIC_FORM = { 1066 }
 spells.FAERIE_FIRE_FERAL = { 27011, 17392, 17391, 17390, 16857 }
 
-spells.MANGLE_CAT = { 33982, 33983, 33876, 48565, 48566 }
+spells.MANGLE_CAT = { 33982, 33983, 33876 }
 spells.RAKE = { 27003, 1822 }
 spells.SHRED = { 5221, 8992, 8993, 27001, 27002 }
 spells.RIP = { 27008, 1079 }
 spells.FEROCIOUS_BITE = { 24248, 22829, 22828, 22568 }
 spells.TIGERS_FURY = { 9846, 9845, 6793, 5217 }
 
-spells.MANGLE_BEAR = { 33987, 33986, 33878, 48563, 48564 }
+spells.MANGLE_BEAR = { 33987, 33986, 33878 }
 spells.MAUL = { 26996, 9881, 9880, 6807 }
 spells.SWIPE = { 26997, 9908, 779 }
 spells.GROWL = { 6795 }
 spells.FRENZIED_REGENERATION = { 22842 }
-spells.BERSERK = { 50334 }
 
 spells.DEMORALIZING_ROAR = { 99, 1738, 9490, 9491, 9745, 9746, 10756, 25275 }
 spells.FAERIE_FIRE = { 26993, 9907, 9749, 778, 770 }
@@ -39,7 +38,6 @@ spells.BUFF_DIRE_BEAR_FORM = { 9635, 9634, 5487 }
 spells.BUFF_MOONKIN_FORM = { 24858 }
 spells.BUFF_TIGERS_FURY = { 5217, 6793, 9845, 9846, 50213 }
 spells.BUFF_FRENZIED_REGENERATION = { 22842 }
-spells.BUFF_BERSERK = { 50334 }
 
 spells.DEBUFF_FAERIE_FIRE = { 770, 778, 16857, 17390, 17391, 17392, 26993, 27011 }
 spells.DEBUFF_RAKE = { 1822, 27003 }
@@ -66,8 +64,8 @@ spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 spells.MAIM              = { 22570, 49802 }
 spells.DEBUFF_MAIM       = { 22570, 49802 }
 
-spells.LACERATE          = { 48568, 48567, 33745 }
-spells.DEBUFF_LACERATE   = { 48568, 48567, 33745 }
+spells.LACERATE          = { 33745 }
+spells.DEBUFF_LACERATE   = { 33745 }
 
 spells.REBIRTH           = { 26994, 20748, 20748, 20910, 20909, 20484 }
 
@@ -77,21 +75,19 @@ spells.REMOVE_CURSE = { 2782, 8690, 8691 }
 -- Missing spells added in v2.1.0
 spells.PROWL               = { 9913, 5215 }
 spells.POUNCE              = { 27006, 9005, 9004, 8998 }
-spells.BASH                = { 8983, 1822, 5211 }
+spells.BASH                = { 8983, 6798, 5211 }
 spells.DASH                = { 9821, 1850 }
 spells.FERAL_CHARGE_BEAR   = { 16979, 19675 }
 spells.RAVAGE              = { 9867, 9866, 6785, 3242 }
 spells.TRAVEL_FORM         = { 783 }
 spells.ABOLISH_POISON      = { 2893 }
-spells.NATURES_GRASP       = { 27009, 16840, 16839, 16838, 16689, 9881, 9880, 6807, 779 }
+spells.NATURES_GRASP       = { 17329, 16813, 16812, 16811, 16810, 16689 }
 
 -- Defensive / utility
 spells.BARKSKIN            = { 22812 }
-spells.SURVIVAL_INSTINCTS  = { 61336 }
 spells.ENRAGE              = { 5229 }
 spells.CHALLENGING_ROAR    = { 5209 }
 spells.BUFF_ENRAGE         = { 5229 }
-spells.BUFF_SURVIVAL_INSTINCTS = { 61336 }
 spells.INNERVATE           = { 29166, 29166 }
 spells.CLAW                = { 27000, 9850, 9849, 1082 }
 spells.COWER               = { 27004, 9892, 8998, 8997 }

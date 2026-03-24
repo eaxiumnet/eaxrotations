@@ -8,8 +8,8 @@ Demonology Warlock DPS automation for TBC on Project Sylvanas.
 - `Curse of Agony` / `Curse of Doom` maintained.
 - `Soul Fire` for burst opener.
 - `Shadowfury` for AoE stun.
-- `Metamorphosis` for burst window (if talented).
-- Pet management: Summons Felguard by default.
+- Demonology utility: preferred pet summoning, Fel Armor/Soul Link upkeep, and TBC-appropriate curses/DoTs.
+- Pet management: Summons the preferred demon and keeps pet checks generic.
 - `Life Tap` for mana sustain.
 
 ## Install

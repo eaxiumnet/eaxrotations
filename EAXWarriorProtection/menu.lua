@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -53,6 +54,7 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 
 -- -- Class-specific elements ---------------------------------------------------
 menu.use_shield_slam                      = core.menu.checkbox(true, "simpleprot_use_shield_slam")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eaxwarriorprotection_use_cooldowns")
 menu.use_revenge                          = core.menu.checkbox(true, "simpleprot_use_revenge")
 menu.use_devastate                        = core.menu.checkbox(true, "simpleprot_use_devastate")
 menu.use_heroic_strike                    = core.menu.checkbox(true, "simpleprot_use_heroic_strike")
@@ -112,6 +114,17 @@ menu.execute_min_rage                     = core.menu.slider_int(15, 80, 31, "si
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_shield_slam", label = "Shield Slam" },
+    { toggle = "use_revenge", label = "Revenge" },
+    { toggle = "use_thunder_clap", label = "Thunder Clap" },
+    { toggle = "use_taunt", label = "Taunt" },
+    { toggle = "use_shield_block", label = "Shield Block" },
+}, {
+    namespace = "eaxwarriorprotection",
+    log_prefix = "[EAX Warrior Protection] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 

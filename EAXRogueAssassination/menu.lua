@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -14,6 +15,7 @@ local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
+local POISON_OPTIONS = { "Disabled", "Instant", "Deadly", "Wound", "Crippling", "Mind-Numbing" }
 
 -- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
@@ -59,17 +61,35 @@ menu.use_eviscerate                       = core.menu.checkbox(true, "eaxrogueas
 menu.use_rupture                          = core.menu.checkbox(true, "eaxrogueassassination_use_rupture")
 menu.use_kick                             = core.menu.checkbox(true, "eaxrogueassassination_use_kick")
 menu.use_cold_blood                       = core.menu.checkbox(true, "eaxrogueassassination_use_cold_blood")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eaxrogueassassination_use_cooldowns")
+menu.use_feint                            = core.menu.checkbox(true, "eaxrogueassassination_use_feint")
+menu.use_shiv                             = core.menu.checkbox(true, "eaxrogueassassination_use_shiv")
+menu.use_garrote                          = core.menu.checkbox(true, "eaxrogueassassination_use_garrote")
+menu.use_riposte                          = core.menu.checkbox(true, "eaxrogueassassination_use_riposte")
 menu.snd_refresh_seconds                  = core.menu.slider_int(1, 6, 3, "eaxrogueassassination_snd_refresh_seconds")
 menu.envenom_combo_points                 = core.menu.slider_int(4, 5, 5, "eaxrogueassassination_envenom_combo_points")
 menu.poison_stack_threshold               = core.menu.slider_int(1, 5, 4, "eaxrogueassassination_poison_stack_threshold")
 menu.rupture_combo_points                 = core.menu.slider_int(3, 5, 4, "eaxrogueassassination_rupture_combo_points")
 menu.use_evasion                          = core.menu.checkbox(true, "eaxrogueassassination_use_evasion")
 menu.evasion_hp_pct                       = core.menu.slider_int(0, 100, 35, "eaxrogueassassination_evasion_hp_pct")
+menu.main_hand_poison                     = core.menu.combobox(2, "eaxrogueassassination_main_hand_poison")
+menu.off_hand_poison                      = core.menu.combobox(3, "eaxrogueassassination_off_hand_poison")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_mutilate", label = "Mutilate" },
+    { toggle = "use_slice_and_dice", label = "Slice and Dice" },
+    { toggle = "use_envenom", label = "Envenom" },
+    { toggle = "use_rupture", label = "Rupture" },
+    { toggle = "use_kick", label = "Kick" },
+}, {
+    namespace = "eaxrogueassassination",
+    log_prefix = "[EAX Rogue Assassination] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -119,6 +139,9 @@ function menu.render()
         menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
         menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
         menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
+        menu.auto_apply_poisons:render("Auto Apply Poisons", "Apply rogue weapon poisons out of combat when poison items are available")
+        menu.main_hand_poison:render("Main Hand Poison", POISON_OPTIONS)
+        menu.off_hand_poison:render("Off Hand Poison", POISON_OPTIONS)
         menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
         menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
         menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
@@ -132,5 +155,6 @@ end
 
 menu.use_vanish = core.menu.checkbox(true, "eaxrogueassassination_use_vanish")
 menu.use_sprint = core.menu.checkbox(true, "eaxrogueassassination_use_sprint")
-menu.use_blind  = core.menu.checkbox(true, "eaxrogueassassination_use_blind")
+menu.use_blind  = core.menu.checkbox(false, "eaxrogueassassination_use_blind")
+menu.auto_apply_poisons = core.menu.checkbox(true, "eaxrogueassassination_auto_apply_poisons")
 return menu

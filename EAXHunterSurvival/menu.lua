@@ -1,5 +1,6 @@
 -- menu.lua  |  EAX Hunter Survival  |  TBC
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- ── Tree nodes ────────────────────────────────────────────────────────────────
@@ -89,6 +90,17 @@ menu.trap_selection = core.menu.combobox(1,    "eaxhuntersv_trap_selection")
 menu.trap_interval  = core.menu.slider_float(1.0, 60.0, 30.0, "eaxhuntersv_trap_interval")
 
 -- ── Window ────────────────────────────────────────────────────────────────────
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_serpent_sting", label = "Serpent Sting" },
+    { toggle = "use_aimed_shot", label = "Aimed Shot" },
+    { toggle = "use_multi_shot", label = "Multi-Shot" },
+    { toggle = "use_kill_command", label = "Kill Command" },
+    { toggle = "use_traps", label = "Traps" },
+}, {
+    namespace = "eaxhuntersurvival",
+    log_prefix = "[EAX Hunter Survival] ",
+})
+
 local _win
 function menu.set_window(win) _win = win end
 

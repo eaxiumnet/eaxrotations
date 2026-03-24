@@ -1,5 +1,6 @@
 -- menu.lua  |  EAX Hunter Marksmanship  |  TBC
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- ── Tree nodes ────────────────────────────────────────────────────────────────
@@ -57,7 +58,6 @@ menu.use_hunters_mark  = core.menu.checkbox(true, "eaxhuntermm_use_hunters_mark"
 menu.use_serpent_sting = core.menu.checkbox(true, "eaxhuntermm_use_serpent_sting")
 menu.use_scorpid_sting = core.menu.checkbox(false,"eaxhuntermm_use_scorpid_sting")
 menu.use_viper_sting   = core.menu.checkbox(false,"eaxhuntermm_use_viper_sting")
-menu.use_chimera_shot  = core.menu.checkbox(true, "eaxhuntermm_use_chimera_shot")
 menu.use_aimed_shot    = core.menu.checkbox(true, "eaxhuntermm_use_aimed_shot")
 menu.use_arcane_shot   = core.menu.checkbox(true, "eaxhuntermm_use_arcane_shot")
 menu.use_steady_shot   = core.menu.checkbox(true, "eaxhuntermm_use_steady_shot")
@@ -89,6 +89,17 @@ menu.trap_selection = core.menu.combobox(1,    "eaxhuntermm_trap_selection")
 menu.trap_interval  = core.menu.slider_float(1.0, 60.0, 30.0, "eaxhuntermm_trap_interval")
 
 -- ── Window ────────────────────────────────────────────────────────────────────
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_serpent_sting", label = "Serpent Sting" },
+    { toggle = "use_aimed_shot", label = "Aimed Shot" },
+    { toggle = "use_multi_shot", label = "Multi-Shot" },
+    { toggle = "use_rapid_fire", label = "Rapid Fire" },
+    { toggle = "use_traps", label = "Traps" },
+}, {
+    namespace = "eaxhuntermm",
+    log_prefix = "[EAX Hunter MM] ",
+})
+
 local _win
 function menu.set_window(win) _win = win end
 
@@ -104,7 +115,6 @@ function menu.render()
         main_tree:render("  Rotation Settings", function()
             ps.header("Core Shots")
             menu.use_hunters_mark:render("Hunter's Mark",  "Apply Hunter's Mark (+AP). Applied OOC and on new targets.")
-            menu.use_chimera_shot:render("Chimera Shot",   "MM signature. Refreshes active sting. Highest priority.")
             menu.use_aimed_shot:render("Aimed Shot",       "Hard-hitting cast shot. Fires behind Chimera when off CD.")
             menu.use_serpent_sting:render("Serpent Sting", "Maintain Serpent Sting. Required for Chimera Shot refresh.")
             menu.use_arcane_shot:render("Arcane Shot",     "Instant filler. Only when auto-shot is not clipping.")

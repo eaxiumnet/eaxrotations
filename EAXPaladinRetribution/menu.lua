@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -14,6 +15,19 @@ local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
+
+settings.init({
+    spec_name = "eaxpaladinretribution",
+    class_name = "Paladin",
+    role = "dps",
+})
+
+local settings_tree = {
+    targeting = tgt_tree,
+    racial = racial_tree,
+    ooc = ooc_tree,
+    display = esp_tree,
+}
 
 -- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
@@ -46,6 +60,7 @@ menu.auto_flask                         = core.menu.checkbox(false, "eaxpaladinr
 menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxpaladinretribution_lev_conserve")
 menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxpaladinretribution_lev_mana_floor")
 menu.use_hand_of_freedom                  = core.menu.checkbox(true, "eaxpaladinretribution_use_hof")
+menu.use_hand_of_freedom_key              = core.menu.keybind(7, false, "eaxpaladinretribution_use_hof_key")
 menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinretribution_hof_slows")
 -- ESP
 menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
@@ -57,7 +72,14 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 menu.use_judgement                        = core.menu.checkbox(true, "eaxpr_use_judgement")
 menu.judgement_choice                     = core.menu.combobox(1, "eaxpr_judgement_choice")
 menu.use_crusader_strike                  = core.menu.checkbox(true, "eaxpr_use_crusader_strike")
+menu.use_consecration                     = core.menu.checkbox(true, "eaxpr_use_consecration")
+menu.use_consecration_key                 = core.menu.keybind(7, false, "eaxpr_use_consecration_key")
+menu.use_exorcism                         = core.menu.checkbox(true, "eaxpr_use_exorcism")
+menu.use_exorcism_key                     = core.menu.keybind(7, false, "eaxpr_use_exorcism_key")
+menu.use_divine_favor                     = core.menu.checkbox(true, "eaxpr_use_divine_favor")
+menu.use_avenging_wrath                   = core.menu.checkbox(true, "eaxpr_use_avenging_wrath")
 menu.use_seal_twist                       = core.menu.checkbox(true, "eaxpr_use_seal_twist")
+menu.use_seal_twist_key                   = core.menu.keybind(7, false, "eaxpr_use_seal_twist_key")
 menu.seal_twist_window                    = core.menu.slider_int(200, 1200, 450, "eaxpr_seal_twist_window")
 menu.seal_twist_cooldown                  = core.menu.slider_int(800, 4000, 1600, "eaxpr_seal_twist_cooldown")
 menu.allow_twist_dungeon                  = core.menu.checkbox(true, "eaxpr_twist_dungeon")
@@ -82,50 +104,52 @@ function menu.render()
 
     root_tree:render("  Eax's Paladin Retribution", function()
 
-        ps.render_controls(menu, "Eax's Paladin Retribution")
+        settings.render_controls(menu, "Eax's Paladin Retribution")
 
         -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_judgement:render("Judgement", "Maintain the chosen judgement debuff")
             menu.use_crusader_strike:render("Crusader Strike", "Cast on cooldown when the GCD is ready")
-            menu.use_seal_twist:render("Enable Seal Twists", "Rotate Command -> Blood -> Righteousness for seal-twisting uptime")
-            menu.seal_twist_window:render("Twist Window (ms)", "Delay twists until at least this many ms before the next swing")
+            menu.use_consecration:render("Consecration", "Drop Consecration when fighting in melee")
+            menu.use_consecration_key:render("  Consecration Hotkey", "Toggle Consecration on/off")
+            menu.use_exorcism:render("Exorcism", "Use Exorcism against undead and demon targets")
+            menu.use_exorcism_key:render("  Exorcism Hotkey", "Toggle Exorcism on/off")
+            menu.use_divine_favor:render("Divine Favor", "Use Divine Favor in burst windows")
+            menu.use_avenging_wrath:render("Avenging Wrath", "Use Avenging Wrath when offensive cooldowns are allowed")
+            menu.use_seal_twist:render("Enable Seal Twists", "Twist Seal of Command into Blood or Righteousness inside the next melee swing window")
+            menu.use_seal_twist_key:render("  Twist Hotkey", "Toggle Seal Twisting on/off")
+            menu.seal_twist_window:render("Twist Window (ms)", "Only start a twist when the next swing is inside this many milliseconds")
             menu.seal_twist_cooldown:render("Twist Cooldown (ms)", "Minimum time between completed twists")
             menu.allow_twist_dungeon:render("Allow in Dungeon", "Permit twisting when dungeon mode is active")
-            menu.allow_twist_raid:render("Allow in Raid", "Optional twisting for raid mode (disabled by default)")
+            menu.allow_twist_raid:render("Allow in Raid", "Permit twisting when raid mode is active")
             menu.judgement_choice:render("Judgement Mode", { "Wisdom", "Crusader" })
+            menu.use_hammer_of_wrath:render("Hammer of Wrath", "Use execute at low target HP")
+            menu.use_divine_illumination:render("Divine Illumination", "Use mana reduction cooldown when low on mana")
+            menu.use_hand_of_freedom_key:render("  Freedom Hotkey", "Toggle Hand of Freedom on/off")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
         { key = "use_divine_shield", label = "Divine Shield", tip = "Emergency immunity bubble", hp_key = "use_divine_shield_hp_pct", hp_label = "Divine Shield HP %" },
         })
-
         -- -- Targeting --------------------------------------------------------
-        ps.render_targeting(menu, tgt_tree)
+        settings.render_targeting(menu, settings_tree)
 
         -- -- Racial ------------------------------------------------------------
-        ps.render_racial(menu, racial_tree)
+        settings.render_racial(menu, settings_tree)
 
         -- -- Out-of-combat -----------------------------------------------------
-        menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
-        menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
-        menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
-        menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
-        menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
-        menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
-        menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
-        ps.render_ooc(menu, ooc_tree, false)
+        settings.render_ooc(menu, settings_tree)
 
         -- -- Display & HUD -----------------------------------------------------
-        ps.render_esp(menu, esp_tree)
+        settings.render_display(menu, settings_tree)
 
     end)
 end
 
 menu.use_hammer_of_wrath = core.menu.checkbox(true, "eaxpret_hammer_of_wrath")
-menu.use_divine_plea    = core.menu.checkbox(true, "eaxpret_divine_plea")
+menu.use_divine_illumination = core.menu.checkbox(true, "eaxpret_divine_illumination")
 menu.use_lay_on_hands   = core.menu.checkbox(true, "eaxpret_lay_on_hands")
 menu.use_divine_shield = core.menu.checkbox(true, "eaxpret_divine_shield")
 menu.use_divine_shield_hp_pct = core.menu.slider_int(0, 100, 20, "eaxpret_divine_shield_hp")

@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -72,6 +73,17 @@ mana_conservator.register_menu_items(menu, "eax_priest_shadow")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "mind_blast_burst", label = "Mind Blast Burst" },
+    { toggle = "shadowfiend_enabled", label = "Shadowfiend" },
+    { toggle = "keep_shadowform", label = "Keep Shadowform" },
+    { toggle = "use_flash_heal", label = "Flash Heal" },
+    { toggle = "use_psychic_scream", label = "Psychic Scream" },
+}, {
+    namespace = "eaxpriestshadow",
+    log_prefix = "[EAX Priest Shadow] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 

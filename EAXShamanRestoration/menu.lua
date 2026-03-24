@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -77,7 +78,6 @@ menu.auto_totem_wrath_of_air              = core.menu.checkbox(true, "auto_totem
 menu.prepull_totems                       = core.menu.checkbox(true, "prepull_totems")
 menu.use_totemic_recall                   = core.menu.checkbox(true, "use_totemic_recall")
 menu.use_dispels                          = core.menu.checkbox(true, "use_dispels")
-menu.cleanse_key                          = core.menu.keybind(7, false, "cleanse_key")
 menu.enable_dps                           = core.menu.checkbox(true, "enable_dps")
 menu.dps_key                              = core.menu.keybind(7, false, "dps_key")
 menu.use_dps_filler                       = core.menu.checkbox(true, "use_dps_filler")
@@ -108,6 +108,17 @@ mana_conservator.register_menu_items(menu, "eax_shaman_restoration")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "auto_totems", label = "Auto Totems" },
+    { toggle = "use_interrupt", label = "Interrupt" },
+    { toggle = "use_purge", label = "Purge" },
+    { toggle = "pvp_mode", label = "PvP Mode" },
+    { toggle = "use_flametongue", label = "Flametongue" },
+}, {
+    namespace = "eaxshamanrestoration",
+    log_prefix = "[EAX Shaman Restoration] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -143,12 +154,11 @@ function menu.render()
             menu.auto_totems:render("Auto Totems", "Automatically place and refresh totems")
             menu.auto_totem_mana_tide:render("  Mana Tide Totem", "Use proactively when mana drops below the configured threshold")
             menu.auto_totem_healing_stream:render("  Healing Stream Totem", "Passive AoE healing - keep active in combat")
-            menu.auto_totem_wrath:render("  Totem of Wrath", "+3%% spell crit for the party - TBC's best healing throughput totem")
+            menu.auto_totem_wrath:render("  Totem of Wrath", "+3%% spell crit for the party when your group benefits from it")
             menu.auto_totem_wrath_of_air:render("  Wrath of Air Totem", "5%% spell haste aura - enable if your spec has it")
-            menu.prepull_totems:render("  Pre-pull totems", "Place Healing Stream + Totem of Wrath before combat when enemies are nearby")
+            menu.prepull_totems:render("  Pre-pull totems", "Place Healing Stream + support totems before combat when enemies are nearby")
             menu.use_totemic_recall:render("Totemic Recall", "Recall totems out of combat to recover a portion of their mana cost")
             menu.use_dispels:render("Cure Poison + Cure Disease", "Auto-dispel Poison and Disease from party members.\n")
-            menu.cleanse_key:render("Dispel Hotkey", "Hotkey to toggle dispels on/off from Control Panel")
             menu.enable_dps:render("Enable DPS Filler", "Cast offensive spells when party is stable and mana permits")
             menu.dps_key:render("DPS Hotkey", "")
             menu.use_dps_filler:render("Lightning Bolt / Chain Lightning", "Fill GCDs with LB (single) or CL (3+ enemies)")

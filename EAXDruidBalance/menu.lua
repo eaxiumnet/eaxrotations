@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -65,13 +66,9 @@ menu.use_moonfire                         = core.menu.checkbox(true, "eaxdruidba
 menu.use_insect_swarm                     = core.menu.checkbox(true, "eaxdruidbalance_use_insect_swarm")
 menu.dot_refresh_seconds                  = core.menu.slider_int(1, 5, 3, "eaxdruidbalance_dot_refresh_seconds")
 menu.use_force_of_nature                  = core.menu.checkbox(true, "eaxdruidbalance_use_force_of_nature")
-menu.use_starfall                         = core.menu.checkbox(true, "eaxdruidbalance_use_starfall")
-menu.starfall_aoe_targets                 = core.menu.slider_int(1, 6, 3, "eaxdruidbalance_starfall_aoe_targets")
 menu.use_hurricane                        = core.menu.checkbox(true, "eaxdruidbalance_use_hurricane")
 menu.hurricane_min_targets                = core.menu.slider_int(2, 8, 4, "eaxdruidbalance_hurricane_min_targets")
 menu.hurricane_mana_floor                 = core.menu.slider_int(10, 80, 40, "eaxdruidbalance_hurricane_mana_floor")
-menu.use_typhoon                          = core.menu.checkbox(false, "eaxdruidbalance_use_typhoon")
-menu.typhoon_min_targets                  = core.menu.slider_int(1, 6, 3, "eaxdruidbalance_typhoon_min_targets")
 menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidbalance_use_innervate")
 menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 30, "eaxdruidbalance_innervate_mana_pct")
 menu.use_tranquility                      = core.menu.checkbox(true, "eaxdruidbalance_use_tranquility")
@@ -79,6 +76,16 @@ menu.tranquility_hp_pct                   = core.menu.slider_int(20, 70, 35, "ea
 
 mana_conservator.register_menu_items(menu, "eax_druid_balance")
 
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_moonfire", label = "Moonfire" },
+    { toggle = "use_insect_swarm", label = "Insect Swarm" },
+    { toggle = "use_force_of_nature", label = "Force of Nature" },
+    { toggle = "use_hurricane", label = "Hurricane" },
+    { toggle = "use_innervate", label = "Innervate" },
+}, {
+    namespace = "eaxdruidbalance",
+    log_prefix = "[EAX Druid Balance] ",
+})
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
@@ -109,8 +116,6 @@ function menu.render()
             menu.use_insect_swarm:render("Insect Swarm", "Maintain Insect Swarm on the active target")
             menu.dot_refresh_seconds:render("Refresh Window (sec)", "Refresh Moonfire and Insect Swarm when remaining time is below this value")
             menu.use_force_of_nature:render("Force of Nature", "Use Force of Nature during established pressure windows")
-            menu.use_starfall:render("Starfall", "Use Starfall when the enemy count or raid pressure justifies it")
-            menu.starfall_aoe_targets:render("Starfall AoE Count", "Minimum enemies in range before Starfall is allowed")
             menu.use_innervate:render("Innervate", "Recover mana automatically when out of combat or in a dry lane")
             menu.innervate_mana_pct:render("Innervate Mana %", "Mana threshold for Innervate")
             menu.use_tranquility:render("Emergency Tranquility", "Allow Tranquility as a self-preservation emergency")
@@ -119,8 +124,6 @@ function menu.render()
             menu.use_hurricane:render("Hurricane", "Channel Hurricane on packs above the target count")
             menu.hurricane_min_targets:render("Hurricane Min Targets", "Minimum enemies before Hurricane fires")
             menu.hurricane_mana_floor:render("Hurricane Mana Floor %", "Don't Hurricane below this mana %")
-            menu.use_typhoon:render("Typhoon", "Knockback AoE — use on packs (be careful in groups)")
-            menu.typhoon_min_targets:render("Typhoon Min Targets", "Minimum enemies before Typhoon fires")
             menu.use_remove_curse:render("Remove Curse", "Dispel curses from self and party")
         end)
 
@@ -152,8 +155,6 @@ function menu.render()
     end)
 end
 
-menu.use_berserk  = core.menu.checkbox(true, "eaxbal_berserk")
-menu.use_typhoon = core.menu.checkbox(true, "eaxbal_typhoon")
 menu.use_barkskin = core.menu.checkbox(true, "eaxbal_use_barkskin")
 menu.use_barkskin_hp_pct = core.menu.slider_int(0, 100, 40, "eaxbal_barkskin_hp")
 menu.use_survival_instincts = core.menu.checkbox(true, "eaxbal_survival_instincts")

@@ -9,22 +9,30 @@
 local menu = require("menu")
 local spells = require("spells")
 local utils = require("utils")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -32,21 +40,29 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("fury", "Warrior Fury")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
+local set_bonus = require("set_bonus")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -114,11 +130,13 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -166,9 +184,9 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -182,7 +200,7 @@ local color = require("color")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 ---@type swing_timer
-local swing_timer = require("eax_shared/swing_timer")
+local swing_timer = require("swing_timer")
 
 local runtime = {
     bloodthirst_id = nil,
@@ -251,6 +269,11 @@ local runtime = {
     set_multiplier = 1.0,
 }
 
+local ctx_cache = rotation_context.new({
+    important_buffs = {},
+    important_debuffs = {},
+})
+
 local BATTLE_SHOUT_REFRESH_MS = 5000
 local DEMO_SHOUT_REFRESH_MS = 5000
 local RAMPAGE_REFRESH_MS = 1500
@@ -273,7 +296,7 @@ local THUNDER_CLAP_COST = 20
 local REND_COST = 10
 local OVERPOWER_COST = 5
 local PIERCING_HOWL_COST = 10
-local HAMSTRING_MIN_RAGE = 15
+local HAMSTRING_MIN_RAGE = 20
 local HASTE_POTION_ITEM_ID = 22838
 local DESTRUCTION_POTION_ITEM_ID = 22839
 local DRUMS_OF_BATTLE_ITEM_ID = 29529
@@ -346,7 +369,29 @@ log_resolved_spells()
 
 -- -- mode detection ----------------------------------------------------------
 
+local function has_shaman_in_party()
+    local me = _get_local_player()
+    if not me then return false end
+
+    local members = core.object_manager.get_party_members and core.object_manager.get_party_members() or nil
+    if type(members) ~= "table" then
+        return false
+    end
+
+    for _, unit in ipairs(members) do
+        if unit and unit.is_valid and unit:is_valid() and not unit:is_dead() then
+            local class_id = type(unit.get_class) == "function" and unit:get_class() or nil
+            if class_id == 7 then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 local function refresh_mode_cache()
+    local me = _get_local_player()
     runtime.cached_mode = utils.detect_mode(me)
     runtime.cached_has_shaman = has_shaman_in_party()
 end
@@ -354,14 +399,24 @@ end
 local function update_set_bonus(me)
     if not me then return end
     local best_multiplier = 1.0
-    local set_names = { "Warbringer", "WarbringerBattlegear", "Ymirjar" }
+    local set_names = { "WarbringerBattlegear", "DestroyerArmor", "OnslaughtArmor", "Ymirjar" }
     for _, set_name in ipairs(set_names) do
-        local multiplier = utils.get_set_multiplier(me, set_name)
-        if multiplier > best_multiplier then
-            best_multiplier = multiplier
+        local set_mult = set_bonus.get_multiplier(me, set_name)
+        if set_mult and set_mult > best_multiplier then
+            best_multiplier = set_mult
         end
     end
     runtime.set_multiplier = best_multiplier
+end
+
+local function get_set_rage_discount()
+    if runtime.set_multiplier <= 1.0 then
+        return 0
+    end
+    if runtime.set_multiplier >= 1.10 then
+        return 2
+    end
+    return 1
 end
 
 local function get_effective_mode()
@@ -421,85 +476,56 @@ local function note_cast()
     runtime.last_cast_time = _core_time()
 end
 
-local function is_gcd_lane_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
-        return false
-    end
-
-    return _get_gcd() <= 0
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
 end
 
-local function reset_burst_state()
-    runtime.burst_window_active = false
-    runtime.burst_window_started_at = 0
-    runtime.burst_attempted = {}
-end
-
-local function reset_charge_stance_request()
-    runtime.charge_stance_swap_pending = false
-    runtime.charge_stance_swap_requested_at = 0
-end
-
-local function reset_on_next_attack_queue_state()
-    runtime.last_on_next_attack_queue_at = 0
-    runtime.queued_on_next_attack_spell_id = nil
-end
-
-local function reset_proc_tracking()
-    runtime.proc_debug_next_log_at = 0
-    runtime.flurry_uptime_start = 0
-    runtime.enrage_uptime_start = 0
-    runtime.flurry_accumulated_ms = 0
-    runtime.enrage_accumulated_ms = 0
-    runtime.last_proc_sample_game_time = 0
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
 end
 
 local function is_pending_cast(spell_id)
     if not spell_id then return false end
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then return false end
-
-    if (_core_time() - pending.requested_at) >= pending.timeout_s then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-
-    return true
+    return smart_cast_manager.is_pending(spell_id)
 end
 
-local function mark_pending_cast(spell_id, timeout_s, on_confirm)
+local function mark_pending_cast(spell_id, timeout_s, options)
     if not spell_id then return end
-    runtime.pending_casts[spell_id] = {
-        requested_at = _core_time(),
-        timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S,
-        on_confirm = on_confirm,
-    }
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function clear_pending_cast(spell_id)
     if not spell_id then return end
-    runtime.pending_casts[spell_id] = nil
+    smart_cast_manager.clear_pending(spell_id)
 end
 
 local function refresh_pending_casts()
-    local now = _core_time()
-
-    for spell_id, pending in pairs(runtime.pending_casts) do
-        if _get_spell_cd(spell_id) > 0 then
-            runtime.pending_casts[spell_id] = nil
-        elseif (now - pending.requested_at) >= pending.timeout_s then
-            runtime.pending_casts[spell_id] = nil
-            utils.log_debug(menu, "Pending cast expired: " .. tostring(spell_id))
-        end
-    end
 end
 
 local function is_pending_or_current(spell_id)
     return is_pending_cast(spell_id) or utils.is_spell_already_queued(spell_id)
 end
 
---- Return the best "home" stance based on what the character has learned.
---- At 30+ with Berserker Stance this returns "berserker"; below 30 it returns "battle".
+local function is_gcd_lane_ready()
+    return is_gcd_ready()
+end
+
 local function get_home_stance()
     if runtime.berserker_stance_id
         and core.spell_book.is_spell_learned(runtime.berserker_stance_id)
@@ -663,11 +689,12 @@ local function sample_proc_states(me)
     end
 end
 
-local function should_cast_execute(target_hp_pct, rage)
+local function should_cast_execute(target_hp_pct, ctx)
     if not menu.use_execute:get_state() then return false end
     if not runtime.execute_id then return false end
     if target_hp_pct >= EXECUTE_HP_THRESHOLD then return false end
-    if rage < EXECUTE_MIN_RAGE then return false end
+    local can_cast = resource_gate.warrior.has_rage(ctx, 15)
+    if not can_cast then return false end
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
     return bt_cd > 1.5
@@ -871,6 +898,12 @@ local function try_sunder_armor(me, target, target_hp_pct)
     if target_hp_pct < EXECUTE_HP_THRESHOLD then return false end
     if not utils.is_melee_target(me, target) then return false end
 
+    local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
+    local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
+    if bt_cd <= 1.5 or ww_cd <= 1.5 then
+        return false
+    end
+
     local data = buff_manager:get_debuff_data(target, spells.DEBUFF_SUNDER_ARMOR)
     local stack_count = 0
     if data and data.is_active then
@@ -921,7 +954,7 @@ local function try_pummel(me, target)
     return false
 end
 
-local function try_heroic_strike(me, target, rage, target_hp_pct, is_aoe)
+local function try_heroic_strike(me, target, ctx, rage, target_hp_pct, is_aoe)
     -- Only consider heroic strike in execute phase (below 20% HP)
     if target_hp_pct >= EXECUTE_HP_THRESHOLD then
         return false
@@ -929,7 +962,22 @@ local function try_heroic_strike(me, target, rage, target_hp_pct, is_aoe)
     if not menu.use_heroic_strike:get_state() or not runtime.heroic_strike_id then
         return false
     end
+    local can_queue = resource_gate.warrior.can_queue_dump(ctx, 10, 60)
+    if not can_queue then
+        return false
+    end
     if rage < menu.heroic_strike_rage:get() then
+        return false
+    end
+    local rage_discount = get_set_rage_discount()
+    local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
+    local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
+    local bt_reserve = math.max(15, BLOODTHIRST_COST - rage_discount) + 5
+    local ww_reserve = math.max(20, WHIRLWIND_COST - rage_discount) + 5
+    if bt_cd <= 1.5 and rage < math.max(menu.heroic_strike_rage:get(), bt_reserve) then
+        return false
+    end
+    if ww_cd <= 1.5 and rage < math.max(menu.heroic_strike_rage:get(), ww_reserve) then
         return false
     end
     if not utils.can_cast_melee(runtime.heroic_strike_id, me) then
@@ -942,6 +990,7 @@ local function try_heroic_strike(me, target, rage, target_hp_pct, is_aoe)
         runtime.last_on_next_attack_queue_at = _core_time()
         runtime.queued_on_next_attack_spell_id = runtime.heroic_strike_id
         utils.log_debug(menu, "Queue: Heroic Strike")
+        invalidate_ctx()
         return true
     end
     return false
@@ -1150,10 +1199,7 @@ local function try_overpower_dance(me, target, rage)
         and utils.cast_target(runtime.overpower_id, target)
     then
         runtime.overpower_queue_requested_at = _core_time()
-        mark_pending_cast(runtime.overpower_id, PENDING_CAST_TIMEOUT_S, function()
-            runtime.overpower_queue_requested_at = 0
-            runtime.overpower_pending_return = true
-        end)
+        mark_pending_cast(runtime.overpower_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Overpower")
         note_cast()
         return true
@@ -1168,6 +1214,12 @@ local function try_rend_in_battle_stance(me, target, rage)
     if utils.get_current_stance(me) ~= "battle" then return false end
     if rage < REND_COST then return false end
     if utils.has_debuff(target, spells.DEBUFF_REND) then return false end
+
+    local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
+    local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
+    if bt_cd <= 1.5 or ww_cd <= 1.5 then
+        return false
+    end
 
     if runtime.overpower_id
         and core.spell_book.is_spell_learned(runtime.overpower_id)
@@ -1478,10 +1530,10 @@ local function get_aoe_execute_target(me, fallback_target)
     return utils.find_execute_snipe_target(me, fallback_target, AOE_RADIUS)
 end
 
-local function try_slam_or_hamstring_filler(me, target, rage, target_hp_pct, label, is_aoe)
+local function try_slam_or_hamstring_filler(me, target, ctx, rage, target_hp_pct, label, is_aoe)
     -- If we are in execute phase, try to queue Heroic Strike (single target) or Cleave (AoE)
     if target_hp_pct < EXECUTE_HP_THRESHOLD then
-        if try_heroic_strike(me, target, rage, target_hp_pct, is_aoe) then
+        if try_heroic_strike(me, target, ctx, rage, target_hp_pct, is_aoe) then
             return true
         end
     end
@@ -1496,6 +1548,7 @@ local function try_slam_or_hamstring_filler(me, target, rage, target_hp_pct, lab
 
     if menu.use_slam_weave:get_state()
         and runtime.slam_id
+        and resource_gate.warrior.has_rage(ctx, 20)
         and rage >= HAMSTRING_MIN_RAGE
         and target_hp_pct >= EXECUTE_HP_THRESHOLD
         and utils.can_cast_melee(runtime.slam_id, me)
@@ -1541,19 +1594,19 @@ local function update_notifications(me, target)
         or false
 
     if runtime.burst_window_active and not runtime.last_burst_window_active then
-        add_notification_once(NOTIFICATION_BURST_ID, "EAX Fury", "Burst window active", 1.5, color.gold(220))
+        add_notification_once(NOTIFICATION_BURST_ID, "EAX Warrior Fury", "Burst window active", 1.5, color.gold(220))
     end
 
     if overpower_usable and not runtime.last_overpower_usable and is_valid_hostile_target(me, target) then
-        add_notification_once(NOTIFICATION_OVERPOWER_ID, "EAX Fury", "Overpower available", 1.5, color.orange(220))
+        add_notification_once(NOTIFICATION_OVERPOWER_ID, "EAX Warrior Fury", "Overpower available", 1.5, color.orange(220))
     end
 
     if runtime.last_slam_cast_game_time > 0 and (now_ms - runtime.last_slam_cast_game_time) <= 1000 then
-        add_notification_once(NOTIFICATION_SLAM_ID, "EAX Fury", "Slam weave", 1.0, color.cyan(220))
+        add_notification_once(NOTIFICATION_SLAM_ID, "EAX Warrior Fury", "Slam weave", 1.0, color.cyan(220))
     end
 
     if runtime.last_return_to_berserker_at > 0 and (now_ms - runtime.last_return_to_berserker_at) <= 1000 then
-        add_notification_once(NOTIFICATION_RETURN_ID, "EAX Fury", "Returned to Berserker", 1.0, color.blue(220))
+        add_notification_once(NOTIFICATION_RETURN_ID, "EAX Warrior Fury", "Returned to Berserker", 1.0, color.blue(220))
     end
 
     runtime.last_burst_window_active = runtime.burst_window_active
@@ -1580,21 +1633,22 @@ local function try_tc_dance_return(me)
     return false
 end
 
-local function do_single_target_core_lane(me, target, rage, target_hp_pct)
+local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
     if try_tc_dance_return(me) then return true end
     local execute_phase_active = target_hp_pct <= 0.20
     local fast_one_hand_execute = execute_phase_active and is_fast_one_hand_execute_setup(me)
     local execute_swing_safe = (not execute_phase_active) or is_execute_swing_safe(me)
+    local rage_discount = get_set_rage_discount()
     local bt_can_cast = runtime.bloodthirst_id
-        and rage >= BLOODTHIRST_COST
+        and resource_gate.warrior.has_rage(ctx, math.max(15, BLOODTHIRST_COST - rage_discount))
         and utils.can_cast_hostile_no_usable(runtime.bloodthirst_id, me, target)
         or false
     local ww_can_cast = runtime.whirlwind_id
         and utils.is_melee_target(me, target)
-        and rage >= WHIRLWIND_COST
+        and resource_gate.warrior.has_rage(ctx, math.max(20, WHIRLWIND_COST - rage_discount))
         and _get_spell_cd(runtime.whirlwind_id) <= 0
         or false
-    local ex_can_cast = should_cast_execute(target_hp_pct, rage)
+    local ex_can_cast = should_cast_execute(target_hp_pct, ctx)
         and utils.can_cast_hostile_no_usable(runtime.execute_id, me, target)
         or false
 
@@ -1605,11 +1659,12 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
                 mark_pending_cast(runtime.execute_id, PENDING_CAST_TIMEOUT_S)
                 utils.log_debug(menu, "ST Execute (fast-1H): Execute")
                 note_cast()
+                invalidate_ctx()
                 return true
             end
         end
 
-        if try_heroic_strike(me, target, rage, target_hp_pct, false) then
+        if try_heroic_strike(me, target, ctx, rage, target_hp_pct, false) then
             return true
         end
     end
@@ -1619,6 +1674,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
             mark_pending_cast(runtime.bloodthirst_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "ST: Bloodthirst")
             note_cast()
+            invalidate_ctx()
             return true
         end
     end
@@ -1628,6 +1684,7 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
             mark_pending_cast(runtime.whirlwind_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "ST: Whirlwind")
             note_cast()
+            invalidate_ctx()
             return true
         end
     end
@@ -1641,11 +1698,13 @@ local function do_single_target_core_lane(me, target, rage, target_hp_pct)
                 utils.log_debug(menu, "ST: Execute")
             end
             note_cast()
+            invalidate_ctx()
             return true
         end
     end
 
-    if try_slam_or_hamstring_filler(me, target, rage, target_hp_pct, "ST") then
+    if try_slam_or_hamstring_filler(me, target, ctx, rage, target_hp_pct, "ST") then
+        invalidate_ctx()
         return true
     end
 
@@ -1757,10 +1816,11 @@ end
 
 
 
-local function do_aoe_core_lane(me, target, rage)
+local function do_aoe_core_lane(me, target, ctx, rage)
     if enc and not enc.aoe_safe then return false end
     local primary_target = utils.find_best_aoe_target(me, target, AOE_RADIUS) or target
     local execute_target = get_aoe_execute_target(me, primary_target)
+    local rage_discount = get_set_rage_discount()
 
     if menu.use_sweeping_strikes:get_state()
         and runtime.sweeping_strikes_id
@@ -1801,7 +1861,7 @@ local function do_aoe_core_lane(me, target, rage)
                 return true
             end
         elseif primary_target and utils.is_melee_target(me, primary_target)
-            and rage >= WHIRLWIND_COST
+            and resource_gate.warrior.has_rage(ctx, math.max(20, WHIRLWIND_COST - rage_discount))
             and _get_spell_cd(runtime.whirlwind_id) <= 0
         then
             if not is_pending_or_current(runtime.whirlwind_id)
@@ -1810,12 +1870,14 @@ local function do_aoe_core_lane(me, target, rage)
                 mark_pending_cast(runtime.whirlwind_id, PENDING_CAST_TIMEOUT_S)
                 utils.log_debug(menu, "AoE: Whirlwind")
                 note_cast()
+                invalidate_ctx()
                 return true
             end
         end
     end
 
     if primary_target and runtime.bloodthirst_id
+        and resource_gate.warrior.has_rage(ctx, math.max(15, BLOODTHIRST_COST - rage_discount))
         and utils.can_cast_hostile(runtime.bloodthirst_id, me, primary_target)
     then
         if not is_pending_or_current(runtime.bloodthirst_id)
@@ -1824,11 +1886,12 @@ local function do_aoe_core_lane(me, target, rage)
             mark_pending_cast(runtime.bloodthirst_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "AoE: Bloodthirst")
             note_cast()
+            invalidate_ctx()
             return true
         end
     end
 
-    if execute_target and should_cast_execute(utils.get_health_pct(execute_target), rage)
+    if execute_target and should_cast_execute(utils.get_health_pct(execute_target), ctx)
         and utils.can_cast_hostile_no_usable(runtime.execute_id, me, execute_target)
     then
         if not is_pending_or_current(runtime.execute_id)
@@ -1837,6 +1900,7 @@ local function do_aoe_core_lane(me, target, rage)
             mark_pending_cast(runtime.execute_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "AoE: Execute")
             note_cast()
+            invalidate_ctx()
             return true
         end
     end
@@ -1844,10 +1908,12 @@ local function do_aoe_core_lane(me, target, rage)
     if primary_target and try_slam_or_hamstring_filler(
             me,
             primary_target,
+            ctx,
             rage,
             utils.get_health_pct(primary_target),
             "AoE"
         ) then
+        invalidate_ctx()
         return true
     end
 
@@ -1950,11 +2016,7 @@ local function try_charge_opener(me, target)
 
     if not is_pending_or_current(runtime.charge_id) and utils.cast_target(runtime.charge_id, target) then
         runtime.charge_queue_requested_at = _core_time()
-        mark_pending_cast(runtime.charge_id, PENDING_CAST_TIMEOUT_S, function()
-            runtime.charge_queue_requested_at = 0
-            runtime.charge_pending_return = true
-            reset_charge_stance_request()
-        end)
+        mark_pending_cast(runtime.charge_id, PENDING_CAST_TIMEOUT_S)
         reset_charge_stance_request()
         utils.log_debug(menu, "Charge opener (" .. string.format("%.1f", distance) .. " yd)")
         note_cast()
@@ -2004,7 +2066,7 @@ local function try_intimidating_shout_keybind(me, target)
     return false
 end
 
-local function get_reserve_rage(me, target, is_aoe)
+local function get_reserve_rage(me, target, is_aoe, ctx)
     local reserve_rage = 0
     local execute_target = target
     local execute_target_hp_pct = target and utils.get_health_pct(target) or 1.0
@@ -2022,8 +2084,8 @@ local function get_reserve_rage(me, target, is_aoe)
         execute_target_hp_pct = execute_target and utils.get_health_pct(execute_target) or 1.0
     end
 
-    if should_cast_execute(execute_target_hp_pct, EXECUTE_MIN_RAGE) then
-        reserve_rage = math.max(reserve_rage, EXECUTE_MIN_RAGE)
+    if should_cast_execute(execute_target_hp_pct, ctx) then
+        reserve_rage = math.max(reserve_rage, 15)
     end
 
     if is_aoe and menu.use_sweeping_strikes:get_state() and runtime.sweeping_strikes_id
@@ -2065,7 +2127,7 @@ local function try_piercing_howl(me, target, rage, aoe_count)
     return false
 end
 
-local function do_queue_lane(me, target, rage, target_hp_pct, is_aoe)
+local function do_queue_lane(me, target, ctx, rage, target_hp_pct, is_aoe)
     -- Avoid burning rage on queued attacks while a stance return is still pending.
     if runtime.charge_pending_return or runtime.overpower_pending_return then
         return false
@@ -2105,7 +2167,7 @@ local function do_queue_lane(me, target, rage, target_hp_pct, is_aoe)
         return false
     end
 
-    local reserve_rage = get_reserve_rage(me, target, is_aoe)
+    local reserve_rage = get_reserve_rage(me, target, is_aoe, ctx)
 
     if is_aoe then
         if not menu.use_cleave:get_state() or not runtime.cleave_id then return false end
@@ -2124,6 +2186,7 @@ local function do_queue_lane(me, target, rage, target_hp_pct, is_aoe)
     end
 
     if not menu.use_heroic_strike:get_state() or not runtime.heroic_strike_id then return false end
+    if not resource_gate.warrior.can_queue_dump(ctx, 10, 60) then return false end
     if rage < menu.heroic_strike_rage:get() or rage <= (reserve_rage + 5) then return false end
 
     if utils.can_cast_melee(runtime.heroic_strike_id, me)
@@ -2132,6 +2195,7 @@ local function do_queue_lane(me, target, rage, target_hp_pct, is_aoe)
         runtime.last_on_next_attack_queue_at = _core_time()
         runtime.queued_on_next_attack_spell_id = runtime.heroic_strike_id
         utils.log_debug(menu, "Queue: Heroic Strike (" .. next_swing_ms .. "ms)")
+        invalidate_ctx()
         return true
     end
 
@@ -2140,125 +2204,184 @@ end
 
 -- -- main update callback ----------------------------------------------------
 
+local on_update_ctx = {
+    AOE_RADIUS = AOE_RADIUS,
+    MODE_DEBUG_INTERVAL_MS = MODE_DEBUG_INTERVAL_MS,
+    SLAM_CANCEL_WINDOW_MS = SLAM_CANCEL_WINDOW_MS,
+    _get_local_player = _get_local_player,
+    close_burst_window = close_burst_window,
+    consumables_manager = consumables_manager,
+    control_panel_utility = control_panel_utility,
+    core = core,
+    defensive_manager = defensive_manager,
+    do_aoe_core_lane = do_aoe_core_lane,
+    do_burst_lane = do_burst_lane,
+    do_consumable_lane = do_consumable_lane,
+    do_queue_lane = do_queue_lane,
+    do_self_only_upkeep = do_self_only_upkeep,
+    do_single_target_core_lane = do_single_target_core_lane,
+    do_utility_upkeep = do_utility_upkeep,
+    dps_risk = dps_risk,
+    dps_runtime = dps_runtime,
+    eax_utils = eax_utils,
+    encounter_manager = encounter_manager,
+    find_nearest_attacker = find_nearest_attacker,
+    get_effective_mode = get_effective_mode,
+    get_home_stance = get_home_stance,
+    handle_toggle = handle_toggle,
+    interrupt_manager = interrupt_manager,
+    is_gcd_lane_ready = is_gcd_lane_ready,
+    is_valid_hostile_target = is_valid_hostile_target,
+    log_resolved_spells = log_resolved_spells,
+    menu = menu,
+    mount_manager = mount_manager,
+    ooc_manager = ooc_manager,
+    racial_manager = racial_manager,
+    refresh_mode_cache = refresh_mode_cache,
+    refresh_pending_casts = refresh_pending_casts,
+    reset_burst_state = reset_burst_state,
+    reset_charge_stance_request = reset_charge_stance_request,
+    reset_on_next_attack_queue_state = reset_on_next_attack_queue_state,
+    reset_proc_tracking = reset_proc_tracking,
+    resolve_spells = resolve_spells,
+    sample_proc_states = sample_proc_states,
+    try_battle_shout = try_battle_shout,
+    try_charge_opener = try_charge_opener,
+    try_health_potion = try_health_potion,
+    try_healthstone = try_healthstone,
+    try_intercept = try_intercept,
+    try_intimidating_shout_keybind = try_intimidating_shout_keybind,
+    try_piercing_howl = try_piercing_howl,
+    try_pprep_bloodrage = try_prepull_bloodrage,
+    try_prepull_bloodrage = try_prepull_bloodrage,
+    try_pummel = try_pummel,
+    try_rend_in_battle_stance = try_rend_in_battle_stance,
+    try_return_after_charge = try_return_after_charge,
+    try_return_to_berserker = try_return_to_berserker,
+    try_stoneform = try_stoneform,
+    try_war_stomp_interrupt = try_war_stomp_interrupt,
+    try_overpower_dance = try_overpower_dance,
+    ttd_tracker = ttd_tracker,
+    update_notifications = update_notifications,
+    update_set_bonus = update_set_bonus,
+    update_stance_return_requests = update_stance_return_requests,
+    utils = utils,
+    vendor_automation = vendor_automation,
+}
+
 local function on_update()
-    control_panel_utility:on_update(menu)
-    handle_toggle()
+    local d = on_update_ctx
+    local menu = d.menu
+
+    d.control_panel_utility:on_update(menu)
+    d.handle_toggle()
 
     if not menu.enabled:get_state() then return end
 
-    -- OOC management (drink/eat/rez/group buffs)
-    ooc_manager.on_update(me, menu, utils)
-    local me = _get_local_player()
+    local me = d._get_local_player()
+    d.ooc_manager.on_update(me, menu, d.utils)
     if not me then return end
-
     if me:is_dead() then return end
+
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
-        mount_manager.update_mount_state(me, menu, utils)
+        d.mount_manager.update_mount_state(me, menu, d.utils)
     end
 
     if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
-        consumables_manager.try_use_ooc_food_drink(me, menu, utils)
+        d.consumables_manager.try_use_ooc_food_drink(me, menu, d.utils)
     end
 
     if menu.auto_repair and menu.auto_repair:get_state() then
-        vendor_automation.try_auto_repair(me, menu, utils)
+        d.vendor_automation.try_auto_repair(me, menu, d.utils)
     end
 
     if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
-        vendor_automation.try_auto_sell_greys(me, menu, utils)
+        d.vendor_automation.try_auto_sell_greys(me, menu, d.utils)
     end
 
     if me:is_in_combat() then
         if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
-            consumables_manager.try_use_combat_consumable(me, menu, utils)
+            d.consumables_manager.try_use_combat_consumable(me, menu, d.utils)
         end
         if menu.auto_flask and menu.auto_flask:get_state() then
-            consumables_manager.try_maintain_flask(me, menu, utils)
+            d.consumables_manager.try_maintain_flask(me, menu, d.utils)
         end
     end
 
-    if eax_utils.is_eating_or_drinking(me) then return end
+    if d.eax_utils.is_eating_or_drinking(me) then return end
     if me:is_mounted() then return end
 
-    refresh_mode_cache()
+    d.refresh_mode_cache()
 
-    if utils.throttle("update_set_bonus", 5.0) then
-        update_set_bonus(me)
+    if d.utils.throttle("update_set_bonus", 5.0) then
+        d.update_set_bonus(me)
     end
 
     if menu.debug:get_state() then
-        local now_ms = core.game_time()
-        if now_ms - runtime.last_mode_debug_at >= MODE_DEBUG_INTERVAL_MS then
+        local now_ms = d.core.game_time()
+        if now_ms - runtime.last_mode_debug_at >= d.MODE_DEBUG_INTERVAL_MS then
             runtime.last_mode_debug_at = now_ms
-            local eff = get_effective_mode()
+            local eff = d.get_effective_mode()
             local sham = runtime.cached_has_shaman and "yes" or "no"
-            core.log("[EAX Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | Shaman: " .. sham)
+            d.core.log("[EAX Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | Shaman: " .. sham)
         end
     end
 
     if not runtime.bloodthirst_id or not runtime.whirlwind_id then
         local previous_bt = runtime.bloodthirst_id
         local previous_ww = runtime.whirlwind_id
-        resolve_spells()
+        d.resolve_spells()
         if runtime.bloodthirst_id ~= previous_bt or runtime.whirlwind_id ~= previous_ww then
-            log_resolved_spells()
+            d.log_resolved_spells()
         end
     end
 
     if me:is_casting_spell() and me:get_active_spell_id() == runtime.slam_id then
-        if utils.get_next_swing_ms(me, 2) < SLAM_CANCEL_WINDOW_MS then
-            core.input.cancel_spells()
+        if d.utils.get_next_swing_ms(me, 2) < d.SLAM_CANCEL_WINDOW_MS then
+            d.core.input.cancel_spells()
         end
         return
     end
 
-    if utils.is_casting_or_channeling(me) then return end
+    if d.utils.is_casting_or_channeling(me) then return end
 
-    local rage = utils.get_rage(me)
-    local target = utils.find_best_target(me)
-    
-    -- Encounter policy (boss-specific rotation adjustments)
-    enc = encounter_manager.get_policy(me)
+    local rage = d.utils.get_rage(me)
+    local target = d.utils.find_best_target(me)
 
-    -- Interrupt
-    if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "warrior", utils) then
+    enc = d.encounter_manager.get_policy(me)
+
+    if target and target:is_valid() and me:can_attack(target) and d.interrupt_manager.should_interrupt(target) then
+        if d.interrupt_manager.try_interrupt(me, target, "warrior", d.utils) then
             return
         end
     end
 
-    -- Defensive abilities
-    -- Racial abilities
-    local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
+    local hold_offense = d.dps_risk.should_hold_offense(d.dps_runtime.build_snapshot(me, target, d.encounter_manager, d.ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        d.racial_manager.try_offensive(me)
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    d.racial_manager.try_utility(me, target)
+    d.racial_manager.try_defensive(me)
 
-    if defensive_manager.try_defensive(me, "warrior", utils) then
+    if d.defensive_manager.try_defensive(me, "warrior", d.utils) then
         return
     end
 
-    ttd_tracker.update(target)
-    
-    -- Focus Target Priority
-    local focus_target = eax_utils.get_focus_target(menu)
+    d.ttd_tracker.update(target)
+
+    local focus_target = d.eax_utils.get_focus_target(menu)
     if focus_target and focus_target:is_valid() then
         target = focus_target
     end
-    
-    -- Self-emergency
-    local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
+
+    local self_threshold = d.eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
-    if my_hp < self_threshold then
-        if try_battle_shout then try_battle_shout(me) end
+    if my_hp < self_threshold and d.try_battle_shout then
+        d.try_battle_shout(me)
     end
 
-    -- Auto-target: if we are in combat but have no valid hostile target, pick the
-    -- nearest mob that is attacking us so the rotation can react.
-    if me:is_in_combat() and not is_valid_hostile_target(me, target) then
-        local attacker = find_nearest_attacker(me)
+    if me:is_in_combat() and not d.is_valid_hostile_target(me, target) then
+        local attacker = d.find_nearest_attacker(me)
         if attacker then
             target = attacker
         end
@@ -2266,74 +2389,57 @@ local function on_update()
 
     if not me:is_in_combat() then
         if runtime.burst_window_active or next(runtime.burst_attempted) ~= nil then
-            reset_burst_state()
+            d.reset_burst_state()
         end
-        reset_on_next_attack_queue_state()
-        reset_proc_tracking()
+        d.reset_on_next_attack_queue_state()
+        d.reset_proc_tracking()
 
-        if runtime.charge_pending_return and utils.get_current_stance(me) == get_home_stance() then
+        if runtime.charge_pending_return and d.utils.get_current_stance(me) == d.get_home_stance() then
             runtime.charge_pending_return = false
         end
     end
 
-    local target_valid = is_valid_hostile_target(me, target)
-    refresh_pending_casts()
-    update_stance_return_requests(me, target_valid and target or nil)
+    local target_valid = d.is_valid_hostile_target(me, target)
+    d.refresh_pending_casts()
+    d.update_stance_return_requests(me, target_valid and target or nil)
 
-    update_notifications(me, target)
-    sample_proc_states(me)
+    d.update_notifications(me, target)
+    d.sample_proc_states(me)
 
-    if try_healthstone(me) then
-        return
-    end
+    if d.try_healthstone(me) then return end
+    if d.try_health_potion(me) then return end
+    if d.try_stoneform(me) then return end
+    if d.try_intimidating_shout_keybind(me, target) then return end
 
-    if try_health_potion(me) then
-        return
-    end
-
-    if try_stoneform(me) then
-        return
-    end
-
-    if try_intimidating_shout_keybind(me, target) then
-        return
-    end
-
-    local gcd_lane_ready = is_gcd_lane_ready()
+    local gcd_lane_ready = d.is_gcd_lane_ready()
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
     if not target_valid then
         if runtime.burst_window_active then
-            close_burst_window("target invalid", false)
+            d.close_burst_window("target invalid", false)
         end
         runtime.charge_queue_requested_at = 0
         runtime.overpower_queue_requested_at = 0
-        reset_charge_stance_request()
-        reset_on_next_attack_queue_state()
+        d.reset_charge_stance_request()
+        d.reset_on_next_attack_queue_state()
 
         if gcd_lane_ready then
-            if try_return_after_charge(me) then
-                return
-            end
-            if try_return_to_berserker(me) then
-                return
-            end
-            if do_self_only_upkeep(me) then
-                return
-            end
+            if d.try_return_after_charge(me) then return end
+            if d.try_return_to_berserker(me) then return end
+            if d.do_self_only_upkeep(me) then return end
         end
         return
     end
 
     if not me:is_in_combat() then
-        if gcd_lane_ready and runtime.charge_pending_return and try_return_after_charge(me) then
+        if gcd_lane_ready and runtime.charge_pending_return and d.try_return_after_charge(me) then
             return
         end
-
-        if gcd_lane_ready and try_charge_opener(me, target) then
+        if gcd_lane_ready and d.try_charge_opener(me, target) then
             return
         end
-
-        if try_prepull_bloodrage(me, target) then
+        if d.try_prepull_bloodrage(me, target) then
             return
         end
     end
@@ -2342,75 +2448,42 @@ local function on_update()
         return
     end
 
-    utils.ensure_melee_auto_attack(me, target)
+    d.utils.ensure_melee_auto_attack(me, target)
 
-    if try_intercept(me, target) then
-        return
-    end
+    if d.try_intercept(me, target) then return end
+    if d.try_pummel(me, target) then return end
+    if d.try_war_stomp_interrupt(me, target) then return end
 
-    if try_pummel(me, target) then
-        return
-    end
-
-    if try_war_stomp_interrupt(me, target) then
-        return
-    end
-
-    local aoe_count = utils.enemy_count_in_radius(me, AOE_RADIUS)
+    local aoe_count = d.utils.enemy_count_in_radius(me, d.AOE_RADIUS)
     local is_aoe = aoe_count >= menu.aoe_enemy_count:get()
-    local target_hp_pct = utils.get_health_pct(target)
+    local target_hp_pct = d.utils.get_health_pct(target)
 
     if runtime.overpower_queue_requested_at > 0 then
         return
     end
 
     if gcd_lane_ready then
-        if try_return_after_charge(me) then
-            return
-        end
+        if d.try_return_after_charge(me) then return end
+        if d.try_return_to_berserker(me) then return end
 
-        if try_return_to_berserker(me) then
-            return
-        end
+        rage = d.utils.get_rage(me)
 
-        rage = utils.get_rage(me)
-
-        if do_utility_upkeep(me, target, rage, target_hp_pct) then
-            return
-        end
-
-        if try_rend_in_battle_stance(me, target, rage) then
-            return
-        end
-
-        if try_overpower_dance(me, target, rage) then
-            return
-        end
-
-        if do_burst_lane(me, target) then
-            return
-        end
-
-        if not runtime.burst_window_active and do_consumable_lane(me) then
-            return
-        end
+        if d.do_utility_upkeep(me, target, rage, target_hp_pct) then return end
+        if d.do_burst_lane(me, target) then return end
+        if not runtime.burst_window_active and d.do_consumable_lane(me) then return end
 
         if is_aoe then
-            if do_aoe_core_lane(me, target, rage) then
-                return
-            end
+            if d.do_aoe_core_lane(me, target, ctx, rage) then return end
         else
-            if do_single_target_core_lane(me, target, rage, target_hp_pct) then
-                return
-            end
+            if d.do_single_target_core_lane(me, target, ctx, rage, target_hp_pct) then return end
         end
 
-        if try_piercing_howl(me, target, rage, aoe_count) then
-            return
-        end
+        if d.try_overpower_dance(me, target, rage) then return end
+        if d.try_rend_in_battle_stance(me, target, rage) then return end
+        if d.try_piercing_howl(me, target, rage, aoe_count) then return end
     end
 
-    do_queue_lane(me, target, rage, target_hp_pct, is_aoe)
+    d.do_queue_lane(me, target, ctx, rage, target_hp_pct, is_aoe)
 end
 
 local function draw_proc_status_line(y_offset, label, is_active, active_color)
@@ -2461,9 +2534,9 @@ end
 local function on_control_panel()
     local elements = {}
     local toggle_key_code = menu.toggle_key:get_key_code()
-    local display_name = "[EAX Fury] Enabled"
+    local display_name = "[EAX Warrior Fury] Enabled"
     if toggle_key_code ~= 7 then
-        display_name = "[EAX Fury] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
+        display_name = "[EAX Warrior Fury] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
     end
 
     local current_state = menu.enabled:get_state()
@@ -2487,18 +2560,7 @@ local function on_spell_cast(data)
     if not data or not data.spell_id then
         return
     end
-
-    -- pending_casts only contains spell IDs we queued ourselves, so the table
-    -- lookup acts as a natural filter.  Cooldown/timeout polling in
-    -- refresh_pending_casts() remains as fallback.
-    local pending = runtime.pending_casts[data.spell_id]
-    if not pending then
-        return
-    end
-
-    if pending.on_confirm then
-        pending.on_confirm()
-    end
+    smart_cast_manager.on_cast_success(data.spell_id)
     clear_pending_cast(data.spell_id)
 end
 

@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -65,6 +66,10 @@ menu.scorch_stack_target                  = core.menu.slider_int(1, 5, 5, "eax_m
 menu.scorch_refresh_ms                    = core.menu.slider_int(500, 5000, 1500, "eax_mage_fire_scorch_refresh_ms")
 menu.use_combustion                       = core.menu.checkbox(true, "eax_mage_fire_use_combustion")
 menu.use_trinkets                         = core.menu.checkbox(true, "eax_mage_fire_use_trinkets")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eax_mage_fire_use_cooldowns")
+menu.use_evocation                        = core.menu.checkbox(true, "eax_mage_fire_use_evocation")
+menu.use_frost_nova                       = core.menu.checkbox(true, "eax_mage_fire_use_frost_nova")
+menu.use_presence_of_mind                 = core.menu.checkbox(true, "eax_mage_fire_use_presence_of_mind")
 menu.use_ice_block                        = core.menu.checkbox(true, "eax_mage_fire_use_ice_block")
 menu.ice_block_hp_pct                     = core.menu.slider_int(0, 100, 20, "eax_mage_fire_ice_block_hp_pct")
 menu.use_flamestrike                      = core.menu.checkbox(true, "eax_mage_fire_use_flamestrike")
@@ -76,6 +81,17 @@ mana_conservator.register_menu_items(menu, "eax_mage_fire")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_scorch", label = "Scorch" },
+    { toggle = "use_fireball", label = "Fireball" },
+    { toggle = "use_pyroblast", label = "Pyroblast" },
+    { toggle = "use_combustion", label = "Combustion" },
+    { toggle = "use_flamestrike", label = "Flamestrike" },
+}, {
+    namespace = "eaxmagefire",
+    log_prefix = "[EAX Mage Fire] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 

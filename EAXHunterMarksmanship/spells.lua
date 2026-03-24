@@ -25,8 +25,6 @@ spells.HUNTERS_MARK  = { 14325, 14323, 14322, 1130 }
 spells.ASPECT_OF_THE_HAWK         = { 27044, 25296, 14327, 14326, 14325, 14324, 14323, 14322, 13165 }
 spells.ASPECT_OF_THE_MONKEY       = { 13163 }
 spells.ASPECT_OF_THE_VIPER        = { 34074 }
-spells.ASPECT_OF_THE_DRAGONHAWK   = { 61847 }  -- WotLK, resolve returns nil in TBC
-
 -- ── Traps ─────────────────────────────────────────────────────────────────────
 spells.IMMOLATION_TRAP = { 27023, 14305, 14304, 14303, 14302, 13795 }
 spells.FREEZING_TRAP   = { 14311, 14310, 3355 }

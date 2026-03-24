@@ -3,47 +3,62 @@
 -- APIs verified via docs/eax-family/API_LOOKUP_PLAYBOOK.md and existing EAX addons.
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("pholy", "Paladin Holy")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local healer_triage = require("eax_shared/healer_triage")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local healer_triage = require("healer_triage")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -111,11 +126,13 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -161,9 +178,9 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -175,9 +192,8 @@ local buff_manager = require("common/modules/buff_manager")
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 
-local CLEANSE_SPELL_IDS = {
-    4987, -- Cleanse
-}
+local CLEANSE_SPELL_IDS = spells.CLEANSE
+local PURIFY_SPELL_IDS = spells.PURIFY
 
 local DISPELABLE_DEBUFF_IDS = {
     16470, -- Infected Wounds (disease)
@@ -194,114 +210,66 @@ local MODE_REFRESH_INTERVAL = 1.0
 local runtime = {
     divine_shield_id = nil,
     redemption_id = nil,
-    divine_plea_id = nil,
-    jow_id = nil,
+    divine_illumination_id = nil,
     avenging_wrath_id = nil,
+    lay_on_hands_id = nil,
     holy_light_id = nil,
     flash_of_light_id = nil,
     holy_shock_id = nil,
-    blessing_light_id = nil,
     blessing_wisdom_id = nil,
     blessing_might_id = nil,
     cleanse_id = nil,
+    purify_id = nil,
     hand_of_freedom_id = nil,
-    word_of_glory_id = nil,
-    light_of_dawn_id = nil,
-    beacon_of_light_id = nil,
-    holy_power = 0,
     mode_cache = MODE_SOLO,
     mode_cache_refreshed_at = 0,
     last_toggle_state = false,
+    last_auto_blessings_key_state = false,
+    last_cleanse_key_state = false,
+    last_freedom_key_state = false,
+    last_predictive_key_state = false,
     ooc_blessing_of_might_id = nil,
     ooc_blessing_of_wisdom_id = nil,
 }
 
+local ctx_cache = rotation_context.new({
+    important_buffs = {
+        spells.BUFF_DIVINE_ILLUMINATION,
+        spells.BUFF_AVENGING_WRATH,
+    },
+    important_debuffs = {},
+})
+
+local function note_cast()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
 local HOLY_AOE_RADIUS = 20
-
-local HOLY_EXTRA_SPELLS = {
-    WORD_OF_GLORY = { 85673 },
-    LIGHT_OF_DAWN = { 85222 },
-}
-
-local function clamp_holy_power(value)
-    if value < 0 then
-        return 0
-    end
-    if value > 3 then
-        return 3
-    end
-    return value
-end
-
-local function gain_holy_power(amount)
-    runtime.holy_power = clamp_holy_power(runtime.holy_power + (amount or 0))
-end
-
-local function spend_holy_power(amount)
-    runtime.holy_power = clamp_holy_power(runtime.holy_power - (amount or 0))
-end
 
 local function resolve_spells()
     runtime.holy_light_id = utils.resolve_spell_id(spells.HOLY_LIGHT)
     runtime.flash_of_light_id = utils.resolve_spell_id(spells.FLASH_OF_LIGHT)
     runtime.holy_shock_id = utils.resolve_spell_id(spells.HOLY_SHOCK)
-    runtime.word_of_glory_id = utils.resolve_spell_id(spells.WORD_OF_GLORY or HOLY_EXTRA_SPELLS.WORD_OF_GLORY)
-    runtime.light_of_dawn_id = utils.resolve_spell_id(spells.LIGHT_OF_DAWN or HOLY_EXTRA_SPELLS.LIGHT_OF_DAWN)
-    runtime.beacon_of_light_id = utils.resolve_spell_id(spells.BEACON_OF_LIGHT)
-    runtime.blessing_light_id = utils.resolve_spell_id(spells.BLESSING_OF_LIGHT)
     runtime.blessing_wisdom_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM)
     runtime.blessing_might_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT)
+    runtime.ooc_blessing_of_wisdom_id = runtime.blessing_wisdom_id
+    runtime.ooc_blessing_of_might_id = runtime.blessing_might_id
     runtime.cleanse_id = utils.resolve_spell_id(CLEANSE_SPELL_IDS)
-    runtime.divine_plea_id    = utils.resolve_spell_id(spells.DIVINE_PLEA)
-    runtime.jow_id            = utils.resolve_spell_id(spells.JUDGEMENT_OF_WISDOM)
+    runtime.purify_id = utils.resolve_spell_id(PURIFY_SPELL_IDS)
+    runtime.divine_illumination_id = utils.resolve_spell_id(spells.DIVINE_ILLUMINATION)
     runtime.avenging_wrath_id = utils.resolve_spell_id(spells.AVENGING_WRATH)
-    runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
+    runtime.lay_on_hands_id = utils.resolve_spell_id(spells.LAY_ON_HANDS)
+    runtime.redemption_id = utils.resolve_spell_id(spells.REDEMPTION)
     runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
     runtime.divine_shield_id = utils.resolve_spell_id(spells.DIVINE_SHIELD)
 end
 
 local function log_resolved_spells()
     
-
-if control_panel_utility then
-    core.register_on_render_control_panel_callback(function()
-        local elements = {}
-        local function add_cb(label, item, uid)
-            if not item then return end
-            local cur = item:get_state()
-            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
-            if nxt ~= cur then item:set(nxt) end
-        end
-        local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Paladin Holy] Enabled"
-        if toggle_key ~= 7 then
-            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
-        end
-        label = "[" .. label
-        add_cb(label, menu.enabled, "eax_eaxpaladinholy_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_pho_cds = menu.use_cooldowns:get_state()
-            local nxt_pho_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PHo] Cooldowns", cur_pho_cds, 0, false, "eax_pho_cds_cp")
-            if nxt_pho_cds ~= cur_pho_cds then menu.use_cooldowns:set(nxt_pho_cds) end
-        end
-        if menu.focus_priority then
-            local cur_pho_focus = menu.focus_priority:get_state()
-            local nxt_pho_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PHo] Focus Priority", cur_pho_focus, 0, false, "eax_pho_focus_cp")
-            if nxt_pho_focus ~= cur_pho_focus then menu.focus_priority:set(nxt_pho_focus) end
-        end
-        if menu.use_racial then
-            local cur_pho_racial = menu.use_racial:get_state()
-            local nxt_pho_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PHo] Use Racial", cur_pho_racial, 0, false, "eax_pho_racial_cp")
-            if nxt_pho_racial ~= cur_pho_racial then menu.use_racial:set(nxt_pho_racial) end
-        end
-        end
-        return elements
-    end)
-end
 
 -- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
@@ -349,7 +317,38 @@ end
 core.log("[EAX Paladin Holy] Spells resolved: HL=" .. tostring(runtime.holy_light_id)
         .. " FoL=" .. tostring(runtime.flash_of_light_id)
         .. " HS=" .. tostring(runtime.holy_shock_id)
-        .. " Cleanse=" .. tostring(runtime.cleanse_id))
+        .. " DI=" .. tostring(runtime.divine_illumination_id)
+        .. " Cleanse=" .. tostring(runtime.cleanse_id or runtime.purify_id))
+end
+
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
+end
+
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function refresh_mode_cache()
@@ -381,6 +380,31 @@ local function handle_toggle()
         utils.log_debug(menu, "Addon toggled -> " .. tostring(new_state))
     end
     runtime.last_toggle_state = pressed
+end
+
+local function handle_checkbox_keybind(keybind, checkbox, state_key, label)
+    if not keybind or not checkbox then
+        return
+    end
+    if keybind:get_key_code() == 7 then
+        runtime[state_key] = false
+        return
+    end
+
+    local pressed = keybind:get_state()
+    if pressed and not runtime[state_key] then
+        local new_state = not checkbox:get_state()
+        checkbox:set(new_state)
+        utils.log_debug(menu, label .. " -> " .. tostring(new_state))
+    end
+    runtime[state_key] = pressed
+end
+
+local function handle_rotation_hotkeys()
+    handle_checkbox_keybind(menu.auto_blessings_key, menu.auto_blessings, "last_auto_blessings_key_state", "Auto Blessings")
+    handle_checkbox_keybind(menu.use_cleanse_key, menu.use_cleanse, "last_cleanse_key_state", "Cleanse")
+    handle_checkbox_keybind(menu.use_hand_of_freedom_key, menu.use_hand_of_freedom, "last_freedom_key_state", "Hand of Freedom")
+    handle_checkbox_keybind(menu.use_predictive_healing_key, menu.use_predictive_healing, "last_predictive_key_state", "Predictive Healing")
 end
 
 local function gather_heal_candidates(me)
@@ -458,42 +482,99 @@ local function count_injured_allies(me, hp_threshold)
     return count
 end
 
-local function find_beacon_target(me)
-    local fallback = me
-    local candidates = gather_heal_candidates(me)
-    for _, unit in ipairs(candidates) do
-        if unit and unit:is_valid() and not unit:is_dead() then
-            fallback = unit
-            if unit.get_class then
-                local ok, class_name = pcall(function() return string.lower(unit:get_class() or "") end)
-                if ok and (class_name == "warrior" or class_name == "paladin" or class_name == "druid") then
-                    return unit
-                end
-            end
+local function safe_unit_name(unit)
+    if unit and unit.get_name then
+        local ok, name = pcall(function() return unit:get_name() end)
+        if ok and name and name ~= "" then
+            return name
         end
     end
-    return fallback
+    return "unknown"
 end
 
-local function try_beacon_of_light(me)
-    if not runtime.beacon_of_light_id then
+local function safe_unit_class(unit)
+    if not unit or not unit.get_class then
+        return ""
+    end
+    local ok, class_name = pcall(function() return string.lower(unit:get_class() or "") end)
+    if ok and class_name then
+        return class_name
+    end
+    return ""
+end
+
+local function safe_group_role(unit)
+    if not unit or not unit.get_group_role then
+        return nil
+    end
+    local ok, role_id = pcall(function() return unit:get_group_role() end)
+    if ok then
+        return role_id
+    end
+    return nil
+end
+
+local function unit_uses_mana(unit)
+    if not unit or not unit.get_max_power then
         return false
     end
-    local beacon_target = find_beacon_target(me)
-    if not beacon_target or not beacon_target:is_valid() or beacon_target:is_dead() then
+    local ok, max_mana = pcall(function() return unit:get_max_power(0) end)
+    return ok and type(max_mana) == "number" and max_mana > 0
+end
+
+local function is_probable_tank(unit, me)
+    if not unit or not unit:is_valid() then
         return false
     end
-    if utils.has_buff(beacon_target, spells.BUFF_BEACON_OF_LIGHT or spells.BEACON_OF_LIGHT) then
+
+    local role_id = safe_group_role(unit)
+    if role_id and role_id == 0 then
+        return true
+    end
+
+    if me and utils.same_unit and utils.same_unit(unit, me) then
         return false
     end
-    if not utils.can_cast_target(runtime.beacon_of_light_id, me, beacon_target) then
+
+    local class_name = safe_unit_class(unit)
+    return class_name == "warrior" or class_name == "paladin" or class_name == "druid"
+end
+
+local function should_use_holy_light(target, hp_pct)
+    if not target or not hp_pct then
         return false
     end
-    if not utils.cast_target(runtime.beacon_of_light_id, beacon_target) then
+    local base_threshold = menu.holy_light_hp_pct:get() / 100
+    if is_probable_tank(target) then
+        base_threshold = math.max(base_threshold, 0.78)
+    end
+    return hp_pct <= base_threshold
+end
+
+local function should_use_divine_illumination(target, hp_pct, injured_allies)
+    if not target or not hp_pct then
         return false
     end
-    utils.log_debug(menu, "Beacon of Light")
-    return true
+    if not menu.use_divine_illumination:get_state() then
+        return false
+    end
+    if injured_allies >= 2 and hp_pct <= 0.75 then
+        return true
+    end
+    return should_use_holy_light(target, hp_pct) and hp_pct <= 0.60
+end
+
+local function should_use_avenging_wrath(target, hp_pct, injured_allies)
+    if not menu.use_avenging_wrath:get_state() then
+        return false
+    end
+    if injured_allies >= 3 then
+        return true
+    end
+    if target and hp_pct and hp_pct <= 0.35 then
+        return true
+    end
+    return false
 end
 
 local function has_dispellable_debuff(unit)
@@ -522,13 +603,8 @@ local function try_cast_spell(spell_id, me, target, label)
     if not utils.cast_target(spell_id, target) then
         return false
     end
-    local target_name = "unknown"
-    if target.get_name then
-        local name = target:get_name()
-        if name and name ~= "" then
-            target_name = name
-        end
-    end
+    note_cast()
+    local target_name = safe_unit_name(target)
     utils.log_debug(menu, label .. " -> " .. target_name)
     return true
 end
@@ -559,13 +635,11 @@ end
 local function build_paladin_triage_members(me)
     local candidates = gather_heal_candidates(me)
     local members = {}
-    local beacon_target = find_beacon_target(me)
-    local beacon_guid = unit_guid(beacon_target)
     for i = 1, #candidates do
         local unit = candidates[i]
         if unit and unit:is_valid() and not unit:is_dead() then
             local guid = unit_guid(unit) or ("candidate-" .. i)
-            local is_tank = guid == beacon_guid and guid ~= (unit_guid(me) or "self")
+            local is_tank = is_probable_tank(unit, me)
             members[#members + 1] = {
                 guid = guid,
                 unit = unit,
@@ -619,8 +693,7 @@ local function try_hand_of_freedom(me)
             if is_root or is_slow then
                 -- Don't waste if unit already has Hand of Freedom
                 if not utils.has_buff(unit, spells.BUFF_HAND_OF_FREEDOM) then
-                    if utils.cast_unit(runtime.hand_of_freedom_id, me, unit) then
-                        utils.log_debug(menu, "Hand of Freedom -> " .. (unit.get_name and unit:get_name() or "ally"))
+                    if try_cast_spell(runtime.hand_of_freedom_id, me, unit, "Hand of Freedom") then
                         return true
                     end
                 end
@@ -630,14 +703,111 @@ local function try_hand_of_freedom(me)
     return false
 end
 
+local function try_lay_on_hands(me, target, hp_pct)
+    if not menu.use_lay_on_hands:get_state() or not runtime.lay_on_hands_id then
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() or not hp_pct then
+        return false
+    end
+    if hp_pct > (menu.use_lay_on_hands_hp_pct:get() / 100) then
+        return false
+    end
+    return try_cast_spell(runtime.lay_on_hands_id, me, target, "Lay on Hands")
+end
+
+local function try_divine_shield_emergency(me)
+    if not menu.use_divine_shield:get_state() or not runtime.divine_shield_id then
+        return false
+    end
+    if not me or not me:is_valid() or me:is_dead() then
+        return false
+    end
+
+    local hp_threshold = menu.use_divine_shield_hp_pct:get() / 100
+    if utils.get_health_pct(me) > hp_threshold then
+        return false
+    end
+    if not utils.can_cast_self(runtime.divine_shield_id, me) then
+        return false
+    end
+    if utils.cast_self(runtime.divine_shield_id, me) then
+        invalidate_ctx()
+        utils.log_debug(menu, "Divine Shield")
+        return true
+    end
+    return false
+end
+
+local function try_divine_illumination(me, target, hp_pct, injured_allies)
+    if not runtime.divine_illumination_id then
+        return false
+    end
+    if not should_use_divine_illumination(target, hp_pct, injured_allies) then
+        return false
+    end
+    if not utils.can_cast_self(runtime.divine_illumination_id, me) then
+        return false
+    end
+    if not utils.cast_self(runtime.divine_illumination_id, me) then
+        return false
+    end
+    note_cast()
+    utils.log_debug(menu, "Divine Illumination")
+    return true
+end
+
+local function try_avenging_wrath(me, target, hp_pct, injured_allies)
+    if not runtime.avenging_wrath_id then
+        return false
+    end
+    if utils.has_buff(me, spells.BUFF_AVENGING_WRATH) then
+        return false
+    end
+    if not should_use_avenging_wrath(target, hp_pct, injured_allies) then
+        return false
+    end
+    if not utils.can_cast_self(runtime.avenging_wrath_id, me) then
+        return false
+    end
+    if not utils.cast_self(runtime.avenging_wrath_id, me) then
+        return false
+    end
+    note_cast()
+    utils.log_debug(menu, "Avenging Wrath")
+    return true
+end
+
 local function try_cleanse(me, target)
-    if not runtime.cleanse_id then
+    local cleanse_id = runtime.cleanse_id or runtime.purify_id
+    if not cleanse_id or not menu.use_cleanse:get_state() then
         return false
     end
     if has_dispellable_debuff(target) then
-        return try_cast_spell(runtime.cleanse_id, me, target, "Cleanse")
+        return try_cast_spell(cleanse_id, me, target, "Cleanse")
     end
     return false
+end
+
+local function desired_blessing_for_unit(unit)
+    if not unit or not unit:is_valid() or unit:is_dead() then
+        return nil, nil, nil
+    end
+
+    if is_probable_tank(unit) and runtime.blessing_might_id then
+        if not utils.has_buff(unit, spells.BUFF_BLESSING_OF_MIGHT) then
+            return runtime.blessing_might_id, spells.BUFF_BLESSING_OF_MIGHT, "Blessing of Might"
+        end
+        return nil, nil, nil
+    end
+
+    if unit_uses_mana(unit) and runtime.blessing_wisdom_id then
+        if not utils.has_buff(unit, spells.BUFF_BLESSING_OF_WISDOM) then
+            return runtime.blessing_wisdom_id, spells.BUFF_BLESSING_OF_WISDOM, "Blessing of Wisdom"
+        end
+    end
+
+    return nil, nil, nil
 end
 
 local function ensure_blessings(me)
@@ -648,95 +818,67 @@ local function ensure_blessings(me)
         return false
     end
 
-    if runtime.blessing_light_id
-        and not utils.has_buff(me, spells.BUFF_BLESSING_OF_LIGHT)
-        and try_cast_spell(runtime.blessing_light_id, me, me, "Blessing of Light")
-    then
-        return true
-    end
-
-    if runtime.blessing_wisdom_id
-        and not utils.has_buff(me, spells.BUFF_BLESSING_OF_WISDOM)
-        and try_cast_spell(runtime.blessing_wisdom_id, me, me, "Blessing of Wisdom")
-    then
-        return true
-    end
-
-    if runtime.blessing_might_id
-        and not utils.has_buff(me, spells.BUFF_BLESSING_OF_MIGHT)
-        and try_cast_spell(runtime.blessing_might_id, me, me, "Blessing of Might")
-    then
-        return true
+    local candidates = gather_heal_candidates(me)
+    for i = 1, #candidates do
+        local unit = candidates[i]
+        local blessing_id, _, label = desired_blessing_for_unit(unit)
+        if blessing_id and try_cast_spell(blessing_id, me, unit, label) then
+            return true
+        end
     end
 
     return false
 end
 
-local function try_cast_heal(me, target, hp_pct)
+local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
     if not target or not hp_pct then
         return false
     end
 
-    if menu.use_holy_shock:get_state() and runtime.holy_shock_id then
+    local emergency_flash_threshold = math.min(menu.flash_of_light_hp_pct:get() / 100, 0.40)
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08)
+        and menu.use_flash_of_light:get_state() and runtime.flash_of_light_id and hp_pct <= emergency_flash_threshold then
+        if try_cast_spell(runtime.flash_of_light_id, me, target, "Flash of Light") then
+            return true
+        end
+    end
+
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10)
+        and menu.use_holy_shock:get_state() and runtime.holy_shock_id then
         local threshold = menu.holy_shock_hp_pct:get() / 100
-        local target_injured = hp_pct <= 0.99
-        local should_generate_holy_power = runtime.holy_power < 3
-        if target_injured and (hp_pct <= threshold or should_generate_holy_power)
-            and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock")
-        then
-            gain_holy_power(1)
+        if hp_pct <= threshold and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock") then
             esp_renderer.on_cast(runtime.holy_shock_id, "Holy Shock", color.yellow(220))
             return true
         end
     end
 
-    if menu.use_flash_of_light:get_state() and runtime.flash_of_light_id then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10)
+        and try_divine_illumination(me, target, hp_pct, injured_allies or 0) then
+        return true
+    end
+
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.18)
+        and menu.use_holy_light:get_state() and runtime.holy_light_id and should_use_holy_light(target, hp_pct) then
+        if try_cast_spell(runtime.holy_light_id, me, target, "Holy Light") then
+            return true
+        end
+    end
+
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08)
+        and menu.use_flash_of_light:get_state() and runtime.flash_of_light_id then
         local threshold = menu.flash_of_light_hp_pct:get() / 100
         if hp_pct <= threshold and try_cast_spell(runtime.flash_of_light_id, me, target, "Flash of Light") then
             return true
         end
     end
 
-    if menu.use_holy_light:get_state() and runtime.holy_light_id then
-        local threshold = menu.holy_light_hp_pct:get() / 100
-        if hp_pct <= threshold and try_cast_spell(runtime.holy_light_id, me, target, "Holy Light") then
-            return true
-        end
-    end
-
     return false
-end
-
-
--- --- Divine Plea - mana recovery (v1.4) -----------------------------------
-
-local function try_divine_plea(me)
-    if not runtime.divine_plea_id then return false end
-    if utils.has_buff(me, spells.BUFF_DIVINE_PLEA) then return false end
-    local mana_pct = utils.get_mana_pct(me)
-    if mana_pct > 0.50 then return false end
-    if not utils.can_cast_self(runtime.divine_plea_id, me) then return false end
-    utils.cast_self(runtime.divine_plea_id, me)
-    utils.log_debug(menu, "Divine Plea")
-    return true
-end
-
--- --- Judgment of Wisdom - mana return on boss (v1.4) ----------------------
-
-local function try_judgment_of_wisdom(me, target)
-    if not runtime.jow_id then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if utils.has_debuff(target, spells.DEBUFF_JOW) then return false end
-    local mode = runtime.cached_mode or "solo"
-    if mode == "solo" then return false end
-    if not utils.can_cast_hostile(runtime.jow_id, me, target) then return false end
-    utils.cast_target(runtime.jow_id, target, "Judgment of Wisdom")
-    return true
 end
 
 
 local function on_update()
     handle_toggle()
+    handle_rotation_hotkeys()
     if not menu.enabled:get_state() then
         return
     end
@@ -784,13 +926,15 @@ local function on_update()
 
     if eax_utils.is_eating_or_drinking(me) then return end
 
-    -- Overheal Protection - cancel slow heals if target is healthy
-    if eax_utils.should_stopcasting(me, menu) then
+    -- Stopcast on overheal risk for slow heals
+    if menu.overheal_protection:get_state() and eax_utils.should_stopcasting(me, menu) then
         if SpellStopCasting then SpellStopCasting() end
     end
 
     -- Interrupt (PVP)
     local target = me:get_target()
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
     if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "paladin", utils) then
             return
@@ -824,7 +968,11 @@ local function on_update()
         local focus_hp = (focus_target:get_health_percentage() or 100) / 100
         local focus_flash_threshold = (menu.flash_of_light_hp_pct:get() or 0) / 100
         if focus_hp <= focus_flash_threshold then
-            if try_cast_heal(me, focus_target, focus_hp) then
+            local focus_injured = count_injured_allies(me, 0.80)
+            if try_lay_on_hands(me, focus_target, focus_hp) then
+                return
+            end
+            if try_cast_heal(me, focus_target, focus_hp, focus_injured, ctx) then
                 return
             end
         end
@@ -834,11 +982,10 @@ local function on_update()
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
-        -- Mana recovery
-    if try_divine_plea(me) then return end
-    if try_judgment_of_wisdom(me, utils.find_best_target(me)) then return end
-
-    if try_cast_heal(me, me, my_hp) then
+        if try_lay_on_hands(me, me, my_hp) then
+            return
+        end
+        if try_cast_heal(me, me, my_hp, count_injured_allies(me, 0.80), ctx) then
             return
         end
     end
@@ -846,11 +993,7 @@ local function on_update()
     refresh_mode_cache()
     local mode = get_effective_mode()
 
-    -- OOC: maintain beacon and blessings, not direct heals/cleanse
-    if try_beacon_of_light(me) then
-        return
-    end
-    if ensure_blessings(me) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and ensure_blessings(me) then
         return
     end
 
@@ -863,39 +1006,54 @@ local function on_update()
     local target, hp_pct = find_heal_target(me, mode)
     local injured_allies = count_injured_allies(me, 0.80)
 
-    if runtime.holy_power >= 3 and runtime.light_of_dawn_id and injured_allies >= 3 then
-        if utils.can_cast_self(runtime.light_of_dawn_id, me) and utils.cast_self(runtime.light_of_dawn_id, me) then
-            spend_holy_power(3)
-            utils.log_debug(menu, "Light of Dawn")
-            return
-        end
-    end
-
-    if runtime.holy_power >= 3 and runtime.word_of_glory_id and target and target:is_valid() then
-        if try_cast_spell(runtime.word_of_glory_id, me, target, "Word of Glory") then
-            spend_holy_power(3)
-            return
-        end
-    end
-
-    if try_hand_of_freedom(me) then return end
-    if try_cleanse(me, target) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_hand_of_freedom(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_cleanse(me, target) then
         return
     end
 
-    try_cast_heal(me, target, hp_pct)
+    if try_lay_on_hands(me, target, hp_pct) then
+        return
+    end
+
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_avenging_wrath(me, target, hp_pct, injured_allies) then
+        return
+    end
+
+    try_cast_heal(me, target, hp_pct, injured_allies, ctx)
 end
 
 local function on_control_panel()
     local elements = {}
-    
-    local toggle_key_code = menu.toggle_key:get_key_code()
-    local display_name = "[EAX Paladin Holy] Enable"
-    if toggle_key_code ~= 7 then
-        display_name = "[EAX Paladin Holy] Enable (" .. key_helper:get_key_name(toggle_key_code) .. ")"
+
+    if not control_panel_utility then
+        return elements
     end
-    control_panel_utility:insert_toggle_(elements, display_name, menu.toggle_key)
-    
+
+    local function add_cb(label, item, uid)
+        if not item then return end
+        local cur = item:get_state()
+        local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+        if nxt ~= cur then
+            item:set(nxt)
+        end
+    end
+
+    local title = "Eax Paladin Holy"
+    local toggle_key_code = menu.toggle_key:get_key_code()
+    if toggle_key_code ~= 7 then
+        title = title .. " (" .. key_helper:get_key_name(toggle_key_code) .. ")"
+    end
+
+    add_cb(title, menu.enabled, "eax_paladin_holy_enabled_cp")
+    if menu.enabled:get_state() then
+        add_cb("  PHo Focus", menu.focus_priority, "eax_paladin_holy_focus_cp")
+        add_cb("  PHo Racial", menu.use_racial, "eax_paladin_holy_racial_cp")
+        add_cb("  PHo Blessings", menu.auto_blessings, "eax_paladin_holy_blessings_cp")
+        add_cb("  PHo Cleanse", menu.use_cleanse, "eax_paladin_holy_cleanse_cp")
+        add_cb("  PHo Freedom", menu.use_hand_of_freedom, "eax_paladin_holy_freedom_cp")
+        add_cb("  PHo Predictive", menu.use_predictive_healing, "eax_paladin_holy_predictive_cp")
+    end
+
     return elements
 end
 
@@ -907,33 +1065,32 @@ reactive_adapter = {
     spec = "EAXPaladinHoly",
     actions = {
         life_save_self = {
-            handler = function(_, action_deps)
-                return try_cast_heal(action_deps.me, action_deps.me, utils.get_health_pct(action_deps.me))
+            handler = function(ctx, action_deps)
+                local me_hp = utils.get_health_pct(action_deps.me)
+                if try_lay_on_hands(action_deps.me, action_deps.me, me_hp) then
+                    return true
+                end
+                return try_cast_heal(action_deps.me, action_deps.me, me_hp, count_injured_allies(action_deps.me, 0.80), ctx)
             end,
         },
         life_save_ally = {
-            handler = function(_, action_deps)
+            handler = function(ctx, action_deps)
                 local summary, ally_target = resolve_paladin_triage(action_deps.me)
                 local ally_hp = ally_target and utils.get_health_pct(ally_target) or nil
                 if not ally_target or not ally_hp then
                     return false
                 end
 
-                if summary and summary.reason == "group_stabilize" and runtime.holy_power >= 3 and runtime.light_of_dawn_id then
-                    if utils.can_cast_self(runtime.light_of_dawn_id, action_deps.me) and utils.cast_self(runtime.light_of_dawn_id, action_deps.me) then
-                        spend_holy_power(3)
-                        utils.log_debug(menu, "Light of Dawn")
-                        return true
-                    end
+                if try_lay_on_hands(action_deps.me, ally_target, ally_hp) then
+                    return true
                 end
 
-                if summary and healer_triage.should_spend_emergency(summary, {}) and runtime.holy_power >= 3 and runtime.word_of_glory_id then
-                    if try_cast_spell(runtime.word_of_glory_id, action_deps.me, ally_target, "Word of Glory") then
-                        spend_holy_power(3)
+                if summary and healer_triage.should_spend_emergency(summary, {}) then
+                    if try_avenging_wrath(action_deps.me, ally_target, ally_hp, summary.group_count or 0) then
                         return true
                     end
                 end
-                return try_cast_heal(action_deps.me, ally_target, ally_hp)
+                return try_cast_heal(action_deps.me, ally_target, ally_hp, summary and summary.group_count or 0, ctx)
             end,
         },
         interrupt_control = { noop = "unsupported" },

@@ -2,49 +2,64 @@
 -- Damage automation that maintains VampiricTouch/Shadow Word: Pain and fires Mind Blast/Mind Flay.
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local key_helper = require("common/utility/key_helper")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("shadow", "Priest Shadow")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -112,11 +127,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -164,23 +183,24 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
-local dot_manager = require("eax_shared/dot_manager")
+local dot_manager = require("dot_manager")
 ---@type mana_manager
-local mana_manager = require("eax_shared/mana_manager")
+local mana_manager = require("mana_manager")
 ---@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
+local threat_manager = require("threat_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
 
 local runtime = {
+    last_cast_time = 0,
     dispersion_id = nil,
     resurrection_id = nil,
     flash_heal_id = nil,
@@ -192,10 +212,9 @@ local runtime = {
     last_set_check = 0,
     ooc_divine_spirit_id = nil,
     ooc_power_word_fort_id = nil,
-    shadow_orb_stacks = 0, -- Shadow Orbs stacks
-    shadow_orb_last_gain = 0,
-    tracked_orb_stacks = 0,
 }
+
+local ctx_cache = rotation_context.new({})
 
 local resolved = {
     vampiric_touch      = utils.resolve_spell_id(spells.VAMPIRIC_TOUCH),
@@ -208,7 +227,9 @@ local resolved = {
     mind_flay = utils.resolve_spell_id(spells.MIND_FLAY),
     shadowform = utils.resolve_spell_id(spells.SHADOWFORM),
     shadowfiend = utils.resolve_spell_id(spells.SHADOWFIEND),
-    shadow_weaving_buff = 25423, -- Shadow Weaving buff ID
+    fade = utils.resolve_spell_id(spells.FADE),
+    psychic_scream = utils.resolve_spell_id(spells.PSYCHIC_SCREAM),
+    shadow_weaving_buff = 25423,
 }
 
 local function log_mode(mode)
@@ -220,6 +241,7 @@ end
 
 local SET_UPDATE_INTERVAL_MS = 5000
 local PRIEST_SET_NAMES = { "Vestments", "Absolution", "AbsolutionRegalia" }
+local note_cast
 
 local function update_set_bonus(me)
     local now = core.game_time()
@@ -236,24 +258,6 @@ local function update_set_bonus(me)
     end
 end
 
-local function update_shadow_orb_stacks(me)
-    local buff_stacks = utils.get_buff_stacks(me, spells.BUFF_SHADOW_WEAVING)
-    if buff_stacks > 0 then
-        runtime.shadow_orb_stacks = buff_stacks
-        runtime.tracked_orb_stacks = 0  -- buff overrides tracked
-        runtime.shadow_orb_last_gain = _core_time()
-        return
-    end
-    -- Use tracked stacks (from Mind Flay casts)
-    runtime.shadow_orb_stacks = runtime.tracked_orb_stacks
-    -- Decay stacks after 10 seconds of no gain
-    local now = _core_time()
-    if runtime.shadow_orb_stacks > 0 and (now - runtime.shadow_orb_last_gain) > 10 then
-        runtime.tracked_orb_stacks = 0
-        runtime.shadow_orb_stacks = 0
-    end
-end
-
 local function ensure_shadowform(me)
     if not resolved.shadowform then
         return false
@@ -264,22 +268,29 @@ local function ensure_shadowform(me)
     end
 
     if not utils.has_buff(me, spells.SHADOWFORM) then
-        return utils.cast_self(resolved.shadowform, me)
+        if utils.cast_self(resolved.shadowform, me) then note_cast() return true end
+    return false
     end
 
     return false
 end
 
-local function refresh_dot(me, target, spell_id, debuff_ids, window_ms)
+local function refresh_dot(me, target, spell_id, debuff_ids)
     if not spell_id or not target then
         return false
     end
 
-    -- Use dot_manager for safe refresh timing (never clips final tick)
     if not dot_manager.can_refresh_dot(target, debuff_ids, spell_id, utils.get_debuff_remaining_ms) then
         return false
     end
-    return utils.cast_target(spell_id, target, nil)
+    if utils.cast_target(spell_id, me, target) then note_cast() return true end
+    return false
+end
+
+local function dots_active(target)
+    return utils.get_debuff_remaining_ms(target, spells.DEBUFF_VAMPIRIC_TOUCH) > 0
+        and utils.get_debuff_remaining_ms(target, spells.DEBUFF_SHADOW_WORD_PAIN) > 0
+        and utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEVOURING_PLAGUE) > 0
 end
 
 
@@ -287,13 +298,52 @@ end
 -- --- Vampiric Embrace buff maintenance (v1.4) -----------------------------
 
 
+note_cast = function()
+    runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
+end
+
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
+end
+
 local function try_psychic_scream(me, target)
     if not menu.use_psychic_scream or not menu.use_psychic_scream:get_state() then return false end
-    if not runtime.psychic_scream_id then return false end
+    if not resolved.psychic_scream then return false end
     local hp = me:get_health_percentage() / 100
     if hp > 0.40 then return false end
-    if not utils.can_cast_self(runtime.psychic_scream_id, me) then return false end
-    if utils.cast_self(runtime.psychic_scream_id, me) then
+    if not utils.can_cast_self(resolved.psychic_scream, me) then return false end
+    if utils.cast_self(resolved.psychic_scream, me) then
         utils.log_debug(menu, "Psychic Scream (defensive)")
         return true
     end
@@ -302,12 +352,12 @@ end
 
 local function try_fade(me)
     if not menu.use_fade or not menu.use_fade:get_state() then return false end
-    if not runtime.fade_id then return false end
+    if not resolved.fade then return false end
     if utils.has_buff(me, spells.BUFF_FADE) then return false end
     local hp = me:get_health_percentage() / 100
     if hp > 0.50 then return false end
-    if not utils.can_cast_self(runtime.fade_id, me) then return false end
-    if utils.cast_self(runtime.fade_id, me) then
+    if not utils.can_cast_self(resolved.fade, me) then return false end
+    if utils.cast_self(resolved.fade, me) then
         utils.log_debug(menu, "Fade")
         return true
     end
@@ -328,7 +378,8 @@ end
 local function try_vampiric_embrace(me)
     if not resolved.vampiric_embrace then return false end
     if utils.has_buff(me, spells.BUFF_VAMPIRIC_EMBRACE) then return false end
-    return utils.cast_self(resolved.vampiric_embrace, me)
+    if utils.cast_self(resolved.vampiric_embrace, me) then note_cast() return true end
+    return false
 end
 
 -- --- Inner Fire buff maintenance (v1.4) -----------------------------------
@@ -336,33 +387,31 @@ end
 local function try_inner_fire(me)
     if not resolved.inner_fire then return false end
     if utils.has_buff(me, spells.BUFF_INNER_FIRE) then return false end
-    if not menu.maintain_inner_fire or not menu.maintain_inner_fire:get_state() then return false end
-    return utils.cast_self(resolved.inner_fire, me)
+    if utils.cast_self(resolved.inner_fire, me) then note_cast() return true end
+    return false
 end
 
 -- --- Shadow Word: Death execute (v1.4) ------------------------------------
 
 local function try_sw_death(me, target)
     if not resolved.shadow_word_death then return false end
-    if not menu.use_sw_death or not menu.use_sw_death:get_state() then return false end
-    -- SW:D deals damage but also damages caster if it doesn't kill
-    -- Use only below 25% HP (execute) or when TTD < 4s
     local hp = utils.get_health_pct(target)
-    local is_execute = hp < 0.25 or ttd_tracker.get(target) < 4
+    local ttd = ttd_tracker.get(target) or 999
+    local is_execute = hp <= 0.25 or (hp <= 0.35 and ttd <= 2)
     if not is_execute then return false end
     if not utils.can_cast_hostile(resolved.shadow_word_death, me, target) then return false end
-    return utils.cast_target(resolved.shadow_word_death, target, "SW:Death")
+    if utils.cast_target(resolved.shadow_word_death, me, target) then note_cast() return true end
+    return false
 end
 
 
 local function try_devouring_plague(me, target)
     if not resolved.devouring_plague or not target then return false end
-    if not menu.use_devouring_plague or not menu.use_devouring_plague:get_state() then return false end
-    -- Use dot_manager for safe refresh timing (never clips final tick)
-    if not dot_manager.can_refresh_dot(target, spells.DEVOURING_PLAGUE, resolved.devouring_plague, utils.get_debuff_remaining_ms) then
+    if not dot_manager.can_refresh_dot(target, spells.DEBUFF_DEVOURING_PLAGUE, resolved.devouring_plague, utils.get_debuff_remaining_ms) then
         return false
     end
-    return utils.cast_target(resolved.devouring_plague, target, nil)
+    if utils.cast_target(resolved.devouring_plague, me, target) then note_cast() return true end
+    return false
 end
 
 
@@ -371,25 +420,11 @@ local function try_mind_blast(me, target)
         return false
     end
 
-    -- Shadow Orbs: cast Mind Blast when 3+ stacks (Shadow Weaving or tracked)
-    if runtime.shadow_orb_stacks >= 3 then
-        runtime.tracked_orb_stacks = 0  -- consume tracked stacks
-        return utils.cast_target(resolved.mind_blast, target, nil)
+    if not dots_active(target) then
+        return false
     end
 
-    local dot_window_ms = menu.dot_refresh_window:get() * 1000
-    local burst_window_ms = menu.mind_blast_burst_window:get() * 1000
-    local vt_remain = utils.get_buff_remaining_ms(target, spells.VAMPIRIC_TOUCH)
-    local swp_remain = utils.get_buff_remaining_ms(target, spells.SHADOW_WORD_PAIN)
-
-    if vt_remain >= dot_window_ms and swp_remain >= dot_window_ms then
-        return utils.cast_target(resolved.mind_blast, target, nil)
-    end
-
-    if menu.mind_blast_burst:get_state() and (vt_remain <= burst_window_ms or swp_remain <= burst_window_ms) then
-        return utils.cast_target(resolved.mind_blast, target, nil)
-    end
-
+    if utils.cast_target(resolved.mind_blast, me, target) then note_cast() return true end
     return false
 end
 
@@ -397,12 +432,8 @@ local function try_mind_flay(me, target)
     if not resolved.mind_flay or not target then
         return false
     end
-    -- Increment Shadow Orb stacks (max 3) if no Shadow Weaving buff
-    if utils.get_buff_stacks(me, spells.BUFF_SHADOW_WEAVING) == 0 then
-        runtime.tracked_orb_stacks = math.min(runtime.tracked_orb_stacks + 1, 3)
-        runtime.shadow_orb_last_gain = _core_time()
-    end
-    return utils.cast_target(resolved.mind_flay, target, nil)
+    if utils.cast_target(resolved.mind_flay, me, target) then note_cast() return true end
+    return false
 end
 
 local function try_shadowfiend(me)
@@ -419,9 +450,7 @@ local function try_shadowfiend(me)
 
     if utils.cast_self(resolved.shadowfiend, me) then
         runtime.shadowfiend_last = now
-                esp_renderer.on_cast(nil, "Mind Blast", color.purple(220))
-                esp_renderer.on_cast(nil, "Mind Flay", color.new(180,100,220,220))
-                esp_renderer.on_cast(nil, "Shadowfiend", color.new(150,150,160,200))
+        esp_renderer.on_cast(resolved.shadowfiend, "Shadowfiend", color.new(150,150,160,200))
         return true
     end
 
@@ -439,10 +468,8 @@ local function try_flash_heal(me, target)
     if not runtime.flash_heal_id then return false end
     local hp_pct = me:get_health_percentage() / 100
     if hp_pct > (menu.flash_heal_hp_pct:get() / 100) then return false end
-    local cast_target = target or me
-    if not cast_target:is_valid() then return false end
-    if not utils.can_cast_hostile(runtime.flash_heal_id, me, cast_target) then return false end
-    if utils.cast_target(runtime.flash_heal_id, cast_target, nil) then
+    if not utils.can_cast_self(runtime.flash_heal_id, me) then return false end
+    if utils.cast_self(runtime.flash_heal_id, me) then
         utils.log_debug(menu, "Flash Heal (emergency)")
         return true
     end
@@ -544,12 +571,11 @@ core.register_on_update_callback(function()
     if eax_utils.is_eating_or_drinking(me) then return end
 
     update_set_bonus(me)
-    update_shadow_orb_stacks(me)
 
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
 
-    ensure_shadowform(me)
+    if ensure_shadowform(me) then return end
 
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and not me:can_attack(focus_target) then focus_target = nil end
@@ -566,6 +592,9 @@ core.register_on_update_callback(function()
     if mana_conservator.on_update(me, target, menu, utils) then return end
 
     if target and target:is_valid() and not target:is_dead() and me:can_attack(target) then
+        local deps = { now_s = _core_time, get_gcd = _get_gcd }
+        local ctx = rotation_context.get(ctx_cache, me, target, deps)
+
         -- Interrupt
         if interrupt_manager.should_interrupt(target) then
             if interrupt_manager.try_interrupt(me, target, "priest", utils) then
@@ -584,7 +613,7 @@ core.register_on_update_callback(function()
         -- Defensive abilities
     ttd_tracker.update(target)
 
-        if try_dispersion(me) then return true end
+        if try_psychic_scream(me, target) then return true end
         if defensive_manager.try_defensive(me, "priest", utils) then
             return
         end
@@ -604,18 +633,19 @@ core.register_on_update_callback(function()
             end
         end
 
-        try_vampiric_embrace(me)
-        try_inner_fire(me)
-        refresh_dot(me, target, resolved.vampiric_touch, spells.VAMPIRIC_TOUCH)
-        refresh_dot(me, target, resolved.shadow_word_pain, spells.SHADOW_WORD_PAIN)
-        if try_devouring_plague(me, target) then return end
-
-        if not try_mind_blast(me, target) then
-            try_mind_flay(me, target)
-        end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_vampiric_embrace(me) then return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_inner_fire(me) then return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.16) and refresh_dot(me, target, resolved.vampiric_touch, spells.DEBUFF_VAMPIRIC_TOUCH) then invalidate_ctx() return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and refresh_dot(me, target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_devouring_plague(me, target) then return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_mind_blast(me, target) then return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_sw_death(me, target) then return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_mind_flay(me, target) then return end
     end
 
-    try_shadowfiend(me)
+    if target and ctx and resource_gate.common.has_mana_pct(ctx, 0.10) then
+        try_shadowfiend(me)
+    end
 end)
 
 

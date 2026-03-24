@@ -1,7 +1,9 @@
 -- EAX Paladin Retribution | utils.lua
--- Helper utilities used by the retri rotation.
+-- Helpers validated against documented Sylvanas APIs.
 
+---@type auto_attack_helper
 local auto_attack = require("common/utility/auto_attack_helper")
+---@type spell_queue
 local spell_queue = require("common/modules/spell_queue")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
@@ -9,19 +11,36 @@ local buff_manager = require("common/modules/buff_manager")
 local utils = {}
 
 -- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
-local spell_resolver = require("eax_shared/spell_resolver")
+local spell_resolver = require("spell_resolver")
 
 local queue_request_timestamps = {}
 local throttle_timestamps = {}
 local SPELL_QUEUE_INTERVAL_S = 0.25
+local FAST_SPELL_QUEUE_INTERVAL_S = 0.10
 
-local function can_issue_queue_request(kind, spell_id, target_key, interval)
+function utils.same_unit(a, b)
+    if not a or not b then return false end
+    if a == b then return true end
+
+    local a_is_player = type(a.is_player) == "function" and a:is_player()
+    local b_is_player = type(b.is_player) == "function" and b:is_player()
+    if a_is_player and b_is_player then
+        local a_name = type(a.get_name) == "function" and (a:get_name() or "") or ""
+        local b_name = type(b.get_name) == "function" and (b:get_name() or "") or ""
+        return a_name ~= "" and a_name == b_name
+    end
+
+    return false
+end
+
+local function can_issue_queue_request(kind, spell_id, target_key, interval_s)
     local key = kind .. ":" .. tostring(spell_id) .. ":" .. tostring(target_key)
     local now = core.time()
     local last = queue_request_timestamps[key] or 0
-    if (now - last) < interval then
+    if (now - last) < interval_s then
         return false
     end
+
     queue_request_timestamps[key] = now
     return true
 end
@@ -35,156 +54,161 @@ function utils.invalidate_spell_cache()
     spell_resolver.invalidate_cache()
 end
 
-function utils.cast_target(spell_id, target)
-    if not spell_id or not target or not target:is_valid() then
-        return false
-    end
-    if not can_issue_queue_request("cast_target", spell_id, target, SPELL_QUEUE_INTERVAL_S) then
-        return false
-    end
+function utils.is_known_spell(spell_id)
+    return spell_id ~= nil and core.spell_book.is_spell_learned(spell_id)
+end
 
-    spell_queue:queue_spell_target(spell_id, target, 1)
+function utils.can_cast_target(spell_id, me, target)
+    if not spell_id or not me or not target or not target:is_valid() then
+        return false
+    end
+    if not utils.is_known_spell(spell_id) then
+        return false
+    end
+    if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
+    if not core.spell_book.is_usable_spell(spell_id) then return false end
+    if not core.spell_book.is_spell_in_range(spell_id, target, me) then return false end
     return true
 end
 
-function utils.cast_self(spell_id, me)
-    if not spell_id or not me then
-        return false
-    end
-    if not can_issue_queue_request("cast_self", spell_id, me, SPELL_QUEUE_INTERVAL_S) then
-        return false
-    end
-
-    spell_queue:queue_spell_target(spell_id, me, 1)
-    return true
-end
-
-function utils.throttle(key, interval_s)
-    local now = core.time()
-    local last = throttle_timestamps[key] or 0
-    if (now - last) >= interval_s then
-        throttle_timestamps[key] = now
-        return true
-    end
-    return false
-end
-
-function utils.log_debug(menu_ref, msg)
-    if menu_ref and menu_ref.debug and menu_ref.debug:get_state() then
-        core.log("[EAX Paladin Retribution] " .. msg)
-    end
-end
-
-function utils.get_next_swing_ms(me)
-    if not me then
-        return math.huge
-    end
-    local next_attack_time = auto_attack:get_next_attack_game_time(me, 1)
-    if not next_attack_time or next_attack_time <= 0 then
-        return math.huge
-    end
-    local remaining = next_attack_time - core.game_time()
-    if remaining < 0 then
-        return 0
-    end
-    return remaining
-end
-
-function utils.is_melee_target(me, target)
-    if not me or not target or not target:is_valid() or target:is_dead() then
-        return false
-    end
-    local my_pos = me:get_position()
-    local target_pos = target:get_position()
-    if not my_pos or not target_pos then
-        return false
-    end
-    local reach = (me:get_combat_reach() or 0) + (target:get_combat_reach() or 0) + 1.0
-    local sq_dist = my_pos:squared_dist_to_ignore_z(target_pos)
-    return sq_dist <= (reach * reach)
-end
-
-function utils.ensure_melee_auto_attack(me, target)
-    if not me or not target or not target:is_valid() or target:is_dead() then
-        return false
-    end
-    if auto_attack:is_auto_attacking(target) then
-        return true
-    end
-    if not utils.throttle("paladin:ensure_auto_attack", 0.30) then
-        return false
-    end
-    return auto_attack:start_attack(target, auto_attack.ATTACK_TYPE.MELEE)
-end
-
-function utils.has_buff(unit, id_table)
-    if not unit or not id_table then
-        return false
-    end
-    local data = buff_manager:get_buff_data(unit, id_table)
-    return data ~= nil and data.is_active
-end
-
-function utils.has_debuff(unit, id_table)
-    if not unit or not id_table then
-        return false
-    end
-    local data = buff_manager:get_debuff_data(unit, id_table)
-    if data and data.is_active then return true end
-    data = buff_manager:get_aura_data(unit, id_table)
-    return data ~= nil and data.is_active
-end
-
---- Can the player cast an OFFENSIVE spell on target right now?
---- Extends can_cast_target with a hostility check (me:can_attack) and
---- a self-cast guard so damage spells never fire on friendly units.
+--- Can the player cast an offensive spell on target right now?
 ---@param spell_id number|nil
 ---@param me game_object
 ---@param target game_object
 ---@return boolean
 function utils.can_cast_hostile(spell_id, me, target)
     if not me or not target then return false end
-    -- Never cast damage spells on self
     if utils.same_unit(me, target) then return false end
-    -- Target must be attackable by the player (fails for friendlies, self, neutral)
     if not me:can_attack(target) then return false end
-    
-    function utils.same_unit(a, b)
-    if not a or not b then return false end
-    if a == b then return true end
-    if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
-    -- GUID comparison is authoritative — two different mobs can share a name
-    local function safe_guid(u)
-        if type(u.get_guid) ~= "function" then return nil end
-        local ok, g = pcall(function() return u:get_guid() end)
-        return (ok and g ~= nil) and tostring(g) or nil
-    end
-    local ga, gb = safe_guid(a), safe_guid(b)
-    if ga and gb then return ga == gb end
-    -- Fallback: name match only for players (NPCs commonly share names)
-    local a_player = type(a.is_player) == "function" and a:is_player()
-    local b_player = type(b.is_player) == "function" and b:is_player()
-    if a_player and b_player then
-        local a_name = a:get_name() or ""
-        local b_name = b:get_name() or ""
-        return a_name ~= "" and a_name == b_name
-    end
-    return false
+    return utils.can_cast_target(spell_id, me, target)
 end
 
-return utils.can_cast_target(spell_id, me, target)
+function utils.can_cast_self(spell_id, me)
+    if not spell_id or not me then return false end
+    if not utils.is_known_spell(spell_id) then
+        return false
+    end
+    if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
+    if not core.spell_book.is_usable_spell(spell_id) then return false end
+    return true
 end
 
+function utils.cast_target(spell_id, target)
+    if not spell_id or not target or not target:is_valid() then return false end
+    if not can_issue_queue_request("spell_target", spell_id, target, SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    spell_queue:queue_spell_target(spell_id, target, 1)
+    return true
+end
 
--- Find the best hostile target using priority logic:
--- 1. Current target if it is a valid hostile
--- 2. A hostile unit that is actively targeting ME (attacking me)
--- 3. A hostile unit attacking any party member
--- 4. Any nearby hostile unit
--- Returns nil if no valid target found.
--- Max range for auto target acquisition.
--- Covers melee + max gap-closer range. Units beyond this are ignored
--- unless they are actively attacking us or party.
+function utils.cast_self(spell_id, me)
+    if not utils.can_cast_self(spell_id, me) then return false end
+    if not can_issue_queue_request("spell_self", spell_id, me, SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    spell_queue:queue_spell_target(spell_id, me, 1)
+    return true
+end
+
+function utils.cast_self_fast(spell_id, me)
+    if not utils.can_cast_self(spell_id, me) then return false end
+    if not can_issue_queue_request("spell_self_fast", spell_id, me, FAST_SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    spell_queue:queue_spell_target_fast(spell_id, me, 1)
+    return true
+end
+
+function utils.cast_unit(spell_id, me, unit)
+    if not spell_id or not me or not unit or not unit:is_valid() or unit:is_dead() then
+        return false
+    end
+    if not can_issue_queue_request("spell_unit", spell_id, unit, SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    spell_queue:queue_spell_target(spell_id, unit, 1)
+    return true
+end
+
+function utils.get_health_pct(unit)
+    if not unit or not unit:is_valid() then return 0 end
+    local ok, pct = pcall(function()
+        local max_health = unit:get_max_health()
+        if max_health <= 0 then return 0 end
+        return unit:get_health() / max_health
+    end)
+    return (ok and type(pct) == "number") and math.max(0, math.min(1, pct)) or 0
+end
+
+function utils.get_mana_pct(me)
+    if not me or not me:is_valid() then return 1.0 end
+    local ok, pct = pcall(function()
+        local max_mana = me:get_max_power(0)
+        if max_mana <= 0 then return 1.0 end
+        return me:get_power(0) / max_mana
+    end)
+    return (ok and type(pct) == "number") and math.max(0, math.min(1, pct)) or 1.0
+end
+
+function utils.has_buff(unit, id_table)
+    if not unit or not id_table then return false end
+    local data = buff_manager:get_buff_data(unit, id_table)
+    return data ~= nil and data.is_active
+end
+
+function utils.has_debuff(unit, id_table)
+    if not unit or not id_table then return false end
+    local data = buff_manager:get_debuff_data(unit, id_table)
+    if data and data.is_active then return true end
+    data = buff_manager:get_aura_data(unit, id_table)
+    return data ~= nil and data.is_active
+end
+
+function utils.get_buff_remaining_ms(unit, id_table)
+    if not unit or not unit:is_valid() or not id_table then return 0 end
+    local data = buff_manager:get_buff_data(unit, id_table)
+    if data and data.is_active then
+        return data.remaining_time or 0
+    end
+    return 0
+end
+
+function utils.is_valid_hostile_target(me, target)
+    return target
+        and target:is_valid()
+        and not target:is_dead()
+        and me:can_attack(target)
+end
+
+function utils.count_enemies_within_radius(me, radius)
+    if not me or not radius or radius <= 0 then
+        return 0
+    end
+
+    local center_pos = me:get_position()
+    local count = 0
+    local objects = core.object_manager.get_visible_objects()
+
+    for i = 1, #objects do
+        local obj = objects[i]
+        if utils.is_valid_hostile_target(me, obj) and obj:is_in_combat() then
+            local obj_pos = obj:get_position()
+            local threshold = radius + (obj:get_bounding_radius() or 0)
+            local sq_dist = center_pos:squared_dist_to_ignore_z(obj_pos)
+            if sq_dist <= (threshold * threshold) then
+                count = count + 1
+            end
+        end
+    end
+
+    return count
+end
+
+function utils.enemy_count_in_radius(me, radius)
+    return utils.count_enemies_within_radius(me, radius)
+end
+
 local MODE_DETECT_INTERVAL_S = 5.0
 local AUTO_TARGET_MAX_RANGE = 40.0
 local AUTO_TARGET_MAX_HOSTILES = 50
@@ -209,7 +233,7 @@ function utils.detect_mode(me)
             if utils.is_group_member then
                 is_group_member = utils.is_group_member(me, obj)
             elseif obj:is_party_member() then
-                is_group_member = not (me and utils.same_unit and utils.same_unit(me, obj))
+                is_group_member = not utils.same_unit(me, obj)
             end
 
             if is_group_member then
@@ -230,7 +254,6 @@ function utils.detect_mode(me)
     return mode_cache
 end
 
-
 function utils.find_best_target(me)
     if not me or not me:is_valid() then return nil end
 
@@ -240,7 +263,14 @@ function utils.find_best_target(me)
 
     local current = me:get_target()
     if is_hostile(current) then
-        return current
+        if me:is_in_combat() then
+            return current
+        end
+        return nil
+    end
+
+    if not me:is_in_combat() then
+        return nil
     end
 
     local pos_me = nil
@@ -293,6 +323,118 @@ function utils.find_best_target(me)
     return best_attacking_party or best_any
 end
 
+function utils.get_next_swing_ms(me, weapon_count)
+    if not me then
+        return math.huge
+    end
 
+    local next_attack_time = auto_attack:get_next_attack_game_time(me, weapon_count or 1)
+    if not next_attack_time or next_attack_time <= 0 then
+        return math.huge
+    end
+
+    local remaining = next_attack_time - core.game_time()
+    if remaining < 0 then
+        return 0
+    end
+
+    return remaining
+end
+
+function utils.is_next_swing_within_ms(me, window_ms, floor_ms, weapon_count)
+    local remaining = utils.get_next_swing_ms(me, weapon_count)
+    if remaining == math.huge then
+        return false
+    end
+    if floor_ms and remaining <= floor_ms then
+        return false
+    end
+    return remaining <= window_ms
+end
+
+function utils.get_gcd_value_ms()
+    local gcd_value = auto_attack:get_global_value_game_time()
+    if not gcd_value or gcd_value <= 0 then
+        return 1500
+    end
+    return gcd_value
+end
+
+function utils.get_gcd_remaining_ms()
+    local next_global_time = auto_attack:get_next_global_game_time()
+    if not next_global_time or next_global_time <= 0 then
+        return 0
+    end
+
+    local remaining = next_global_time - core.game_time()
+    if remaining < 0 then
+        return 0
+    end
+
+    return remaining
+end
+
+function utils.would_new_gcd_cross_swing_window(me, window_ms, input_delay_ms)
+    local next_swing_ms = utils.get_next_swing_ms(me)
+    if next_swing_ms == math.huge then
+        return false
+    end
+
+    local floor_ms = input_delay_ms or 0
+    if next_swing_ms <= floor_ms then
+        return true
+    end
+
+    return next_swing_ms <= (window_ms + utils.get_gcd_value_ms() + floor_ms)
+end
+
+function utils.ensure_melee_auto_attack(me, target)
+    if not me or not me:is_in_combat() or not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+
+    if auto_attack:is_auto_attacking(target) then
+        return true
+    end
+
+    if not utils.throttle("paladin_ret:ensure_melee_auto_attack", 0.30) then
+        return false
+    end
+
+    return auto_attack:start_attack(target, auto_attack.ATTACK_TYPE.MELEE)
+end
+
+function utils.is_melee_target(me, target)
+    if not me or not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+
+    local my_pos = me:get_position()
+    local target_pos = target:get_position()
+    if not my_pos or not target_pos then
+        return false
+    end
+
+    local reach = (me:get_combat_reach() or 0) + (target:get_combat_reach() or 0) + 1.0
+    local sq_dist = my_pos:squared_dist_to_ignore_z(target_pos)
+    return sq_dist <= (reach * reach)
+end
+
+function utils.throttle(key, interval_s)
+    if not key or not interval_s then return false end
+    local now = core.time()
+    local last = throttle_timestamps[key] or 0
+    if (now - last) >= interval_s then
+        throttle_timestamps[key] = now
+        return true
+    end
+    return false
+end
+
+function utils.log_debug(menu_ref, msg)
+    if menu_ref and menu_ref.debug and menu_ref.debug:get_state() then
+        core.log("[EAX Paladin Retribution] " .. tostring(msg))
+    end
+end
 
 return utils

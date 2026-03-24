@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -67,9 +68,6 @@ menu.use_regrowth                         = core.menu.checkbox(true, "eaxdruidre
 menu.regrowth_refresh_seconds             = core.menu.slider_int(1, 5, 2, "eaxdruidrestoration_regrowth_refresh_seconds")
 menu.use_swiftmend                        = core.menu.checkbox(true, "eaxdruidrestoration_use_swiftmend")
 menu.swiftmend_hp_pct                     = core.menu.slider_int(20, 80, 60, "eaxdruidrestoration_swiftmend_hp_pct")
-menu.use_wild_growth                      = core.menu.checkbox(true, "eaxdruidrestoration_use_wild_growth")
-menu.wild_growth_targets                  = core.menu.slider_int(2, 6, 3, "eaxdruidrestoration_wild_growth_targets")
-menu.wild_growth_mana_pct                 = core.menu.slider_int(20, 80, 40, "eaxdruidrestoration_wild_growth_mana_pct")
 menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidrestoration_remove_curse")
 menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidrestoration_use_innervate")
 menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_innervate_mana_pct")
@@ -80,6 +78,17 @@ menu.emergency_hp_pct                     = core.menu.slider_int(10, 60, 35, "ea
 menu.overheal_protection                  = core.menu.checkbox(true, "eaxdruidrestoration_overheal_protection")
 menu.use_healing_touch                    = core.menu.checkbox(true, "eaxdruidrestoration_use_healing_touch")
 menu.healing_touch_hp_pct                 = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_healing_touch_hp_pct")
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_rejuvenation", label = "Rejuvenation" },
+    { toggle = "use_regrowth", label = "Regrowth" },
+    { toggle = "use_lifebloom", label = "Lifebloom" },
+    { toggle = "use_swiftmend", label = "Swiftmend" },
+    { toggle = "use_remove_curse", label = "Remove Curse" },
+}, {
+    namespace = "eaxdruidrestoration",
+    log_prefix = "[EAX Druid Restoration] ",
+})
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
@@ -116,18 +125,15 @@ function menu.render()
             menu.regrowth_refresh_seconds:render("Regrowth Refresh (sec)", "Refresh Regrowth below this remaining time")
             menu.use_swiftmend:render("Swiftmend", "Consume an active HoT for burst healing")
             menu.swiftmend_hp_pct:render("Swiftmend HP %", "Health threshold for Swiftmend")
-            menu.use_wild_growth:render("Wild Growth", "Use Wild Growth for multi-target healing when available")
-            menu.wild_growth_targets:render("Wild Growth Targets", "Minimum injured allies before Wild Growth")
-            menu.wild_growth_mana_pct:render("Wild Growth Mana %", "Minimum mana to allow Wild Growth")
             menu.use_innervate:render("Innervate", "Recover mana automatically at the configured threshold")
             menu.innervate_mana_pct:render("Innervate Mana %", "Mana threshold for Innervate")
             menu.use_tranquility:render("Tranquility", "Use Tranquility during raid-wide injury windows")
             menu.tranquility_injured_count:render("Tranquility Injured Count", "Minimum injured allies before Tranquility")
-            menu.use_natures_swiftness:render("Nature's Swiftness", "Prep Nature's Swiftness for Regrowth emergencies")
-            menu.emergency_hp_pct:render("Emergency HP %", "Health threshold for Nature's Swiftness + Regrowth")
+            menu.use_natures_swiftness:render("Nature's Swiftness", "Prep Nature's Swiftness for Healing Touch emergencies")
+            menu.emergency_hp_pct:render("Emergency HP %", "Health threshold for Nature's Swiftness + Healing Touch")
+            menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
             menu.use_healing_touch:render("Healing Touch", "Direct heal fallback when target is critical and all HoTs are running")
             menu.healing_touch_hp_pct:render("Healing Touch HP %", "Only cast Healing Touch below this health threshold")
-            menu.overheal_protection:render("Overheal Protection", "Cancel slow heals when target is near full HP")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

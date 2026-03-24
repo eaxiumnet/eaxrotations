@@ -2,27 +2,37 @@
 -- Core rotation wiring for Protection Paladin survival and threat management.
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+---@type control_panel_helper
+local control_panel_utility = require("common/utility/control_panel_helper")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -30,20 +40,27 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("pprot", "Paladin Prot")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local tank_recovery = require("eax_shared/tank_recovery")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local tank_recovery = require("tank_recovery")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -111,11 +128,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -161,9 +182,9 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
@@ -194,13 +215,37 @@ local runtime = {
     mode_checked_at = 0,
     last_update_at = 0,
     prev_toggle_state = false,
+    last_blessings_key_state = false,
+    last_holy_shield_key_state = false,
+    last_consecration_key_state = false,
+    last_avengers_key_state = false,
+    last_freedom_key_state = false,
     ooc_blessing_of_might_id = nil,
+    ooc_blessing_of_wisdom_id = nil,
     ooc_blessing_of_sanctuary_id = nil,
     hand_of_freedom_id = nil,
     holy_wrath_id = nil,
     lay_on_hands_id = nil,
 }
 
+local ctx_cache = rotation_context.new({
+    important_buffs = {
+        spells.BUFF_RIGHTEOUS_FURY,
+        spells.BUFF_HOLY_SHIELD,
+        spells.BUFF_SEAL_OF_RIGHTEOUSNESS,
+    },
+    important_debuffs = {},
+})
+
+local function note_cast()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local GROUP_ROLE_TANK = 0
 local GROUP_ROLE_HEALER = 1
 local GROUP_ROLE_DAMAGER = 2
 
@@ -217,6 +262,9 @@ local function resolve_spells()
     runtime.lay_on_hands_id = utils.resolve_spell_id(spells.LAY_ON_HANDS)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
     runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
+    runtime.ooc_blessing_of_might_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT)
+    runtime.ooc_blessing_of_wisdom_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM)
+    runtime.ooc_blessing_of_sanctuary_id = utils.resolve_spell_id(spells.BLESSING_OF_SANCTUARY)
 end
 
 local function refresh_mode_cache(now)
@@ -237,6 +285,36 @@ local function get_effective_mode()
         return MODE_RAID
     end
     return runtime.cached_mode or MODE_SOLO
+end
+
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
+end
+
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function notify_cast(unique_id, message, notification_color)
@@ -267,6 +345,7 @@ local function ensure_righteous_fury(me)
     end
 
     if utils.can_cast_self(runtime.righteous_fury_id, me) and utils.cast_self(runtime.righteous_fury_id, me) then
+        note_cast()
         utils.log_debug(menu, "Cast Righteous Fury")
         notify_cast("paladin:rf", "Righteous Fury", color.gold(220))
         return true
@@ -289,6 +368,7 @@ local function ensure_holy_shield(me, target)
     end
 
     if utils.can_cast_self(runtime.holy_shield_id, me) and utils.cast_self(runtime.holy_shield_id, me) then
+        note_cast()
         utils.log_debug(menu, "Cast Holy Shield")
         notify_cast("paladin:holy_shield", "Holy Shield", color.blue(220))
         return true
@@ -307,12 +387,13 @@ local function try_hand_of_freedom(me)
     for i = 1, #objects do
         local unit = objects[i]
         if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
-            and (me:is_party_member_of(unit) or utils.same_unit(me, unit)) then
+            and (utils.same_unit(me, unit) or unit:is_party_member()) then
             local is_root = unit:is_rooted(500)
             local is_slow = include_slows and unit:is_slowed(0.30, 500)
             if is_root or is_slow then
                 if not utils.has_buff(unit, spells.BUFF_HAND_OF_FREEDOM) then
                     if utils.cast_unit(runtime.hand_of_freedom_id, me, unit) then
+                        note_cast()
                         utils.log_debug(menu, "Hand of Freedom -> " .. (unit.get_name and unit:get_name() or "ally"))
                         return true
                     end
@@ -334,6 +415,7 @@ local function try_consecration(me, enemy_count)
     end
 
     if utils.can_cast_self(runtime.consecration_id, me) and utils.cast_self(runtime.consecration_id, me) then
+        note_cast()
         utils.log_debug(menu, "Cast Consecration")
         notify_cast("paladin:consecration", "Consecration", color.red(220))
                 esp_renderer.on_cast(nil, "Consecration", color.yellow(220))
@@ -353,6 +435,7 @@ local function ensure_seal_of_righteousness(me)
     end
 
     if utils.can_cast_self(runtime.seal_of_righteousness_id, me) and utils.cast_self(runtime.seal_of_righteousness_id, me) then
+        note_cast()
         utils.log_debug(menu, "Seal of Righteousness")
         notify_cast("paladin:seal_of_righteousness", "Seal of Righteousness", color.gold(220))
         return true
@@ -372,6 +455,7 @@ local function try_avengers_shield(me, target, mode)
 
     if utils.can_cast_hostile(runtime.avengers_shield_id, me, target) then
         if utils.cast_target(runtime.avengers_shield_id, target) then
+            note_cast()
             utils.log_debug(menu, "Cast Avenger's Shield")
             notify_cast("paladin:avengers_shield", "Avenger's Shield", color.green(220))
                     esp_renderer.on_cast(nil, "Avenger's Shield", color.gold(220))
@@ -392,6 +476,7 @@ local function try_judgement(me, target)
     end
 
     if utils.cast_target(runtime.judgement_id, target) then
+        note_cast()
         utils.log_debug(menu, "Cast Judgement")
         notify_cast("paladin:judgement", "Judgement", color.gold(220))
         return true
@@ -414,6 +499,7 @@ local function try_holy_wrath(me)
         return false
     end
     if utils.cast_self(runtime.holy_wrath_id, me) then
+        note_cast()
         utils.log_debug(menu, "Holy Wrath")
         return true
     end
@@ -434,6 +520,7 @@ local function try_exorcism(me, target)
         return false
     end
     if utils.cast_target(runtime.exorcism_id, target) then
+        note_cast()
         utils.log_debug(menu, "Exorcism")
         notify_cast("paladin:exorcism", "Exorcism", color.yellow(220))
         return true
@@ -453,7 +540,27 @@ local function try_lay_on_hands_emergency(me)
         return false
     end
     if utils.cast_self(runtime.lay_on_hands_id, me) then
+        note_cast()
         utils.log_debug(menu, "Lay on Hands")
+        return true
+    end
+    return false
+end
+
+local function try_divine_shield_emergency(me)
+    if not menu.use_divine_shield:get_state() or not runtime.divine_shield_id then
+        return false
+    end
+    local hp_threshold = menu.use_divine_shield_hp_pct:get() / 100
+    if (me:get_health_percentage() / 100) > hp_threshold then
+        return false
+    end
+    if not utils.can_cast_self(runtime.divine_shield_id, me) then
+        return false
+    end
+    if utils.cast_self(runtime.divine_shield_id, me) then
+        invalidate_ctx()
+        utils.log_debug(menu, "Divine Shield")
         return true
     end
     return false
@@ -469,6 +576,32 @@ local function handle_toggle()
     runtime.prev_toggle_state = current
 end
 
+local function handle_checkbox_keybind(keybind, checkbox, state_key, label)
+    if not keybind or not checkbox then
+        return
+    end
+    if keybind:get_key_code() == 7 then
+        runtime[state_key] = false
+        return
+    end
+
+    local pressed = keybind:get_state()
+    if pressed and not runtime[state_key] then
+        local new_state = not checkbox:get_state()
+        checkbox:set(new_state)
+        utils.log_debug(menu, label .. " -> " .. tostring(new_state))
+    end
+    runtime[state_key] = pressed
+end
+
+local function handle_rotation_hotkeys()
+    handle_checkbox_keybind(menu.ooc_group_buff_key, menu.ooc_group_buff, "last_blessings_key_state", "Group Blessings")
+    handle_checkbox_keybind(menu.use_holy_shield_key, menu.use_holy_shield, "last_holy_shield_key_state", "Holy Shield")
+    handle_checkbox_keybind(menu.use_consecration_key, menu.use_consecration, "last_consecration_key_state", "Consecration")
+    handle_checkbox_keybind(menu.use_avengers_shield_key, menu.use_avengers_shield, "last_avengers_key_state", "Avenger's Shield")
+    handle_checkbox_keybind(menu.use_hand_of_freedom_key, menu.use_hand_of_freedom, "last_freedom_key_state", "Hand of Freedom")
+end
+
 
 -- --- Hammer of Justice - interrupt/stun (v1.4) ---------------------------
 
@@ -478,27 +611,32 @@ local function try_hammer_of_justice(me, target)
     if not interrupt_manager.should_interrupt(target) then return false end
     if not utils.can_cast_hostile(runtime.hammer_of_justice_id, me, target) then return false end
     if utils.cast_target_fast(runtime.hammer_of_justice_id, target) then
+        note_cast()
         utils.log_debug(menu, "Hammer of Justice (interrupt)")
         return true
     end
     return false
 end
 
+local try_ooc_group_blessings
 
 local function on_update()
     if not menu.enabled:get_state() then
         handle_toggle()
+        handle_rotation_hotkeys()
         return
     end
 
     local now = _core_time()
     if (now - runtime.last_update_at) < UPDATE_INTERVAL then
         handle_toggle()
+        handle_rotation_hotkeys()
         return
     end
 
     runtime.last_update_at = now
     handle_toggle()
+    handle_rotation_hotkeys()
     if not menu.enabled:get_state() then
         return
     end
@@ -507,18 +645,10 @@ local function on_update()
     if not me or not me:is_valid() or me:is_dead() then
         return
     end
-        ooc_manager.on_update(me, menu, utils, {
-        group_buffs = {
-            { spell_id = runtime.ooc_blessing_of_might_id,
-               buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
-               name = "Blessing of Might",
-               toggle = menu.ooc_group_buff },
-            { spell_id = runtime.ooc_blessing_of_sanctuary_id,
-               buff_ids = spells.BUFF_BLESSING_OF_SANCTUARY,
-               name = "Blessing of Sanctuary",
-               toggle = menu.ooc_group_buff },
-        },
-    })
+    ooc_manager.on_update(me, menu, utils, {})
+    if try_ooc_group_blessings(me) then
+        return
+    end
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end
@@ -552,6 +682,8 @@ local function on_update()
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
     local target = focus_target or utils.find_best_target(me)
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
     
     if not target or not me:can_attack(target) then
         return
@@ -591,51 +723,83 @@ local function on_update()
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
         if try_hammer_of_justice(me, target) then return true end
-    if ensure_holy_shield(me, target) then return true end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and ensure_holy_shield(me, target) then return true end
     end
 
-    if try_hand_of_freedom(me) then return end
-    utils.ensure_melee_attack(me, target)
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_hand_of_freedom(me) then return end
+    if me:is_in_combat() then
+        utils.ensure_melee_attack(me, target)
+    end
 
-    if ensure_righteous_fury(me) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_righteous_fury(me) then
         return
     end
 
-    if ensure_seal_of_righteousness(me) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_seal_of_righteousness(me) then
         return
     end
 
-    if ensure_holy_shield(me, target) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and ensure_holy_shield(me, target) then
         return
     end
 
-    if try_judgement(me, target) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_judgement(me, target) then
         ensure_seal_of_righteousness(me)
         return
     end
 
     local enemy_count = utils.count_enemies_within_radius(me, menu.consecration_radius:get())
 
-    if try_consecration(me, enemy_count) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_consecration(me, enemy_count) then
         return
     end
 
-    if try_exorcism(me, target) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_exorcism(me, target) then
         return
     end
 
-    if try_holy_wrath(me) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_holy_wrath(me) then
         return
     end
 
-    if try_avengers_shield(me, target, mode) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_avengers_shield(me, target, mode) then
         return
     end
 end
 
 local function on_control_panel()
-    menu.enabled:render("Enabled", "Master toggle for the paladin helper")
-    menu.mode:render("Mode", { "Auto", "Solo", "Dungeon", "Raid" })
+    local elements = {}
+
+    if not control_panel_utility then
+        return elements
+    end
+
+    local function add_cb(label, item, uid)
+        if not item then return end
+        local cur = item:get_state()
+        local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
+        if nxt ~= cur then
+            item:set(nxt)
+        end
+    end
+
+    local title = "Eax Paladin Prot"
+    local toggle_key = menu.toggle_key:get_key_code()
+    if toggle_key ~= 7 then
+        title = title .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
+    end
+
+    add_cb(title, menu.enabled, "eax_paladin_prot_enabled_cp")
+    if menu.enabled:get_state() then
+        add_cb("  PPr Racial", menu.use_racial, "eax_paladin_prot_racial_cp")
+        add_cb("  PPr Blessings", menu.ooc_group_buff, "eax_paladin_prot_blessings_cp")
+        add_cb("  PPr Holy Shield", menu.use_holy_shield, "eax_paladin_prot_holy_shield_cp")
+        add_cb("  PPr Consecration", menu.use_consecration, "eax_paladin_prot_consecration_cp")
+        add_cb("  PPr Avenger's", menu.use_avengers_shield, "eax_paladin_prot_avengers_cp")
+        add_cb("  PPr Freedom", menu.use_hand_of_freedom, "eax_paladin_prot_freedom_cp")
+    end
+
+    return elements
 end
 
 resolve_spells()
@@ -686,6 +850,101 @@ local function classify_recovery_victim(me, victim)
     end
 
     return nil
+end
+
+local function get_group_blessing_assignment(me, unit)
+    if not me or not unit or not unit:is_valid() or unit:is_dead() then
+        return nil, nil, nil
+    end
+
+    local role_id = -1
+    if type(unit.get_group_role) == "function" then
+        local ok, value = pcall(function() return unit:get_group_role() end)
+        if ok and type(value) == "number" then
+            role_id = value
+        end
+    end
+
+    if utils.same_unit and utils.same_unit(me, unit) then
+        role_id = GROUP_ROLE_TANK
+    end
+
+    if role_id == GROUP_ROLE_TANK and runtime.ooc_blessing_of_sanctuary_id then
+        return runtime.ooc_blessing_of_sanctuary_id, spells.BUFF_BLESSING_OF_SANCTUARY, "Blessing of Sanctuary"
+    end
+
+    if role_id == GROUP_ROLE_HEALER and runtime.ooc_blessing_of_wisdom_id then
+        return runtime.ooc_blessing_of_wisdom_id, spells.BUFF_BLESSING_OF_WISDOM, "Blessing of Wisdom"
+    end
+
+    if runtime.ooc_blessing_of_might_id then
+        return runtime.ooc_blessing_of_might_id, spells.BUFF_BLESSING_OF_MIGHT, "Blessing of Might"
+    end
+
+    if runtime.ooc_blessing_of_wisdom_id then
+        return runtime.ooc_blessing_of_wisdom_id, spells.BUFF_BLESSING_OF_WISDOM, "Blessing of Wisdom"
+    end
+
+    if runtime.ooc_blessing_of_sanctuary_id then
+        return runtime.ooc_blessing_of_sanctuary_id, spells.BUFF_BLESSING_OF_SANCTUARY, "Blessing of Sanctuary"
+    end
+
+    return nil, nil, nil
+end
+
+try_ooc_group_blessings = function(me)
+    if not menu.ooc_group_buff or not menu.ooc_group_buff:get_state() then
+        return false
+    end
+    if not me or not me:is_valid() or me:is_dead() then
+        return false
+    end
+    if me:is_in_combat() or me:is_moving() then
+        return false
+    end
+
+    local ok_cast, is_casting = pcall(function() return me:is_casting_spell() end)
+    if ok_cast and is_casting then
+        return false
+    end
+
+    local ok_chan, is_channelling = pcall(function() return me:is_channelling_spell() end)
+    if ok_chan and is_channelling then
+        return false
+    end
+
+    if not utils.throttle("paladin_protection_group_blessings", 2.0) then
+        return false
+    end
+
+    local units = { me }
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and obj:is_player()
+           and obj:is_party_member() and not obj:is_dead()
+           and not (utils.same_unit and utils.same_unit(me, obj))
+        then
+            table.insert(units, obj)
+        end
+    end
+
+    for _, unit in ipairs(units) do
+        local spell_id, buff_ids, buff_name = get_group_blessing_assignment(me, unit)
+        if spell_id and buff_ids and not utils.has_buff(unit, buff_ids) then
+            local is_self = utils.same_unit and utils.same_unit(me, unit)
+            local can_cast = is_self and utils.can_cast_self(spell_id, me) or utils.can_cast_target(spell_id, me, unit)
+            if can_cast then
+                local cast_ok = is_self and utils.cast_self(spell_id, me) or utils.cast_target(spell_id, unit)
+                if cast_ok then
+                    utils.log_debug(menu, "OOC: " .. buff_name)
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
 end
 
 local function is_interruptible_enemy(unit)
@@ -844,41 +1103,6 @@ menu.set_window(_space_win)
 -- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
-
-
-if control_panel_utility then
-    core.register_on_render_control_panel_callback(function()
-        local elements = {}
-        local function add_cb(label, item, uid)
-            if not item then return end
-            local cur = item:get_state()
-            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
-            if nxt ~= cur then item:set(nxt) end
-        end
-        local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Paladin Prot] Enabled"
-        if toggle_key ~= 7 then
-            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
-        end
-        label = "[" .. label
-        add_cb(label, menu.enabled, "eax_eaxpaladinprotection_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_ppr_cds = menu.use_cooldowns:get_state()
-            local nxt_ppr_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PPr] Cooldowns", cur_ppr_cds, 0, false, "eax_ppr_cds_cp")
-            if nxt_ppr_cds ~= cur_ppr_cds then menu.use_cooldowns:set(nxt_ppr_cds) end
-        end
-        if menu.use_racial then
-            local cur_ppr_racial = menu.use_racial:get_state()
-            local nxt_ppr_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PPr] Use Racial", cur_ppr_racial, 0, false, "eax_ppr_racial_cp")
-            if nxt_ppr_racial ~= cur_ppr_racial then menu.use_racial:set(nxt_ppr_racial) end
-        end
-        end
-        return elements
-    end)
-end
 
 -- -- EAX Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.

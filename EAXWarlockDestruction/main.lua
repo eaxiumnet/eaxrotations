@@ -2,28 +2,36 @@
 -- EAX Warlock Destruction | Rotation logic
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -31,21 +39,29 @@ local enc = nil
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("destro", "Warlock Destro")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
+local set_bonus = require("set_bonus")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -113,11 +129,15 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -165,16 +185,16 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
-local dot_manager = require("eax_shared/dot_manager")
+local dot_manager = require("dot_manager")
 ---@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
+local threat_manager = require("threat_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
@@ -185,8 +205,11 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 
 local runtime = {
+    fel_armor_id = nil,
     drain_life_id = nil,
     immolate_id = nil,
+    soul_fire_id = nil,
+    shadowburn_id = nil,
     shadow_bolt_id = nil,
     drain_soul_id = nil,
     seed_of_corruption_id = nil,
@@ -194,33 +217,60 @@ local runtime = {
     conflagrate_id = nil,
     shadowfury_id = nil,
     life_tap_id = nil,
+    curse_of_agony_id = nil,
+    curse_of_doom_id = nil,
+    curse_of_elements_id = nil,
+    curse_of_recklessness_id = nil,
+    curse_of_tongues_id = nil,
+    curse_of_weakness_id = nil,
     last_cast_time = 0,
     pending_casts = {},
     cached_mode = "solo",
     prev_toggle_state = false,
+    current_curse_type = "none",
     set_multiplier = 1.0,
+    last_immolate_cast_s = 0,
 }
+
+local ctx_cache = rotation_context.new({})
 
 local GCD_INTERVAL_S = 0.05
 local PENDING_CAST_TIMEOUT_S = 2.5
-local LIFE_TAP_MANA_PCT = 0.38
+local LIFE_TAP_MANA_PCT = 0.40
+local DRAIN_SOUL_HP_PCT = 0.25
+local SHADOWBURN_HP_PCT = 0.25
+local SOUL_FIRE_MIN_HP_PCT = 0.25
+local SEED_AOE_THRESHOLD = 3
+local IMMOLATE_RECAST_GUARD_S = 8.0
 
 local function resolve_spells()
+    runtime.fel_armor_id = utils.resolve_spell_id(spells.FEL_ARMOR)
+    runtime.drain_life_id = utils.resolve_spell_id(spells.DRAIN_LIFE)
     runtime.immolate_id = utils.resolve_spell_id(spells.IMMOLATE)
-    runtime.shadow_bolt_id        = utils.resolve_spell_id(spells.SHADOW_BOLT)
-    runtime.drain_soul_id          = utils.resolve_spell_id(spells.DRAIN_SOUL)
-    runtime.seed_of_corruption_id  = utils.resolve_spell_id(spells.SEED_OF_CORRUPTION)
+    runtime.soul_fire_id = utils.resolve_spell_id(spells.SOUL_FIRE)
+    runtime.shadowburn_id = utils.resolve_spell_id(spells.SHADOWBURN)
+    runtime.shadow_bolt_id = utils.resolve_spell_id(spells.SHADOW_BOLT)
+    runtime.drain_soul_id = utils.resolve_spell_id(spells.DRAIN_SOUL)
+    runtime.seed_of_corruption_id = utils.resolve_spell_id(spells.SEED_OF_CORRUPTION)
     runtime.incinerate_id = utils.resolve_spell_id(spells.INCINERATE)
     runtime.conflagrate_id = utils.resolve_spell_id(spells.CONFLAGRATE)
     runtime.shadowfury_id = utils.resolve_spell_id(spells.SHADOWFURY)
     runtime.life_tap_id = utils.resolve_spell_id(spells.LIFE_TAP)
+    runtime.curse_of_agony_id = utils.resolve_spell_id(spells.CURSE_OF_AGONY)
+    runtime.curse_of_doom_id = utils.resolve_spell_id(spells.CURSE_OF_DOOM)
+    runtime.curse_of_elements_id = utils.resolve_spell_id(spells.CURSE_OF_ELEMENTS)
+    runtime.curse_of_recklessness_id = utils.resolve_spell_id(spells.CURSE_OF_RECKLESSNESS)
+    runtime.curse_of_tongues_id = utils.resolve_spell_id(spells.CURSE_OF_TONGUES)
+    runtime.curse_of_weakness_id = utils.resolve_spell_id(spells.CURSE_OF_WEAKNESS)
 end
 
 local function log_spells()
-    core.log("[EAX Warlock Destruction] Resolved: Immolate=" .. tostring(runtime.immolate_id)
+    core.log("[EAX Warlock Destruction] Resolved spells: Curse=" .. tostring(runtime.curse_of_elements_id or runtime.curse_of_agony_id)
+        .. " Immolate=" .. tostring(runtime.immolate_id)
         .. " Conflag=" .. tostring(runtime.conflagrate_id)
-        .. " Profile Fire=" .. tostring(runtime.incinerate_id)
-        .. " Shadow=" .. tostring(runtime.shadow_bolt_id))
+        .. " Incinerate=" .. tostring(runtime.incinerate_id)
+        .. " Shadowburn=" .. tostring(runtime.shadowburn_id)
+        .. " Soul Fire=" .. tostring(runtime.soul_fire_id))
 end
 
 resolve_spells()
@@ -229,59 +279,66 @@ log_spells()
 local function update_set_bonus()
     local me = _get_local_player()
     if not me then return end
-    
-    local voidheart_mult = utils.get_set_multiplier(me, "Voidheart")
-    local voidheart_regalia_mult = utils.get_set_multiplier(me, "VoidheartRegalia")
-    local malefic_mult = utils.get_set_multiplier(me, "Malefic")
-    
-    runtime.set_multiplier = voidheart_mult
-    if voidheart_regalia_mult > runtime.set_multiplier then
-        runtime.set_multiplier = voidheart_regalia_mult
+    local best_multiplier = 1.0
+    local set_names = { "Voidheart", "VoidheartRegalia", "OblivionRaiment", "CorruptorRaiment", "Malefic" }
+    for _, set_name in ipairs(set_names) do
+        local set_mult = set_bonus.get_multiplier(me, set_name)
+        if set_mult and set_mult > best_multiplier then
+            best_multiplier = set_mult
+        end
     end
-    if malefic_mult > runtime.set_multiplier then
-        runtime.set_multiplier = malefic_mult
-    end
-    
+    runtime.set_multiplier = best_multiplier
+
     if runtime.set_multiplier > 1.0 then
         utils.log_debug(menu, "Set bonus: " .. tostring(runtime.set_multiplier))
     end
 end
 
-local function is_pending_cast(spell_id)
-    if not spell_id then
-        return false
+local function set_adjusted_mana_pct(base_pct, damage_weight)
+    local mult = (runtime.set_multiplier or 1.0) * (damage_weight or 1.0)
+    if mult <= 1.0 then
+        return base_pct
     end
-    local pending = runtime.pending_casts[spell_id]
-    if not pending then
-        return false
-    end
-    if (_core_time() - pending) >= PENDING_CAST_TIMEOUT_S then
-        runtime.pending_casts[spell_id] = nil
-        return false
-    end
-    return true
-end
-
-local function mark_pending_cast(spell_id)
-    if not spell_id then
-        return
-    end
-    runtime.pending_casts[spell_id] = _core_time()
+    return math.max(0.04, base_pct / mult)
 end
 
 local function note_cast()
     runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
 end
 
 local function is_gcd_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_INTERVAL_S then
-        return false
-    end
-    return _get_gcd() <= 0
+    return smart_cast_manager.is_gcd_ready()
 end
 
-local function refresh_mode_cache()
-    runtime.cached_mode = utils.detect_mode(me)
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function get_effective_mode()
@@ -296,6 +353,14 @@ local function get_effective_mode()
     return runtime.cached_mode
 end
 
+local function refresh_mode_cache()
+    local me = _get_local_player()
+    if not me then
+        return
+    end
+    runtime.cached_mode = utils.detect_mode(me) or runtime.cached_mode or "solo"
+end
+
 local function get_profile()
     local profile_idx = menu.profile:get()
     if profile_idx == 2 then
@@ -303,13 +368,20 @@ local function get_profile()
     elseif profile_idx == 3 then
         return "shadow"
     end
-    if runtime.incinerate_id and not runtime.shadow_bolt_id then
+    if runtime.incinerate_id and runtime.conflagrate_id then
         return "fire"
     end
     if runtime.shadow_bolt_id then
         return "shadow"
     end
-    return "fire"
+    if runtime.incinerate_id then
+        return "fire"
+    end
+    return "shadow"
+end
+
+local function should_refresh_debuff(target, debuff_ids, spell_id)
+    return dot_manager.can_refresh_dot(target, debuff_ids, spell_id, utils.get_debuff_remaining_ms)
 end
 
 local function handle_toggle()
@@ -365,17 +437,55 @@ local function try_cast_self(me, spell_id, label)
     return false
 end
 
+local function is_within_range(a, b, max_range)
+    if not a or not b or not max_range then
+        return false
+    end
+
+    local ok_a, pos_a = pcall(function() return a:get_position() end)
+    local ok_b, pos_b = pcall(function() return b:get_position() end)
+    if not ok_a or not ok_b or not pos_a or not pos_b then
+        return false
+    end
+
+    local dx = pos_a.x - pos_b.x
+    local dy = pos_a.y - pos_b.y
+    local dz = pos_a.z - pos_b.z
+    return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
+end
+
+local function try_fel_armor(me)
+    if not menu.use_fel_armor or not menu.use_fel_armor:get_state() then
+        return false
+    end
+    if not runtime.fel_armor_id then
+        return false
+    end
+    if utils.has_buff(me, spells.BUFF_FEL_ARMOR) then
+        return false
+    end
+    return try_cast_self(me, runtime.fel_armor_id, "Fel Armor")
+end
+
 local function try_immolate(me, target)
     if not menu.use_immolate:get_state() or not runtime.immolate_id then
         return false
     end
+    local now_s = _core_time()
+    if runtime.last_immolate_cast_s > 0 and (now_s - runtime.last_immolate_cast_s) < IMMOLATE_RECAST_GUARD_S then
+        return false
+    end
     -- Use dot_manager for safe refresh timing (never clips final tick)
-    if utils.has_debuff(target, spells.IMMOLATE) then
-        if not dot_manager.can_refresh_dot(target, spells.IMMOLATE, runtime.immolate_id, utils.get_debuff_remaining_ms) then
+    if utils.has_debuff(target, spells.DEBUFF_IMMOLATE) then
+        if not dot_manager.can_refresh_dot(target, spells.DEBUFF_IMMOLATE, runtime.immolate_id, utils.get_debuff_remaining_ms) then
             return false
         end
     end
-    return try_cast_spell(me, runtime.immolate_id, target, "Immolate")
+    if try_cast_spell(me, runtime.immolate_id, target, "Immolate") then
+        runtime.last_immolate_cast_s = now_s
+        return true
+    end
+    return false
 end
 
 local function try_shadowfury(me, target)
@@ -383,7 +493,17 @@ local function try_shadowfury(me, target)
     if not menu.use_shadowfury:get_state() or not runtime.shadowfury_id then
         return false
     end
-    if not target:is_casting_spell() then
+    local enemy_count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
+            if is_within_range(me, obj, 10) then
+                enemy_count = enemy_count + 1
+            end
+        end
+    end
+    if not target:is_casting_spell() and enemy_count < SEED_AOE_THRESHOLD then
         return false
     end
     return try_cast_spell(me, runtime.shadowfury_id, target, "Shadowfury")
@@ -411,30 +531,189 @@ local function is_conflagrate_proc_ready(me, target)
     return utils.can_cast_hostile(runtime.conflagrate_id, me, target)
 end
 
-local function try_conflagrate(me, target)
+local function try_conflagrate(me, target, profile)
     if enc and enc.hold_cooldowns then return false end
+    if profile ~= "fire" and not me:is_moving() then
+        return false
+    end
     if not is_conflagrate_proc_ready(me, target) then
         return false
     end
     return try_cast_spell(me, runtime.conflagrate_id, target, "Conflagrate")
 end
 
+local function count_close_hostiles(me, radius)
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
+            if is_within_range(me, obj, radius) then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+local function count_seeded_targets(me, radius)
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
+            if is_within_range(me, obj, radius) and utils.has_debuff(obj, spells.DEBUFF_SEED_OF_CORRUPTION) then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+local function count_soul_shards()
+    if not core or not core.inventory or not core.inventory.get_items_in_bag then
+        return 0
+    end
+
+    local total = 0
+    for bag = 0, 4 do
+        local ok, items = pcall(function()
+            return core.inventory.get_items_in_bag(bag)
+        end)
+        if ok and items then
+            for _, slot in ipairs(items) do
+                local item = slot and slot.object
+                if item and item.is_valid and item:is_valid() and item.get_item_id and item:get_item_id() == 6265 then
+                    if item.get_item_stack_count then
+                        total = total + (item:get_item_stack_count() or 1)
+                    else
+                        total = total + 1
+                    end
+                end
+            end
+        end
+    end
+    return math.min(total, 3)
+end
+
+local function try_seed_of_corruption(me, target, enemy_count)
+    if enc and not enc.aoe_safe then return false end
+    if not menu.use_seed_of_corruption or not menu.use_seed_of_corruption:get_state() then return false end
+    if not runtime.seed_of_corruption_id or enemy_count < SEED_AOE_THRESHOLD then return false end
+    if me:is_moving() then return false end
+
+    local seeded_targets = count_seeded_targets(me, 12)
+    if seeded_targets >= math.min(enemy_count, 3) and utils.has_debuff(target, spells.DEBUFF_SEED_OF_CORRUPTION) then
+        return false
+    end
+
+    return try_cast_spell(me, runtime.seed_of_corruption_id, target, "Seed of Corruption")
+end
+
+local function get_selected_curse(me, target, mode)
+    local idx = menu.curse_mode and menu.curse_mode:get() or 1
+    local auto_curse = idx == 1
+
+    if auto_curse then
+        local ttd = visual_get_ttd_seconds(target)
+        if runtime.curse_of_doom_id and type(ttd) == "number" and ttd >= 120 then
+            return runtime.curse_of_doom_id, spells.DEBUFF_CURSE_OF_DOOM, "Curse of Doom", "doom"
+        end
+        return runtime.curse_of_elements_id or runtime.curse_of_agony_id,
+            runtime.curse_of_elements_id and spells.DEBUFF_CURSE_OF_ELEMENTS or spells.DEBUFF_CURSE_OF_AGONY,
+            runtime.curse_of_elements_id and "Curse of Elements" or "Curse of Agony",
+            runtime.curse_of_elements_id and "elements" or "agony"
+    elseif idx == 2 then
+        return runtime.curse_of_elements_id, spells.DEBUFF_CURSE_OF_ELEMENTS, "Curse of Elements", "elements"
+    elseif idx == 3 then
+        return runtime.curse_of_agony_id, spells.DEBUFF_CURSE_OF_AGONY, "Curse of Agony", "agony"
+    elseif idx == 4 then
+        return runtime.curse_of_doom_id, spells.DEBUFF_CURSE_OF_DOOM, "Curse of Doom", "doom"
+    elseif idx == 5 then
+        return runtime.curse_of_recklessness_id, spells.DEBUFF_CURSE_OF_RECKLESSNESS, "Curse of Recklessness", "recklessness"
+    elseif idx == 6 then
+        return runtime.curse_of_tongues_id, spells.DEBUFF_CURSE_OF_TONGUES, "Curse of Tongues", "tongues"
+    end
+
+    return runtime.curse_of_weakness_id, spells.DEBUFF_CURSE_OF_WEAKNESS, "Curse of Weakness", "weakness"
+end
+
+local function try_apply_curse(me, target, mode)
+    if not menu.use_curse or not menu.use_curse:get_state() then
+        return false
+    end
+
+    local curse_id, curse_debuffs, label, curse_type = get_selected_curse(me, target, mode)
+    if not curse_id or not curse_debuffs then
+        return false
+    end
+    if not should_refresh_debuff(target, curse_debuffs, curse_id) then
+        runtime.current_curse_type = curse_type or runtime.current_curse_type
+        return false
+    end
+    if try_cast_spell(me, curse_id, target, label) then
+        runtime.current_curse_type = curse_type or "unknown"
+        return true
+    end
+    return false
+end
+
+local function try_shadowburn(me, target)
+    if not menu.use_shadow_burn or not menu.use_shadow_burn:get_state() then
+        return false
+    end
+    if not runtime.shadowburn_id then
+        return false
+    end
+    if utils.get_health_pct(target) > SHADOWBURN_HP_PCT then
+        return false
+    end
+    if count_soul_shards() <= 0 then
+        return false
+    end
+    return try_cast_spell(me, runtime.shadowburn_id, target, "Shadowburn")
+end
+
+local function try_soul_fire(me, target)
+    if not menu.use_soul_fire or not menu.use_soul_fire:get_state() then
+        return false
+    end
+    if not runtime.soul_fire_id or me:is_moving() then
+        return false
+    end
+    if utils.get_health_pct(target) <= SOUL_FIRE_MIN_HP_PCT then
+        return false
+    end
+    if count_soul_shards() <= 0 then
+        return false
+    end
+    return try_cast_spell(me, runtime.soul_fire_id, target, "Soul Fire")
+end
+
+local function try_drain_soul(me, target)
+    if not menu.use_drain_soul or not menu.use_drain_soul:get_state() then
+        return false
+    end
+    if not runtime.drain_soul_id then
+        return false
+    end
+    if utils.get_health_pct(target) > DRAIN_SOUL_HP_PCT then
+        return false
+    end
+    return try_cast_spell(me, runtime.drain_soul_id, target, "Drain Soul")
+end
+
 local function try_nuke(me, target, profile)
     if profile == "fire" and menu.use_incinerate:get_state() and runtime.incinerate_id then
         if try_cast_spell(me, runtime.incinerate_id, target, "Incinerate") then
-                    esp_renderer.on_cast(nil, "Immolate", color.orange(220))
-                esp_renderer.on_cast(nil, "Incinerate", color.red(220))
-                esp_renderer.on_cast(nil, "Conflagrate", color.yellow(220))
-        return true
-        end
-    end
-    if profile == "shadow" and menu.use_shadow_bolt:get_state() and runtime.shadow_bolt_id then
-        if try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt") then
+            esp_renderer.on_cast(nil, "Incinerate", color.red(220))
             return true
         end
     end
-    if profile ~= "shadow" and menu.use_shadow_bolt:get_state() and runtime.shadow_bolt_id then
-        return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt")
+    if menu.use_shadow_bolt:get_state() and runtime.shadow_bolt_id then
+        if try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt") then
+            return true
+        end
     end
     if profile ~= "fire" and menu.use_incinerate:get_state() and runtime.incinerate_id then
         return try_cast_spell(me, runtime.incinerate_id, target, "Incinerate")
@@ -449,6 +728,9 @@ local function try_life_tap(me, mode)
     local health_pct = utils.get_health_pct(me)
     local mana_pct = utils.get_mana_pct(me)
     if mana_pct >= LIFE_TAP_MANA_PCT then
+        return false
+    end
+    if me:is_in_combat() and not utils.has_buff(me, spells.BUFF_FEL_ARMOR) then
         return false
     end
     local threshold = menu.life_tap_threshold:get() / 100
@@ -482,6 +764,14 @@ local SUMMON_SPELLS = {
     felguard   = spells.SUMMON_FELGUARD,
 }
 
+local PET_REQUIRES_SHARD = {
+    imp = false,
+    voidwalker = true,
+    succubus = true,
+    felhunter = true,
+    felguard = true,
+}
+
 local function get_pet_npc_id()
     local me = _get_local_player()
     if not me then return 0 end
@@ -499,19 +789,22 @@ local function current_pet_name()
 end
 
 local function desired_pet_name(mode)
-    -- Spec-appropriate default: overridden by subclass if needed
-    if mode == "raid"    then return "imp" end
-    if mode == "dungeon" then return "felhunter" end
-    return "voidwalker"
+    local pet_mode = menu.preferred_pet and menu.preferred_pet:get() or 1
+    if pet_mode == 2 then return "imp" end
+    if pet_mode == 3 then return "voidwalker" end
+    if pet_mode == 4 then return "succubus" end
+    if pet_mode == 5 then return "felhunter" end
+    if pet_mode == 6 then return "felguard" end
+    return nil
 end
 
 local function try_summon_correct_pet(me, mode)
-    if not menu.auto_pet or not menu.auto_pet:get_state() then return false end
     if me:is_in_combat() then return false end  -- never summon mid-combat
     if not utils.throttle("warlock_pet_check", 5.0) then return false end
 
     local current = current_pet_name()
     local desired = desired_pet_name(mode)
+    if not desired then return false end
 
     if current == desired then return false end  -- already correct
 
@@ -519,9 +812,23 @@ local function try_summon_correct_pet(me, mode)
     if not spell_table then return false end
     local spell_id = utils.resolve_spell_id(spell_table)
     if not spell_id then return false end
+    if PET_REQUIRES_SHARD[desired] and count_soul_shards() < 1 then
+        if utils.throttle("eax_destruction_pet_shard_warning", 10.0) then
+            core.log("[EAX Warlock Destruction] Cannot summon " .. desired .. ": need at least 1 Soul Shard.")
+            core.graphics.add_notification(
+                "eax_destruction_pet_shard_warning",
+                "[EAX] Pet Summon Blocked",
+                "Cannot summon " .. desired .. ": need at least 1 Soul Shard.",
+                6.0,
+                require("common/color").new(255, 180, 80, 255)
+            )
+        end
+        return false
+    end
     if not utils.can_cast_self(spell_id, me) then return false end
 
     utils.cast_self(spell_id, me)
+    invalidate_ctx()
     utils.log_debug(menu, "Summoning " .. desired)
     return true
 end
@@ -531,20 +838,6 @@ end
 
 local SHARD_FARM_HP_PCT = 0.10
 local SHARD_ITEM_IDS = { 6265 }  -- Soul Shard (stacks, any version)
-
-local function count_soul_shards()
-    for i = 0, 35 do
-        local item_id = core.inventory and core.inventory.get_item_id_in_bag_slot
-                        and core.inventory.get_item_id_in_bag_slot(i)
-        if item_id == 6265 then
-            local count = core.inventory.get_item_count and core.inventory.get_item_count(6265)
-            return count or 0
-        end
-    end
-    -- Fallback: use utils if available
-    if utils.get_item_count then return utils.get_item_count(6265) end
-    return 0
-end
 
 local function try_soul_shard_farm(me, target, drain_soul_id)
     if not menu.auto_shard_farm or not menu.auto_shard_farm:get_state() then return false end
@@ -562,32 +855,6 @@ local function try_soul_shard_farm(me, target, drain_soul_id)
     end
     return false
 end
-
-
-
--- --- Seed of Corruption - AoE mode (v1.4) --------------------------------
--- Use Seed of Corruption on AoE packs (3+ enemies). Each Seed explodes
--- when the target takes 1044+ damage, dealing shadow damage to all nearby.
-
-local SEED_AOE_THRESHOLD = 3
-
-local function try_seed_of_corruption(me, target, enemy_count)
-    if enc and not enc.aoe_safe then return false end
-    if not menu.use_seed_of_corruption or not menu.use_seed_of_corruption:get_state() then return false end
-    if not runtime.seed_of_corruption_id then return false end
-    if enemy_count < SEED_AOE_THRESHOLD then return false end
-    if me:is_moving() then return false end
-    -- Don't re-apply if Seed is already on target
-    if utils.has_debuff(target, spells.DEBUFF_SEED_OF_CORRUPTION) then return false end
-    if not utils.can_cast_hostile(runtime.seed_of_corruption_id, me, target) then return false end
-    if utils.cast_target(runtime.seed_of_corruption_id, target, "Seed of Corruption") then
-        utils.log_debug(menu, "Seed of Corruption (AoE x" .. tostring(enemy_count) .. ")")
-        return true
-    end
-    return false
-end
-
-
 local function try_drain_life_defensive(me, target)
     if not menu.use_drain_life_def or not menu.use_drain_life_def:get_state() then return false end
     if not runtime.drain_life_id then return false end
@@ -597,6 +864,7 @@ local function try_drain_life_defensive(me, target)
     if hp > threshold then return false end
     if not utils.can_cast_hostile(runtime.drain_life_id, me, target) then return false end
     if utils.cast_target(runtime.drain_life_id, target) then
+        invalidate_ctx()
         utils.log_debug(menu, "Drain Life (defensive)")
         return true
     end
@@ -608,6 +876,9 @@ local function do_rotation(me, target)
         return
     end
     
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
+
     -- Interrupt (Shadowfury)
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "warlock", utils) then
@@ -663,17 +934,57 @@ local function do_rotation(me, target)
     end
     
     local effective_mode = get_effective_mode()
-    if try_immolate(me, target) then
-        return
-    end
-    if try_conflagrate(me, target) then
-        return
-    end
-    if try_shadowfury(me, target) then
-        return
-    end
     local profile = get_profile()
-    if try_nuke(me, target, profile) then
+    local enemy_count = count_close_hostiles(me, 12)
+
+    if try_summon_correct_pet(me, effective_mode) then
+        return
+    end
+
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_fel_armor(me) then
+        return
+    end
+    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.18, 1.05)) and try_seed_of_corruption(me, target, enemy_count) then
+        return
+    end
+    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.10, 1.00)) and try_shadowfury(me, target) then
+        return
+    end
+    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.08, 0.95)) and try_apply_curse(me, target, effective_mode) then
+        return
+    end
+    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.12, 1.10)) and try_immolate(me, target) then
+        return
+    end
+    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.12, 1.20)) then
+        if try_shadowburn(me, target) then
+            return
+        end
+        if try_drain_soul(me, target) then
+            return
+        end
+        if (not ctx.self) or (not ctx.self.soul_shards) or ctx.self.soul_shards >= 1 then
+            if try_soul_fire(me, target) then
+                return
+            end
+        end
+    end
+    if profile == "fire" then
+        if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.10, 1.15)) and try_conflagrate(me, target, profile) then
+            return
+        end
+        if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.08, 1.10)) and try_nuke(me, target, profile) then
+            return
+        end
+    else
+        if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.08, 1.05)) and try_nuke(me, target, profile) then
+            return
+        end
+        if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.10, 1.15)) and try_conflagrate(me, target, profile) then
+            return
+        end
+    end
+    if try_soul_shard_farm(me, target, runtime.drain_soul_id) then
         return
     end
     try_life_tap(me, effective_mode)
@@ -778,6 +1089,8 @@ core.register_on_update_callback(function()
     if eax_utils.is_eating_or_drinking(me) then return end
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and not me:can_attack(focus_target) then focus_target = nil end
+    local effective_mode = get_effective_mode()
+    if not focus_target and try_summon_correct_pet(me, effective_mode) then return end
     local target = focus_target or utils.find_best_target(me)
     if not target then return end
 

@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -58,13 +59,23 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 
 -- -- Class-specific elements ---------------------------------------------------
 menu.profile                              = core.menu.combobox(1, "eax_destruction_profile")
+menu.use_fel_armor                        = core.menu.checkbox(true, "eax_destruction_use_fel_armor")
+menu.use_curse                            = core.menu.checkbox(true, "eax_destruction_use_curse")
+menu.curse_mode                           = core.menu.combobox(1, "eax_destruction_curse_mode")
 menu.use_immolate                         = core.menu.checkbox(true, "eax_destruction_use_immolate")
 menu.use_conflagrate                      = core.menu.checkbox(true, "eax_destruction_use_conflagrate")
 menu.use_shadowfury                       = core.menu.checkbox(true, "eax_destruction_use_shadowfury")
 menu.use_shadow_bolt                      = core.menu.checkbox(true, "eax_destruction_use_shadow_bolt")
 menu.use_incinerate                       = core.menu.checkbox(true, "eax_destruction_use_incinerate")
+menu.use_shadow_burn                      = core.menu.checkbox(true, "eax_destruction_use_shadow_burn")
+menu.use_soul_fire                        = core.menu.checkbox(true, "eax_destruction_use_soul_fire")
+menu.use_drain_soul                       = core.menu.checkbox(true, "eax_destruction_use_drain_soul")
+menu.use_seed_of_corruption               = core.menu.checkbox(true, "eax_destruction_use_seed_of_corruption")
 menu.use_life_tap                         = core.menu.checkbox(true, "eax_destruction_use_life_tap")
 menu.life_tap_threshold                   = core.menu.slider_int(10, 80, 40, "eax_destruction_lifetap_pct")
+menu.preferred_pet                        = core.menu.combobox(1, "eax_destruction_preferred_pet")
+menu.auto_shard_farm                      = core.menu.checkbox(true, "eax_destruction_auto_shard_farm")
+menu.min_shards                           = core.menu.slider_int(0, 10, 3, "eax_destruction_min_shards")
 
 mana_conservator.register_menu_items(menu, "eax_warlock_destruction")
 
@@ -72,6 +83,20 @@ mana_conservator.register_menu_items(menu, "eax_warlock_destruction")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_curse", label = "Curse" },
+    { toggle = "use_immolate", label = "Immolate" },
+    { toggle = "use_conflagrate", label = "Conflagrate" },
+    { toggle = "use_incinerate", label = "Incinerate" },
+    { toggle = "use_shadow_bolt", label = "Shadow Bolt" },
+    { toggle = "use_shadow_burn", label = "Shadow Burn" },
+    { toggle = "use_drain_soul", label = "Drain Soul" },
+    { toggle = "use_shadowfury", label = "Shadowfury" },
+}, {
+    namespace = "eaxwarlockdestruction",
+    log_prefix = "[EAX Warlock Destruction] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -92,14 +117,24 @@ function menu.render()
         -- -- Class-specific settings -------------------------------------------
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
+            menu.use_fel_armor:render("Fel Armor", "Maintain Fel Armor when available")
+            menu.use_curse:render("Curse", "Maintain the selected TBC curse on the target")
+            menu.curse_mode:render("Curse Mode", { "Auto", "Elements", "Agony", "Doom", "Recklessness", "Tongues", "Weakness" })
             menu.use_immolate:render("Immolate", "Maintain Immolate on the target")
             menu.use_conflagrate:render("Conflagrate", "Use Conflagrate when ready")
             menu.use_shadowfury:render("Shadowfury", "Use Shadowfury on spellcasters")
             menu.use_shadow_bolt:render("Shadow Bolt", "Shadow primary for the Shadow profile")
             menu.use_incinerate:render("Incinerate", "Fire primary for the Fire profile")
+            menu.use_shadow_burn:render("Shadow Burn", "Use Shadow Burn in execute range")
+            menu.use_soul_fire:render("Soul Fire", "Use Soul Fire as a hard-cast nuke when appropriate")
+            menu.use_drain_soul:render("Drain Soul", "Use Drain Soul as the execute channel")
+            menu.use_seed_of_corruption:render("Seed of Corruption", "Use Seed of Corruption for AoE")
             menu.use_life_tap:render("Life Tap", "Regen mana when health permits")
             menu.life_tap_threshold:render("Life Tap HP %", "Minimum percent health to Life Tap")
             menu.profile:render("Profile", { "Auto", "Fire", "Shadow" })
+            menu.preferred_pet:render("Pet Summon", { "Disabled", "Imp", "Voidwalker", "Succubus", "Felhunter", "Felguard" })
+            menu.auto_shard_farm:render("Auto Shard Farm", "Use Drain Soul on low-HP targets when shards are low")
+            menu.min_shards:render("Min Shards", "Keep at least this many Soul Shards")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

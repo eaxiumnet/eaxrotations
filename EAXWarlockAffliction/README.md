@@ -5,9 +5,8 @@ Affliction Warlock DPS automation for TBC on Project Sylvanas.
 ## Rotation
 - Maintains `Unstable Affliction`, `Corruption`, `Siphon Life`, and `Curse of Agony`.
 - `Curse of Doom` preferred in sustained fights (enabled by default).
-- `Haunt` on cooldown when available.
 - `Shadow Bolt` as the primary filler cast.
-- `Drain Soul` in execute range for soul shard generation.
+- `Drain Soul` becomes the execute filler once DoTs and curse upkeep are stable.
 - `Howl of Terror` for defensive AoE fear.
 - `Seed of Corruption` for AoE DoT spread.
 - `Life Tap` for mana sustain.

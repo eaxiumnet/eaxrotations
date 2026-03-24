@@ -19,6 +19,8 @@ Thumbs.db
 luac.out
 nul
 .tmp_wfu_luac.txt
+.ruff_cache/
+.sisyphus/
 
 # Deprecated plugins
 EaxFishing_v2_0_1/

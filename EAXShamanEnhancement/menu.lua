@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -70,11 +71,26 @@ menu.auto_totems                          = core.menu.checkbox(true, "auto_totem
 menu.auto_totem_wrath                     = core.menu.checkbox(true, "auto_totem_wrath")
 menu.auto_totem_windfury                  = core.menu.checkbox(true, "auto_totem_windfury")
 menu.prepull_totems                       = core.menu.checkbox(true, "prepull_totems")
+menu.use_totem_twist                      = core.menu.checkbox(false, "eaxshamanenhancement_use_totem_twist")
+menu.use_earth_totem                      = core.menu.checkbox(true, "eaxshamanenhancement_use_earth_totem")
+menu.use_water_totem                      = core.menu.checkbox(true, "eaxshamanenhancement_use_water_totem")
+menu.use_fire_totem                       = core.menu.checkbox(true, "eaxshamanenhancement_use_fire_totem")
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_cooldowns", label = "Cooldowns" },
+    { toggle = "use_chain_lightning_weave", label = "Chain Lightning Weave" },
+    { toggle = "auto_totems", label = "Auto Totems" },
+    { toggle = "auto_totem_windfury", label = "Windfury Totem" },
+    { toggle = "use_totem_twist", label = "Totem Twist" },
+}, {
+    namespace = "eaxshamanenhancement",
+    log_prefix = "[EAX Shaman Enhancement] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -104,6 +120,7 @@ function menu.render()
             menu.auto_totems:render("Auto Totems", "Keep Totem of Wrath and Windfury active")
             menu.auto_totem_wrath:render("Totem of Wrath", "Drive the fire slot")
             menu.auto_totem_windfury:render("Windfury Totem", "Refresh Windfury for melee procs")
+            menu.use_totem_twist:render("Totem Twist (Optional)", "Advanced raid behavior: alternate Windfury with Wrath/Grace of Air when desired")
             menu.prepull_totems:render("Pre-pull Totems", "Cast totems before the fight starts")
             menu.shock_mode:render("Shock Mode", { "Earth", "Flame", "Frost" })
         end)
@@ -147,6 +164,4 @@ function menu.render()
     end)
 end
 
-menu.use_shamanistic_rage = core.menu.checkbox(true, "eaxshamenhance_sham_rage")
-menu.use_shamanistic_rage_hp_pct = core.menu.slider_int(0, 100, 30, "eaxshamenhance_sham_hp")
 return menu

@@ -11,7 +11,7 @@ local DEFENSIVE_TIERS = {
         { hp = 0.30, spell_ids = {871, 8538, 8539}, name = "shield_wall" },
     },
     rogue = {
-        { id = 31224, name = "cloak_of_shadows", hp_threshold = 0.80, type = "dispel" },
+        { hp = 0.80, spell_ids = {31224}, name = "cloak_of_shadows" },
         { hp = 0.40, spell_ids = {5277}, name = "evasion" },
         { hp = 0.25, spell_ids = {1856}, name = "vanish" },
     },

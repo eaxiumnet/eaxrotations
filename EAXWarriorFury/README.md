@@ -17,6 +17,7 @@ EAX Fury is a lightweight Project Sylvanas plugin for Fury Warriors. It handles 
 - Works only on Warriors.
 - Default settings are meant to be usable immediately.
 - Optional controls cover burst, utility, consumables, and defensive behavior.
+- `Bloodthirst` / `Whirlwind` stay ahead of opportunistic `Overpower` dances and `Rend` filler windows, with `Heroic Strike` acting as a rage dump rather than a core lane.
 
 ## Notes
 

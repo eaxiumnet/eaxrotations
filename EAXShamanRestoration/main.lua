@@ -28,44 +28,53 @@
 
 require("common/wow_api_clone")  -- exposes GetWeaponEnchantInfo for temp enchant detection
 local menu   = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils  = require("utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 ---@type totem_manager
-local totem_manager = require("eax_shared/totem_manager")
+local totem_manager = require("totem_manager")
 
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("sresto", "Shaman Resto")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local healer_triage = require("eax_shared/healer_triage")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local healer_triage = require("healer_triage")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -133,11 +142,13 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -185,14 +196,13 @@ end)
 ---@type color
 local color = require("color")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
 
----@type key_helper
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -300,6 +310,8 @@ local rt = {
     set_multiplier         = 1.0,
 }
 
+local ctx_cache = rotation_context.new({})
+
 -- --- Totem table -------------------------------------------------------------
 
 local TOTEM_ROTATION = nil
@@ -377,31 +389,53 @@ end
 
 -- --- Pending cast tracking ---------------------------------------------------
 
-local function mark_pending(spell_id, timeout_s)
+local function mark_pending_cast(spell_id, timeout_s, options)
     if not spell_id then return end
-    rt.pending_casts[spell_id] = { requested_at = _core_time(), timeout_s = timeout_s or PENDING_CAST_TIMEOUT_S }
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+local function mark_pending(spell_id, timeout_s, options)
+    mark_pending_cast(spell_id, timeout_s, options)
+end
+
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
 end
 
 local function is_pending(spell_id)
-    if not spell_id then return false end
-    local p = rt.pending_casts[spell_id]
-    if not p then return false end
-    if (_core_time() - p.requested_at) >= p.timeout_s then
-        rt.pending_casts[spell_id] = nil
-        return false
-    end
-    return true
+    return is_pending_cast(spell_id)
 end
 
 local function note_cast()
     rt.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
 end
 
 -- --- GCD check ---------------------------------------------------------------
 
 local function is_gcd_ready()
-    if (_core_time() - rt.last_cast_time) < GCD_INTERVAL then return false end
-    return _get_gcd() <= 0
+    return smart_cast_manager.is_gcd_ready()
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 -- --- Cast wrappers -----------------------------------------------------------
@@ -446,6 +480,7 @@ local function try_cast_self_fast(me, spell_id, label)
     if is_pending(spell_id) then return false end
     if not utils.cast_self_fast(spell_id, me) then return false end
     mark_pending(spell_id, 0.5)
+    invalidate_ctx()
     esp_renderer.on_cast(spell_id, label, color.green(220), "Self")
     utils.log_debug(menu, label .. " (off-GCD)")
     return true
@@ -547,7 +582,7 @@ local function ensure_auto_attack(me)
     end
     
     -- Start attacking if not already
-    if not auto_attack_helper:is_auto_attacking(me) then
+    if me:is_in_combat() and not auto_attack_helper:is_auto_attacking(me) then
         auto_attack_helper:start_attack(target, auto_attack_helper.ATTACK_TYPE.MELEE)
     end
 end
@@ -980,14 +1015,17 @@ end
 
 local function try_pvp_utilities(me)
     if not menu.pvp_mode:get_state() then return false end
+    local function slot_has_totem(slot)
+        local info = core.spell_book.get_totem_info(slot)
+        return info and info.have_totem or false
+    end
     if menu.pvp_use_grounding:get_state() and rt.grounding_totem_id then
         local cd = _get_spell_cd(rt.grounding_totem_id)
         local last = rt.totem_last_apply["grounding"] or 0
-        if cd <= 0 and (_core_time() - last) >= 15 then
+        if cd <= 0 and not slot_has_totem(4) and (_core_time() - last) >= 2 then
             if try_cast_self(me, rt.grounding_totem_id, "Grounding Totem") then
-                rt.totem_last_apply["grounding"] = _core_time();         esp_renderer.on_cast(nil, "Chain Heal", color.green(220))
-                esp_renderer.on_cast(nil, "Healing Wave", color.cyan(220))
-        return true
+                rt.totem_last_apply["grounding"] = _core_time()
+                return true
             end
         end
     end
@@ -995,12 +1033,14 @@ local function try_pvp_utilities(me)
         local FEAR_IDS = { 5782, 8983, 8122, 5484, 20511 }
         for _, entry in ipairs(heal_engine.friends) do
             for _, fid in ipairs(FEAR_IDS) do
-                local d = entry.buff_manager:get_debuff_data(unit, { fid })
+                local ally = entry and entry.unit or nil
+                local d = ally and buff_manager:get_debuff_data(ally, { fid }) or nil
                 if d and d.is_active then
                     local last = rt.totem_last_apply["tremor"] or 0
-                    if (_core_time() - last) >= 30 then
+                    if not slot_has_totem(2) and (_core_time() - last) >= 2 then
                         if try_cast_self(me, rt.tremor_totem_id, "Tremor Totem") then
-                            rt.totem_last_apply["tremor"] = _core_time(); return true
+                            rt.totem_last_apply["tremor"] = _core_time()
+                            return true
                         end
                     end
                     break
@@ -1102,21 +1142,25 @@ local function do_rotation(me)
         return
     end
 
-    -- -- Overheal protection -----------------------------------------------
-    if eax_utils.should_stopcasting(me, menu) then
-        if SpellStopCasting then SpellStopCasting() end
-    end
-
     -- -- heal_engine update ------------------------------------------------
     heal_engine.update(me)
+    local target = me:get_target()
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
     -- -- Mana potion (no GCD) ----------------------------------------------
     try_mana_potion(me)
 
     if not is_gcd_ready() then return end
 
+    if should_cancel_shaman_cast(me, me:get_target()) then
+        if SpellStopCasting then
+            SpellStopCasting()
+            return
+        end
+    end
+
     -- -- Interrupt (PVP) -------------------------------------------------------
-    local target = me:get_target()
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
             return
@@ -1141,14 +1185,14 @@ local function do_rotation(me)
         local fhp = heal_engine.get_eff_pct(focus_target)
         if fhp < (menu.heal_tank_hp:get() / 100.0) then
             local fs = rt.lesser_healing_wave_id or rt.healing_wave_id
-            if try_cast_ally(me, focus_target, fs, "Focus Heal") then return end
+            if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.10) and try_cast_ally(me, focus_target, fs, "Focus Heal") then return end
         end
     end
 
     -- -- Self emergency ----------------------------------------------------
     local self_thr = eax_utils.get_self_heal_threshold(me, menu.ns_emergency_hp:get() / 100.0, menu)
     if heal_engine.get_eff_pct(me) < self_thr then
-        if try_cast_ally(me, me, rt.healing_wave_id, "Self Heal (emergency)") then return end
+        if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.12) and try_cast_ally(me, me, rt.healing_wave_id, "Self Heal (emergency)") then return end
     end
 
     local tank = heal_engine.lowest_tank()
@@ -1162,19 +1206,21 @@ local function do_rotation(me)
     -- 4. Proactive Mana Tide
     if try_proactive_mana_tide(me) then return end
     -- 5. Chain Heal
-    if try_chain_heal(me) then return end
+    if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.18) and try_chain_heal(me) then return end
     -- 6. Healing Wave on tank
-    if try_healing_wave(me, tank) then return end
+    if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.12) and try_healing_wave(me, tank) then return end
     -- 7. Dispels
     if try_dispel(me) then return end
     -- 8. Lesser Healing Wave
-    if try_lesser_healing_wave(me) then return end
+    if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.08) and try_lesser_healing_wave(me) then return end
     -- 9. Totems (last - never steal a heal GCD)
     ensure_totems(me)
     -- 10. PvP
     if try_pvp_utilities(me) then return end
     -- 11. DPS filler
-    try_dps_filler(me, utils.find_best_target(me))
+    if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.10) then
+        try_dps_filler(me, utils.find_best_target(me))
+    end
 end
 
 -- --- Toggle ------------------------------------------------------------------

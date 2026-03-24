@@ -7,45 +7,62 @@ local enums = (function()
 end)()
 local spells = require("spells")
 local utils = require("utils")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
+local poison_manager = require("poison_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
+local force_apply_poisons_cp = false
 
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("combat", "Rogue Combat")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local dps_risk = require("eax_shared/dps_risk")
-local dps_runtime = require("eax_shared/dps_runtime")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local dps_risk = require("dps_risk")
+local dps_runtime = require("dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -61,6 +78,53 @@ local _visual_runtime = {
 }
 
 local reactive_adapter = {}
+local POISON_OPTION_KEYS = { "disabled", "instant", "deadly", "wound", "crippling", "mind_numbing" }
+local POISON_ITEM_TABLES = {
+    instant = spells.POISON_ITEMS_INSTANT,
+    deadly = spells.POISON_ITEMS_DEADLY,
+    wound = spells.POISON_ITEMS_WOUND,
+    crippling = spells.POISON_ITEMS_CRIPPLING,
+    mind_numbing = spells.POISON_ITEMS_MIND_NUMBING,
+}
+local POISON_FALLBACK_ORDER = { "instant", "deadly", "wound", "crippling", "mind_numbing" }
+
+local function build_poison_priority(selected_key)
+    if selected_key == "disabled" then
+        return nil
+    end
+
+    local items = {}
+    local seen = {}
+    local function append_category(key)
+        if seen[key] then
+            return
+        end
+        seen[key] = true
+        local item_list = POISON_ITEM_TABLES[key]
+        if not item_list then
+            return
+        end
+        for _, item_id in ipairs(item_list) do
+            table.insert(items, item_id)
+        end
+    end
+
+    append_category(selected_key)
+    for _, key in ipairs(POISON_FALLBACK_ORDER) do
+        append_category(key)
+    end
+
+    return #items > 0 and items or nil
+end
+
+local function current_poison_loadout()
+    local main_idx = menu.main_hand_poison and menu.main_hand_poison:get() or 2
+    local off_idx = menu.off_hand_poison and menu.off_hand_poison:get() or 3
+    return {
+        main_hand_items = build_poison_priority(POISON_OPTION_KEYS[main_idx] or "instant"),
+        off_hand_items = build_poison_priority(POISON_OPTION_KEYS[off_idx] or "deadly"),
+    }
+end
 
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
@@ -113,11 +177,13 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -165,9 +231,9 @@ end)
 ---@type ttd_tracker
 local ttd_tracker = require("ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -197,6 +263,18 @@ local runtime = {
     cached_mode = "solo",
     set_multiplier = 1.0,
 }
+
+local ctx_cache = rotation_context.new({
+    important_buffs = {
+        slice_and_dice = spells.BUFF_SLICE_AND_DICE,
+        blade_flurry = spells.BUFF_BLADE_FLURRY,
+        stealth = spells.BUFF_STEALTH,
+    },
+    important_debuffs = {
+        rupture = spells.DEBUFF_RUPTURE,
+        deadly_poison = spells.DEBUFF_DEADLY_POISON,
+    },
+})
 
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
 local COMBAT_FINISHER_COMBO_POINTS = 5
@@ -237,16 +315,53 @@ local function note_cast()
     runtime.last_cast_time = _core_time()
 end
 
-local function is_gcd_ready()
-    if (_core_time() - runtime.last_cast_time) < GCD_CAST_INTERVAL then
-        return false
-    end
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
 
-    return _get_gcd() <= 0
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
+end
+
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function current_mode()
     return utils.get_selected_mode(menu)
+end
+
+local combat_rotation_suspended_logged = false
+
+local function is_combat_rotation_available()
+    local available = runtime.blade_flurry_id ~= nil or runtime.adrenaline_rush_id ~= nil or runtime.riposte_id ~= nil
+    if not available and not combat_rotation_suspended_logged then
+        combat_rotation_suspended_logged = true
+        core.log("[EAX Rogue Combat] Blade Flurry / Adrenaline Rush / Riposte not detected; suspending Combat rotation to avoid off-spec conflicts.")
+    end
+    return available
 end
 
 local function handle_toggle()
@@ -260,34 +375,47 @@ end
 -- Read combo points using native game_object API on ME (the player).
 -- Key fix: get_power() must be called on the PLAYER, not on cp_obj (the target mob).
 -- Calling it on cp_obj always returned 0 because mobs have no combo points.
-local function get_current_combo_points(me, target)
-    -- Method 1: native game_object API, TBC-specific power type
-    local ok1, v1 = pcall(function() return me:get_power(enums.power_type.COMBOPOINTS_TBC) end)
-    if ok1 and type(v1) == "number" and v1 > 0 then return v1 end
+local function get_current_combo_points(me)
+    if not me then
+        return nil
+    end
 
-    -- Method 2: native game_object API, retail enum fallback (COMBOPOINTS = 4)
-    local ok2, v2 = pcall(function() return me:get_power(enums.power_type.COMBOPOINTS) end)
-    if ok2 and type(v2) == "number" and v2 > 0 then return v2 end
+    if enums and enums.power_type and enums.power_type.COMBOPOINTS_TBC ~= nil then
+        local ok1, v1 = pcall(function() return me:get_power(enums.power_type.COMBOPOINTS_TBC) end)
+        if ok1 and type(v1) == "number" and v1 >= 0 then
+            return v1
+        end
+    end
 
-    return nil  -- all failed, keep cast-callback count
+    if enums and enums.power_type and enums.power_type.COMBOPOINTS ~= nil then
+        local ok2, v2 = pcall(function() return me:get_power(enums.power_type.COMBOPOINTS) end)
+        if ok2 and type(v2) == "number" and v2 >= 0 then
+            return v2
+        end
+    end
+
+    if type(me.combo_points_current) == "function" then
+        local ok3, v3 = pcall(function() return me:combo_points_current() end)
+        if ok3 and type(v3) == "number" and v3 >= 0 then
+            return v3
+        end
+    end
+
+    return nil
 end
 
 
 local function track_target(me, target)
-    -- Read combo points directly from the API every tick via izi_sdk.
-    local cp = get_current_combo_points(me, target)
-    if cp == nil then return end  -- API bug, keep existing count
+    local cp = get_current_combo_points(me)
+    if cp == nil then return end
 
-    -- Confirm CPs are on the current target, not a previous one
-    local cp_target_ok, cp_target = pcall(function() return me:get_combo_points_target() end)
-    if cp_target_ok and cp_target and cp_target:is_valid() then
-        if target and not utils.same_unit(cp_target, target) then
-            cp = 0
-        end
-    end
+    runtime.combo_points = math.max(0, math.min(COMBAT_FINISHER_COMBO_POINTS, cp))
+    runtime.combo_target = (runtime.combo_points > 0 and target and target:is_valid()) and target or nil
+end
 
-    runtime.combo_points = cp or 0
-    runtime.combo_target = target
+local function get_snd_refresh_window_ms()
+    local refresh_seconds = menu.snd_refresh_seconds and menu.snd_refresh_seconds:get() or 3
+    return math.max(SND_REFRESH_CRITICAL_MS, refresh_seconds * 1000)
 end
 
 local function should_use_major_cooldowns(me)
@@ -397,33 +525,44 @@ local function try_adrenaline_rush(me)
     return false
 end
 
-local function try_slice_and_dice(me)
+local function try_slice_and_dice(me, target, ctx)
     if not menu.use_slice_and_dice:get_state() then
         return false
     end
-    if not runtime.slice_and_dice_id or runtime.combo_points <= 0 then
+    if not runtime.slice_and_dice_id or runtime.combo_points <= 0 or not utils.can_attack(me, target) then
+        return false
+    end
+
+    local remaining_ms = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
+    local refresh_window_ms = get_snd_refresh_window_ms()
+    if remaining_ms > SND_CLIP_GUARD_MS then
+        return false
+    end
+    if remaining_ms > refresh_window_ms and remaining_ms > 0 then
         return false
     end
 
     local policy = encounter_manager.get_policy(me)
     local enemy_count = encounter_manager.enemy_count_in_range(me, 8)
-    local min_combo_points = (enemy_count >= 2 or (policy and policy.burn_phase)) and 3 or 4
+    local regular_min_combo_points = math.min(menu.finish_combo_points:get(), 3)
+    if enemy_count >= 2 or (policy and policy.burn_phase) then
+        regular_min_combo_points = 2
+    end
+    local min_combo_points = remaining_ms > 0 and regular_min_combo_points or 2
     if runtime.combo_points < min_combo_points or runtime.combo_points > COMBAT_FINISHER_COMBO_POINTS then
         return false
     end
-
-    local remaining_ms = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
-    if remaining_ms > SND_CLIP_GUARD_MS then
-        return false
+    if ctx then
+        local can_cast = resource_gate.rogue.can_finisher(ctx, 25, runtime.combo_points, min_combo_points)
+        if not can_cast then
+            return false
+        end
     end
-    if remaining_ms > SND_REFRESH_CRITICAL_MS and remaining_ms > 0 then
-        return false
-    end
-    if not utils.can_cast_self(runtime.slice_and_dice_id, me) then
+    if not utils.can_cast_target(runtime.slice_and_dice_id, me, target) then
         return false
     end
 
-    if utils.cast_self(runtime.slice_and_dice_id, me, "Slice and Dice") then
+    if utils.cast_target(runtime.slice_and_dice_id, target, "Slice and Dice") then
         utils.log_debug(menu, "Slice and Dice")
         note_cast()
         return true
@@ -432,15 +571,22 @@ local function try_slice_and_dice(me)
     return false
 end
 
-local function try_rupture(me, target)
+local function try_rupture(me, target, ctx)
     if not menu.use_rupture:get_state() then
         return false
     end
     if not runtime.rupture_id or not utils.can_attack(me, target) then
         return false
     end
-    if runtime.combo_points < menu.finish_combo_points:get() then
+    local min_combo_points = menu.finish_combo_points:get()
+    if runtime.combo_points < min_combo_points then
         return false
+    end
+    if ctx then
+        local can_cast = resource_gate.rogue.can_finisher(ctx, 25, runtime.combo_points, min_combo_points)
+        if not can_cast then
+            return false
+        end
     end
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RUPTURE) > 3000 then return false end
     -- TTD gate: don't Rupture if fight ending before it expires (v1.3)
@@ -459,7 +605,7 @@ local function try_rupture(me, target)
     return false
 end
 
-local function try_eviscerate(me, target)
+local function try_eviscerate(me, target, ctx)
     if not menu.use_eviscerate:get_state() then
         return false
     end
@@ -472,6 +618,12 @@ local function try_eviscerate(me, target)
     end
     if runtime.combo_points < min_combo_points then
         return false
+    end
+    if ctx then
+        local can_cast = resource_gate.rogue.can_finisher(ctx, 35, runtime.combo_points, min_combo_points)
+        if not can_cast then
+            return false
+        end
     end
     if utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE) < 2000 then
         return false
@@ -490,7 +642,7 @@ local function try_eviscerate(me, target)
     return false
 end
 
-local function try_sinister_strike(me, target)
+local function try_sinister_strike(me, target, ctx)
     if not menu.use_sinister_strike:get_state() then
         return false
     end
@@ -499,6 +651,12 @@ local function try_sinister_strike(me, target)
     end
     if runtime.combo_points >= 5 then
         return false
+    end
+    if ctx then
+        local can_cast = resource_gate.rogue.can_builder(ctx, 45, runtime.combo_points, 5)
+        if not can_cast then
+            return false
+        end
     end
     if not utils.can_cast_hostile(runtime.sinister_strike_id, me, target) then
         return false
@@ -517,10 +675,7 @@ end
 local function try_evasion(me)
     if not menu.use_evasion:get_state() then return false end
     if not runtime.evasion_id then
-        runtime.evasion_id        = utils.resolve_spell_id(spells.EVASION)
-    runtime.feint_id   = utils.resolve_spell_id(spells.FEINT)
-    runtime.shiv_id    = utils.resolve_spell_id(spells.SHIV)
-    runtime.expose_armor_id   = utils.resolve_spell_id(spells.EXPOSE_ARMOR)
+        runtime.evasion_id = utils.resolve_spell_id(spells.EVASION)
     end
     if not runtime.evasion_id then return false end
     local hp_pct = me:get_health_percentage() / 100
@@ -538,16 +693,7 @@ end
 -- --- Killing Spree (v1.1) -------------------------------------------------
 
 local function try_killing_spree(me, target)
-    if enc and enc.hold_cooldowns then return false end
-    if not menu.use_killing_spree or not menu.use_killing_spree:get_state() then return false end
-    if not runtime.killing_spree_id then return false end
-    if not me:is_in_combat() then return false end
-    if utils.get_buff_remaining_ms(me, spells.BUFF_BLADE_FLURRY) <= 0 then return false end
-    if not utils.can_cast_hostile(runtime.killing_spree_id, me, target) then return false end
-    if utils.cast_target(runtime.killing_spree_id, target, "Killing Spree") then
-        utils.log_debug(menu, "Killing Spree")
-        return true
-    end
+    -- Killing Spree (51690) is a WotLK spell — not available in TBC. No-op.
     return false
 end
 
@@ -586,8 +732,8 @@ local function try_feint(me)
     -- or when HP is low in solo as a damage-reduction tool
     local mode = current_mode()
     if mode == "raid" or mode == "dungeon" then
-        if not utils.can_cast_hostile(runtime.feint_id, me, me:get_target()) then return false end
-        if utils.cast_target(runtime.feint_id, me:get_target(), "Feint") then
+        if not utils.can_cast_self(runtime.feint_id, me) then return false end
+        if utils.cast_self(runtime.feint_id, me, "Feint") then
             utils.log_debug(menu, "Feint")
             note_cast()
             return true
@@ -608,8 +754,7 @@ local function try_expose_armor(me, target)
     -- Only use if Expose Armor not active AND Sunder Armor not active
     if utils.has_debuff(target, spells.DEBUFF_EXPOSE_ARMOR) then return false end
     if utils.has_debuff(target, spells.DEBUFF_SUNDERED_ARMOR) then return false end
-    -- Need at least 4 combo points
-    if runtime.combo_points < 4 then return false end
+    if runtime.combo_points < COMBAT_FINISHER_COMBO_POINTS then return false end
     if not utils.can_cast_hostile(runtime.expose_armor_id, me, target) then return false end
     if utils.cast_target(runtime.expose_armor_id, target, "Expose Armor") then
         utils.log_debug(menu, "Expose Armor")
@@ -644,7 +789,6 @@ end
 -- Free attack that disarms target for 6s; Combat talent. Use immediately after parry.
 
 local function try_riposte(me, target)
-    if spec ~= "combat" then return false end  -- Combat only
     if not menu.use_riposte or not menu.use_riposte:get_state() then return false end
     if not runtime.riposte_id then return false end
     -- Riposte is only usable after a parry (the game makes it usable automatically)
@@ -676,61 +820,46 @@ local function do_rotation(me, target)
         return false
     end
 
-    -- Interrupt
-    -- Interrupt (Kick)
+    if not utils.can_attack(me, target) then
+        return false
+    end
+
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
+    local risk_snapshot = dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker)
+    local hold_offense = dps_risk.should_hold_offense(risk_snapshot)
+    local abort_finisher_commit = dps_risk.should_abort_commit(risk_snapshot, {
+        kind = "melee_commit",
+        progress_pct = 0.10,
+        remaining_s = 0.30,
+        projected_damage_pct = 0.05,
+    })
+
     if target and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "rogue", utils) then
             return true
         end
     end
 
-    -- Racial CDs
-    local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
-    if not hold_offense then
-        racial_manager.try_offensive(me)
-    end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
-
-    -- Defensive abilities
-    ttd_tracker.update(target)
-
-    if try_cloak_of_shadows(me) then return true end
-    if defensive_manager.try_defensive(me, "rogue", utils) then
-        return true
-    end
-
     if try_kick(me, target) then
         return true
     end
 
-    if not hold_offense and should_use_major_cooldowns(me) then
-        if try_blade_flurry(me, target) then
-            return true
-        end
-        if try_adrenaline_rush(me) then return true end
-        if try_killing_spree(me, target) then return true end
-    end
-
-    if not utils.can_attack(me, target) then
-        return false
-    end
-
     track_target(me, target)
 
-    if try_slice_and_dice(me) then return true end
-    if try_expose_armor(me, target) then return true end
-    if try_feint(me) then return true end
-    if try_rupture(me, target) then
-        return true
+    if try_slice_and_dice(me, target, ctx) then invalidate_ctx() return true end
+    if (not hold_offense) and (not abort_finisher_commit) then
+        if try_expose_armor(me, target) then invalidate_ctx() return true end
+        if try_rupture(me, target, ctx) then
+            invalidate_ctx()
+            return true
+        end
+        if try_eviscerate(me, target, ctx) then
+            invalidate_ctx()
+            return true
+        end
     end
-    if try_eviscerate(me, target) then
-        return true
-    end
-    if try_garrote(me, target) then return true end
-    if try_riposte(me, target) then return true end
-    if try_shiv(me, target) then return true end
-    if try_sinister_strike(me, target) then return true end
+    if try_sinister_strike(me, target, ctx) then invalidate_ctx() return true end
 
     -- Auto-attack fallback for leveling 1-70
     -- (ensure_melee_auto_attack is called in the core combat lanes above)
@@ -792,6 +921,72 @@ local function on_render()
     esp_renderer.on_render(menu)
 end
 
+local CP_BUILDERS = {}
+local CP_FINISHERS = {}
+
+local function register_cp_spell_set(dst, spell_list)
+    if not spell_list then
+        return
+    end
+    for _, id in ipairs(spell_list) do
+        dst[id] = true
+    end
+end
+
+local function build_cp_spell_sets()
+    register_cp_spell_set(CP_BUILDERS, spells.SINISTER_STRIKE)
+    register_cp_spell_set(CP_BUILDERS, spells.GARROTE)
+    register_cp_spell_set(CP_BUILDERS, spells.AMBUSH)
+    register_cp_spell_set(CP_FINISHERS, spells.SLICE_AND_DICE)
+    register_cp_spell_set(CP_FINISHERS, spells.RUPTURE)
+    register_cp_spell_set(CP_FINISHERS, spells.EVISCERATE)
+    register_cp_spell_set(CP_FINISHERS, spells.EXPOSE_ARMOR)
+end
+
+build_cp_spell_sets()
+
+local _last_cp_event_at = 0
+local CP_EVENT_DEDUP_WINDOW_S = 0.15
+
+local function on_spell_cast(data)
+    if not data or not data.spell_id then return end
+
+    local me = _get_local_player()
+    if not me then return end
+    if data.caster and data.caster:is_valid() and not utils.same_unit(data.caster, me) then
+        return
+    end
+
+    local sid = data.spell_id
+    if not CP_BUILDERS[sid] and not CP_FINISHERS[sid] then
+        return
+    end
+
+    local now = _core_time()
+    if (now - _last_cp_event_at) < CP_EVENT_DEDUP_WINDOW_S then
+        return
+    end
+    _last_cp_event_at = now
+
+    if CP_BUILDERS[sid] then
+        local api_cp = get_current_combo_points(me)
+        if api_cp ~= nil then
+            runtime.combo_points = math.max(0, math.min(COMBAT_FINISHER_COMBO_POINTS, api_cp))
+        else
+            runtime.combo_points = math.min(COMBAT_FINISHER_COMBO_POINTS, runtime.combo_points + 1)
+        end
+        if data.target and data.target:is_valid() then
+            runtime.combo_target = data.target
+        end
+        return
+    end
+
+    runtime.combo_points = 0
+    runtime.combo_target = nil
+end
+
+core.register_on_spell_cast_callback(on_spell_cast)
+
 -- ESP only renders when this spec is enabled
 core.register_on_render_callback(function()
     if not menu or not menu.enabled or not menu.enabled:get_state() then return end
@@ -799,6 +994,9 @@ core.register_on_render_callback(function()
 end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
+    if not runtime.sinister_strike_id and utils.throttle("combat_spell_resolve", 2.0) then
+        resolve_spells()
+    end
     if utils.throttle("mode_refresh", 2.0) then
         runtime.cached_mode = current_mode()
     end
@@ -817,6 +1015,14 @@ core.register_on_update_callback(function()
 
     local me = _get_local_player()
     if not me or me:is_dead() then
+        return
+    end
+    if force_apply_poisons_cp then
+        poison_manager.force_reapply()
+        force_apply_poisons_cp = false
+        core.log("[EAX Rogue Combat] Force reapply poisons requested")
+    end
+    if poison_manager.try_apply_poisons(me, menu, utils, current_poison_loadout()) then
         return
     end
         ooc_manager.on_update(me, menu, utils)
@@ -848,13 +1054,20 @@ core.register_on_update_callback(function()
     if eax_utils.is_eating_or_drinking(me) then return end
 
     enc = encounter_manager.get_policy(me)
-    do_rotation(me, utils.find_best_target(me))
-    
-    -- Focus Target Priority
+    local current_target = me:get_target()
+    local has_current_target = current_target and current_target:is_valid() and me:can_attack(current_target)
     local focus_target = eax_utils.get_focus_target(menu)
-    if focus_target and focus_target:is_valid() then
+    if focus_target and (not focus_target:is_valid() or not me:can_attack(focus_target)) then
+        focus_target = nil
+    end
+    if me:is_in_combat() and focus_target and not has_current_target then
         core.input.set_target(focus_target)
     end
+    local target = has_current_target and current_target or focus_target
+    if not target or not target:is_valid() or not me:can_attack(target) then
+        target = utils.find_best_target(me)
+    end
+    do_rotation(me, target)
     
     -- Self-emergency
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.35, menu)
@@ -912,6 +1125,11 @@ if control_panel_utility then
             local nxt_rco_racial = control_panel_utility:insert_key_checkbox_(
                 elements, "[EAX RCo] Use Racial", cur_rco_racial, 0, false, "eax_rco_racial_cp")
             if nxt_rco_racial ~= cur_rco_racial then menu.use_racial:set(nxt_rco_racial) end
+        end
+        local nxt_force_poisons = control_panel_utility:insert_key_checkbox_(
+            elements, "[EAX RCo] Force Reapply Poisons", force_apply_poisons_cp, 0, false, "eax_rco_force_poisons_cp")
+        if nxt_force_poisons and not force_apply_poisons_cp then
+            force_apply_poisons_cp = true
         end
         end
         return elements

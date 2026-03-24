@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -64,6 +65,12 @@ menu.use_curse                            = core.menu.checkbox(true, "eax_afflic
 menu.prefer_doom                          = core.menu.checkbox(true, "eax_affliction_prefer_doom")
 menu.use_shadow_bolt                      = core.menu.checkbox(true, "eax_affliction_use_shadow_bolt")
 menu.use_drain_soul                       = core.menu.checkbox(true, "eax_affliction_use_drain_soul")
+menu.use_seed_of_corruption               = core.menu.checkbox(true, "eax_affliction_use_seed_of_corruption")
+menu.use_howl_of_terror                   = core.menu.checkbox(true, "eax_affliction_use_howl_of_terror")
+menu.preferred_pet                        = core.menu.combobox(1, "eax_affliction_preferred_pet")
+menu.auto_shard_farm                      = core.menu.checkbox(true, "eax_affliction_auto_shard_farm")
+menu.min_shards                           = core.menu.slider_int(0, 10, 3, "eax_affliction_min_shards")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eax_affliction_use_cooldowns")
 menu.use_life_tap                         = core.menu.checkbox(true, "eax_affliction_use_life_tap")
 menu.life_tap_threshold                   = core.menu.slider_int(10, 70, 35, "eax_affliction_lifetap_pct")
 
@@ -73,6 +80,17 @@ mana_conservator.register_menu_items(menu, "eax_warlock_affliction")
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_unstable_affliction", label = "Unstable Affliction" },
+    { toggle = "use_corruption", label = "Corruption" },
+    { toggle = "use_curse", label = "Curse" },
+    { toggle = "use_drain_soul", label = "Drain Soul" },
+    { toggle = "use_life_tap", label = "Life Tap" },
+}, {
+    namespace = "eaxwarlockaffliction",
+    log_prefix = "[EAX Warlock Affliction] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -102,6 +120,7 @@ function menu.render()
             menu.use_drain_soul:render("Drain Soul", "Execute with Drain Soul below 25% HP")
             menu.use_life_tap:render("Life Tap", "Life Tap for extra mana")
             menu.life_tap_threshold:render("Life Tap HP %", "Life Tap when health is above this percent")
+            menu.preferred_pet:render("Pet Summon", { "Disabled", "Imp", "Voidwalker", "Succubus", "Felhunter", "Felguard" })
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

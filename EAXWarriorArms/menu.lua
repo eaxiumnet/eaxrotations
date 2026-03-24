@@ -4,6 +4,7 @@
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -57,6 +58,12 @@ menu.use_slam                             = core.menu.checkbox(true, "eaxwarrior
 menu.use_whirlwind                        = core.menu.checkbox(true, "eaxwarriorarms_use_whirlwind")
 menu.use_overpower                        = core.menu.checkbox(true, "eaxwarriorarms_use_overpower")
 menu.use_execute                          = core.menu.checkbox(true, "eaxwarriorarms_use_execute")
+menu.use_cooldowns                        = core.menu.checkbox(true, "eaxwarriorarms_use_cooldowns")
+menu.use_berserker_rage                   = core.menu.checkbox(true, "eaxwarriorarms_use_berserker_rage")
+menu.use_death_wish                       = core.menu.checkbox(true, "eaxwarriorarms_use_death_wish")
+menu.use_recklessness                     = core.menu.checkbox(true, "eaxwarriorarms_use_recklessness")
+menu.use_sweeping_strikes                 = core.menu.checkbox(true, "eaxwarriorarms_use_sweeping_strikes")
+menu.use_enraged_regen                    = core.menu.checkbox(true, "eaxwarriorarms_use_enraged_regen")
 menu.slam_safety_buffer_ms                = core.menu.slider_int(50, 300, 120, "eaxwarriorarms_slam_safety_buffer_ms")
 menu.use_battle_shout                     = core.menu.checkbox(true, "eaxwarriorarms_use_battle_shout")
 menu.use_commanding_shout                 = core.menu.checkbox(false, "eaxwarriorarms_use_commanding_shout")
@@ -69,6 +76,17 @@ menu.use_hamstring                        = core.menu.checkbox(true, "eaxwarrior
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
 -- ════════════════════════════════════════════════════════════════════════════
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_mortal_strike", label = "Mortal Strike" },
+    { toggle = "use_slam", label = "Slam" },
+    { toggle = "use_whirlwind", label = "Whirlwind" },
+    { toggle = "use_overpower", label = "Overpower" },
+    { toggle = "use_execute", label = "Execute" },
+}, {
+    namespace = "eaxwarriorarms",
+    log_prefix = "[EAX Warrior Arms] ",
+})
 
 local _win  -- set once from main.lua via menu.set_window(win)
 

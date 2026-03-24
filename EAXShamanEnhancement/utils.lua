@@ -9,7 +9,7 @@ local buff_manager = require("common/modules/buff_manager")
 local utils = {}
 
 -- Spell resolver with persistent caching (see eax_shared/spell_resolver.lua)
-local spell_resolver = require("eax_shared/spell_resolver")
+local spell_resolver = require("spell_resolver")
 
 local throttle_data = {}
 
@@ -127,7 +127,14 @@ function utils.find_best_target(me)
 
     local current = me:get_target()
     if is_hostile(current) then
-        return current
+        if me:is_in_combat() then
+            return current
+        end
+        return nil
+    end
+
+    if not me:is_in_combat() then
+        return nil
     end
 
     local pos_me = nil
@@ -298,6 +305,10 @@ function utils.count_enemies_in_range(me, radius)
     return count
 end
 
+function utils.enemy_count_in_radius(me, radius)
+    return utils.count_enemies_in_range(me, radius)
+end
+
 function utils.log_debug(menu_module, message)
     if menu_module and menu_module.debug and menu_module.debug:get_state() then
         core.log("[EAX Shaman Enhancement] " .. tostring(message))
@@ -437,8 +448,9 @@ end
 ---@return boolean
 function utils.can_cast_hostile(spell_id, me, target)
     if not me or not target then return false end
+    local same_unit = utils.same_unit or function(a, b) return a == b end
     -- Never cast damage spells on self
-    if utils.same_unit(me, target) then return false end
+    if same_unit(me, target) then return false end
     -- Target must be attackable by the player (fails for friendlies, self, neutral)
     if not me:can_attack(target) then return false end
     return utils.can_cast_target(spell_id, me, target)

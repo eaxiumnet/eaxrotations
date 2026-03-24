@@ -5,6 +5,7 @@
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
+local settings = require("settings_framework")
 local menu = {}
 
 -- -- Tree nodes ----------------------------------------------------------------
@@ -51,14 +52,14 @@ menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "e
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
 -- -- Class-specific elements ---------------------------------------------------
-menu.ensure_felguard                     = core.menu.checkbox(true, "eax_demonology_ensure_felguard")
+menu.preferred_pet                       = core.menu.combobox(1, "eax_demonology_preferred_pet")
 menu.maintain_soul_link                  = core.menu.checkbox(true, "eax_demonology_soul_link")
 menu.use_fel_armor                       = core.menu.checkbox(true, "eax_demonology_use_fel_armor")
 menu.use_curse                           = core.menu.checkbox(true, "eax_demonology_use_curse")
 menu.curse_mode                          = core.menu.combobox(1, "eax_demonology_curse_mode")
 menu.use_immolate                        = core.menu.checkbox(true, "eax_demonology_use_immolate")
 menu.use_corruption                      = core.menu.checkbox(true, "eax_demonology_use_corruption")
-menu.use_unstable_affliction             = core.menu.checkbox(true, "eax_demonology_use_unstable_affliction")
+menu.use_unstable_affliction             = core.menu.checkbox(false, "eax_demonology_use_unstable_affliction")
 menu.use_soul_fire                       = core.menu.checkbox(true, "eax_demonology_use_soul_fire")
 menu.use_shadow_bolt                     = core.menu.checkbox(true, "eax_demonology_use_shadow_bolt")
 menu.use_shadow_burn                     = core.menu.checkbox(true, "eax_demonology_use_shadow_burn")
@@ -70,6 +71,17 @@ menu.pet_check_interval                  = core.menu.slider_int(1, 10, 4, "eax_d
 menu.use_banish                          = core.menu.checkbox(true, "eax_wrl_dem_use_banish")
 
 mana_conservator.register_menu_items(menu, "eax_warlock_demonology")
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_curse", label = "Curse" },
+    { toggle = "use_immolate", label = "Immolate" },
+    { toggle = "use_corruption", label = "Corruption" },
+    { toggle = "use_shadow_bolt", label = "Shadow Bolt" },
+    { toggle = "use_shadowfury", label = "Shadowfury" },
+}, {
+    namespace = "eaxwarlockdemonology",
+    log_prefix = "[EAX Warlock Demonology] ",
+})
 
 local _win
 
@@ -87,22 +99,22 @@ function menu.render()
 
         main_tree:render("  Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
-            menu.ensure_felguard:render("Ensure Felguard", "Summon and keep Felguard active when learned")
+            menu.preferred_pet:render("Pet Summon", { "Disabled", "Imp", "Voidwalker", "Succubus", "Felhunter", "Felguard" })
             menu.maintain_soul_link:render("Soul Link", "Keep Soul Link active when possible")
             menu.use_fel_armor:render("Fel Armor", "Maintain Fel Armor outside and inside combat")
             menu.use_curse:render("Curse", "Maintain the selected TBC curse on your target")
             menu.curse_mode:render("Curse Mode", { "Agony", "Elements", "Weakness", "Tongues" })
             menu.use_immolate:render("Immolate", "Maintain Immolate on the target")
             menu.use_corruption:render("Corruption", "Maintain Corruption on the target")
-            menu.use_unstable_affliction:render("Unstable Affliction", "Maintain UA when the spell is available")
+            menu.use_unstable_affliction:render("Unstable Affliction", "Use UA only if the spell is actually available")
             menu.use_soul_fire:render("Soul Fire", "Cast Soul Fire as a high-damage nuke when ready")
             menu.use_shadow_bolt:render("Shadow Bolt", "Use Shadow Bolt as the primary filler")
-            menu.use_shadow_burn:render("Shadow Burn", "Fire Shadow Burn during execute range")
+            menu.use_shadow_burn:render("Shadowburn", "Fire Shadowburn during execute range")
             menu.use_drain_soul:render("Drain Soul", "Channel Drain Soul below 25% target HP")
             menu.use_shadowfury:render("Shadowfury", "Use Shadowfury for interrupts or clustered enemies")
             menu.use_life_tap:render("Life Tap", "Regain mana when health permits")
             menu.life_tap_threshold:render("Life Tap HP %", "Minimum health percent required to Life Tap")
-            menu.pet_check_interval:render("Pet Refresh Interval", "Seconds between Felguard checks")
+            menu.pet_check_interval:render("Pet Refresh Interval", "Seconds between pet checks")
             menu.use_banish:render("Banish", "Crowd control demons and elementals when appropriate")
         end)
 

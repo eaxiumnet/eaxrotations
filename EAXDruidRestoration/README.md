@@ -3,16 +3,17 @@
 Restoration Druid healing automation for TBC on Project Sylvanas.
 
 ## Rotation
-- Maintains `Lifebloom`, `Rejuvenation`, and `Regrowth` HoTs on party members.
-- `Swiftmend` for emergency instant heal.
-- `Nature's Swiftness` + `Healing Touch` macro for burst emergencies.
+- Maintains `Lifebloom`, `Rejuvenation`, and `Regrowth` on priority targets.
+- `Swiftmend` for emergency instant healing.
+- `Nature's Swiftness` + `Healing Touch` for burst emergencies.
+- `Innervate` for mana restoration in combat when mana drops low.
 - `Tranquility` for raid-wide emergencies.
-- `Innervate` for mana restoration OOC.
-- `Rebirth` for combat resurrection.
+- Optional solo DPS fallback when healing pressure is low.
 
 ## Menu Options
-- HoT priorities and HP thresholds
+- HoT refresh windows, stack targets, and HP thresholds
 - Swiftmend, Nature's Swiftness, Tranquility, Innervate
+- Solo DPS fallback toggle
 - OOC: Mark of the Wild, Gift of the Wild, Rebirth
 
 ## Install

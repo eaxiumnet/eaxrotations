@@ -2,48 +2,63 @@
 -- Healing rotation that keeps Renew, Greater Heal, and Prayer of Healing prioritized.
 
 local menu = require("menu")
+local rotation_context = require("rotation_context")
+local resource_gate = require("resource_gate")
 local key_helper = require("common/utility/key_helper")
 local spells = require("spells")
 local utils = require("utils")
+
+if not utils.same_unit then
+    function utils.same_unit(a, b)
+        return a ~= nil and a == b
+    end
+end
 local eax_utils = require("eax_utils")
 local color     = require("color")
 
 ---@type interrupt_manager
-local interrupt_manager = require("eax_shared/interrupt_manager")
+local interrupt_manager = require("interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("eax_shared/ooc_manager")
+local ooc_manager = require("ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("eax_shared/vendor_automation")
+local vendor_automation = require("vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("eax_shared/consumables_manager")
+local consumables_manager = require("consumables_manager")
 ---@type mount_manager
-local mount_manager = require("eax_shared/mount_manager")
+local mount_manager = require("mount_manager")
 ---@type leveling_manager
 local leveling_manager = require("leveling_manager")
 ---@type creature_utils
 local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("eax_shared/encounter_manager")
+local encounter_manager = require("encounter_manager")
 
 
 ---@type esp_renderer
 local esp_renderer = require("esp_renderer")
 esp_renderer.init("pholy2", "Priest Holy")
-
+-- Smart Cast Manager - addresses spam/sluggishness
+local smart_cast_manager = require("smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("eax_shared/dps_meter")
-local cooldown_tracker = require("eax_shared/cooldown_tracker")
-local visual_state = require("eax_shared/visual_state")
-local reactive_runtime = require("eax_shared/reactive_runtime")
-local healer_triage = require("eax_shared/healer_triage")
+local dps_meter = require("dps_meter")
+local cooldown_tracker = require("cooldown_tracker")
+local visual_state = require("visual_state")
+local reactive_runtime = require("reactive_runtime")
+local healer_triage = require("healer_triage")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
+
+smart_cast_manager.init({
+    core_time = _core_time,
+    get_gcd = _get_gcd,
+    get_spell_cd = _get_spell_cd,
+})
 
 local _visual_ttd_tracker = nil
 local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
@@ -111,11 +126,13 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.in_combat = true
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
+        smart_cast_manager.reset()
     end
 
     local me_hp_pct = tonumber(me:get_health_percentage())
@@ -161,14 +178,14 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type racial_manager
-local racial_manager = require("eax_shared/racial_manager")
+local racial_manager = require("racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("eax_shared/defensive_manager")
+local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
 ---@type threat_manager
-local threat_manager = require("eax_shared/threat_manager")
+local threat_manager = require("threat_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
@@ -177,6 +194,7 @@ local threat_initialized = false
 local ttd_tracker = require("ttd_tracker")
 
 local runtime = {
+    last_cast_time = 0,
     resurrection_id = nil,
     mode_cache = "solo",
     last_mode_check = 0,
@@ -185,11 +203,14 @@ local runtime = {
     last_set_check = 0,
 }
 
+local ctx_cache = rotation_context.new({})
+
 local resolved = {
     renew = utils.resolve_spell_id(spells.RENEW),
     greater_heal = utils.resolve_spell_id(spells.GREATER_HEAL),
     prayer_of_healing = utils.resolve_spell_id(spells.PRAYER_OF_HEALING),
     prayer_of_mending = utils.resolve_spell_id(spells.PRAYER_OF_MENDING),
+    circle_of_healing = utils.resolve_spell_id(spells.CIRCLE_OF_HEALING),
 }
 
 local function log_mode(mode)
@@ -215,6 +236,45 @@ local function update_set_bonus(me)
         end
         runtime.set_multiplier = best_multiplier
     end
+end
+
+local function note_cast()
+    runtime.last_cast_time = _core_time()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function invalidate_ctx()
+    rotation_context.invalidate(ctx_cache)
+end
+
+local function is_gcd_ready()
+    return smart_cast_manager.is_gcd_ready()
+end
+
+local function is_pending_cast(spell_id)
+    if not spell_id then return false end
+    return smart_cast_manager.is_pending(spell_id)
+end
+
+local function mark_pending_cast(spell_id, timeout_s, options)
+    if not spell_id then return end
+    options = options or {}
+    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
+        triggers_gcd = true,
+        category = options.category,
+        cast_time = options.cast_time,
+    })
+end
+
+-- Intelligent throttling for specific ability categories
+local function should_throttle_dot(action_key)
+    return smart_cast_manager.should_throttle(action_key, "dots")
+end
+local function should_throttle_filler(action_key)
+    return smart_cast_manager.should_throttle(action_key, "filler")
+end
+local function should_throttle_aoe(action_key)
+    return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
 local function try_renew(me)
@@ -248,7 +308,8 @@ local function try_renew(me)
 
     if candidate and not utils.has_buff(candidate, spells.RENEW) then
         esp_renderer.on_cast(nil, "Renew", color.green(220))
-    return utils.cast_target(resolved.renew, candidate, nil)
+    if utils.cast_target(resolved.renew, candidate, nil) then note_cast() return true end
+    return false
     end
 
     return false
@@ -272,7 +333,8 @@ local function try_prayer_of_healing(me)
 
     if count >= menu.prayer_of_healing_count:get() then
         esp_renderer.on_cast(nil, "Prayer of Healing", color.cyan(220))
-    return utils.cast_self(resolved.prayer_of_healing, me)
+    if utils.cast_self(resolved.prayer_of_healing, me) then note_cast() return true end
+    return false
     end
 
     return false
@@ -288,7 +350,8 @@ local function try_greater_heal(me)
 
     if candidate then
         esp_renderer.on_cast(nil, "Greater Heal", color.gold(220))
-    return utils.cast_target(resolved.greater_heal, candidate, nil)
+    if utils.cast_target(resolved.greater_heal, candidate, nil) then note_cast() return true end
+    return false
     end
 
     return false
@@ -303,9 +366,47 @@ local function try_prayer_of_mending(me)
     local candidate = utils.find_low_health_ally(me, threshold, true)
 
     if candidate and not utils.has_buff(candidate, spells.PRAYER_OF_MENDING) then
-        return utils.cast_target(resolved.prayer_of_mending, candidate, nil)
+        if utils.cast_target(resolved.prayer_of_mending, candidate, nil) then note_cast() return true end
+    return false
     end
 
+    return false
+end
+
+-- Circle of Healing — smart AoE heal hitting 5 lowest party members (TBC Holy talent)
+local function try_circle_of_healing(me)
+    if not resolved.circle_of_healing then return false end
+    if not menu.circle_of_healing_enabled:get_state() then return false end
+
+    local threshold = menu.circle_of_healing_threshold:get() / 100
+    local min_count = menu.circle_of_healing_count:get()
+
+    local units = utils.get_party_units(me)
+    local wounded = 0
+    local best_target = nil
+    local best_hp = 1.0
+
+    for _, unit in ipairs(units) do
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local hp = utils.get_health_pct(unit)
+            if hp <= threshold then
+                wounded = wounded + 1
+                if hp < best_hp then
+                    best_hp = hp
+                    best_target = unit
+                end
+            end
+        end
+    end
+
+    if wounded < min_count then return false end
+    if not best_target then return false end
+
+    if utils.cast_target(resolved.circle_of_healing, best_target, nil) then
+        note_cast()
+        esp_renderer.on_cast(resolved.circle_of_healing, "Circle of Healing", color.green(220))
+        return true
+    end
     return false
 end
 
@@ -316,11 +417,13 @@ local function try_cast_spell(me, target, spell_id)
     if not target or not target:is_valid() then return false end
     if target == me then
         if utils.can_cast_self(spell_id, me) then
-            return utils.cast_self(spell_id, me)
+            if utils.cast_self(spell_id, me) then note_cast() return true end
+    return false
         end
     else
         if utils.can_cast_target(spell_id, me, target) then
-            return utils.cast_target(spell_id, target, nil)
+            if utils.cast_target(spell_id, target, nil) then note_cast() return true end
+    return false
         end
     end
     return false
@@ -602,12 +705,15 @@ core.register_on_update_callback(function()
 
     ttd_tracker.update(target)
 
+    local deps = { now_s = _core_time, get_gcd = _get_gcd }
+    local ctx = rotation_context.get(ctx_cache, me, target, deps)
+
     -- Focus Target Priority - heal focus target first
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target then
         local focus_hp = focus_target:get_health_percentage()
         if focus_hp < menu.greater_heal_threshold:get() then
-            if try_cast_spell(me, focus_target, resolved.greater_heal) then
+            if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cast_spell(me, focus_target, resolved.greater_heal) then
                 return
             end
         end
@@ -617,7 +723,7 @@ core.register_on_update_callback(function()
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
-        if try_cast_spell(me, me, resolved.greater_heal) then
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cast_spell(me, me, resolved.greater_heal) then
             return
         end
     end
@@ -625,10 +731,11 @@ core.register_on_update_callback(function()
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
 
-    try_renew(me)
-    try_prayer_of_healing(me)
-    try_greater_heal(me)
-    try_prayer_of_mending(me)
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_renew(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_prayer_of_mending(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_circle_of_healing(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.18) and try_prayer_of_healing(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_greater_heal(me) then return end
 end)
 
 
