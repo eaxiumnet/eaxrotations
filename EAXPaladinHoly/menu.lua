@@ -85,8 +85,6 @@ menu.use_hand_of_freedom_key              = core.menu.keybind(7, false, "eaxpala
 menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinholy_hof_slows")
 menu.auto_blessings                       = core.menu.checkbox(true, "auto_blessings")
 menu.auto_blessings_key                   = core.menu.keybind(7, false, "eaxpaladinholy_auto_blessings_key")
-menu.use_predictive_healing               = core.menu.checkbox(true, "use_predictive_healing")
-menu.use_predictive_healing_key           = core.menu.keybind(7, false, "eaxpaladinholy_use_predictive_healing_key")
 menu.overheal_protection                  = core.menu.checkbox(true, "overheal_protection")
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -128,8 +126,6 @@ function menu.render()
             menu.hof_include_slows:render("Freedom on Slows", "Also use Hand of Freedom on slowed (not just rooted) allies")
             menu.auto_blessings:render("Auto Blessings", "Keep Blessing of Might on tanks and Blessing of Wisdom on mana users")
             menu.auto_blessings_key:render("  Blessings Hotkey", "Toggle Auto Blessings on/off")
-            menu.use_predictive_healing:render("Predictive Healing", "Use incoming damage prediction to heal before damage lands")
-            menu.use_predictive_healing_key:render("  Predictive Hotkey", "Toggle Predictive Healing on/off")
             menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
         end)
 

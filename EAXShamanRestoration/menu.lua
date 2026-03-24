@@ -112,8 +112,8 @@ mana_conservator.register_menu_items(menu, "eax_shaman_restoration")
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "auto_totems", label = "Auto Totems" },
     { toggle = "use_interrupt", label = "Interrupt" },
-    { toggle = "use_purge", label = "Purge" },
-    { toggle = "pvp_mode", label = "PvP Mode" },
+    { toggle = "use_purge", label = "Purge Enemy Buffs" },
+    { toggle = "pvp_mode", label = "PvP Utilities" },
     { toggle = "use_flametongue", label = "Flametongue" },
 }, {
     namespace = "eaxshamanrestoration",
@@ -173,10 +173,10 @@ function menu.render()
             menu.use_mana_potion:render("Mana Potion", "Use Super Mana Potion / Major Mana Potion in combat when mana is low")
             menu.mana_potion_pct:render("  Potion below mana%", "Use mana potion when in-combat mana drops to or below this value")
             menu.use_reincarnation:render("Reincarnation (Ankh)", "Auto self-rez with Ankh when dead and the cooldown is ready")
-            menu.pvp_mode:render("PvP Mode", "Enables Grounding Totem, Tremor Totem, and Purge")
-            menu.pvp_use_grounding:render("  Grounding Totem", "Place on cooldown to absorb targeted spells")
-            menu.pvp_use_tremor:render("  Tremor Totem", "Place when a party member has fear, charm, or sleep")
-            menu.pvp_use_purge:render("  Purge", "Strip 1 magic buff from your target")
+            menu.pvp_mode:render("PvP Utilities", "Master toggle for PvP utilities such as Grounding, Tremor, and PvP Purge")
+            menu.pvp_use_grounding:render("  Grounding Totem (PvP)", "Place on cooldown to absorb targeted spells")
+            menu.pvp_use_tremor:render("  Tremor Totem (PvP)", "Place when a party member has fear, charm, or sleep")
+            menu.pvp_use_purge:render("  Purge (PvP)", "Strip 1 magic buff from your target in PvP utility mode")
             menu.tank_priority_weight:render("Tank priority weight%", "Effective-HP penalty applied to tanks so they sort above DPS.\n8 is a good default.")
             menu.mana_floor:render("Mana floor%", "Suppress Chain Heal and DPS filler below this mana level")
             menu.overheal_protection:render("Overheal Protection", "Cancel active Healing Wave if the target will be near-full when it lands")

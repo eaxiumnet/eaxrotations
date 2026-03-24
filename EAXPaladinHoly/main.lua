@@ -227,7 +227,6 @@ local runtime = {
     last_auto_blessings_key_state = false,
     last_cleanse_key_state = false,
     last_freedom_key_state = false,
-    last_predictive_key_state = false,
     ooc_blessing_of_might_id = nil,
     ooc_blessing_of_wisdom_id = nil,
 }
@@ -404,7 +403,6 @@ local function handle_rotation_hotkeys()
     handle_checkbox_keybind(menu.auto_blessings_key, menu.auto_blessings, "last_auto_blessings_key_state", "Auto Blessings")
     handle_checkbox_keybind(menu.use_cleanse_key, menu.use_cleanse, "last_cleanse_key_state", "Cleanse")
     handle_checkbox_keybind(menu.use_hand_of_freedom_key, menu.use_hand_of_freedom, "last_freedom_key_state", "Hand of Freedom")
-    handle_checkbox_keybind(menu.use_predictive_healing_key, menu.use_predictive_healing, "last_predictive_key_state", "Predictive Healing")
 end
 
 local function gather_heal_candidates(me)
@@ -1051,7 +1049,6 @@ local function on_control_panel()
         add_cb("  PHo Blessings", menu.auto_blessings, "eax_paladin_holy_blessings_cp")
         add_cb("  PHo Cleanse", menu.use_cleanse, "eax_paladin_holy_cleanse_cp")
         add_cb("  PHo Freedom", menu.use_hand_of_freedom, "eax_paladin_holy_freedom_cp")
-        add_cb("  PHo Predictive", menu.use_predictive_healing, "eax_paladin_holy_predictive_cp")
     end
 
     return elements
