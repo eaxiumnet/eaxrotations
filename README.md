@@ -6,6 +6,7 @@ TBC Classic WoW rotation plugins for Project Sylvanas bot - All 27 specs.
 
 - **Full Class Coverage** - All 27 specs across 9 classes
 - **Advanced Rotation Logic** - Priority-based spell casting
+- **TBC-Accurate Spell Kits** - Rotations avoid unsupported Wrath/Cataclysm mechanics, including Holy Paladin using `Divine Illumination` instead of `Divine Plea`
 - **Interrupt Management** - Smart interrupt system with priority targets
 - **Defensive Cooldowns** - Layered HP-threshold defensive system
 - **Encounter-Specific** - Boss-specific behaviors (hold cooldowns, AoE safety)
