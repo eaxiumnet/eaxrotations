@@ -201,6 +201,7 @@ talent_manager.init()
 local rt = {
     last_talent_refresh = 0,
     revive_in_progress = false,
+    revive_started_at  = 0,
     auto_shot_id       = nil,
     aimed_shot_id      = nil,
     arcane_shot_id     = nil,

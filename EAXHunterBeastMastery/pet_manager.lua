@@ -64,6 +64,12 @@ function pet_manager.get_pet(me)
     return (ok and p and p:is_valid()) and p or nil
 end
 
+function pet_manager.get_pet_raw(me)
+    if not me then return nil end
+    local ok, p = pcall(function() return me:get_pet() end)
+    return ok and p or nil
+end
+
 function pet_manager.get_spec_state(spec_name)
     return get_spec_state(spec_name)
 end
@@ -281,28 +287,40 @@ function pet_manager.try_mend(me, pet, st, rt, spells, utils, menu, now)
 end
 
 function pet_manager.try_revive_call(me, st, rt, utils, now)
-    local p = pet_manager.get_pet(me)
+    local p = pet_manager.get_pet_raw(me)
     if pet_manager.pet_alive(p) then
         rt.revive_in_progress = false
+        rt.revive_started_at = 0
         return false
     end
     if me:is_in_combat() then return false end
     if me.is_moving and me:is_moving() then return false end
+    rt.revive_started_at = rt.revive_started_at or 0
+    if rt.revive_in_progress and (now - rt.revive_started_at) > 12.0 then
+        rt.revive_in_progress = false
+    end
     if rt.revive_in_progress then return false end
     if now - st.last_mend < 5.0 then return false end
-    if rt.revive_pet_id then
+    local pet_is_dead = false
+    if p and p.is_dead then
+        local ok_dead, is_dead = pcall(p.is_dead, p)
+        pet_is_dead = ok_dead and is_dead
+    end
+    if pet_is_dead and rt.revive_pet_id then
         if utils.can_cast_self(rt.revive_pet_id, me) then
             if utils.cast_self(rt.revive_pet_id, me) then
                 rt.revive_in_progress = true
+                rt.revive_started_at = now
                 st.last_mend = now
                 st.pet_spells_scanned = false
                 return true
             end
         end
     end
-    if rt.call_pet_id and utils.can_cast_self(rt.call_pet_id, me) then
+    if (not p) and rt.call_pet_id and utils.can_cast_self(rt.call_pet_id, me) then
         if utils.cast_self(rt.call_pet_id, me) then
             rt.revive_in_progress = true
+            rt.revive_started_at = now
             st.last_mend = now
             st.pet_spells_scanned = false
             return true
