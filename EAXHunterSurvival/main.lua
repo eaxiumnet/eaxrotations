@@ -643,6 +643,10 @@ local function find_nearby_stealth_target(me)
                 if d2 <= best_d2 and has_stealth_like_buff(obj) then
                     if guid then
                         local track = rt.stealth_tracks[guid]
+                        if not track then
+                            track = { guid = guid }
+                            rt.stealth_tracks[guid] = track
+                        end
                         if not track.stealth_active then
                             track.stealth_ts = now
                         end
@@ -651,7 +655,9 @@ local function find_nearby_stealth_target(me)
                     best, best_d2 = obj, d2
                 elseif guid then
                     local track = rt.stealth_tracks[guid]
-                    track.stealth_active = false
+                    if track then
+                        track.stealth_active = false
+                    end
                 end
             end
         end
