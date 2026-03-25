@@ -1105,7 +1105,17 @@ local function on_update()
     local focus = eax_utils.get_focus_target(menu)
     if focus and not me:can_attack(focus) then focus = nil end
     local t = focus or utils.find_best_target(me)
-    if not t or not t:is_valid() or t:is_dead() then
+    local target_is_valid = false
+    if t and t.is_valid then
+        local ok_valid, is_valid = pcall(t.is_valid, t)
+        target_is_valid = ok_valid and is_valid
+    end
+    local target_is_dead = false
+    if target_is_valid and t.is_dead then
+        local ok_dead, is_dead = pcall(t.is_dead, t)
+        target_is_dead = ok_dead and is_dead
+    end
+    if not target_is_valid or target_is_dead then
         _last_pet_attack_guid = nil
         if utils.throttle("pet_ctrl_idle", 2.0) then
             local p = get_pet()
@@ -1122,7 +1132,15 @@ local function on_update()
     end
     -- Reset pet attack when target changes to a different enemy
     if _last_pet_attack_guid then
-        local ok, guid = pcall(function() return tostring(t:get_guid()) end)
+        local ok, guid = pcall(function()
+            if not t or not t.is_valid then return nil end
+            local ok_valid, is_valid = pcall(t.is_valid, t)
+            if not ok_valid or not is_valid then return nil end
+            if not t.get_guid then return nil end
+            local ok_guid, target_guid = pcall(t.get_guid, t)
+            if not ok_guid or not target_guid then return nil end
+            return tostring(target_guid)
+        end)
         if ok and guid and guid ~= _last_pet_attack_guid then
             _last_pet_attack_guid = nil
         end

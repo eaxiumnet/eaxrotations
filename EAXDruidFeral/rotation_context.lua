@@ -70,13 +70,20 @@ function rotation_context.get(cache, me, target, deps)
     end
 
     -- Try to get target GUID
-    if target and target.is_valid and target:is_valid() then
+    local target_is_valid = false
+    if target and target.is_valid then
+        local ok_valid, is_valid = pcall(target.is_valid, target)
+        target_is_valid = ok_valid and is_valid
+    end
+    if target_is_valid then
         if target.get_guid then
             local ok, guid = pcall(target.get_guid, target)
             if ok and guid then
                 target_guid = guid
             end
         end
+    else
+        target_guid = nil
     end
 
     -- Detect combo point target for rogue/feral
