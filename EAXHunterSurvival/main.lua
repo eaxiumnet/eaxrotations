@@ -619,6 +619,9 @@ local function find_nearby_stealth_target(me)
     if not me_pos then return nil end
     local now = _core_time()
     rt.stealth_tracks = rt.stealth_tracks or {}
+    for _, track in pairs(rt.stealth_tracks) do
+        if track then track.seen_this_scan = false end
+    end
     local best, best_d2 = nil, scan_r2
     for _, obj in ipairs(core.object_manager.get_all_objects()) do
         local ok_valid, valid = pcall(function() return obj and obj:is_valid() end)
@@ -649,6 +652,7 @@ local function find_nearby_stealth_target(me)
                     end
                     track.prev_pos = track.pos.clone and track.pos:clone() or { x = track.pos.x, y = track.pos.y, z = track.pos.z }
                     track.prev_ts = now
+                    track.seen_this_scan = true
                     if track.class_id == nil then
                         track.class_id = get_unit_class_id(obj)
                     end
@@ -665,16 +669,26 @@ local function find_nearby_stealth_target(me)
                             track.stealth_ts = now
                         end
                         track.stealth_active = true
+                        track.inferred_stealth = false
                     end
                     best, best_d2 = obj, d2
                 elseif guid then
                     local track = rt.stealth_tracks[guid]
                     if track then
                         track.stealth_active = false
+                        track.inferred_stealth = false
                     end
                 end
             end
         end
+    end
+    for guid, track in pairs(rt.stealth_tracks) do
+        if track and track.seen_this_scan == false and is_stealth_capable_class(track.class_id) and track.last_seen and (now - track.last_seen) <= 0.75 and not track.stealth_active then
+            track.stealth_ts = now
+            track.stealth_active = true
+            track.inferred_stealth = true
+        end
+        if track then track.seen_this_scan = nil end
     end
     for guid, track in pairs(rt.stealth_tracks) do
         if not track.ts or (now - track.ts) > 8 then
@@ -692,7 +706,7 @@ local function find_recent_stealth_track(me)
     rt.stealth_tracks = rt.stealth_tracks or {}
     for _, track in pairs(rt.stealth_tracks) do
         if track and track.pos and track.last_d2 and track.last_d2 <= best_d2 then
-            local had_stealth = track.stealth_ts and (now - track.stealth_ts) <= 4.0
+            local had_stealth = track.stealth_ts and (now - track.stealth_ts) <= 5.5
             if had_stealth then
                 best_track = track
                 best_d2 = track.last_d2
@@ -708,7 +722,7 @@ local function render_stealth_overlay(me)
     local now = _core_time()
     local best_track, best_age = nil, 999
     for _, track in pairs(rt.stealth_tracks) do
-        if track and track.pos and track.stealth_ts and (now - track.stealth_ts) <= 4.0 then
+        if track and track.pos and track.stealth_ts and (now - track.stealth_ts) <= 5.5 then
             local age = now - track.stealth_ts
             if age < best_age then best_track, best_age = track, age end
         end
@@ -726,11 +740,11 @@ local function render_stealth_overlay(me)
             local a1 = i * (math.pi * 2 / 12)
             local p1 = { x = pos.x + math.cos(a0) * ring_r, y = pos.y + math.sin(a0) * ring_r, z = pos.z + 0.2 }
             local p2 = { x = pos.x + math.cos(a1) * ring_r, y = pos.y + math.sin(a1) * ring_r, z = pos.z + 0.2 }
-            if core.graphics.line_3d then core.graphics.line_3d(p1, p2, col) end
+            if core.graphics.line_3d then core.graphics.line_3d(p1, p2, 2.0, col) end
         end
         if menu.stealth_overlay_direction and menu.stealth_overlay_direction:get_state() and speed > 0 and best_track.vel_x and best_track.vel_y and best_track.vel_z then
             local tick = { x = pos.x + best_track.vel_x * math.min(4, math.max(1, speed)), y = pos.y + best_track.vel_y * math.min(4, math.max(1, speed)), z = pos.z + best_track.vel_z * math.min(4, math.max(1, speed)) }
-            if core.graphics.line_3d then core.graphics.line_3d(pos, tick, col) end
+            if core.graphics.line_3d then core.graphics.line_3d(pos, tick, 2.0, col) end
         end
         if core.graphics.text_3d then
             local me_pos = me and me.get_position and me:get_position() or nil
@@ -739,7 +753,7 @@ local function render_stealth_overlay(me)
                 local dx, dy, dz = pos.x - me_pos.x, pos.y - me_pos.y, pos.z - me_pos.z
                 d = math.sqrt(dx*dx + dy*dy + dz*dz)
             end
-            core.graphics.text_3d({ x = pos.x, y = pos.y, z = pos.z + 1.5 }, string.format("Stealth ? %dy", math.floor(d + 0.5)), col)
+            core.graphics.text_3d(string.format("Stealth ? %dy", math.floor(d + 0.5)), { x = pos.x, y = pos.y, z = pos.z + 1.5 }, 14, col)
         end
     end)
 end
