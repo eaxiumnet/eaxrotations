@@ -733,7 +733,6 @@ local function do_rotation(me, t)
     if defensive_manager.try_defensive(me, "hunter", utils) then return end
     ttd_tracker.update(t)
 
-    if try_revive(me) then return end
     if pet_alive() then
         pet_attack(t)
         try_kill_command(me, t)
@@ -823,6 +822,7 @@ local function on_update()
     end
 
     if eax_utils.is_eating_or_drinking(me) then return end
+    if try_revive(me) then return end
     local focus = eax_utils.get_focus_target(menu)
     if focus and not me:can_attack(focus) then focus = nil end
     local t = focus or utils.find_best_target(me)
