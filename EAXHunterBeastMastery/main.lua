@@ -9,6 +9,17 @@ local rotation_context = require("rotation_context")
 local resource_gate = require("resource_gate")
 local eax_utils = require("eax_utils")
 local color   = require("color")
+local common_color = nil
+local function to_api_color(c)
+    if not common_color then
+        local ok, mod = pcall(require, "common/color")
+        if ok then common_color = mod end
+    end
+    if common_color and c and type(c) == "table" and c.r and c.g and c.b then
+        return common_color.new(c.r, c.g, c.b, c.a)
+    end
+    return c
+end
 ---@type buff_manager
 local buff_manager  = require("common/modules/buff_manager")
 ---@type interrupt_manager
@@ -737,16 +748,17 @@ local function render_stealth_overlay(me)
     local age = math.max(0, now - (best_track.last_seen or best_track.stealth_ts or now))
     local ring_r = math.min(12, math.max(2, 2 + speed * age))
     local col = color.red(64)
+    local api_col = to_api_color(col)
     for i = 1, 12 do
         local a0 = (i - 1) * (math.pi * 2 / 12)
         local a1 = i * (math.pi * 2 / 12)
         local p1 = ensure_world_pos({ x = pos.x + math.cos(a0) * ring_r, y = pos.y + math.sin(a0) * ring_r, z = pos.z + 0.2 })
         local p2 = ensure_world_pos({ x = pos.x + math.cos(a1) * ring_r, y = pos.y + math.sin(a1) * ring_r, z = pos.z + 0.2 })
-        if p1 and p2 and core.graphics.line_3d then pcall(core.graphics.line_3d, p1, p2, col, 2.0) end
+        if p1 and p2 and core.graphics.line_3d then pcall(core.graphics.line_3d, p1, p2, api_col, 2.0) end
     end
     if menu.stealth_overlay_direction and menu.stealth_overlay_direction:get_state() and speed > 0 and best_track.vel_x and best_track.vel_y and best_track.vel_z then
         local tick = ensure_world_pos({ x = pos.x + best_track.vel_x * math.min(4, math.max(1, speed)), y = pos.y + best_track.vel_y * math.min(4, math.max(1, speed)), z = pos.z + best_track.vel_z * math.min(4, math.max(1, speed)) })
-        if tick and core.graphics.line_3d then pcall(core.graphics.line_3d, pos, tick, col, 2.0) end
+        if tick and core.graphics.line_3d then pcall(core.graphics.line_3d, pos, tick, api_col, 2.0) end
     end
     if core.graphics.text_3d then
         local me_pos = me and me.get_position and me:get_position() or nil
@@ -756,7 +768,7 @@ local function render_stealth_overlay(me)
             d = math.sqrt(dx*dx + dy*dy + dz*dz)
         end
         local label_pos = ensure_world_pos({ x = pos.x, y = pos.y, z = pos.z + 1.5 })
-        if label_pos then pcall(core.graphics.text_3d, string.format("Stealth ? %dy", math.floor(d + 0.5)), label_pos, 14, col) end
+        if label_pos then pcall(core.graphics.text_3d, string.format("Stealth ? %dy", math.floor(d + 0.5)), label_pos, 14, api_col) end
     end
 end
 
