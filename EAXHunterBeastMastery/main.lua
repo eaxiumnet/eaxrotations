@@ -988,8 +988,6 @@ local function do_rotation(me, t)
 
     ttd_tracker.update(t)
 
-    if pet_manager.try_revive_call(me, bm_state, rt, utils, now) then return end
-
     local pet = get_pet()
     pet_manager.on_update(me, t, bm_state, now, menu, utils)
 
@@ -1103,6 +1101,9 @@ local function on_update()
     end
 
     if eax_utils.is_eating_or_drinking(me) then return end
+    local now = _core_time()
+    local bm_state = pet_manager.get_spec_state("bm")
+    if pet_manager.try_revive_call(me, bm_state, rt, utils, now) then return end
     local focus = eax_utils.get_focus_target(menu)
     if focus and not me:can_attack(focus) then focus = nil end
     local t = focus or utils.find_best_target(me)
