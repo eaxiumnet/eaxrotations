@@ -25,3 +25,4 @@ Survival Hunter assistant for Project Sylvanas + TBC Classic.
 ## Notes
 - Trap logic uses a timed gate to avoid overlapping drops; actual placement depends on the runtime's handling of area spells.
 - Kill Command, melee fallback, kiting, and pet tools are used when ranged options are unavailable or unsafe.
+- Out-of-combat food/drink sustain is handled by the shared OOC system.

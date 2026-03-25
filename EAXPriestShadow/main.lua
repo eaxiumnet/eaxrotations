@@ -678,26 +678,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxpriestshadow_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_psh_cds = menu.use_cooldowns:get_state()
-            local nxt_psh_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PSh] Cooldowns", cur_psh_cds, 0, false, "eax_psh_cds_cp")
-            if nxt_psh_cds ~= cur_psh_cds then menu.use_cooldowns:set(nxt_psh_cds) end
-        end
-        if menu.focus_priority then
-            local cur_psh_focus = menu.focus_priority:get_state()
-            local nxt_psh_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PSh] Focus Priority", cur_psh_focus, 0, false, "eax_psh_focus_cp")
-            if nxt_psh_focus ~= cur_psh_focus then menu.focus_priority:set(nxt_psh_focus) end
-        end
-        if menu.use_racial then
-            local cur_psh_racial = menu.use_racial:get_state()
-            local nxt_psh_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PSh] Use Racial", cur_psh_racial, 0, false, "eax_psh_racial_cp")
-            if nxt_psh_racial ~= cur_psh_racial then menu.use_racial:set(nxt_psh_racial) end
-        end
-        end
         return elements
     end)
 end

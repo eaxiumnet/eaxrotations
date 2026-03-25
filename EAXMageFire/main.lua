@@ -877,26 +877,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxmagefire_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_mfi_cds = menu.use_cooldowns:get_state()
-            local nxt_mfi_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MFi] Cooldowns", cur_mfi_cds, 0, false, "eax_mfi_cds_cp")
-            if nxt_mfi_cds ~= cur_mfi_cds then menu.use_cooldowns:set(nxt_mfi_cds) end
-        end
-        if menu.focus_priority then
-            local cur_mfi_focus = menu.focus_priority:get_state()
-            local nxt_mfi_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MFi] Focus Priority", cur_mfi_focus, 0, false, "eax_mfi_focus_cp")
-            if nxt_mfi_focus ~= cur_mfi_focus then menu.focus_priority:set(nxt_mfi_focus) end
-        end
-        if menu.use_racial then
-            local cur_mfi_racial = menu.use_racial:get_state()
-            local nxt_mfi_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MFi] Use Racial", cur_mfi_racial, 0, false, "eax_mfi_racial_cp")
-            if nxt_mfi_racial ~= cur_mfi_racial then menu.use_racial:set(nxt_mfi_racial) end
-        end
-        end
         return elements
     end)
 end

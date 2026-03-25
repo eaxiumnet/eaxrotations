@@ -881,17 +881,6 @@ if control_panel_utility then
             control_panel_utility:insert_toggle_(elements, lbl, kb, false)
         end
         add_cb(label,                           menu.enabled,         "eax_ele_enabled_cp")
-        if menu.enabled:get_state() then
-            add_kb("[EAX Ele] Cooldowns Key",       menu.cooldowns_key)
-            add_cb("[EAX Ele] Use Cooldowns",       menu.use_cooldowns,    "eax_ele_cds_cp")
-            add_cb("[EAX Ele] Auto Totems",         menu.auto_totems,      "eax_ele_totems_cp")
-            add_cb("[EAX Ele] Flame Shock",         menu.use_flame_shock,  "eax_ele_fs_cp")
-            add_cb("[EAX Ele] Self-Heal",           menu.use_healing_wave, "eax_ele_hw_cp")
-            add_cb("[EAX Ele] Ghost Wolf",          menu.use_ghost_wolf,   "eax_ele_gw_cp")
-            add_cb("[EAX Ele] Totemic Call",        menu.use_totemic_call, "eax_ele_tc_cp")
-            add_cb("[EAX Ele] Focus Priority",      menu.focus_priority,   "eax_ele_focus_cp")
-            add_cb("[EAX Ele] Use Racial",          menu.use_racial,       "eax_ele_racial_cp")
-        end
         return elements
     end)
 end

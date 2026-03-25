@@ -830,26 +830,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxmagearcane_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_mar_cds = menu.use_cooldowns:get_state()
-            local nxt_mar_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MAr] Cooldowns", cur_mar_cds, 0, false, "eax_mar_cds_cp")
-            if nxt_mar_cds ~= cur_mar_cds then menu.use_cooldowns:set(nxt_mar_cds) end
-        end
-        if menu.focus_priority then
-            local cur_mar_focus = menu.focus_priority:get_state()
-            local nxt_mar_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MAr] Focus Priority", cur_mar_focus, 0, false, "eax_mar_focus_cp")
-            if nxt_mar_focus ~= cur_mar_focus then menu.focus_priority:set(nxt_mar_focus) end
-        end
-        if menu.use_racial then
-            local cur_mar_racial = menu.use_racial:get_state()
-            local nxt_mar_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MAr] Use Racial", cur_mar_racial, 0, false, "eax_mar_racial_cp")
-            if nxt_mar_racial ~= cur_mar_racial then menu.use_racial:set(nxt_mar_racial) end
-        end
-        end
         return elements
     end)
 end

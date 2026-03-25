@@ -24,3 +24,4 @@ Lightweight Marksmanship set-up for Sylvanas + TBC Classic.
 ## Notes
 - The script assumes the Sylvanas runtime handles casts; this module only organizes priorities and logs.
 - Multi-Shot is skipped in Solo mode to avoid eating focus when only one enemy is present.
+- Out-of-combat food/drink sustain is handled by the shared OOC system.

@@ -2438,32 +2438,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxdruidferal_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_fer_cds = menu.use_cooldowns:get_state()
-            local nxt_fer_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Fer] Cooldowns", cur_fer_cds, 0, false, "eax_fer_cds_cp")
-            if nxt_fer_cds ~= cur_fer_cds then menu.use_cooldowns:set(nxt_fer_cds) end
-        end
-        if menu.use_powershift then
-            local cur_fer_ps = menu.use_powershift:get_state()
-            local nxt_fer_ps = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Fer] Powershift", cur_fer_ps, 0, false, "eax_fer_ps_cp")
-            if nxt_fer_ps ~= cur_fer_ps then menu.use_powershift:set(nxt_fer_ps) end
-        end
-        if menu.focus_priority then
-            local cur_fer_focus = menu.focus_priority:get_state()
-            local nxt_fer_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Fer] Focus Priority", cur_fer_focus, 0, false, "eax_fer_focus_cp")
-            if nxt_fer_focus ~= cur_fer_focus then menu.focus_priority:set(nxt_fer_focus) end
-        end
-        if menu.use_racial then
-            local cur_fer_racial = menu.use_racial:get_state()
-            local nxt_fer_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Fer] Use Racial", cur_fer_racial, 0, false, "eax_fer_racial_cp")
-            if nxt_fer_racial ~= cur_fer_racial then menu.use_racial:set(nxt_fer_racial) end
-        end
-        end
         return elements
     end)
 end

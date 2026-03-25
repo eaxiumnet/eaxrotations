@@ -790,15 +790,6 @@ local function on_control_panel()
     end
 
     add_cb(title, menu.enabled, "eax_paladin_prot_enabled_cp")
-    if menu.enabled:get_state() then
-        add_cb("  PPr Racial", menu.use_racial, "eax_paladin_prot_racial_cp")
-        add_cb("  PPr Blessings", menu.ooc_group_buff, "eax_paladin_prot_blessings_cp")
-        add_cb("  PPr Holy Shield", menu.use_holy_shield, "eax_paladin_prot_holy_shield_cp")
-        add_cb("  PPr Consecration", menu.use_consecration, "eax_paladin_prot_consecration_cp")
-        add_cb("  PPr Avenger's", menu.use_avengers_shield, "eax_paladin_prot_avengers_cp")
-        add_cb("  PPr Freedom", menu.use_hand_of_freedom, "eax_paladin_prot_freedom_cp")
-    end
-
     return elements
 end
 

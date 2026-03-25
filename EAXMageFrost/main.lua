@@ -769,26 +769,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxmagefrost_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_mfr_cds = menu.use_cooldowns:get_state()
-            local nxt_mfr_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MFr] Cooldowns", cur_mfr_cds, 0, false, "eax_mfr_cds_cp")
-            if nxt_mfr_cds ~= cur_mfr_cds then menu.use_cooldowns:set(nxt_mfr_cds) end
-        end
-        if menu.focus_priority then
-            local cur_mfr_focus = menu.focus_priority:get_state()
-            local nxt_mfr_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MFr] Focus Priority", cur_mfr_focus, 0, false, "eax_mfr_focus_cp")
-            if nxt_mfr_focus ~= cur_mfr_focus then menu.focus_priority:set(nxt_mfr_focus) end
-        end
-        if menu.use_racial then
-            local cur_mfr_racial = menu.use_racial:get_state()
-            local nxt_mfr_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX MFr] Use Racial", cur_mfr_racial, 0, false, "eax_mfr_racial_cp")
-            if nxt_mfr_racial ~= cur_mfr_racial then menu.use_racial:set(nxt_mfr_racial) end
-        end
-        end
         return elements
     end)
 end

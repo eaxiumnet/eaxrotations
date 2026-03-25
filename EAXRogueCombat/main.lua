@@ -1107,31 +1107,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxroguecombat_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_rco_cds = menu.use_cooldowns:get_state()
-            local nxt_rco_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX RCo] Cooldowns", cur_rco_cds, 0, false, "eax_rco_cds_cp")
-            if nxt_rco_cds ~= cur_rco_cds then menu.use_cooldowns:set(nxt_rco_cds) end
-        end
-        if menu.focus_priority then
-            local cur_rco_focus = menu.focus_priority:get_state()
-            local nxt_rco_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX RCo] Focus Priority", cur_rco_focus, 0, false, "eax_rco_focus_cp")
-            if nxt_rco_focus ~= cur_rco_focus then menu.focus_priority:set(nxt_rco_focus) end
-        end
-        if menu.use_racial then
-            local cur_rco_racial = menu.use_racial:get_state()
-            local nxt_rco_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX RCo] Use Racial", cur_rco_racial, 0, false, "eax_rco_racial_cp")
-            if nxt_rco_racial ~= cur_rco_racial then menu.use_racial:set(nxt_rco_racial) end
-        end
-        local nxt_force_poisons = control_panel_utility:insert_key_checkbox_(
-            elements, "[EAX RCo] Force Reapply Poisons", force_apply_poisons_cp, 0, false, "eax_rco_force_poisons_cp")
-        if nxt_force_poisons and not force_apply_poisons_cp then
-            force_apply_poisons_cp = true
-        end
-        end
         return elements
     end)
 end

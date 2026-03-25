@@ -1043,14 +1043,6 @@ local function on_control_panel()
     end
 
     add_cb(title, menu.enabled, "eax_paladin_holy_enabled_cp")
-    if menu.enabled:get_state() then
-        add_cb("  PHo Focus", menu.focus_priority, "eax_paladin_holy_focus_cp")
-        add_cb("  PHo Racial", menu.use_racial, "eax_paladin_holy_racial_cp")
-        add_cb("  PHo Blessings", menu.auto_blessings, "eax_paladin_holy_blessings_cp")
-        add_cb("  PHo Cleanse", menu.use_cleanse, "eax_paladin_holy_cleanse_cp")
-        add_cb("  PHo Freedom", menu.use_hand_of_freedom, "eax_paladin_holy_freedom_cp")
-    end
-
     return elements
 end
 

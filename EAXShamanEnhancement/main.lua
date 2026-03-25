@@ -1093,18 +1093,6 @@ if control_panel_utility then
             control_panel_utility:insert_toggle_(elements, lbl, kb, false)
         end
         add_cb(label,                           menu.enabled,                   "eax_enh_enabled_cp")
-        if menu.enabled:get_state() then
-            add_cb("[EAX Enh] Use Cooldowns",       menu.use_cooldowns,             "eax_enh_cds_cp")
-            add_cb("[EAX Enh] Auto Totems",         menu.auto_totems,               "eax_enh_totems_cp")
-            add_cb("[EAX Enh] Windfury Totem",      menu.auto_totem_windfury,       "eax_enh_wf_cp")
-            add_cb("[EAX Enh] Chain Lightning",     menu.use_chain_lightning_weave, "eax_enh_cl_cp")
-            add_cb("[EAX Enh] Dual Wield Focus",    menu.dual_wield_focus,          "eax_enh_dw_cp")
-            add_cb("[EAX Enh] Self-Heal",           menu.use_healing_wave,          "eax_enh_hw_cp")
-            add_cb("[EAX Enh] LB Pull",             menu.use_lb_pull,               "eax_enh_lbpull_cp")
-            add_cb("[EAX Enh] Ghost Wolf",          menu.use_ghost_wolf,            "eax_enh_gw_cp")
-            add_cb("[EAX Enh] Focus Priority",      menu.focus_priority,            "eax_enh_focus_cp")
-            add_cb("[EAX Enh] Use Racial",          menu.use_racial,                "eax_enh_racial_cp")
-        end
         return elements
     end)
 end

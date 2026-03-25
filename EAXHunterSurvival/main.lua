@@ -800,10 +800,6 @@ local function on_update()
         mount_manager.update_mount_state(me, menu, utils)
     end
 
-    if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
-        consumables_manager.try_use_ooc_food_drink(me, menu, utils)
-    end
-
     if menu.auto_repair and menu.auto_repair:get_state() then
         vendor_automation.try_auto_repair(me, menu, utils)
     end
@@ -920,17 +916,6 @@ if control_panel_utility then
             lbl_enabled = lbl_enabled .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
         add_cb(lbl_enabled, menu.enabled, "eax_sv_enabled_cp")
-        if menu.enabled and menu.enabled:get_state() then
-            add_cb("[EAX SV] Serpent Sting",    menu.use_serpent_sting,  "eax_sv_serpent_cp")
-            add_cb("[EAX SV] Steady Shot",      menu.use_steady_shot,    "eax_sv_steady_cp")
-            add_cb("[EAX SV] Rapid Fire",       menu.use_rapid_fire,     "eax_sv_rf_cp")
-            add_cb("[EAX SV] Auto Viper",       menu.use_aspect_viper,   "eax_sv_viper_cp")
-            add_cb("[EAX SV] Kill Command",     menu.use_kill_command,   "eax_sv_kc_cp")
-            add_cb("[EAX SV] Mend Pet",         menu.use_mend_pet,       "eax_sv_mend_cp")
-            add_cb("[EAX SV] Use Traps",        menu.use_traps,          "eax_sv_traps_cp")
-            add_cb("[EAX SV] Focus Priority",   menu.focus_priority,     "eax_sv_focus_cp")
-            add_cb("[EAX SV] Use Racial",       menu.use_racial,         "eax_sv_racial_cp")
-        end
         return elements
     end)
 end

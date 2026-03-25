@@ -1130,26 +1130,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxwarlockdestruction_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_wds_cds = menu.use_cooldowns:get_state()
-            local nxt_wds_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WDs] Cooldowns", cur_wds_cds, 0, false, "eax_wds_cds_cp")
-            if nxt_wds_cds ~= cur_wds_cds then menu.use_cooldowns:set(nxt_wds_cds) end
-        end
-        if menu.focus_priority then
-            local cur_wds_focus = menu.focus_priority:get_state()
-            local nxt_wds_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WDs] Focus Priority", cur_wds_focus, 0, false, "eax_wds_focus_cp")
-            if nxt_wds_focus ~= cur_wds_focus then menu.focus_priority:set(nxt_wds_focus) end
-        end
-        if menu.use_racial then
-            local cur_wds_racial = menu.use_racial:get_state()
-            local nxt_wds_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WDs] Use Racial", cur_wds_racial, 0, false, "eax_wds_racial_cp")
-            if nxt_wds_racial ~= cur_wds_racial then menu.use_racial:set(nxt_wds_racial) end
-        end
-        end
         return elements
     end)
 end

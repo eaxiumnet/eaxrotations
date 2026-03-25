@@ -1077,26 +1077,6 @@ if control_panel_utility then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
         add_cb(label, menu.enabled, "eax_paladin_ret_enabled_cp")
-        if menu.enabled:get_state() then
-            if menu.focus_priority then
-                add_cb("  PRt Focus", menu.focus_priority, "eax_paladin_ret_focus_cp")
-            end
-            if menu.use_racial then
-                add_cb("  PRt Racial", menu.use_racial, "eax_paladin_ret_racial_cp")
-            end
-            if menu.use_seal_twist then
-                add_cb("  PRt Twist", menu.use_seal_twist, "eax_paladin_ret_twist_cp")
-            end
-            if menu.use_consecration then
-                add_cb("  PRt Consecration", menu.use_consecration, "eax_paladin_ret_consecration_cp")
-            end
-            if menu.use_exorcism then
-                add_cb("  PRt Exorcism", menu.use_exorcism, "eax_paladin_ret_exorcism_cp")
-            end
-            if menu.use_hand_of_freedom then
-                add_cb("  PRt Freedom", menu.use_hand_of_freedom, "eax_paladin_ret_freedom_cp")
-            end
-        end
         return elements
     end)
 end

@@ -1445,19 +1445,6 @@ if control_panel_utility then
             control_panel_utility:insert_toggle_(elements, lbl, kb, false)
         end
         add_cb(label,                               menu.enabled,            "eax_resto_enabled_cp")
-        if menu.enabled:get_state() then
-            add_cb("[EAX RSham] Cooldowns",             menu.use_cooldowns,      "eax_resto_cds_cp")
-            add_kb("[EAX RSham] Cooldowns Key",         menu.cooldowns_key)
-            add_cb("[EAX RSham] Nature's Swiftness",    menu.use_natures_swiftness,"eax_resto_ns_cp")
-            add_cb("[EAX RSham] Bloodlust",             menu.use_bloodlust,      "eax_resto_bl_cp")
-            add_cb("[EAX RSham] Enable DPS",            menu.enable_dps,         "eax_resto_dps_cp")
-            add_kb("[EAX RSham] DPS Key",               menu.dps_key)
-            add_cb("[EAX RSham] Dispels",               menu.use_dispels,        "eax_resto_disp_cp")
-            add_cb("[EAX RSham] Purge",                 menu.use_purge,          "eax_resto_purge_cp")
-            add_cb("[EAX RSham] Interrupt",             menu.use_interrupt,      "eax_resto_int_cp")
-            add_cb("[EAX RSham] Focus Priority",        menu.focus_priority,     "eax_resto_focus_cp")
-            add_cb("[EAX RSham] Use Racial",            menu.use_racial,         "eax_resto_racial_cp")
-        end
         return elements
     end)
 end

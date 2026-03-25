@@ -955,26 +955,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxwarlockaffliction_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_waf_cds = menu.use_cooldowns:get_state()
-            local nxt_waf_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WAf] Cooldowns", cur_waf_cds, 0, false, "eax_waf_cds_cp")
-            if nxt_waf_cds ~= cur_waf_cds then menu.use_cooldowns:set(nxt_waf_cds) end
-        end
-        if menu.focus_priority then
-            local cur_waf_focus = menu.focus_priority:get_state()
-            local nxt_waf_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WAf] Focus Priority", cur_waf_focus, 0, false, "eax_waf_focus_cp")
-            if nxt_waf_focus ~= cur_waf_focus then menu.focus_priority:set(nxt_waf_focus) end
-        end
-        if menu.use_racial then
-            local cur_waf_racial = menu.use_racial:get_state()
-            local nxt_waf_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WAf] Use Racial", cur_waf_racial, 0, false, "eax_waf_racial_cp")
-            if nxt_waf_racial ~= cur_waf_racial then menu.use_racial:set(nxt_waf_racial) end
-        end
-        end
         return elements
     end)
 end

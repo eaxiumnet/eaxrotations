@@ -1077,10 +1077,6 @@ local function on_update()
         mount_manager.update_mount_state(me, menu, utils)
     end
 
-    if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
-        consumables_manager.try_use_ooc_food_drink(me, menu, utils)
-    end
-
     if menu.auto_repair and menu.auto_repair:get_state() then
         vendor_automation.try_auto_repair(me, menu, utils)
     end
@@ -1224,16 +1220,6 @@ if control_panel_utility then
             lbl_enabled = lbl_enabled .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
         add_cb(lbl_enabled, menu.enabled, "eax_bm_enabled_cp")
-        if menu.enabled and menu.enabled:get_state() then
-            add_cb("[EAX BM] Bestial Wrath",   menu.use_bestial_wrath,  "eax_bm_bw_cp")
-            add_cb("[EAX BM] Rapid Fire",       menu.use_rapid_fire,     "eax_bm_rf_cp")
-            add_cb("[EAX BM] Auto Viper",       menu.use_aspect_viper,   "eax_bm_viper_cp")
-            add_cb("[EAX BM] Kill Command",     menu.use_kill_command,   "eax_bm_kc_cp")
-            add_cb("[EAX BM] Mend Pet",         menu.use_mend_pet,       "eax_bm_mend_cp")
-            add_cb("[EAX BM] Use Traps",        menu.use_traps,          "eax_bm_traps_cp")
-            add_cb("[EAX BM] Focus Priority",   menu.focus_priority,     "eax_bm_focus_cp")
-            add_cb("[EAX BM] Use Racial",       menu.use_racial,         "eax_bm_racial_cp")
-        end
         return elements
     end)
 end

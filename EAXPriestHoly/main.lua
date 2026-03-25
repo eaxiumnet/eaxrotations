@@ -768,26 +768,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxpriestholy_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_phy_cds = menu.use_cooldowns:get_state()
-            local nxt_phy_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PHy] Cooldowns", cur_phy_cds, 0, false, "eax_phy_cds_cp")
-            if nxt_phy_cds ~= cur_phy_cds then menu.use_cooldowns:set(nxt_phy_cds) end
-        end
-        if menu.focus_priority then
-            local cur_phy_focus = menu.focus_priority:get_state()
-            local nxt_phy_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PHy] Focus Priority", cur_phy_focus, 0, false, "eax_phy_focus_cp")
-            if nxt_phy_focus ~= cur_phy_focus then menu.focus_priority:set(nxt_phy_focus) end
-        end
-        if menu.use_racial then
-            local cur_phy_racial = menu.use_racial:get_state()
-            local nxt_phy_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PHy] Use Racial", cur_phy_racial, 0, false, "eax_phy_racial_cp")
-            if nxt_phy_racial ~= cur_phy_racial then menu.use_racial:set(nxt_phy_racial) end
-        end
-        end
         return elements
     end)
 end

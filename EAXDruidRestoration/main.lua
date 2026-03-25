@@ -1106,26 +1106,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxdruidrestoration_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_rst_cds = menu.use_cooldowns:get_state()
-            local nxt_rst_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Rst] Cooldowns", cur_rst_cds, 0, false, "eax_rst_cds_cp")
-            if nxt_rst_cds ~= cur_rst_cds then menu.use_cooldowns:set(nxt_rst_cds) end
-        end
-        if menu.focus_priority then
-            local cur_rst_focus = menu.focus_priority:get_state()
-            local nxt_rst_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Rst] Focus Priority", cur_rst_focus, 0, false, "eax_rst_focus_cp")
-            if nxt_rst_focus ~= cur_rst_focus then menu.focus_priority:set(nxt_rst_focus) end
-        end
-        if menu.use_racial then
-            local cur_rst_racial = menu.use_racial:get_state()
-            local nxt_rst_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Rst] Use Racial", cur_rst_racial, 0, false, "eax_rst_racial_cp")
-            if nxt_rst_racial ~= cur_rst_racial then menu.use_racial:set(nxt_rst_racial) end
-        end
-        end
         return elements
     end)
 end

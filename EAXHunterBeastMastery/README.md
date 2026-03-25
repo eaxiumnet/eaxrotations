@@ -26,3 +26,4 @@ Minimal Beast Mastery Hunter script for Project Sylvanas + TBC Classic.
 ## Notes
 - Actual spell casting is driven by the Sylvanas runtime; this plugin handles ability priorities and logging only.
 - Pet heal hints use the pet's health threshold; tune it to your preference.
+- Out-of-combat food/drink sustain is handled by the shared OOC system.

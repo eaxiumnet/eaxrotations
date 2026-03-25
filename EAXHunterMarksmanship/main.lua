@@ -822,10 +822,6 @@ local function on_update()
         mount_manager.update_mount_state(me, menu, utils)
     end
 
-    if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
-        consumables_manager.try_use_ooc_food_drink(me, menu, utils)
-    end
-
     if menu.auto_repair and menu.auto_repair:get_state() then
         vendor_automation.try_auto_repair(me, menu, utils)
     end
@@ -942,15 +938,6 @@ if control_panel_utility then
             lbl_enabled = lbl_enabled .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
         add_cb(lbl_enabled, menu.enabled, "eax_mm_enabled_cp")
-        if menu.enabled and menu.enabled:get_state() then
-            add_cb("[EAX MM] Rapid Fire",       menu.use_rapid_fire,     "eax_mm_rf_cp")
-            add_cb("[EAX MM] Trueshot Aura",    menu.use_trueshot_aura,  "eax_mm_tsa_cp")
-            add_cb("[EAX MM] Auto Viper",       menu.use_aspect_viper,   "eax_mm_viper_cp")
-            add_cb("[EAX MM] Mend Pet",         menu.use_mend_pet,       "eax_mm_mend_cp")
-            add_cb("[EAX MM] Use Traps",        menu.use_traps,          "eax_mm_traps_cp")
-            add_cb("[EAX MM] Focus Priority",   menu.focus_priority,     "eax_mm_focus_cp")
-            add_cb("[EAX MM] Use Racial",       menu.use_racial,         "eax_mm_racial_cp")
-        end
         return elements
     end)
 end

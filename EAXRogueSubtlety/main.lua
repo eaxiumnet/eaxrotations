@@ -1161,31 +1161,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxroguesubtlety_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_rsu_cds = menu.use_cooldowns:get_state()
-            local nxt_rsu_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX RSu] Cooldowns", cur_rsu_cds, 0, false, "eax_rsu_cds_cp")
-            if nxt_rsu_cds ~= cur_rsu_cds then menu.use_cooldowns:set(nxt_rsu_cds) end
-        end
-        if menu.focus_priority then
-            local cur_rsu_focus = menu.focus_priority:get_state()
-            local nxt_rsu_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX RSu] Focus Priority", cur_rsu_focus, 0, false, "eax_rsu_focus_cp")
-            if nxt_rsu_focus ~= cur_rsu_focus then menu.focus_priority:set(nxt_rsu_focus) end
-        end
-        if menu.use_racial then
-            local cur_rsu_racial = menu.use_racial:get_state()
-            local nxt_rsu_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX RSu] Use Racial", cur_rsu_racial, 0, false, "eax_rsu_racial_cp")
-            if nxt_rsu_racial ~= cur_rsu_racial then menu.use_racial:set(nxt_rsu_racial) end
-        end
-        local nxt_force_poisons = control_panel_utility:insert_key_checkbox_(
-            elements, "[EAX RSu] Force Reapply Poisons", force_apply_poisons_cp, 0, false, "eax_rsu_force_poisons_cp")
-        if nxt_force_poisons and not force_apply_poisons_cp then
-            force_apply_poisons_cp = true
-        end
-        end
         return elements
     end)
 end

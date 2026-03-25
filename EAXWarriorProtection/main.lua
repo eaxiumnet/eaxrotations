@@ -2779,20 +2779,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxwarriorprotection_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_wpr_cds = menu.use_cooldowns:get_state()
-            local nxt_wpr_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WPr] Cooldowns", cur_wpr_cds, 0, false, "eax_wpr_cds_cp")
-            if nxt_wpr_cds ~= cur_wpr_cds then menu.use_cooldowns:set(nxt_wpr_cds) end
-        end
-        if menu.use_racial then
-            local cur_wpr_racial = menu.use_racial:get_state()
-            local nxt_wpr_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WPr] Use Racial", cur_wpr_racial, 0, false, "eax_wpr_racial_cp")
-            if nxt_wpr_racial ~= cur_wpr_racial then menu.use_racial:set(nxt_wpr_racial) end
-        end
-        end
         return elements
     end)
 end

@@ -899,26 +899,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxdruidbalance_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_bal_cds = menu.use_cooldowns:get_state()
-            local nxt_bal_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Bal] Cooldowns", cur_bal_cds, 0, false, "eax_bal_cds_cp")
-            if nxt_bal_cds ~= cur_bal_cds then menu.use_cooldowns:set(nxt_bal_cds) end
-        end
-        if menu.focus_priority then
-            local cur_bal_focus = menu.focus_priority:get_state()
-            local nxt_bal_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Bal] Focus Priority", cur_bal_focus, 0, false, "eax_bal_focus_cp")
-            if nxt_bal_focus ~= cur_bal_focus then menu.focus_priority:set(nxt_bal_focus) end
-        end
-        if menu.use_racial then
-            local cur_bal_racial = menu.use_racial:get_state()
-            local nxt_bal_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX Bal] Use Racial", cur_bal_racial, 0, false, "eax_bal_racial_cp")
-            if nxt_bal_racial ~= cur_bal_racial then menu.use_racial:set(nxt_bal_racial) end
-        end
-        end
         return elements
     end)
 end

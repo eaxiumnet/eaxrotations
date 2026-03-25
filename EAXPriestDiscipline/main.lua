@@ -807,26 +807,6 @@ if control_panel_utility then
         end
         label = "[" .. label
         add_cb(label, menu.enabled, "eax_eaxpriestdiscipline_enabled_cp")
-        if menu.enabled:get_state() then
-        if menu.use_cooldowns then
-            local cur_pdi_cds = menu.use_cooldowns:get_state()
-            local nxt_pdi_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PDi] Cooldowns", cur_pdi_cds, 0, false, "eax_pdi_cds_cp")
-            if nxt_pdi_cds ~= cur_pdi_cds then menu.use_cooldowns:set(nxt_pdi_cds) end
-        end
-        if menu.focus_priority then
-            local cur_pdi_focus = menu.focus_priority:get_state()
-            local nxt_pdi_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PDi] Focus Priority", cur_pdi_focus, 0, false, "eax_pdi_focus_cp")
-            if nxt_pdi_focus ~= cur_pdi_focus then menu.focus_priority:set(nxt_pdi_focus) end
-        end
-        if menu.use_racial then
-            local cur_pdi_racial = menu.use_racial:get_state()
-            local nxt_pdi_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX PDi] Use Racial", cur_pdi_racial, 0, false, "eax_pdi_racial_cp")
-            if nxt_pdi_racial ~= cur_pdi_racial then menu.use_racial:set(nxt_pdi_racial) end
-        end
-        end
         return elements
     end)
 end
