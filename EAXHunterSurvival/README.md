@@ -21,12 +21,12 @@ Survival Hunter assistant for Project Sylvanas + TBC Classic.
 - Configure ranged priority, Kill Command, melee fallback, kiting, and pet support tools.
 
 ## Usage
-1. Drop `EAXHunterSurvival` into the Sylvanas `scripts/` folder.
-2. Reload the runtime or restart WoW.
-3. Enable the addon and choose your preferred trap and mode.
-4. Let the rotation maintain Hunter's Mark / Serpent Sting, then fall back through the ranged kit, traps, and survival tools.
+1. Open the Hunter Survival menu and enable the rotation.
+2. Choose your preferred trap setup and leave the mode on Auto unless you want to force Solo / Dungeon / Raid behavior.
+3. Let the profile maintain mark/sting, ranged shots, traps, pet recovery, and utility tools.
 
 ## Notes
 - Trap logic uses a timed gate to avoid overlapping drops; actual placement depends on the runtime's handling of area spells.
 - Kill Command, melee fallback, kiting, and pet tools are used when ranged options are unavailable or unsafe.
 - Out-of-combat food/drink sustain is handled by the shared OOC system.
+- Anti-stealth Flare is best-effort and prediction-based, not perfect hidden-unit detection.

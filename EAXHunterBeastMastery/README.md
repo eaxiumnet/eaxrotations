@@ -21,13 +21,12 @@ Minimal Beast Mastery Hunter script for Project Sylvanas + TBC Classic.
 - Adjust the pet-heal threshold to control when Mend Pet becomes eligible.
 
 ## Usage
-1. Drop the `EAXHunterBeastMastery` folder into Sylvanas' `scripts/` directory.
-2. Reload Sylvanas or restart WoW Classic.
-3. Open the menu (default key 6) and enable the addon.
-4. Set the mode to Auto or the content-specific preset.
-5. Let the rotation trigger Kill Command once the pet is on target and use Steady Shot as filler.
+1. Open the Hunter BM menu and enable the rotation.
+2. Leave the mode on Auto unless you want to force Solo / Dungeon / Raid behavior.
+3. Let the profile handle Kill Command, pet recovery, aspects, and the TBC BM shot lane.
 
 ## Notes
 - Actual spell casting is driven by the Sylvanas runtime; this plugin handles ability priorities and logging only.
 - Pet heal hints use the pet's health threshold; tune it to your preference.
 - Out-of-combat food/drink sustain is handled by the shared OOC system.
+- Anti-stealth Flare is best-effort and prediction-based, not perfect hidden-unit detection.
