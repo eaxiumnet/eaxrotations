@@ -518,6 +518,117 @@ local function try_trueshot_aura(me)
     return false
 end
 
+local STEALTH = {1784, 1785, 1786, 1787}
+local VANISH = {1856, 1857, 26889}
+local PROWL = {5215, 9913}
+local SHADOWMELD = {58984}
+local INVIS = {66, 110959}
+
+local function has_stealth_like_buff(unit)
+    return utils.has_buff(unit, STEALTH)
+        or utils.has_buff(unit, VANISH)
+        or utils.has_buff(unit, PROWL)
+        or utils.has_buff(unit, SHADOWMELD)
+        or utils.has_buff(unit, INVIS)
+end
+
+local function get_unit_position(unit)
+    if not unit then return nil end
+    local ok, pos = pcall(function() return unit:get_position() end)
+    if not ok then return nil end
+    return pos
+end
+
+local function get_unit_guid(unit)
+    if not unit then return nil end
+    local ok, guid = pcall(function() return tostring(unit:get_guid()) end)
+    if not ok then return nil end
+    return guid
+end
+
+local function predict_stealth_position(track, current_pos)
+    if not track or not current_pos or not track.pos or not track.ts then return current_pos end
+    local now = _core_time()
+    local dt = now - track.ts
+    if dt <= 0 or dt > 3.5 then return current_pos end
+    local prev = track.pos
+    if type(prev.x) ~= "number" or type(prev.y) ~= "number" or type(prev.z) ~= "number" then return current_pos end
+    if type(current_pos.x) ~= "number" or type(current_pos.y) ~= "number" or type(current_pos.z) ~= "number" then return current_pos end
+    local pred_s = menu.stealth_prediction_s and menu.stealth_prediction_s:get() or 0
+    local clone_ok, predicted = pcall(function()
+        if current_pos.clone then
+            local p = current_pos:clone()
+            p.x = current_pos.x + ((current_pos.x - prev.x) / dt) * pred_s
+            p.y = current_pos.y + ((current_pos.y - prev.y) / dt) * pred_s
+            p.z = current_pos.z + ((current_pos.z - prev.z) / dt) * pred_s
+            return p
+        end
+    end)
+    if clone_ok and predicted then return predicted end
+    return current_pos
+end
+
+local function find_nearby_stealth_target(me)
+    local scan_radius = menu.stealth_scan_radius and menu.stealth_scan_radius:get() or 20
+    local scan_r2 = scan_radius * scan_radius
+    local me_pos = get_unit_position(me)
+    if not me_pos then return nil end
+    local now = _core_time()
+    rt.stealth_tracks = rt.stealth_tracks or {}
+    local best, best_d2 = nil, scan_r2
+    for _, obj in ipairs(core.object_manager.get_all_objects()) do
+        local ok_valid, valid = pcall(function() return obj and obj:is_valid() end)
+        local ok_attack, can_attack = pcall(function() return obj and me:can_attack(obj) end)
+        if ok_valid and valid and obj and obj:is_unit() and not obj:is_dead() and ok_attack and can_attack then
+            local pos = get_unit_position(obj)
+            if pos and type(pos.x) == "number" and type(pos.y) == "number" and type(pos.z) == "number" then
+                local dx, dy, dz = pos.x - me_pos.x, pos.y - me_pos.y, pos.z - me_pos.z
+                local d2 = dx * dx + dy * dy + dz * dz
+                if d2 <= best_d2 and has_stealth_like_buff(obj) then
+                    local guid = get_unit_guid(obj)
+                    if guid then
+                        local track = rt.stealth_tracks[guid] or {}
+                        track.pos = pos.clone and pos:clone() or { x = pos.x, y = pos.y, z = pos.z }
+                        track.ts = now
+                        rt.stealth_tracks[guid] = track
+                    end
+                    best, best_d2 = obj, d2
+                end
+            end
+        end
+    end
+    for guid, track in pairs(rt.stealth_tracks) do
+        if not track.ts or (now - track.ts) > 5 then rt.stealth_tracks[guid] = nil end
+    end
+    return best
+end
+
+local function try_auto_stealth_flare(me)
+    local wants_flare = menu.auto_stealth_flare and menu.auto_stealth_flare:get_state()
+    local wants_warning = menu.stealth_warning and menu.stealth_warning:get_state()
+    if not wants_flare and not wants_warning then return false end
+    local target = find_nearby_stealth_target(me)
+    if not target then return false end
+    local pos = get_unit_position(target)
+    if not pos then return false end
+    local guid = get_unit_guid(target)
+    local track = guid and rt.stealth_tracks and rt.stealth_tracks[guid] or nil
+    local cast_pos = predict_stealth_position(track, pos)
+    if wants_warning and guid then
+        esp_renderer.notify("stealth_flare_" .. guid, "Hunter Flare", "Stealth target detected.")
+    end
+    if not wants_flare or not rt.flare_id then return false end
+    if (_core_time() - rt.last_flare_time) < 15 then return false end
+    local ok_spell_helper, spell_helper = pcall(require, "common/utility/spell_helper")
+    if not ok_spell_helper or not spell_helper then return false end
+    if not spell_helper.is_spell_castable_position or not spell_helper:is_spell_castable_position(rt.flare_id, me, target, cast_pos, false, false) then return false end
+    if core.input.cast_spell_position and core.input.cast_spell_position(rt.flare_id, cast_pos) then
+        rt.last_flare_time = _core_time()
+        return true
+    end
+    return false
+end
+
 -- ── Pet ───────────────────────────────────────────────────────────────────────
 local function try_revive(me)
     if not menu.use_revive_pet or not menu.use_revive_pet:get_state() then return false end
@@ -898,6 +1009,8 @@ local function on_update()
     if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
         vendor_automation.try_auto_sell_greys(me, menu, utils)
     end
+
+    try_auto_stealth_flare(me)
 
     sync_pet_autocast(me)
 
