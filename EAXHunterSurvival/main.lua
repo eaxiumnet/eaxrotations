@@ -4,6 +4,7 @@
 local menu    = require("menu")
 local spells  = require("spells")
 local utils   = require("utils")
+local creature_utils = require("eax_shared/creature_utils")
 local rotation_context = require("rotation_context")
 local resource_gate = require("resource_gate")
 local eax_utils = require("eax_utils")
@@ -210,6 +211,10 @@ local rt = {
     explosive_trap_id   = nil,
     immolation_trap_id  = nil,
     freezing_trap_id    = nil,
+    deterrence_id       = nil,
+    flare_id            = nil,
+    scare_beast_id      = nil,
+    wyvern_sting_id     = nil,
     -- state
     last_wing_clip_cast_count = 0,
     last_concussive_cast_count = 0,
@@ -226,6 +231,13 @@ local rt = {
     last_multi_shot_cast_count = 0,
     last_rapid_fire_cast_count = 0,
     last_trap_time      = 0,
+    last_deterrence_cast_count = -1,
+    last_scare_beast_cast_count = -1,
+    last_wyvern_sting_cast_count = -1,
+    last_flare_time     = 0,
+    pet_autocast_guid   = nil,
+    pet_autocast_mode   = nil,
+    pet_autocast_configured = false,
     last_spell_refresh  = 0,
     haste_breakpoint    = "2:1",
     cached_mode         = "solo",
@@ -240,6 +252,12 @@ local ctx_cache = rotation_context.new({
 local SPELL_REFRESH = 1.0
 local MODE_REFRESH  = 4.5
 local AUTO_CLIP_MS  = 200
+
+local try_deterrence
+local try_scare_beast
+local try_wyvern_sting
+local try_flare
+local sync_pet_autocast
 
 local function resolve()
     local now = _core_time()
@@ -270,6 +288,10 @@ local function resolve()
     rt.explosive_trap_id   = utils.resolve_spell_id(spells.EXPLOSIVE_TRAP)
     rt.immolation_trap_id  = utils.resolve_spell_id(spells.IMMOLATION_TRAP)
     rt.freezing_trap_id    = utils.resolve_spell_id(spells.FREEZING_TRAP)
+    rt.deterrence_id       = utils.resolve_spell_id(spells.DETERRENCE)
+    rt.flare_id            = utils.resolve_spell_id(spells.FLARE)
+    rt.scare_beast_id      = utils.resolve_spell_id(spells.SCARE_BEAST)
+    rt.wyvern_sting_id     = utils.resolve_spell_id(spells.WYVERN_STING)
 end
 
 local function is_gcd_ready()
@@ -372,6 +394,13 @@ local function active_mode()
     local s = menu.mode and menu.mode:get() or 1
     if s==2 then return "solo" elseif s==3 then return "dungeon" elseif s==4 then return "raid" end
     return rt.cached_mode
+end
+
+local function get_direct_focus_unit(current_target)
+    local ok, focus = pcall(function() return core.input.get_focus() end)
+    if not ok or not focus or not focus.is_valid or not focus:is_valid() or focus:is_dead() then return nil end
+    if current_target and utils.same_unit and utils.same_unit(focus, current_target) then return nil end
+    return focus
 end
 
 local function can_use_travel_aspect(me)
@@ -744,6 +773,7 @@ local function do_rotation(me, t)
 
 
     if try_feign_death(me) then return end
+    if try_deterrence(me) then return end
 
     if d <= 8 then
         try_concussive(me, t)
@@ -779,6 +809,9 @@ local function do_rotation(me, t)
         try_kill_command(me, t)
     end
     try_mend(me)
+    if try_scare_beast(me, t) then return end
+    if try_flare(me, t) then return end
+    if try_wyvern_sting(me, t) then return end
     if try_trap(me, t) then return end
     if try_hunters_mark(me, t) then return end
 
@@ -848,6 +881,8 @@ local function on_update()
     if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
         vendor_automation.try_auto_sell_greys(me, menu, utils)
     end
+
+    sync_pet_autocast(me)
 
     if me:is_in_combat() then
         if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
@@ -959,6 +994,69 @@ if control_panel_utility then
         add_cb(lbl_enabled, menu.enabled, "eax_sv_enabled_cp")
         return elements
     end)
+end
+
+try_deterrence = function(me)
+    if not menu.use_deterrence or not menu.use_deterrence:get_state() then return false end
+    if not rt.deterrence_id then return false end
+    if (me:get_health_percentage() or 100) > (menu.deterrence_hp and menu.deterrence_hp:get() or 12) then return false end
+    if rt.last_deterrence_cast_count == core.spell_book.get_spell_cast_count(rt.deterrence_id) then return false end
+    if utils.can_cast_self(rt.deterrence_id, me) then rt.last_deterrence_cast_count = core.spell_book.get_spell_cast_count(rt.deterrence_id); utils.cast_self(rt.deterrence_id, me); return true end
+    return false
+end
+
+try_scare_beast = function(me, current_target)
+    if not menu.use_scare_beast or not menu.use_scare_beast:get_state() then return false end
+    if not rt.scare_beast_id then return false end
+    local focus = get_direct_focus_unit(current_target); if not focus or not creature_utils.is_beast(focus) or not me:can_attack(focus) then return false end
+    if rt.last_scare_beast_cast_count == core.spell_book.get_spell_cast_count(rt.scare_beast_id) then return false end
+    if utils.cast_target(rt.scare_beast_id, focus) then rt.last_scare_beast_cast_count = core.spell_book.get_spell_cast_count(rt.scare_beast_id); return true end
+    return false
+end
+
+try_wyvern_sting = function(me, current_target)
+    if not menu.use_wyvern_sting or not menu.use_wyvern_sting:get_state() then return false end
+    if not rt.wyvern_sting_id then return false end
+    local focus = get_direct_focus_unit(current_target); if not focus or not me:can_attack(focus) then return false end
+    if rt.last_wyvern_sting_cast_count == core.spell_book.get_spell_cast_count(rt.wyvern_sting_id) then return false end
+    if utils.cast_target(rt.wyvern_sting_id, focus) then rt.last_wyvern_sting_cast_count = core.spell_book.get_spell_cast_count(rt.wyvern_sting_id); return true end
+    return false
+end
+
+try_flare = function(me, current_target)
+    if not menu.use_flare or not menu.use_flare:get_state() then return false end
+    if not rt.flare_id then return false end
+    if (_core_time() - rt.last_flare_time) < 15 then return false end
+    local focus = get_direct_focus_unit(current_target); if not focus then return false end
+    local pos = focus:get_position(); if not pos then return false end
+    local ok_spell_helper, spell_helper = pcall(require, "common/utility/spell_helper")
+    if not ok_spell_helper or not spell_helper then return false end
+    if not spell_helper.is_spell_castable_position or not spell_helper:is_spell_castable_position(rt.flare_id, me, focus, pos, false, false) then return false end
+    if core.input.cast_spell_position and core.input.cast_spell_position(rt.flare_id, pos) then rt.last_flare_time = _core_time(); return true end
+    return false
+end
+
+sync_pet_autocast = function(me)
+    if not menu.sync_pet_autocast or not menu.sync_pet_autocast:get_state() then return end
+    local ok, actions = pcall(function() return core.spell_book.get_pet_action_info() end)
+    if not ok or type(actions) ~= "table" then return end
+    local pet = get_pet(); if not pet then rt.pet_autocast_guid, rt.pet_autocast_mode, rt.pet_autocast_configured = nil, nil, false; return end
+    local guid=nil; pcall(function() guid = tostring(pet:get_guid()) end)
+    local mode = active_mode(); if rt.pet_autocast_configured and rt.pet_autocast_guid == guid and rt.pet_autocast_mode == mode then return end
+    local want = { Claw=true, Bite=true, Gore=true, ["Lightning Breath"]=true, ["Poison Spit"]=true, ["Furious Howl"]=true, Screech=true, Thunderstomp=true }
+    local function current_autocast_state(a)
+        if type(a) ~= "table" then return nil end
+        if a.autocast ~= nil then return a.autocast end
+        if a.autocast_enabled ~= nil then return a.autocast_enabled end
+        if a.is_autocast ~= nil then return a.is_autocast end
+        if a.enabled ~= nil then return a.enabled end
+        if a[3] ~= nil then return a[3] end
+        if a[2] ~= nil then return a[2] end
+        if type(a[1]) == "boolean" then return a[1] end
+        return nil
+    end
+    for _, a in ipairs(actions) do local name = a and (a.name or a[1]); local autocast = current_autocast_state(a); if name and autocast ~= nil then local enabled = want[name] or (name == "Growl" and not (menu.disable_growl_in_group and menu.disable_growl_in_group:get_state() and mode ~= "solo")); if enabled ~= autocast then if enabled then core.input.enable_pet_autocast(name) else core.input.disable_pet_autocast(name) end end end end
+    rt.pet_autocast_guid, rt.pet_autocast_mode, rt.pet_autocast_configured = guid, mode, true
 end
 
 do

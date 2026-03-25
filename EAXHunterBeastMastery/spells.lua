@@ -36,10 +36,13 @@ spells.FROST_TRAP      = { 13810 }
 
 -- ── Cooldowns ─────────────────────────────────────────────────────────────────
 spells.RAPID_FIRE = { 3045 }
+spells.DETERRENCE = { 19263 }
+spells.FLARE = { 1543 }
 
 -- ── Utility ───────────────────────────────────────────────────────────────────
 spells.DISENGAGE        = { 781 }
 spells.FEIGN_DEATH      = { 5384 }
+spells.SCARE_BEAST      = { 1513, 14326, 14327, 14328, 14329, 14330 }
 spells.WING_CLIP        = { 14268, 14267, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 14259, 2974 }
 spells.CONCUSSIVE_SHOT  = { 19407, 5116 }
 spells.SCATTER_SHOT     = { 19503 }

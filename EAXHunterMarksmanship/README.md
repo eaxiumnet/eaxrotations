@@ -7,6 +7,9 @@ Lightweight Marksmanship set-up for Sylvanas + TBC Classic.
 - **Multi-Shot weaving** whenever multiple enemies are present (Auto/Dungeon/Raid modes).
 - **Steady Shot options** keep focus ticking between heavier casts.
 - **Travel aspects** default to Cheetah, with Pack optional for dungeon/raid travel.
+- **Emergency Deterrence** is available as a low-HP safety button.
+- **Optional focus utility** includes Scare Beast and Flare.
+- **Pet autocast sync** can keep Growl disabled in group content.
 
 ## Modes
 - Auto mode senses party size and switches between Solo, Dungeon, or Raid assumptions.

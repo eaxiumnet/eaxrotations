@@ -8,6 +8,9 @@ Survival Hunter assistant for Project Sylvanas + TBC Classic.
 - **Traps** for utility, control, and pull management.
 - **Kill Command**, melee fallback, kiting, and pet tools for survival play.
 - **Travel aspects** default to Cheetah, with Pack optional for dungeon/raid travel.
+- **Emergency Deterrence** is available as a low-HP safety button.
+- **Optional focus utility** includes Scare Beast, Flare, and Wyvern Sting.
+- **Pet autocast sync** can keep Growl disabled in group content.
 
 ## Modes
 - Auto mode keeps Solo/Dungeon/Raid thresholds automatically tuned by party size detection.
