@@ -6,6 +6,7 @@ Minimal Beast Mastery Hunter script for Project Sylvanas + TBC Classic.
 - **Pet-assisted DPS** with Kill Command once the pet is engaged on target.
 - **Steady Shot weaving** keeps focus topped off between priority casts.
 - **Pet awareness** helps keep Mend Pet available when the pet actually needs healing.
+- **Travel aspects** can auto-swap to Cheetah, or Pack in group travel if enabled.
 
 ## Modes
 - Auto mode detects party size and switches between Solo, Dungeon, and Raid behavior.

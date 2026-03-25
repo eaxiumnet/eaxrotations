@@ -76,6 +76,8 @@ menu.use_rapid_fire   = core.menu.checkbox(true, "eaxhuntersv_use_rapid_fire")
 menu.use_aspect_viper = core.menu.checkbox(true, "eaxhuntersv_use_aspect_viper")
 menu.viper_mana_enter = core.menu.slider_int(10, 60, 35, "eaxhuntersv_viper_enter")
 menu.viper_mana_exit  = core.menu.slider_int(50, 100, 85, "eaxhuntersv_viper_exit")
+menu.auto_travel_aspect = core.menu.checkbox(true, "eaxhuntersv_auto_travel_aspect")
+menu.use_pack_as_travel_aspect = core.menu.checkbox(false, "eaxhuntersv_use_pack_as_travel_aspect")
 
 -- ── Kiting ────────────────────────────────────────────────────────────────────
 menu.use_concussive  = core.menu.checkbox(true, "eaxhuntersv_use_concussive")
@@ -143,6 +145,9 @@ function menu.render()
             menu.use_aspect_viper:render("Auto-Viper",    "Switch to Aspect of the Viper when mana is low.")
             menu.viper_mana_enter:render("Enter Viper %", "Switch to Viper below this mana percent.")
             menu.viper_mana_exit:render("Exit Viper %",   "Switch back to Hawk above this mana percent.")
+            ps.header("Travel Aspect")
+            menu.auto_travel_aspect:render("Auto Travel Aspect", "Cheetah is the default travel aspect when moving OOC.")
+            menu.use_pack_as_travel_aspect:render("Use Pack in Group", "Optional Pack only for dungeon/raid travel.")
         end)
 
         -- ── Kiting & Traps ────────────────────────────────────────────────

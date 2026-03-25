@@ -365,6 +365,8 @@ local function resolve()
     rt.serpent_sting_id    = utils.resolve_spell_id(spells.SERPENT_STING)
     rt.aspect_hawk_id      = utils.resolve_spell_id(spells.ASPECT_OF_THE_HAWK)
     rt.aspect_monkey_id    = utils.resolve_spell_id(spells.ASPECT_OF_THE_MONKEY)
+    rt.aspect_cheetah_id   = utils.resolve_spell_id(spells.ASPECT_OF_THE_CHEETAH)
+    rt.aspect_pack_id      = utils.resolve_spell_id(spells.ASPECT_OF_THE_PACK)
     rt.raptor_strike_id    = utils.resolve_spell_id(spells.RAPTOR_STRIKE)
     rt.wing_clip_id        = utils.resolve_spell_id(spells.WING_CLIP)
     rt.immolation_trap_id  = utils.resolve_spell_id(spells.IMMOLATION_TRAP)
@@ -521,6 +523,36 @@ local function active_mode()
     return rt.cached_mode
 end
 
+local function can_use_travel_aspect(me)
+    if not me or me:is_in_combat() then return false end
+    if not menu.auto_travel_aspect or not menu.auto_travel_aspect:get_state() then return false end
+    if not is_moving() then return false end
+    local ok_mounted, mounted = pcall(function() return me:is_mounted() end)
+    if ok_mounted and mounted then return false end
+    local ok_casting, casting = pcall(function() return me:is_casting_spell() end)
+    local ok_channel, channeling = pcall(function() return me:is_channelling_spell() end)
+    if (ok_casting and casting) or (ok_channel and channeling) then return false end
+    return true
+end
+
+local function try_travel_aspect(me)
+    if not can_use_travel_aspect(me) then return false end
+    local use_pack = menu.use_pack_as_travel_aspect and menu.use_pack_as_travel_aspect:get_state()
+    local mode = active_mode()
+    local use_pack_now = use_pack and (mode == "dungeon" or mode == "raid")
+    local travel_id = use_pack_now and rt.aspect_pack_id or rt.aspect_cheetah_id
+    local travel_buff = use_pack_now and spells.BUFF_ASPECT_OF_THE_PACK or spells.BUFF_ASPECT_OF_THE_CHEETAH
+    if not travel_id or utils.has_buff(me, travel_buff) then return false end
+    if rt.last_aspect_cast_count == core.spell_book.get_spell_cast_count(travel_id) then return false end
+    if utils.can_cast_self(travel_id, me) then
+        rt.last_aspect_cast_count = core.spell_book.get_spell_cast_count(travel_id)
+        utils.cast_self(travel_id, me)
+        utils.log_debug(menu, use_pack_now and "Aspect of the Pack" or "Aspect of the Cheetah")
+        return true
+    end
+    return false
+end
+
 -- ── Pet attack ────────────────────────────────────────────────────────────────
 local _last_pet_attack_guid = nil
 local function pet_attack(target)
@@ -578,6 +610,15 @@ local function try_aspect_viper(me)
 end
 
 local function try_aspect(me)
+    if me:is_in_combat() and (utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_CHEETAH) or utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_PACK)) then
+        if not rt.aspect_monkey_id then return false end
+        if rt.last_aspect_cast_count == core.spell_book.get_spell_cast_count(rt.aspect_monkey_id) then return false end
+        if utils.can_cast_self(rt.aspect_monkey_id, me) then
+            rt.last_aspect_cast_count = core.spell_book.get_spell_cast_count(rt.aspect_monkey_id)
+            utils.cast_self(rt.aspect_monkey_id, me)
+            utils.log_debug(menu, "Aspect of the Monkey"); return true
+        end
+    end
     if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER) then return false end
 
     -- Check if any enemy is attacking us in melee range
@@ -1001,6 +1042,7 @@ local function do_rotation(me, t)
 
     if try_trap(me, t) then return end
     if try_hunters_mark(me, t) then return end
+    if try_travel_aspect(me) then return end
 
     if me:is_in_combat() and d > 5 and d <= 35 and not is_moving() then
         leveling_manager.ensure_ranged(me, t)

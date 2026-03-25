@@ -7,6 +7,7 @@ Survival Hunter assistant for Project Sylvanas + TBC Classic.
 - **Aimed Shot**, **Arcane Shot**, **Multi-Shot**, and **Steady Shot** as the core ranged kit.
 - **Traps** for utility, control, and pull management.
 - **Kill Command**, melee fallback, kiting, and pet tools for survival play.
+- **Travel aspects** default to Cheetah, with Pack optional for dungeon/raid travel.
 
 ## Modes
 - Auto mode keeps Solo/Dungeon/Raid thresholds automatically tuned by party size detection.

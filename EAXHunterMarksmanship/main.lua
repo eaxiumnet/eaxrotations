@@ -261,6 +261,8 @@ local function resolve()
     rt.viper_sting_id      = utils.resolve_spell_id(spells.VIPER_STING)
     rt.aspect_hawk_id      = utils.resolve_spell_id(spells.ASPECT_OF_THE_HAWK)
     rt.viper_aspect_id     = utils.resolve_spell_id(spells.ASPECT_OF_THE_VIPER)
+    rt.aspect_cheetah_id   = utils.resolve_spell_id(spells.ASPECT_OF_THE_CHEETAH)
+    rt.aspect_pack_id      = utils.resolve_spell_id(spells.ASPECT_OF_THE_PACK)
     rt.raptor_strike_id    = utils.resolve_spell_id(spells.RAPTOR_STRIKE)
     rt.wing_clip_id        = utils.resolve_spell_id(spells.WING_CLIP)
     rt.concussive_shot_id  = utils.resolve_spell_id(spells.CONCUSSIVE_SHOT)
@@ -376,6 +378,36 @@ local function active_mode()
     if s==2 then return "solo" elseif s==3 then return "dungeon" elseif s==4 then return "raid" end
     return rt.cached_mode
 end
+
+local function can_use_travel_aspect(me)
+    if not me or me:is_in_combat() then return false end
+    if not menu.auto_travel_aspect or not menu.auto_travel_aspect:get_state() then return false end
+    if not is_moving() then return false end
+    local ok_mounted, mounted = pcall(function() return me:is_mounted() end)
+    if ok_mounted and mounted then return false end
+    local ok_casting, casting = pcall(function() return me:is_casting_spell() end)
+    local ok_channel, channeling = pcall(function() return me:is_channelling_spell() end)
+    if (ok_casting and casting) or (ok_channel and channeling) then return false end
+    return true
+end
+
+local function try_travel_aspect(me)
+    if not can_use_travel_aspect(me) then return false end
+    local use_pack = menu.use_pack_as_travel_aspect and menu.use_pack_as_travel_aspect:get_state()
+    local mode = active_mode()
+    local use_pack_now = use_pack and (mode == "dungeon" or mode == "raid")
+    local travel_id = use_pack_now and rt.aspect_pack_id or rt.aspect_cheetah_id
+    local travel_buff = use_pack_now and spells.BUFF_ASPECT_OF_THE_PACK or spells.BUFF_ASPECT_OF_THE_CHEETAH
+    if not travel_id or utils.has_buff(me, travel_buff) then return false end
+    if rt.last_aspect_cast_count == core.spell_book.get_spell_cast_count(travel_id) then return false end
+    if utils.can_cast_self(travel_id, me) then
+        rt.last_aspect_cast_count = core.spell_book.get_spell_cast_count(travel_id)
+        utils.cast_self(travel_id, me)
+        utils.log_debug(menu, use_pack_now and "Aspect of the Pack" or "Aspect of the Cheetah")
+        return true
+    end
+    return false
+end
 local _last_pet_attack_guid = nil
 local function pet_attack(t)
     if not t or not t:is_valid() then return end
@@ -429,6 +461,14 @@ local function try_aspect_viper(me)
     return false
 end
 local function try_aspect(me)
+    if me:is_in_combat() and (utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_CHEETAH) or utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_PACK)) then
+        if rt.last_aspect_cast_count == core.spell_book.get_spell_cast_count(rt.aspect_hawk_id) then return false end
+        if utils.can_cast_self(rt.aspect_hawk_id, me) then
+            rt.last_aspect_cast_count = core.spell_book.get_spell_cast_count(rt.aspect_hawk_id)
+            utils.cast_self(rt.aspect_hawk_id, me)
+            utils.log_debug(menu, "Aspect of the Hawk"); return true
+        end
+    end
     if not rt.aspect_hawk_id then return false end
     if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_HAWK) then return false end
     if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER) then return false end
@@ -734,6 +774,7 @@ local function do_rotation(me, t)
     end
 
     -- Aura maintenance (passive)
+    if try_travel_aspect(me) then return end
     try_trueshot_aura(me)
     try_aspect_viper(me)
     try_aspect(me)

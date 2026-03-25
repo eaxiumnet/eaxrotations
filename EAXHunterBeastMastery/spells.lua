@@ -26,6 +26,8 @@ spells.HUNTERS_MARK  = { 14325, 14323, 14322, 1130 }
 spells.ASPECT_OF_THE_HAWK   = { 27044, 25296, 14327, 14326, 14325, 14324, 14323, 14322, 13165 }
 spells.ASPECT_OF_THE_MONKEY = { 13163 }
 spells.ASPECT_OF_THE_VIPER  = { 34074 }
+spells.ASPECT_OF_THE_CHEETAH = { 5118 }
+spells.ASPECT_OF_THE_PACK    = { 13159 }
 
 -- ── Traps ─────────────────────────────────────────────────────────────────────
 spells.IMMOLATION_TRAP = { 27023, 14305, 14304, 14303, 14302, 13795 }
@@ -53,6 +55,8 @@ spells.SHADOWMELD = { 58984 }
 spells.BUFF_ASPECT_OF_THE_HAWK  = { 27044, 25296, 14327, 14326, 14325, 14324, 14323, 14322, 13165 }
 spells.BUFF_ASPECT_OF_THE_VIPER = { 34074 }
 spells.BUFF_ASPECT_OF_THE_MONKEY = { 13163 }
+spells.BUFF_ASPECT_OF_THE_CHEETAH = { 5118 }
+spells.BUFF_ASPECT_OF_THE_PACK    = { 13159 }
 spells.BUFF_RAPID_FIRE          = { 3045 }
 spells.BUFF_BESTIAL_WRATH       = { 19574 }
 spells.BUFF_BERSERKING          = { 26297 }

@@ -6,6 +6,7 @@ Lightweight Marksmanship set-up for Sylvanas + TBC Classic.
 - **Aimed Shot burst** when targets are healthy enough for the damage spike.
 - **Multi-Shot weaving** whenever multiple enemies are present (Auto/Dungeon/Raid modes).
 - **Steady Shot options** keep focus ticking between heavier casts.
+- **Travel aspects** default to Cheetah, with Pack optional for dungeon/raid travel.
 
 ## Modes
 - Auto mode senses party size and switches between Solo, Dungeon, or Raid assumptions.
