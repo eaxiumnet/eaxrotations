@@ -806,15 +806,13 @@ local function try_auto_stealth_flare(me)
         track.warned_stealth_ts = track.stealth_ts
     end
     if not wants_flare or not rt.flare_id then return false end
-    if (_core_time() - (rt.last_flare_attempt or 0)) < 1.5 then return false end
-    if (_core_time() - rt.last_flare_time) < 15 then return false end
+    if (_core_time() - (rt.last_flare_attempt or 0)) < 0.40 then return false end
     if not (core.spell_book.is_spell_learned(rt.flare_id) and core.spell_book.get_spell_cooldown(rt.flare_id) <= 0 and core.spell_book.is_usable_spell(rt.flare_id)) then
         return false
     end
     local now = _core_time()
     rt.last_flare_attempt = now
     if utils.cast_position and utils.cast_position(rt.flare_id, cast_pos) then
-        rt.last_flare_time = now
         return true
     end
     return false
