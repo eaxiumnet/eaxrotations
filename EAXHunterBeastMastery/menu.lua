@@ -190,6 +190,8 @@ function menu.render()
             menu.stealth_warning:render("Stealth Warning", "Warn when stealth is likely within range.")
             menu.stealth_scan_radius:render("Stealth Radius", "Scan radius used for stealth checks.")
             menu.stealth_prediction_s:render("Stealth Prediction", "Prediction window applied to stealth detection.")
+            menu.stealth_overlay_enabled:render("Stealth Overlay", "Show a world-space uncertainty ring at the suspected stealth position.")
+            menu.stealth_overlay_direction:render("Stealth Direction", "Show a short direction tick when movement prediction is available.")
         end)
 
         ps.render_defensive(menu, def_tree, {})
