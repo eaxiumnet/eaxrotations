@@ -562,6 +562,16 @@ local function get_unit_guid(unit)
     return guid
 end
 
+local function get_unit_class_id(unit)
+    if not unit or not unit.get_class then return nil end
+    local ok, class_id = pcall(function() return unit:get_class() end)
+    return ok and class_id or nil
+end
+
+local function is_stealth_capable_class(class_id)
+    return class_id == 4 or class_id == 11
+end
+
 local function predict_stealth_position(track, current_pos)
     if not track or not current_pos or not track.pos or not track.ts then return current_pos end
     local now = _core_time()
@@ -603,13 +613,26 @@ local function find_nearby_stealth_target(me)
                 local dx, dy, dz = pos.x - me_pos.x, pos.y - me_pos.y, pos.z - me_pos.z
                 local d2 = dx * dx + dy * dy + dz * dz
                 if d2 <= best_d2 then
+                    local guid = get_unit_guid(obj)
+                    if guid then
+                        local track = rt.stealth_tracks[guid]
+                        if not track then
+                            track = { guid = guid }
+                            rt.stealth_tracks[guid] = track
+                        end
+                        track.pos = pos.clone and pos:clone() or { x = pos.x, y = pos.y, z = pos.z }
+                        track.ts = now
+                        track.last_seen = now
+                        track.last_d2 = d2
+                        track.seen_now = true
+                        if track.class_id == nil then
+                            track.class_id = get_unit_class_id(obj)
+                        end
+                    end
                     if has_stealth_like_buff(obj) then
-                        local guid = get_unit_guid(obj)
                         if guid then
                             local track = rt.stealth_tracks[guid]
-                            if not track then track = {}; rt.stealth_tracks[guid] = track end
-                            track.pos = pos.clone and pos:clone() or { x = pos.x, y = pos.y, z = pos.z }
-                            track.ts = now
+                            track.stealth_ts = now
                         end
                         best, best_d2 = obj, d2
                     end
@@ -618,9 +641,36 @@ local function find_nearby_stealth_target(me)
         end
     end
     for guid, track in pairs(rt.stealth_tracks) do
-        if not track.ts or (now - track.ts) > 5 then rt.stealth_tracks[guid] = nil end
+        if not track.ts or (now - track.ts) > 8 then
+            rt.stealth_tracks[guid] = nil
+        else
+            track.seen_now = false
+        end
     end
     return best
+end
+
+local function find_recent_stealth_track(me)
+    local scan_radius = menu.stealth_scan_radius and menu.stealth_scan_radius:get() or 20
+    local scan_r2 = scan_radius * scan_radius
+    local now = _core_time()
+    local best_track, best_d2 = nil, scan_r2
+    rt.stealth_tracks = rt.stealth_tracks or {}
+    for _, track in pairs(rt.stealth_tracks) do
+        if track and track.pos and track.last_d2 and track.last_d2 <= best_d2 then
+            local had_stealth = track.stealth_ts and (now - track.stealth_ts) <= 8.0
+            local vanished_stealth_class = (track.seen_now == false)
+                and track.class_id
+                and is_stealth_capable_class(track.class_id)
+                and track.last_seen
+                and (now - track.last_seen) <= 1.5
+            if had_stealth or vanished_stealth_class then
+                best_track = track
+                best_d2 = track.last_d2
+            end
+        end
+    end
+    return best_track
 end
 
 local function try_auto_stealth_flare(me)
@@ -628,12 +678,20 @@ local function try_auto_stealth_flare(me)
     local wants_warning = menu.stealth_warning and menu.stealth_warning:get_state()
     if not wants_flare and not wants_warning then return false end
     local target = find_nearby_stealth_target(me)
-    if not target then return false end
-    local pos = get_unit_position(target)
-    if not pos then return false end
-    local guid = get_unit_guid(target)
-    local track = guid and rt.stealth_tracks and rt.stealth_tracks[guid] or nil
-    local cast_pos = predict_stealth_position(track, pos)
+    local guid, track, cast_pos, cast_target = nil, nil, nil, target
+    if target then
+        local pos = get_unit_position(target)
+        if not pos then return false end
+        guid = get_unit_guid(target)
+        track = guid and rt.stealth_tracks and rt.stealth_tracks[guid] or nil
+        cast_pos = predict_stealth_position(track, pos)
+    else
+        track = find_recent_stealth_track(me)
+        if not track or not track.pos then return false end
+        guid = track.guid
+        cast_pos = predict_stealth_position(track, track.pos)
+        cast_target = me
+    end
     if wants_warning and guid then
         esp_renderer.notify("stealth_flare_" .. guid, "Hunter Flare", "Stealth target detected.")
     end
@@ -641,7 +699,7 @@ local function try_auto_stealth_flare(me)
     if (_core_time() - rt.last_flare_time) < 15 then return false end
     local ok_spell_helper, spell_helper = pcall(require, "common/utility/spell_helper")
     if not ok_spell_helper or not spell_helper then return false end
-    if not spell_helper.is_spell_castable_position or not spell_helper:is_spell_castable_position(rt.flare_id, me, target, cast_pos, false, false) then return false end
+    if not spell_helper.is_spell_castable_position or not spell_helper:is_spell_castable_position(rt.flare_id, me, cast_target, cast_pos, false, false) then return false end
     if core.input.cast_spell_position and core.input.cast_spell_position(rt.flare_id, cast_pos) then
         rt.last_flare_time = _core_time()
         return true
