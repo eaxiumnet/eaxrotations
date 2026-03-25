@@ -168,8 +168,15 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
         return
     end
 
-    local ok, guid = pcall(function() return tostring(target:get_guid()) end)
-    if not ok or not guid then
+    local target_probe_ok, target_is_valid, target_is_dead, target_guid, target_pos = pcall(function()
+        if not target then return false, nil, nil, nil end
+        local valid = target:is_valid()
+        local dead = target:is_dead()
+        local guid = tostring(target:get_guid())
+        local pos = target:get_position()
+        return valid, dead, guid, pos
+    end)
+    if not target_probe_ok or not target_is_valid or target_is_dead or not target_guid then
         if st.state ~= STATE_IDLE then
             if now - st.last_follow > 1.0 then
                 core.input.set_pet_follow()
@@ -181,7 +188,6 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
     end
 
     local pet_pos = pet:get_position()
-    local target_pos = target:get_position()
     local me_pos = me:get_position()
 
     if not pet_pos or not target_pos or not me_pos then
@@ -199,11 +205,11 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
     st.pet_focus = get_pet_focus(pet)
 
     if st.state == STATE_IDLE then
-        if target and target:is_valid() and not target:is_dead() then
+        if target_is_valid and not target_is_dead then
             local pet = pet_manager.get_pet(me)
             if pet then pcall(function() pet:cast_spell(23145) end) end
             st.state = STATE_ENGAGING
-            st.last_target_guid = guid
+            st.last_target_guid = target_guid
         end
         return
     end
@@ -211,7 +217,7 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
     if st.last_target_guid ~= guid then
         local pet = pet_manager.get_pet(me)
         if pet then pcall(function() pet:cast_spell(23145) end) end
-        st.last_target_guid = guid
+        st.last_target_guid = target_guid
         st.state = STATE_ENGAGING
         return
     end

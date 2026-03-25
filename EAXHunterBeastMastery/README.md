@@ -5,7 +5,7 @@ Minimal Beast Mastery Hunter script for Project Sylvanas + TBC Classic.
 ## Focus
 - **Pet-assisted DPS** with Kill Command once the pet is engaged on target.
 - **Steady Shot weaving** keeps focus topped off between priority casts.
-- **Pet awareness** toggles remind you when pet care (Mend Pet) might be needed.
+- **Pet awareness** helps keep Mend Pet available when the pet actually needs healing.
 
 ## Modes
 - Auto mode detects party size and switches between Solo, Dungeon, and Raid behavior.
@@ -14,7 +14,7 @@ Minimal Beast Mastery Hunter script for Project Sylvanas + TBC Classic.
 ## Configuration
 - Toggle the addon via the menu or the configured keybind.
 - Enable/disable Kill Command and Steady Shot individually.
-- Adjust the pet-care slider (purely conceptual) to remind you when health falls below the threshold.
+- Adjust the pet-heal threshold to control when Mend Pet becomes eligible.
 
 ## Usage
 1. Drop the `EAXHunterBeastMastery` folder into Sylvanas' `scripts/` directory.
@@ -25,4 +25,4 @@ Minimal Beast Mastery Hunter script for Project Sylvanas + TBC Classic.
 
 ## Notes
 - Actual spell casting is driven by the Sylvanas runtime; this plugin handles ability priorities and logging only.
-- Pet care hints rely on player health as a proxy; adjust the slider to match your comfort level.
+- Pet heal hints use the pet's health threshold; tune it to your preference.

@@ -118,13 +118,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
