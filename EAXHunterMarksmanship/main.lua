@@ -583,6 +583,37 @@ local function is_stealth_capable_class(class_id)
     return class_id == 4 or class_id == 11
 end
 
+local FLARE_SAFE_CAST_RANGE = 28.0
+
+local function clamp_flare_cast_pos(me, pos)
+    local me_pos = nil
+    if me and me.get_position then
+        local ok, result = pcall(function() return me:get_position() end)
+        if ok then me_pos = result end
+    end
+    if not me_pos or not pos then return pos end
+    if type(me_pos.x) ~= "number" or type(me_pos.y) ~= "number" or type(me_pos.z) ~= "number" then return pos end
+    if type(pos.x) ~= "number" or type(pos.y) ~= "number" or type(pos.z) ~= "number" then return pos end
+    local dx, dy, dz = pos.x - me_pos.x, pos.y - me_pos.y, pos.z - me_pos.z
+    local dist2 = dx * dx + dy * dy + dz * dz
+    if not dist2 or dist2 <= FLARE_SAFE_CAST_RANGE * FLARE_SAFE_CAST_RANGE then return pos end
+    local dist = math.sqrt(dist2)
+    if not dist or dist <= 0 then return pos end
+    local scale = FLARE_SAFE_CAST_RANGE / dist
+    local clamped = { x = me_pos.x + dx * scale, y = me_pos.y + dy * scale, z = me_pos.z + dz * scale }
+    return ensure_world_pos(clamped) or pos
+end
+
+local function get_stealth_projection_profile(track)
+    local class_id = track and track.class_id or nil
+    if class_id == 4 then
+        return { max_project_s = 2.6, speed_mult = 1.15 }
+    elseif class_id == 11 then
+        return { max_project_s = 2.2, speed_mult = 1.05 }
+    end
+    return { max_project_s = 2.0, speed_mult = 1.0 }
+end
+
 local function predict_stealth_position(track, current_pos)
     if not track or not current_pos then return current_pos end
     local now = _core_time()
@@ -591,11 +622,13 @@ local function predict_stealth_position(track, current_pos)
     if type(current_pos.x) ~= "number" or type(current_pos.y) ~= "number" or type(current_pos.z) ~= "number" then return current_pos end
     local pred_s = menu.stealth_prediction_s and menu.stealth_prediction_s:get() or 0
     local stealth_age = math.max(0, now - (track.stealth_ts or now))
-    local project_s = math.min(2.0, stealth_age + pred_s)
+    local profile = get_stealth_projection_profile(track)
+    local project_s = math.min(profile.max_project_s or 2.0, stealth_age + pred_s)
     local vx = track.entry_vel_x or track.vel_x
     local vy = track.entry_vel_y or track.vel_y
     local vz = track.entry_vel_z or track.vel_z
     local speed = tonumber(track.entry_speed or track.speed) or 0
+    speed = speed * (profile.speed_mult or 1.0)
     local clone_ok, predicted = pcall(function()
         if current_pos.clone then
             local p = current_pos:clone()
@@ -772,9 +805,9 @@ local function render_stealth_overlay(me)
         end
     end
     if not best_track then return end
-    local pos = ensure_world_pos(best_track.pos)
+    local pos = ensure_world_pos(predict_stealth_position(best_track, best_track.pos))
     if not pos or type(pos.x) ~= "number" or type(pos.y) ~= "number" or type(pos.z) ~= "number" then return end
-    local speed = tonumber(best_track.speed) or 0
+    local speed = tonumber(best_track.entry_speed or best_track.speed) or 0
     local age = math.max(0, now - (best_track.stealth_ts or now))
     local scan_radius = menu.stealth_scan_radius and menu.stealth_scan_radius:get() or 20
     local effective_speed = math.max(4.0, speed)
@@ -795,8 +828,11 @@ local function render_stealth_overlay(me)
             if p1 and p2 and core.graphics.line_3d then pcall(core.graphics.line_3d, p1, p2, layer_col, 2.2) end
         end
     end
-    if menu.stealth_overlay_direction and menu.stealth_overlay_direction:get_state() and speed > 0 and best_track.vel_x and best_track.vel_y and best_track.vel_z then
-        local tick = ensure_world_pos({ x = pos.x + best_track.vel_x * math.min(math.max(3.0, ring_r * 0.65), 8.0), y = pos.y + best_track.vel_y * math.min(math.max(3.0, ring_r * 0.65), 8.0), z = pos.z + best_track.vel_z * math.min(math.max(3.0, ring_r * 0.65), 8.0) })
+    local overlay_vx = best_track.entry_vel_x or best_track.vel_x
+    local overlay_vy = best_track.entry_vel_y or best_track.vel_y
+    local overlay_vz = best_track.entry_vel_z or best_track.vel_z
+    if menu.stealth_overlay_direction and menu.stealth_overlay_direction:get_state() and speed > 0 and overlay_vx and overlay_vy and overlay_vz then
+        local tick = ensure_world_pos({ x = pos.x + overlay_vx * math.min(math.max(3.0, ring_r * 0.65), 8.0), y = pos.y + overlay_vy * math.min(math.max(3.0, ring_r * 0.65), 8.0), z = pos.z + overlay_vz * math.min(math.max(3.0, ring_r * 0.65), 8.0) })
         if tick and core.graphics.line_3d then pcall(core.graphics.line_3d, pos, tick, api_col, 2.0) end
     end
     if core.graphics.text_3d then
@@ -822,12 +858,12 @@ local function try_auto_stealth_flare(me)
         if not pos then return false end
         guid = get_unit_guid(target)
         track = guid and rt.stealth_tracks and rt.stealth_tracks[guid] or nil
-        cast_pos = ensure_world_pos(predict_stealth_position(track, pos))
+        cast_pos = clamp_flare_cast_pos(me, ensure_world_pos(predict_stealth_position(track, pos)))
     else
         track = find_recent_stealth_track(me)
         if not track or not track.pos then return false end
         guid = track.guid
-        cast_pos = ensure_world_pos(predict_stealth_position(track, track.pos))
+        cast_pos = clamp_flare_cast_pos(me, ensure_world_pos(predict_stealth_position(track, track.pos)))
         cast_target = me
     end
     if not cast_pos then return false end
