@@ -822,10 +822,14 @@ local function try_auto_stealth_flare(me)
     if not (core.spell_book.is_spell_learned(rt.flare_id) and core.spell_book.get_spell_cooldown(rt.flare_id) <= 0 and core.spell_book.is_usable_spell(rt.flare_id)) then
         return false
     end
-    rt.last_flare_attempt = _core_time()
-    if core.input.cast_spell_position and core.input.cast_spell_position(rt.flare_id, cast_pos) then
-        rt.last_flare_time = _core_time()
-        return true
+    local now = _core_time()
+    rt.last_flare_attempt = now
+    if core.input.cast_spell_position then
+        local ok, cast_result = pcall(core.input.cast_spell_position, rt.flare_id, cast_pos)
+        if ok and cast_result ~= false then
+            rt.last_flare_time = now
+            return true
+        end
     end
     return false
 end
@@ -1160,7 +1164,7 @@ local function on_update()
         vendor_automation.try_auto_sell_greys(me, menu, utils)
     end
 
-    try_auto_stealth_flare(me)
+    if try_auto_stealth_flare(me) then return end
 
     sync_pet_autocast(me)
 
