@@ -756,19 +756,28 @@ local function render_stealth_overlay(me)
     local pos = ensure_world_pos(best_track.pos)
     if not pos or type(pos.x) ~= "number" or type(pos.y) ~= "number" or type(pos.z) ~= "number" then return end
     local speed = tonumber(best_track.speed) or 0
-    local age = math.max(0, now - (best_track.last_seen or best_track.stealth_ts or now))
-    local ring_r = math.min(12, math.max(2, 2 + speed * age))
-    local col = color.red(64)
+    local age = math.max(0, now - (best_track.stealth_ts or now))
+    local scan_radius = menu.stealth_scan_radius and menu.stealth_scan_radius:get() or 20
+    local effective_speed = math.max(4.0, speed)
+    local ring_r = math.min(math.min(24, scan_radius * 0.9), math.max(3.0, 3.0 + effective_speed * age * 1.1))
+    local col = color.red(140)
     local api_col = to_api_color(col)
-    for i = 1, 12 do
-        local a0 = (i - 1) * (math.pi * 2 / 12)
-        local a1 = i * (math.pi * 2 / 12)
-        local p1 = ensure_world_pos({ x = pos.x + math.cos(a0) * ring_r, y = pos.y + math.sin(a0) * ring_r, z = pos.z + 0.2 })
-        local p2 = ensure_world_pos({ x = pos.x + math.cos(a1) * ring_r, y = pos.y + math.sin(a1) * ring_r, z = pos.z + 0.2 })
-        if p1 and p2 and core.graphics.line_3d then pcall(core.graphics.line_3d, p1, p2, api_col, 2.0) end
+    local layers, steps = 10, 24
+    for layer = layers, 1, -1 do
+        local frac = layer / layers
+        local layer_r = math.max(0.5, ring_r * frac)
+        local layer_alpha = math.floor(28 + (1.0 - frac * 0.55) * 120)
+        local layer_col = to_api_color(color.red(layer_alpha))
+        for i = 1, steps do
+            local a0 = (i - 1) * (math.pi * 2 / steps)
+            local a1 = i * (math.pi * 2 / steps)
+            local p1 = ensure_world_pos({ x = pos.x + math.cos(a0) * layer_r, y = pos.y + math.sin(a0) * layer_r, z = pos.z + 0.2 })
+            local p2 = ensure_world_pos({ x = pos.x + math.cos(a1) * layer_r, y = pos.y + math.sin(a1) * layer_r, z = pos.z + 0.2 })
+            if p1 and p2 and core.graphics.line_3d then pcall(core.graphics.line_3d, p1, p2, layer_col, 2.2) end
+        end
     end
     if menu.stealth_overlay_direction and menu.stealth_overlay_direction:get_state() and speed > 0 and best_track.vel_x and best_track.vel_y and best_track.vel_z then
-        local tick = ensure_world_pos({ x = pos.x + best_track.vel_x * math.min(4, math.max(1, speed)), y = pos.y + best_track.vel_y * math.min(4, math.max(1, speed)), z = pos.z + best_track.vel_z * math.min(4, math.max(1, speed)) })
+        local tick = ensure_world_pos({ x = pos.x + best_track.vel_x * math.min(math.max(3.0, ring_r * 0.65), 8.0), y = pos.y + best_track.vel_y * math.min(math.max(3.0, ring_r * 0.65), 8.0), z = pos.z + best_track.vel_z * math.min(math.max(3.0, ring_r * 0.65), 8.0) })
         if tick and core.graphics.line_3d then pcall(core.graphics.line_3d, pos, tick, api_col, 2.0) end
     end
     if core.graphics.text_3d then
@@ -808,14 +817,12 @@ local function try_auto_stealth_flare(me)
         track.warned_stealth_ts = track.stealth_ts
     end
     if not wants_flare or not rt.flare_id then return false end
+    if (_core_time() - (rt.last_flare_attempt or 0)) < 1.5 then return false end
     if (_core_time() - rt.last_flare_time) < 15 then return false end
-    local ok_spell_helper, spell_helper = pcall(require, "common/utility/spell_helper")
-    if not ok_spell_helper or not spell_helper then return false end
-        if cast_target ~= me then
-            if not spell_helper.is_spell_castable_position or not spell_helper:is_spell_castable_position(rt.flare_id, me, cast_target, cast_pos, false, false) then return false end
-        elseif not (core.spell_book.is_spell_learned(rt.flare_id) and core.spell_book.get_spell_cooldown(rt.flare_id) <= 0 and core.spell_book.is_usable_spell(rt.flare_id)) then
-            return false
-        end
+    if not (core.spell_book.is_spell_learned(rt.flare_id) and core.spell_book.get_spell_cooldown(rt.flare_id) <= 0 and core.spell_book.is_usable_spell(rt.flare_id)) then
+        return false
+    end
+    rt.last_flare_attempt = _core_time()
     if core.input.cast_spell_position and core.input.cast_spell_position(rt.flare_id, cast_pos) then
         rt.last_flare_time = _core_time()
         return true
