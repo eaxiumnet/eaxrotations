@@ -331,6 +331,22 @@ function utils.cast_target(spell_id, target, spell_name)
     return true
 end
 
+function utils.cast_position(spell_id, pos)
+    if not spell_id or not pos or type(pos.x) ~= "number" or type(pos.y) ~= "number" or type(pos.z) ~= "number" then
+        return false
+    end
+    local key = string.format("%.2f:%.2f:%.2f", pos.x, pos.y, pos.z)
+    if not can_issue_queue_request("spell_position", spell_id, key, SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    local ok, err = pcall(function() spell_queue:queue_spell_position(spell_id, pos, 1, "Hunter Flare") end)
+    if not ok then
+        core.log(string.format("[EAX DEBUG] queue position failed: spell=%d err=%s", spell_id, tostring(err)))
+        return false
+    end
+    return true
+end
+
 local INVENTORY_SLOT_HEAD = 0
 local INVENTORY_SLOT_NECK = 1
 local INVENTORY_SLOT_SHOULDER = 2

@@ -310,6 +310,18 @@ function utils.cast_target(spell_id, target)
     return true
 end
 
+function utils.cast_position(spell_id, pos)
+    if not spell_id or not pos or type(pos.x) ~= "number" or type(pos.y) ~= "number" or type(pos.z) ~= "number" then
+        return false
+    end
+    local key = string.format("%.2f:%.2f:%.2f", pos.x, pos.y, pos.z)
+    if not can_issue_queue_request("spell_position", spell_id, key, SPELL_QUEUE_INTERVAL_S) then
+        return false
+    end
+    spell_queue:queue_spell_position(spell_id, pos, 1, "Hunter Flare")
+    return true
+end
+
 function utils.log_debug(menu_module, message)
     if menu_module and menu_module.debug and menu_module.debug:get_state() then
         core.log("[EAX Hunter Marksmanship] " .. tostring(message))

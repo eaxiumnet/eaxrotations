@@ -790,12 +790,9 @@ local function try_auto_stealth_flare(me)
     end
     local now = _core_time()
     rt.last_flare_attempt = now
-    if core.input.cast_spell_position then
-        local ok, cast_result = pcall(core.input.cast_spell_position, rt.flare_id, cast_pos)
-        if ok and cast_result ~= false then
-            rt.last_flare_time = now
-            return true
-        end
+    if utils.cast_position and utils.cast_position(rt.flare_id, cast_pos) then
+        rt.last_flare_time = now
+        return true
     end
     return false
 end
