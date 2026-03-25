@@ -624,7 +624,6 @@ local function find_nearby_stealth_target(me)
                         track.ts = now
                         track.last_seen = now
                         track.last_d2 = d2
-                        track.seen_now = true
                         if track.class_id == nil then
                             track.class_id = get_unit_class_id(obj)
                         end
@@ -632,9 +631,15 @@ local function find_nearby_stealth_target(me)
                     if has_stealth_like_buff(obj) then
                         if guid then
                             local track = rt.stealth_tracks[guid]
-                            track.stealth_ts = now
+                            if not track.stealth_active then
+                                track.stealth_ts = now
+                            end
+                            track.stealth_active = true
                         end
                         best, best_d2 = obj, d2
+                    elseif guid then
+                        local track = rt.stealth_tracks[guid]
+                        track.stealth_active = false
                     end
                 end
             end
@@ -643,8 +648,6 @@ local function find_nearby_stealth_target(me)
     for guid, track in pairs(rt.stealth_tracks) do
         if not track.ts or (now - track.ts) > 8 then
             rt.stealth_tracks[guid] = nil
-        else
-            track.seen_now = false
         end
     end
     return best
@@ -658,13 +661,8 @@ local function find_recent_stealth_track(me)
     rt.stealth_tracks = rt.stealth_tracks or {}
     for _, track in pairs(rt.stealth_tracks) do
         if track and track.pos and track.last_d2 and track.last_d2 <= best_d2 then
-            local had_stealth = track.stealth_ts and (now - track.stealth_ts) <= 8.0
-            local vanished_stealth_class = (track.seen_now == false)
-                and track.class_id
-                and is_stealth_capable_class(track.class_id)
-                and track.last_seen
-                and (now - track.last_seen) <= 1.5
-            if had_stealth or vanished_stealth_class then
+            local had_stealth = track.stealth_ts and (now - track.stealth_ts) <= 4.0
+            if had_stealth then
                 best_track = track
                 best_d2 = track.last_d2
             end
@@ -692,8 +690,9 @@ local function try_auto_stealth_flare(me)
         cast_pos = predict_stealth_position(track, track.pos)
         cast_target = me
     end
-    if wants_warning and guid then
+    if wants_warning and guid and track and track.stealth_ts and track.warned_stealth_ts ~= track.stealth_ts then
         esp_renderer.notify("stealth_flare_" .. guid, "Hunter Flare", "Stealth target detected.")
+        track.warned_stealth_ts = track.stealth_ts
     end
     if not wants_flare or not rt.flare_id then return false end
     if (_core_time() - rt.last_flare_time) < 15 then return false end
