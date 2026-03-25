@@ -568,6 +568,8 @@ local VANISH = {1856, 1857, 26889}
 local PROWL = {5215, 9913}
 local SHADOWMELD = {58984}
 local INVIS = {66, 110959}
+local SPRINT = {2983, 8696, 11305}
+local DASH = {1850, 9821}
 
 local function has_stealth_like_buff(unit)
     return utils.has_buff(unit, STEALTH)
@@ -616,25 +618,65 @@ local function is_stealth_capable_class(class_id)
 end
 
 local function predict_stealth_position(track, current_pos)
-    if not track or not current_pos or not track.pos or not track.ts then return current_pos end
+    if not track or not current_pos then return current_pos end
     local now = _core_time()
-    local dt = now - track.ts
-    if dt <= 0 or dt > 3.5 then return current_pos end
-    local prev = track.pos
-    if type(prev.x) ~= "number" or type(prev.y) ~= "number" or type(prev.z) ~= "number" then return current_pos end
+    local start_pos = track.entry_pos or current_pos
+    if type(start_pos.x) ~= "number" or type(start_pos.y) ~= "number" or type(start_pos.z) ~= "number" then return current_pos end
     if type(current_pos.x) ~= "number" or type(current_pos.y) ~= "number" or type(current_pos.z) ~= "number" then return current_pos end
     local pred_s = menu.stealth_prediction_s and menu.stealth_prediction_s:get() or 0
+    local stealth_age = math.max(0, now - (track.stealth_ts or now))
+    local project_s = math.min(2.0, stealth_age + pred_s)
+    local vx = track.entry_vel_x or track.vel_x
+    local vy = track.entry_vel_y or track.vel_y
+    local vz = track.entry_vel_z or track.vel_z
+    local speed = tonumber(track.entry_speed or track.speed) or 0
     local clone_ok, predicted = pcall(function()
         if current_pos.clone then
             local p = current_pos:clone()
-            p.x = current_pos.x + ((current_pos.x - prev.x) / dt) * pred_s
-            p.y = current_pos.y + ((current_pos.y - prev.y) / dt) * pred_s
-            p.z = current_pos.z + ((current_pos.z - prev.z) / dt) * pred_s
+            p.x = start_pos.x
+            p.y = start_pos.y
+            p.z = start_pos.z
+            if vx and vy and vz then
+                p.x = p.x + vx * project_s
+                p.y = p.y + vy * project_s
+                p.z = p.z + vz * project_s
+            elseif track.entry_dir_x and track.entry_dir_y then
+                p.x = p.x + track.entry_dir_x * speed * project_s
+                p.y = p.y + track.entry_dir_y * speed * project_s
+                p.z = p.z + (track.entry_dir_z or 0) * speed * project_s
+            end
             return p
         end
     end)
     if clone_ok and predicted then return predicted end
     return current_pos
+end
+
+local function capture_stealth_entry_snapshot(track, obj, now)
+    if not track or track.entry_ts == now then return end
+    track.entry_ts = now
+    if track.pos then
+        track.entry_pos = track.pos.clone and track.pos:clone() or { x = track.pos.x, y = track.pos.y, z = track.pos.z }
+    end
+    local speed_mult = 1.0
+    if utils.has_buff(obj, SPRINT) then
+        speed_mult = 1.7
+    elseif utils.has_buff(obj, DASH) then
+        speed_mult = 1.6
+    end
+    local base_speed = tonumber(track.speed) or 0
+    track.entry_speed = math.max(base_speed, 4.5) * speed_mult
+    track.entry_vel_x = (track.vel_x or 0) * speed_mult
+    track.entry_vel_y = (track.vel_y or 0) * speed_mult
+    track.entry_vel_z = (track.vel_z or 0) * speed_mult
+    if obj and obj.get_movement_direction then
+        local ok_dir, dir = pcall(function() return obj:get_movement_direction() end)
+        if ok_dir and dir and type(dir.x) == "number" and type(dir.y) == "number" then
+            track.entry_dir_x = dir.x
+            track.entry_dir_y = dir.y
+            track.entry_dir_z = dir.z or 0
+        end
+    end
 end
 
 local function find_nearby_stealth_target(me)
@@ -692,6 +734,7 @@ local function find_nearby_stealth_target(me)
                         end
                         if not track.stealth_active then
                             track.stealth_ts = now
+                            capture_stealth_entry_snapshot(track, obj, now)
                         end
                         track.stealth_active = true
                         track.inferred_stealth = false
@@ -712,6 +755,16 @@ local function find_nearby_stealth_target(me)
             track.stealth_ts = now
             track.stealth_active = true
             track.inferred_stealth = true
+            if not track.entry_ts or track.entry_ts ~= now then
+                track.entry_ts = now
+                if track.pos then
+                    track.entry_pos = track.pos.clone and track.pos:clone() or { x = track.pos.x, y = track.pos.y, z = track.pos.z }
+                end
+                track.entry_speed = math.max(tonumber(track.speed) or 0, 4.5)
+                track.entry_vel_x = track.vel_x or 0
+                track.entry_vel_y = track.vel_y or 0
+                track.entry_vel_z = track.vel_z or 0
+            end
         end
         if track then track.seen_this_scan = nil end
     end
