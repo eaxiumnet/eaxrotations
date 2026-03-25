@@ -573,6 +573,20 @@ local function get_unit_position(unit)
     return pos
 end
 
+local function ensure_world_pos(pos)
+    if not pos or type(pos.x) ~= "number" or type(pos.y) ~= "number" or type(pos.z) ~= "number" then return nil end
+    if pos.clone then
+        local ok, cloned = pcall(function() return pos:clone() end)
+        if ok and cloned then return cloned end
+    end
+    local ok_vec3, vec3 = pcall(require, "common/geometry/vector_3")
+    if ok_vec3 and vec3 and vec3.new then
+        local ok_new, native = pcall(function() return vec3.new(pos.x, pos.y, pos.z) end)
+        if ok_new and native then return native end
+    end
+    return pos
+end
+
 local function get_unit_guid(unit)
     if not unit then return nil end
     local ok, guid = pcall(function() return tostring(unit:get_guid()) end)
@@ -728,7 +742,7 @@ local function render_stealth_overlay(me)
         end
     end
     if not best_track then return end
-    local pos = best_track.pos
+    local pos = ensure_world_pos(best_track.pos)
     if not pos or type(pos.x) ~= "number" or type(pos.y) ~= "number" or type(pos.z) ~= "number" then return end
     local speed = tonumber(best_track.speed) or 0
     local age = math.max(0, now - (best_track.last_seen or best_track.stealth_ts or now))
@@ -738,13 +752,13 @@ local function render_stealth_overlay(me)
         for i = 1, 12 do
             local a0 = (i - 1) * (math.pi * 2 / 12)
             local a1 = i * (math.pi * 2 / 12)
-            local p1 = { x = pos.x + math.cos(a0) * ring_r, y = pos.y + math.sin(a0) * ring_r, z = pos.z + 0.2 }
-            local p2 = { x = pos.x + math.cos(a1) * ring_r, y = pos.y + math.sin(a1) * ring_r, z = pos.z + 0.2 }
-            if core.graphics.line_3d then core.graphics.line_3d(p1, p2, 2.0, col) end
+            local p1 = ensure_world_pos({ x = pos.x + math.cos(a0) * ring_r, y = pos.y + math.sin(a0) * ring_r, z = pos.z + 0.2 })
+            local p2 = ensure_world_pos({ x = pos.x + math.cos(a1) * ring_r, y = pos.y + math.sin(a1) * ring_r, z = pos.z + 0.2 })
+            if p1 and p2 and core.graphics.line_3d then core.graphics.line_3d(p1, p2, col, 2.0) end
         end
         if menu.stealth_overlay_direction and menu.stealth_overlay_direction:get_state() and speed > 0 and best_track.vel_x and best_track.vel_y and best_track.vel_z then
-            local tick = { x = pos.x + best_track.vel_x * math.min(4, math.max(1, speed)), y = pos.y + best_track.vel_y * math.min(4, math.max(1, speed)), z = pos.z + best_track.vel_z * math.min(4, math.max(1, speed)) }
-            if core.graphics.line_3d then core.graphics.line_3d(pos, tick, 2.0, col) end
+            local tick = ensure_world_pos({ x = pos.x + best_track.vel_x * math.min(4, math.max(1, speed)), y = pos.y + best_track.vel_y * math.min(4, math.max(1, speed)), z = pos.z + best_track.vel_z * math.min(4, math.max(1, speed)) })
+            if tick and core.graphics.line_3d then core.graphics.line_3d(pos, tick, col, 2.0) end
         end
         if core.graphics.text_3d then
             local me_pos = me and me.get_position and me:get_position() or nil
@@ -753,7 +767,7 @@ local function render_stealth_overlay(me)
                 local dx, dy, dz = pos.x - me_pos.x, pos.y - me_pos.y, pos.z - me_pos.z
                 d = math.sqrt(dx*dx + dy*dy + dz*dz)
             end
-            core.graphics.text_3d(string.format("Stealth ? %dy", math.floor(d + 0.5)), { x = pos.x, y = pos.y, z = pos.z + 1.5 }, 14, col)
+            core.graphics.text_3d(string.format("Stealth ? %dy", math.floor(d + 0.5)), ensure_world_pos({ x = pos.x, y = pos.y, z = pos.z + 1.5 }), 14, col)
         end
     end)
 end
@@ -769,14 +783,15 @@ local function try_auto_stealth_flare(me)
         if not pos then return false end
         guid = get_unit_guid(target)
         track = guid and rt.stealth_tracks and rt.stealth_tracks[guid] or nil
-        cast_pos = predict_stealth_position(track, pos)
+        cast_pos = ensure_world_pos(predict_stealth_position(track, pos))
     else
         track = find_recent_stealth_track(me)
         if not track or not track.pos then return false end
         guid = track.guid
-        cast_pos = predict_stealth_position(track, track.pos)
+        cast_pos = ensure_world_pos(predict_stealth_position(track, track.pos))
         cast_target = me
     end
+    if not cast_pos then return false end
     if wants_warning and guid and track and track.stealth_ts and track.warned_stealth_ts ~= track.stealth_ts then
         esp_renderer.notify("stealth_flare_" .. guid, "Hunter Flare", "Stealth target detected.")
         track.warned_stealth_ts = track.stealth_ts
