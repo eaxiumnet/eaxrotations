@@ -1,6 +1,6 @@
 # EAX TBC Classic Rotations
 
-> Source-estimated rotation pack for **WoW TBC 2.4.3 / Project Sylvanas** with all **27 playable specs** in one repository.
+> **TBC-targeted** rotation pack for **WoW TBC 2.4.3 / Project Sylvanas** with all **27 playable specs** in one repository.
 
 ![TBC 2.4.3](https://img.shields.io/badge/TBC-2.4.3-7c3aed?style=flat-square)
 ![27 Specs](https://img.shields.io/badge/specs-27-111827?style=flat-square)
@@ -16,6 +16,7 @@
 - **Removed from shipping:** all EAX `.toc` files
 - **Scoring model:** usefulness is estimated from `main.lua`, `spells.lua`, helper modules, and visible rotation complexity
 - **Important:** these numbers are **not** live raid logs or in-game benchmarks; they are source-based readiness estimates
+- **TBC truth:** this repo aims for true TBC behavior, but a few specs still contain leftover non-TBC spell references in source and are explicitly called out below instead of being misrepresented as clean
 
 ### Usefulness Matrix
 
@@ -84,6 +85,12 @@ cd eax-tbc-classic-rotations
 
 ## Spec Notes
 
+### TBC Cleanliness Summary
+
+- **Closest to clean TBC behavior:** Holy Paladin, Protection Paladin, Retribution Paladin, Shadow Priest, Elemental Shaman, Enhancement Shaman, Affliction Warlock, Destruction Warlock, Arms Warrior
+- **Mostly TBC, but still wants live validation:** Druid specs, Hunter specs, Mage specs, Assassination Rogue, Subtlety Rogue, Restoration Shaman, Demonology Warlock, Protection Warrior
+- **Still carrying visible non-TBC leftovers in source:** Marksmanship Hunter utility flags, Discipline Priest, Holy Priest, Combat Rogue, Fury Warrior
+
 <details>
 <summary><strong>Druid</strong></summary>
 
@@ -110,7 +117,7 @@ cd eax-tbc-classic-rotations
 
 ### Marksmanship
 - **Supported:** `Auto Shot`, `Aimed Shot`, `Arcane Shot`, `Steady Shot`, `Multi-Shot`, `Serpent Sting`, `Scorpid Sting`, `Kill Command`
-- **Unsupported / caveats:** no `Chimera Shot`, no `Black Arrow`; some utility / silence timing still needs runtime confirmation
+- **Unsupported / caveats:** no `Chimera Shot`, no `Black Arrow`; source still shows a non-TBC `Silencing Shot` reference, so this spec is not yet fully clean
 
 ### Survival
 - **Supported:** `Auto Shot`, `Aimed Shot`, `Arcane Shot`, `Steady Shot`, `Multi-Shot`, `Serpent Sting`, `Hunter's Mark`, aspect handling
@@ -157,11 +164,11 @@ cd eax-tbc-classic-rotations
 
 ### Discipline
 - **Supported:** `Power Word: Shield`, `Renew`, `Prayer of Mending`, `Power Infusion`, `Pain Suppression`, `Flash Heal`, `Greater Heal`, `Prayer of Healing`, `Fear Ward`
-- **Unsupported / caveats:** current files still carry non-TBC references like `Penance` / `Inner Will`; treat this spec as partial until cleaned fully
+- **Unsupported / caveats:** current files still carry non-TBC references like `Penance` / `Inner Will`; do **not** treat this as fully true-TBC yet
 
 ### Holy
 - **Supported:** `Renew`, `Greater Heal`, `Prayer of Healing`, `Prayer of Mending`, `Flash Heal`, `Circle of Healing`, `Binding Heal`, `Holy Fire`, `Smite`
-- **Unsupported / caveats:** current files still carry non-TBC references like `Divine Hymn`; usable healer shell, but not clean enough to rate as fully TBC-safe
+- **Unsupported / caveats:** current files still carry non-TBC references like `Divine Hymn` and `Inner Will`; usable healer shell, but not clean enough to claim true-TBC purity
 
 ### Shadow
 - **Supported:** `Vampiric Touch`, `Shadow Word: Pain`, `Devouring Plague`, `Mind Blast`, `Mind Flay`, `Shadow Word: Death`, `Shadowfiend`, `Silence`, `Vampiric Embrace`
@@ -178,7 +185,7 @@ cd eax-tbc-classic-rotations
 
 ### Combat
 - **Supported:** `Sinister Strike`, `Slice and Dice`, `Eviscerate`, `Rupture`, `Kick`, `Blade Flurry`, `Adrenaline Rush`, stealth openers, poison support
-- **Unsupported / caveats:** current files still carry `Killing Spree`; solid sustained melee shell, but not fully expansion-clean yet
+- **Unsupported / caveats:** current files still carry `Killing Spree`; solid sustained melee shell, but not fully true-TBC yet
 
 ### Subtlety
 - **Supported:** `Stealth`, `Premeditation`, `Cheap Shot`, `Ambush`, `Backstab`, `Hemorrhage`, `Slice and Dice`, `Rupture`, `Expose Armor`
@@ -229,7 +236,7 @@ cd eax-tbc-classic-rotations
 
 ### Fury
 - **Supported:** `Bloodthirst`, `Whirlwind`, `Execute`, `Heroic Strike`, `Cleave`, `Sunder Armor`, `Hamstring`, `Slam`, `Overpower`, stance tools
-- **Unsupported / caveats:** current files still carry `Heroic Throw`; powerful shell overall, but still not fully expansion-clean
+- **Unsupported / caveats:** current files still carry `Heroic Throw`; powerful shell overall, but still not fully true-TBC yet
 
 ### Protection
 - **Supported:** `Shield Slam`, `Revenge`, `Devastate`, `Heroic Strike`, `Cleave`, `Sunder Armor`, `Thunder Clap`, `Shield Block`, stance and taunt tools
