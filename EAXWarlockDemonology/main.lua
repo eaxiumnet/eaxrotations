@@ -1,5 +1,5 @@
 -- main.lua
--- EAX Warlock Demonology | Rotation logic
+-- Eax Warlock Demonology | Rotation logic
 
 local menu = require("menu")
 local rotation_context = require("rotation_context")
@@ -125,13 +125,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -237,6 +235,35 @@ local GCD_INTERVAL_S = 0.05
 local PENDING_CAST_TIMEOUT_S = 2.5
 local DRAIN_SOUL_HP_PCT = 0.25
 local SHADOW_BURN_HP_PCT = 0.20
+local EXECUTE_TTD_BUFFER_S = 0.35
+
+local function get_target_ttd_seconds(target)
+    if not target or not ttd_tracker or not ttd_tracker.get then
+        return nil
+    end
+    local ok, value = pcall(function()
+        return ttd_tracker.get(target)
+    end)
+    if not ok then
+        return nil
+    end
+    return tonumber(value)
+end
+
+local function get_spell_cast_time_seconds(spell_id)
+    if not spell_id then
+        return nil
+    end
+    local cast_time_ms = nil
+    if mana_manager and mana_manager.get_spell_cast_time_ms then
+        cast_time_ms = mana_manager.get_spell_cast_time_ms(spell_id)
+    end
+    cast_time_ms = tonumber(cast_time_ms)
+    if not cast_time_ms or cast_time_ms <= 0 then
+        return nil
+    end
+    return cast_time_ms / 1000
+end
 
 local function resolve_spells()
     runtime.fel_armor_id = utils.resolve_spell_id(spells.FEL_ARMOR)
@@ -262,7 +289,7 @@ local function resolve_spells()
 end
 
 local function log_spells()
-    core.log("[EAX Warlock Demonology] Resolved spells: Curse=" .. tostring(runtime.curse_of_agony_id or runtime.curse_of_elements_id)
+    core.log("[Eax Warlock Demonology] Resolved spells: Curse=" .. tostring(runtime.curse_of_agony_id or runtime.curse_of_elements_id)
         .. " Immolate=" .. tostring(runtime.immolate_id)
         .. " Corruption=" .. tostring(runtime.corruption_id)
         .. " UA=" .. tostring(runtime.unstable_affliction_id)
@@ -518,7 +545,7 @@ local function try_summon_correct_pet(me, mode)
     local spell_id = spell_table and utils.resolve_spell_id(spell_table) or nil
     if PET_REQUIRES_SHARD[desired] and count_soul_shards() < 1 then
         if utils.throttle("eax_demonology_pet_shard_warning", 10.0) then
-            core.log("[EAX Warlock Demonology] Cannot summon " .. desired .. ": need at least 1 Soul Shard.")
+            core.log("[Eax Warlock Demonology] Cannot summon " .. desired .. ": need at least 1 Soul Shard.")
             core.graphics.add_notification(
                 "eax_demonology_pet_shard_warning",
                 "[EAX] Pet Summon Blocked",
@@ -603,12 +630,28 @@ local function get_selected_curse()
     return runtime.curse_of_agony_id, spells.DEBUFF_CURSE_OF_AGONY, "Curse of Agony"
 end
 
+local function target_has_utility_curse(target)
+    return target and (
+        utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_WEAKNESS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_TONGUES)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_RECKLESSNESS)
+    )
+end
+
 local function try_apply_curse(me, target)
     if not menu.use_curse:get_state() then
         return false
     end
     local curse_id, curse_debuffs, label = get_selected_curse()
     if not curse_id then
+        return false
+    end
+    local selected_is_utility = curse_debuffs ~= spells.DEBUFF_CURSE_OF_AGONY and curse_debuffs ~= spells.DEBUFF_CURSE_OF_DOOM
+    if selected_is_utility and target_has_utility_curse(target) and not utils.has_debuff(target, curse_debuffs) then
+        return false
+    end
+    if (not selected_is_utility) and target_has_utility_curse(target) then
         return false
     end
     if not should_refresh_debuff(target, curse_debuffs, curse_id) then
@@ -650,6 +693,14 @@ local function try_shadow_burn(me, target)
     if utils.get_health_pct(target) > SHADOW_BURN_HP_PCT then
         return false
     end
+    local ttd_s = get_target_ttd_seconds(target)
+    local filler_id = runtime.shadow_bolt_id
+    if ttd_s and filler_id then
+        local filler_cast_s = get_spell_cast_time_seconds(filler_id)
+        if filler_cast_s and ttd_s > (filler_cast_s + EXECUTE_TTD_BUFFER_S) then
+            return false
+        end
+    end
     return try_cast_spell(me, runtime.shadow_burn_id, target, "Shadowburn")
 end
 
@@ -658,6 +709,11 @@ local function try_drain_soul(me, target)
         return false
     end
     if utils.get_health_pct(target) > DRAIN_SOUL_HP_PCT then
+        return false
+    end
+    local ttd_s = get_target_ttd_seconds(target)
+    local drain_soul_cast_s = get_spell_cast_time_seconds(runtime.drain_soul_id)
+    if ttd_s and drain_soul_cast_s and ttd_s < (drain_soul_cast_s + EXECUTE_TTD_BUFFER_S) then
         return false
     end
     return try_cast_spell(me, runtime.drain_soul_id, target, "Drain Soul")
@@ -670,11 +726,26 @@ local function try_soul_fire(me, target)
     if utils.get_health_pct(target) <= DRAIN_SOUL_HP_PCT then
         return false
     end
+    local ttd_s = get_target_ttd_seconds(target)
+    local soul_fire_cast_s = get_spell_cast_time_seconds(runtime.soul_fire_id)
+    if ttd_s and soul_fire_cast_s and ttd_s < (soul_fire_cast_s + EXECUTE_TTD_BUFFER_S) then
+        return false
+    end
     return try_cast_spell(me, runtime.soul_fire_id, target, "Soul Fire")
 end
 
 local function try_shadow_bolt(me, target)
     if not menu.use_shadow_bolt:get_state() or not runtime.shadow_bolt_id then
+        return false
+    end
+    local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.shadow_bolt_id)
+    local cast_time_s = cast_time_ms / 1000
+    local ttd_s = nil
+    if ttd_tracker and ttd_tracker.get then
+        local ok, value = pcall(function() return ttd_tracker.get(target) end)
+        if ok then ttd_s = tonumber(value) end
+    end
+    if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then
         return false
     end
     return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt")
@@ -738,10 +809,10 @@ local function do_rotation(me, target)
 
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     ttd_tracker.update(target)
 
@@ -927,7 +998,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Warlock Demo] Enabled"
+        local label = "Eax Warlock Demo] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -964,7 +1035,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -977,4 +1048,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Warlock Demonology] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Warlock Demonology] Loaded " .. (_pi and _pi.plugin_version or "?"))

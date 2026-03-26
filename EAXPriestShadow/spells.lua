@@ -1,4 +1,4 @@
--- EAX Priest Shadow | spells.lua
+-- Eax Priest Shadow | spells.lua
 -- TBC-only spell tables for Shadow Priest automation.
 
 local spells = {}
@@ -12,6 +12,7 @@ spells.MIND_FLAY = { 25387, 18807, 17314, 17313, 17312, 17311, 15407 }
 spells.SHADOW_WORD_DEATH = { 32996, 32994, 32379 }
 spells.SHADOWFIEND = { 34433 }
 spells.PSYCHIC_SCREAM = { 10891, 10890, 10888, 8124, 8122 }
+spells.SILENCE = { 15487 }
 spells.VAMPIRIC_EMBRACE = { 15286 }
 
 -- Healing

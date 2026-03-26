@@ -1,5 +1,5 @@
 -- header.lua
--- EAX Shaman Enhancement | Load guard
+-- Eax Shaman Enhancement | Load guard
 -- Validates class/spec before running the melee logic
 
 local plugin_info = require("plugin_info")

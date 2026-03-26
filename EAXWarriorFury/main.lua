@@ -1,5 +1,5 @@
--- EAX Warrior Fury | main.lua
--- Callback registration, control-panel wiring, and documented EAX Warrior Fury logic.
+-- Eax Warrior Fury | main.lua
+-- Callback registration, control-panel wiring, and documented Eax Warrior Fury logic.
 -- APIs validated against .api/core.lua, .api/game_object.lua,
 -- sylvanas-dev-docs-llm/pages/dev/api/auto-attack-helper.md,
 -- sylvanas-dev-docs-llm/pages/dev/api/game-object.md,
@@ -357,7 +357,7 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Warrior Fury] Resolved: BT=" .. tostring(runtime.bloodthirst_id)
+    core.log("[Eax Warrior Fury] Resolved: BT=" .. tostring(runtime.bloodthirst_id)
         .. " WW=" .. tostring(runtime.whirlwind_id)
         .. " EX=" .. tostring(runtime.execute_id)
         .. " HS=" .. tostring(runtime.heroic_strike_id)
@@ -439,14 +439,18 @@ local function is_valid_hostile_target(me, target)
     return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
 end
 
---- Find the closest hostile unit that is targeting (attacking) us.
----@param me game_object
----@return game_object|nil
-local function find_nearest_attacker(me)
-    local my_pos = me:get_position()
-    local best = nil
-    local best_dist = math.huge
+local function get_battlefield_snapshot(me)
+    local now_ms = _core_time()
+    local snapshot = runtime.battlefield_snapshot
+    if snapshot and snapshot.tick_ms == now_ms and snapshot.me == me then
+        return snapshot
+    end
+
+    local my_pos = me and me:get_position() or nil
     local objects = core.object_manager.get_visible_objects()
+    local hostiles = {}
+    local nearest_attacker = nil
+    local nearest_attacker_dist = math.huge
 
     for i = 1, #objects do
         local obj = objects[i]
@@ -455,21 +459,36 @@ local function find_nearest_attacker(me)
             and obj:is_unit()
             and not obj:is_dead()
             and me:can_attack(obj)
-            and obj:is_in_combat()
         then
-            local obj_target = obj:get_target()
-            if obj_target and obj_target:is_valid() and obj_target == me then
-                local obj_pos = obj:get_position()
-                local sq_dist = my_pos:squared_dist_to_ignore_z(obj_pos)
-                if sq_dist < best_dist then
-                    best = obj
-                    best_dist = sq_dist
+            hostiles[#hostiles + 1] = obj
+            if my_pos and obj:is_in_combat() then
+                local obj_target = obj:get_target()
+                if obj_target and obj_target:is_valid() and obj_target == me then
+                    local sq_dist = my_pos:squared_dist_to_ignore_z(obj:get_position())
+                    if sq_dist < nearest_attacker_dist then
+                        nearest_attacker = obj
+                        nearest_attacker_dist = sq_dist
+                    end
                 end
             end
         end
     end
 
-    return best
+    snapshot = {
+        tick_ms = now_ms,
+        me = me,
+        hostiles = hostiles,
+        nearest_attacker = nearest_attacker,
+    }
+    runtime.battlefield_snapshot = snapshot
+    return snapshot
+end
+
+--- Find the closest hostile unit that is targeting (attacking) us.
+---@param me game_object
+---@return game_object|nil
+local function find_nearest_attacker(me)
+    return get_battlefield_snapshot(me).nearest_attacker
 end
 
 local function note_cast()
@@ -608,8 +627,9 @@ end
 
 local function get_nearby_hostiles(me, radius)
     local targets = {}
+    local snapshot = get_battlefield_snapshot(me)
     local my_pos = me:get_position()
-    local objects = core.object_manager.get_visible_objects()
+    local objects = snapshot.hostiles
 
     for i = 1, #objects do
         local obj = objects[i]
@@ -680,7 +700,7 @@ local function sample_proc_states(me)
         local flurry_pct = (runtime.flurry_accumulated_ms / divisor) * 100
         local enrage_pct = (runtime.enrage_accumulated_ms / divisor) * 100
         core.log(string.format(
-            "[EAX Fury] Proc uptime %.0fs: Flurry %.1f%% | Enrage %.1f%%",
+            "[Eax Fury] Proc uptime %.0fs: Flurry %.1f%% | Enrage %.1f%%",
             divisor / 1000,
             flurry_pct,
             enrage_pct
@@ -1177,6 +1197,12 @@ local function try_overpower_dance(me, target, rage)
     if not core.spell_book.is_spell_learned(runtime.overpower_id) then return false end
     if not core.spell_book.is_usable_spell(runtime.overpower_id) then return false end
 
+    local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
+    local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
+    if bt_cd <= 1.5 or ww_cd <= 1.5 then
+        return false
+    end
+
     if utils.get_current_stance(me) ~= "battle" then
         if runtime.battle_stance_id
             and utils.can_cast_self(runtime.battle_stance_id, me)
@@ -1208,16 +1234,20 @@ local function try_overpower_dance(me, target, rage)
     return false
 end
 
+local function is_bt_ww_window_open(bt_cd, ww_cd)
+    return bt_cd > 3.0 and ww_cd > 3.0
+end
+
 local function try_rend_in_battle_stance(me, target, rage)
     if not menu.use_rend:get_state() or not runtime.rend_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
     if utils.get_current_stance(me) ~= "battle" then return false end
-    if rage < REND_COST then return false end
+    if rage < (REND_COST + 5) then return false end
     if utils.has_debuff(target, spells.DEBUFF_REND) then return false end
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
     local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
-    if bt_cd <= 1.5 or ww_cd <= 1.5 then
+    if not is_bt_ww_window_open(bt_cd, ww_cd) then
         return false
     end
 
@@ -1542,13 +1572,13 @@ local function try_slam_or_hamstring_filler(me, target, ctx, rage, target_hp_pct
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
     local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
-    if bt_cd <= 1.5 or ww_cd <= 1.5 then
+    if not is_bt_ww_window_open(bt_cd, ww_cd) then
         return false
     end
 
     if menu.use_slam_weave:get_state()
         and runtime.slam_id
-        and resource_gate.warrior.has_rage(ctx, 20)
+        and resource_gate.warrior.has_rage(ctx, 25)
         and rage >= HAMSTRING_MIN_RAGE
         and target_hp_pct >= EXECUTE_HP_THRESHOLD
         and utils.can_cast_melee(runtime.slam_id, me)
@@ -1564,7 +1594,7 @@ local function try_slam_or_hamstring_filler(me, target, ctx, rage, target_hp_pct
 
     if menu.use_hamstring_filler:get_state()
         and runtime.hamstring_id
-        and rage >= HAMSTRING_MIN_RAGE
+        and rage >= (HAMSTRING_MIN_RAGE + 10)
         and target_hp_pct >= EXECUTE_HP_THRESHOLD
         and utils.can_cast_melee(runtime.hamstring_id, me)
         and utils.cast_target(runtime.hamstring_id, target)
@@ -1594,19 +1624,19 @@ local function update_notifications(me, target)
         or false
 
     if runtime.burst_window_active and not runtime.last_burst_window_active then
-        add_notification_once(NOTIFICATION_BURST_ID, "EAX Warrior Fury", "Burst window active", 1.5, color.gold(220))
+        add_notification_once(NOTIFICATION_BURST_ID, "Eax Warrior Fury", "Burst window active", 1.5, color.gold(220))
     end
 
     if overpower_usable and not runtime.last_overpower_usable and is_valid_hostile_target(me, target) then
-        add_notification_once(NOTIFICATION_OVERPOWER_ID, "EAX Warrior Fury", "Overpower available", 1.5, color.orange(220))
+        add_notification_once(NOTIFICATION_OVERPOWER_ID, "Eax Warrior Fury", "Overpower available", 1.5, color.orange(220))
     end
 
     if runtime.last_slam_cast_game_time > 0 and (now_ms - runtime.last_slam_cast_game_time) <= 1000 then
-        add_notification_once(NOTIFICATION_SLAM_ID, "EAX Warrior Fury", "Slam weave", 1.0, color.cyan(220))
+        add_notification_once(NOTIFICATION_SLAM_ID, "Eax Warrior Fury", "Slam weave", 1.0, color.cyan(220))
     end
 
     if runtime.last_return_to_berserker_at > 0 and (now_ms - runtime.last_return_to_berserker_at) <= 1000 then
-        add_notification_once(NOTIFICATION_RETURN_ID, "EAX Warrior Fury", "Returned to Berserker", 1.0, color.blue(220))
+        add_notification_once(NOTIFICATION_RETURN_ID, "Eax Warrior Fury", "Returned to Berserker", 1.0, color.blue(220))
     end
 
     runtime.last_burst_window_active = runtime.burst_window_active
@@ -2070,6 +2100,9 @@ local function get_reserve_rage(me, target, is_aoe, ctx)
     local reserve_rage = 0
     local execute_target = target
     local execute_target_hp_pct = target and utils.get_health_pct(target) or 1.0
+    local rage_discount = get_set_rage_discount()
+    local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
+    local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
 
     if runtime.bloodthirst_id then
         reserve_rage = math.max(reserve_rage, BLOODTHIRST_COST)
@@ -2085,7 +2118,15 @@ local function get_reserve_rage(me, target, is_aoe, ctx)
     end
 
     if should_cast_execute(execute_target_hp_pct, ctx) then
-        reserve_rage = math.max(reserve_rage, 15)
+        reserve_rage = math.max(reserve_rage, 20)
+    end
+
+    if bt_cd <= 1.5 then
+        reserve_rage = math.max(reserve_rage, math.max(15, BLOODTHIRST_COST - rage_discount) + 5)
+    end
+
+    if ww_cd <= 1.5 then
+        reserve_rage = math.max(reserve_rage, math.max(20, WHIRLWIND_COST - rage_discount) + 5)
     end
 
     if is_aoe and menu.use_sweeping_strikes:get_state() and runtime.sweeping_strikes_id
@@ -2129,7 +2170,7 @@ end
 
 local function do_queue_lane(me, target, ctx, rage, target_hp_pct, is_aoe)
     -- Avoid burning rage on queued attacks while a stance return is still pending.
-    if runtime.charge_pending_return or runtime.overpower_pending_return then
+    if runtime.charge_pending_return or runtime.overpower_pending_return or runtime.tc_dance_pending or runtime.tc_dance_return then
         return false
     end
 
@@ -2148,6 +2189,10 @@ local function do_queue_lane(me, target, ctx, rage, target_hp_pct, is_aoe)
     end
 
     if target_hp_pct <= 0.20 and not is_execute_swing_safe(me) then
+        return false
+    end
+
+    if should_cast_execute(target_hp_pct, ctx) then
         return false
     end
 
@@ -2171,7 +2216,7 @@ local function do_queue_lane(me, target, ctx, rage, target_hp_pct, is_aoe)
 
     if is_aoe then
         if not menu.use_cleave:get_state() or not runtime.cleave_id then return false end
-        if rage < menu.cleave_rage:get() or rage <= (reserve_rage + 5) then return false end
+        if rage < menu.cleave_rage:get() or rage <= (reserve_rage + 10) then return false end
 
         if utils.can_cast_melee(runtime.cleave_id, me)
             and utils.cast_target_fast(runtime.cleave_id, target)
@@ -2187,7 +2232,7 @@ local function do_queue_lane(me, target, ctx, rage, target_hp_pct, is_aoe)
 
     if not menu.use_heroic_strike:get_state() or not runtime.heroic_strike_id then return false end
     if not resource_gate.warrior.can_queue_dump(ctx, 10, 60) then return false end
-    if rage < menu.heroic_strike_rage:get() or rage <= (reserve_rage + 5) then return false end
+    if rage < menu.heroic_strike_rage:get() or rage <= (reserve_rage + 10) then return false end
 
     if utils.can_cast_melee(runtime.heroic_strike_id, me)
         and utils.cast_target_fast(runtime.heroic_strike_id, target)
@@ -2323,7 +2368,7 @@ local function on_update()
             runtime.last_mode_debug_at = now_ms
             local eff = d.get_effective_mode()
             local sham = runtime.cached_has_shaman and "yes" or "no"
-            d.core.log("[EAX Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | Shaman: " .. sham)
+            d.core.log("[Eax Fury] Mode: " .. eff .. " (auto=" .. runtime.cached_mode .. ") | Shaman: " .. sham)
         end
     end
 
@@ -2348,6 +2393,8 @@ local function on_update()
     local rage = d.utils.get_rage(me)
     local target = d.utils.find_best_target(me)
 
+    local battlefield_snapshot = get_battlefield_snapshot(me)
+
     enc = d.encounter_manager.get_policy(me)
 
     if target and target:is_valid() and me:can_attack(target) and d.interrupt_manager.should_interrupt(target) then
@@ -2357,11 +2404,9 @@ local function on_update()
     end
 
     local hold_offense = d.dps_risk.should_hold_offense(d.dps_runtime.build_snapshot(me, target, d.encounter_manager, d.ttd_tracker))
-    if not hold_offense then
-        d.racial_manager.try_offensive(me)
-    end
-    d.racial_manager.try_utility(me, target)
-    d.racial_manager.try_defensive(me)
+    if not hold_offense and d.racial_manager.try_offensive(me) then return end
+    if d.racial_manager.try_utility(me, target) then return end
+    if d.racial_manager.try_defensive(me) then return end
 
     if d.defensive_manager.try_defensive(me, "warrior", d.utils) then
         return
@@ -2376,12 +2421,12 @@ local function on_update()
 
     local self_threshold = d.eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
-    if my_hp < self_threshold and d.try_battle_shout then
-        d.try_battle_shout(me)
+    if my_hp < self_threshold and d.try_battle_shout and d.try_battle_shout(me) then
+        return
     end
 
     if me:is_in_combat() and not d.is_valid_hostile_target(me, target) then
-        local attacker = d.find_nearest_attacker(me)
+        local attacker = battlefield_snapshot.nearest_attacker or d.find_nearest_attacker(me)
         if attacker then
             target = attacker
         end
@@ -2465,8 +2510,11 @@ local function on_update()
     if gcd_lane_ready then
         if d.try_return_after_charge(me) then return end
         if d.try_return_to_berserker(me) then return end
+        if d.try_tc_dance_return(me) then return end
 
         rage = d.utils.get_rage(me)
+
+        if d.try_overpower_dance(me, target, rage) then return end
 
         if d.do_utility_upkeep(me, target, rage, target_hp_pct) then return end
         if d.do_burst_lane(me, target) then return end
@@ -2478,7 +2526,6 @@ local function on_update()
             if d.do_single_target_core_lane(me, target, ctx, rage, target_hp_pct) then return end
         end
 
-        if d.try_overpower_dance(me, target, rage) then return end
         if d.try_rend_in_battle_stance(me, target, rage) then return end
         if d.try_piercing_howl(me, target, rage, aoe_count) then return end
     end
@@ -2534,9 +2581,9 @@ end
 local function on_control_panel()
     local elements = {}
     local toggle_key_code = menu.toggle_key:get_key_code()
-    local display_name = "[EAX Warrior Fury] Enabled"
+    local display_name = "[Eax Warrior Fury] Enabled"
     if toggle_key_code ~= 7 then
-        display_name = "[EAX Warrior Fury] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
+        display_name = "[Eax Warrior Fury] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
     end
 
     local current_state = menu.enabled:get_state()
@@ -2566,7 +2613,7 @@ end
 
 -- -- register callbacks ------------------------------------------------------
 
--- -- EAX Conflict Detection (runs once at load) ------------------------------
+-- -- Eax Conflict Detection (runs once at load) ------------------------------
 -- Registers this spec; warns at render time only if 2+ specs of same class enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -2595,7 +2642,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -2636,7 +2683,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Warrior Fury] Enabled"
+        local label = "Eax Warrior Fury] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -2646,19 +2693,19 @@ if control_panel_utility then
             if menu.use_cooldowns then
                 local cur_wfu_cds = menu.use_cooldowns:get_state()
                 local nxt_wfu_cds = control_panel_utility:insert_key_checkbox_(
-                    elements, "[EAX WFu] Cooldowns", cur_wfu_cds, 0, false, "eax_wfu_cds_cp")
+                    elements, "[Eax WFu] Cooldowns", cur_wfu_cds, 0, false, "eax_wfu_cds_cp")
                 if nxt_wfu_cds ~= cur_wfu_cds then menu.use_cooldowns:set(nxt_wfu_cds) end
             end
             if menu.focus_priority then
                 local cur_wfu_focus = menu.focus_priority:get_state()
                 local nxt_wfu_focus = control_panel_utility:insert_key_checkbox_(
-                    elements, "[EAX WFu] Focus Priority", cur_wfu_focus, 0, false, "eax_wfu_focus_cp")
+                    elements, "[Eax WFu] Focus Priority", cur_wfu_focus, 0, false, "eax_wfu_focus_cp")
                 if nxt_wfu_focus ~= cur_wfu_focus then menu.focus_priority:set(nxt_wfu_focus) end
             end
             if menu.use_racial then
                 local cur_wfu_racial = menu.use_racial:get_state()
                 local nxt_wfu_racial = control_panel_utility:insert_key_checkbox_(
-                    elements, "[EAX WFu] Use Racial", cur_wfu_racial, 0, false, "eax_wfu_racial_cp")
+                    elements, "[Eax WFu] Use Racial", cur_wfu_racial, 0, false, "eax_wfu_racial_cp")
                 if nxt_wfu_racial ~= cur_wfu_racial then menu.use_racial:set(nxt_wfu_racial) end
             end
         end

@@ -1,10 +1,10 @@
--- EAX Priest Discipline | header.lua
+-- Eax Priest Discipline | header.lua
 -- Metadata loader that validates the local player is a Discipline Priest.
 
 local plugin = {
-    name = "EAX Priest Discipline",
+    name = "Eax Priest Discipline",
     version = "1.0.0",
-    author = "EAX",
+    author = "Eax",
     load = true,
 }
 

@@ -1,4 +1,4 @@
--- EAX Mage Frost | spells.lua
+-- Eax Mage Frost | spells.lua
 
 local spells = {}
 
@@ -6,6 +6,8 @@ spells.FROSTBOLT = { 27072, 27071, 25304, 10181, 10180, 10179, 8408, 8407, 8406,
 spells.ICE_LANCE = { 30455 }
 spells.ICY_VEINS = { 12472 }
 spells.WATER_ELEMENTAL = { 31687 }
+spells.ARCANE_EXPLOSION = { 27080, 10263, 10262, 10261, 10260, 10259, 8439, 8438, 8437, 1449 }
+spells.REMOVE_CURSE = { 30449, 475 }
 
 spells.FROST_NOVA = { 27088, 122, 865, 6131, 6136, 10230, 27087, 42917 }
 spells.CONE_OF_COLD = { 27071, 10161, 10160, 10159, 8408, 8407, 8406 }

@@ -1,5 +1,5 @@
 -- header.lua
--- EAX Shaman Elemental | Load guard
+-- Eax Shaman Elemental | Load guard
 -- Validates class and spec before touching rotation logic
 
 local plugin_info = require("plugin_info")

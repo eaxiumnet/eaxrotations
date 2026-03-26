@@ -40,7 +40,7 @@ function spell_resolver.resolve_spell_id(rank_table)
         end
     end
 
-    -- Cache miss or invalidated — resolve and cache
+    -- Cache miss or invalidated - resolve and cache
     local resolved = nil
     for i = 1, #rank_table do
         local spell_id = rank_table[i]

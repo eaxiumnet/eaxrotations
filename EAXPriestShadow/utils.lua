@@ -1,9 +1,10 @@
--- EAX Priest Shadow | utils.lua
+-- Eax Priest Shadow | utils.lua
 -- Helpers for spell resolution, mode detection, and health/buff utilities.
 
 local spell_queue = require("common/modules/spell_queue")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
+local spells = require("spells")
 
 
 local utils = {}
@@ -76,11 +77,14 @@ end
 -- Max range for auto target acquisition.
 -- Covers melee + max gap-closer range. Units beyond this are ignored
 -- unless they are actively attacking us or party.
-local MODE_DETECT_INTERVAL_S = 5.0
+local MODE_DETECT_INTERVAL_S = 10.0
 local AUTO_TARGET_MAX_RANGE = 40.0
 local AUTO_TARGET_MAX_HOSTILES = 50
 local mode_cache = "solo"
 local mode_cache_refreshed_at = 0
+local hostile_scan_cache_at = -1
+local hostile_scan_cache_me = nil
+local hostile_scan_cache_units = nil
 
 function utils.detect_mode(me)
     local now = core.time()
@@ -161,41 +165,100 @@ function utils.find_best_target(me)
         return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
     end
 
-    local objects = core.object_manager.get_all_objects()
+    local now = core.time()
+    local hostile_units
+    if hostile_scan_cache_at == now and hostile_scan_cache_me == me and hostile_scan_cache_units then
+        hostile_units = hostile_scan_cache_units
+    else
+        hostile_units = {}
+        local objects = core.object_manager.get_all_objects()
+        local hostile_scanned = 0
+        for i = 1, #objects do
+            local obj = objects[i]
+            if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
+                hostile_scanned = hostile_scanned + 1
+                hostile_units[#hostile_units + 1] = obj
+                if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
+                    break
+                end
+            end
+        end
+        hostile_scan_cache_at = now
+        hostile_scan_cache_me = me
+        hostile_scan_cache_units = hostile_units
+    end
+
     local best_attacking_party = nil
+    local best_dotted_target = nil
+    local best_dotted_score = 0
     local best_any = nil
-    local hostile_scanned = 0
+    local debuff_remaining_cache = {}
 
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
-            hostile_scanned = hostile_scanned + 1
+    local function get_debuff_remaining_ms_cached(unit, ids)
+        local unit_cache = debuff_remaining_cache[unit]
+        if not unit_cache then
+            unit_cache = {}
+            debuff_remaining_cache[unit] = unit_cache
+        end
 
-            local obj_target = obj:get_target()
-            if obj_target and utils.same_unit(obj_target, me) then
-                return obj
-            end
+        if unit_cache[ids] == nil then
+            unit_cache[ids] = utils.get_debuff_remaining_ms(unit, ids)
+        end
 
-            if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
-                best_attacking_party = obj
-            elseif not best_any then
-                best_any = obj
-            end
+        return unit_cache[ids]
+    end
 
-            if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
-                break
-            end
+    local function dotted_target_score(unit)
+        local vt = get_debuff_remaining_ms_cached(unit, spells.DEBUFF_VAMPIRIC_TOUCH)
+        local swp = get_debuff_remaining_ms_cached(unit, spells.DEBUFF_SHADOW_WORD_PAIN)
+        local dp = get_debuff_remaining_ms_cached(unit, spells.DEBUFF_DEVOURING_PLAGUE)
+
+        local score = 0
+
+        if vt > 0 then
+            score = score + 3
+            if vt >= 5000 then score = score + 2 elseif vt >= 2000 then score = score + 1 else score = score - 2 end
+        end
+
+        if swp > 0 then
+            score = score + 2
+            if swp >= 5000 then score = score + 1 elseif swp < 1500 then score = score - 1 end
+        end
+
+        if dp > 0 then
+            score = score + 4
+            if dp >= 3000 then score = score + 2 elseif dp < 1200 then score = score - 2 end
+        end
+
+        return score
+    end
+
+    for i = 1, #hostile_units do
+        local obj = hostile_units[i]
+        local obj_target = obj:get_target()
+        if obj_target and utils.same_unit(obj_target, me) then
+            return obj
+        end
+
+        local dotted_score = dotted_target_score(obj)
+        if dotted_score > 0 and dotted_score >= best_dotted_score then
+            best_dotted_target = obj
+            best_dotted_score = dotted_score
+        elseif not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
+            best_attacking_party = obj
+        elseif not best_any then
+            best_any = obj
         end
     end
 
-    return best_attacking_party or best_any
+    return best_dotted_target or best_attacking_party or best_any
 end
 
 function utils.same_unit(a, b)
     if not a or not b then return false end
     if a == b then return true end
     if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
-    -- GUID comparison is authoritative — two different mobs can share a name
+    -- GUID comparison is authoritative - two different mobs can share a name
     local function safe_guid(u)
         if type(u.get_guid) ~= "function" then return nil end
         local ok, g = pcall(function() return u:get_guid() end)
@@ -388,7 +451,7 @@ end
 
 function utils.log_debug(menu_ref, message)
     if menu_ref and menu_ref.debug and menu_ref.debug:get_state() and message then
-        core.log("[EAX Priest Shadow] " .. message)
+        core.log("[Eax Priest Shadow] " .. message)
     end
 end
 

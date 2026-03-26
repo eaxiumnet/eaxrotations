@@ -1,5 +1,5 @@
 -- spells.lua
--- EAX Hunter Beast Mastery | TBC Spell IDs from BRLite
+-- Eax Hunter Beast Mastery | TBC Spell IDs from BRLite
 
 local spells = {}
 

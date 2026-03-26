@@ -1,4 +1,4 @@
--- EAX Rogue Assassination | main.lua
+-- Eax Rogue Assassination | main.lua
 
 local menu = require("menu")
 local enums = (function()
@@ -243,6 +243,7 @@ local ctx_cache = rotation_context.new({
 })
 
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
+local KICK_ENERGY_RESERVE = 20
 local ASSA_FINISHER_COMBO_POINTS = 5
 local SND_REFRESH_CRITICAL_MS = 2000
 local SND_CLIP_GUARD_MS = 10000
@@ -316,7 +317,7 @@ end
 
 local function log_resolved_spells()
     core.log(
-        "[EAX Rogue Assassination] Resolved: Mut=" .. tostring(runtime.mutilate_id)
+        "[Eax Rogue Assassination] Resolved: Mut=" .. tostring(runtime.mutilate_id)
             .. " SS=" .. tostring(runtime.sinister_strike_id)
             .. " Env=" .. tostring(runtime.envenom_id)
             .. " SnD=" .. tostring(runtime.slice_and_dice_id)
@@ -338,7 +339,7 @@ local function is_assassination_rotation_available()
     local available = runtime.mutilate_id ~= nil
     if not available and not assa_rotation_suspended_logged then
         assa_rotation_suspended_logged = true
-        core.log("[EAX Rogue Assassination] Mutilate not detected; suspending Assassination rotation to avoid off-spec conflicts.")
+        core.log("[Eax Rogue Assassination] Mutilate not detected; suspending Assassination rotation to avoid off-spec conflicts.")
     end
     return available
 end
@@ -421,13 +422,62 @@ local function get_current_combo_points(me)
     return nil
 end
 
+local function get_combo_point_target(me)
+    if not me or type(me.get_combo_points_target) ~= "function" then
+        return nil
+    end
+
+    local ok, cp_target = pcall(me.get_combo_points_target, me)
+    if not ok or not cp_target or not cp_target.is_valid or not cp_target:is_valid() or cp_target:is_dead() then
+        return nil
+    end
+
+    return cp_target
+end
+
+local function combo_points_match_target(me, target)
+    if runtime.combo_points <= 0 then
+        return true
+    end
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+
+    local cp_target = get_combo_point_target(me) or runtime.combo_target
+    if not cp_target then
+        return false
+    end
+
+    return utils.same_unit(cp_target, target)
+end
+
+local function consume_combo_points()
+    runtime.combo_points = 0
+    runtime.combo_target = nil
+end
+
 
 local function reset_combo_points_if_needed(me, target)
     local cp = get_current_combo_points(me)
     if cp == nil then return end
 
     runtime.combo_points = math.max(0, math.min(ASSA_FINISHER_COMBO_POINTS, cp))
-    runtime.combo_target = (runtime.combo_points > 0 and target and target:is_valid()) and target or nil
+    if runtime.combo_points <= 0 then
+        runtime.combo_target = nil
+        return
+    end
+
+    local cp_target = get_combo_point_target(me)
+    if cp_target then
+        runtime.combo_target = cp_target
+        return
+    end
+
+    if runtime.combo_target and runtime.combo_target.is_valid and runtime.combo_target:is_valid() and not runtime.combo_target:is_dead() then
+        return
+    end
+
+    runtime.combo_target = (target and target:is_valid() and not target:is_dead()) and target or nil
 end
 
 local function get_snd_refresh_window_ms()
@@ -488,6 +538,10 @@ local function try_kick(me, target)
     if not runtime.kick_id or not utils.can_attack(me, target) then
         return false
     end
+    local ok_energy, energy = pcall(function() return me:get_power(3) end)
+    if ok_energy and tonumber(energy) and tonumber(energy) < KICK_ENERGY_RESERVE then
+        return false
+    end
     if not target:is_casting_spell() and not target:is_channelling_spell() then
         return false
     end
@@ -542,6 +596,9 @@ local function try_slice_and_dice(me, target, ctx)
     if not runtime.slice_and_dice_id or runtime.combo_points <= 0 or not utils.can_attack(me, target) then
         return false
     end
+    if not combo_points_match_target(me, target) then
+        return false
+    end
 
     local remaining_ms = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
     local refresh_window_ms = get_snd_refresh_window_ms()
@@ -554,7 +611,7 @@ local function try_slice_and_dice(me, target, ctx)
 
     local policy = encounter_manager.get_policy(me)
     local enemy_count = encounter_manager.enemy_count_in_range(me, 8)
-    local regular_min_combo_points = math.min(menu.rupture_combo_points:get(), 3)
+    local regular_min_combo_points = math.min(menu.rupture_combo_points:get(), 4)
     if enemy_count >= 2 or (policy and policy.burn_phase) then
         regular_min_combo_points = 2
     end
@@ -575,6 +632,7 @@ local function try_slice_and_dice(me, target, ctx)
 
     if utils.cast_target(runtime.slice_and_dice_id, target, "Slice and Dice") then
         utils.log_debug(menu, "Slice and Dice")
+        consume_combo_points()
         note_cast()
         return true
     end
@@ -589,6 +647,9 @@ local function try_envenom(me, target, ctx)
     if not runtime.envenom_id or not runtime.mutilate_id or not utils.can_attack(me, target) then
         return false
     end
+    if not combo_points_match_target(me, target) then
+        return false
+    end
     local required_combo_points = menu.envenom_combo_points:get()
     if runtime.set_multiplier > 1.0 then
         required_combo_points = math.max(4, required_combo_points - 1)
@@ -596,15 +657,25 @@ local function try_envenom(me, target, ctx)
     if runtime.combo_points < required_combo_points then
         return false
     end
-    if ttd_tracker.get(target) < 4 then
+    if runtime.combo_points < ASSA_FINISHER_COMBO_POINTS and runtime.set_multiplier <= 1.0 then
         return false
     end
-    if utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE) < get_snd_refresh_window_ms() then
+    local ttd_s, snd_ms, poison_stacks = get_assa_finisher_windows(me, target)
+    if ttd_s < 4 then
+        return false
+    end
+    if snd_ms < get_snd_refresh_window_ms() then
         return false
     end
 
-    local poison_stacks = utils.get_debuff_stacks(target, spells.DEBUFF_DEADLY_POISON) or 0
     if poison_stacks < menu.poison_stack_threshold:get() then
+        return false
+    end
+    if ttd_s >= 16 and runtime.combo_points < ASSA_FINISHER_COMBO_POINTS then
+        return false
+    end
+    local ok_energy, energy = pcall(function() return me:get_power(3) end)
+    if (target:is_casting_spell() or target:is_channelling_spell()) and ok_energy and tonumber(energy) and tonumber(energy) <= (KICK_ENERGY_RESERVE + 10) then
         return false
     end
     if not utils.can_cast_hostile(runtime.envenom_id, me, target) then
@@ -627,6 +698,7 @@ local function try_envenom(me, target, ctx)
 
     if utils.cast_target(runtime.envenom_id, target, "Envenom") then
         utils.log_debug(menu, "Envenom at " .. tostring(poison_stacks) .. " stacks")
+        consume_combo_points()
         note_cast()
         return true
     end
@@ -641,6 +713,9 @@ local function try_expose_armor(me, target)
     if not runtime.expose_armor_id or not utils.can_attack(me, target) then
         return false
     end
+    if not combo_points_match_target(me, target) then
+        return false
+    end
     if runtime.combo_points < ASSA_FINISHER_COMBO_POINTS then
         return false
     end
@@ -653,11 +728,19 @@ local function try_expose_armor(me, target)
 
     if utils.cast_target(runtime.expose_armor_id, target, "Expose Armor") then
         utils.log_debug(menu, "Expose Armor")
+        consume_combo_points()
         note_cast()
         return true
     end
 
     return false
+end
+
+local function get_assa_finisher_windows(me, target)
+    local ttd_s = tonumber(ttd_tracker.get(target)) or 0
+    local snd_ms = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
+    local poison_stacks = utils.get_debuff_stacks(target, spells.DEBUFF_DEADLY_POISON) or 0
+    return ttd_s, snd_ms, poison_stacks
 end
 
 local function try_rupture(me, target, ctx)
@@ -667,12 +750,23 @@ local function try_rupture(me, target, ctx)
     if not runtime.rupture_id or not utils.can_attack(me, target) then
         return false
     end
-    if runtime.combo_points < menu.rupture_combo_points:get() then
+    if not combo_points_match_target(me, target) then
         return false
     end
+    local rupture_min_combo_points = math.max(menu.rupture_combo_points:get(), 4)
+    if runtime.combo_points < rupture_min_combo_points then
+        return false
+    end
+    local ttd_s, snd_ms = get_assa_finisher_windows(me, target)
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_RUPTURE) > 3000 then return false end
-    -- TTD gate: don't Rupture if fight ending before it expires (v1.3)
-    if ttd_tracker.get(target) < 12 then return false end
+    if snd_ms < get_snd_refresh_window_ms() then
+        return false
+    end
+    -- TTD gate: only spend on Rupture when it is likely to fully pay back.
+    if ttd_s < 12 then return false end
+    if ttd_s < 16 and runtime.combo_points < ASSA_FINISHER_COMBO_POINTS then
+        return false
+    end
     if not utils.can_cast_hostile(runtime.rupture_id, me, target) then
         return false
     end
@@ -687,6 +781,7 @@ local function try_rupture(me, target, ctx)
 
     if utils.cast_target(runtime.rupture_id, target, "Rupture") then
         utils.log_debug(menu, "Rupture")
+        consume_combo_points()
         note_cast()
         return true
     end
@@ -701,10 +796,21 @@ local function try_eviscerate(me, target, ctx)
     if not runtime.eviscerate_id or not utils.can_attack(me, target) then
         return false
     end
+    if not combo_points_match_target(me, target) then
+        return false
+    end
+    local ttd_s, snd_ms, poison_stacks = get_assa_finisher_windows(me, target)
     if runtime.combo_points < 4 then
         return false
     end
-    if utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE) < get_snd_refresh_window_ms() then
+    if snd_ms < get_snd_refresh_window_ms() then
+        return false
+    end
+    if ttd_s >= 14 and poison_stacks >= menu.poison_stack_threshold:get() then
+        return false
+    end
+    local ok_energy, energy = pcall(function() return me:get_power(3) end)
+    if (target:is_casting_spell() or target:is_channelling_spell()) and ok_energy and tonumber(energy) and tonumber(energy) <= (KICK_ENERGY_RESERVE + 10) then
         return false
     end
     if not utils.can_cast_hostile(runtime.eviscerate_id, me, target) then
@@ -726,6 +832,7 @@ local function try_eviscerate(me, target, ctx)
 
     if utils.cast_target(runtime.eviscerate_id, target, "Eviscerate") then
         utils.log_debug(menu, "Eviscerate")
+        consume_combo_points()
         note_cast()
         return true
     end
@@ -738,6 +845,9 @@ local function try_mutilate(me, target, ctx)
         return false
     end
     if not runtime.mutilate_id or not utils.can_attack(me, target) then
+        return false
+    end
+    if runtime.combo_points > 0 and not combo_points_match_target(me, target) then
         return false
     end
     if runtime.combo_points >= 5 then
@@ -771,6 +881,9 @@ end
 
 local function try_sinister_strike(me, target, ctx)
     if not runtime.sinister_strike_id or not utils.can_attack(me, target) then
+        return false
+    end
+    if runtime.combo_points > 0 and not combo_points_match_target(me, target) then
         return false
     end
     if runtime.combo_points >= ASSA_FINISHER_COMBO_POINTS then
@@ -888,11 +1001,11 @@ local function do_rotation(me, target)
 
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
-    if not hold_offense then
-        racial_manager.try_offensive(me)
+    if not hold_offense and racial_manager.try_offensive(me) then
+        return true
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -918,11 +1031,11 @@ local function do_rotation(me, target)
     if try_slice_and_dice(me, target, ctx) then invalidate_ctx() return true end
     if try_feint(me) then invalidate_ctx() return true end
     if try_expose_armor(me, target) then invalidate_ctx() return true end
-    if try_rupture(me, target, ctx) then
+    if try_envenom(me, target, ctx) then
         invalidate_ctx()
         return true
     end
-    if try_envenom(me, target, ctx) then
+    if try_rupture(me, target, ctx) then
         invalidate_ctx()
         return true
     end
@@ -1124,7 +1237,7 @@ core.register_on_update_callback(function()
     if force_apply_poisons_cp then
         poison_manager.force_reapply()
         force_apply_poisons_cp = false
-        core.log("[EAX Rogue Assassination] Force reapply poisons requested")
+        core.log("[Eax Rogue Assassination] Force reapply poisons requested")
     end
     if poison_manager.try_apply_poisons(me, menu, utils, current_poison_loadout()) then
         return
@@ -1204,7 +1317,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Rogue Assa] Enabled"
+        local label = "Eax Rogue Assa] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1215,7 +1328,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1246,7 +1359,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1259,4 +1372,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Rogue Assassination] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Rogue Assassination] Loaded " .. (_pi and _pi.plugin_version or "?"))

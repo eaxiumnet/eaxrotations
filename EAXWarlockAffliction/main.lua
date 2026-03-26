@@ -1,5 +1,5 @@
 -- main.lua
--- EAX Warlock Affliction | Rotation logic
+-- Eax Warlock Affliction | Rotation logic
 
 local menu = require("menu")
 local rotation_context = require("rotation_context")
@@ -129,13 +129,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -249,7 +247,7 @@ local function resolve_spells()
 end
 
 local function log_spells()
-    core.log("[EAX Warlock Affliction] Resolved spells: UA=" .. tostring(runtime.unstable_affliction_id)
+    core.log("[Eax Warlock Affliction] Resolved spells: UA=" .. tostring(runtime.unstable_affliction_id)
         .. " CORR=" .. tostring(runtime.corruption_id)
         .. " SL=" .. tostring(runtime.siphon_life_id)
         .. " Curse=" .. tostring(runtime.curse_agony_id or runtime.curse_doom_id)
@@ -259,6 +257,15 @@ end
 
 resolve_spells()
 log_spells()
+
+local function target_has_utility_curse(target)
+    return target and (
+        utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_WEAKNESS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_TONGUES)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_RECKLESSNESS)
+    )
+end
 
 local function update_set_bonus()
     local me = _get_local_player()
@@ -401,6 +408,7 @@ local function try_curse_of_elements(me, target)
     if not menu.use_curse_of_elements or not menu.use_curse_of_elements:get_state() then return false end
     if not runtime.curse_of_elements_id then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
+    if target_has_utility_curse(target) and not utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS) then return false end
     if utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS) then return false end
     if not utils.can_cast_hostile(runtime.curse_of_elements_id, me, target) then return false end
     if utils.cast_target(runtime.curse_of_elements_id, target) then
@@ -485,11 +493,21 @@ local function try_refresh_dots(me, target)
     return false
 end
 
+local function target_has_utility_curse(target)
+    return target and (
+        utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_WEAKNESS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_TONGUES)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_RECKLESSNESS)
+    )
+end
+
 local function try_apply_curse(me, target)
     if not menu.use_curse:get_state() then return false end
     local curse_id = menu.prefer_doom:get_state() and runtime.curse_doom_id or runtime.curse_agony_id
     if not curse_id then curse_id = runtime.curse_agony_id or runtime.curse_doom_id end
     if not curse_id then return false end
+    if target_has_utility_curse(target) then return false end
     
     -- Determine which curse debuff IDs to check
     local debuff_ids = nil
@@ -523,11 +541,32 @@ local function try_execute(me, target)
     if not menu.use_drain_soul:get_state() then
         return false
     end
+    local ttd_s = nil
+    if ttd_tracker and ttd_tracker.get then
+        local ok, value = pcall(function() return ttd_tracker.get(target) end)
+        if ok then ttd_s = tonumber(value) end
+    end
+    if ttd_s and ttd_s > 0 then
+        local commit_window_s = 2.0
+        if ttd_s < commit_window_s then
+            return false
+        end
+    end
     return try_cast_spell(me, runtime.drain_soul_id, target, "Drain Soul")
 end
 
 local function try_filler(me, target)
     if menu.use_shadow_bolt:get_state() then
+        local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.shadow_bolt_id)
+        local cast_time_s = cast_time_ms / 1000
+        local ttd_s = nil
+        if ttd_tracker and ttd_tracker.get then
+            local ok, value = pcall(function() return ttd_tracker.get(target) end)
+            if ok then ttd_s = tonumber(value) end
+        end
+        if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then
+            return false
+        end
         return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt")
     end
     return false
@@ -657,7 +696,7 @@ local function try_summon_correct_pet(me, mode)
     if not spell_id then return false end
     if PET_REQUIRES_SHARD[desired] and count_soul_shards() < 1 then
         if utils.throttle("eax_affliction_pet_shard_warning", 10.0) then
-            core.log("[EAX Warlock Affliction] Cannot summon " .. desired .. ": need at least 1 Soul Shard.")
+            core.log("[Eax Warlock Affliction] Cannot summon " .. desired .. ": need at least 1 Soul Shard.")
             core.graphics.add_notification(
                 "eax_affliction_pet_shard_warning",
                 "[EAX] Pet Summon Blocked",
@@ -750,10 +789,10 @@ local function do_rotation(me, target)
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -777,7 +816,7 @@ local function do_rotation(me, target)
         return
     end
 
-    -- Threat fade protection — don't pull aggro from tank
+    -- Threat fade protection - don't pull aggro from tank
     if me:is_in_combat() then
         local current_target = me:get_target()
         local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
@@ -804,7 +843,6 @@ local function do_rotation(me, target)
     end
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) then
-        if ctx.self and ctx.self.soul_shards and ctx.self.soul_shards < 1 then return false end
         if try_execute(me, target) then
             return
         end
@@ -949,7 +987,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Warlock Affli] Enabled"
+        local label = "Eax Warlock Affli] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -960,7 +998,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -991,7 +1029,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1004,4 +1042,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Warlock Affliction] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Warlock Affliction] Loaded " .. (_pi and _pi.plugin_version or "?"))

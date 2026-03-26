@@ -1,4 +1,4 @@
--- EAX Druid Balance | main.lua
+-- Eax Druid Balance | main.lua
 -- Callback registration, mode handling, and balance rotation logic.
 
 local menu = require("menu")
@@ -253,6 +253,8 @@ local ctx_cache = rotation_context.new({
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
+local BUFF_TYPE_CURSE = 4
+local spell_resolution_done = false
 
 local function resolve_spells()
     runtime.moonkin_form_id = utils.resolve_spell_id(spells.MOONKIN_FORM)
@@ -274,7 +276,7 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Druid Balance] Resolved: Moonfire=" .. tostring(runtime.moonfire_id)
+    core.log("[Eax Druid Balance] Resolved: Moonfire=" .. tostring(runtime.moonfire_id)
         .. " InsectSwarm=" .. tostring(runtime.insect_swarm_id)
         .. " Wrath=" .. tostring(runtime.wrath_id)
         .. " Starfire=" .. tostring(runtime.starfire_id)
@@ -288,9 +290,6 @@ local function update_set_bonus(me)
     local malorne_mult = utils.get_set_multiplier(me, "Malorne")
     runtime.set_multiplier = math.max(nordrassil_mult, nordrassil_harness_mult, malorne_mult)
 end
-
-resolve_spells()
-log_resolved_spells()
 
 -- Enhanced GCD management with smart cast manager
 local function note_cast()
@@ -415,21 +414,13 @@ local function try_tranquility(me)
     return false
 end
 
-local function try_faerie_fire(me, target, mode)
+local function try_faerie_fire(me, target, ctx)
     if not menu.use_faerie_fire or not menu.use_faerie_fire:get_state() then return false end
     if not runtime.faerie_fire_id then return false end
-    if not is_valid_hostile_target(me, target) then return false end
-    local target_level = nil
-    if target.get_level then
-        local ok, value = pcall(function() return target:get_level() end)
-        if ok then
-            target_level = value
-        end
-    end
-    local is_group_mode = mode == "dungeon" or mode == "raid"
-    if not is_group_mode and target_level ~= -1 then return false end
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) > 5000 then return false end
     if is_pending_cast(runtime.faerie_fire_id) then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.08) then return false end
+    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) > 5000 then return false end
     if not utils.can_cast_hostile(runtime.faerie_fire_id, me, target) then return false end
     if utils.cast_target(runtime.faerie_fire_id, target) then
         mark_pending_cast(runtime.faerie_fire_id, PENDING_CAST_TIMEOUT_S, { action_key = "faerie_fire", category = "dots" })
@@ -440,15 +431,15 @@ local function try_faerie_fire(me, target, mode)
     return false
 end
 
-local function try_moonfire(me, target)
+local function try_moonfire(me, target, ctx)
     if not menu.use_moonfire or not menu.use_moonfire:get_state() then return false end
     if not runtime.moonfire_id then return false end
+    if is_pending_cast(runtime.moonfire_id) then return false end
     if not is_valid_hostile_target(me, target) then return false end
+    if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.10) then return false end
     local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE) > refresh_ms then return false end
-    -- Intelligent throttling - prevent spam but stay responsive for DoT refreshes
     if should_throttle_dot("moonfire") then return false end
-    if is_pending_cast(runtime.moonfire_id) then return false end
     if not utils.can_cast_hostile(runtime.moonfire_id, me, target) then return false end
     if utils.cast_target(runtime.moonfire_id, target) then
         mark_pending_cast(runtime.moonfire_id, PENDING_CAST_TIMEOUT_S, { action_key = "moonfire", category = "dots" })
@@ -460,15 +451,15 @@ local function try_moonfire(me, target)
     return false
 end
 
-local function try_insect_swarm(me, target)
+local function try_insect_swarm(me, target, ctx)
     if not menu.use_insect_swarm or not menu.use_insect_swarm:get_state() then return false end
     if not runtime.insect_swarm_id then return false end
+    if is_pending_cast(runtime.insect_swarm_id) then return false end
     if not is_valid_hostile_target(me, target) then return false end
+    if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.10) then return false end
     local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM) > refresh_ms then return false end
-    -- Intelligent throttling - prevent spam but stay responsive for DoT refreshes
     if should_throttle_dot("insect_swarm") then return false end
-    if is_pending_cast(runtime.insect_swarm_id) then return false end
     if not utils.can_cast_hostile(runtime.insect_swarm_id, me, target) then return false end
     if utils.cast_target(runtime.insect_swarm_id, target) then
         mark_pending_cast(runtime.insect_swarm_id, PENDING_CAST_TIMEOUT_S, { action_key = "insect_swarm", category = "dots" })
@@ -499,13 +490,21 @@ local function try_force_of_nature(me, target, mana_pct)
     return false
 end
 
-local function try_starfire(me, target)
+local function try_starfire(me, target, ctx)
+    if not runtime.starfire_id then return false end
+    if is_pending_cast(runtime.starfire_id) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
-    if not runtime.starfire_id then return false end
-    -- Intelligent filler throttling - smooth out cast cadence
+    if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.05) then return false end
     if should_throttle_filler("starfire") then return false end
-    if is_pending_cast(runtime.starfire_id) then return false end
+    local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.starfire_id)
+    local cast_time_s = cast_time_ms / 1000
+    local ttd_s = nil
+    if ttd_tracker and ttd_tracker.get then
+        local ok, value = pcall(function() return ttd_tracker.get(target) end)
+        if ok then ttd_s = tonumber(value) end
+    end
+    if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then return false end
     if not utils.can_cast_hostile(runtime.starfire_id, me, target) then return false end
     if utils.cast_target(runtime.starfire_id, target) then
         mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S, { action_key = "starfire", category = "long" })
@@ -517,16 +516,25 @@ local function try_starfire(me, target)
     return false
 end
 
-local function try_wrath(me, target)
-    if not is_valid_hostile_target(me, target) then return false end
+local function try_wrath(me, target, ctx)
     if not runtime.wrath_id then return false end
-    -- Intelligent filler throttling - smooth out cast cadence
-    if should_throttle_filler("wrath") then return false end
     if is_pending_cast(runtime.wrath_id) then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if me:is_moving() then return false end
+    if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.05) then return false end
+    if should_throttle_filler("wrath") then return false end
+    local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.wrath_id)
+    local cast_time_s = cast_time_ms / 1000
+    local ttd_s = nil
+    if ttd_tracker and ttd_tracker.get then
+        local ok, value = pcall(function() return ttd_tracker.get(target) end)
+        if ok then ttd_s = tonumber(value) end
+    end
+    if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then return false end
     if not utils.can_cast_hostile(runtime.wrath_id, me, target) then return false end
     if utils.cast_target(runtime.wrath_id, target) then
         mark_pending_cast(runtime.wrath_id, PENDING_CAST_TIMEOUT_S, { action_key = "wrath", category = "filler" })
-        utils.log_debug(menu, me:is_moving() and "Wrath [moving]" or "Wrath")
+        utils.log_debug(menu, "Wrath")
         note_cast()
         esp_renderer.on_cast(runtime.wrath_id, "Wrath", color.blue(220))
         return true
@@ -588,10 +596,9 @@ local function try_remove_curse_balance(me)
     for _, unit in ipairs(units) do
         local cache = buff_manager:get_debuff_cache(unit, 100)
         for _, aura in ipairs(cache) do
-            if aura.is_active and enums and enums.buff_type
-               and aura.buff_type == enums.buff_type.CURSE then
-                if utils.can_cast_hostile(runtime.remove_curse_id, me, unit) then
-                    if utils.cast_target(runtime.remove_curse_id, unit) then
+            if aura.is_active and aura.buff_type == BUFF_TYPE_CURSE then
+                if utils.can_cast_unit(runtime.remove_curse_id, me, unit) then
+                    if utils.cast_unit(runtime.remove_curse_id, me, unit) then
                         mark_pending_cast(runtime.remove_curse_id, PENDING_CAST_TIMEOUT_S)
                         utils.log_debug(menu, "Remove Curse -> " .. (unit.get_name and unit:get_name() or "ally"))
                         note_cast()
@@ -606,7 +613,7 @@ local function try_remove_curse_balance(me)
 end
 
 
--- ── Target lock ──────────────────────────────────────────────────────────────
+-- -- Target lock --------------------------------------------------------------
 -- Balance applies multiple DoTs to one target before nuking. Without a target
 -- lock, find_best_target can switch mid-rotation causing DoTs to be applied to
 -- different mobs every tick.
@@ -616,7 +623,7 @@ local function get_locked_target(me)
        and me:can_attack(runtime.locked_target_ref) then
         return runtime.locked_target_ref
     end
-    -- Lock expired or target dead — clear
+    -- Lock expired or target dead - clear
     runtime.locked_target_guid = nil
     runtime.locked_target_ref  = nil
     return nil
@@ -653,8 +660,8 @@ local function try_barkskin_defensive(me)
     end
     return false
 end
-local function update_rotation(me, target, menu, utils)
-    if mana_conservator.on_update(me, target, menu, utils) then return end
+local function do_rotation(me, target, menu, utils)
+    if not me:is_in_combat() and mana_conservator.on_update(me, target, menu, utils) then return true end
 
     if not is_gcd_ready() then return false end
 
@@ -668,14 +675,13 @@ local function update_rotation(me, target, menu, utils)
         end
     end
 
-    local mode = get_effective_mode()
     local mana_pct = utils.get_mana_pct(me)
-    local enemy_count = utils.enemy_count_in_radius(me, 12)
 
     if try_root_escape_balance(me) then return true end
     if try_innervate(me, mana_pct) then return true end
     if try_moonkin_form(me) then return true end
     if try_tranquility(me) then return true end
+    if try_remove_curse_balance(me) then return true end
 
     if not is_valid_hostile_target(me, target) then
         runtime.locked_target_guid = nil
@@ -693,14 +699,11 @@ local function update_rotation(me, target, menu, utils)
 
     ttd_tracker.update(dot_target)
 
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_faerie_fire(me, dot_target, mode) then return true end
-    if try_remove_curse_balance(me) then return true end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_moonfire(me, dot_target) then return true end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_insect_swarm(me, dot_target) then return true end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.40) and try_hurricane(me, enemy_count, mana_pct) then return true end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_force_of_nature(me, dot_target, mana_pct) then return true end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_starfire(me, dot_target) then return true end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_wrath(me, dot_target) then return true end
+    if try_faerie_fire(me, dot_target, ctx) then return true end
+    if try_insect_swarm(me, dot_target, ctx) then return true end
+    if try_moonfire(me, dot_target, ctx) then return true end
+    if try_starfire(me, dot_target, ctx) then return true end
+    if try_wrath(me, dot_target, ctx) then return true end
 
     return false
 end
@@ -762,6 +765,11 @@ end)
 core.register_on_update_callback(function()
     local me = _get_local_player()
     if not me then return end
+    if not spell_resolution_done then
+        resolve_spells()
+        log_resolved_spells()
+        spell_resolution_done = true
+    end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
 
     if utils.throttle("eaxdruidbalance_mode_refresh", 5.0) then
@@ -841,10 +849,10 @@ core.register_on_update_callback(function()
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     if try_barkskin_defensive(me) then return true end
@@ -852,7 +860,7 @@ core.register_on_update_callback(function()
         return
     end
 
-    -- Threat fade protection — don't pull aggro from tank
+    -- Threat fade protection - don't pull aggro from tank
     local current_target = me:get_target()
     local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
     if ok and should_fade and dps_risk.should_drop_threat(dps_runtime.build_snapshot(me, current_target, encounter_manager, ttd_tracker)) then
@@ -867,7 +875,7 @@ core.register_on_update_callback(function()
         if try_tranquility(me) then return end
     end
 
-    update_rotation(me, target, menu, utils)
+    do_rotation(me, target, menu, utils)
 end)
 
 
@@ -893,7 +901,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Druid Balance] Enabled"
+        local label = "Eax Druid Balance] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -904,7 +912,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -935,7 +943,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -948,4 +956,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Druid Balance] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Druid Balance] Loaded " .. (_pi and _pi.plugin_version or "?"))

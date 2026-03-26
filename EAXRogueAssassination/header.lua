@@ -1,10 +1,10 @@
--- EAX Rogue Assassination | header.lua
+-- Eax Rogue Assassination | header.lua
 
 local plugin = {}
 
-plugin["name"] = "EAX Rogue Assassination"
+plugin["name"] = "Eax Rogue Assassination"
 plugin["version"] = "1.0.0"
-plugin["author"] = "EAX"
+plugin["author"] = "Eax"
 plugin["load"] = true
 
 local me = core.object_manager.get_local_player()

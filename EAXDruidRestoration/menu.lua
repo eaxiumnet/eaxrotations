@@ -1,11 +1,12 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Druid Restoration
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Druid Restoration
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
 local menu = {}
+local INNERVATE_TARGET_OPTIONS = { "Self only", "Lowest mana healer", "Focus target" }
 
 -- -- Tree nodes ----------------------------------------------------------------
 local root_tree    = ps.tree_node()
@@ -69,7 +70,9 @@ menu.regrowth_refresh_seconds             = core.menu.slider_int(1, 5, 2, "eaxdr
 menu.use_swiftmend                        = core.menu.checkbox(true, "eaxdruidrestoration_use_swiftmend")
 menu.swiftmend_hp_pct                     = core.menu.slider_int(20, 80, 60, "eaxdruidrestoration_swiftmend_hp_pct")
 menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidrestoration_remove_curse")
+menu.use_abolish_poison                  = core.menu.checkbox(true, "eaxdruidrestoration_abolish_poison")
 menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidrestoration_use_innervate")
+menu.innervate_target                     = core.menu.combobox(1, "eaxdruidrestoration_innervate_target")
 menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_innervate_mana_pct")
 menu.use_tranquility                      = core.menu.checkbox(true, "eaxdruidrestoration_use_tranquility")
 menu.tranquility_injured_count            = core.menu.slider_int(2, 8, 3, "eaxdruidrestoration_tranquility_injured_count")
@@ -87,13 +90,13 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_remove_curse", label = "Remove Curse" },
 }, {
     namespace = "eaxdruidrestoration",
-    log_prefix = "[EAX Druid Restoration] ",
+    log_prefix = "[Eax Druid Restoration] ",
 })
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -107,12 +110,12 @@ function menu.render()
         ps.draw_space(_win, "eaxdruidrestoration")
     end
 
-    root_tree:render("  Eax's Druid Restoration", function()
+    root_tree:render("Eax's Druid Restoration", function()
 
         ps.render_controls(menu, "Eax's Druid Restoration")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.mana_saver:render("Mana Saver", "Delay expensive spells until mana is healthier")
             menu.use_mark_of_the_wild:render("Mark of the Wild", "Refresh Mark of the Wild on yourself out of combat")
@@ -125,7 +128,9 @@ function menu.render()
             menu.regrowth_refresh_seconds:render("Regrowth Refresh (sec)", "Refresh Regrowth below this remaining time")
             menu.use_swiftmend:render("Swiftmend", "Consume an active HoT for burst healing")
             menu.swiftmend_hp_pct:render("Swiftmend HP %", "Health threshold for Swiftmend")
+            menu.use_abolish_poison:render("Abolish Poison", "Automatically cleanse poison debuffs when Abolish Poison is not already ticking")
             menu.use_innervate:render("Innervate", "Recover mana automatically at the configured threshold")
+            menu.innervate_target:render("Innervate Target", INNERVATE_TARGET_OPTIONS, "Choose who receives Innervate before falling back to self")
             menu.innervate_mana_pct:render("Innervate Mana %", "Mana threshold for Innervate")
             menu.use_tranquility:render("Tranquility", "Use Tranquility during raid-wide injury windows")
             menu.tranquility_injured_count:render("Tranquility Injured Count", "Minimum injured allies before Tranquility")
@@ -149,8 +154,8 @@ function menu.render()
 
         -- -- DPS Fallback (Solo) -----------------------------------------------
         local dps_tree = ps.tree_node()
-        dps_tree:render("  DPS Fallback (Solo)", function()
-            ps.header("Solo DPS – used when no healing is needed")
+        dps_tree:render("DPS Fallback (Solo)", function()
+            ps.header("Solo DPS - used when no healing is needed")
             menu.dps_fallback_enabled:render("Enable DPS Fallback",
                 "When solo and no one needs healing, cast damage spells instead of standing idle")
             menu.dps_use_faerie_fire:render("Faerie Fire",

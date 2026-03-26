@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Warrior Protection
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Warrior Protection
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -110,10 +110,10 @@ menu.heroic_strike_rage_cap               = core.menu.slider_int(60, 100, 90, "s
 menu.aoe_enemy_count                      = core.menu.slider_int(2, 10, 3, "simpleprot_aoe_count")
 menu.execute_min_rage                     = core.menu.slider_int(15, 80, 31, "simpleprot_execute_min_rage")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_shield_slam", label = "Shield Slam" },
@@ -123,7 +123,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_shield_block", label = "Shield Block" },
 }, {
     namespace = "eaxwarriorprotection",
-    log_prefix = "[EAX Warrior Protection] ",
+    log_prefix = "[Eax Warrior Protection] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -138,12 +138,12 @@ function menu.render()
         ps.draw_space(_win, "eaxwarriorprotection")
     end
 
-    root_tree:render("  Eax's Warrior Protection", function()
+    root_tree:render("Eax's Warrior Protection", function()
 
         ps.render_controls(menu, "Eax's Warrior Protection")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_shield_slam:render("Shield Slam", "Use Shield Slam on cooldown")
             menu.use_revenge:render("Revenge", "Use Revenge when proc is available")

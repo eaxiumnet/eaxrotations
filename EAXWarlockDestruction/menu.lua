@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Warlock Destruction
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Warlock Destruction
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -79,10 +79,10 @@ menu.min_shards                           = core.menu.slider_int(0, 10, 3, "eax_
 
 mana_conservator.register_menu_items(menu, "eax_warlock_destruction")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_curse", label = "Curse" },
@@ -95,7 +95,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_shadowfury", label = "Shadowfury" },
 }, {
     namespace = "eaxwarlockdestruction",
-    log_prefix = "[EAX Warlock Destruction] ",
+    log_prefix = "[Eax Warlock Destruction] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -110,12 +110,12 @@ function menu.render()
         ps.draw_space(_win, "eaxwarlockdestruction")
     end
 
-    root_tree:render("  Eax's Warlock Destruction", function()
+    root_tree:render("Eax's Warlock Destruction", function()
 
         ps.render_controls(menu, "Eax's Warlock Destruction")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_fel_armor:render("Fel Armor", "Maintain Fel Armor when available")
             menu.use_curse:render("Curse", "Maintain the selected TBC curse on the target")

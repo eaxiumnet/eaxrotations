@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Mage Frost
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Mage Frost
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -62,6 +62,8 @@ menu.use_frostbolt                        = core.menu.checkbox(true, "eax_mage_f
 menu.use_ice_lance                        = core.menu.checkbox(true, "eax_mage_frost_use_ice_lance")
 menu.use_icy_veins                        = core.menu.checkbox(true, "eax_mage_frost_use_icy_veins")
 menu.use_water_elemental                  = core.menu.checkbox(true, "eax_mage_frost_use_water_elemental")
+menu.use_remove_curse                     = core.menu.checkbox(true, "eax_mage_frost_use_remove_curse")
+menu.use_arcane_explosion                 = core.menu.checkbox(true, "eax_mage_frost_use_arcane_explosion")
 menu.use_trinkets                         = core.menu.checkbox(true, "eax_mage_frost_use_trinkets")
 menu.use_cooldowns                        = core.menu.checkbox(true, "eax_mage_frost_use_cooldowns")
 menu.use_frost_nova                       = core.menu.checkbox(true, "eax_mage_frost_use_frost_nova")
@@ -71,10 +73,10 @@ menu.ice_block_hp_pct                     = core.menu.slider_int(0, 100, 20, "ea
 
 mana_conservator.register_menu_items(menu, "eax_mage_frost")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_frostbolt", label = "Frostbolt" },
@@ -84,7 +86,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_ice_barrier", label = "Ice Barrier" },
 }, {
     namespace = "eaxmagefrost",
-    log_prefix = "[EAX Mage Frost] ",
+    log_prefix = "[Eax Mage Frost] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -99,17 +101,19 @@ function menu.render()
         ps.draw_space(_win, "eaxmagefrost")
     end
 
-    root_tree:render("  Eax's Mage Frost", function()
+    root_tree:render("Eax's Mage Frost", function()
 
         ps.render_controls(menu, "Eax's Mage Frost")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_frostbolt:render("Frostbolt", "Primary filler spell")
             menu.use_ice_lance:render("Ice Lance", "Use Ice Lance on frozen targets or while moving")
             menu.use_icy_veins:render("Icy Veins", "Use Icy Veins in combat")
             menu.use_water_elemental:render("Water Elemental", "Summon Water Elemental when available")
+            menu.use_remove_curse:render("Remove Curse", "Use Remove Curse on cursed allies during combat")
+            menu.use_arcane_explosion:render("Arcane Explosion", "Use Arcane Explosion for close-range AoE")
             menu.use_cone_of_cold:render("Cone of Cold", "Use Cone of Cold for close-range AoE damage and slowing")
             menu.use_trinkets:render("Trinkets", "Use self-cast trinkets during burst windows")
         end)

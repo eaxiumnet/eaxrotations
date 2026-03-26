@@ -1,4 +1,4 @@
--- EAX Rogue Combat | main.lua
+-- Eax Rogue Combat | main.lua
 
 local menu = require("menu")
 local enums = (function()
@@ -78,6 +78,7 @@ local _visual_runtime = {
 }
 
 local reactive_adapter = {}
+local KICK_ENERGY_RESERVE = 20
 local POISON_OPTION_KEYS = { "disabled", "instant", "deadly", "wound", "crippling", "mind_numbing" }
 local POISON_ITEM_TABLES = {
     instant = spells.POISON_ITEMS_INSTANT,
@@ -124,6 +125,12 @@ local function current_poison_loadout()
         main_hand_items = build_poison_priority(POISON_OPTION_KEYS[main_idx] or "instant"),
         off_hand_items = build_poison_priority(POISON_OPTION_KEYS[off_idx] or "deadly"),
     }
+end
+
+local function current_energy(me)
+    if not me then return 0 end
+    local ok, value = pcall(function() return me:get_power(3) end)
+    return (ok and tonumber(value)) or 0
 end
 
 local _visual_on_cast = esp_renderer.on_cast
@@ -301,7 +308,7 @@ end
 
 local function log_resolved_spells()
     core.log(
-        "[EAX Rogue Combat] Resolved: SS=" .. tostring(runtime.sinister_strike_id)
+        "[Eax Rogue Combat] Resolved: SS=" .. tostring(runtime.sinister_strike_id)
             .. " SnD=" .. tostring(runtime.slice_and_dice_id)
             .. " EV=" .. tostring(runtime.eviscerate_id)
             .. " RUP=" .. tostring(runtime.rupture_id)
@@ -359,7 +366,7 @@ local function is_combat_rotation_available()
     local available = runtime.blade_flurry_id ~= nil or runtime.adrenaline_rush_id ~= nil or runtime.riposte_id ~= nil
     if not available and not combat_rotation_suspended_logged then
         combat_rotation_suspended_logged = true
-        core.log("[EAX Rogue Combat] Blade Flurry / Adrenaline Rush / Riposte not detected; suspending Combat rotation to avoid off-spec conflicts.")
+        core.log("[Eax Rogue Combat] Blade Flurry / Adrenaline Rush / Riposte not detected; suspending Combat rotation to avoid off-spec conflicts.")
     end
     return available
 end
@@ -438,6 +445,9 @@ local function try_kick(me, target)
         return false
     end
     if not runtime.kick_id or not utils.can_attack(me, target) then
+        return false
+    end
+    if current_energy(me) < KICK_ENERGY_RESERVE then
         return false
     end
     if not target:is_casting_spell() and not target:is_channelling_spell() then
@@ -582,6 +592,9 @@ local function try_rupture(me, target, ctx)
     if runtime.combo_points < min_combo_points then
         return false
     end
+    if (target:is_casting_spell() or target:is_channelling_spell()) and current_energy(me) <= (KICK_ENERGY_RESERVE + 10) then
+        return false
+    end
     if ctx then
         local can_cast = resource_gate.rogue.can_finisher(ctx, 25, runtime.combo_points, min_combo_points)
         if not can_cast then
@@ -617,6 +630,9 @@ local function try_eviscerate(me, target, ctx)
         min_combo_points = COMBAT_FINISHER_COMBO_POINTS
     end
     if runtime.combo_points < min_combo_points then
+        return false
+    end
+    if (target:is_casting_spell() or target:is_channelling_spell()) and current_energy(me) <= (KICK_ENERGY_RESERVE + 10) then
         return false
     end
     if ctx then
@@ -693,7 +709,7 @@ end
 -- --- Killing Spree (v1.1) -------------------------------------------------
 
 local function try_killing_spree(me, target)
-    -- Killing Spree (51690) is a WotLK spell — not available in TBC. No-op.
+    -- Killing Spree (51690) is a WotLK spell - not available in TBC. No-op.
     return false
 end
 
@@ -1020,7 +1036,7 @@ core.register_on_update_callback(function()
     if force_apply_poisons_cp then
         poison_manager.force_reapply()
         force_apply_poisons_cp = false
-        core.log("[EAX Rogue Combat] Force reapply poisons requested")
+        core.log("[Eax Rogue Combat] Force reapply poisons requested")
     end
     if poison_manager.try_apply_poisons(me, menu, utils, current_poison_loadout()) then
         return
@@ -1101,7 +1117,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Rogue Combat] Enabled"
+        local label = "Eax Rogue Combat] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1112,7 +1128,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1143,7 +1159,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1156,4 +1172,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Rogue Combat] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Rogue Combat] Loaded " .. (_pi and _pi.plugin_version or "?"))

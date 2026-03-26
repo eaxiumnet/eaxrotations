@@ -1,12 +1,14 @@
--- EAX Mage Arcane | spells.lua
+-- Eax Mage Arcane | spells.lua
 
 local spells = {}
 
 spells.ARCANE_BLAST = { 33938, 30451 }
 spells.ARCANE_MISSILES = { 27075, 25345, 10212, 10211, 8417, 8416, 5145, 5144, 5143 }
 spells.ARCANE_POWER = { 12042 }
+spells.ARCANE_EXPLOSION = { 27080, 10263, 10262, 10261, 10260, 10259, 8439, 8438, 8437, 1449 }
 spells.EVOCATION = { 12051 }
 spells.FIRE_BLAST = { 27079, 10199, 10198, 10197, 8413, 8412, 2138, 2137, 2136 }
+spells.REMOVE_CURSE = { 30449, 475 }
 
 spells.BUFF_ARCANE_BLAST = { 36032 }
 spells.BUFF_ARCANE_POWER = { 12042 }

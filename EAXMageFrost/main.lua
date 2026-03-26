@@ -1,4 +1,4 @@
--- EAX Mage Frost | main.lua
+-- Eax Mage Frost | main.lua
 
 local menu = require("menu")
 local rotation_context = require("rotation_context")
@@ -127,13 +127,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -208,6 +206,8 @@ local runtime = {
     ice_lance_id = nil,
     icy_veins_id = nil,
     water_elemental_id = nil,
+    arcane_explosion_id = nil,
+    remove_curse_id = nil,
     ice_block_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
@@ -234,6 +234,7 @@ local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 local function resolve_spells()
     runtime.ice_barrier_id  = utils.resolve_spell_id(spells.ICE_BARRIER)
     runtime.cone_of_cold_id = utils.resolve_spell_id(spells.CONE_OF_COLD)
+    runtime.arcane_explosion_id = utils.resolve_spell_id(spells.ARCANE_EXPLOSION)
     runtime.frostbolt_id = utils.resolve_spell_id(spells.FROSTBOLT)
     runtime.ice_lance_id = utils.resolve_spell_id(spells.ICE_LANCE)
     runtime.icy_veins_id = utils.resolve_spell_id(spells.ICY_VEINS)
@@ -241,9 +242,10 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Mage Frost] Resolved: FBolt=" .. tostring(runtime.frostbolt_id)
+    core.log("[Eax Mage Frost] Resolved: FBolt=" .. tostring(runtime.frostbolt_id)
         .. " Lance=" .. tostring(runtime.ice_lance_id)
         .. " Icy=" .. tostring(runtime.icy_veins_id)
+        .. " AE=" .. tostring(runtime.arcane_explosion_id)
         .. " WE=" .. tostring(runtime.water_elemental_id))
 end
 
@@ -428,6 +430,14 @@ local function try_frostbolt(me, target)
     -- FSCT timing: only cast if we can finish before next swing (cast time < swing time)
     local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.frostbolt_id)
     local cast_time_s = cast_time_ms / 1000
+    local ttd_s = nil
+    if ttd_tracker and ttd_tracker.get then
+        local ok, value = pcall(function() return ttd_tracker.get(target) end)
+        if ok then ttd_s = tonumber(value) end
+    end
+    if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then
+        return false
+    end
     if not swing_timer.can_cast_before_swing(me, cast_time_s) then
         return false
     end
@@ -515,6 +525,43 @@ local function try_cone_of_cold_frost(me, target)
     return false
 end
 
+local function try_remove_curse(me)
+    if not menu.use_remove_curse or not menu.use_remove_curse:get_state() then return false end
+    if not runtime.remove_curse_id then runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE) end
+    if not runtime.remove_curse_id then return false end
+    if not me or not me:is_in_combat() then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and not me:can_attack(obj) then
+            if utils.has_debuff(obj, spells.REMOVE_CURSE) and utils.can_cast_target(runtime.remove_curse_id, me, obj) then
+                if utils.cast_target(runtime.remove_curse_id, obj, "Remove Curse") then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function try_arcane_explosion(me, target)
+    if not menu.use_arcane_explosion or not menu.use_arcane_explosion:get_state() then return false end
+    if not runtime.arcane_explosion_id then return false end
+    if not me or not me:is_in_combat() then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if utils.get_mana_pct(me) < 20 then return false end
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) and is_within_range(me, obj, 10) then
+            count = count + 1
+            if count >= 3 then break end
+        end
+    end
+    if count < 3 then return false end
+    return utils.cast_target_fast(runtime.arcane_explosion_id, target, "Arcane Explosion")
+end
+
 local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
     if not is_gcd_ready() then return false end
@@ -538,13 +585,16 @@ local function do_rotation(me, target)
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
+    if try_remove_curse(me) then return true end
 
     -- Defensive abilities
     ttd_tracker.update(target)
+
+    if try_arcane_explosion(me, target) then return true end
 
     if (me:is_casting_spell() or me:is_channelling_spell()) and dps_risk.should_abort_commit(
         dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker),
@@ -565,7 +615,7 @@ local function do_rotation(me, target)
         return true
     end
 
-    -- Threat fade protection — don't pull aggro from tank
+    -- Threat fade protection - don't pull aggro from tank
     local current_target = me:get_target()
     local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
     if ok and should_fade and dps_risk.should_drop_threat(dps_runtime.build_snapshot(me, current_target, encounter_manager, ttd_tracker)) then
@@ -763,7 +813,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Mage Frost] Enabled"
+        local label = "Eax Mage Frost] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -774,7 +824,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -805,7 +855,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -818,4 +868,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Mage Frost] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Mage Frost] Loaded " .. (_pi and _pi.plugin_version or "?"))

@@ -1,7 +1,7 @@
 --[[
     smart_cast_manager.lua
     
-    EAX TBC Rotation Framework - Smart Cast Management
+    Eax TBC Rotation Framework - Smart Cast Management
     
     Solves common rotation issues:
     1. Repetitive ability spam - intelligent throttling between similar abilities
@@ -300,7 +300,7 @@ function smart_cast_manager.is_pending(spell_id)
     if state._get_spell_cd then
         local cd = state._get_spell_cd(spell_id)
         if cd and cd <= 0 then
-            -- Spell cast completed successfully
+            smart_cast_manager.on_cast_success(spell_id)
             return false
         end
     end

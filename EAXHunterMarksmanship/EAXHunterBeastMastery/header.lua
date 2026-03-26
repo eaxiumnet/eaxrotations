@@ -1,7 +1,7 @@
 local plugin = {
-    name = "EAX Hunter Beast Mastery",
+    name = "Eax Hunter Beast Mastery",
     version = "1.0.0",
-    author = "EAX",
+    author = "Eax",
     load = true,
 }
 
@@ -13,7 +13,7 @@ if not local_player then
 end
 
 if local_player:get_class() ~= enums.class_id.HUNTER then
-    core.log("[EAX Hunter Beast Mastery] Player is not Hunter; disabling addon.")
+    core.log("[Eax Hunter Beast Mastery] Player is not Hunter; disabling addon.")
     plugin.load = false
     return plugin
 end

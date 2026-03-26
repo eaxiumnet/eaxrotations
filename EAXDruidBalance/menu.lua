@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Druid Balance
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Druid Balance
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -84,12 +84,12 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_innervate", label = "Innervate" },
 }, {
     namespace = "eaxdruidbalance",
-    log_prefix = "[EAX Druid Balance] ",
+    log_prefix = "[Eax Druid Balance] ",
 })
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -103,12 +103,12 @@ function menu.render()
         ps.draw_space(_win, "eaxdruidbalance")
     end
 
-    root_tree:render("  Eax's Druid Balance", function()
+    root_tree:render("Eax's Druid Balance", function()
 
         ps.render_controls(menu, "Eax's Druid Balance")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.force_moonkin:render("Force Moonkin Form", "Keep Moonkin Form active whenever possible")
             menu.use_faerie_fire:render("Faerie Fire", "Maintain Faerie Fire on the active target")

@@ -1,4 +1,4 @@
--- EAX Priest Discipline | spells.lua
+-- Eax Priest Discipline | spells.lua
 -- Spell ID tables ordered high-to-low for resolving the highest learned rank.
 
 local spells = {}

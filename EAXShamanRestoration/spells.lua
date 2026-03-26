@@ -1,5 +1,5 @@
 -- spells.lua
--- EAX Shaman Restoration | The Burning Crusade (patch 2.4.3)
+-- Eax Shaman Restoration | The Burning Crusade (patch 2.4.3)
 -- ALL IDs are TBC-only. Nothing from WotLK, Cata, or later.
 
 local spells = {}

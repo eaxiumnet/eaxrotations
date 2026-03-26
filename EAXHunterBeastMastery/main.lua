@@ -1,4 +1,4 @@
--- main.lua  |  EAX Hunter Beast Mastery  |  TBC
+-- main.lua  |  Eax Hunter Beast Mastery  |  TBC
 -- Priority: Bestial Wrath > Rapid Fire > Kill Command > Arcane Shot > Serpent Sting > Aimed Shot > Multi > Steady
 
 local menu    = require("menu")
@@ -207,7 +207,7 @@ pet_manager.init({})
 ---@type talent_manager
 local talent_manager = require("talent_manager")
 talent_manager.init()
--- ── Runtime state ─────────────────────────────────────────────────────────────
+-- -- Runtime state -------------------------------------------------------------
 local rt = {
     last_talent_refresh = 0,
     revive_in_progress = false,
@@ -267,9 +267,14 @@ local rt = {
     last_deterrence_cast_count = -1,
     last_scare_beast_cast_count = -1,
     last_flare_time    = 0,
+    aspect_last_scan_time = 0,
+    aspect_last_in_melee = false,
+    aspect_last_mode = nil,
+    aspect_last_target_guid = nil,
     pet_autocast_guid  = nil,
     pet_autocast_mode  = nil,
     pet_autocast_configured = false,
+    pet_autocast_last_scan = 0,
     last_disengage_time = 0,
     last_spell_refresh = 0,
     haste_breakpoint   = "2:1",
@@ -349,7 +354,7 @@ local function update_set_bonus_multiplier(me)
     rt.set_multiplier = best_multiplier
 end
 
--- ── Helpers (defined early — used by resolve) ──────────────────────────────────
+-- -- Helpers (defined early - used by resolve) ----------------------------------
 local function get_me()  return _get_local_player() end
 local function get_pet()
     local me = get_me(); if not me then return nil end
@@ -411,7 +416,7 @@ local function resolve()
 end
 
 local function pet_alive()   local p = get_pet(); return p and not p:is_dead() end
--- ── Pet spell discovery ───────────────────────────────────────────────────────
+-- -- Pet spell discovery -------------------------------------------------------
 local PET_GROWL_IDS  = { 2649, 14921, 14922, 14923, 14924, 14925 }
 local PET_CLAW_IDS   = { 2981, 14261, 14262, 14263, 14264, 14265 }
 local PET_BITE_IDS   = { 17253, 17254, 17255, 17256, 17257, 27050 }
@@ -460,7 +465,7 @@ local function scan_pet_spells()
         end
     end
     rt.pet_spells_scanned = true
-    core.log(string.format("[EAX BM] Pet: growl=%s dmg=%s special=%s",
+    core.log(string.format("[Eax BM] Pet: growl=%s dmg=%s special=%s",
         tostring(rt.pet_growl_id), tostring(rt.pet_damage_id), tostring(rt.pet_special_id)))
 end
 
@@ -504,8 +509,17 @@ end
 local function auto_eta(me)
     return swing_timer.get_time_to_swing(me) * 1000
 end
-local function allow_instant(me) return swing_timer.is_swing_safe(me, AUTO_CLIP_MS / 1000) end
-local function can_cast_casted_spell(me, cast_time) return swing_timer.can_cast_before_swing(me, cast_time, 0.1) end
+local function allow_instant(me)
+    return swing_timer.is_swing_safe(me, math.max(AUTO_CLIP_MS, 250) / 1000)
+end
+
+local function can_cast_casted_spell(me, cast_time)
+    local clip_buffer = 0.2
+    if cast_time and cast_time >= 2.0 then
+        clip_buffer = 0.25
+    end
+    return swing_timer.can_cast_before_swing(me, cast_time, clip_buffer)
+end
 local function get_haste_breakpoint(me)
     local effective_speed = swing_timer.get_mh_speed(me)
     if not effective_speed or effective_speed <= 0 then
@@ -949,7 +963,7 @@ local function try_travel_aspect(me)
     return false
 end
 
--- ── Pet attack ────────────────────────────────────────────────────────────────
+-- -- Pet attack ----------------------------------------------------------------
 local _last_pet_attack_guid = nil
 local function pet_attack(target)
     if not target or not target:is_valid() then return end
@@ -980,7 +994,23 @@ local function pet_is_engaged_on_target(pet, target)
     return (dx * dx + dy * dy + dz * dz) <= 100
 end
 
--- ── Aspect management ─────────────────────────────────────────────────────────
+local KILL_COMMAND_SETTLE_S = 0.20
+
+local function pet_is_committed_on_target(pet, target, bm_state, now)
+    if not pet_is_engaged_on_target(pet, target) then return false end
+    if not bm_state or not target or not target:is_valid() then return true end
+
+    local ok, target_guid = pcall(function() return tostring(target:get_guid()) end)
+    if not ok or not target_guid or bm_state.last_target_guid ~= target_guid then
+        return false
+    end
+
+    local fight_started_at = bm_state.fight_started_at or 0
+    if fight_started_at <= 0 then return false end
+    return (now - fight_started_at) >= KILL_COMMAND_SETTLE_S
+end
+
+-- -- Aspect management ---------------------------------------------------------
 local function try_aspect_viper(me)
     if not rt.viper_aspect_id then return false end
     if not menu.use_aspect_viper or not menu.use_aspect_viper:get_state() then return false end
@@ -1017,21 +1047,38 @@ local function try_aspect(me)
     end
     if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER) then return false end
 
-    -- Check if any enemy is attacking us in melee range
-    local in_melee = false
-    for _, o in ipairs(core.object_manager.get_all_objects()) do
-        if o and o:is_valid() and o:is_unit() and not o:is_dead() and me:can_attack(o) then
-            local ok, ot = pcall(function() return o:get_target() end)
-            if ok and ot and utils.same_unit(ot, me) then
-                local p1, p2 = me:get_position(), o:get_position()
-                if p1 and p2 then
-                    local dx,dy,dz = p1.x-p2.x, p1.y-p2.y, p1.z-p2.z
-                    if math.sqrt(dx*dx+dy*dy+dz*dz) <= 8 then
-                        in_melee = true; break
+    -- Check if any enemy is attacking us in melee range (throttled)
+    local now = _core_time()
+    local target = me:get_target()
+    local target_guid = nil
+    if target and target.is_valid then
+        local ok_guid, guid = pcall(function() return target:get_guid() end)
+        if ok_guid and guid then target_guid = tostring(guid) end
+    end
+    local in_melee = rt.aspect_last_in_melee
+    local need_scan = (now - (rt.aspect_last_scan_time or 0)) >= 0.75
+        or rt.aspect_last_mode ~= active_mode()
+        or rt.aspect_last_target_guid ~= target_guid
+    if need_scan then
+        in_melee = false
+        for _, o in ipairs(core.object_manager.get_all_objects()) do
+            if o and o:is_valid() and o:is_unit() and not o:is_dead() and me:can_attack(o) then
+                local ok, ot = pcall(function() return o:get_target() end)
+                if ok and ot and utils.same_unit(ot, me) then
+                    local p1, p2 = me:get_position(), o:get_position()
+                    if p1 and p2 then
+                        local dx,dy,dz = p1.x-p2.x, p1.y-p2.y, p1.z-p2.z
+                        if (dx*dx + dy*dy + dz*dz) <= 64 then
+                            in_melee = true; break
+                        end
                     end
                 end
             end
         end
+        rt.aspect_last_scan_time = now
+        rt.aspect_last_in_melee = in_melee
+        rt.aspect_last_mode = active_mode()
+        rt.aspect_last_target_guid = target_guid
     end
 
     -- In melee: use Monkey for dodge. Out of melee: use Hawk for AP/DPS.
@@ -1056,7 +1103,7 @@ local function try_aspect(me)
     return false
 end
 
--- ── Pet management ────────────────────────────────────────────────────────────
+-- -- Pet management ------------------------------------------------------------
 local function try_revive(me)
     if not menu.use_revive_pet or not menu.use_revive_pet:get_state() then return false end
     if pet_alive() then return false end
@@ -1104,7 +1151,7 @@ local function try_mend(me)
     return false
 end
 
--- ── Shots ─────────────────────────────────────────────────────────────────────
+-- -- Shots ---------------------------------------------------------------------
 local function try_hunters_mark(me, t)
     if not menu.use_hunters_mark or not menu.use_hunters_mark:get_state() then return false end
     if not rt.hunters_mark_id then return false end
@@ -1118,11 +1165,16 @@ local function try_hunters_mark(me, t)
     return false
 end
 
+local function serpent_sting_refresh_due(t)
+    local rem_ms = debuff_rem(t, spells.DEBUFF_SERPENT_STING)
+    return rem_ms <= 2500
+end
+
 local function try_serpent_sting(me, t, ctx)
     if not menu.use_serpent_sting or not menu.use_serpent_sting:get_state() then return false end
     if not rt.serpent_sting_id then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.10, 1.05)) then return false end
-    if debuff_rem(t, spells.DEBUFF_SERPENT_STING) > 3000 then return false end
+    if not serpent_sting_refresh_due(t) then return false end
     if not utils.can_fire(me, "serpent_sting") then return false end
     if rt.last_serpent_sting_cast_count == core.spell_book.get_spell_cast_count(rt.serpent_sting_id) then return false end
     if not allow_instant(me) then return false end
@@ -1212,13 +1264,13 @@ local function try_intimidation(me, t)
     return false
 end
 
-local function try_kill_command(me, t, ctx)
+local function try_kill_command(me, t, ctx, bm_state, now)
     if not menu.use_kill_command or not menu.use_kill_command:get_state() then return false end
     if not rt.kill_command_id or not pet_alive() then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.15, 1.20)) then return false end
     if rt.last_kill_command_cast_count == core.spell_book.get_spell_cast_count(rt.kill_command_id) then return false end
     local pet = get_pet()
-    if not pet_is_engaged_on_target(pet, t) then return false end
+    if not pet_is_committed_on_target(pet, t, bm_state, now) then return false end
     if not allow_instant(me) then return false end
     if not utils.can_cast_hostile(rt.kill_command_id, me, t) then return false end
     if utils.cast_target(rt.kill_command_id, t) then
@@ -1234,12 +1286,13 @@ local function try_arcane_shot(me, t, ctx)
     if not menu.use_arcane_shot or not menu.use_arcane_shot:get_state() then return false end
     if not rt.arcane_shot_id then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.15, 1.15)) then return false end
+    if serpent_sting_refresh_due(t) then return false end
     if not allow_instant(me) then return false end
     if not utils.can_fire(me, "arcane_shot") then return false end
     if rt.last_arcane_shot_cast_count == core.spell_book.get_spell_cast_count(rt.arcane_shot_id) then return false end
     if not utils.can_cast_hostile(rt.arcane_shot_id, me, t) then return false end
     if utils.throttle("arcane_ok", 5.0) then
-        core.log(string.format("[EAX DEBUG] arcane OK: id=%d", rt.arcane_shot_id))
+        core.log(string.format("[Eax DEBUG] arcane OK: id=%d", rt.arcane_shot_id))
     end
     if utils.cast_target(rt.arcane_shot_id, t) then
         rt.last_arcane_shot_cast_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
@@ -1253,7 +1306,7 @@ local function try_multi_shot(me, t, ctx)
     if not menu.use_multi_shot or not menu.use_multi_shot:get_state() then return false end
     if not rt.multi_shot_id then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.20, 1.10)) then return false end
-    if active_mode() == "solo" then return false end
+    if utils.get_aoe_count(me, t) < 2 then return false end
     if is_moving() then return false end
     if not allow_instant(me) then return false end
     if not utils.can_fire(me, "multi_shot") then return false end
@@ -1382,7 +1435,7 @@ local function try_trap(me, t)
     return false
 end
 
--- ── Main rotation ─────────────────────────────────────────────────────────────
+-- -- Main rotation -------------------------------------------------------------
 local function do_rotation(me, t)
     local d = dist(t)
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
@@ -1400,24 +1453,24 @@ local function do_rotation(me, t)
         if kiting_manager.try_kiting_sequence(me, t, rt, spells, utils, menu, "bm") then return end
     end
 
-    try_aspect_viper(me)
-    try_aspect(me)
+    if try_aspect_viper(me) then return end
+    if try_aspect(me) then return end
 
     -- Update haste breakpoint detection
     rt.haste_breakpoint = get_haste_breakpoint(me)
 
-    if interrupt_manager.should_interrupt(t) then
-        interrupt_manager.try_interrupt(me, t, "hunter", utils)
+    if interrupt_manager.should_interrupt(t) and interrupt_manager.try_interrupt(me, t, "hunter", utils) then
+        return
     end
 
     enc = encounter_manager.get_policy(me)
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, t, encounter_manager, ttd_tracker))
-    if not hold_offense then
-        racial_manager.try_offensive(me)
+    if not hold_offense and racial_manager.try_offensive(me) then
+        return
     end
-    racial_manager.try_utility(me, t)
-    racial_manager.try_defensive(me)
-    if not hold_offense then try_rapid_fire(me) end
+    if racial_manager.try_utility(me, t) then return end
+    if racial_manager.try_defensive(me) then return end
+    if not hold_offense and try_rapid_fire(me) then return end
     if defensive_manager.try_defensive(me, "hunter", utils) then return end
 
     local mana = utils.get_mana(me)
@@ -1429,7 +1482,7 @@ local function do_rotation(me, t)
 
     if pet_manager.pet_alive(pet) then
         pet_manager.pet_attack(me, t, bm_state, now)
-        if try_kill_command(me, t, ctx) then
+        if try_kill_command(me, t, ctx, bm_state, now) then
             invalidate_ctx()
             ctx = rotation_context.get(ctx_cache, me, t, deps)
         end
@@ -1448,6 +1501,11 @@ local function do_rotation(me, t)
     end
 
     if d > 35 then
+        return
+    end
+
+    if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER)
+        and mana_pct(me) < ((menu.viper_mana_exit and menu.viper_mana_exit:get() or 85) / 100) then
         return
     end
 
@@ -1475,11 +1533,11 @@ local function do_rotation(me, t)
     if not hold_offense and try_bestial_wrath(me, t) then return end
     if try_intimidation(me, t) then return end
 
-    if try_multi_shot(me, t, ctx) then
+    if try_aimed_shot(me, t, ctx) then
         invalidate_ctx()
         return
     end
-    if try_aimed_shot(me, t, ctx) then
+    if try_multi_shot(me, t, ctx) then
         invalidate_ctx()
         return
     end
@@ -1491,7 +1549,7 @@ local function do_rotation(me, t)
 
 end
 
--- ── Toggle ────────────────────────────────────────────────────────────────────
+-- -- Toggle --------------------------------------------------------------------
 local function handle_toggle()
     local cur = menu.toggle_key and menu.toggle_key:get_state()
     if cur and not rt.prev_toggle_state then
@@ -1500,7 +1558,7 @@ local function handle_toggle()
     rt.prev_toggle_state = cur or false
 end
 
--- ── Update loop ───────────────────────────────────────────────────────────────
+-- -- Update loop ---------------------------------------------------------------
 local function on_update()
     resolve()
 
@@ -1532,10 +1590,10 @@ local function on_update()
 
     if me:is_in_combat() then
         if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
-            consumables_manager.try_use_combat_consumable(me, menu, utils)
+            if consumables_manager.try_use_combat_consumable(me, menu, utils) then return end
         end
         if menu.auto_flask and menu.auto_flask:get_state() then
-            consumables_manager.try_maintain_flask(me, menu, utils)
+            if consumables_manager.try_maintain_flask(me, menu, utils) then return end
         end
     end
 
@@ -1664,7 +1722,7 @@ if control_panel_utility then
         end
         -- Master toggle (shows keybind if bound)
         local toggle_key = menu.toggle_key:get_key_code()
-        local lbl_enabled = "[EAX BM] Enabled"
+        local lbl_enabled = "[Eax BM] Enabled"
         if toggle_key ~= 7 then
             lbl_enabled = lbl_enabled .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1719,12 +1777,13 @@ end
 
 sync_pet_autocast = function(me)
     if not menu.sync_pet_autocast or not menu.sync_pet_autocast:get_state() then return end
-    local ok, actions = pcall(function() return core.spell_book.get_pet_action_info() end)
-    if not ok or type(actions) ~= "table" then return end
     local pet = get_pet(); if not pet then rt.pet_autocast_guid, rt.pet_autocast_mode, rt.pet_autocast_configured = nil, nil, false; return end
     local guid = nil; pcall(function() guid = tostring(pet:get_guid()) end)
     local mode = active_mode()
-    if rt.pet_autocast_configured and rt.pet_autocast_guid == guid and rt.pet_autocast_mode == mode then return end
+    local now = _core_time()
+    if rt.pet_autocast_configured and rt.pet_autocast_guid == guid and rt.pet_autocast_mode == mode and (now - (rt.pet_autocast_last_scan or 0)) < 1.5 then return end
+    local ok, actions = pcall(function() return core.spell_book.get_pet_action_info() end)
+    if not ok or type(actions) ~= "table" then return end
     local want = { Claw=true, Bite=true, Gore=true, ["Lightning Breath"]=true, ["Poison Spit"]=true, ["Furious Howl"]=true, Screech=true, Thunderstomp=true }
     local function current_autocast_state(a)
         if type(a) ~= "table" then return nil end
@@ -1748,6 +1807,7 @@ sync_pet_autocast = function(me)
         end
     end
     rt.pet_autocast_guid, rt.pet_autocast_mode, rt.pet_autocast_configured = guid, mode, true
+    rt.pet_autocast_last_scan = now
 end
 
 do
@@ -1758,5 +1818,5 @@ do
     end
 end
 
-core.log("[EAX Hunter BM] Loaded")
+core.log("[Eax Hunter BM] Loaded")
 return {}

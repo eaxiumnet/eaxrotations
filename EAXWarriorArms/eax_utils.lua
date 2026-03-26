@@ -1,5 +1,5 @@
 -- eax_utils.lua
--- EAX Universal Utilities - Local module for DPS
+-- Eax Universal Utilities - Local module for DPS
 
 local eax_utils = {}
 

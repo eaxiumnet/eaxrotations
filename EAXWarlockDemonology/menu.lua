@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Warlock Demonology
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Warlock Demonology
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -80,7 +80,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_shadowfury", label = "Shadowfury" },
 }, {
     namespace = "eaxwarlockdemonology",
-    log_prefix = "[EAX Warlock Demonology] ",
+    log_prefix = "[Eax Warlock Demonology] ",
 })
 
 local _win
@@ -94,10 +94,10 @@ function menu.render()
         ps.draw_space(_win, "eaxwarlockdemonology")
     end
 
-    root_tree:render("  Eax's Warlock Demonology", function()
+    root_tree:render("Eax's Warlock Demonology", function()
         ps.render_controls(menu, "Eax's Warlock Demonology")
 
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.preferred_pet:render("Pet Summon", { "Disabled", "Imp", "Voidwalker", "Succubus", "Felhunter", "Felguard" })
             menu.maintain_soul_link:render("Soul Link", "Keep Soul Link active when possible")

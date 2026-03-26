@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Paladin Holy
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Paladin Holy
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -87,10 +87,10 @@ menu.auto_blessings                       = core.menu.checkbox(true, "auto_bless
 menu.auto_blessings_key                   = core.menu.keybind(7, false, "eaxpaladinholy_auto_blessings_key")
 menu.overheal_protection                  = core.menu.checkbox(true, "overheal_protection")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -104,12 +104,12 @@ function menu.render()
         ps.draw_space(_win, "eaxpaladinholy")
     end
 
-    root_tree:render("  Eax's Paladin Holy", function()
+    root_tree:render("Eax's Paladin Holy", function()
 
         settings.render_controls(menu, "Eax's Paladin Holy")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_holy_light:render("Holy Light", "Big heals for tanks and hard hits")
             menu.holy_light_hp_pct:render("Holy Light HP %", "Cast Holy Light when a target drops below this percent")
@@ -120,12 +120,12 @@ function menu.render()
             menu.use_divine_illumination:render("Divine Illumination", "Use the TBC mana-cost reduction cooldown before heavy healing")
             menu.use_avenging_wrath:render("Avenging Wrath", "Use healing throughput cooldown on pull pressure or group danger")
             menu.use_cleanse:render("Cleanse", "Remove known poison or disease debuffs with Cleanse or Purify")
-            menu.use_cleanse_key:render("  Cleanse Hotkey", "Toggle Cleanse on/off")
+            menu.use_cleanse_key:render("Cleanse Hotkey", "Toggle Cleanse on/off")
             menu.use_hand_of_freedom:render("Hand of Freedom", "Cast Hand of Freedom on rooted/snared friendly units")
-            menu.use_hand_of_freedom_key:render("  Freedom Hotkey", "Toggle Hand of Freedom on/off")
+            menu.use_hand_of_freedom_key:render("Freedom Hotkey", "Toggle Hand of Freedom on/off")
             menu.hof_include_slows:render("Freedom on Slows", "Also use Hand of Freedom on slowed (not just rooted) allies")
             menu.auto_blessings:render("Auto Blessings", "Keep Blessing of Might on tanks and Blessing of Wisdom on mana users")
-            menu.auto_blessings_key:render("  Blessings Hotkey", "Toggle Auto Blessings on/off")
+            menu.auto_blessings_key:render("Blessings Hotkey", "Toggle Auto Blessings on/off")
             menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
         end)
 

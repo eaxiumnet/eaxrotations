@@ -1,6 +1,6 @@
 -- ooc_manager.lua
 -- eax_shared/ooc_manager.lua
--- Out-of-combat utility system for all EAX specs.
+-- Out-of-combat utility system for all Eax specs.
 
 local buff_manager = require("common/modules/buff_manager")
 

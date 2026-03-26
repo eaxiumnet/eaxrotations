@@ -1,4 +1,4 @@
--- EAX Druid Restoration | header.lua
+-- Eax Druid Restoration | header.lua
 -- Plugin metadata and load validation.
 
 local plugin_info = require("plugin_info")

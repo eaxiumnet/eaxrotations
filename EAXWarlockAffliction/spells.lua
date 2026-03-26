@@ -1,5 +1,5 @@
 -- spells.lua
--- Spell rank tables used by EAX Warlock Affliction.
+-- Spell rank tables used by Eax Warlock Affliction.
 
 local spells = {}
 

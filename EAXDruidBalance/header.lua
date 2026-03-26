@@ -1,4 +1,4 @@
--- EAX Druid Balance | header.lua
+-- Eax Druid Balance | header.lua
 -- Plugin metadata and load validation.
 
 local plugin_info = require("plugin_info")

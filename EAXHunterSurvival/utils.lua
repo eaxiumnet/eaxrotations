@@ -132,11 +132,14 @@ function utils.can_cast_hostile(spell_id, me, target)
 end
 
 
-local MODE_DETECT_INTERVAL_S = 5.0
+local MODE_DETECT_INTERVAL_S = 10.0
 local AUTO_TARGET_MAX_RANGE = 40.0
 local AUTO_TARGET_MAX_HOSTILES = 50
 local mode_cache = "solo"
 local mode_cache_refreshed_at = 0
+local hostile_scan_cache_at = -1
+local hostile_scan_cache_me = nil
+local hostile_scan_cache_units = nil
 
 function utils.detect_mode(me)
     local now = core.time()
@@ -222,30 +225,42 @@ function utils.find_best_target(me)
         return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
     end
 
-    local objects = core.object_manager.get_all_objects()
+    local now = core.time()
+    local hostile_units
+    if hostile_scan_cache_at == now and hostile_scan_cache_me == me and hostile_scan_cache_units then
+        hostile_units = hostile_scan_cache_units
+    else
+        hostile_units = {}
+        local objects = core.object_manager.get_all_objects()
+        local hostile_scanned = 0
+        for i = 1, #objects do
+            local obj = objects[i]
+            if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
+                hostile_scanned = hostile_scanned + 1
+                hostile_units[#hostile_units + 1] = obj
+                if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
+                    break
+                end
+            end
+        end
+        hostile_scan_cache_at = now
+        hostile_scan_cache_me = me
+        hostile_scan_cache_units = hostile_units
+    end
+
     local best_attacking_party = nil
     local best_any = nil
-    local hostile_scanned = 0
+    for i = 1, #hostile_units do
+        local obj = hostile_units[i]
+        local obj_target = obj:get_target()
+        if obj_target and utils.same_unit(obj_target, me) then
+            return obj
+        end
 
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
-            hostile_scanned = hostile_scanned + 1
-
-            local obj_target = obj:get_target()
-            if obj_target and utils.same_unit(obj_target, me) then
-                return obj
-            end
-
-            if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
-                best_attacking_party = obj
-            elseif not best_any then
-                best_any = obj
-            end
-
-            if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
-                break
-            end
+        if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
+            best_attacking_party = obj
+        elseif not best_any then
+            best_any = obj
         end
     end
 
@@ -324,7 +339,7 @@ end
 
 function utils.log_debug(menu_module, message)
     if menu_module and menu_module.debug and menu_module.debug:get_state() then
-        core.log("[EAX Hunter Survival] " .. tostring(message))
+        core.log("[Eax Hunter Survival] " .. tostring(message))
     end
 end
 

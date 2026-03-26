@@ -1,20 +1,20 @@
--- EAX Druid Restoration | spells.lua
+-- Eax Druid Restoration | spells.lua
 -- Rank tables and buff/debuff ID tables only.
 
 local spells = {}
 
 spells.MARK_OF_THE_WILD = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }
 spells.GIFT_OF_THE_WILD = { 27003, 21850, 21849 }
-spells.REJUVENATION = { 26982, 25299, 11538, 9857, 9856, 9855, 9754, 3627, 1430, 774 }
+spells.REJUVENATION = { 26982, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
 spells.REGROWTH = { 26980, 9858, 9857, 8941, 8940, 8939, 8938, 8936 }
 spells.SWIFTMEND = { 18562 }
 spells.INNERVATE = { 29166 }
 spells.TRANQUILITY = { 26983, 9863, 9862, 8918, 740 }
 spells.NATURES_SWIFTNESS = { 17116 }
 
--- Lifebloom r1-3 (TBC new spell, added patch 2.1) — primary tank HoT, stacks 3x
-spells.LIFEBLOOM = { 33778, 33776, 33763 }
-spells.BUFF_LIFEBLOOM = { 33778, 33776, 33763 }
+-- Lifebloom (TBC 2.4.3) - single learned rank that stacks to 3 applications
+spells.LIFEBLOOM = { 33763 }
+spells.BUFF_LIFEBLOOM = { 33763 }
 
 spells.HEALING_TOUCH = { 26979, 25297, 9889, 9888, 9887, 9758, 9754, 5189, 5188, 5187, 5186, 5185, 5184 }
 spells.BARKSKIN = { 22812 }
@@ -25,7 +25,7 @@ spells.TRAVEL_FORM = { 783 }
 
 spells.BUFF_MARK_OF_THE_WILD = { 1126, 21849, 26990, 26991 }
 spells.BUFF_GIFT_OF_THE_WILD = { 27003, 21850, 21849 }
-spells.BUFF_REJUVENATION = { 774, 1058, 1430, 2090, 2091, 3627, 8910, 9839, 9840, 9841, 25299, 26981, 26982 }
+spells.BUFF_REJUVENATION = { 26982, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
 spells.BUFF_REGROWTH = { 8936, 8938, 8939, 8940, 8941, 9750, 9856, 9857, 9858, 26980 }
 spells.BUFF_INNERVATE = { 29166 }
 spells.BUFF_NATURES_SWIFTNESS = { 17116 }
@@ -50,6 +50,8 @@ spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 spells.REBIRTH           = { 26994, 20748, 20748, 20910, 20909, 20484 }
 
 spells.REMOVE_CURSE = { 2782, 8690, 8691 }
+spells.ABOLISH_POISON = { 2893 }
+spells.BUFF_ABOLISH_POISON = { 2893 }
 
 -- DPS fallback spells (used in solo when no healing needed)
 spells.MOONFIRE      = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }

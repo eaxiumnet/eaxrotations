@@ -99,7 +99,7 @@ local function log_compact_status(me, loadout, now)
     local oh_state, oh_weapon, oh_poison = slot_status(me, OFF_HAND_SLOT, loadout and loadout.off_hand_items or nil, now)
     local summary = string.format("slot=%d state=%s weapon=%s poison=%s | slot=%d state=%s weapon=%s poison=%s", MAIN_HAND_SLOT, mh_state, tostring(mh_weapon), tostring(mh_poison), OFF_HAND_SLOT, oh_state, tostring(oh_weapon), tostring(oh_poison))
     if summary ~= last_status_summary or (now - last_status_log_at) >= STATUS_LOG_INTERVAL_S then
-        core.log("[EAX Rogue Poison] " .. summary)
+        core.log("[Eax Rogue Poison] " .. summary)
         last_status_summary = summary
         last_status_log_at = now
     end

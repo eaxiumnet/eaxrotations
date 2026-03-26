@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Mage Arcane
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Mage Arcane
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -61,6 +61,8 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 menu.use_arcane_blast                     = core.menu.checkbox(true, "eax_mage_arcane_use_arcane_blast")
 menu.use_arcane_missiles                  = core.menu.checkbox(true, "eax_mage_arcane_use_arcane_missiles")
 menu.use_fire_blast_move                  = core.menu.checkbox(true, "eax_mage_arcane_use_fire_blast_move")
+menu.use_remove_curse                     = core.menu.checkbox(true, "eax_mage_arcane_use_remove_curse")
+menu.use_arcane_explosion                 = core.menu.checkbox(true, "eax_mage_arcane_use_arcane_explosion")
 menu.arcane_blast_dump_stacks             = core.menu.slider_int(2, 4, 3, "eax_mage_arcane_dump_stacks")
 menu.use_arcane_power                     = core.menu.checkbox(true, "eax_mage_arcane_use_arcane_power")
 menu.use_trinkets                         = core.menu.checkbox(true, "eax_mage_arcane_use_trinkets")
@@ -77,10 +79,10 @@ menu.ice_block_hp_pct                     = core.menu.slider_int(0, 100, 30, "ea
 
 mana_conservator.register_menu_items(menu, "eax_mage_arcane")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_arcane_blast", label = "Arcane Blast" },
@@ -90,7 +92,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_evocation", label = "Evocation" },
 }, {
     namespace = "eaxmagearcane",
-    log_prefix = "[EAX Mage Arcane] ",
+    log_prefix = "[Eax Mage Arcane] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -105,16 +107,18 @@ function menu.render()
         ps.draw_space(_win, "eaxmagearcane")
     end
 
-    root_tree:render("  Eax's Mage Arcane", function()
+    root_tree:render("Eax's Mage Arcane", function()
 
         ps.render_controls(menu, "Eax's Mage Arcane")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_arcane_blast:render("Arcane Blast", "Primary filler and stack builder")
             menu.use_arcane_missiles:render("Arcane Missiles", "Dump Arcane Blast stacks in sustain windows")
             menu.use_fire_blast_move:render("Fire Blast While Moving", "Use Fire Blast as the moving fallback")
+            menu.use_remove_curse:render("Remove Curse", "Use Remove Curse on cursed allies during combat")
+            menu.use_arcane_explosion:render("Arcane Explosion", "Use Arcane Explosion for close-range AoE")
             menu.arcane_blast_dump_stacks:render("Dump At AB Stacks", "Cast Arcane Missiles at or above this Arcane Blast stack count")
             menu.use_arcane_power:render("Arcane Power", "Use Arcane Power during burst windows")
             menu.use_trinkets:render("Trinkets", "Use self-cast trinkets during burst windows")

@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Priest Shadow
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Priest Shadow
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -64,15 +64,16 @@ menu.mind_blast_burst_window              = core.menu.slider_float(0.5, 3, 1.4, 
 menu.shadowfiend_enabled                  = core.menu.checkbox(true, "eax_priest_shadow_shadowfiend")
 menu.shadowfiend_cooldown_seconds         = core.menu.slider_int(12, 30, 18, "eax_priest_shadow_shadowfiend_cd")
 menu.keep_shadowform                      = core.menu.checkbox(true, "eax_priest_shadow_shadowform")
+menu.use_dispel_magic                     = core.menu.checkbox(false, "eax_priest_shadow_dispel_magic")
 menu.use_flash_heal                       = core.menu.checkbox(true, "eax_priest_shadow_use_flash_heal")
 menu.flash_heal_hp_pct                    = core.menu.slider_int(0, 100, 30, "eax_priest_shadow_flash_heal_hp_pct")
 
 mana_conservator.register_menu_items(menu, "eax_priest_shadow")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "mind_blast_burst", label = "Mind Blast Burst" },
@@ -82,7 +83,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_psychic_scream", label = "Psychic Scream" },
 }, {
     namespace = "eaxpriestshadow",
-    log_prefix = "[EAX Priest Shadow] ",
+    log_prefix = "[Eax Priest Shadow] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -97,12 +98,12 @@ function menu.render()
         ps.draw_space(_win, "eaxpriestshadow")
     end
 
-    root_tree:render("  Eax's Priest Shadow", function()
+    root_tree:render("Eax's Priest Shadow", function()
 
         ps.render_controls(menu, "Eax's Priest Shadow")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.dot_refresh_window:render("DoT Refresh Window", "Refresh Vampiric Touch / Shadow Word: Pain when only this many seconds remain")
             menu.mind_blast_burst:render("Burst Mind Blast", "Allow Mind Blast even when the DoTs are nearing expiry")
@@ -110,6 +111,7 @@ function menu.render()
             menu.shadowfiend_enabled:render("Shadowfiend", "Summon Shadowfiend on cooldown for mana return")
             menu.shadowfiend_cooldown_seconds:render("Shadowfiend Cooldown", "Seconds between forced Shadowfiend summons")
             menu.keep_shadowform:render("Keep Shadowform", "Maintain Shadowform when available")
+            menu.use_dispel_magic:render("Dispel Magic", "Conservative hostile dispel for forced-dispel encounters")
             menu.use_flash_heal:render("Flash Heal", "")
             menu.flash_heal_hp_pct:render("Flash Heal Hp Percent", "")
         end)

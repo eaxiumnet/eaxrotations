@@ -1,5 +1,5 @@
 -- eax_utils.lua
--- EAX Universal Utilities - Local module for healers
+-- Eax Universal Utilities - Local module for healers
 
 ---@type unit_helper
 local unit_helper = require("common/utility/unit_helper")

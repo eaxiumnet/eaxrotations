@@ -1,4 +1,4 @@
--- EAX Warrior Fury | spells.lua
+-- Eax Warrior Fury | spells.lua
 -- Rank tables and buff/debuff ID tables only.
 -- Ranks are ordered highest-to-lowest for resolve_spell_id().
 

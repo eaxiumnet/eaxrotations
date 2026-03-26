@@ -1,5 +1,5 @@
--- EAX Warrior Protection | main.lua
--- Callback registration, control-panel wiring, and documented EAX Warrior Protection logic.
+-- Eax Warrior Protection | main.lua
+-- Callback registration, control-panel wiring, and documented Eax Warrior Protection logic.
 
 local menu = require("menu")
 local spells = require("spells")
@@ -121,13 +121,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -280,7 +278,7 @@ local STANCE_PENDING_CAST_TIMEOUT_S = 3.0
 local INTERCEPT_RETRY_BACKOFF_S = 1.5
 local STANCE_ACTION_TIMEOUT_S = 4.0
 local UTILITY_DEBUFF_REFRESH_MS = 5000
-local NOTIFICATION_LABEL = "EAX Warrior Protection"
+local NOTIFICATION_LABEL = "Eax Warrior Protection"
 local SHIELD_BLOCK_SOLO_HP_PCT = 0.60
 local SHIELD_BLOCK_SOLO_EMERGENCY_HP_PCT = 0.25
 local SHIELD_BLOCK_SOLO_NON_ELITE_HP_PCT = 0.35
@@ -339,7 +337,7 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Warrior Protection] Resolved: SS=" .. tostring(runtime.shield_slam_id)
+    core.log("[Eax Warrior Protection] Resolved: SS=" .. tostring(runtime.shield_slam_id)
         .. " REV=" .. tostring(runtime.revenge_id)
         .. " DEV=" .. tostring(runtime.devastate_id)
         .. " TAUNT=" .. tostring(runtime.taunt_id)
@@ -879,7 +877,7 @@ end
 
 local function log_recovery_blocked(key, message)
     if menu.debug:get_state() and utils.throttle("simpleprot:debug:" .. key, 1.0) then
-        core.log("[EAX Warrior Protection] " .. message)
+        core.log("[Eax Warrior Protection] " .. message)
     end
 end
 
@@ -940,7 +938,7 @@ local function log_lane_reason(key, message)
         return
     end
 
-    core.log("[EAX Warrior Protection] " .. message)
+    core.log("[Eax Warrior Protection] " .. message)
 end
 
 local function is_pending_cast(spell_id)
@@ -2773,7 +2771,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Warrior Prot] Enabled"
+        local label = "Eax Warrior Prot] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -2783,7 +2781,7 @@ if control_panel_utility then
     end)
 end
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -2814,7 +2812,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -2826,7 +2824,7 @@ do
     end
 end
 
-core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
+core.log("[Eax Warrior Protection] Mode: " .. mode_policy.name)
         end
     end
 
@@ -2843,9 +2841,9 @@ core.log("[EAX Warrior Protection] Mode: " .. mode_policy.name)
 
     -- Defensive abilities
     -- Racial abilities
-    racial_manager.try_offensive(me)
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_offensive(me) then return true end
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     if defensive_manager.try_defensive(me, "warrior", utils) then
         return
@@ -3020,9 +3018,9 @@ end
 local function on_control_panel()
     local elements = {}
     local toggle_key_code = menu.toggle_key:get_key_code()
-    local display_name = "[EAX Warrior Protection] Enabled"
+    local display_name = "[Eax Warrior Protection] Enabled"
     if toggle_key_code ~= 7 then
-        display_name = "[EAX Warrior Protection] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
+        display_name = "[Eax Warrior Protection] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
     end
 
     local current_state = menu.enabled:get_state()

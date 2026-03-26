@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Shaman Elemental
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Shaman Elemental
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -28,6 +28,8 @@ menu.use_healing_wave                    = core.menu.checkbox(true, "eaxshamanel
 menu.healing_wave_hp                     = core.menu.slider_int(10, 60, 35, "eaxshamanelemental_hw_hp")
 menu.use_ghost_wolf                      = core.menu.checkbox(true, "eaxshamanelemental_ghost_wolf")
 menu.use_totemic_call                    = core.menu.checkbox(true, "eaxshamanelemental_totemic_call")
+menu.use_dispels                         = core.menu.checkbox(false, "eaxshamanelemental_use_dispels")
+menu.use_purge                           = core.menu.checkbox(false, "eaxshamanelemental_use_purge")
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxshamanelemental_focus_priority")
 menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxshamanelemental_combat_self_hp_boost")
@@ -81,10 +83,10 @@ menu.prepull_totems                       = core.menu.checkbox(true, "prepull_to
 
 mana_conservator.register_menu_items(menu, "eax_shaman_elemental")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_cooldowns", label = "Cooldowns" },
@@ -94,7 +96,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "auto_totem_mana", label = "Mana Totem" },
 }, {
     namespace = "eaxshamanelemental",
-    log_prefix = "[EAX Shaman Elemental] ",
+    log_prefix = "[Eax Shaman Elemental] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -109,12 +111,12 @@ function menu.render()
         ps.draw_space(_win, "eaxshamanelemental")
     end
 
-    root_tree:render("  Eax's Shaman Elemental", function()
+    root_tree:render("Eax's Shaman Elemental", function()
 
         ps.render_controls(menu, "Eax's Shaman Elemental")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_cooldowns:render("Use Burst Cooldowns", "Permit Elemental Mastery / Nature's Swiftness")
             menu.aoe_threshold:render("AoE Threshold", "Chain Lightning engages when enough enemies are clustered")
@@ -130,6 +132,8 @@ function menu.render()
             menu.auto_totem_mana:render("Mana Spring Totem", "Keep mana regen active")
             menu.totem_twist_interval:render("Totem Refresh (sec)", "Minimum seconds between auto twists")
             menu.prepull_totems:render("Pre-pull Totems", "Refresh totems before mounting a pull")
+            menu.use_dispels:render("Cure Poison/Disease", "Conservative friendly dispel for party poison/disease")
+            menu.use_purge:render("Purge", "Conservative hostile purge for forced-dispel encounters")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

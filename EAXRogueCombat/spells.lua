@@ -1,4 +1,4 @@
--- EAX Rogue Combat | spells.lua
+-- Eax Rogue Combat | spells.lua
 
 local spells = {}
 

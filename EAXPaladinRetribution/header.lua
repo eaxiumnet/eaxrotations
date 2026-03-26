@@ -1,10 +1,10 @@
 -- header.lua
--- EAX Paladin Retribution | Loading guard
+-- Eax Paladin Retribution | Loading guard
 
 local plugin = {
-    name = "EAX Paladin Retribution",
+    name = "Eax Paladin Retribution",
     version = "1.0.0",
-    author = "EAX Development Team",
+    author = "Eax Development Team",
     load = true,
 }
 

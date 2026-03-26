@@ -27,6 +27,25 @@ For Sylvanas runtime debugging, check the runtime issue/artifact tools before pr
 **Repo**: https://github.com/eaxiumnet/eax-tbc-classic-rotations
 **Local Path**: `C:\newbot\scripts`
 
+## Session Start Git Protocol
+
+At the start of every new OpenCode session in this repo:
+
+1. Work from `C:\newbot\scripts`.
+2. Run these checks before planning changes:
+   - `git remote -v`
+   - `git fetch origin`
+   - `git status --short --branch`
+   - `git diff --stat`
+   - `git log --oneline -5`
+3. Do **not** stage unrelated paths by default. Match staging to the user's requested scope.
+4. For EAX packaging requests, ship only `.lua` and `.md` files.
+5. Delete any `.toc` files found under `EAX*` directories and keep `*.toc` ignored.
+6. Before commit/push, verify:
+   - no staged `.toc` files
+   - no unintended non-EAX paths
+   - commit message matches the actual scope
+
 ## What Was Done
 
 ### ✅ Completed This Session (2026-03-21) — First Pass
@@ -183,3 +202,14 @@ git pull
 # Push changes
 git add -A && git commit -m "feat: description" && git push
 ```
+
+## Repository Map
+
+A full codemap is available at `codemap.md` in the project root.
+
+Before working on any task, read `codemap.md` to understand:
+- Project architecture and entry points
+- Directory responsibilities and design patterns
+- Data flow and integration points between modules
+
+For deep work on a specific folder, also read that folder's `codemap.md`.

@@ -1,4 +1,4 @@
--- EAX Rogue Assassination | spells.lua
+-- Eax Rogue Assassination | spells.lua
 
 local spells = {}
 

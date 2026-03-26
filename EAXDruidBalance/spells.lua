@@ -1,4 +1,4 @@
--- EAX Druid Balance | spells.lua
+-- Eax Druid Balance | spells.lua
 -- Rank tables and buff/debuff ID tables only.
 
 local spells = {}
@@ -13,7 +13,7 @@ spells.FORCE_OF_NATURE = { 33831 }
 spells.INNERVATE = { 29166 }
 spells.TRANQUILITY = { 26983, 9863, 9862, 8918, 740 }
 
-spells.HURRICANE = { 27012, 17402, 16914 }
+spells.HURRICANE = { 27012, 17402, 17401, 16914 }
 
 spells.MARK_OF_THE_WILD = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }
 spells.GIFT_OF_THE_WILD = { 27003, 21850, 21849 }
@@ -44,7 +44,7 @@ spells.BUFF_MARK_OF_THE_WILD = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126
 
 spells.REMOVE_CURSE = { 2782, 8690, 8691 }
 
--- Omen of Clarity — free next spell proc
+-- Omen of Clarity - free next spell proc
 spells.BUFF_CLEARCASTING = { 16864 }
 spells.BUFF_BARKSKIN     = { 22812 }
 spells.BARKSKIN          = { 22812 }

@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Paladin Retribution
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Paladin Retribution
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -62,6 +62,7 @@ menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxp
 menu.use_hand_of_freedom                  = core.menu.checkbox(true, "eaxpaladinretribution_use_hof")
 menu.use_hand_of_freedom_key              = core.menu.keybind(7, false, "eaxpaladinretribution_use_hof_key")
 menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinretribution_hof_slows")
+menu.use_cleanse                          = core.menu.checkbox(true, "eaxpaladinretribution_use_cleanse")
 -- ESP
 menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
 menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
@@ -85,10 +86,10 @@ menu.seal_twist_cooldown                  = core.menu.slider_int(800, 4000, 1600
 menu.allow_twist_dungeon                  = core.menu.checkbox(true, "eaxpr_twist_dungeon")
 menu.allow_twist_raid                     = core.menu.checkbox(true, "eaxpr_twist_raid")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -102,23 +103,23 @@ function menu.render()
         ps.draw_space(_win, "eaxpaladinretribution")
     end
 
-    root_tree:render("  Eax's Paladin Retribution", function()
+    root_tree:render("Eax's Paladin Retribution", function()
 
         settings.render_controls(menu, "Eax's Paladin Retribution")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_judgement:render("Judgement", "Maintain the chosen judgement debuff")
             menu.use_crusader_strike:render("Crusader Strike", "Cast on cooldown when the GCD is ready")
             menu.use_consecration:render("Consecration", "Drop Consecration when fighting in melee")
-            menu.use_consecration_key:render("  Consecration Hotkey", "Toggle Consecration on/off")
+            menu.use_consecration_key:render("Consecration Hotkey", "Toggle Consecration on/off")
             menu.use_exorcism:render("Exorcism", "Use Exorcism against undead and demon targets")
-            menu.use_exorcism_key:render("  Exorcism Hotkey", "Toggle Exorcism on/off")
+            menu.use_exorcism_key:render("Exorcism Hotkey", "Toggle Exorcism on/off")
             menu.use_divine_favor:render("Divine Favor", "Use Divine Favor in burst windows")
             menu.use_avenging_wrath:render("Avenging Wrath", "Use Avenging Wrath when offensive cooldowns are allowed")
             menu.use_seal_twist:render("Enable Seal Twists", "Twist Seal of Command into Blood or Righteousness inside the next melee swing window")
-            menu.use_seal_twist_key:render("  Twist Hotkey", "Toggle Seal Twisting on/off")
+            menu.use_seal_twist_key:render("Twist Hotkey", "Toggle Seal Twisting on/off")
             menu.seal_twist_window:render("Twist Window (ms)", "Only start a twist when the next swing is inside this many milliseconds")
             menu.seal_twist_cooldown:render("Twist Cooldown (ms)", "Minimum time between completed twists")
             menu.allow_twist_dungeon:render("Allow in Dungeon", "Permit twisting when dungeon mode is active")
@@ -126,7 +127,8 @@ function menu.render()
             menu.judgement_choice:render("Judgement Mode", { "Wisdom", "Crusader" })
             menu.use_hammer_of_wrath:render("Hammer of Wrath", "Use execute at low target HP")
             menu.use_divine_illumination:render("Divine Illumination", "Use mana reduction cooldown when low on mana")
-            menu.use_hand_of_freedom_key:render("  Freedom Hotkey", "Toggle Hand of Freedom on/off")
+            menu.use_hand_of_freedom_key:render("Freedom Hotkey", "Toggle Hand of Freedom on/off")
+            menu.use_cleanse:render("Cleanse", "Lightly remove poison and disease from allies")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

@@ -1,4 +1,4 @@
--- EAX Druid Feral | header.lua
+-- Eax Druid Feral | header.lua
 -- Plugin metadata and load validation.
 
 local plugin_info = require("plugin_info")

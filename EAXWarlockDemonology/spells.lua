@@ -1,5 +1,5 @@
 -- spells.lua
--- Spell tables for EAX Warlock Demonology.
+-- Spell tables for Eax Warlock Demonology.
 
 local spells = {}
 

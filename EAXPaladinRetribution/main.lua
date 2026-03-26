@@ -1,4 +1,4 @@
--- EAX Paladin Retribution | main.lua
+-- Eax Paladin Retribution | main.lua
 -- Rotation logic for Seal twists, Crusader Strike, and Judgement.
 
 local menu = require("menu")
@@ -129,13 +129,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -221,9 +219,12 @@ local runtime = {
     twist_state_changed_at = 0,
     twist_seal_id = nil,
     twist_seal_name = nil,
+    twist_target_guid = nil,
     ooc_blessing_of_might_id = nil,
     ooc_blessing_of_wisdom_id = nil,
     hand_of_freedom_id = nil,
+    cleanse_id = nil,
+    purify_id = nil,
     divine_illumination_id = nil,
     judgement_id = nil,
 }
@@ -276,6 +277,8 @@ local function resolve_spells()
     runtime.exorcism_id      = utils.resolve_spell_id(spells.EXORCISM)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
     runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
+    runtime.cleanse_id = utils.resolve_spell_id(spells.CLEANSE)
+    runtime.purify_id = utils.resolve_spell_id(spells.PURIFY)
     runtime.ooc_blessing_of_might_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT)
     runtime.ooc_blessing_of_wisdom_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM)
     runtime.judgement_ids.wisdom = utils.resolve_spell_id(spells.JUDGEMENT_OF_WISDOM)
@@ -284,7 +287,7 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Paladin Retribution] Resolved spells: CS=" .. tostring(runtime.crusader_strike_id))
+    core.log("[Eax Paladin Retribution] Resolved spells: CS=" .. tostring(runtime.crusader_strike_id))
 end
 
 local function refresh_mode_cache(me)
@@ -434,6 +437,18 @@ local function reset_twist_state()
     runtime.twist_state_changed_at = 0
     runtime.twist_seal_id = nil
     runtime.twist_seal_name = nil
+    runtime.twist_target_guid = nil
+end
+
+local function get_unit_guid(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() or type(unit.get_guid) ~= "function" then
+        return nil
+    end
+    local ok, guid = pcall(function() return unit:get_guid() end)
+    if not ok or guid == nil then
+        return nil
+    end
+    return tostring(guid)
 end
 
 local function get_twist_seal_choice()
@@ -572,6 +587,7 @@ local function begin_seal_twist(me, target)
         runtime.twist_state = "twist_pending"
         runtime.twist_state_changed_at = _core_time()
         runtime.last_twist_at = _core_time()
+        runtime.twist_target_guid = get_unit_guid(target)
         utils.log_debug(menu, "Seal twist -> " .. tostring(runtime.twist_seal_name))
         note_cast()
         return true
@@ -579,12 +595,22 @@ local function begin_seal_twist(me, target)
     return false
 end
 
-local function continue_seal_twist(me)
+local function continue_seal_twist(me, target)
     if runtime.twist_state == "idle" then
         return false
     end
 
     if not me or not me:is_valid() or not me:is_in_combat() then
+        reset_twist_state()
+        return false
+    end
+
+    local twist_target_guid = runtime.twist_target_guid
+    if not target or not target:is_valid() or target:is_dead() or not utils.is_melee_target(me, target) then
+        reset_twist_state()
+        return false
+    end
+    if twist_target_guid and twist_target_guid ~= get_unit_guid(target) then
         reset_twist_state()
         return false
     end
@@ -676,6 +702,46 @@ local function try_hand_of_freedom(me)
                         utils.log_debug(menu, "Hand of Freedom -> " .. (unit.get_name and unit:get_name() or "ally"))
                         return true
                     end
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function try_cleanse(me)
+    if not menu.use_cleanse or not menu.use_cleanse:get_state() then return false end
+    if not runtime.cleanse_id then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local unit = objects[i]
+        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
+            and (utils.same_unit(me, unit) or unit:is_party_member()) then
+            if utils.has_debuff(unit, spells.CLEANSE) or utils.has_debuff(unit, spells.PURIFY) then
+                if utils.can_cast_target(runtime.cleanse_id, me, unit) and utils.cast_target(runtime.cleanse_id, unit) then
+                    note_cast()
+                    utils.log_debug(menu, "Cleanse")
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function try_cleanse(me)
+    if not menu.use_cleanse or not menu.use_cleanse:get_state() then return false end
+    if not runtime.cleanse_id then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local unit = objects[i]
+        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
+            and (utils.same_unit(me, unit) or unit:is_party_member()) then
+            if utils.has_debuff(unit, spells.CLEANSE) or utils.has_debuff(unit, spells.PURIFY) then
+                if utils.can_cast_target(runtime.cleanse_id, me, unit) and utils.cast_target(runtime.cleanse_id, unit) then
+                    note_cast()
+                    utils.log_debug(menu, "Cleanse")
+                    return true
                 end
             end
         end
@@ -871,7 +937,7 @@ local function try_avenging_wrath(me)
 end
 
 local function try_divine_storm(me, target, enemy_count)
-    -- Divine Storm (53385) is a WotLK spell — not available in TBC. No-op.
+    -- Divine Storm (53385) is a WotLK spell - not available in TBC. No-op.
     return false
 end
 
@@ -1006,10 +1072,10 @@ core.register_on_update_callback(function()
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -1020,7 +1086,8 @@ core.register_on_update_callback(function()
     end
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_hand_of_freedom(me) then return end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and continue_seal_twist(me) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_cleanse(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and continue_seal_twist(me, target) then
         return
     end
 
@@ -1082,7 +1149,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1113,7 +1180,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1126,4 +1193,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Paladin Retribution] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Paladin Retribution] Loaded " .. (_pi and _pi.plugin_version or "?"))

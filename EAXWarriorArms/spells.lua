@@ -1,4 +1,4 @@
--- EAX Warrior Arms | spells.lua
+-- Eax Warrior Arms | spells.lua
 -- Rank tables and buff/debuff ID tables only.
 -- Ranks are ordered highest-to-lowest for resolve_spell_id().
 

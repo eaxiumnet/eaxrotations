@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Warrior Arms
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Warrior Arms
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -72,10 +72,10 @@ menu.use_sunder_armor                     = core.menu.checkbox(true, "eaxwarrior
 menu.sunder_max_stacks                    = core.menu.slider_int(1, 5, 5, "eaxwarriorarms_sunder_max_stacks")
 menu.use_hamstring                        = core.menu.checkbox(true, "eaxwarriorarms_use_hamstring")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_mortal_strike", label = "Mortal Strike" },
@@ -85,7 +85,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_execute", label = "Execute" },
 }, {
     namespace = "eaxwarriorarms",
-    log_prefix = "[EAX Warrior Arms] ",
+    log_prefix = "[Eax Warrior Arms] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -100,12 +100,12 @@ function menu.render()
         ps.draw_space(_win, "eaxwarriorarms")
     end
 
-    root_tree:render("  Eax's Warrior Arms", function()
+    root_tree:render("Eax's Warrior Arms", function()
 
         ps.render_controls(menu, "Eax's Warrior Arms")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_mortal_strike:render("Mortal Strike", "Use Mortal Strike on cooldown when enabled")
             menu.use_slam:render("Slam Weave", "Weave Slam between auto attacks when Mortal Strike is on cooldown")

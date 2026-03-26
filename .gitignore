@@ -36,3 +36,6 @@ sylvanas-dev-docs-llm/
 
 # Temp API files
 .api/
+
+# Packaging policy
+*.toc

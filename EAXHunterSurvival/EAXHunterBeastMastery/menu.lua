@@ -1,5 +1,5 @@
 -- menu.lua
--- EAX Hunter Beast Mastery | Full menu options
+-- Eax Hunter Beast Mastery | Full menu options
 
 local menu = {}
 local color = require("common/color")
@@ -29,7 +29,7 @@ menu.use_revive_pet = core.menu.checkbox(true, dev_id .. "use_revive_pet")
 menu.mend_pet_hp = core.menu.slider_int(10, 80, 50, dev_id .. "mend_pet_hp")
 
 function menu.render()
-    main_node:render("EAX Hunter Beast Mastery", function()
+    main_node:render("Eax Hunter Beast Mastery", function()
         menu.enabled:render("Enable", "Toggle addon on/off")
         menu.toggle_key:render("Toggle Key")
         menu.mode:render("Mode", {"Auto", "Solo", "Dungeon", "Raid"}, "Auto detects party size; other options lock the rotation")
@@ -68,7 +68,7 @@ end
 
 function menu.log_debug(message)
     if menu.debug:get_state() then
-        core.log("[EAX Hunter Beast Mastery] " .. tostring(message))
+        core.log("[Eax Hunter Beast Mastery] " .. tostring(message))
     end
 end
 

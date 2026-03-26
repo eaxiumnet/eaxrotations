@@ -88,7 +88,7 @@ local function warn_missing(spell_label, totem_key)
     cache.last_warn_at[totem_key] = now
 
     local item_id = TOTEM_ITEM_IDS[totem_key]
-    core.log("[EAX Totem] Missing " .. tostring(totem_key) .. " totem item " .. tostring(item_id)
+    core.log("[Eax Totem] Missing " .. tostring(totem_key) .. " totem item " .. tostring(item_id)
         .. " for " .. tostring(spell_label) .. ". Rotation skipping this cast.")
 end
 

@@ -1,10 +1,10 @@
--- EAX Mage Fire | header.lua
+-- Eax Mage Fire | header.lua
 
 local plugin = {}
 
-plugin["name"] = "EAX Mage Fire"
+plugin["name"] = "Eax Mage Fire"
 plugin["version"] = "1.0.0"
-plugin["author"] = "EAX"
+plugin["author"] = "Eax"
 plugin["load"] = true
 
 local me = core.object_manager.get_local_player()

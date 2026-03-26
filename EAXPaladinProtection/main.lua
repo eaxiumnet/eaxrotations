@@ -1,4 +1,4 @@
--- EAX PaladinProtection | main.lua
+-- Eax PaladinProtection | main.lua
 -- Core rotation wiring for Protection Paladin survival and threat management.
 
 local menu = require("menu")
@@ -129,13 +129,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -198,7 +196,7 @@ local MODE_DUNGEON = "dungeon"
 local MODE_RAID = "raid"
 local MODE_DETECT_INTERVAL = 1.5
 local UPDATE_INTERVAL = 0.12
-local NOTIFICATION_LABEL = "EAX Paladin Protection"
+local NOTIFICATION_LABEL = "Eax Paladin Protection"
 
 local runtime = {
     divine_shield_id = nil,
@@ -224,8 +222,11 @@ local runtime = {
     ooc_blessing_of_wisdom_id = nil,
     ooc_blessing_of_sanctuary_id = nil,
     hand_of_freedom_id = nil,
+    cleanse_id = nil,
+    purify_id = nil,
     holy_wrath_id = nil,
     lay_on_hands_id = nil,
+    pending_reseal_until = 0,
 }
 
 local ctx_cache = rotation_context.new({
@@ -265,6 +266,8 @@ local function resolve_spells()
     runtime.ooc_blessing_of_might_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT)
     runtime.ooc_blessing_of_wisdom_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM)
     runtime.ooc_blessing_of_sanctuary_id = utils.resolve_spell_id(spells.BLESSING_OF_SANCTUARY)
+    runtime.cleanse_id = utils.resolve_spell_id(spells.CLEANSE)
+    runtime.purify_id = utils.resolve_spell_id(spells.PURIFY)
 end
 
 local function refresh_mode_cache(now)
@@ -404,6 +407,37 @@ local function try_hand_of_freedom(me)
     return false
 end
 
+local function try_cleanse(me, target)
+    if not menu.use_dispels:get_state() then return false end
+    if not runtime.cleanse_id then return false end
+    local units = target and { target } or { me }
+    if me and target and not target:is_party_member() then
+        units = { me }
+    end
+    if not target then
+        local objects = core.object_manager.get_all_objects()
+        units = { me }
+        for i = 1, #objects do
+            local unit = objects[i]
+            if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead() and unit:is_party_member() then
+                units[#units + 1] = unit
+            end
+        end
+    end
+    for _, unit in ipairs(units) do
+        if unit and unit:is_valid() and not unit:is_dead() and (utils.same_unit(me, unit) or unit:is_party_member()) then
+            if utils.has_debuff(unit, spells.CLEANSE) or utils.has_debuff(unit, spells.PURIFY) then
+                if utils.can_cast_target(runtime.cleanse_id, me, unit) and utils.cast_target(runtime.cleanse_id, unit) then
+                    note_cast()
+                    utils.log_debug(menu, "Cleanse -> " .. (unit.get_name and unit:get_name() or "ally"))
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function try_consecration(me, enemy_count)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_consecration:get_state() or not runtime.consecration_id then
@@ -430,11 +464,18 @@ local function ensure_seal_of_righteousness(me)
         return false
     end
 
+    local now = _core_time()
+    if runtime.pending_reseal_until > 0 and now >= runtime.pending_reseal_until then
+        runtime.pending_reseal_until = 0
+    end
+
     if utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS) then
+        runtime.pending_reseal_until = 0
         return false
     end
 
     if utils.can_cast_self(runtime.seal_of_righteousness_id, me) and utils.cast_self(runtime.seal_of_righteousness_id, me) then
+        runtime.pending_reseal_until = 0
         note_cast()
         utils.log_debug(menu, "Seal of Righteousness")
         notify_cast("paladin:seal_of_righteousness", "Seal of Righteousness", color.gold(220))
@@ -476,6 +517,7 @@ local function try_judgement(me, target)
     end
 
     if utils.cast_target(runtime.judgement_id, target) then
+        runtime.pending_reseal_until = _core_time() + 2.0
         note_cast()
         utils.log_debug(menu, "Cast Judgement")
         notify_cast("paladin:judgement", "Judgement", color.gold(220))
@@ -684,6 +726,14 @@ local function on_update()
     local target = focus_target or utils.find_best_target(me)
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
+
+    if try_cleanse(me, target) then return true end
+
+    if me:is_in_combat() and runtime.pending_reseal_until > now and utils.get_mana_pct(me) >= 0.08 then
+        if ensure_seal_of_righteousness(me) then
+            return
+        end
+    end
     
     if not target or not me:can_attack(target) then
         return
@@ -705,9 +755,9 @@ local function on_update()
     enc = encounter_manager.get_policy(me)
 
     -- Racial CDs
-    racial_manager.try_offensive(me)
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_offensive(me) then return true end
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     if try_divine_shield_emergency(me) then return true end
@@ -1095,7 +1145,7 @@ menu.set_window(_space_win)
 core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1126,7 +1176,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,

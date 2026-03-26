@@ -1,4 +1,4 @@
--- EAX Rogue Subtlety | main.lua
+-- Eax Rogue Subtlety | main.lua
 
 local menu = require("menu")
 local enums = (function()
@@ -302,7 +302,7 @@ end
 
 local function log_resolved_spells()
     core.log(
-        "[EAX Rogue Subtlety] Resolved: Premed=" .. tostring(runtime.premeditation_id)
+        "[Eax Rogue Subtlety] Resolved: Premed=" .. tostring(runtime.premeditation_id)
             .. " Ambush=" .. tostring(runtime.ambush_id)
             .. " Backstab=" .. tostring(runtime.backstab_id)
             .. " Hemo=" .. tostring(runtime.hemorrhage_id)
@@ -319,7 +319,7 @@ local function is_subtlety_rotation_available()
     local available = runtime.hemorrhage_id ~= nil or runtime.premeditation_id ~= nil or runtime.shadowstep_id ~= nil
     if not available and not subtlety_rotation_suspended_logged then
         subtlety_rotation_suspended_logged = true
-        core.log("[EAX Rogue Subtlety] No Subtlety signature talent spell detected; suspending Subtlety rotation to avoid off-spec conflicts.")
+        core.log("[Eax Rogue Subtlety] No Subtlety signature talent spell detected; suspending Subtlety rotation to avoid off-spec conflicts.")
     end
     return available
 end
@@ -523,6 +523,12 @@ local function try_shadowstep(me, target)
     if current_mode() == "solo" then
         return false
     end
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+    if target:is_in_melee_range(5) then
+        return false
+    end
     if is_behind_target(me, target) then
         return false
     end
@@ -539,7 +545,7 @@ local function try_shadowstep(me, target)
     return false
 end
 
-local function try_preparation(me)
+local function try_preparation(me, target)
     if not menu.use_preparation:get_state() then
         return false
     end
@@ -547,6 +553,13 @@ local function try_preparation(me)
         return false
     end
     if not me:is_in_combat() then
+        return false
+    end
+    local shadowstep_cd = runtime.shadowstep_id and tonumber(_get_spell_cd(runtime.shadowstep_id)) or 0
+    local vanish_cd = runtime.vanish_id and tonumber(_get_spell_cd(runtime.vanish_id)) or 0
+    local has_soon_value = (shadowstep_cd > 0 and target and target:is_valid() and not target:is_dead() and not target:is_in_melee_range(5))
+        or (vanish_cd > 0 and not is_stealthed(me))
+    if not has_soon_value then
         return false
     end
     if not utils.can_cast_self(runtime.preparation_id, me) then
@@ -857,10 +870,10 @@ local function do_rotation(me, target)
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -915,7 +928,7 @@ local function do_rotation(me, target)
         invalidate_ctx()
         return true
     end
-    if try_preparation(me) then
+    if try_preparation(me, target) then
         invalidate_ctx()
         return true
     end
@@ -1088,7 +1101,7 @@ core.register_on_update_callback(function()
     if force_apply_poisons_cp then
         poison_manager.force_reapply()
         force_apply_poisons_cp = false
-        core.log("[EAX Rogue Subtlety] Force reapply poisons requested")
+        core.log("[Eax Rogue Subtlety] Force reapply poisons requested")
     end
     if poison_manager.try_apply_poisons(me, menu, utils, current_poison_loadout()) then
         return
@@ -1155,7 +1168,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Rogue Sub] Enabled"
+        local label = "Eax Rogue Sub] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1166,7 +1179,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1197,7 +1210,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1210,4 +1223,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Rogue Subtlety] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Rogue Subtlety] Loaded " .. (_pi and _pi.plugin_version or "?"))

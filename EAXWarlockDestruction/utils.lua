@@ -1,11 +1,12 @@
 -- utils.lua
--- Helper utilities for EAX Warlock Destruction.
+-- Helper utilities for Eax Warlock Destruction.
 
 ---@type enums
 ---@type spell_queue
 local spell_queue = require("common/modules/spell_queue")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
+local spells = require("spells")
 
 local utils = {}
 
@@ -92,11 +93,14 @@ end
 -- Max range for auto target acquisition.
 -- Covers melee + max gap-closer range. Units beyond this are ignored
 -- unless they are actively attacking us or party.
-local MODE_DETECT_INTERVAL_S = 5.0
+local MODE_DETECT_INTERVAL_S = 10.0
 local AUTO_TARGET_MAX_RANGE = 40.0
 local AUTO_TARGET_MAX_HOSTILES = 50
 local mode_cache = "solo"
 local mode_cache_refreshed_at = 0
+local hostile_scan_cache_at = -1
+local hostile_scan_cache_me = nil
+local hostile_scan_cache_units = nil
 
 function utils.detect_mode(me)
     local now = core.time()
@@ -177,34 +181,97 @@ function utils.find_best_target(me)
         return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
     end
 
-    local objects = core.object_manager.get_all_objects()
+    local now = core.time()
+    local hostile_units
+    if hostile_scan_cache_at == now and hostile_scan_cache_me == me and hostile_scan_cache_units then
+        hostile_units = hostile_scan_cache_units
+    else
+        hostile_units = {}
+        local objects = core.object_manager.get_all_objects()
+        local hostile_scanned = 0
+        for i = 1, #objects do
+            local obj = objects[i]
+            if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
+                hostile_scanned = hostile_scanned + 1
+                hostile_units[#hostile_units + 1] = obj
+                if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
+                    break
+                end
+            end
+        end
+        hostile_scan_cache_at = now
+        hostile_scan_cache_me = me
+        hostile_scan_cache_units = hostile_units
+    end
+
     local best_attacking_party = nil
+    local best_dotted_target = nil
+    local best_dotted_score = 0
     local best_any = nil
-    local hostile_scanned = 0
+    local debuff_remaining_cache = {}
 
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
-            hostile_scanned = hostile_scanned + 1
+    local function get_debuff_remaining_ms_cached(unit, ids)
+        local unit_cache = debuff_remaining_cache[unit]
+        if not unit_cache then
+            unit_cache = {}
+            debuff_remaining_cache[unit] = unit_cache
+        end
 
-            local obj_target = obj:get_target()
-            if obj_target and utils.same_unit(obj_target, me) then
-                return obj
+        if unit_cache[ids] == nil then
+            unit_cache[ids] = utils.get_debuff_remaining_ms(unit, ids)
+        end
+
+        return unit_cache[ids]
+    end
+
+    local function has_rotation_dots(unit)
+        return get_debuff_remaining_ms_cached(unit, spells.DEBUFF_IMMOLATE) > 0
+            or get_debuff_remaining_ms_cached(unit, spells.DEBUFF_CURSE_OF_AGONY) > 0
+            or get_debuff_remaining_ms_cached(unit, spells.DEBUFF_CURSE_OF_DOOM) > 0
+            or get_debuff_remaining_ms_cached(unit, spells.DEBUFF_CURSE_OF_ELEMENTS) > 0
+            or get_debuff_remaining_ms_cached(unit, spells.DEBUFF_SEED_OF_CORRUPTION) > 0
+    end
+
+    for i = 1, #hostile_units do
+        local obj = hostile_units[i]
+        local obj_target = obj:get_target()
+        if obj_target and utils.same_unit(obj_target, me) then
+            return obj
+        end
+
+        if has_rotation_dots(obj) then
+            local score = 0
+            local immolate_ms = get_debuff_remaining_ms_cached(obj, spells.DEBUFF_IMMOLATE)
+            if immolate_ms > 0 then score = score + 30 + math.min(40, immolate_ms / 1000) end
+            local agony_ms = get_debuff_remaining_ms_cached(obj, spells.DEBUFF_CURSE_OF_AGONY)
+            if agony_ms > 0 then score = score + 24 + math.min(30, agony_ms / 1000) end
+            local doom_ms = get_debuff_remaining_ms_cached(obj, spells.DEBUFF_CURSE_OF_DOOM)
+            if doom_ms > 0 then score = score + 40 + math.min(20, doom_ms / 1000) end
+            local elements_ms = get_debuff_remaining_ms_cached(obj, spells.DEBUFF_CURSE_OF_ELEMENTS)
+            if elements_ms > 0 then score = score + 18 + math.min(20, elements_ms / 1000) end
+            local seed_ms = get_debuff_remaining_ms_cached(obj, spells.DEBUFF_SEED_OF_CORRUPTION)
+            if seed_ms > 0 then score = score + 28 + math.min(35, seed_ms / 1000) end
+            if score > 0 then
+                local near_expiring = 0
+                if immolate_ms > 0 and immolate_ms < 2500 then near_expiring = near_expiring + 1 end
+                if agony_ms > 0 and agony_ms < 2500 then near_expiring = near_expiring + 1 end
+                if doom_ms > 0 and doom_ms < 4000 then near_expiring = near_expiring + 1 end
+                if elements_ms > 0 and elements_ms < 3000 then near_expiring = near_expiring + 1 end
+                if seed_ms > 0 and seed_ms < 2000 then near_expiring = near_expiring + 1 end
+                if near_expiring > 0 then score = score - (near_expiring * 12) end
+                if score > best_dotted_score then
+                    best_dotted_score = score
+                    best_dotted_target = obj
+                end
             end
-
-            if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
-                best_attacking_party = obj
-            elseif not best_any then
-                best_any = obj
-            end
-
-            if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
-                break
-            end
+        elseif not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
+            best_attacking_party = obj
+        elseif not best_any then
+            best_any = obj
         end
     end
 
-    return best_attacking_party or best_any
+    return best_dotted_target or best_attacking_party or best_any
 end
 
 
@@ -321,7 +388,7 @@ end
 
 function utils.log_debug(menu_ref, message)
     if menu_ref and menu_ref.debug and menu_ref.debug:get_state() then
-        core.log("[EAX Warlock Destruction] " .. message)
+        core.log("[Eax Warlock Destruction] " .. message)
     end
 end
 

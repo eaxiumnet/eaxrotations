@@ -40,7 +40,7 @@ function spell_resolver.resolve_spell_id(rank_table)
         end
     end
 
-    -- Cache miss or invalidated — resolve and cache
+    -- Cache miss or invalidated - resolve and cache
     local resolved = nil
     for i = 1, #rank_table do
         local spell_id = rank_table[i]
@@ -50,8 +50,10 @@ function spell_resolver.resolve_spell_id(rank_table)
         end
     end
 
-    -- Store in cache (keyed by table reference)
-    _cache[tostring(rank_table)] = resolved
+    -- Store in cache only for successful resolutions
+    if resolved ~= nil then
+        _cache[tostring(rank_table)] = resolved
+    end
 
     -- Auto-validate cache after first successful resolve (player is loaded)
     if not _is_valid and resolved then

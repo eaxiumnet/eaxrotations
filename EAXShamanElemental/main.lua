@@ -1,5 +1,5 @@
 -- main.lua
--- EAX Shaman Elemental | Rotation driver
+-- Eax Shaman Elemental | Rotation driver
 -- APIs validated against core, object_manager, and spellbook docs
 
 local menu = require("menu")
@@ -129,13 +129,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -190,6 +188,8 @@ local defensive_manager = require("defensive_manager")
 
 ---@type mana_conservator
 local mana_conservator = require("mana_conservator")
+local _mana_manager_ok, mana_manager = pcall(require, "mana_manager")
+if not _mana_manager_ok then mana_manager = nil end
 
 ---@type key_helper
 ---@type key_helper
@@ -246,6 +246,9 @@ local runtime = {
     healing_wave_id     = nil,
     ghost_wolf_id       = nil,
     totemic_call_id     = nil,
+    purge_id = nil,
+    cure_poison_id = nil,
+    cure_disease_id = nil,
     last_cast_time = 0,
     pending_casts = {},
     cached_mode = "solo",
@@ -278,6 +281,9 @@ local function resolve_spells()
     runtime.healing_wave_id     = utils.resolve_spell_id(spells.HEALING_WAVE)
     runtime.ghost_wolf_id       = utils.resolve_spell_id(spells.GHOST_WOLF)
     runtime.totemic_call_id     = utils.resolve_spell_id(spells.TOTEMIC_CALL)
+    runtime.purge_id = utils.resolve_spell_id(spells.PURGE)
+    runtime.cure_poison_id = utils.resolve_spell_id(spells.CURE_POISON)
+    runtime.cure_disease_id = utils.resolve_spell_id(spells.CURE_DISEASE)
     runtime.ancestral_spirit_id  = utils.resolve_spell_id(spells.ANCESTRAL_SPIRIT)
 end
 
@@ -397,6 +403,28 @@ local function try_cast_self(me, spell_id, label)
     return true
 end
 
+local function get_target_ttd_seconds(target)
+    if not target or not ttd_tracker then return nil end
+    local ok, value = pcall(function() return ttd_tracker.get(target) end)
+    if not ok then return nil end
+    return tonumber(value)
+end
+
+local function get_spell_cast_time_seconds(spell_id, me)
+    if not spell_id or not mana_manager or not mana_manager.get_spell_cast_time_ms then return nil end
+    local ok, value = pcall(function() return mana_manager.get_spell_cast_time_ms(spell_id, me) end)
+    if not ok then return nil end
+    local ms = tonumber(value)
+    return ms and ms > 0 and (ms / 1000) or nil
+end
+
+local function target_will_die_before_cast_finishes(me, target, spell_id, buffer_s)
+    local ttd_s = get_target_ttd_seconds(target)
+    local cast_s = get_spell_cast_time_seconds(spell_id, me)
+    if not ttd_s or not cast_s then return false end
+    return ttd_s <= (cast_s + (buffer_s or 0.25))
+end
+
 local function ensure_totems(me)
     if not menu.auto_totems:get_state() then
         return
@@ -447,6 +475,38 @@ local function try_frost_shock_slow(me, target)
         invalidate_ctx()
         utils.log_debug(menu, "Frost Shock (slow)")
         return true
+    end
+    return false
+end
+
+local function try_purge(me, target)
+    if not runtime.purge_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if not ((enc and enc.force_dispel) or menu.use_purge:get_state()) then return false end
+    if not utils.can_cast_hostile(runtime.purge_id, me, target) then return false end
+    if utils.cast_target(runtime.purge_id, target) then
+        invalidate_ctx()
+        utils.log_debug(menu, "Purge")
+        return true
+    end
+    return false
+end
+
+local function try_cure_dispels(me)
+    if not menu.use_dispels:get_state() then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local unit = objects[i]
+        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
+            and (utils.same_unit(me, unit) or unit:is_party_member()) then
+            if runtime.cure_poison_id and utils.has_debuff(unit, spells.CURE_POISON) and utils.can_cast_target(runtime.cure_poison_id, me, unit) then
+                if utils.cast_target(runtime.cure_poison_id, unit) then return true end
+            end
+            if runtime.cure_disease_id and utils.has_debuff(unit, spells.CURE_DISEASE) and utils.can_cast_target(runtime.cure_disease_id, me, unit) then
+                if utils.cast_target(runtime.cure_disease_id, unit) then return true end
+            end
+        end
     end
     return false
 end
@@ -553,6 +613,7 @@ local function try_lightning_bolt(me, target)
     if target_hp <= execute_cutoff then
         return false
     end
+    if target_will_die_before_cast_finishes(me, target, runtime.lightning_bolt_id, 0.35) then return false end
     local distance = utils.get_distance(me, target)
     local min_range = math.max(menu.range_min:get(), profile.range_min)
     local max_range = math.max(menu.range_max:get(), profile.range_max)
@@ -652,6 +713,8 @@ local function do_rotation(me, target)
 
     if mana_conservator.on_update(me, target, menu, utils) then return end
 
+    if try_cure_dispels(me) then return end
+
     if not is_gcd_ready() then
         return false
     end
@@ -672,10 +735,10 @@ local function do_rotation(me, target)
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -702,6 +765,7 @@ local function do_rotation(me, target)
     ensure_totems(me)
     if try_earth_shock_interrupt(me, target) then return true end
     if try_frost_shock_slow(me, target) then return true end
+    if try_purge(me, target) then return true end
     if not hold_offense and try_burst(me, target) then return true end
     if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.12) and try_flame_shock(me, target) then
         return true
@@ -866,7 +930,7 @@ if control_panel_utility then
         local elements = {}
         local current = menu.enabled:get_state()
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "[EAX Shaman Elemental] Enabled"
+        local label = "[Eax Shaman Elemental] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -887,7 +951,7 @@ end
 
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -918,7 +982,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -930,4 +994,4 @@ do
     end
 end
 
-core.log("[EAX Shaman Elemental] Loaded")
+core.log("[Eax Shaman Elemental] Loaded")

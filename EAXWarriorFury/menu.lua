@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Warrior Fury
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Warrior Fury
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -101,10 +101,10 @@ menu.healthstone_hp_pct                   = core.menu.slider_int(10, 50, 25, "si
 menu.health_potion_hp_pct                 = core.menu.slider_int(10, 50, 20, "simplefury_health_potion_hp_pct")
 menu.stoneform_hp_pct                     = core.menu.slider_int(20, 80, 40, "simplefury_stoneform_hp_pct")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_rampage", label = "Rampage" },
@@ -114,7 +114,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_death_wish", label = "Death Wish" },
 }, {
     namespace = "eaxwarriorfury",
-    log_prefix = "[EAX Warrior Fury] ",
+    log_prefix = "[Eax Warrior Fury] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -129,12 +129,12 @@ function menu.render()
         ps.draw_space(_win, "eaxwarriorfury")
     end
 
-    root_tree:render("  Eax's Warrior Fury", function()
+    root_tree:render("Eax's Warrior Fury", function()
 
         ps.render_controls(menu, "Eax's Warrior Fury")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_bloodrage:render("Bloodrage", "Use Bloodrage when rage is low and HP is safe")
             menu.use_rampage:render("Rampage", "Maintain Rampage buff")

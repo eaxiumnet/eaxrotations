@@ -1,5 +1,5 @@
 -- main.lua
--- EAX Shaman Enhancement | Stormstrike-driven melee
+-- Eax Shaman Enhancement | Stormstrike-driven melee
 -- APIs validated against core, object_manager, and spellbook docs
 
 require("common/wow_api_clone")  -- exposes GetWeaponEnchantInfo for temp enchant detection
@@ -217,6 +217,9 @@ local runtime = {
     frost_shock_id = nil,
     chain_lightning_id = nil,
     lightning_bolt_id = nil,
+    purge_id = nil,
+    cure_poison_id = nil,
+    cure_disease_id = nil,
     totem_of_wrath_id = nil,
     windfury_totem_id = nil,
     windfury_weapon_id = nil,
@@ -272,6 +275,9 @@ local function resolve_spells()
     runtime.frost_shock_id = utils.resolve_spell_id(spells.FROST_SHOCK)
     runtime.chain_lightning_id = utils.resolve_spell_id(spells.CHAIN_LIGHTNING)
     runtime.lightning_bolt_id = utils.resolve_spell_id(spells.LIGHTNING_BOLT)
+    runtime.purge_id = utils.resolve_spell_id(spells.PURGE)
+    runtime.cure_poison_id = utils.resolve_spell_id(spells.CURE_POISON)
+    runtime.cure_disease_id = utils.resolve_spell_id(spells.CURE_DISEASE)
     runtime.totem_of_wrath_id = utils.resolve_spell_id(spells.TOTEM_OF_WRATH)
     runtime.windfury_totem_id      = utils.resolve_spell_id(spells.WINDFURY_TOTEM)
     runtime.windfury_weapon_id    = utils.resolve_spell_id(spells.WINDFURY_WEAPON)
@@ -294,25 +300,27 @@ end
 local function log_resolved_spells()
     utils.log_debug(menu, "Resolved Stormstrike=" .. tostring(runtime.stormstrike_id))
     -- Always log these so player can see what's available
-    core.log("[EAX Enh] Stormstrike ID: " .. tostring(runtime.stormstrike_id))
+    core.log("[Eax Enh] Stormstrike ID: " .. tostring(runtime.stormstrike_id))
     -- Scan for Stormstrike if not found by ID table
     if not runtime.stormstrike_id then
         -- Try scanning common TBC+custom server Stormstrike IDs
         local alt_ids = { 17364, 17423, 17424, 17425, 32175, 32176, 38967 }
         for _, id in ipairs(alt_ids) do
             if core.spell_book.is_spell_learned(id) then
-                core.log("[EAX Enh] Found Stormstrike at alt ID: " .. id)
+                core.log("[Eax Enh] Found Stormstrike at alt ID: " .. id)
                 runtime.stormstrike_id = id
                 break
             end
         end
         if not runtime.stormstrike_id then
-            core.log("[EAX Enh] Stormstrike not in spellbook - is Enhancement talent learned?")
+            core.log("[Eax Enh] Stormstrike not in spellbook - is Enhancement talent learned?")
         end
     end
 end
 
 local function refresh_mode_cache()
+    local me = _get_local_player()
+    if not me or me:is_dead() then return end
     runtime.cached_mode = utils.detect_mode(me)
 end
 
@@ -736,6 +744,47 @@ local function try_totem_twist(me)
     return false
 end
 
+local function try_cure_dispels(me)
+    if not menu.use_dispels or not menu.use_dispels:get_state() then return false end
+    if not (runtime.cure_poison_id or runtime.cure_disease_id) then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local unit = objects[i]
+        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
+            and (utils.same_unit(me, unit) or unit:is_party_member()) then
+            if runtime.cure_poison_id and utils.has_debuff(unit, spells.CURE_POISON)
+                and utils.can_cast_target(runtime.cure_poison_id, me, unit)
+                and utils.cast_target(runtime.cure_poison_id, unit) then
+                note_cast()
+                utils.log_debug(menu, "Cure Poison")
+                return true
+            end
+            if runtime.cure_disease_id and utils.has_debuff(unit, spells.CURE_DISEASE)
+                and utils.can_cast_target(runtime.cure_disease_id, me, unit)
+                and utils.cast_target(runtime.cure_disease_id, unit) then
+                note_cast()
+                utils.log_debug(menu, "Cure Disease")
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function try_purge(me, target)
+    if not runtime.purge_id then return false end
+    if not (enc and enc.force_dispel) then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if not utils.can_cast_hostile(runtime.purge_id, me, target) then return false end
+    if utils.cast_target(runtime.purge_id, target) then
+        note_cast()
+        utils.log_debug(menu, "Purge")
+        return true
+    end
+    return false
+end
+
 -- --- Strength/Mana totem maintenance (v1.4) ------------------------------
 
 local function try_earth_totem(me)
@@ -880,15 +929,18 @@ local function do_rotation(me, target)
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "shaman", utils) then
         return true
     end
+
+    if try_cure_dispels(me) then return true end
+    if try_purge(me, target) then return true end
 
     -- Weapon imbues (out of combat / throttled)
     try_weapon_imbues(me)
@@ -1084,7 +1136,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "[EAX Shaman Enhancement] Enabled"
+        local label = "[Eax Shaman Enhancement] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1099,7 +1151,7 @@ end
 
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1130,7 +1182,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1142,4 +1194,4 @@ do
     end
 end
 
-core.log("[EAX Shaman Enhancement] Loaded")
+core.log("[Eax Shaman Enhancement] Loaded")

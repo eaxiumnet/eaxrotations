@@ -1,10 +1,10 @@
--- EAX Priest Holy | header.lua
+-- Eax Priest Holy | header.lua
 -- Metadata loader ensures the player is a Holy Priest.
 
 local plugin = {
-    name = "EAX Priest Holy",
+    name = "Eax Priest Holy",
     version = "1.0.0",
-    author = "EAX",
+    author = "Eax",
     load = true,
 }
 

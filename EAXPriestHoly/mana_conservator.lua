@@ -1,5 +1,5 @@
 -- mana_conservator.lua
--- Mana conservation system for all EAX caster/healer specs (1-70 leveling safe).
+-- Mana conservation system for all Eax caster/healer specs (1-70 leveling safe).
 -- When mana drops below a threshold, switches to wanding or melee attacks
 -- instead of casting expensive spells, preserving mana for burst situations.
 --

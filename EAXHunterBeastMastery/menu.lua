@@ -1,9 +1,9 @@
--- menu.lua  |  EAX Hunter Beast Mastery  |  TBC
+-- menu.lua  |  Eax Hunter Beast Mastery  |  TBC
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
 local menu = {}
 
--- ── Tree nodes ────────────────────────────────────────────────────────────────
+-- -- Tree nodes ----------------------------------------------------------------
 local root_tree   = ps.tree_node()
 local main_tree   = ps.tree_node()
 local pet_tree    = ps.tree_node()
@@ -15,21 +15,21 @@ local racial_tree = ps.tree_node()
 local ooc_tree    = ps.tree_node()
 local esp_tree    = ps.tree_node()
 
--- ── Controls ──────────────────────────────────────────────────────────────────
+-- -- Controls ------------------------------------------------------------------
 menu.enabled          = core.menu.checkbox(true,  "eaxhunterbm_enabled")
 menu.toggle_key       = core.menu.keybind(7, false, "eaxhunterbm_toggle_key")
 menu.mode             = core.menu.combobox(1, "eaxhunterbm_mode")
 menu.debug            = core.menu.checkbox(false, "eaxhunterbm_debug")
 
--- ── Targeting ─────────────────────────────────────────────────────────────────
+-- -- Targeting -----------------------------------------------------------------
 menu.focus_priority      = core.menu.checkbox(false, "eaxhunterbm_focus_priority")
 menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, "eaxhunterbm_combat_self_hp_boost")
 
--- ── Racial ────────────────────────────────────────────────────────────────────
+-- -- Racial --------------------------------------------------------------------
 menu.use_racial = core.menu.checkbox(true, "eaxhunterbm_use_racial")
 menu.racial_hp  = core.menu.slider_int(10, 80, 40, "eaxhunterbm_racial_hp")
 
--- ── OOC ───────────────────────────────────────────────────────────────────────
+-- -- OOC -----------------------------------------------------------------------
 menu.ooc_drink       = core.menu.checkbox(true,  "eax_ooc_drink")
 menu.ooc_eat         = core.menu.checkbox(true,  "eax_ooc_eat")
 menu.ooc_rez         = core.menu.checkbox(true,  "eax_ooc_rez")
@@ -46,13 +46,13 @@ menu.auto_flask                         = core.menu.checkbox(false, "eaxhunterbm
 menu.leveling_conserve_mana = core.menu.checkbox(true,  "eaxhunterbm_lev_conserve")
 menu.leveling_mana_floor    = core.menu.slider_int(5, 50, 20, "eaxhunterbm_lev_mana_floor")
 
--- ── ESP ───────────────────────────────────────────────────────────────────────
+-- -- ESP -----------------------------------------------------------------------
 menu.esp_show_hud    = core.menu.checkbox(true,  "eax_esp_show_hud")
 menu.esp_show_target = core.menu.checkbox(true,  "eax_esp_show_target")
 menu.esp_hud_x       = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y       = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- ── Rotation ──────────────────────────────────────────────────────────────────
+-- -- Rotation ------------------------------------------------------------------
 menu.use_hunters_mark   = core.menu.checkbox(true, "eaxhunterbm_use_hunters_mark")
 menu.use_serpent_sting  = core.menu.checkbox(true, "eaxhunterbm_use_serpent_sting")
 menu.use_scorpid_sting  = core.menu.checkbox(false,"eaxhunterbm_use_scorpid_sting")
@@ -64,7 +64,7 @@ menu.use_multi_shot     = core.menu.checkbox(true, "eaxhunterbm_use_multi_shot")
 menu.use_raptor_strike  = core.menu.checkbox(true, "eaxhunterbm_use_raptor_strike")
 menu.use_wing_clip      = core.menu.checkbox(true, "eaxhunterbm_use_wing_clip")
 
--- ── Pet ───────────────────────────────────────────────────────────────────────
+-- -- Pet -----------------------------------------------------------------------
 menu.use_kill_command   = core.menu.checkbox(true, "eaxhunterbm_use_kill_command")
 menu.use_bestial_wrath  = core.menu.checkbox(true, "eaxhunterbm_use_bestial_wrath")
 menu.use_intimidation   = core.menu.checkbox(true, "eaxhunterbm_use_intimidation")
@@ -72,7 +72,7 @@ menu.use_mend_pet       = core.menu.checkbox(true, "eaxhunterbm_use_mend_pet")
 menu.mend_pet_hp        = core.menu.slider_int(10, 90, 50, "eaxhunterbm_mend_pet_hp")
 menu.use_revive_pet     = core.menu.checkbox(true, "eaxhunterbm_use_revive_pet")
 
--- ── Cooldowns ─────────────────────────────────────────────────────────────────
+-- -- Cooldowns -----------------------------------------------------------------
 menu.use_rapid_fire     = core.menu.checkbox(true, "eaxhunterbm_use_rapid_fire")
 menu.use_aspect_viper   = core.menu.checkbox(true, "eaxhunterbm_use_aspect_viper")
 menu.viper_mana_enter   = core.menu.slider_int(10, 60, 35, "eaxhunterbm_viper_enter")
@@ -80,7 +80,7 @@ menu.viper_mana_exit    = core.menu.slider_int(50, 100, 85, "eaxhunterbm_viper_e
 menu.auto_travel_aspect  = core.menu.checkbox(true, "eaxhunterbm_auto_travel_aspect")
 menu.use_pack_as_travel_aspect = core.menu.checkbox(false, "eaxhunterbm_use_pack_as_travel_aspect")
 
--- ── Kiting ────────────────────────────────────────────────────────────────────
+-- -- Kiting --------------------------------------------------------------------
 menu.use_concussive     = core.menu.checkbox(true, "eaxhunterbm_use_concussive")
 menu.use_disengage      = core.menu.checkbox(true, "eaxhunterbm_use_disengage")
 menu.use_deterrence     = core.menu.checkbox(true, "eaxhunterbm_use_deterrence")
@@ -98,12 +98,12 @@ menu.disable_growl_in_group = core.menu.checkbox(true, "eaxhunterbm_disable_grow
 menu.use_feign_death    = core.menu.checkbox(true, "eaxhunterbm_use_feign_death")
 menu.feign_death_hp     = core.menu.slider_int(5, 40, 20, "eaxhunterbm_feign_hp")
 
--- ── Traps ─────────────────────────────────────────────────────────────────────
+-- -- Traps ---------------------------------------------------------------------
 menu.use_traps       = core.menu.checkbox(true, "eaxhunterbm_use_traps")
 menu.trap_selection  = core.menu.combobox(1,    "eaxhunterbm_trap_selection")
 menu.trap_interval   = core.menu.slider_float(1.0, 60.0, 30.0, "eaxhunterbm_trap_interval")
 
--- ── Window ────────────────────────────────────────────────────────────────────
+-- -- Window --------------------------------------------------------------------
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_serpent_sting", label = "Serpent Sting" },
     { toggle = "use_steady_shot", label = "Steady Shot" },
@@ -112,7 +112,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_traps", label = "Traps" },
 }, {
     namespace = "eaxhunterbm",
-    log_prefix = "[EAX Hunter BM] ",
+    log_prefix = "[Eax Hunter BM] ",
 })
 
 local _win
@@ -122,12 +122,12 @@ function menu.render()
     if _win and root_tree:is_open() then
         ps.draw_space(_win, "eaxhunterbm")
     end
-    root_tree:render("  Eax's Hunter Beast Mastery", function()
+    root_tree:render("Eax's Hunter Beast Mastery", function()
 
         ps.render_controls(menu, "Eax's Hunter BM")
 
-        -- ── Rotation settings ─────────────────────────────────────────────
-        main_tree:render("  Rotation Settings", function()
+        -- -- Rotation settings ---------------------------------------------
+        main_tree:render("Rotation Settings", function()
             ps.header("Shots")
             menu.use_hunters_mark:render("Hunter's Mark",  "Apply Hunter's Mark for +AP. Apply OOC and on new targets.")
             menu.use_serpent_sting:render("Serpent Sting", "Maintain Serpent Sting DoT. Refreshed before 3 sec remain.")
@@ -142,8 +142,8 @@ function menu.render()
             menu.use_viper_sting:render("Viper Sting",     "Drain mana from caster targets.")
         end)
 
-        -- ── Pet ──────────────────────────────────────────────────────────
-        pet_tree:render("  Pet Settings", function()
+        -- -- Pet ----------------------------------------------------------
+        pet_tree:render("Pet Settings", function()
             ps.header("Pet Abilities")
             menu.use_kill_command:render("Kill Command",   "Send Kill Command off-GCD after melee attack.")
             menu.use_bestial_wrath:render("Bestial Wrath", "2-min burst. Casts at start of combat / on CD.")
@@ -157,8 +157,8 @@ function menu.render()
             menu.use_revive_pet:render("Revive Pet",      "Auto revive / call pet when dead (OOC only).")
         end)
 
-        -- ── Cooldowns ────────────────────────────────────────────────────
-        cd_tree:render("  Cooldowns & Aspects", function()
+        -- -- Cooldowns ----------------------------------------------------
+        cd_tree:render("Cooldowns & Aspects", function()
             ps.header("Offensive")
             menu.use_rapid_fire:render("Rapid Fire",     "3-min CD. Used on CD while in combat.")
             ps.header("Aspect of the Viper")
@@ -170,11 +170,11 @@ function menu.render()
             menu.use_pack_as_travel_aspect:render("Use Pack in Group", "Optional Pack only for dungeon/raid travel.")
         end)
 
-        -- ── Traps ────────────────────────────────────────────────────────
-        kite_tree:render("  Kiting & Traps", function()
+        -- -- Traps --------------------------------------------------------
+        kite_tree:render("Kiting & Traps", function()
             ps.header("Kiting")
             menu.use_concussive:render("Concussive Shot","Slow target when they enter melee range.")
-            menu.use_disengage:render("Disengage",       "Escape melee range. Used when target is ≤ 8 yd.")
+            menu.use_disengage:render("Disengage",       "Escape melee range. Used when target is <= 8 yd.")
             menu.use_deterrence:render("Deterrence",     "Emergency self-defensive cooldown when low HP.")
             menu.deterrence_hp:render("Deterrence HP %", "Trigger Deterrence below this health percent.")
             menu.use_feign_death:render("Feign Death",   "Emergency FD when health is critically low.")
@@ -198,7 +198,7 @@ function menu.render()
         ps.render_defensive(menu, def_tree, {})
         ps.render_targeting(menu, tgt_tree)
         ps.render_racial(menu, racial_tree)
-        ooc_tree:render("  Out of Combat", function()
+        ooc_tree:render("Out of Combat", function()
             ps.header("Sustain")
             menu.ooc_drink:render("Auto-Drink", "Drink to restore mana when out of combat")
             menu.drink_threshold:render("Drink Threshold %", "Start drinking below this mana percent")

@@ -1,7 +1,7 @@
 local plugin = {
-    name = "EAX Hunter Survival",
+    name = "Eax Hunter Survival",
     version = "1.0.0",
-    author = "EAX",
+    author = "Eax",
     load = true,
 }
 
@@ -11,7 +11,7 @@ if not local_player then
 end
 
 if local_player:get_class() ~= 3 then
-    core.log("[EAX Hunter Survival] Player is not Hunter; disabling addon.")
+    core.log("[Eax Hunter Survival] Player is not Hunter; disabling addon.")
     plugin.load = false
     return plugin
 end

@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Mage Fire
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Mage Fire
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -62,6 +62,8 @@ menu.use_scorch                           = core.menu.checkbox(true, "eax_mage_f
 menu.use_fireball                         = core.menu.checkbox(true, "eax_mage_fire_use_fireball")
 menu.use_pyroblast                        = core.menu.checkbox(true, "eax_mage_fire_use_pyroblast")
 menu.use_fire_blast_move                  = core.menu.checkbox(true, "eax_mage_fire_use_fire_blast_move")
+menu.use_remove_curse                     = core.menu.checkbox(true, "eax_mage_fire_use_remove_curse")
+menu.use_arcane_explosion                 = core.menu.checkbox(true, "eax_mage_fire_use_arcane_explosion")
 menu.scorch_stack_target                  = core.menu.slider_int(1, 5, 5, "eax_mage_fire_scorch_stack_target")
 menu.scorch_refresh_ms                    = core.menu.slider_int(500, 5000, 1500, "eax_mage_fire_scorch_refresh_ms")
 menu.use_combustion                       = core.menu.checkbox(true, "eax_mage_fire_use_combustion")
@@ -77,10 +79,10 @@ menu.flamestrike_enemy_count              = core.menu.slider_int(2, 10, 3, "eax_
 
 mana_conservator.register_menu_items(menu, "eax_mage_fire")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_scorch", label = "Scorch" },
@@ -90,7 +92,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_flamestrike", label = "Flamestrike" },
 }, {
     namespace = "eaxmagefire",
-    log_prefix = "[EAX Mage Fire] ",
+    log_prefix = "[Eax Mage Fire] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -105,17 +107,19 @@ function menu.render()
         ps.draw_space(_win, "eaxmagefire")
     end
 
-    root_tree:render("  Eax's Mage Fire", function()
+    root_tree:render("Eax's Mage Fire", function()
 
         ps.render_controls(menu, "Eax's Mage Fire")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_scorch:render("Scorch", "Maintain Fire Vulnerability stacks")
             menu.use_fireball:render("Fireball", "Primary filler spell")
             menu.use_pyroblast:render("Pyroblast", "Use Pyroblast during Combustion windows or whenever it is the configured opener")
             menu.use_fire_blast_move:render("Fire Blast While Moving", "Use Fire Blast as the moving fallback")
+            menu.use_remove_curse:render("Remove Curse", "Use Remove Curse on cursed allies during combat")
+            menu.use_arcane_explosion:render("Arcane Explosion", "Use Arcane Explosion for close-range AoE")
             menu.scorch_stack_target:render("Scorch Stack Target", "Desired Fire Vulnerability stack count")
             menu.scorch_refresh_ms:render("Scorch Refresh Window", "Refresh Scorch when the debuff is close to expiring")
             menu.use_combustion:render("Combustion", "Use Combustion in combat")

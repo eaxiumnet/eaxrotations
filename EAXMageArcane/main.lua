@@ -1,4 +1,4 @@
--- EAX Mage Arcane | main.lua
+-- Eax Mage Arcane | main.lua
 
 local menu = require("menu")
 local rotation_context = require("rotation_context")
@@ -127,13 +127,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -206,7 +204,9 @@ local runtime = {
     arcane_blast_id = nil,
     arcane_missiles_id = nil,
     arcane_power_id = nil,
+    arcane_explosion_id = nil,
     evocation_id = nil,
+    remove_curse_id = nil,
     fire_blast_id = nil,
     ice_block_id = nil,
     counterspell_id = nil,
@@ -241,15 +241,17 @@ local function resolve_spells()
     runtime.arcane_blast_id = utils.resolve_spell_id(spells.ARCANE_BLAST)
     runtime.arcane_missiles_id = utils.resolve_spell_id(spells.ARCANE_MISSILES)
     runtime.arcane_power_id = utils.resolve_spell_id(spells.ARCANE_POWER)
+    runtime.arcane_explosion_id = utils.resolve_spell_id(spells.ARCANE_EXPLOSION)
     runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
     runtime.counterspell_id = runtime.ooc_counterspell_id
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Mage Arcane] Resolved: AB=" .. tostring(runtime.arcane_blast_id)
+    core.log("[Eax Mage Arcane] Resolved: AB=" .. tostring(runtime.arcane_blast_id)
         .. " AM=" .. tostring(runtime.arcane_missiles_id)
         .. " AP=" .. tostring(runtime.arcane_power_id)
+        .. " AE=" .. tostring(runtime.arcane_explosion_id)
         .. " Evo=" .. tostring(runtime.evocation_id))
 end
 
@@ -332,6 +334,28 @@ local function is_valid_hostile_target(me, target)
     return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
 end
 
+local function get_target_ttd_seconds(target)
+    if not target or not ttd_tracker then return nil end
+    local ok, value = pcall(function() return ttd_tracker.get(target) end)
+    if not ok then return nil end
+    return tonumber(value)
+end
+
+local function get_spell_cast_time_seconds(spell_id, me)
+    if not spell_id or not mana_manager or not mana_manager.get_spell_cast_time_ms then return nil end
+    local ok, value = pcall(function() return mana_manager.get_spell_cast_time_ms(spell_id, me) end)
+    if not ok then return nil end
+    local ms = tonumber(value)
+    return ms and ms > 0 and (ms / 1000) or nil
+end
+
+local function target_will_die_before_cast_finishes(me, target, spell_id, buffer_s)
+    local ttd_s = get_target_ttd_seconds(target)
+    local cast_s = get_spell_cast_time_seconds(spell_id, me)
+    if not ttd_s or not cast_s then return false end
+    return ttd_s <= (cast_s + (buffer_s or 0.25))
+end
+
 local function is_within_range(a, b, max_range)
     if not a or not b or not max_range then
         return false
@@ -362,6 +386,52 @@ local function try_mana_gem(me)
         end
     end
 
+    return false
+end
+
+local function try_remove_curse(me)
+    if not menu.use_remove_curse or not menu.use_remove_curse:get_state() then return false end
+    if not runtime.remove_curse_id then
+        runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
+    end
+    if not runtime.remove_curse_id then return false end
+    if not me or not me:is_in_combat() then return false end
+    if me:is_moving() then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and not me:can_attack(obj) then
+            if utils.has_debuff(obj, spells.REMOVE_CURSE) and utils.can_cast_target(runtime.remove_curse_id, me, obj) then
+                if utils.cast_target(runtime.remove_curse_id, obj, "Remove Curse") then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function try_arcane_explosion(me, target)
+    if not menu.use_arcane_explosion or not menu.use_arcane_explosion:get_state() then return false end
+    if not runtime.arcane_explosion_id then return false end
+    if not me or not me:is_in_combat() then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if me:get_power(0) <= 0 then return false end
+    if utils.get_mana_pct(me) < 20 then return false end
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
+            if utils.is_close_to(obj, target, 10) then
+                count = count + 1
+                if count >= 3 then break end
+            end
+        end
+    end
+    if count < 3 then return false end
+    if utils.can_cast_hostile(runtime.arcane_explosion_id, me, target) then
+        return utils.cast_target_fast(runtime.arcane_explosion_id, target, "Arcane Explosion")
+    end
     return false
 end
 
@@ -485,6 +555,7 @@ local function try_arcane_blast(me, target)
     if not runtime.arcane_blast_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
+    if target_will_die_before_cast_finishes(me, target, runtime.arcane_blast_id, 0.35) then return false end
     if is_pending_cast(runtime.arcane_blast_id) or utils.is_spell_already_queued(runtime.arcane_blast_id) then return false end
     if not utils.can_cast_hostile(runtime.arcane_blast_id, me, target) then return false end
 
@@ -585,6 +656,43 @@ local function try_cone_of_cold(me, target)
     return false
 end
 
+local function try_remove_curse(me)
+    if not menu.use_remove_curse or not menu.use_remove_curse:get_state() then return false end
+    if not runtime.remove_curse_id then return false end
+    if not me or not me:is_in_combat() then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and not me:can_attack(obj) then
+            if utils.has_debuff(obj, spells.REMOVE_CURSE) and utils.can_cast_target(runtime.remove_curse_id, me, obj) then
+                if utils.cast_target(runtime.remove_curse_id, obj, "Remove Curse") then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function try_arcane_explosion(me, target)
+    if not menu.use_arcane_explosion or not menu.use_arcane_explosion:get_state() then return false end
+    if not runtime.arcane_explosion_id then return false end
+    if not me or not me:is_in_combat() then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if utils.get_mana_pct(me) < 20 then return false end
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) and is_within_range(me, obj, 10) then
+            count = count + 1
+            if count >= 3 then break end
+        end
+    end
+    if count < 3 then return false end
+    if utils.cast_target_fast(runtime.arcane_explosion_id, target, "Arcane Explosion") then return true end
+    return false
+end
+
 local function do_rotation(me, target)
     if mana_conservator.on_update(me, target, menu, utils) then return end
     if not is_gcd_ready() then return false end
@@ -605,14 +713,16 @@ local function do_rotation(me, target)
     -- Defensive abilities
     -- Interrupt
     if interrupt_manager.should_interrupt(target) then
-        interrupt_manager.try_interrupt(me, target, "mage", utils)
+        if interrupt_manager.try_interrupt(me, target, "mage", utils) then return true end
     end
 
     if defensive_manager.try_defensive(me, "mage", utils) then
         return true
     end
 
-    -- Threat fade protection — don't pull aggro from tank
+    if try_remove_curse(me) then return true end
+
+    -- Threat fade protection - don't pull aggro from tank
     local current_target = me:get_target()
     local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
     if ok and should_fade and dps_risk.should_drop_threat(dps_runtime.build_snapshot(me, current_target, encounter_manager, ttd_tracker)) then
@@ -621,6 +731,8 @@ local function do_rotation(me, target)
     end
 
     ttd_tracker.update(target)
+
+    if try_arcane_explosion(me, target) then return true end
 
     if (me:is_casting_spell() or me:is_channelling_spell()) and dps_risk.should_abort_commit(
         dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker),
@@ -824,7 +936,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Mage Arcane] Enabled"
+        local label = "Eax Mage Arcane] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -835,7 +947,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -866,7 +978,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -879,4 +991,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Mage Arcane] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Mage Arcane] Loaded " .. (_pi and _pi.plugin_version or "?"))

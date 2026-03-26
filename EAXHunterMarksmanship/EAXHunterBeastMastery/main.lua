@@ -1,5 +1,5 @@
 -- main.lua
--- EAX Hunter Beast Mastery | Full TBC Auto Rotation
+-- Eax Hunter Beast Mastery | Full TBC Auto Rotation
 -- Stolen from BRLite Hunter_tbc.lua + KPS
 
 local menu = require("menu")
@@ -61,7 +61,7 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Hunter BM] Resolved: AutoShot=" .. tostring(runtime.auto_shot_id)
+    core.log("[Eax Hunter BM] Resolved: AutoShot=" .. tostring(runtime.auto_shot_id)
         .. " AimedShot=" .. tostring(runtime.aimed_shot_id)
         .. " ArcaneShot=" .. tostring(runtime.arcane_shot_id)
         .. " SteadyShot=" .. tostring(runtime.steady_shot_id)
@@ -491,9 +491,9 @@ end
 local function on_control_panel()
     local elements = {}
     local toggle_key_code = menu.toggle_key:get_key_code()
-    local display_name = "[EAX Hunter Beast Mastery] Enable"
+    local display_name = "[Eax Hunter Beast Mastery] Enable"
     if toggle_key_code ~= 7 then
-        display_name = "[EAX Hunter Beast Mastery] Enable (" .. key_helper:get_key_name(toggle_key_code) .. ")"
+        display_name = "[Eax Hunter Beast Mastery] Enable (" .. key_helper:get_key_name(toggle_key_code) .. ")"
     end
     control_panel_utility:insert_toggle_(elements, display_name, menu.toggle_key)
     return elements

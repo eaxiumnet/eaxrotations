@@ -1,4 +1,4 @@
--- EAX Warrior Fury | utils.lua
+-- Eax Warrior Fury | utils.lua
 -- Helper functions validated against .api/core.lua, .api/game_object.lua,
 -- sylvanas-dev-docs-llm/pages/dev/api/auto-attack-helper.md,
 -- sylvanas-dev-docs-llm/pages/dev/api/game-object.md,
@@ -70,7 +70,7 @@ function utils.can_cast_hostile(spell_id, me, target)
     if not a or not b then return false end
     if a == b then return true end
     if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
-    -- GUID comparison is authoritative — two different mobs can share a name
+    -- GUID comparison is authoritative - two different mobs can share a name
     local function safe_guid(u)
         if type(u.get_guid) ~= "function" then return nil end
         local ok, g = pcall(function() return u:get_guid() end)
@@ -97,11 +97,14 @@ return utils.can_cast_target(spell_id, me, target)
 end
 
 
-local MODE_DETECT_INTERVAL_S = 5.0
+local MODE_DETECT_INTERVAL_S = 10.0
 local AUTO_TARGET_MAX_RANGE = 40.0
 local AUTO_TARGET_MAX_HOSTILES = 50
 local mode_cache = "solo"
 local mode_cache_refreshed_at = 0
+local hostile_scan_cache_at = -1
+local hostile_scan_cache_me = nil
+local hostile_scan_cache_units = nil
 
 function utils.detect_mode(me)
     local now = core.time()
@@ -187,30 +190,43 @@ function utils.find_best_target(me)
         return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
     end
 
-    local objects = core.object_manager.get_all_objects()
+    local now = core.time()
+    local hostile_units
+    if hostile_scan_cache_at == now and hostile_scan_cache_me == me and hostile_scan_cache_units then
+        hostile_units = hostile_scan_cache_units
+    else
+        hostile_units = {}
+        local objects = core.object_manager.get_all_objects()
+        local hostile_scanned = 0
+        for i = 1, #objects do
+            local obj = objects[i]
+            if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
+                hostile_scanned = hostile_scanned + 1
+                hostile_units[#hostile_units + 1] = obj
+                if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
+                    break
+                end
+            end
+        end
+        hostile_scan_cache_at = now
+        hostile_scan_cache_me = me
+        hostile_scan_cache_units = hostile_units
+    end
+
     local best_attacking_party = nil
     local best_any = nil
-    local hostile_scanned = 0
 
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
-            hostile_scanned = hostile_scanned + 1
+    for i = 1, #hostile_units do
+        local obj = hostile_units[i]
+        local obj_target = obj:get_target()
+        if obj_target and utils.same_unit(obj_target, me) then
+            return obj
+        end
 
-            local obj_target = obj:get_target()
-            if obj_target and utils.same_unit(obj_target, me) then
-                return obj
-            end
-
-            if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
-                best_attacking_party = obj
-            elseif not best_any then
-                best_any = obj
-            end
-
-            if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
-                break
-            end
+        if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
+            best_attacking_party = obj
+        elseif not best_any then
+            best_any = obj
         end
     end
 
@@ -451,7 +467,7 @@ end
 ---@param msg string
 function utils.log_debug(menu_ref, msg)
     if menu_ref.debug:get_state() then
-        core.log("[EAX Warrior Fury] " .. msg)
+        core.log("[Eax Warrior Fury] " .. msg)
     end
 end
 

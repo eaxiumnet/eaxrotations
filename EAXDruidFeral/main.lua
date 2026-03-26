@@ -1,4 +1,4 @@
--- EAX Druid Feral | main.lua
+-- Eax Druid Feral | main.lua
 -- Dual-lane cat and bear rotation logic with automatic form detection.
 
 local menu = require("menu")
@@ -134,13 +134,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -187,7 +185,7 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 
--- ── ESP Proc indicators ──────────────────────────────────────────────────────
+-- -- ESP Proc indicators ------------------------------------------------------
 -- Role-aware: cat procs only show in cat lane, bear/guardian procs in bear lane.
 -- Combo points shown as a 5-pip bar, not a simple on/off.
 
@@ -294,10 +292,13 @@ local ctx_cache = rotation_context.new({
 local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
+local POWER_TYPE_COMBO_POINTS = 4
+local BUFF_TYPE_CURSE = 4
+local spell_resolution_done = false
 
 -- Wire up HUD context now that runtime exists
 -- Energy pooling: at CP=4, wait for this much energy before the final Shred
--- so you can chain Shred → finisher without an energy gap.
+-- so you can chain Shred -> finisher without an energy gap.
 local ENERGY_POOL_FOR_SHRED = 75
 -- Ferocious Bite costs 35 energy per combo point (max 175 at 5 CP).
 local ENERGY_POOL_FOR_BITE = 175
@@ -305,6 +306,10 @@ local ENERGY_POOL_FOR_BITE = 175
 local function resolve_spells()
     runtime.cat_form_id = utils.resolve_spell_id(spells.CAT_FORM)
     runtime.bear_form_id = utils.resolve_spell_id(spells.BEAR_FORM)
+    runtime.dire_bear_form_id = utils.resolve_spell_id(spells.DIRE_BEAR_FORM)
+    core.log("[Eax Feral] cat_form_id=" .. tostring(runtime.cat_form_id)
+        .. " bear_form_id=" .. tostring(runtime.bear_form_id)
+        .. " dire_bear_form_id=" .. tostring(runtime.dire_bear_form_id))
     runtime.faerie_fire_feral_id = utils.resolve_spell_id(spells.FAERIE_FIRE_FERAL)
     runtime.mangle_cat_id = utils.resolve_spell_id(spells.MANGLE_CAT)
     runtime.rake_id = utils.resolve_spell_id(spells.RAKE)
@@ -344,7 +349,7 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Druid Feral] Resolved: CatMangle=" .. tostring(runtime.mangle_cat_id)
+    core.log("[Eax Druid Feral] Resolved: CatMangle=" .. tostring(runtime.mangle_cat_id)
         .. " Shred=" .. tostring(runtime.shred_id)
         .. " Rip=" .. tostring(runtime.rip_id)
         .. " BearMangle=" .. tostring(runtime.mangle_bear_id)
@@ -363,9 +368,6 @@ local function update_set_bonus(me)
         nordrassil_mult, nordrassil_harness_mult, malorne_mult,
         malorne_harness_mult, nordrassil_battle_mult, thunderheart_mult)
 end
-
-resolve_spells()
-log_resolved_spells()
 
 local function note_cast()
     runtime.last_cast_time = _core_time()
@@ -431,35 +433,6 @@ local function is_valid_hostile_target(me, target)
     return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
 end
 
--- Combo point sync.
--- Primary: me:get_power(4) — raw core API, combo points power type index 4.
--- get_combo_points_target() is used only for target validation, NOT for reading the count.
--- Calling get_power() on cp_obj (the mob) always returns 0 — CPs live on the player.
--- Fallback: me:combo_points_current() via izi_sdk if core API returns nothing.
--- Cast-callback counter remains active as last resort.
-local function sync_combo_target(me, target)
-    -- Read combo points from ME (the player) using the native game_object API.
-    -- Confirmed working: me:get_power(enums.power_type.COMBOPOINTS_TBC)
-    -- Key insight: must call on the PLAYER, not on cp_obj (the target).
-
-    -- Method 1: native game_object API, TBC-specific power type
-    local ok1, v1 = pcall(function() return me:get_power(enums.power_type.COMBOPOINTS_TBC) end)
-    if ok1 and type(v1) == "number" and v1 > 0 then
-        runtime.combo_points = v1
-        return
-    end
-
-    -- Method 2: native game_object API, retail enum fallback (COMBOPOINTS = 4)
-    local ok2, v2 = pcall(function() return me:get_power(enums.power_type.COMBOPOINTS) end)
-    if ok2 and type(v2) == "number" and v2 > 0 then
-        runtime.combo_points = v2
-        return
-    end
-
-    -- All methods returned 0 or failed, cast-callback counter stays active
-end
-
-
 local function get_requested_lane(me)
     local lane_idx = menu.lane:get()
     if lane_idx == 2 then return "cat" end
@@ -482,7 +455,7 @@ local function get_requested_lane(me)
     if mode == "solo" then return "cat" end
     local ok_r, role = pcall(function() return me:get_group_role() end)
     if not ok_r then role = 0 end
-    if role == 2 then return "guardian" end  -- tank role → guardian
+    if role == 2 then return "guardian" end  -- tank role -> guardian
     return "cat"
 end
 
@@ -509,7 +482,7 @@ local function try_shift_form(me, lane)
     local in_melee = target_valid and utils.is_melee_target(me, target)
 
     -- Break travel form immediately when a hostile target is explicitly selected
-    -- and we're ready to engage — don't wait for is_in_combat().
+    -- and we're ready to engage - don't wait for is_in_combat().
     -- Use me:get_target() directly (player's actual selected target) rather
     -- than find_best_target so we don't break form just because a mob exists nearby.
     local in_travel = utils.has_buff(me, spells.BUFF_TRAVEL_FORM)
@@ -530,7 +503,7 @@ local function try_shift_form(me, lane)
         if (_core_time() - runtime.bear_charge_shift_at) < charge_shift_hold then
             return false
         end
-        -- Also hold if we're already in bear form — feral charge may be about to fire
+        -- Also hold if we're already in bear form - feral charge may be about to fire
         -- (bear_charge_shift_at gets set on the tick AFTER try_shift_form runs,
         -- so we need this secondary check for the first tick in bear form)
         if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then
@@ -557,25 +530,27 @@ local function try_shift_form(me, lane)
     end
 
     -- Bear / Guardian lane: shift to bear form
-    -- For guardian (tank), skip the charge-range check — tank should always
+    -- For guardian (tank), skip the charge-range check - tank should always
     -- be in bear form regardless of distance.
     if lane == "bear" then
         if target_valid and not in_melee then
             if runtime.feral_charge_bear_id then
                 if not core.spell_book.is_spell_in_range(runtime.feral_charge_bear_id, target, me) then
-                    return false  -- too far even for charge — stay in current form
+                    return false  -- too far even for charge - stay in current form
                 end
             end
         end
     end
     -- Guardian: always shift to bear, no range restriction
 
-    if not runtime.bear_form_id or utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
-    if is_pending_cast(runtime.bear_form_id) then return false end
-    if not utils.can_cast_self(runtime.bear_form_id, me) then return false end
-    if utils.cast_self(runtime.bear_form_id, me) then
-        mark_pending_cast(runtime.bear_form_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Shift -> Bear Form")
+    local shift_id = runtime.dire_bear_form_id or runtime.bear_form_id
+    if not shift_id then return false end
+    if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then return false end
+    if is_pending_cast(shift_id) then return false end
+    if not utils.can_cast_self(shift_id, me) then return false end
+    if utils.cast_self(shift_id, me) then
+        mark_pending_cast(shift_id, PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, shift_id == runtime.dire_bear_form_id and "Shift -> Dire Bear Form" or "Shift -> Bear Form")
         note_cast()
         return true
     end
@@ -611,7 +586,7 @@ local function try_tigers_fury(me, target, ctx)
     if not can_cast then return false end
     if utils.get_energy(me) > menu.tigers_fury_energy:get() then return false end
     if utils.has_buff(me, spells.BUFF_TIGERS_FURY) then return false end
-    -- Never fire at high CP when a finisher is ready — the GCD is better spent
+    -- Never fire at high CP when a finisher is ready - the GCD is better spent
     -- on Rip or Ferocious Bite. Tiger's Fury is a builder-phase cooldown.
     if target then
         local target_hp_pct = utils.get_health_pct(target)
@@ -626,10 +601,10 @@ local function try_tigers_fury(me, target, ctx)
             and runtime.combo_points >= 5
         if rip_ready or bite_ready or killshot_mode then return false end
     end
-    -- Also avoid TF when at 4 CP and about to get the final builder —
+    -- Also avoid TF when at 4 CP and about to get the final builder -
     -- don't waste it on a Fury proc that gets immediately capped by a finisher
     if runtime.combo_points >= 4 then return false end
-    -- Don't fire immediately after opener (CP=0-1) — wait until mid-builder phase
+    -- Don't fire immediately after opener (CP=0-1) - wait until mid-builder phase
     -- so the damage bonus actually snapshots into meaningful hits
     if runtime.combo_points < 2 then
         if utils.get_energy(me) > (menu.tigers_fury_energy:get() / 2) then return false end
@@ -695,7 +670,7 @@ local function try_ferocious_bite(me, target, target_hp_pct, ctx)
     if not can_cast then return false end
 
     if target_hp_pct <= killshot_threshold then
-        -- Killshot mode: target is low enough to finish off — dump any CPs now
+        -- Killshot mode: target is low enough to finish off - dump any CPs now
         -- Skip the Rip check entirely; the mob is dying anyway
     else
         -- Normal mode: only spend CPs at max (5) as a finisher
@@ -815,11 +790,11 @@ end
 
 local function try_powershift(me)
     if not menu.use_powershift or not menu.use_powershift:get_state() then return false end
-    -- Must be in cat form but NOT stealthed — powershifting breaks stealth
+    -- Must be in cat form but NOT stealthed - powershifting breaks stealth
     if not utils.is_in_cat_form(me, spells) then return false end
     if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     local energy = utils.get_energy and utils.get_energy(me) or 100
-    -- Only powershift if we actually have energy to reset — firing at 0 gains nothing
+    -- Only powershift if we actually have energy to reset - firing at 0 gains nothing
     if energy <= 0 then return false end
     local threshold = has_wolfshead(me) and SHIFT_ENERGY_THRESHOLD or 15
     if energy >= threshold then return false end
@@ -899,7 +874,7 @@ local function try_rake(me, target)
         note_cast()
         return true
     end
-    -- Cast failed — clear the pending so we can retry sooner
+    -- Cast failed - clear the pending so we can retry sooner
     runtime.pending_casts[runtime.rake_id] = nil
     return false
 end
@@ -913,7 +888,7 @@ local function try_shred_or_filler(me, target, ctx)
     if menu.use_shred:get_state() and runtime.shred_id and cp < 5 then
         if utils.is_behind_target(me, target) then
             -- Energy pooling: if we're one builder from a finisher, wait for
-            -- enough energy to chain Shred → finisher without an energy gap.
+            -- enough energy to chain Shred -> finisher without an energy gap.
             if cp >= 4 and energy < ENERGY_POOL_FOR_SHRED then
                 return false  -- pool energy for the final Shred
             end
@@ -955,7 +930,7 @@ local function try_maim(me, target)
     if not menu.use_maim or not menu.use_maim:get_state() then return false end
     if not runtime.maim_id then return false end
     -- Maim is a CP finisher that happens to stun/interrupt.
-    -- NEVER drain low CPs on an interrupt — only cast when at max CPs (5)
+    -- NEVER drain low CPs on an interrupt - only cast when at max CPs (5)
     -- AND the target is casting something that needs to be stopped.
     -- This prevents Maim from starving Rip / Ferocious Bite.
     if runtime.combo_points < 5 then return false end
@@ -1025,9 +1000,9 @@ local function try_remove_curse_feral(me)
     for _, unit in ipairs(units) do
         local cache = buff_manager:get_debuff_cache(unit, 100)
         for _, aura in ipairs(cache) do
-            if aura.is_active and aura.buff_type == enums.buff_type.CURSE then
-                if utils.can_cast_hostile(runtime.remove_curse_id, me, unit) then
-                    if utils.cast_target(runtime.remove_curse_id, unit) then
+            if aura.is_active and aura.buff_type == BUFF_TYPE_CURSE then
+                if utils.can_cast_unit(runtime.remove_curse_id, me, unit) then
+                    if utils.cast_unit(runtime.remove_curse_id, me, unit) then
                         mark_pending_cast(runtime.remove_curse_id, PENDING_CAST_TIMEOUT_S)
                         utils.log_debug(menu, "Remove Curse -> " .. (unit.get_name and unit:get_name() or "ally"))
                         note_cast()
@@ -1042,8 +1017,8 @@ local function try_remove_curse_feral(me)
 end
 
 
--- ── Prowl ─────────────────────────────────────────────────────────────────
--- ── OOC Self-Heal ─────────────────────────────────────────────────────────
+-- -- Prowl -----------------------------------------------------------------
+-- -- OOC Self-Heal ---------------------------------------------------------
 -- When out of combat and HP is low, shift to caster form and cast Healing
 -- Touch to top up. Shifts back into the appropriate form on next tick via
 -- try_shift_form. Only fires when not already casting and not eating/drinking.
@@ -1053,7 +1028,7 @@ local function try_ooc_self_heal(me)
     if me:is_in_combat() then return false end
     local hp = me:get_health_percentage() / 100
     if hp >= (menu.ooc_self_heal_hp_pct:get() / 100) then return false end
-    -- Don't burn mana healing minor scratches — only heal if mana is healthy
+    -- Don't burn mana healing minor scratches - only heal if mana is healthy
     -- enough to afford it. Below 50% mana, save it for the next fight.
     local ok_mp, cur_mp = pcall(function()
         return me:get_power(0) / me:get_max_power(0)
@@ -1063,11 +1038,11 @@ local function try_ooc_self_heal(me)
     if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then
         return false
     end
-    -- Must be in caster form to cast — if in cat/bear/prowl, shift out first
+    -- Must be in caster form to cast - if in cat/bear/prowl, shift out first
     local in_animal = utils.is_in_cat_form(me, spells)
                    or utils.has_buff(me, spells.BUFF_BEAR_FORM)
     if in_animal then
-        -- Cancel form to enable healing — try_shift_form will re-enter on next tick
+        -- Cancel form to enable healing - try_shift_form will re-enter on next tick
         local ok = pcall(function()
             if CancelShapeshiftForm then CancelShapeshiftForm() end
         end)
@@ -1081,7 +1056,7 @@ local function try_ooc_self_heal(me)
         utils.log_debug(menu, "OOC self-heal: dropping form to cast")
         return false  -- cast next tick once in caster form
     end
-    -- Check mana floor — don't heal if we'll be left with nothing
+    -- Check mana floor - don't heal if we'll be left with nothing
     local mana_floor = menu.shift_mana_floor:get() / 100
     if mana_floor > 0 and utils.get_mana_pct(me) < mana_floor then return false end
     if is_pending_cast(runtime.healing_touch_id) then return false end
@@ -1099,7 +1074,7 @@ local function try_prowl(me)
     if not menu.use_prowl:get_state() then return false end
     if not runtime.prowl_id then return false end
     if me:is_in_combat() then return false end
-    -- Don't prowl if we still have combo points — means combat just ended
+    -- Don't prowl if we still have combo points - means combat just ended
     if runtime.combo_points > 0 then return false end
     if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     if not utils.is_in_cat_form(me, spells) then return false end
@@ -1124,13 +1099,13 @@ local function try_prowl(me)
     return false
 end
 
--- ── Pounce (stealth opener) ────────────────────────────────────────────────
+-- -- Pounce (stealth opener) ------------------------------------------------
 local function try_pounce(me, target)
     if not menu.use_pounce:get_state() then return false end
     if not runtime.pounce_id then return false end
     if not utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     if is_pending_cast(runtime.pounce_id) then return false end
-    -- Only pounce when in melee range — if we fire from too far the SpellQueue
+    -- Only pounce when in melee range - if we fire from too far the SpellQueue
     -- retries and double-casts. Let movement close the gap first.
     if not utils.is_melee_target(me, target) then return false end
     if not utils.can_cast_hostile(runtime.pounce_id, me, target) then return false end
@@ -1146,7 +1121,7 @@ local function try_pounce(me, target)
     return false
 end
 
--- ── Ravage (stealth, from front unlike Shred) ─────────────────────────────
+-- -- Ravage (stealth, from front unlike Shred) -----------------------------
 local function try_ravage(me, target)
     if not menu.use_ravage:get_state() then return false end
     if not runtime.ravage_id then return false end
@@ -1164,7 +1139,7 @@ local function try_ravage(me, target)
     return false
 end
 
--- ── Feral Charge (Cat) ────────────────────────────────────────────────────
+-- -- Feral Charge (Cat) ----------------------------------------------------
 local function try_dash(me)
     -- Dash: cat form sprint to close gap OOC or when target is far
     if not menu.use_feral_charge:get_state() then return false end
@@ -1183,7 +1158,7 @@ end
 local function try_feral_charge_bear(me, target)
     if not menu.use_feral_charge:get_state() then return false end
     if not runtime.feral_charge_bear_id then return false end
-    -- Never shift to bear OOC just to charge — only gap-close once already fighting
+    -- Never shift to bear OOC just to charge - only gap-close once already fighting
     if not me:is_in_combat() then return false end
     if utils.is_melee_target(me, target) then return false end
     -- Only shift to bear / attempt charge if the target is actually within
@@ -1213,7 +1188,7 @@ local function try_feral_charge_bear(me, target)
     return false
 end
 
--- ── Bash (Bear stun) ──────────────────────────────────────────────────────
+-- -- Bash (Bear stun) ------------------------------------------------------
 local function try_bash(me, target)
     if not menu.use_bash:get_state() then return false end
     if not runtime.bash_id then return false end
@@ -1229,9 +1204,9 @@ local function try_bash(me, target)
 end
 
 
--- ── Travel Form (OOC movement) ─────────────────────────────────────────────
+-- -- Travel Form (OOC movement) ---------------------------------------------
 
--- ── Innervate (OOC mana restore) ───────────────────────────────────────────
+-- -- Innervate (OOC mana restore) -------------------------------------------
 local function try_innervate(me)
     if not menu.use_innervate:get_state() then return false end
     if not runtime.innervate_id then return false end
@@ -1259,23 +1234,23 @@ local function try_travel_form(me)
     if me:is_in_combat() then return false end
     if me:is_mounted() then return false end
     if utils.has_buff(me, spells.BUFF_TRAVEL_FORM) then return false end
-    -- Never fight prowl — if stealthed or prowl just cast, back off entirely
+    -- Never fight prowl - if stealthed or prowl just cast, back off entirely
     if utils.is_prowling(me, spells.BUFF_PROWL) then return false end
     if runtime.prowl_id and is_pending_cast(runtime.prowl_id) then return false end
-    -- Don't shift to travel form if there's a hostile target selected — combat imminent
+    -- Don't shift to travel form if there's a hostile target selected - combat imminent
     local sel = me:get_target()
     if sel and sel:is_valid() and not sel:is_dead() and me:can_attack(sel) then
         return false
     end
     -- If in cat/bear form, we need to drop to caster form first before travel
     -- form becomes usable. But only drop form if prowl is NOT the intended
-    -- next action — if prowl is enabled and no target, prowl should win.
+    -- next action - if prowl is enabled and no target, prowl should win.
     local in_cat  = utils.is_in_cat_form(me, spells)
     local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM)
     if in_cat then
-        -- Cat form OOC with prowl enabled → let prowl handle it, not travel form
+        -- Cat form OOC with prowl enabled -> let prowl handle it, not travel form
         if menu.use_prowl:get_state() and runtime.prowl_id then return false end
-        -- Already waiting for form to drop — don't spam CancelShapeshiftForm
+        -- Already waiting for form to drop - don't spam CancelShapeshiftForm
         if runtime.cat_form_id and is_pending_cast(runtime.cat_form_id) then return false end
         -- Drop cat form so travel form can cast next tick
         local dropped = false
@@ -1313,7 +1288,7 @@ local function try_travel_form(me)
     return false
 end
 
--- ── Abolish Poison ─────────────────────────────────────────────────────────
+-- -- Abolish Poison ---------------------------------------------------------
 local function try_abolish_poison(me)
     if not menu.use_abolish_poison:get_state() then return false end
     if not runtime.abolish_poison_id then return false end
@@ -1336,7 +1311,7 @@ local function try_abolish_poison(me)
     return false
 end
 
--- ── Nature's Grasp ─────────────────────────────────────────────────────────
+-- -- Nature's Grasp ---------------------------------------------------------
 local function try_natures_grasp(me)
     if not menu.use_natures_grasp:get_state() then return false end
     if not runtime.natures_grasp_id then return false end
@@ -1351,7 +1326,7 @@ local function try_natures_grasp(me)
 end
 
 
--- ── Barkskin ───────────────────────────────────────────────────────────────
+-- -- Barkskin ---------------------------------------------------------------
 local function try_barkskin(me)
     if not menu.use_barkskin:get_state() then return false end
     if not runtime.barkskin_id then return false end
@@ -1367,7 +1342,7 @@ local function try_barkskin(me)
     return false
 end
 
--- ── Claw (builder when Shred not available / not behind) ───────────────────
+-- -- Claw (builder when Shred not available / not behind) -------------------
 try_claw = function(me, target)
     if not menu.use_claw or not menu.use_claw:get_state() then return false end
     if not runtime.claw_id then return false end
@@ -1381,7 +1356,7 @@ try_claw = function(me, target)
     return false
 end
 
--- ── Helpers for smart CC decisions ───────────────────────────────────────
+-- -- Helpers for smart CC decisions ---------------------------------------
 
 -- Count enemies in melee range hitting me or party
 local function count_melee_attackers(me)
@@ -1407,7 +1382,7 @@ end
 local HEALER_CLASSES = { [2]=true, [5]=true, [7]=true, [11]=true } -- Paladin, Priest, Shaman, Druid
 local function is_healer(unit)
     if not unit or not unit:is_valid() then return false end
-    -- Only evaluate players — NPCs don't have meaningful healer roles
+    -- Only evaluate players - NPCs don't have meaningful healer roles
     local ok_p, is_p = pcall(function() return unit:is_player() end)
     if not (ok_p and is_p) then return false end
     local ok_r, role = pcall(function() return unit:get_group_role() end)
@@ -1445,7 +1420,7 @@ local function is_kiting(me, target)
     return moving and not utils.is_melee_target(me, target)
 end
 
--- ── War Stomp (Tauren racial AoE stun) ────────────────────────────────────
+-- -- War Stomp (Tauren racial AoE stun) ------------------------------------
 local function try_war_stomp(me, target)
     if not menu.use_war_stomp or not menu.use_war_stomp:get_state() then return false end
     if not runtime.war_stomp_id then return false end
@@ -1453,7 +1428,7 @@ local function try_war_stomp(me, target)
     if not utils.is_melee_target(me, target) then return false end
     if is_pending_cast(runtime.war_stomp_id) then return false end
     if not utils.can_cast_self(runtime.war_stomp_id, me) then return false end
-    -- Never interrupt a finisher — CPs are too valuable to waste on a stomp
+    -- Never interrupt a finisher - CPs are too valuable to waste on a stomp
     local min_finisher_cp = 99
     if menu.use_rip:get_state() then
         min_finisher_cp = math.min(min_finisher_cp, menu.rip_combo_points:get())
@@ -1478,26 +1453,26 @@ local function try_war_stomp(me, target)
     return false
 end
 
--- ── Cyclone (CC vs healers actively healing enemies) ──────────────────────
+-- -- Cyclone (CC vs healers actively healing enemies) ----------------------
 local function try_cyclone(me, target)
     if not menu.use_cyclone or not menu.use_cyclone:get_state() then return false end
     if not runtime.cyclone_id then return false end
     if not target or not target:is_valid() or target:is_dead() then return false end
     if utils.same_unit(me, target) then return false end
     if not me:can_attack(target) then return false end
-    -- Cyclone is last resort — only cast when already in caster form.
+    -- Cyclone is last resort - only cast when already in caster form.
     -- Never shift out of cat/bear mid-rotation just to Cyclone.
     local in_cat  = utils.is_in_cat_form(me, spells)
     local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM)
     if in_cat or in_bear then return false end
-    -- Bash must be on cooldown — if Bash is available, use that instead
+    -- Bash must be on cooldown - if Bash is available, use that instead
     if runtime.bash_id then
         local bash_cd = _get_spell_cd(runtime.bash_id)
         if bash_cd <= 0 and core.spell_book.is_usable_spell(runtime.bash_id) then
             return false  -- Bash is available, don't waste a Cyclone
         end
     end
-    -- Only for healers actively casting heals on enemies — not generic casts
+    -- Only for healers actively casting heals on enemies - not generic casts
     if not is_healing_our_target(target, me) and not is_healer(target) then return false end
     if is_pending_cast(runtime.cyclone_id) then return false end
     if utils.has_debuff(target, spells.DEBUFF_CYCLONE) then return false end
@@ -1511,7 +1486,7 @@ local function try_cyclone(me, target)
     return false
 end
 
--- ── Entangling Roots (root kiting targets or casters running away) ─────────
+-- -- Entangling Roots (root kiting targets or casters running away) ---------
 local function try_entangling_roots(me, target)
     if not menu.use_entangling_roots or not menu.use_entangling_roots:get_state() then return false end
     if not runtime.entangling_roots_id then return false end
@@ -1539,7 +1514,7 @@ local function do_cat_rotation(me, target, ctx)
     if try_barkskin(me) then return true end
     if try_abolish_poison(me) then return true end
 
-    -- While stealthed: ONLY fire stealth openers — nothing else hostile.
+    -- While stealthed: ONLY fire stealth openers - nothing else hostile.
     -- Dash and Feral Charge must NOT run here; they break stealth before
     -- Pounce/Ravage can land.
     if in_stealth then
@@ -1560,8 +1535,8 @@ local function do_cat_rotation(me, target, ctx)
     if try_faerie_fire(me, target) then return true end
     if not utils.is_melee_target(me, target) then return false end
 
-    -- ── Omen of Clarity (Clearcasting proc) ──────────────────────────────────
-    -- Free next ability — spend it immediately on the highest-value action.
+    -- -- Omen of Clarity (Clearcasting proc) ----------------------------------
+    -- Free next ability - spend it immediately on the highest-value action.
     -- Priority: Shred (highest damage/CP) > Mangle (debuff maintenance) > Rake
     local has_clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
     if has_clearcasting and runtime.combo_points < 5 then
@@ -1590,14 +1565,14 @@ local function do_cat_rotation(me, target, ctx)
         end
     end
 
-    -- Finishers first — always spend CPs before anything else
+    -- Finishers first - always spend CPs before anything else
     if try_rip(me, target, ctx) then return true end
     if try_ferocious_bite(me, target, target_hp_pct, ctx) then return true end
     -- Maim: only at CP=5 when target is casting and Rip is not the right choice
     if try_maim(me, target) then return true end
     -- Tiger's Fury: energy recovery, fires during builder phase (CP < 4)
     if try_tigers_fury(me, target, ctx) then return true end
-    -- Builder priority: Mangle (debuff) → Rake (bleed) → Shred/Claw
+    -- Builder priority: Mangle (debuff) -> Rake (bleed) -> Shred/Claw
     if try_mangle_cat(me, target, ctx) then return true end
     if try_rake(me, target) then return true end
     if try_rake_trick(me, target) then return true end
@@ -1638,7 +1613,7 @@ local function try_frenzied_regeneration(me)
     if utils.has_buff(me, spells.BUFF_FRENZIED_REGENERATION) then return false end
 
     -- If we're in cat form (or caster), shift to bear first so we can use Frenzied Regen.
-    -- Only do this in combat — no point emergency-shifting while OOC.
+    -- Only do this in combat - no point emergency-shifting while OOC.
     local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM)
     if not in_bear then
         if me:is_in_combat() and menu.auto_form:get_state() and runtime.bear_form_id then
@@ -1736,7 +1711,7 @@ end
 local function try_demoralizing_roar(me, target)
     if not menu.use_demoralizing_roar or not menu.use_demoralizing_roar:get_state() then return false end
     if not runtime.demoralizing_roar_id then return false end
-    -- Demoralizing Roar is an AoE — check nearby enemies, not just the target
+    -- Demoralizing Roar is an AoE - check nearby enemies, not just the target
     if utils.enemy_count_in_radius(me, 8) < 2 then return false end
     -- Use a generous remaining time so we don't recast constantly
     if utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEMORALIZING_ROAR) > 4000 then return false end
@@ -1810,12 +1785,12 @@ local function do_bear_rotation(me, target, ctx)
     return false
 end
 
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 -- GUARDIAN / TANK ABILITIES
--- ─────────────────────────────────────────────────────────────────────────────
+-- -----------------------------------------------------------------------------
 
 local function try_survival_instincts(me)
-    -- Survival Instincts (61336) is a WotLK spell — not available in TBC. No-op.
+    -- Survival Instincts (61336) is a WotLK spell - not available in TBC. No-op.
     return false
 end
 
@@ -1835,7 +1810,7 @@ local function try_enrage(me)
     return false
 end
 
--- Scan party members — return true if any are below the configured HP threshold
+-- Scan party members - return true if any are below the configured HP threshold
 local function party_member_in_danger(me)
     local threshold = menu.challenging_roar_party_hp_pct:get() / 100
     local objects = core.object_manager.get_all_objects()
@@ -1857,7 +1832,7 @@ local function try_challenging_roar(me)
     if not utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
     -- Only fire when a party member is being hammered
     if not party_member_in_danger(me) then return false end
-    -- Growl should be on cooldown first — Challenging Roar is the AoE fallback
+    -- Growl should be on cooldown first - Challenging Roar is the AoE fallback
     if runtime.growl_id then
         local growl_cd = _get_spell_cd(runtime.growl_id)
         if growl_cd <= 0 then return false end  -- growl is available, use that first
@@ -1912,13 +1887,13 @@ local function do_guardian_rotation(me, target, ctx)
     if try_frenzied_regeneration(me) then return true end
     if try_barkskin(me) then return true end
 
-    -- Rage generation — do this early so we have rage for abilities
+    -- Rage generation - do this early so we have rage for abilities
     if try_enrage(me) then return true end
 
     -- Gap closer / engage
     if try_feral_charge_bear(me, target) then return true end
 
-    -- AoE taunt — pull threat off party before anything else
+    -- AoE taunt - pull threat off party before anything else
     if try_challenging_roar(me) then return true end
     if try_taunt_off_party(me) then return true end
     -- Single target taunt on primary target
@@ -1930,7 +1905,7 @@ local function do_guardian_rotation(me, target, ctx)
 
     if try_demoralizing_roar(me, target) then return true end
 
-    -- Core threat rotation: Mangle → Lacerate stacks → Swipe AoE → Maul rage dump
+    -- Core threat rotation: Mangle -> Lacerate stacks -> Swipe AoE -> Maul rage dump
     if try_mangle_bear(me, target, ctx) then return true end
     if try_lacerate(me, target) then return true end
     if try_swipe(me, enemy_count, menu.guardian_swipe_enemy_count:get(), ctx) then return true end
@@ -1940,6 +1915,10 @@ local function do_guardian_rotation(me, target, ctx)
 end
 
 local function do_rotation(me, target)
+    local ok_cp, api_cp = pcall(function() return me:get_power(POWER_TYPE_COMBO_POINTS) end)
+    if ok_cp and type(api_cp) == "number" then
+        runtime.combo_points = math.max(0, math.min(5, api_cp))
+    end
     if not is_gcd_ready() then return false end
 
     ttd_tracker.update(target)
@@ -1965,24 +1944,16 @@ local function do_rotation(me, target)
         return false
     end
 
-    -- Sync combo points from API; fall back to cast-callback counter.
-    -- IMPORTANT: only zero the counter when we are certain the CPs are gone —
-    -- i.e. the target actually died or changed. Never zero just because
-    -- is_in_combat() briefly returned false (private servers drop the flag
-    -- between hits, which would wipe the counter mid-fight).
-    if me:is_in_combat() and target and target:is_valid() and not target:is_dead() then
-        sync_combo_target(me, target)
-    end
     -- Zero only on confirmed target death/change, not on combat-flag flicker
     do
         local ok, cp_obj = pcall(function() return me:get_combo_points_target() end)
         if ok and cp_obj and cp_obj:is_valid() then
-            -- CPs are on a live target — check if it changed
+            -- CPs are on a live target - check if it changed
             if target and not utils.same_unit(cp_obj, target) then
                 runtime.combo_points = 0
             end
         elseif ok and (not cp_obj or not cp_obj:is_valid()) then
-            -- No CP target at all — genuinely zero
+            -- No CP target at all - genuinely zero
             runtime.combo_points = 0
         end
     end
@@ -2246,14 +2217,14 @@ local function on_spell_cast(data)
 
     if CP_BUILDERS[sid] then
         -- Deduplicate: if ANY builder already incremented CP very recently,
-        -- skip. Uses a short 0.15s window — duplicate events from the same cast
+        -- skip. Uses a short 0.15s window - duplicate events from the same cast
         -- happen within the same frame (microseconds apart), not 0.5s later.
-        -- A longer window was blocking legitimate sequential builders (Rake → Mangle).
+        -- A longer window was blocking legitimate sequential builders (Rake -> Mangle).
         if (now - _last_cp_increment_time) < 0.15 then return end
         _last_cp_increment_time = now
 
         -- If this builder hit a different target than our current CP target,
-        -- the old CPs are gone — reset before incrementing on the new target.
+        -- the old CPs are gone - reset before incrementing on the new target.
         local ok, cp_obj = pcall(function() return me:get_combo_points_target() end)
         if ok and cp_obj and cp_obj:is_valid() and data.target and data.target:is_valid() then
             if not utils.same_unit(cp_obj, data.target) then
@@ -2261,14 +2232,10 @@ local function on_spell_cast(data)
                 utils.log_debug(menu, "[CP] target changed, reset to 0")
             end
         end
-        -- Try to read actual CP from the API first; fall back to +1 counter
-        local ok2, api_cp = pcall(function()
-            local v = me:get_combo_points()
-            if type(v) == "number" and v >= 0 then return v end
-            return nil
-        end)
-        if ok2 and api_cp then
-            runtime.combo_points = math.min(5, api_cp)
+        -- Cast callback is only a backup. Server CP sync in do_rotation() is authoritative.
+        local ok_cp, api_cp = pcall(function() return me:get_power(POWER_TYPE_COMBO_POINTS) end)
+        if ok_cp and type(api_cp) == "number" and api_cp >= 0 then
+            runtime.combo_points = math.max(0, math.min(5, api_cp))
         else
             runtime.combo_points = math.min(5, runtime.combo_points + 1)
         end
@@ -2286,6 +2253,11 @@ core.register_on_spell_cast_callback(on_spell_cast)
 core.register_on_update_callback(function()
     local me = _get_local_player()
     if not me then return end
+    if not spell_resolution_done then
+        resolve_spells()
+        log_resolved_spells()
+        spell_resolution_done = true
+    end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
 
     if utils.throttle("eaxdruidferal_mode_refresh", 5.0) then
@@ -2344,7 +2316,7 @@ core.register_on_update_callback(function()
         if try_remove_curse_feral(me) then return end
         if try_innervate(me) then return end
         if try_abolish_poison(me) then return end
-        -- Travel form last — prowl (fired in do_rotation below) takes priority,
+        -- Travel form last - prowl (fired in do_rotation below) takes priority,
         -- and travel form guards against active targets itself
         if try_travel_form(me) then return end
     end
@@ -2390,9 +2362,9 @@ core.register_on_update_callback(function()
     end
 
     -- Racial CDs
-    racial_manager.try_offensive(me)
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_offensive(me) then return true end
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "druid", utils) then
@@ -2432,7 +2404,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Druid Feral] Enabled"
+        local label = "Eax Druid Feral] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -2443,7 +2415,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -2474,7 +2446,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -2487,4 +2459,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Druid Feral] Loaded " .. (_pi and _pi.plugin_version or "?") .. "")
+core.log("[Eax Druid Feral] Loaded " .. (_pi and _pi.plugin_version or "?") .. "")

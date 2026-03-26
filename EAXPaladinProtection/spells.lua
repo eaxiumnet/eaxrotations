@@ -1,4 +1,4 @@
--- EAX PaladinProtection | spells.lua
+-- Eax PaladinProtection | spells.lua
 -- Rank tables and buff identifiers only.
 
 local spells = {}
@@ -15,6 +15,8 @@ spells.EXORCISM = { 27138, 879, 5614, 5615, 10312, 10313, 10314 }
 -- Healing
 spells.HOLY_LIGHT = { 27135, 25292, 10328, 10329, 3472, 1042, 1026, 639, 635 }
 spells.FLASH_OF_LIGHT = { 27137, 19943, 19942, 19941, 19940, 19939, 19750 }
+spells.CLEANSE = { 4987, 988, 3472 }
+spells.PURIFY = { 1152, 4987, 988 }
 
 -- Buffs
 spells.BLESSING_OF_MIGHT = { 25782, 27140, 27141, 19836, 19835, 19834, 19740 }

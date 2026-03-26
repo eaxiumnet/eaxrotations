@@ -1,5 +1,5 @@
 -- utils.lua
--- EAX Paladin Holy | Utility Functions
+-- Eax Paladin Holy | Utility Functions
 -- Shared helper functions
 
 ---@type spell_queue
@@ -154,7 +154,7 @@ end
 -- Max range for auto target acquisition.
 -- Covers melee + max gap-closer range. Units beyond this are ignored
 -- unless they are actively attacking us or party.
-local MODE_DETECT_INTERVAL_S = 5.0
+local MODE_DETECT_INTERVAL_S = 10.0
 local AUTO_TARGET_MAX_RANGE = 40.0
 local AUTO_TARGET_MAX_HOSTILES = 50
 local mode_cache = "solo"
@@ -340,7 +340,7 @@ end
 -- Debug logging
 function utils.log_debug(menu, message)
     if menu and menu.debug and menu.debug:get_state() then
-        core.log("[EAX Paladin Holy] " .. message)
+        core.log("[Eax Paladin Holy] " .. message)
     end
 end
 

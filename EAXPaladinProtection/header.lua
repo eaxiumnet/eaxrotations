@@ -1,5 +1,5 @@
 -- header.lua
--- EAX PaladinProtection | Header
+-- Eax PaladinProtection | Header
 -- Plugin metadata and load validation
 -- APIs validated against:
 --   .api/core.lua

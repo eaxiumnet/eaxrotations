@@ -1,4 +1,4 @@
--- EAX Priest Discipline | main.lua
+-- Eax Priest Discipline | main.lua
 -- Priority rotation that keeps shields, Renew, Power Infusion, and Pain Suppression ready.
 
 local menu = require("menu")
@@ -216,6 +216,8 @@ local resolved = {
     power_infusion = utils.resolve_spell_id(spells.POWER_INFUSION),
     pain_suppression = utils.resolve_spell_id(spells.PAIN_SUPPRESSION),
     prayer_of_mending = utils.resolve_spell_id(spells.PRAYER_OF_MENDING),
+    dispel_magic = utils.resolve_spell_id(spells.DISPEL_MAGIC),
+    cure_disease = utils.resolve_spell_id(spells.CURE_DISEASE),
 }
 runtime.pw_shield_id = resolved.shield
 runtime.inner_fire_id = resolved.inner_fire
@@ -434,6 +436,50 @@ local function try_prayer_of_mending(me)
     return false
 end
 
+local MAGIC_DISPEL_TYPE = 1
+local DISEASE_DISPEL_TYPE = 3
+
+local function get_dispel_target(me)
+    local current = me and me.get_target and me:get_target() or nil
+    if current and current:is_valid() and not current:is_dead() and utils.is_group_member(me, current) then
+        return current
+    end
+    local _, triage_target = resolve_disc_triage(me)
+    return triage_target
+end
+
+local function target_has_dispel_type(unit, dispel_type)
+    if not unit or not unit.get_debuffs then return false end
+    local ok, debuffs = pcall(function() return unit:get_debuffs() end)
+    if not ok or not debuffs then return false end
+    for _, debuff in ipairs(debuffs) do
+        if debuff and debuff.type == dispel_type then
+            return true
+        end
+    end
+    return false
+end
+
+local function try_dispel_magic(me)
+    if not resolved.dispel_magic or not menu.use_dispels or not menu.use_dispels:get_state() then
+        return false
+    end
+    local target = get_dispel_target(me)
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not target_has_dispel_type(target, MAGIC_DISPEL_TYPE) then return false end
+    return utils.cast_target(resolved.dispel_magic, target, nil) and true or false
+end
+
+local function try_cure_disease(me)
+    if not resolved.cure_disease or not menu.use_dispels or not menu.use_dispels:get_state() then
+        return false
+    end
+    local target = get_dispel_target(me)
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not target_has_dispel_type(target, DISEASE_DISPEL_TYPE) then return false end
+    return utils.cast_target(resolved.cure_disease, target, nil) and true or false
+end
+
 
 -- --- Power Word: Shield maintenance (v1.4) -------------------------------
 
@@ -565,6 +611,19 @@ local function should_cancel_disc_cast(me, target)
     return healer_triage.should_cancel_overheal(snapshot, {})
 end
 
+local function cancel_disc_overheal_cast(me, target)
+    if not should_cancel_disc_cast(me, target) then
+        return false
+    end
+
+    if SpellStopCasting then
+        SpellStopCasting()
+        return true
+    end
+
+    return false
+end
+
 reactive_adapter = {
     spec = "EAXPriestDiscipline",
     actions = {
@@ -599,16 +658,7 @@ reactive_adapter = {
         interrupt_control = { noop = "unsupported" },
         anti_overheal = {
             handler = function(_, action_deps)
-                if not should_cancel_disc_cast(action_deps.me, action_deps.current_target) then
-                    return false
-                end
-
-                if SpellStopCasting then
-                    SpellStopCasting()
-                    return true
-                end
-
-                return false
+                return cancel_disc_overheal_cast(action_deps.me, action_deps.current_target)
             end,
         },
         anti_aggro = {
@@ -694,13 +744,14 @@ core.register_on_update_callback(function()
 
     update_set_bonus(me)
 
+    local target = utils.find_best_target(me)
+
     -- Overheal Protection - cancel slow heals if target is healthy
-    if eax_utils.should_stopcasting(me, menu) then
-        if SpellStopCasting then SpellStopCasting() end
+    if cancel_disc_overheal_cast(me, target) then
+        return
     end
 
     -- Interrupt (PVP)
-    local target = utils.find_best_target(me)
     if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "priest", utils) then
             return
@@ -724,16 +775,19 @@ core.register_on_update_callback(function()
     end
 
     -- Racial CDs
-    racial_manager.try_offensive(me)
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_offensive(me) then return true end
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
     if defensive_manager.try_defensive(me, "priest", utils) then
         return
     end
 
-    -- Threat fade protection — don't pull aggro from tank
+    if try_dispel_magic(me) then return end
+    if try_cure_disease(me) then return end
+
+    -- Threat fade protection - don't pull aggro from tank
     local current_target = me:get_target()
     local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
     if ok and should_fade then
@@ -801,7 +855,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Priest Disc] Enabled"
+        local label = "Eax Priest Disc] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -811,7 +865,7 @@ if control_panel_utility then
     end)
 end
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -842,7 +896,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,

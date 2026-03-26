@@ -1,10 +1,10 @@
 -- header.lua
--- EAX Warlock Destruction | Header
+-- Eax Warlock Destruction | Header
 
 local plugin = {
-    ["name"] = "EAX Warlock Destruction",
+    ["name"] = "Eax Warlock Destruction",
     ["version"] = "1.0.0",
-    ["author"] = "EAX",
+    ["author"] = "Eax",
     ["load"] = true,
 }
 

@@ -1,5 +1,5 @@
 -- main.lua
--- EAX Shaman Restoration | TBC 2.4.3 - Full autonomous healer
+-- Eax Shaman Restoration | TBC 2.4.3 - Full autonomous healer
 --
 -- Covers: healing, mana management, totems, dispels, weapon buff,
 -- auto-attack, drinking, mana potions, reincarnation, DPS filler,
@@ -31,6 +31,7 @@ local menu   = require("menu")
 local rotation_context = require("rotation_context")
 local resource_gate = require("resource_gate")
 local spells = require("spells")
+local spell_downrank = require("eax_shared/spell_downrank")
 local utils  = require("utils")
 
 ---@type interrupt_manager
@@ -901,7 +902,10 @@ local function try_healing_wave(me, tank)
     local profile = get_mode_profile()
     local tank_threshold = math.min(menu.heal_tank_hp:get(), profile.heal_tank_hp) / 100.0
     if heal_engine.get_eff_pct(tank) > tank_threshold then return false end
-    return try_cast_ally(me, tank, rt.healing_wave_id, "Healing Wave")
+    local mana_pct = utils.get_mana_pct(me)
+    local hp_pct = heal_engine.get_eff_pct(tank)
+    local spell_id = spell_downrank.select_heal_rank(spells.HEALING_WAVE, hp_pct, mana_pct, {}) or rt.healing_wave_id
+    return try_cast_ally(me, tank, spell_id, "Healing Wave")
 end
 
 -- --- Dispels -----------------------------------------------------------------
@@ -938,7 +942,9 @@ local function try_lesser_healing_wave(me)
     local threshold = menu.heal_party_hp:get() / 100.0
     local entry = heal_engine.friends[1]
     if not entry or entry.eff_pct > threshold then return false end
-    return try_cast_ally(me, entry.unit, rt.lesser_healing_wave_id, "Lesser Healing Wave")
+    local mana_pct = utils.get_mana_pct(me)
+    local spell_id = spell_downrank.select_heal_rank(spells.LESSER_HEALING_WAVE, entry.eff_pct, mana_pct, {}) or rt.lesser_healing_wave_id
+    return try_cast_ally(me, entry.unit, spell_id, "Lesser Healing Wave")
 end
 
 local function unit_guid(unit)
@@ -1169,9 +1175,9 @@ local function do_rotation(me)
 
     -- -- Defensive abilities -------------------------------------------------
     -- Racial abilities
-    racial_manager.try_offensive(me)
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_offensive(me) then return true end
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     if defensive_manager.try_defensive(me, "shaman", utils) then
         return
@@ -1246,7 +1252,7 @@ resolve_spells()
 build_totem_rotation()
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1277,7 +1283,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1289,7 +1295,7 @@ do
     end
 end
 
-core.log("[EAX Shaman Restoration TBC] Loaded")
+core.log("[Eax Shaman Restoration TBC] Loaded")
 core.log("  CH=" .. tostring(rt.chain_heal_id)
     .. " HW="   .. tostring(rt.healing_wave_id)
     .. " NS="   .. tostring(rt.nature_s_swift_id)
@@ -1436,7 +1442,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "[EAX Shaman Restoration] Enabled"
+        local label = "[Eax Shaman Restoration] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end

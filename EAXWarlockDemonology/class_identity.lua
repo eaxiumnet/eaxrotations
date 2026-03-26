@@ -1,8 +1,8 @@
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  EAX Class Identity System  v1.0                                        ║
--- ║  Defines per-class and per-spec visual identities for all TBC classes.  ║
--- ║  Strictly uses documented Project Sylvanas API only.                    ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- +--------------------------------------------------------------------------+
+-- |  Eax Class Identity System  v1.0                                        |
+-- |  Defines per-class and per-spec visual identities for all TBC classes.  |
+-- |  Strictly uses documented Project Sylvanas API only.                    |
+-- +--------------------------------------------------------------------------+
 
 local identity = {}
 
@@ -12,7 +12,7 @@ local function c(r, g, b, a)
     return _color_api.new(r, g, b, a or 255)
 end
 
--- ── Class IDs (TBC class_id values) ─────────────────────────────────────────
+-- -- Class IDs (TBC class_id values) -----------------------------------------
 -- These match enums.class_id in the API
 identity.CLASS_IDS = {
     WARRIOR  = 1,
@@ -27,7 +27,7 @@ identity.CLASS_IDS = {
     DEATHKNIGHT = 6,  -- not in TBC but included for completeness
 }
 
--- ── Spec IDs (TBC spec_id values used in plugin_info) ────────────────────────
+-- -- Spec IDs (TBC spec_id values used in plugin_info) ------------------------
 identity.SPEC_IDS = {
     -- Warrior
     WARRIOR_ARMS      = 1,
@@ -68,14 +68,14 @@ identity.SPEC_IDS = {
     DRUID_RESTO       = 28,
 }
 
--- ── Color palette per class ───────────────────────────────────────────────────
+-- -- Color palette per class ---------------------------------------------------
 -- Each class has: panel, border_glow, border_dim, accent, accent_mid,
 --                 text_on, text_off, star_rgb, dust_rgb, mood_label
 --
 -- Colors drawn from authentic WoW class colors + TBC fantasy moods.
 local CLASS_PALETTES = {}
 
--- WARRIOR — Steel blue, iron, battle-hardened
+-- WARRIOR - Steel blue, iron, battle-hardened
 CLASS_PALETTES[identity.CLASS_IDS.WARRIOR] = {
     panel       = function() return c( 10, 14, 22, 250) end,
     panel_deep  = function() return c(  6,  8, 14, 240) end,
@@ -91,7 +91,7 @@ CLASS_PALETTES[identity.CLASS_IDS.WARRIOR] = {
     label = "WARRIOR",
 }
 
--- PALADIN — Holy gold, Light radiance, divine silver
+-- PALADIN - Holy gold, Light radiance, divine silver
 CLASS_PALETTES[identity.CLASS_IDS.PALADIN] = {
     panel       = function() return c( 20, 16,  8, 252) end,
     panel_deep  = function() return c( 14, 10,  4, 242) end,
@@ -107,7 +107,7 @@ CLASS_PALETTES[identity.CLASS_IDS.PALADIN] = {
     label = "PALADIN",
 }
 
--- HUNTER — Forest green, earthy brown, wild spirit
+-- HUNTER - Forest green, earthy brown, wild spirit
 CLASS_PALETTES[identity.CLASS_IDS.HUNTER] = {
     panel       = function() return c(  8, 18, 10, 252) end,
     panel_deep  = function() return c(  4, 10,  5, 242) end,
@@ -123,7 +123,7 @@ CLASS_PALETTES[identity.CLASS_IDS.HUNTER] = {
     label = "HUNTER",
 }
 
--- ROGUE — Dark shadows, poison yellow-green, obsidian
+-- ROGUE - Dark shadows, poison yellow-green, obsidian
 CLASS_PALETTES[identity.CLASS_IDS.ROGUE] = {
     panel       = function() return c(  8, 10,  8, 252) end,
     panel_deep  = function() return c(  4,  5,  4, 245) end,
@@ -139,7 +139,7 @@ CLASS_PALETTES[identity.CLASS_IDS.ROGUE] = {
     label = "ROGUE",
 }
 
--- PRIEST — Pure white-blue, holy light, shadow void
+-- PRIEST - Pure white-blue, holy light, shadow void
 CLASS_PALETTES[identity.CLASS_IDS.PRIEST] = {
     panel       = function() return c( 14, 14, 20, 252) end,
     panel_deep  = function() return c(  8,  8, 14, 245) end,
@@ -155,7 +155,7 @@ CLASS_PALETTES[identity.CLASS_IDS.PRIEST] = {
     label = "PRIEST",
 }
 
--- SHAMAN — Storm blue, lava orange, earth brown
+-- SHAMAN - Storm blue, lava orange, earth brown
 CLASS_PALETTES[identity.CLASS_IDS.SHAMAN] = {
     panel       = function() return c(  6, 14, 22, 252) end,
     panel_deep  = function() return c(  3,  8, 14, 245) end,
@@ -171,7 +171,7 @@ CLASS_PALETTES[identity.CLASS_IDS.SHAMAN] = {
     label = "SHAMAN",
 }
 
--- MAGE — Arcane cyan-blue, frost crystalline, fire ember
+-- MAGE - Arcane cyan-blue, frost crystalline, fire ember
 CLASS_PALETTES[identity.CLASS_IDS.MAGE] = {
     panel       = function() return c(  6, 16, 24, 252) end,
     panel_deep  = function() return c(  3, 10, 16, 245) end,
@@ -187,7 +187,7 @@ CLASS_PALETTES[identity.CLASS_IDS.MAGE] = {
     label = "MAGE",
 }
 
--- WARLOCK — Fel green-purple, shadow corruption, demonic
+-- WARLOCK - Fel green-purple, shadow corruption, demonic
 CLASS_PALETTES[identity.CLASS_IDS.WARLOCK] = {
     panel       = function() return c( 14,  8, 22, 252) end,
     panel_deep  = function() return c(  8,  4, 15, 245) end,
@@ -203,7 +203,7 @@ CLASS_PALETTES[identity.CLASS_IDS.WARLOCK] = {
     label = "WARLOCK",
 }
 
--- DRUID — Nature orange-yellow, moonkin celestial, shapeshifter
+-- DRUID - Nature orange-yellow, moonkin celestial, shapeshifter
 CLASS_PALETTES[identity.CLASS_IDS.DRUID] = {
     panel       = function() return c( 16,  9,  4, 252) end,
     panel_deep  = function() return c( 10,  5,  2, 240) end,
@@ -243,7 +243,7 @@ end
 _apply_visuals()
 
 
--- ── Spec accent overlays ──────────────────────────────────────────────────────
+-- -- Spec accent overlays ------------------------------------------------------
 -- Spec accents add a SECONDARY highlight color on top of the class palette.
 -- They control: proc highlights, ability group borders, active-spell glow.
 local SPEC_ACCENTS = {}
@@ -520,7 +520,7 @@ SPEC_ACCENTS[identity.SPEC_IDS.WARLOCK_DESTRUCTION] = {
 
 identity.SPEC_ACCENTS = SPEC_ACCENTS
 
--- ── Spec ability groups ───────────────────────────────────────────────────────
+-- -- Spec ability groups -------------------------------------------------------
 -- Maps spec_id -> ordered list of ability group definitions
 -- Each group: { label, role, spells = { "SpellName", ... }, priority }
 identity.SPEC_ABILITY_GROUPS = {}
@@ -551,7 +551,7 @@ identity.SPEC_ABILITY_GROUPS[identity.SPEC_IDS.DRUID_FERAL_BEAR] = {
       spells = { "Bash", "Feral Charge", "Challenging Roar" } },
 }
 
--- ── Lookup helpers ────────────────────────────────────────────────────────────
+-- -- Lookup helpers ------------------------------------------------------------
 
 -- Return the class palette for a given class_id (or default to warrior)
 function identity.get_class_palette(class_id)
@@ -581,15 +581,15 @@ end
 
 -- Mood flavor text used in panel headers
 identity.MOOD_LABELS = {
-    rage    = "⚔ Fury of Battle",
-    light   = "✦ Blessed by the Light",
-    hunt    = "◈ Hunter's Focus",
-    shadow  = "◆ From the Shadows",
-    holy    = "✧ Channel of the Light",
-    storm   = "⚡ Call of the Storm",
-    arcane  = "∞ Weave of Arcana",
-    fel     = "◉ Pact with Darkness",
-    nature  = "❧ One with Nature",
+    rage    = "Fury of Battle",
+    light   = "Blessed by the Light",
+    hunt    = "Hunter's Focus",
+    shadow  = "From the Shadows",
+    holy    = "Channel of the Light",
+    storm   = "Call of the Storm",
+    arcane  = "Weave of Arcana",
+    fel     = "Pact with Darkness",
+    nature  = "One with Nature",
 }
 
 return identity

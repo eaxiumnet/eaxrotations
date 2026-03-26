@@ -1,4 +1,4 @@
--- EAX Rogue Subtlety | spells.lua
+-- Eax Rogue Subtlety | spells.lua
 
 local spells = {}
 

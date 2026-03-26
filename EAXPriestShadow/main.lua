@@ -1,4 +1,4 @@
--- EAX Priest Shadow | main.lua
+-- Eax Priest Shadow | main.lua
 -- Damage automation that maintains VampiricTouch/Shadow Word: Pain and fires Mind Blast/Mind Flay.
 
 local menu = require("menu")
@@ -128,13 +128,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -204,6 +202,7 @@ local runtime = {
     dispersion_id = nil,
     resurrection_id = nil,
     flash_heal_id = nil,
+    silence_id = nil,
     mode_cache = "solo",
     last_mode_check = 0,
     last_mode_log = nil,
@@ -229,8 +228,16 @@ local resolved = {
     shadowfiend = utils.resolve_spell_id(spells.SHADOWFIEND),
     fade = utils.resolve_spell_id(spells.FADE),
     psychic_scream = utils.resolve_spell_id(spells.PSYCHIC_SCREAM),
+    silence = utils.resolve_spell_id(spells.SILENCE),
+    dispel_magic = utils.resolve_spell_id(spells.DISPEL_MAGIC),
     shadow_weaving_buff = 25423,
 }
+
+local function resolve_spells()
+    runtime.silence_id = utils.resolve_spell_id(spells.SILENCE)
+end
+
+resolve_spells()
 
 local function log_mode(mode)
     if menu.debug:get_state() and runtime.last_mode_log ~= mode then
@@ -283,7 +290,7 @@ local function refresh_dot(me, target, spell_id, debuff_ids)
     if not dot_manager.can_refresh_dot(target, debuff_ids, spell_id, utils.get_debuff_remaining_ms) then
         return false
     end
-    if utils.cast_target(spell_id, me, target) then note_cast() return true end
+    if utils.cast_target(spell_id, target) then note_cast() return true end
     return false
 end
 
@@ -345,6 +352,36 @@ local function try_psychic_scream(me, target)
     if not utils.can_cast_self(resolved.psychic_scream, me) then return false end
     if utils.cast_self(resolved.psychic_scream, me) then
         utils.log_debug(menu, "Psychic Scream (defensive)")
+        return true
+    end
+    return false
+end
+
+local function try_silence(me, target)
+    if not runtime.silence_id then
+        runtime.silence_id = utils.resolve_spell_id(spells.SILENCE)
+    end
+    if not runtime.silence_id or not target then return false end
+    if not target:is_valid() or target:is_dead() then return false end
+    if not target:is_casting_spell() and not target:is_channelling_spell() then return false end
+    if not interrupt_manager.should_interrupt(target) then return false end
+    if not me:can_attack(target) then return false end
+    if not utils.can_cast_hostile(runtime.silence_id, me, target) then return false end
+    if utils.cast_target(runtime.silence_id, me, target) then
+        utils.log_debug(menu, "Silence")
+        return true
+    end
+    return false
+end
+
+local function try_dispel_magic(me, target)
+    if not runtime.dispel_magic then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if enc and not enc.force_dispel and not menu.use_dispel_magic:get_state() then return false end
+    if not utils.can_cast_hostile(runtime.dispel_magic, me, target) then return false end
+    if utils.cast_target(runtime.dispel_magic, me, target) then
+        utils.log_debug(menu, "Dispel Magic")
         return true
     end
     return false
@@ -597,18 +634,25 @@ core.register_on_update_callback(function()
 
         -- Interrupt
         if interrupt_manager.should_interrupt(target) then
+            if try_silence(me, target) then
+                return
+            end
             if interrupt_manager.try_interrupt(me, target, "priest", utils) then
+                return
+            end
+        end
+
+        if (enc and enc.force_dispel) or menu.use_dispel_magic:get_state() then
+            if try_dispel_magic(me, target) then
                 return
             end
         end
 
         -- Racial CDs
         local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
-    if not hold_offense then
-        racial_manager.try_offensive(me)
-    end
-        racial_manager.try_utility(me, target)
-        racial_manager.try_defensive(me)
+    if not hold_offense and racial_manager.try_offensive(me) then return true end
+        if racial_manager.try_utility(me, target) then return true end
+        if racial_manager.try_defensive(me) then return true end
 
         -- Defensive abilities
     ttd_tracker.update(target)
@@ -618,7 +662,7 @@ core.register_on_update_callback(function()
             return
         end
 
-        -- Threat fade protection — don't pull aggro from tank
+        -- Threat fade protection - don't pull aggro from tank
         local current_target = me:get_target()
         local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
         if ok and should_fade and dps_risk.should_drop_threat(dps_runtime.build_snapshot(me, current_target, encounter_manager, ttd_tracker)) then
@@ -635,8 +679,8 @@ core.register_on_update_callback(function()
 
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_vampiric_embrace(me) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_inner_fire(me) then return end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.16) and refresh_dot(me, target, resolved.vampiric_touch, spells.DEBUFF_VAMPIRIC_TOUCH) then invalidate_ctx() return end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and refresh_dot(me, target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.16) and refresh_dot(target, resolved.vampiric_touch, spells.DEBUFF_VAMPIRIC_TOUCH) then invalidate_ctx() return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and refresh_dot(target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_devouring_plague(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_mind_blast(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_sw_death(me, target) then return end
@@ -672,7 +716,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Priest Shadow] Enabled"
+        local label = "Eax Priest Shadow] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -682,7 +726,7 @@ if control_panel_utility then
     end)
 end
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -713,7 +757,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,

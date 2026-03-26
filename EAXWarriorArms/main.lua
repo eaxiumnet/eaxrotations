@@ -1,4 +1,4 @@
--- EAX Warrior Arms | main.lua
+-- Eax Warrior Arms | main.lua
 -- Minimal Arms rotation helper that prioritizes Overpower, Mortal Strike, Slam weaving,
 -- Whirlwind stance dancing, and Execute while supporting Auto/Solo/Dungeon/Raid modes.
 
@@ -127,13 +127,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -571,10 +569,16 @@ local function try_thunder_clap(me, target, ctx)
     if not utils.is_melee_target(me, target) then
         return false
     end
-    -- Thunder Clap on Arms wastes rage on single target (debuff provided by tank anyway).
-    -- Only use on 3+ targets where the slow has AoE value.
+    -- Prefer Thunder Clap for AoE, but still allow group-mode single-target upkeep
+    -- when the debuff is missing.
     local nearby = count_nearby_enemies(me)
     if nearby < 3 then
+        local mode = get_effective_mode()
+        if mode == "solo" or utils.has_debuff(target, spells.DEBUFF_THUNDER_CLAP) then
+            return false
+        end
+    end
+    if nearby < 1 then
         return false
     end
     if not utils.can_cast_self(runtime.thunder_clap_id, me) then
@@ -825,10 +829,10 @@ local function do_utility_lane(me, target, mode, target_hp_pct)
     -- Racial offensive CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     if try_battle_shout(me) then
         return true
@@ -1000,9 +1004,9 @@ local function on_control_panel()
     local elements = {}
     
     local toggle_key_code = menu.toggle_key:get_key_code()
-    local display_name = "[EAX Warrior Arms] Enable"
+    local display_name = "[Eax Warrior Arms] Enable"
     if toggle_key_code ~= 7 then
-        display_name = "[EAX Warrior Arms] Enable (" .. key_helper:get_key_name(toggle_key_code) .. ")"
+        display_name = "[Eax Warrior Arms] Enable (" .. key_helper:get_key_name(toggle_key_code) .. ")"
     end
     control_panel_utility:insert_toggle_(elements, display_name, menu.toggle_key)
     
@@ -1075,7 +1079,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Warrior Arms] Enabled"
+        local label = "Eax Warrior Arms] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1085,19 +1089,19 @@ if control_panel_utility then
         if menu.use_cooldowns then
             local cur_war_cds = menu.use_cooldowns:get_state()
             local nxt_war_cds = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WAr] Cooldowns", cur_war_cds, 0, false, "eax_war_cds_cp")
+                elements, "[Eax WAr] Cooldowns", cur_war_cds, 0, false, "eax_war_cds_cp")
             if nxt_war_cds ~= cur_war_cds then menu.use_cooldowns:set(nxt_war_cds) end
         end
         if menu.focus_priority then
             local cur_war_focus = menu.focus_priority:get_state()
             local nxt_war_focus = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WAr] Focus Priority", cur_war_focus, 0, false, "eax_war_focus_cp")
+                elements, "[Eax WAr] Focus Priority", cur_war_focus, 0, false, "eax_war_focus_cp")
             if nxt_war_focus ~= cur_war_focus then menu.focus_priority:set(nxt_war_focus) end
         end
         if menu.use_racial then
             local cur_war_racial = menu.use_racial:get_state()
             local nxt_war_racial = control_panel_utility:insert_key_checkbox_(
-                elements, "[EAX WAr] Use Racial", cur_war_racial, 0, false, "eax_war_racial_cp")
+                elements, "[Eax WAr] Use Racial", cur_war_racial, 0, false, "eax_war_racial_cp")
             if nxt_war_racial ~= cur_war_racial then menu.use_racial:set(nxt_war_racial) end
         end
         end
@@ -1105,7 +1109,7 @@ if control_panel_utility then
     end)
 end
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1136,7 +1140,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,

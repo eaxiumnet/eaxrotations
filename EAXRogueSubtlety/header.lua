@@ -1,10 +1,10 @@
--- EAX Rogue Subtlety | header.lua
+-- Eax Rogue Subtlety | header.lua
 
 local plugin = {}
 
-plugin["name"] = "EAX Rogue Subtlety"
+plugin["name"] = "Eax Rogue Subtlety"
 plugin["version"] = "1.0.0"
-plugin["author"] = "EAX"
+plugin["author"] = "Eax"
 plugin["load"] = true
 
 local me = core.object_manager.get_local_player()

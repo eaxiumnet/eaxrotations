@@ -1,5 +1,5 @@
 -- spells.lua
--- EAX Paladin Holy | The Burning Crusade (patch 2.4.3)
+-- Eax Paladin Holy | The Burning Crusade (patch 2.4.3)
 
 local spells = {}
 

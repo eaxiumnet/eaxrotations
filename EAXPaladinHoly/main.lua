@@ -1,11 +1,12 @@
--- EAX Paladin Holy | main.lua
+-- Eax Paladin Holy | main.lua
 -- Callback registration, menu wiring, and healing logic for Holy Paladin.
--- APIs verified via docs/eax-family/API_LOOKUP_PLAYBOOK.md and existing EAX addons.
+-- APIs verified via docs/eax-family/API_LOOKUP_PLAYBOOK.md and existing Eax addons.
 
 local menu = require("menu")
 local rotation_context = require("rotation_context")
 local resource_gate = require("resource_gate")
 local spells = require("spells")
+local spell_downrank = require("eax_shared/spell_downrank")
 local utils = require("utils")
 
 if not utils.same_unit then
@@ -268,9 +269,14 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    
+    core.log("[Eax Paladin Holy] Spells resolved: HL=" .. tostring(runtime.holy_light_id)
+        .. " FoL=" .. tostring(runtime.flash_of_light_id)
+        .. " HS=" .. tostring(runtime.holy_shock_id)
+        .. " DI=" .. tostring(runtime.divine_illumination_id)
+        .. " Cleanse=" .. tostring(runtime.cleanse_id or runtime.purify_id))
+end
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -301,7 +307,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -311,13 +317,6 @@ do
             require("common/color").new(255, 80, 80, 255)
         )
     end
-end
-
-core.log("[EAX Paladin Holy] Spells resolved: HL=" .. tostring(runtime.holy_light_id)
-        .. " FoL=" .. tostring(runtime.flash_of_light_id)
-        .. " HS=" .. tostring(runtime.holy_shock_id)
-        .. " DI=" .. tostring(runtime.divine_illumination_id)
-        .. " Cleanse=" .. tostring(runtime.cleanse_id or runtime.purify_id))
 end
 
 local function is_gcd_ready()
@@ -673,6 +672,19 @@ local function should_cancel_paladin_cast(me, target)
     return healer_triage.should_cancel_overheal(snapshot, {})
 end
 
+local function cancel_paladin_overheal_cast(me, target)
+    if not should_cancel_paladin_cast(me, target) then
+        return false
+    end
+
+    if SpellStopCasting then
+        SpellStopCasting()
+        return true
+    end
+
+    return false
+end
+
 local function try_hand_of_freedom(me)
     if not menu.use_hand_of_freedom:get_state() then return false end
     if not runtime.hand_of_freedom_id then return false end
@@ -781,8 +793,28 @@ local function try_cleanse(me, target)
     if not cleanse_id or not menu.use_cleanse:get_state() then
         return false
     end
-    if has_dispellable_debuff(target) then
-        return try_cast_spell(cleanse_id, me, target, "Cleanse")
+    local candidates = gather_heal_candidates(me)
+    local best_target = nil
+    local best_hp_pct = nil
+
+    if target and target:is_valid() and not target:is_dead() and has_dispellable_debuff(target) then
+        best_target = target
+        best_hp_pct = utils.get_health_pct(target)
+    end
+
+    for i = 1, #candidates do
+        local unit = candidates[i]
+        if unit and unit:is_valid() and not unit:is_dead() and has_dispellable_debuff(unit) then
+            local hp_pct = utils.get_health_pct(unit)
+            if not best_target or (hp_pct and (not best_hp_pct or hp_pct < best_hp_pct)) then
+                best_target = unit
+                best_hp_pct = hp_pct
+            end
+        end
+    end
+
+    if best_target then
+        return try_cast_spell(cleanse_id, me, best_target, "Cleanse")
     end
     return false
 end
@@ -857,7 +889,12 @@ local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.18)
         and menu.use_holy_light:get_state() and runtime.holy_light_id and should_use_holy_light(target, hp_pct) then
-        if try_cast_spell(runtime.holy_light_id, me, target, "Holy Light") then
+        local mana_pct = utils.get_mana_pct(me)
+        local holy_light_id = spell_downrank.select_heal_rank(spells.HOLY_LIGHT, hp_pct, mana_pct, {
+            mana_threshold = 0.45,
+            target_hp_threshold = 0.70,
+        }) or runtime.holy_light_id
+        if try_cast_spell(holy_light_id, me, target, "Holy Light") then
             return true
         end
     end
@@ -865,8 +902,12 @@ local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08)
         and menu.use_flash_of_light:get_state() and runtime.flash_of_light_id then
         local threshold = menu.flash_of_light_hp_pct:get() / 100
-        if hp_pct <= threshold and try_cast_spell(runtime.flash_of_light_id, me, target, "Flash of Light") then
-            return true
+        if hp_pct <= threshold then
+            local mana_pct = utils.get_mana_pct(me)
+            local flash_of_light_id = spell_downrank.select_heal_rank(spells.FLASH_OF_LIGHT, hp_pct, mana_pct, {}) or runtime.flash_of_light_id
+            if try_cast_spell(flash_of_light_id, me, target, "Flash of Light") then
+                return true
+            end
         end
     end
 
@@ -925,8 +966,8 @@ local function on_update()
     if eax_utils.is_eating_or_drinking(me) then return end
 
     -- Stopcast on overheal risk for slow heals
-    if menu.overheal_protection:get_state() and eax_utils.should_stopcasting(me, menu) then
-        if SpellStopCasting then SpellStopCasting() end
+    if menu.overheal_protection:get_state() and cancel_paladin_overheal_cast(me, me:get_target()) then
+        return
     end
 
     -- Interrupt (PVP)
@@ -949,9 +990,9 @@ local function on_update()
 
     -- Defensive abilities
     -- Racial abilities
-    racial_manager.try_offensive(me)
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_offensive(me) then return true end
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     if try_divine_shield_emergency(me) then return true end
     if defensive_manager.try_defensive(me, "paladin", utils) then
@@ -1085,16 +1126,7 @@ reactive_adapter = {
         interrupt_control = { noop = "unsupported" },
         anti_overheal = {
             handler = function(_, action_deps)
-                if not should_cancel_paladin_cast(action_deps.me, action_deps.current_target) then
-                    return false
-                end
-
-                if SpellStopCasting then
-                    SpellStopCasting()
-                    return true
-                end
-
-                return false
+                return cancel_paladin_overheal_cast(action_deps.me, action_deps.current_target)
             end,
         },
         anti_aggro = { noop = "unsupported" },

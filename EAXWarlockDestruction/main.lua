@@ -1,5 +1,5 @@
 -- main.lua
--- EAX Warlock Destruction | Rotation logic
+-- Eax Warlock Destruction | Rotation logic
 
 local menu = require("menu")
 local rotation_context = require("rotation_context")
@@ -130,13 +130,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -193,6 +191,8 @@ local defensive_manager = require("defensive_manager")
 local mana_conservator = require("mana_conservator")
 ---@type dot_manager
 local dot_manager = require("dot_manager")
+local _mana_manager_ok, mana_manager = pcall(require, "mana_manager")
+if not _mana_manager_ok then mana_manager = nil end
 ---@type threat_manager
 local threat_manager = require("threat_manager")
 
@@ -230,18 +230,34 @@ local runtime = {
     current_curse_type = "none",
     set_multiplier = 1.0,
     last_immolate_cast_s = 0,
+    soul_shards_cache = {
+        count = 0,
+        updated_s = 0,
+    },
 }
 
 local ctx_cache = rotation_context.new({})
 
 local GCD_INTERVAL_S = 0.05
 local PENDING_CAST_TIMEOUT_S = 2.5
+local SOUL_SHARD_CACHE_TTL_S = 0.5
 local LIFE_TAP_MANA_PCT = 0.40
 local DRAIN_SOUL_HP_PCT = 0.25
 local SHADOWBURN_HP_PCT = 0.25
 local SOUL_FIRE_MIN_HP_PCT = 0.25
 local SEED_AOE_THRESHOLD = 3
 local IMMOLATE_RECAST_GUARD_S = 8.0
+local AOE_SNAPSHOT_TTL_S = 0.10
+
+local aoe_snapshot_cache = {
+    updated_s = 0,
+    me = nil,
+    target = nil,
+    radius = 0,
+    objects = {},
+    count = 0,
+    me_pos = nil,
+}
 
 local function resolve_spells()
     runtime.fel_armor_id = utils.resolve_spell_id(spells.FEL_ARMOR)
@@ -265,7 +281,7 @@ local function resolve_spells()
 end
 
 local function log_spells()
-    core.log("[EAX Warlock Destruction] Resolved spells: Curse=" .. tostring(runtime.curse_of_elements_id or runtime.curse_of_agony_id)
+    core.log("[Eax Warlock Destruction] Resolved spells: Curse=" .. tostring(runtime.curse_of_elements_id or runtime.curse_of_agony_id)
         .. " Immolate=" .. tostring(runtime.immolate_id)
         .. " Conflag=" .. tostring(runtime.conflagrate_id)
         .. " Incinerate=" .. tostring(runtime.incinerate_id)
@@ -304,6 +320,7 @@ end
 
 local function note_cast()
     runtime.last_cast_time = _core_time()
+    runtime.soul_shards_cache.updated_s = 0
     rotation_context.invalidate(ctx_cache)
 end
 
@@ -454,6 +471,80 @@ local function is_within_range(a, b, max_range)
     return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
 end
 
+local function get_target_ttd_seconds(target)
+    if not target or not ttd_tracker then return nil end
+    local ok, value = pcall(function() return ttd_tracker.get(target) end)
+    if not ok then return nil end
+    return tonumber(value)
+end
+
+local function get_spell_cast_time_seconds(spell_id, me)
+    if not spell_id then return nil end
+    if mana_manager and mana_manager.get_spell_cast_time_ms then
+        local ok, value = pcall(function() return mana_manager.get_spell_cast_time_ms(spell_id, me) end)
+        if ok then
+            local ms = tonumber(value)
+            if ms and ms > 0 then return ms / 1000 end
+        end
+    end
+    return nil
+end
+
+local function target_will_die_before_cast_finishes(me, target, spell_id, buffer_s)
+    local ttd_s = get_target_ttd_seconds(target)
+    local cast_s = get_spell_cast_time_seconds(spell_id, me)
+    if not ttd_s or not cast_s then return false end
+    return ttd_s <= (cast_s + (buffer_s or 0.25))
+end
+
+local function get_nearby_hostiles_snapshot(me, target, radius)
+    local now_s = _core_time()
+    local cache = aoe_snapshot_cache
+    if cache.updated_s > 0
+        and (now_s - cache.updated_s) <= AOE_SNAPSHOT_TTL_S
+        and cache.me == me
+        and cache.target == target
+        and cache.radius >= radius then
+        return cache
+    end
+
+    cache.updated_s = now_s
+    cache.me = me
+    cache.target = target
+    cache.radius = radius
+    cache.count = 0
+    cache.me_pos = me and me.get_position and me:get_position() or nil
+
+    local objects = cache.objects
+    for i = 1, #objects do
+        objects[i] = nil
+    end
+
+    local me_pos = cache.me_pos
+    local radius_sq = radius * radius
+    local all_objects = core.object_manager.get_all_objects()
+    for i = 1, #all_objects do
+        local obj = all_objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
+            local ok_pos, obj_pos = pcall(function() return obj:get_position() end)
+            if me_pos and ok_pos and obj_pos then
+                local dx = me_pos.x - obj_pos.x
+                local dy = me_pos.y - obj_pos.y
+                local dz = me_pos.z - obj_pos.z
+                if (dx * dx + dy * dy + dz * dz) <= radius_sq then
+                    cache.count = cache.count + 1
+                    objects[cache.count] = obj
+                end
+            elseif is_within_range(me, obj, radius) then
+                cache.count = cache.count + 1
+                objects[cache.count] = obj
+            end
+        end
+    end
+
+    return cache
+end
+
 local function try_fel_armor(me)
     if not menu.use_fel_armor or not menu.use_fel_armor:get_state() then
         return false
@@ -488,21 +579,13 @@ local function try_immolate(me, target)
     return false
 end
 
-local function try_shadowfury(me, target)
+local function try_shadowfury(me, target, snapshot)
     if enc and enc.hold_cooldowns then return false end
     if not menu.use_shadowfury:get_state() or not runtime.shadowfury_id then
         return false
     end
-    local enemy_count = 0
-    local objects = core.object_manager.get_all_objects()
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
-            if is_within_range(me, obj, 10) then
-                enemy_count = enemy_count + 1
-            end
-        end
-    end
+    snapshot = snapshot or get_nearby_hostiles_snapshot(me, target, 10)
+    local enemy_count = snapshot.count
     if not target:is_casting_spell() and enemy_count < SEED_AOE_THRESHOLD then
         return false
     end
@@ -533,38 +616,24 @@ end
 
 local function try_conflagrate(me, target, profile)
     if enc and enc.hold_cooldowns then return false end
-    if profile ~= "fire" and not me:is_moving() then
-        return false
-    end
     if not is_conflagrate_proc_ready(me, target) then
         return false
     end
     return try_cast_spell(me, runtime.conflagrate_id, target, "Conflagrate")
 end
 
-local function count_close_hostiles(me, radius)
-    local count = 0
-    local objects = core.object_manager.get_all_objects()
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
-            if is_within_range(me, obj, radius) then
-                count = count + 1
-            end
-        end
-    end
-    return count
+local function count_close_hostiles(me, radius, snapshot)
+    snapshot = snapshot or get_nearby_hostiles_snapshot(me, nil, radius)
+    return snapshot.count
 end
 
-local function count_seeded_targets(me, radius)
+local function count_seeded_targets(me, radius, snapshot)
+    snapshot = snapshot or get_nearby_hostiles_snapshot(me, nil, radius)
     local count = 0
-    local objects = core.object_manager.get_all_objects()
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
-            if is_within_range(me, obj, radius) and utils.has_debuff(obj, spells.DEBUFF_SEED_OF_CORRUPTION) then
-                count = count + 1
-            end
+    for i = 1, snapshot.count do
+        local obj = snapshot.objects[i]
+        if obj and utils.has_debuff(obj, spells.DEBUFF_SEED_OF_CORRUPTION) then
+            count = count + 1
         end
     end
     return count
@@ -573,6 +642,14 @@ end
 local function count_soul_shards()
     if not core or not core.inventory or not core.inventory.get_items_in_bag then
         return 0
+    end
+
+    local now_s = _core_time()
+    local me = _get_local_player()
+    local in_combat = me and me:is_in_combat()
+    local cache = runtime.soul_shards_cache
+    if in_combat and cache.updated_s > 0 and (now_s - cache.updated_s) <= SOUL_SHARD_CACHE_TTL_S then
+        return cache.count
     end
 
     local total = 0
@@ -593,16 +670,20 @@ local function count_soul_shards()
             end
         end
     end
-    return math.min(total, 3)
+    total = math.min(total, 3)
+    cache.count = total
+    cache.updated_s = in_combat and now_s or 0
+    return total
 end
 
-local function try_seed_of_corruption(me, target, enemy_count)
+local function try_seed_of_corruption(me, target, enemy_count, snapshot)
     if enc and not enc.aoe_safe then return false end
     if not menu.use_seed_of_corruption or not menu.use_seed_of_corruption:get_state() then return false end
     if not runtime.seed_of_corruption_id or enemy_count < SEED_AOE_THRESHOLD then return false end
     if me:is_moving() then return false end
 
-    local seeded_targets = count_seeded_targets(me, 12)
+    snapshot = snapshot or get_nearby_hostiles_snapshot(me, target, 12)
+    local seeded_targets = count_seeded_targets(me, 12, snapshot)
     if seeded_targets >= math.min(enemy_count, 3) and utils.has_debuff(target, spells.DEBUFF_SEED_OF_CORRUPTION) then
         return false
     end
@@ -638,6 +719,15 @@ local function get_selected_curse(me, target, mode)
     return runtime.curse_of_weakness_id, spells.DEBUFF_CURSE_OF_WEAKNESS, "Curse of Weakness", "weakness"
 end
 
+local function target_has_utility_curse(target)
+    return target and (
+        utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_WEAKNESS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_TONGUES)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_RECKLESSNESS)
+    )
+end
+
 local function try_apply_curse(me, target, mode)
     if not menu.use_curse or not menu.use_curse:get_state() then
         return false
@@ -645,6 +735,15 @@ local function try_apply_curse(me, target, mode)
 
     local curse_id, curse_debuffs, label, curse_type = get_selected_curse(me, target, mode)
     if not curse_id or not curse_debuffs then
+        return false
+    end
+    local selected_is_utility = curse_debuffs ~= spells.DEBUFF_CURSE_OF_AGONY and curse_debuffs ~= spells.DEBUFF_CURSE_OF_DOOM
+    local active_utility = target_has_utility_curse(target)
+    if selected_is_utility then
+        if active_utility and not utils.has_debuff(target, curse_debuffs) then
+            return false
+        end
+    elseif active_utility then
         return false
     end
     if not should_refresh_debuff(target, curse_debuffs, curse_id) then
@@ -668,6 +767,12 @@ local function try_shadowburn(me, target)
     if utils.get_health_pct(target) > SHADOWBURN_HP_PCT then
         return false
     end
+    local profile = get_profile()
+    local primary_nuke_id = (profile == "fire" and runtime.incinerate_id) or runtime.shadow_bolt_id or runtime.incinerate_id
+    local target_hp = utils.get_health_pct(target)
+    if target_hp > 0.10 and primary_nuke_id and not target_will_die_before_cast_finishes(me, target, primary_nuke_id, 0.35) then
+        return false
+    end
     if count_soul_shards() <= 0 then
         return false
     end
@@ -682,6 +787,9 @@ local function try_soul_fire(me, target)
         return false
     end
     if utils.get_health_pct(target) <= SOUL_FIRE_MIN_HP_PCT then
+        return false
+    end
+    if target_will_die_before_cast_finishes(me, target, runtime.soul_fire_id, 0.35) then
         return false
     end
     if count_soul_shards() <= 0 then
@@ -704,6 +812,9 @@ local function try_drain_soul(me, target)
 end
 
 local function try_nuke(me, target, profile)
+    if target_will_die_before_cast_finishes(me, target, profile == "fire" and runtime.incinerate_id or runtime.shadow_bolt_id, 0.35) then
+        return false
+    end
     if profile == "fire" and menu.use_incinerate:get_state() and runtime.incinerate_id then
         if try_cast_spell(me, runtime.incinerate_id, target, "Incinerate") then
             esp_renderer.on_cast(nil, "Incinerate", color.red(220))
@@ -814,7 +925,7 @@ local function try_summon_correct_pet(me, mode)
     if not spell_id then return false end
     if PET_REQUIRES_SHARD[desired] and count_soul_shards() < 1 then
         if utils.throttle("eax_destruction_pet_shard_warning", 10.0) then
-            core.log("[EAX Warlock Destruction] Cannot summon " .. desired .. ": need at least 1 Soul Shard.")
+            core.log("[Eax Warlock Destruction] Cannot summon " .. desired .. ": need at least 1 Soul Shard.")
             core.graphics.add_notification(
                 "eax_destruction_pet_shard_warning",
                 "[EAX] Pet Summon Blocked",
@@ -894,11 +1005,9 @@ local function do_rotation(me, target)
 
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
-    if not hold_offense then
-        racial_manager.try_offensive(me)
-    end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if not hold_offense and racial_manager.try_offensive(me) then return end
+    if racial_manager.try_utility(me, target) then return end
+    if racial_manager.try_defensive(me) then return end
 
     -- Defensive abilities
     ttd_tracker.update(target)
@@ -923,7 +1032,7 @@ local function do_rotation(me, target)
         return
     end
 
-    -- Threat fade protection — don't pull aggro from tank
+    -- Threat fade protection - don't pull aggro from tank
     if me:is_in_combat() then
         local current_target = me:get_target()
         local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
@@ -935,7 +1044,8 @@ local function do_rotation(me, target)
     
     local effective_mode = get_effective_mode()
     local profile = get_profile()
-    local enemy_count = count_close_hostiles(me, 12)
+    local nearby_snapshot = get_nearby_hostiles_snapshot(me, target, 12)
+    local enemy_count = count_close_hostiles(me, 12, nearby_snapshot)
 
     if try_summon_correct_pet(me, effective_mode) then
         return
@@ -944,10 +1054,10 @@ local function do_rotation(me, target)
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_fel_armor(me) then
         return
     end
-    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.18, 1.05)) and try_seed_of_corruption(me, target, enemy_count) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.18, 1.05)) and try_seed_of_corruption(me, target, enemy_count, nearby_snapshot) then
         return
     end
-    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.10, 1.00)) and try_shadowfury(me, target) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.10, 1.00)) and try_shadowfury(me, target, nearby_snapshot) then
         return
     end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.08, 0.95)) and try_apply_curse(me, target, effective_mode) then
@@ -1124,7 +1234,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Warlock Dest] Enabled"
+        local label = "Eax Warlock Dest] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1135,7 +1245,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1166,7 +1276,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1179,4 +1289,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Warlock Destruction] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Warlock Destruction] Loaded " .. (_pi and _pi.plugin_version or "?"))

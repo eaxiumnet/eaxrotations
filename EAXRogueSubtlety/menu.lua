@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Rogue Subtlety
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Rogue Subtlety
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -72,10 +72,10 @@ menu.finisher_combo_points                = core.menu.slider_int(3, 5, 4, "eaxro
 menu.main_hand_poison                     = core.menu.combobox(2, "eaxroguesubtlety_main_hand_poison")
 menu.off_hand_poison                      = core.menu.combobox(3, "eaxroguesubtlety_off_hand_poison")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_cheap_shot", label = "Cheap Shot" },
@@ -85,7 +85,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_preparation", label = "Preparation" },
 }, {
     namespace = "eaxroguesubtlety",
-    log_prefix = "[EAX Rogue Subtlety] ",
+    log_prefix = "[Eax Rogue Subtlety] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -100,12 +100,12 @@ function menu.render()
         ps.draw_space(_win, "eaxroguesubtlety")
     end
 
-    root_tree:render("  Eax's Rogue Subtlety", function()
+    root_tree:render("Eax's Rogue Subtlety", function()
 
         ps.render_controls(menu, "Eax's Rogue Subtlety")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_premeditation:render("Premeditation", "Build combo points before the opener")
             menu.use_cheap_shot:render("Cheap Shot", "Preferred control opener in dungeon and raid")

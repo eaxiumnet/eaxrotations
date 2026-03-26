@@ -1,5 +1,5 @@
 -- class_ui_init.lua  (auto-generated for EAXMageArcane)
--- Wires the correct class and spec identity into the EAX Class UI system.
+-- Wires the correct class and spec identity into the Eax Class UI system.
 -- require() this file ONCE at the top of menu.lua, before any theme calls.
 --
 -- To apply manually:

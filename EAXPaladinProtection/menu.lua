@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Paladin Protection
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Paladin Protection
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -62,6 +62,7 @@ menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxp
 menu.use_hand_of_freedom                  = core.menu.checkbox(true, "eaxpaladinprotection_use_hof")
 menu.use_hand_of_freedom_key              = core.menu.keybind(7, false, "eaxpaladinprotection_use_hof_key")
 menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinprotection_hof_slows")
+menu.use_dispels                          = core.menu.checkbox(false, "eaxpaladinprotection_use_dispels")
 -- ESP
 menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
 menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
@@ -82,10 +83,10 @@ menu.use_avengers_shield_key              = core.menu.keybind(7, false, "eaxpala
 menu.use_judgement                        = core.menu.checkbox(true, "eaxpaladinprot_use_judgement")
 menu.ooc_group_buff_key                   = core.menu.keybind(7, false, "eaxpaladinprot_ooc_group_buff_key")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 local _win  -- set once from main.lua via menu.set_window(win)
 
@@ -99,26 +100,27 @@ function menu.render()
         ps.draw_space(_win, "eaxpaladinprotection")
     end
 
-    root_tree:render("  Eax's Paladin Protection", function()
+    root_tree:render("Eax's Paladin Protection", function()
 
         settings.render_controls(menu, "Eax's Paladin Protection")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.show_notifications:render("Notifications", "Show short on-screen reminders")
             menu.use_righteous_fury:render("Righteous Fury", "Keep the threat buff active")
             menu.use_holy_shield:render("Holy Shield", "Maintain Holy Shield for mitigation and reflection")
-            menu.use_holy_shield_key:render("  Holy Shield Hotkey", "Toggle Holy Shield upkeep on/off")
+            menu.use_holy_shield_key:render("Holy Shield Hotkey", "Toggle Holy Shield upkeep on/off")
             menu.use_consecration:render("Consecration", "Cast Consecration when enough enemies are nearby")
-            menu.use_consecration_key:render("  Consecration Hotkey", "Toggle Consecration on/off")
+            menu.use_consecration_key:render("Consecration Hotkey", "Toggle Consecration on/off")
             menu.consecration_enemy_count:render("Consecration Count", "Minimum enemies within radius before Consecration")
             menu.consecration_radius:render("Consecration Radius", "Radius used when counting enemies for Consecration")
             menu.use_avengers_shield:render("Avenger's Shield", "Use Avenger's Shield when fighting from range")
-            menu.use_avengers_shield_key:render("  Avenger's Hotkey", "Toggle Avenger's Shield on/off")
+            menu.use_avengers_shield_key:render("Avenger's Hotkey", "Toggle Avenger's Shield on/off")
             menu.use_judgement:render("Judgement", "Apply Judgement of the Crusader once per target when ready")
-            menu.ooc_group_buff_key:render("  Blessings Hotkey", "Toggle group blessings on/off")
-            menu.use_hand_of_freedom_key:render("  Freedom Hotkey", "Toggle Hand of Freedom on/off")
+            menu.ooc_group_buff_key:render("Blessings Hotkey", "Toggle group blessings on/off")
+            menu.use_hand_of_freedom_key:render("Freedom Hotkey", "Toggle Hand of Freedom on/off")
+            menu.use_dispels:render("Cleanse", "Conservative friendly cleanse for poison/disease")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

@@ -42,6 +42,8 @@ local function get_spec_state(spec_name)
         pet_manager.state_by_spec[spec_name] = {
             state = STATE_IDLE,
             last_target_guid = nil,
+            engage_started_at = 0,
+            fight_started_at = 0,
             pet_spells_scanned = false,
             growl_id = nil,
             damage_id = nil,
@@ -146,6 +148,8 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
     local pet = pet_manager.get_pet(me)
     if not pet then
         st.state = STATE_IDLE
+        st.engage_started_at = 0
+        st.fight_started_at = 0
         return
     end
 
@@ -156,6 +160,8 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
     local pet_alive = pet_manager.pet_alive(pet)
     if not pet_alive then
         st.state = STATE_IDLE
+        st.engage_started_at = 0
+        st.fight_started_at = 0
         return
     end
 
@@ -164,6 +170,8 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
             core.input.set_pet_follow()
             st.last_follow = now
             st.state = STATE_IDLE
+            st.engage_started_at = 0
+            st.fight_started_at = 0
         end
         return
     end
@@ -183,6 +191,8 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
                 st.last_follow = now
             end
             st.state = STATE_IDLE
+            st.engage_started_at = 0
+            st.fight_started_at = 0
         end
         return
     end
@@ -195,6 +205,8 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
             core.input.set_pet_follow()
             st.last_follow = now
             st.state = STATE_IDLE
+            st.engage_started_at = 0
+            st.fight_started_at = 0
         end
         return
     end
@@ -210,15 +222,19 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
             if pet then pcall(function() pet:cast_spell(23145) end) end
             st.state = STATE_ENGAGING
             st.last_target_guid = target_guid
+            st.engage_started_at = now
+            st.fight_started_at = 0
         end
         return
     end
 
-    if st.last_target_guid ~= guid then
+    if st.last_target_guid ~= target_guid then
         local pet = pet_manager.get_pet(me)
         if pet then pcall(function() pet:cast_spell(23145) end) end
         st.last_target_guid = target_guid
         st.state = STATE_ENGAGING
+        st.engage_started_at = now
+        st.fight_started_at = 0
         return
     end
 
@@ -228,13 +244,21 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
             st.last_follow = now
         end
         st.state = STATE_RETREATING
+        st.fight_started_at = 0
         return
     end
 
     if pet_to_target_sq <= 25 then  -- 5^2 = 25
+        if st.state ~= STATE_FIGHTING then
+            st.fight_started_at = now
+        end
         st.state = STATE_FIGHTING
     else
+        if st.state ~= STATE_ENGAGING then
+            st.engage_started_at = now
+        end
         st.state = STATE_ENGAGING
+        st.fight_started_at = 0
     end
 
     if st.state == STATE_FIGHTING then
@@ -342,6 +366,8 @@ function pet_manager.pet_attack(me, target, st, now)
     if not ok or not guid then return end
     if st.last_target_guid == guid then return end
     st.last_target_guid = guid
+    st.engage_started_at = now
+    st.fight_started_at = 0
     local pet = pet_manager.get_pet(me)
     if pet then
         pcall(function() pet:cast_spell(23145) end)

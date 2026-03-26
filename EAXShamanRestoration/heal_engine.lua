@@ -1,12 +1,12 @@
 -- heal_engine.lua
--- EAX Shaman Restoration | Pre-sorted friend table with effective HP scoring
+-- Eax Shaman Restoration | Pre-sorted friend table with effective HP scoring
 --
 -- Builds one cached list per tick. All rotation decisions query this module
 -- instead of calling unit_helper:get_ally_list_around independently.
 --
 -- Effective HP formula (from BadRotations CalcHP):
 --   eff_hp  = raw_hp + incoming_heals + (absorb_shield * ABSORB_SCALAR) - heal_absorbs
---   eff_pct = eff_hp / max_hp                              (clamped 0–1)
+--   eff_pct = eff_hp / max_hp                              (clamped 0-1)
 --   Tanks get a configurable priority weight subtracted from eff_pct so they
 --   sort toward the top of the list even when tied with DPS at equal raw HP.
 --
@@ -184,7 +184,7 @@ function heal_engine.cluster_center(n_targets)
     return { x = cx, y = cy, z = cz }
 end
 
--- Set tank priority weight from the menu slider (0–25%)
+-- Set tank priority weight from the menu slider (0-25%)
 function heal_engine.set_tank_priority(weight_pct)
     tank_priority_weight = weight_pct / 100.0
 end

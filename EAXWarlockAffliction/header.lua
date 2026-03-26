@@ -1,11 +1,11 @@
 -- header.lua
--- EAX Warlock Affliction | Header
+-- Eax Warlock Affliction | Header
 -- Validate class/spec before loading the plugin.
 
 local plugin = {
-    ["name"] = "EAX Warlock Affliction",
+    ["name"] = "Eax Warlock Affliction",
     ["version"] = "1.0.0",
-    ["author"] = "EAX",
+    ["author"] = "Eax",
     ["load"] = true,
 }
 

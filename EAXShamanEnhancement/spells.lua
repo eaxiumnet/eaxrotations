@@ -1,5 +1,5 @@
 -- spells.lua
--- EAX Shaman Enhancement | Spell tables
+-- Eax Shaman Enhancement | Spell tables
 
 local spells = {}
 
@@ -12,6 +12,9 @@ spells.FLAME_SHOCK = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
 spells.FROST_SHOCK = { 25464, 10473, 10472, 8058, 8056 }
 spells.CHAIN_LIGHTNING = { 25442, 25439, 10605, 2860, 930, 421 }
 spells.LIGHTNING_BOLT = { 25449, 25448, 15208, 15207 }
+spells.PURGE = { 370, 8017 }
+spells.CURE_POISON = { 526, 528 }
+spells.CURE_DISEASE = { 2870, 528 }
 
 spells.WINDFURY_WEAPON = { 25505, 16362, 10486, 8235, 8232 }
 spells.FLAMETONGUE_WEAPON = { 25489, 16342, 16341, 16339, 8030, 8027, 8024 }

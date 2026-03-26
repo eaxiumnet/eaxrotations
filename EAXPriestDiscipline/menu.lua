@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Priest Discipline
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Priest Discipline
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -70,13 +70,14 @@ menu.power_infusion_threshold             = core.menu.slider_int(25, 75, 45, "ea
 menu.prayer_of_mending                    = core.menu.checkbox(true, "eax_priest_discipline_prayer_of_mending")
 menu.prayer_of_mending_threshold          = core.menu.slider_int(20, 80, 55, "eax_priest_discipline_prayer_of_mending_threshold")
 menu.overheal_protection                  = core.menu.checkbox(true, "eax_priest_discipline_overheal_protection")
+menu.use_dispels                          = core.menu.checkbox(true, "eax_priest_discipline_use_dispels")
 
 mana_conservator.register_menu_items(menu, "eax_priest_discipline")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "power_infusion_enabled", label = "Power Infusion" },
@@ -86,7 +87,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_power_word_shield_self", label = "PW Shield Self" },
 }, {
     namespace = "eaxpriestdiscipline",
-    log_prefix = "[EAX Priest Discipline] ",
+    log_prefix = "[Eax Priest Discipline] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -101,12 +102,12 @@ function menu.render()
         ps.draw_space(_win, "eaxpriestdiscipline")
     end
 
-    root_tree:render("  Eax's Priest Discipline", function()
+    root_tree:render("Eax's Priest Discipline", function()
 
         ps.render_controls(menu, "Eax's Priest Discipline")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.shield_threshold:render("Shield Threshold", "Shield allies when they drop below this percent")
             menu.renew_threshold:render("Renew Threshold", "Refresh Renew when allies fall below this percent")
@@ -117,6 +118,7 @@ function menu.render()
             menu.prayer_of_mending:render("Prayer of Mending", "Spread Prayer of Mending when Renew is already affecting the target")
             menu.prayer_of_mending_threshold:render("PoM Threshold", "Cast Prayer of Mending when an ally falls below this percent")
             menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
+            menu.use_dispels:render("Combat Dispels", "Allow Dispel Magic and disease cleanses on the current heal target")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

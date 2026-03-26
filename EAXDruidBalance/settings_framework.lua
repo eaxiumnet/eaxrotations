@@ -1,7 +1,7 @@
 --[[
     settings_framework.lua
     
-    EAX TBC Rotation Framework - Unified Settings Framework
+    Eax TBC Rotation Framework - Unified Settings Framework
     
     Provides consistent control panel organization across all specs.
     Standardizes categories, defaults, and tooltips.
@@ -158,7 +158,7 @@ local function get_major_toggle_log_prefix(menu)
 
     local class_name = state.class_name or "Unknown"
     local spec_name = state.spec_name or "unknown"
-    return "[EAX " .. class_name .. " " .. spec_name .. "] "
+    return "[Eax " .. class_name .. " " .. spec_name .. "] "
 end
 
 --------------------------------------------------------------------------------

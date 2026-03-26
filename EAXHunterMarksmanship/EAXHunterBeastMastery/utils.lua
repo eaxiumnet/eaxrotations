@@ -94,7 +94,7 @@ end
 
 function utils.log_debug(menu_module, message)
     if menu_module and menu_module.debug and menu_module.debug:get_state() then
-        core.log("[EAX Hunter] " .. tostring(message))
+        core.log("[Eax Hunter] " .. tostring(message))
     end
 end
 

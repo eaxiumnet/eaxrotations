@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Shaman Restoration
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Shaman Restoration
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -104,10 +104,10 @@ menu.mana_tide_mana_pct                   = core.menu.slider_int(20, 80, 50, "ma
 
 mana_conservator.register_menu_items(menu, "eax_shaman_restoration")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "auto_totems", label = "Auto Totems" },
@@ -117,7 +117,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_flametongue", label = "Flametongue" },
 }, {
     namespace = "eaxshamanrestoration",
-    log_prefix = "[EAX Shaman Restoration] ",
+    log_prefix = "[Eax Shaman Restoration] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -132,12 +132,12 @@ function menu.render()
         ps.draw_space(_win, "eaxshamanrestoration")
     end
 
-    root_tree:render("  Eax's Shaman Restoration", function()
+    root_tree:render("Eax's Shaman Restoration", function()
 
         ps.render_controls(menu, "Eax's Shaman Restoration")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.heal_tank_hp:render("Tank heal HP%", "Cast Healing Wave when tank effective HP falls below this")
             menu.heal_party_hp:render("Party heal HP%", "Chain Heal fires when enough party members are below this")
@@ -147,16 +147,16 @@ function menu.render()
             menu.use_cooldowns:render("Enable Cooldowns", "Master toggle for all cooldown abilities")
             menu.cooldowns_key:render("Cooldowns Hotkey", "")
             menu.use_natures_swiftness:render("Nature's Swiftness", "Off-GCD NS + instant Healing Wave when tank is critically low")
-            menu.ns_emergency_hp:render("  NS threshold HP%", "Only use NS when tank effective HP is at or below this")
+            menu.ns_emergency_hp:render("NS threshold HP%", "Only use NS when tank effective HP is at or below this")
             menu.use_bloodlust:render("Bloodlust / Heroism", "Auto-cast Bloodlust or Heroism")
-            menu.bloodlust_hp:render("  Lust at boss HP%", "Use Bloodlust when boss HP is at or below this (execute phase)")
-            menu.bloodlust_on_pull:render("  Lust on pull", "Also use Bloodlust at the start of combat (ignores HP threshold)")
+            menu.bloodlust_hp:render("Lust at boss HP%", "Use Bloodlust when boss HP is at or below this (execute phase)")
+            menu.bloodlust_on_pull:render("Lust on pull", "Also use Bloodlust at the start of combat (ignores HP threshold)")
             menu.auto_totems:render("Auto Totems", "Automatically place and refresh totems")
-            menu.auto_totem_mana_tide:render("  Mana Tide Totem", "Use proactively when mana drops below the configured threshold")
-            menu.auto_totem_healing_stream:render("  Healing Stream Totem", "Passive AoE healing - keep active in combat")
-            menu.auto_totem_wrath:render("  Totem of Wrath", "+3%% spell crit for the party when your group benefits from it")
-            menu.auto_totem_wrath_of_air:render("  Wrath of Air Totem", "5%% spell haste aura - enable if your spec has it")
-            menu.prepull_totems:render("  Pre-pull totems", "Place Healing Stream + support totems before combat when enemies are nearby")
+            menu.auto_totem_mana_tide:render("Mana Tide Totem", "Use proactively when mana drops below the configured threshold")
+            menu.auto_totem_healing_stream:render("Healing Stream Totem", "Passive AoE healing - keep active in combat")
+            menu.auto_totem_wrath:render("Totem of Wrath", "+3%% spell crit for the party when your group benefits from it")
+            menu.auto_totem_wrath_of_air:render("Wrath of Air Totem", "5%% spell haste aura - enable if your spec has it")
+            menu.prepull_totems:render("Pre-pull totems", "Place Healing Stream + support totems before combat when enemies are nearby")
             menu.use_totemic_recall:render("Totemic Recall", "Recall totems out of combat to recover a portion of their mana cost")
             menu.use_dispels:render("Cure Poison + Cure Disease", "Auto-dispel Poison and Disease from party members.\n")
             menu.enable_dps:render("Enable DPS Filler", "Cast offensive spells when party is stable and mana permits")
@@ -165,23 +165,23 @@ function menu.render()
             menu.use_interrupt:render("Earth Shock interrupt", "Interrupt dangerous casts with Earth Shock")
             menu.use_purge:render("Purge enemy buffs", "Strip one magic buff from hostile target")
             menu.ooc_self_heal:render("OOC Self-heal", "Cast Lesser Healing Wave on self when out of combat and injured")
-            menu.ooc_self_hp:render("  Heal below HP%", "")
+            menu.ooc_self_hp:render("Heal below HP%", "")
             menu.use_flametongue:render("Flametongue Weapon", "Keep Flametongue Weapon active on mainhand (spell power buff)")
             menu.use_auto_attack:render("Auto Attack", "Start melee auto-attacks when in combat with a target in range")
             menu.use_drink:render("Auto Drink", "Drink water out of combat when mana is below the threshold")
-            menu.drink_mana_pct:render("  Drink below mana%", "Start drinking when mana drops to or below this value")
+            menu.drink_mana_pct:render("Drink below mana%", "Start drinking when mana drops to or below this value")
             menu.use_mana_potion:render("Mana Potion", "Use Super Mana Potion / Major Mana Potion in combat when mana is low")
-            menu.mana_potion_pct:render("  Potion below mana%", "Use mana potion when in-combat mana drops to or below this value")
+            menu.mana_potion_pct:render("Potion below mana%", "Use mana potion when in-combat mana drops to or below this value")
             menu.use_reincarnation:render("Reincarnation (Ankh)", "Auto self-rez with Ankh when dead and the cooldown is ready")
             menu.pvp_mode:render("PvP Utilities", "Master toggle for PvP utilities such as Grounding, Tremor, and PvP Purge")
-            menu.pvp_use_grounding:render("  Grounding Totem (PvP)", "Place on cooldown to absorb targeted spells")
-            menu.pvp_use_tremor:render("  Tremor Totem (PvP)", "Place when a party member has fear, charm, or sleep")
-            menu.pvp_use_purge:render("  Purge (PvP)", "Strip 1 magic buff from your target in PvP utility mode")
+            menu.pvp_use_grounding:render("Grounding Totem (PvP)", "Place on cooldown to absorb targeted spells")
+            menu.pvp_use_tremor:render("Tremor Totem (PvP)", "Place when a party member has fear, charm, or sleep")
+            menu.pvp_use_purge:render("Purge (PvP)", "Strip 1 magic buff from your target in PvP utility mode")
             menu.tank_priority_weight:render("Tank priority weight%", "Effective-HP penalty applied to tanks so they sort above DPS.\n8 is a good default.")
             menu.mana_floor:render("Mana floor%", "Suppress Chain Heal and DPS filler below this mana level")
             menu.overheal_protection:render("Overheal Protection", "Cancel active Healing Wave if the target will be near-full when it lands")
             menu.mana_tide_timing:render("Proactive Mana Tide", "Use Mana Tide when mana drops below the threshold")
-            menu.mana_tide_mana_pct:render("  Mana Tide at mana%", "")
+            menu.mana_tide_mana_pct:render("Mana Tide at mana%", "")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

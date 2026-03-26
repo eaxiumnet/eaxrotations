@@ -1,5 +1,5 @@
 -- eax_utils.lua
--- EAX Universal Utilities - Local module for healers
+-- Eax Universal Utilities - Local module for healers
 -- Provides: Overheal Protection, Predictive Healing, Focus Priority, Combat Self HP, Mana Tide Timing
 
 ---@type unit_helper

@@ -1,4 +1,4 @@
--- EAX Paladin Retribution | spells.lua
+-- Eax Paladin Retribution | spells.lua
 -- Spell tables derived from TBC Classic aura IDs.
 
 local spells = {}
@@ -29,6 +29,8 @@ spells.DIVINE_SHIELD = { 642, 13874 }
 spells.BLESSING_OF_PROTECTION = { 1022, 5599, 5598, 1079 }
 spells.HAND_OF_FREEDOM = { 1044 }
 spells.BUFF_HAND_OF_FREEDOM = { 1044 }
+spells.CLEANSE = { 4987, 988, 3472 }
+spells.PURIFY = { 4987, 1152 }
 
 spells.LAY_ON_HANDS = { 633, 2810, 2808, 2807, 2806, 1998, 1997, 1996 }
 spells.HOLY_WRATH = { 2812 }

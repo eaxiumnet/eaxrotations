@@ -1,4 +1,4 @@
--- EAX Mage Fire | main.lua
+-- Eax Mage Fire | main.lua
 
 local menu = require("menu")
 local rotation_context = require("rotation_context")
@@ -129,13 +129,11 @@ local function visual_update_snapshot(me, target)
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
         smart_cast_manager.clear_all_pending()
-        smart_cast_manager.clear_all_pending()
     elseif (not in_combat) and _visual_runtime.in_combat then
         dps_meter.on_combat_end()
         _visual_runtime.in_combat = false
         _visual_runtime.last_me_hp_pct = nil
         _visual_runtime.last_target_hp_pct = nil
-        smart_cast_manager.reset()
         smart_cast_manager.reset()
     end
 
@@ -210,6 +208,8 @@ local runtime = {
     fireball_id = nil,
     pyroblast_id = nil,
     combustion_id = nil,
+    arcane_explosion_id = nil,
+    remove_curse_id = nil,
     mage_armor_id = nil,
     evocation_id = nil,
     fire_blast_id = nil,
@@ -240,6 +240,7 @@ local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 local function resolve_spells()
     runtime.mage_armor_id        = utils.resolve_spell_id(spells.MAGE_ARMOR)
+    runtime.arcane_explosion_id  = utils.resolve_spell_id(spells.ARCANE_EXPLOSION)
     runtime.blast_wave_id        = utils.resolve_spell_id(spells.BLAST_WAVE)
     runtime.dragons_breath_id    = utils.resolve_spell_id(spells.DRAGONS_BREATH)
     runtime.arcane_intellect_id  = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
@@ -253,9 +254,10 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Mage Fire] Resolved: Scorch=" .. tostring(runtime.scorch_id)
+    core.log("[Eax Mage Fire] Resolved: Scorch=" .. tostring(runtime.scorch_id)
         .. " Fireball=" .. tostring(runtime.fireball_id)
         .. " Pyro=" .. tostring(runtime.pyroblast_id)
+        .. " AE=" .. tostring(runtime.arcane_explosion_id)
         .. " Comb=" .. tostring(runtime.combustion_id))
 end
 
@@ -335,6 +337,28 @@ local function is_valid_hostile_target(me, target)
     return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
 end
 
+local function get_target_ttd_seconds(target)
+    if not target or not ttd_tracker then return nil end
+    local ok, value = pcall(function() return ttd_tracker.get(target) end)
+    if not ok then return nil end
+    return tonumber(value)
+end
+
+local function get_spell_cast_time_seconds(spell_id, me)
+    if not spell_id or not mana_manager or not mana_manager.get_spell_cast_time_ms then return nil end
+    local ok, value = pcall(function() return mana_manager.get_spell_cast_time_ms(spell_id, me) end)
+    if not ok then return nil end
+    local ms = tonumber(value)
+    return ms and ms > 0 and (ms / 1000) or nil
+end
+
+local function target_will_die_before_cast_finishes(me, target, spell_id, buffer_s)
+    local ttd_s = get_target_ttd_seconds(target)
+    local cast_s = get_spell_cast_time_seconds(spell_id, me)
+    if not ttd_s or not cast_s then return false end
+    return ttd_s <= (cast_s + (buffer_s or 0.25))
+end
+
 local function is_within_range(a, b, max_range)
     if not a or not b or not max_range then
         return false
@@ -399,6 +423,7 @@ local function try_pyroblast(me, target)
     if me:is_moving() then return false end
 
     if runtime.combustion_id and not utils.has_buff(me, spells.BUFF_COMBUSTION) then return false end
+    if target_will_die_before_cast_finishes(me, target, runtime.pyroblast_id, 0.35) then return false end
     if is_pending_cast(runtime.pyroblast_id) or utils.is_spell_already_queued(runtime.pyroblast_id) then return false end
     if not utils.can_cast_hostile(runtime.pyroblast_id, me, target) then return false end
 
@@ -459,6 +484,7 @@ local function try_fireball(me, target)
     if not runtime.fireball_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
+    if target_will_die_before_cast_finishes(me, target, runtime.fireball_id, 0.35) then return false end
     if is_pending_cast(runtime.fireball_id) or utils.is_spell_already_queued(runtime.fireball_id) then return false end
     if not utils.can_cast_hostile(runtime.fireball_id, me, target) then return false end
 
@@ -545,6 +571,43 @@ local function try_flamestrike(me, target)
         return true
     end
     return false
+end
+
+local function try_remove_curse(me)
+    if not menu.use_remove_curse or not menu.use_remove_curse:get_state() then return false end
+    if not runtime.remove_curse_id then runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE) end
+    if not runtime.remove_curse_id then return false end
+    if not me or not me:is_in_combat() then return false end
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and not me:can_attack(obj) then
+            if utils.has_debuff(obj, spells.REMOVE_CURSE) and utils.can_cast_target(runtime.remove_curse_id, me, obj) then
+                if utils.cast_target(runtime.remove_curse_id, obj, "Remove Curse") then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function try_arcane_explosion(me, target)
+    if not menu.use_arcane_explosion or not menu.use_arcane_explosion:get_state() then return false end
+    if not runtime.arcane_explosion_id then return false end
+    if not me or not me:is_in_combat() then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    if utils.get_mana_pct(me) < 20 then return false end
+    local count = 0
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) and is_within_range(me, obj, 10) then
+            count = count + 1
+            if count >= 3 then break end
+        end
+    end
+    if count < 3 then return false end
+    return utils.cast_target_fast(runtime.arcane_explosion_id, target, "Arcane Explosion")
 end
 
 
@@ -640,12 +703,13 @@ local function do_rotation(me, target)
     -- Racial CDs
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
     if not hold_offense then
-        racial_manager.try_offensive(me)
+        if racial_manager.try_offensive(me) then return true end
     end
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_utility(me, target) then return true end
+    if racial_manager.try_defensive(me) then return true end
+    if try_remove_curse(me) then return true end
 
-    -- Threat fade protection — don't pull aggro from tank
+    -- Threat fade protection - don't pull aggro from tank
     local current_target = me:get_target()
     local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
     if ok and should_fade and dps_risk.should_drop_threat(dps_runtime.build_snapshot(me, current_target, encounter_manager, ttd_tracker)) then
@@ -686,6 +750,7 @@ local function do_rotation(me, target)
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.12, 1.00)) and try_dragons_breath(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.10, 1.05)) and not hold_offense and try_combustion(me, target) then return true end
     if not hold_offense and try_trinkets(me) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.20, 1.00)) and try_arcane_explosion(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.25, 1.05)) and try_flamestrike(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.18, runtime.is_execute and 1.30 or 1.20)) and try_pyroblast(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.08, 1.00)) and try_scorch(me, target) then return true end
@@ -871,7 +936,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Mage Fire] Enabled"
+        local label = "Eax Mage Fire] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -882,7 +947,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -913,7 +978,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -926,4 +991,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Mage Fire] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Mage Fire] Loaded " .. (_pi and _pi.plugin_version or "?"))

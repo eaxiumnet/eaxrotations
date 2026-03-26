@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Rogue Combat
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Rogue Combat
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -75,10 +75,10 @@ menu.snd_refresh_seconds                  = core.menu.slider_int(1, 6, 3, "eaxro
 menu.finish_combo_points                  = core.menu.slider_int(3, 5, 4, "eaxroguecombat_finish_combo_points")
 menu.aoe_enemy_count                      = core.menu.slider_int(2, 5, 2, "eaxroguecombat_aoe_enemy_count")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_sinister_strike", label = "Sinister Strike" },
@@ -88,7 +88,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_adrenaline_rush", label = "Adrenaline Rush" },
 }, {
     namespace = "eaxroguecombat",
-    log_prefix = "[EAX Rogue Combat] ",
+    log_prefix = "[Eax Rogue Combat] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -103,12 +103,12 @@ function menu.render()
         ps.draw_space(_win, "eaxroguecombat")
     end
 
-    root_tree:render("  Eax's Rogue Combat", function()
+    root_tree:render("Eax's Rogue Combat", function()
 
         ps.render_controls(menu, "Eax's Rogue Combat")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_sinister_strike:render("Sinister Strike", "Primary combo-point builder")
             menu.use_slice_and_dice:render("Slice and Dice", "Maintain Slice and Dice as the top finisher priority")

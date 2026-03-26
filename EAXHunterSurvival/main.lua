@@ -1,4 +1,4 @@
--- main.lua  |  EAX Hunter Survival  |  TBC
+-- main.lua  |  Eax Hunter Survival  |  TBC
 -- Priority: Serpent Sting > Aimed Shot > Arcane Shot > Multi > Steady
 
 local menu    = require("menu")
@@ -249,6 +249,8 @@ local rt = {
     pet_autocast_guid   = nil,
     pet_autocast_mode   = nil,
     pet_autocast_configured = false,
+    kc_commit_started_at = 0,
+    kc_commit_target_guid = nil,
     last_spell_refresh  = 0,
     haste_breakpoint    = "2:1",
     cached_mode         = "solo",
@@ -303,6 +305,33 @@ local function resolve()
     rt.flare_id            = utils.resolve_spell_id(spells.FLARE)
     rt.scare_beast_id      = utils.resolve_spell_id(spells.SCARE_BEAST)
     rt.wyvern_sting_id     = utils.resolve_spell_id(spells.WYVERN_STING)
+end
+
+local KILL_COMMAND_SETTLE_S = 0.20
+
+local function pet_is_committed_on_target(pet, target, now)
+    if not pet_is_engaged_on_target(pet, target) then
+        rt.kc_commit_started_at = 0
+        rt.kc_commit_target_guid = nil
+        return false
+    end
+
+    local ok, target_guid = pcall(function() return tostring(target:get_guid()) end)
+    if not ok or not target_guid then return false end
+
+    if rt.kc_commit_target_guid ~= target_guid then
+        rt.kc_commit_target_guid = target_guid
+        rt.kc_commit_started_at = now or _core_time()
+        return false
+    end
+
+    local started_at = rt.kc_commit_started_at or 0
+    if started_at <= 0 then
+        rt.kc_commit_started_at = now or _core_time()
+        return false
+    end
+
+    return ((now or _core_time()) - started_at) >= KILL_COMMAND_SETTLE_S
 end
 
 local function is_gcd_ready()
@@ -473,7 +502,7 @@ local function pet_is_engaged_on_target(pet, target)
     return (dx * dx + dy * dy + dz * dz) <= 100
 end
 
--- ── Aspects ───────────────────────────────────────────────────────────────────
+-- -- Aspects -------------------------------------------------------------------
 local function try_aspect_viper(me)
     if not rt.viper_aspect_id then return false end
     if not menu.use_aspect_viper or not menu.use_aspect_viper:get_state() then return false end
@@ -519,7 +548,7 @@ local function try_aspect(me)
     return false
 end
 
--- ── Pet ───────────────────────────────────────────────────────────────────────
+-- -- Pet -----------------------------------------------------------------------
 local function try_revive(me)
     if not menu.use_revive_pet or not menu.use_revive_pet:get_state() then return false end
     if pet_alive() then return false end
@@ -918,7 +947,7 @@ local function try_auto_stealth_flare(me)
     return false
 end
 
--- ── Shots ─────────────────────────────────────────────────────────────────────
+-- -- Shots ---------------------------------------------------------------------
 local function try_hunters_mark(me, t)
     if not menu.use_hunters_mark or not menu.use_hunters_mark:get_state() then return false end
     if not rt.hunters_mark_id then return false end
@@ -1010,7 +1039,7 @@ local function try_kill_command(me, t)
     if not rt.kill_command_id or not pet_alive() then return false end
     if rt.last_kill_command_cast_count == core.spell_book.get_spell_cast_count(rt.kill_command_id) then return false end
     local pet = get_pet()
-    if not pet_is_engaged_on_target(pet, t) then return false end
+    if not pet_is_committed_on_target(pet, t, _core_time()) then return false end
     if not allow_instant(me) then return false end
     if not utils.can_cast_hostile(rt.kill_command_id, me, t) then return false end
     if utils.cast_target(rt.kill_command_id, t) then
@@ -1131,7 +1160,7 @@ local function try_trap(me, t)
     return false
 end
 
--- ── Rotation ──────────────────────────────────────────────────────────────────
+-- -- Rotation ------------------------------------------------------------------
 local function do_rotation(me, t)
     local d = dist(t)
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
@@ -1149,24 +1178,22 @@ local function do_rotation(me, t)
     end
 
     if try_travel_aspect(me) then return end
-    if try_aspect_viper(me) then return end
-    if try_aspect(me) then return end
+    if try_aspect_viper(me) then return true end
+    if try_aspect(me) then return true end
 
     -- Update haste breakpoint detection
     rt.haste_breakpoint = get_haste_breakpoint(me)
 
     if interrupt_manager.should_interrupt(t) then
-        interrupt_manager.try_interrupt(me, t, "hunter", utils)
+        if interrupt_manager.try_interrupt(me, t, "hunter", utils) then return true end
     end
 
     enc = encounter_manager.get_policy(me)
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, t, encounter_manager, ttd_tracker))
-    if not hold_offense then
-        racial_manager.try_offensive(me)
-    end
-    racial_manager.try_utility(me, t)
-    racial_manager.try_defensive(me)
-    if not hold_offense then try_rapid_fire(me) end
+    if not hold_offense and racial_manager.try_offensive(me) then return true end
+    if racial_manager.try_utility(me, t) then return true end
+    if racial_manager.try_defensive(me) then return true end
+    if not hold_offense and try_rapid_fire(me) then return true end
     if defensive_manager.try_defensive(me, "hunter", utils) then return end
     ttd_tracker.update(t)
 
@@ -1359,7 +1386,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local lbl_enabled = "[EAX SV] Enabled"
+        local lbl_enabled = "[Eax SV] Enabled"
         if toggle_key ~= 7 then
             lbl_enabled = lbl_enabled .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1439,5 +1466,5 @@ do
     end
 end
 
-core.log("[EAX Hunter SV] Loaded")
+core.log("[Eax Hunter SV] Loaded")
 return {}

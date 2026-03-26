@@ -1,4 +1,4 @@
--- EAX Druid Feral | utils.lua
+-- Eax Druid Feral | utils.lua
 -- Shared helpers validated against documented Project Sylvanas APIs.
 
 ---@type enums
@@ -80,11 +80,14 @@ end
 -- Max range for auto target acquisition.
 -- Melee (~5y) + feral charge range (~25y) + small buffer = 30y.
 -- Units beyond this are ignored unless they are already targeting us/party.
-local MODE_DETECT_INTERVAL_S = 5.0
+local MODE_DETECT_INTERVAL_S = 10.0
 local AUTO_TARGET_MAX_RANGE = 40.0
 local AUTO_TARGET_MAX_HOSTILES = 50
 local mode_cache = "solo"
 local mode_cache_refreshed_at = 0
+local hostile_scan_cache_at = -1
+local hostile_scan_cache_me = nil
+local hostile_scan_cache_units = nil
 
 function utils.detect_mode(me)
     local now = core.time()
@@ -165,30 +168,42 @@ function utils.find_best_target(me)
         return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
     end
 
-    local objects = core.object_manager.get_all_objects()
+    local now = core.time()
+    local hostile_units
+    if hostile_scan_cache_at == now and hostile_scan_cache_me == me and hostile_scan_cache_units then
+        hostile_units = hostile_scan_cache_units
+    else
+        hostile_units = {}
+        local objects = core.object_manager.get_all_objects()
+        local hostile_scanned = 0
+        for i = 1, #objects do
+            local obj = objects[i]
+            if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
+                hostile_scanned = hostile_scanned + 1
+                hostile_units[#hostile_units + 1] = obj
+                if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
+                    break
+                end
+            end
+        end
+        hostile_scan_cache_at = now
+        hostile_scan_cache_me = me
+        hostile_scan_cache_units = hostile_units
+    end
+
     local best_attacking_party = nil
     local best_any = nil
-    local hostile_scanned = 0
+    for i = 1, #hostile_units do
+        local obj = hostile_units[i]
+        local obj_target = obj:get_target()
+        if obj_target and utils.same_unit(obj_target, me) then
+            return obj
+        end
 
-    for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and is_hostile(obj) and in_range(obj, AUTO_TARGET_MAX_RANGE) then
-            hostile_scanned = hostile_scanned + 1
-
-            local obj_target = obj:get_target()
-            if obj_target and utils.same_unit(obj_target, me) then
-                return obj
-            end
-
-            if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
-                best_attacking_party = obj
-            elseif not best_any then
-                best_any = obj
-            end
-
-            if hostile_scanned >= AUTO_TARGET_MAX_HOSTILES then
-                break
-            end
+        if not best_attacking_party and obj_target and obj_target:is_valid() and obj_target:is_party_member() then
+            best_attacking_party = obj
+        elseif not best_any then
+            best_any = obj
         end
     end
 
@@ -237,6 +252,20 @@ function utils.cast_self_fast(spell_id, me)
     if not can_issue_queue_request("spell_self_fast", spell_id, me, FAST_SPELL_QUEUE_INTERVAL_S) then return false end
     spell_queue:queue_spell_target_fast(spell_id, me, 1)
     return true
+end
+
+function utils.can_cast_unit(spell_id, me, target)
+    if utils.same_unit(me, target) then
+        return utils.can_cast_self(spell_id, me)
+    end
+    return utils.can_cast_target(spell_id, me, target)
+end
+
+function utils.cast_unit(spell_id, me, target)
+    if utils.same_unit(me, target) then
+        return utils.cast_self(spell_id, me)
+    end
+    return utils.cast_target(spell_id, target)
 end
 
 function utils.get_energy(me)
@@ -297,7 +326,7 @@ end
 -- Returns true if the unit is in cat form OR prowling (prowl = stealthed cat form)
 function utils.is_in_cat_form(unit, spells_ref)
     if not unit or not unit:is_valid() then return false end
-    -- Check all paths — cat form may register as buff, debuff, or aura
+    -- Check all paths - cat form may register as buff, debuff, or aura
     local ids = spells_ref.BUFF_CAT_FORM
     local data = buff_manager:get_buff_data(unit, ids)
     if data and data.is_active then return true end
@@ -360,7 +389,7 @@ function utils.debuff_applied_by_other(unit, id_table, me, min_remaining_ms)
                         return true
                     end
                 else
-                    -- No caster info — assume it's from another player if active
+                    -- No caster info - assume it's from another player if active
                     return true
                 end
             end
@@ -374,7 +403,7 @@ function utils.same_unit(a, b)
     if not a or not b then return false end
     if a == b then return true end
     if not a.is_valid or not b.is_valid or not a:is_valid() or not b:is_valid() then return false end
-    -- GUID comparison is authoritative — two different mobs can share a name
+    -- GUID comparison is authoritative - two different mobs can share a name
     local function safe_guid(u)
         if type(u.get_guid) ~= "function" then return nil end
         local ok, g = pcall(function() return u:get_guid() end)
@@ -480,7 +509,7 @@ end
 
 function utils.log_debug(menu_ref, msg)
     if menu_ref.debug:get_state() then
-        core.log("[EAX Druid Feral] " .. msg)
+        core.log("[Eax Druid Feral] " .. msg)
     end
 end
 
@@ -525,17 +554,17 @@ local TBC_SETS = {
     },
     -- Feral / Guardian sets (T4 Malorne Harness, T5 Nordrassil Harness, T6 Thunderheart)
     ["MalorneHarness"] = {
-        -- T4 feral: Malorne Harness — 2pc: +5% Mangle damage; 4pc: reduce Mangle CD by 1s
+        -- T4 feral: Malorne Harness - 2pc: +5% Mangle damage; 4pc: reduce Mangle CD by 1s
         items = { 29075, 29076, 29077, 29078, 29079 },
         bonuses = { ["2"] = 1.05, ["4"] = 1.10 }
     },
     ["NordrassilBattlegear"] = {
-        -- T5 feral: Nordrassil Battlegear — 2pc: +20% Shred damage; 4pc: -0.5s Mangle CD
+        -- T5 feral: Nordrassil Battlegear - 2pc: +20% Shred damage; 4pc: -0.5s Mangle CD
         items = { 30214, 30215, 30216, 30217, 30218 },
         bonuses = { ["2"] = 1.10, ["4"] = 1.15 }
     },
     ["ThunderhearBattlegear"] = {
-        -- T6 feral: Thunderheart Battlegear — 2pc: +6% Rip/Rake dmg; 4pc: Mangle boosts Shred
+        -- T6 feral: Thunderheart Battlegear - 2pc: +6% Rip/Rake dmg; 4pc: Mangle boosts Shred
         items = { 31014, 31015, 31016, 31017, 31018 },
         bonuses = { ["2"] = 1.06, ["4"] = 1.12 }
     },

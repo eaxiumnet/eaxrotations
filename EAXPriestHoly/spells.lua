@@ -1,4 +1,4 @@
--- EAX Priest Holy | spells.lua
+-- Eax Priest Holy | spells.lua
 -- Spell ID tables ordered highest-to-lowest for each Holy spell referenced by the rotation.
 
 local spells = {}

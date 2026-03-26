@@ -1,7 +1,7 @@
 --[[
     smart_cast_manager.lua
     
-    EAX TBC Rotation Framework - Smart Cast Management
+    Eax TBC Rotation Framework - Smart Cast Management
     
     Solves common rotation issues:
     1. Repetitive ability spam - intelligent throttling between similar abilities

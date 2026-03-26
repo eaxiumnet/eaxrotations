@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Shaman Enhancement
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Shaman Enhancement
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -62,6 +62,8 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 -- -- Class-specific elements ---------------------------------------------------
 menu.use_cooldowns                        = core.menu.checkbox(true, "use_cooldowns")
 menu.use_chain_lightning_weave            = core.menu.checkbox(true, "use_chain_lightning_weave")
+menu.use_dispels                          = core.menu.checkbox(true, "eaxshamanenhancement_use_dispels")
+menu.use_purge                            = core.menu.checkbox(false, "eaxshamanenhancement_use_purge")
 menu.swing_clip_ms                        = core.menu.slider_int(80, 220, 160, "swing_clip_ms")
 menu.shock_mode                           = core.menu.combobox(1, "shock_mode")
 menu.shamanistic_rage_hp                  = core.menu.slider_int(0, 100, 40, "shamanistic_rage_hp")
@@ -76,10 +78,10 @@ menu.use_earth_totem                      = core.menu.checkbox(true, "eaxshamane
 menu.use_water_totem                      = core.menu.checkbox(true, "eaxshamanenhancement_use_water_totem")
 menu.use_fire_totem                       = core.menu.checkbox(true, "eaxshamanenhancement_use_fire_totem")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_cooldowns", label = "Cooldowns" },
@@ -89,7 +91,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_totem_twist", label = "Totem Twist" },
 }, {
     namespace = "eaxshamanenhancement",
-    log_prefix = "[EAX Shaman Enhancement] ",
+    log_prefix = "[Eax Shaman Enhancement] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -104,15 +106,17 @@ function menu.render()
         ps.draw_space(_win, "eaxshamanenhancement")
     end
 
-    root_tree:render("  Eax's Shaman Enhancement", function()
+    root_tree:render("Eax's Shaman Enhancement", function()
 
         ps.render_controls(menu, "Eax's Shaman Enhancement")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_cooldowns:render("Use Cooldowns", "Stormstrike + Rage react to burst windows")
             menu.use_chain_lightning_weave:render("Chain Lightning Weave", "Allow Chain Lightning between auto-attacks")
+            menu.use_dispels:render("Cure Poison/Disease", "Lightly scan allies for poison or disease")
+            menu.use_purge:render("Purge", "Allow Purge only when encounter policy asks for dispels")
             menu.swing_clip_ms:render("Swing Clip (ms)", "Chain Lightning weaves happen when swing delay exceeds this window")
             menu.shamanistic_rage_hp:render("Rage HP Trigger", "Cast Shamanistic Rage below this health %")
             menu.shamanistic_rage_mana:render("Rage Mana Trigger", "Cast Rage below this mana %")

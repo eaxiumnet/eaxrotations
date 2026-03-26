@@ -1,10 +1,11 @@
--- EAX Druid Restoration | main.lua
+-- Eax Druid Restoration | main.lua
 -- Group-aware healing rotation with Lifebloom, HoT, and cooldown management.
 
 local menu = require("menu")
 local rotation_context = require("rotation_context")
 local resource_gate = require("resource_gate")
 local spells = require("spells")
+local spell_downrank = require("eax_shared/spell_downrank")
 local utils = require("utils")
 
 if not utils.same_unit then
@@ -221,6 +222,9 @@ local runtime = {
     set_multiplier = 1.0,
     ooc_mark_of_the_wild_id = nil,
     remove_curse_id = nil,
+    abolish_poison_id = nil,
+    lifebloom_stack_count = 0,
+    lifebloom_last_cast_time = 0,
     -- DPS fallback
     moonfire_id = nil,
     insect_swarm_id = nil,
@@ -244,10 +248,26 @@ local ctx_cache = rotation_context.new({
     },
 })
 
-local GROUP_ROLE_TANK = 0
+local function resolve_group_role_value(name, fallback)
+    if enums and enums.group_role and enums.group_role[name] ~= nil then
+        return enums.group_role[name]
+    end
+    if enums and enums.unit_role and enums.unit_role[name] ~= nil then
+        return enums.unit_role[name]
+    end
+    return fallback
+end
+
+local GROUP_ROLE_TANK = resolve_group_role_value("TANK", 0)
+local GROUP_ROLE_HEALER = resolve_group_role_value("HEALER", 1)
+local GROUP_ROLE_DAMAGER = resolve_group_role_value("DAMAGER", 2)
+local BUFF_TYPE_CURSE = 4
+local BUFF_TYPE_POISON = 3
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
+local spell_resolution_done = false
+local group_role_validation_logged = false
 
 local function resolve_spells()
     runtime.mark_of_the_wild_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD)
@@ -261,6 +281,7 @@ local function resolve_spells()
     runtime.healing_touch_id = utils.resolve_spell_id(spells.HEALING_TOUCH)
     runtime.rebirth_id  = utils.resolve_spell_id(spells.REBIRTH)
     runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
+    runtime.abolish_poison_id = utils.resolve_spell_id(spells.ABOLISH_POISON)
     runtime.barkskin_id = utils.resolve_spell_id(spells.BARKSKIN)
     -- DPS fallback
     runtime.moonfire_id    = utils.resolve_spell_id(spells.MOONFIRE)
@@ -271,7 +292,7 @@ local function resolve_spells()
 end
 
 local function log_resolved_spells()
-    core.log("[EAX Druid Restoration] Resolved: Rejuvenation=" .. tostring(runtime.rejuvenation_id)
+    core.log("[Eax Druid Restoration] Resolved: Rejuvenation=" .. tostring(runtime.rejuvenation_id)
         .. " Regrowth=" .. tostring(runtime.regrowth_id)
         .. " HealingTouch=" .. tostring(runtime.healing_touch_id)
         .. " Swiftmend=" .. tostring(runtime.swiftmend_id)
@@ -284,9 +305,6 @@ local function update_set_bonus(me)
     local malorne_mult = utils.get_set_multiplier(me, "Malorne")
     runtime.set_multiplier = math.max(nordrassil_mult, nordrassil_harness_mult, malorne_mult)
 end
-
-resolve_spells()
-log_resolved_spells()
 
 local function note_cast()
     runtime.last_cast_time = _core_time()
@@ -350,17 +368,43 @@ local function pick_tank_unit(me, units, mode)
         return me
     end
 
+    local function safe_unit_class(unit)
+        if not unit or not unit.get_class then return "" end
+        local ok, class_name = pcall(function() return string.lower(unit:get_class() or "") end)
+        if ok and class_name then return class_name end
+        return ""
+    end
+
+    local function is_tank_capable(unit)
+        local class_name = safe_unit_class(unit)
+        return class_name == "warrior" or class_name == "paladin" or class_name == "druid"
+    end
+
+    local focus_target = eax_utils.get_focus_target(menu)
+    if focus_target and focus_target:is_valid() and not focus_target:is_dead() and not me:can_attack(focus_target) then
+        return focus_target
+    end
+
     local best_tank = nil
     local best_health = -1
+    local best_tank_capable = nil
+    local best_tank_capable_health = -1
 
     for i = 1, #units do
         local unit = units[i]
-        local role_id = unit.get_group_role and unit:get_group_role() or -1
-        if role_id == GROUP_ROLE_TANK then
+        if unit and unit:is_valid() and not unit:is_dead() then
             local max_health = unit:get_max_health()
-            if max_health > best_health then
-                best_tank = unit
-                best_health = max_health
+            if is_tank_capable(unit) and max_health > best_tank_capable_health then
+                best_tank_capable = unit
+                best_tank_capable_health = max_health
+            end
+
+            local role_id = unit.get_group_role and unit:get_group_role() or -1
+            if role_id == GROUP_ROLE_TANK and is_tank_capable(unit) then
+                if max_health > best_health then
+                    best_tank = unit
+                    best_health = max_health
+                end
             end
         end
     end
@@ -369,19 +413,40 @@ local function pick_tank_unit(me, units, mode)
         return best_tank
     end
 
-    return me
+    if best_tank_capable then
+        return best_tank_capable
+    end
+
+    return nil
 end
 
 local function pick_priority_heal_target(me, tank, lowest, lowest_hp_pct)
-    if lowest and lowest_hp_pct <= 0.75 then
-        return lowest, lowest_hp_pct
+    local lowest_effective_hp_pct = lowest and utils.get_effective_hp_pct(lowest) or lowest_hp_pct
+
+    if lowest and lowest_effective_hp_pct <= 0.75 then
+        return lowest, lowest_effective_hp_pct
     end
 
     if tank and tank:is_valid() then
-        return tank, utils.get_health_pct(tank)
+        return tank, utils.get_effective_hp_pct(tank)
     end
 
-    return me, utils.get_health_pct(me)
+    return me, utils.get_effective_hp_pct(me)
+end
+
+local function should_activate_healing_rotation(me, units)
+    for i = 1, #units do
+        local unit = units[i]
+        if unit and unit:is_valid() and not unit:is_dead() then
+            if unit ~= me and unit.is_in_combat and unit:is_in_combat() then
+                return true
+            end
+            if utils.get_health_pct(unit) < 0.95 then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 local function unit_guid(unit)
@@ -444,6 +509,19 @@ local function should_cancel_druid_cast(me, target)
     return healer_triage.should_cancel_overheal(snapshot, {})
 end
 
+local function cancel_druid_overheal_cast(me, target)
+    if not should_cancel_druid_cast(me, target) then
+        return false
+    end
+
+    if SpellStopCasting then
+        SpellStopCasting()
+        return true
+    end
+
+    return false
+end
+
 local function try_mark_of_the_wild(me)
     if not menu.use_mark_of_the_wild or not menu.use_mark_of_the_wild:get_state() then return false end
     if not runtime.mark_of_the_wild_id then return false end
@@ -465,9 +543,62 @@ end
 local function try_innervate(me, mana_pct)
     if not menu.use_innervate or not menu.use_innervate:get_state() then return false end
     if not runtime.innervate_id then return false end
-    if mana_pct >= ((menu.innervate_mana_pct and menu.innervate_mana_pct:get() or 30) / 100) then return false end
-    if utils.has_buff(me, spells.BUFF_INNERVATE) then return false end
     if is_pending_cast(runtime.innervate_id) then return false end
+    local threshold = ((menu.innervate_mana_pct and menu.innervate_mana_pct:get() or 30) / 100)
+    local target_mode = menu.innervate_target and menu.innervate_target:get() or 1
+
+    local function can_receive_innervate(unit)
+        if not unit or not unit:is_valid() or unit:is_dead() then return false end
+        if me:can_attack(unit) then return false end
+        if utils.get_mana_pct(unit) >= threshold then return false end
+        if utils.has_buff(unit, spells.BUFF_INNERVATE) then return false end
+        return true
+    end
+
+    local function cast_innervate_target(unit, label)
+        if not can_receive_innervate(unit) then return false end
+        if not utils.can_cast_unit(runtime.innervate_id, me, unit) then return false end
+        if not utils.cast_unit(runtime.innervate_id, me, unit) then return false end
+
+        mark_pending_cast(runtime.innervate_id, PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, label .. " -> " .. (unit.get_name and unit:get_name() or "target"))
+        note_cast()
+        return true
+    end
+
+    if target_mode == 3 then
+        local focus_target = eax_utils.get_focus_target(menu)
+        if focus_target and not utils.same_unit(focus_target, me) then
+            if cast_innervate_target(focus_target, "Innervate") then
+                return true
+            end
+        end
+    elseif target_mode == 2 then
+        local units = utils.get_group_units(me, false)
+        local lowest_healer = nil
+        local lowest_healer_mana = math.huge
+
+        for i = 1, #units do
+            local unit = units[i]
+            if unit and unit:is_valid() and not unit:is_dead() and not utils.same_unit(unit, me) then
+                local role_id = unit.get_group_role and unit:get_group_role() or -1
+                if role_id == GROUP_ROLE_HEALER and can_receive_innervate(unit) then
+                    local unit_mana_pct = utils.get_mana_pct(unit)
+                    if unit_mana_pct < lowest_healer_mana then
+                        lowest_healer = unit
+                        lowest_healer_mana = unit_mana_pct
+                    end
+                end
+            end
+        end
+
+        if lowest_healer and cast_innervate_target(lowest_healer, "Innervate") then
+            return true
+        end
+    end
+
+    if mana_pct >= threshold then return false end
+    if utils.has_buff(me, spells.BUFF_INNERVATE) then return false end
     if not utils.can_cast_self(runtime.innervate_id, me) then return false end
 
     if utils.cast_self(runtime.innervate_id, me) then
@@ -499,11 +630,13 @@ local function try_tranquility(me, injured_count, lowest_hp_pct, mode)
     return false
 end
 
--- Lifebloom — TBC Resto Druid's primary tank HoT (added patch 2.1)
+-- Lifebloom - TBC Resto Druid's primary tank HoT (added patch 2.1)
 -- Stack 3x on the tank and let it roll; re-apply before it blooms if tank is low,
 -- or let it bloom intentionally if tank needs the burst heal.
+local LIFEBLOOM_MAX_STACKS = 3
 local LIFEBLOOM_DURATION_MS = 7000  -- 7s per stack (TBC 2.4.3)
 local LIFEBLOOM_REFRESH_THRESHOLD_MS = 2000  -- refresh when < 2s remaining
+local LIFEBLOOM_STACK_RESET_GRACE_S = 0.5
 
 local function try_lifebloom(me, tank, tank_hp_pct)
     if not menu.use_lifebloom or not menu.use_lifebloom:get_state() then return false end
@@ -511,29 +644,46 @@ local function try_lifebloom(me, tank, tank_hp_pct)
     if not tank or not tank:is_valid() or tank:is_dead() then return false end
 
     local remaining_ms = utils.get_buff_remaining_ms(tank, spells.BUFF_LIFEBLOOM)
-    local stack_count = utils.get_buff_stacks(tank, spells.BUFF_LIFEBLOOM) or 0
-    local desired_stacks = menu.lifebloom_stacks and menu.lifebloom_stacks:get() or 3
+    local api_stacks = utils.get_buff_stacks(tank, spells.BUFF_LIFEBLOOM) or 0
+    local stack_count = math.max(api_stacks, runtime.lifebloom_stack_count)
 
-    -- Don't refresh if tank is healthy and we have a full stack — let it bloom
+    -- Don't refresh if tank is healthy and we have a full stack - let it bloom
     local bloom_threshold = (menu.lifebloom_bloom_hp and menu.lifebloom_bloom_hp:get() or 70) / 100
-    if stack_count >= desired_stacks and tank_hp_pct > bloom_threshold and remaining_ms > LIFEBLOOM_REFRESH_THRESHOLD_MS then
+    if stack_count >= LIFEBLOOM_MAX_STACKS and tank_hp_pct > bloom_threshold and remaining_ms > LIFEBLOOM_REFRESH_THRESHOLD_MS then
         return false
     end
 
     -- Apply or refresh: always re-apply if < 2s left or not at max stacks
-    local needs_refresh = (remaining_ms <= LIFEBLOOM_REFRESH_THRESHOLD_MS) or (stack_count < desired_stacks)
+    local needs_refresh = (remaining_ms <= LIFEBLOOM_REFRESH_THRESHOLD_MS) or (stack_count < LIFEBLOOM_MAX_STACKS)
     if not needs_refresh then return false end
 
     if is_pending_cast(runtime.lifebloom_id) then return false end
-    if not utils.can_cast_hostile(runtime.lifebloom_id, me, tank) then return false end
+    if not utils.can_cast_unit(runtime.lifebloom_id, me, tank) then return false end
 
-    if utils.cast_target(runtime.lifebloom_id, tank) then
+    if utils.cast_unit(runtime.lifebloom_id, me, tank) then
+        stack_count = math.min(LIFEBLOOM_MAX_STACKS, stack_count + 1)
+        runtime.lifebloom_stack_count = stack_count
+        runtime.lifebloom_last_cast_time = _core_time()
         mark_pending_cast(runtime.lifebloom_id, PENDING_CAST_TIMEOUT_S)
         note_cast()
-        esp_renderer.on_cast(runtime.lifebloom_id, "Lifebloom (" .. (stack_count + 1) .. ")", color.green(240))
+        esp_renderer.on_cast(runtime.lifebloom_id, "Lifebloom (" .. stack_count .. "/3)", color.green(240))
         return true
     end
     return false
+end
+
+local function sync_lifebloom_stack_count(me)
+    if runtime.lifebloom_stack_count <= 0 then return end
+
+    local units = utils.get_group_units(me, true)
+    local tank = pick_tank_unit(me, units, get_effective_mode())
+    local lb_rem = tank and utils.get_buff_remaining_ms(tank, spells.BUFF_LIFEBLOOM) or 0
+    local seconds_since_cast = _core_time() - (runtime.lifebloom_last_cast_time or 0)
+
+    if lb_rem <= 0 and seconds_since_cast > LIFEBLOOM_STACK_RESET_GRACE_S then
+        runtime.lifebloom_stack_count = 0
+        runtime.lifebloom_last_cast_time = 0
+    end
 end
 
 local function try_swiftmend(me, target, target_hp_pct)
@@ -544,8 +694,8 @@ local function try_swiftmend(me, target, target_hp_pct)
     local has_regrowth = utils.has_buff(target, spells.BUFF_REGROWTH)
     if not has_rejuv and not has_regrowth then return false end
     if is_pending_cast(runtime.swiftmend_id) then return false end
-    if not utils.can_cast_hostile(runtime.swiftmend_id, me, target) then return false end
-    if utils.cast_target(runtime.swiftmend_id, target) then
+    if not utils.can_cast_unit(runtime.swiftmend_id, me, target) then return false end
+    if utils.cast_unit(runtime.swiftmend_id, me, target) then
         mark_pending_cast(runtime.swiftmend_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Swiftmend on " .. (target.get_name and target:get_name() or "target"))
         note_cast()
@@ -562,8 +712,8 @@ local function try_natures_swiftness_healing_touch(me, target, target_hp_pct)
 
     if utils.has_buff(me, spells.BUFF_NATURES_SWIFTNESS) then
         if is_pending_cast(runtime.healing_touch_id) then return false end
-        if not utils.can_cast_hostile(runtime.healing_touch_id, me, target) then return false end
-        if utils.cast_target(runtime.healing_touch_id, target) then
+        if not utils.can_cast_unit(runtime.healing_touch_id, me, target) then return false end
+        if utils.cast_unit(runtime.healing_touch_id, me, target) then
             mark_pending_cast(runtime.healing_touch_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "NS -> Healing Touch on " .. (target.get_name and target:get_name() or "target"))
             note_cast()
@@ -593,8 +743,8 @@ local function try_rejuvenation(me, target, target_hp_pct)
     local refresh_ms = (menu.rejuvenation_refresh_seconds and menu.rejuvenation_refresh_seconds:get() or 3) * 1000
     if utils.get_buff_remaining_ms(target, spells.BUFF_REJUVENATION) > refresh_ms then return false end
     if is_pending_cast(runtime.rejuvenation_id) then return false end
-    if not utils.can_cast_hostile(runtime.rejuvenation_id, me, target) then return false end
-    if utils.cast_target(runtime.rejuvenation_id, target) then
+    if not utils.can_cast_unit(runtime.rejuvenation_id, me, target) then return false end
+    if utils.cast_unit(runtime.rejuvenation_id, me, target) then
         mark_pending_cast(runtime.rejuvenation_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Rejuvenation on " .. (target.get_name and target:get_name() or "target"))
         note_cast()
@@ -616,7 +766,7 @@ local function try_spread_rejuvenation(me, units, mana_pct)
     local candidates = {}
     for _, unit in ipairs(units) do
         if unit and unit:is_valid() and not unit:is_dead() then
-            local hp = utils.get_health_pct(unit)
+            local hp = utils.get_effective_hp_pct(unit)
             local rem = utils.get_buff_remaining_ms(unit, spells.BUFF_REJUVENATION)
             if hp < 0.95 and rem <= refresh_ms then
                 candidates[#candidates+1] = { unit = unit, hp = hp }
@@ -625,8 +775,8 @@ local function try_spread_rejuvenation(me, units, mana_pct)
     end
     table.sort(candidates, function(a, b) return a.hp < b.hp end)
     for _, c in ipairs(candidates) do
-        if utils.can_cast_hostile(runtime.rejuvenation_id, me, c.unit) then
-            if utils.cast_target(runtime.rejuvenation_id, c.unit) then
+        if utils.can_cast_unit(runtime.rejuvenation_id, me, c.unit) then
+            if utils.cast_unit(runtime.rejuvenation_id, me, c.unit) then
                 mark_pending_cast(runtime.rejuvenation_id, PENDING_CAST_TIMEOUT_S)
                 utils.log_debug(menu, "Rejuvenation spread -> " .. (c.unit.get_name and c.unit:get_name() or "ally"))
                 note_cast()
@@ -645,12 +795,13 @@ local function try_regrowth(me, target, target_hp_pct, mana_pct)
     if menu.mana_saver:get_state() and mana_pct < 0.45 and target_hp_pct > 0.60 then return false end
     if utils.get_buff_remaining_ms(target, spells.BUFF_REGROWTH) > ((menu.regrowth_refresh_seconds and menu.regrowth_refresh_seconds:get() or 3) * 1000) then return false end
     if is_pending_cast(runtime.regrowth_id) then return false end
-    if not utils.can_cast_hostile(runtime.regrowth_id, me, target) then return false end
-    if utils.cast_target(runtime.regrowth_id, target) then
-        mark_pending_cast(runtime.regrowth_id, PENDING_CAST_TIMEOUT_S)
+    if not utils.can_cast_unit(runtime.regrowth_id, me, target) then return false end
+    local spell_id = spell_downrank.select_heal_rank(spells.REGROWTH, target_hp_pct, mana_pct, {}) or runtime.regrowth_id
+    if utils.cast_unit(spell_id, me, target) then
+        mark_pending_cast(spell_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Regrowth on " .. (target.get_name and target:get_name() or "target"))
         note_cast()
-        esp_renderer.on_cast(runtime.regrowth_id, "Regrowth", color.gold(220))
+        esp_renderer.on_cast(spell_id, "Regrowth", color.gold(220))
         return true
     end
     return false
@@ -663,12 +814,14 @@ local function try_healing_touch(me, target, target_hp_pct, mana_pct)
     if target_hp_pct >= ((menu.healing_touch_hp_pct and menu.healing_touch_hp_pct:get() or 75) / 100) then return false end
     if menu.mana_saver:get_state() and mana_pct < 0.30 then return false end
     if is_pending_cast(runtime.healing_touch_id) then return false end
-    if not utils.can_cast_hostile(runtime.healing_touch_id, me, target) then return false end
-    if utils.cast_target(runtime.healing_touch_id, target) then
-        mark_pending_cast(runtime.healing_touch_id, PENDING_CAST_TIMEOUT_S)
+    if not utils.can_cast_unit(runtime.healing_touch_id, me, target) then return false end
+    local mana_now_pct = mana_pct or utils.get_mana_pct(me)
+    local spell_id = spell_downrank.select_heal_rank(spells.HEALING_TOUCH, target_hp_pct, mana_now_pct, {}) or runtime.healing_touch_id
+    if utils.cast_unit(spell_id, me, target) then
+        mark_pending_cast(spell_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Healing Touch on " .. (target.get_name and target:get_name() or "target"))
         note_cast()
-        esp_renderer.on_cast(runtime.healing_touch_id, "Healing Touch", color.green(240))
+        esp_renderer.on_cast(spell_id, "Healing Touch", color.green(240))
         return true
     end
     return false
@@ -683,10 +836,9 @@ local function try_remove_curse_resto(me)
         if unit and unit:is_valid() and not unit:is_dead() then
             local cache = buff_manager:get_debuff_cache(unit, 100)
             for _, aura in ipairs(cache) do
-                if aura.is_active and enums and enums.buff_type
-                   and aura.buff_type == enums.buff_type.CURSE then
-                    if utils.can_cast_hostile(runtime.remove_curse_id, me, unit) then
-                        if utils.cast_target(runtime.remove_curse_id, unit) then
+                if aura.is_active and aura.buff_type == BUFF_TYPE_CURSE then
+                    if utils.can_cast_unit(runtime.remove_curse_id, me, unit) then
+                        if utils.cast_unit(runtime.remove_curse_id, me, unit) then
                             mark_pending_cast(runtime.remove_curse_id, PENDING_CAST_TIMEOUT_S)
                             utils.log_debug(menu, "Remove Curse -> " .. (unit.get_name and unit:get_name() or "ally"))
                             note_cast()
@@ -697,6 +849,36 @@ local function try_remove_curse_resto(me)
                 end
             end
         end
+    end
+    return false
+end
+
+local function try_abolish_poison(me)
+    if not menu.use_abolish_poison or not menu.use_abolish_poison:get_state() then return false end
+    if not runtime.abolish_poison_id then return false end
+    if is_pending_cast(runtime.abolish_poison_id) then return false end
+    local units = utils.get_group_units(me, true)
+    for _, unit in ipairs(units) do
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local has_abolish = utils.has_buff(unit, spells.BUFF_ABOLISH_POISON)
+            if has_abolish then goto continue end
+
+            local cache = buff_manager:get_debuff_cache(unit, 100)
+            for _, aura in ipairs(cache) do
+                if aura.is_active and aura.buff_type == BUFF_TYPE_POISON then
+                    if utils.can_cast_unit(runtime.abolish_poison_id, me, unit) then
+                        if utils.cast_unit(runtime.abolish_poison_id, me, unit) then
+                            mark_pending_cast(runtime.abolish_poison_id, PENDING_CAST_TIMEOUT_S)
+                            utils.log_debug(menu, "Abolish Poison -> " .. (unit.get_name and unit:get_name() or "ally"))
+                            note_cast()
+                            return true
+                        end
+                    end
+                    break
+                end
+            end
+        end
+        ::continue::
     end
     return false
 end
@@ -716,24 +898,24 @@ local function try_barkskin_defensive(me)
     end
     return false
 end
--- ─────────────────────────────────────────────────────────────────────────────
--- DPS FALLBACK  (solo only – fires when no healing action was taken)
+-- -----------------------------------------------------------------------------
+-- DPS FALLBACK  (solo only - fires when no healing action was taken)
 -- Priority: Faerie Fire > Insect Swarm > Moonfire > Starfire/Wrath filler
--- ─────────────────────────────────────────────────────────────────────────────
-local function do_dps_fallback(me, target)
+-- -----------------------------------------------------------------------------
+local function do_dps_fallback(me, hostile_target)
     if not menu.dps_fallback_enabled or not menu.dps_fallback_enabled:get_state() then
         return false
     end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    if not hostile_target or not hostile_target:is_valid() or not me:can_attack(hostile_target) then return false end
+    if hostile_target:is_dead() then return false end
     if not is_gcd_ready() then return false end
 
     -- Faerie Fire (armor debuff, no DoT to track, just check if active)
     if menu.dps_use_faerie_fire:get_state() and runtime.faerie_fire_id then
-        local ff_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(target, spells.DEBUFF_FAERIE_FIRE) or 0
+        local ff_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(hostile_target, spells.DEBUFF_FAERIE_FIRE) or 0
         if ff_rem <= 0 and not is_pending_cast(runtime.faerie_fire_id) then
-            if utils.can_cast_unit(runtime.faerie_fire_id, me, target) then
-                if utils.cast_unit(runtime.faerie_fire_id, me, target) then
+            if utils.can_cast_unit(runtime.faerie_fire_id, me, hostile_target) then
+                if utils.cast_unit(runtime.faerie_fire_id, me, hostile_target) then
                     mark_pending_cast(runtime.faerie_fire_id, PENDING_CAST_TIMEOUT_S)
                     utils.log_debug(menu, "DPS: Faerie Fire")
                     note_cast()
@@ -746,10 +928,10 @@ local function do_dps_fallback(me, target)
 
     -- Insect Swarm DoT
     if menu.dps_use_insect_swarm:get_state() and runtime.insect_swarm_id then
-        local is_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM) or 0
+        local is_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(hostile_target, spells.DEBUFF_INSECT_SWARM) or 0
         if is_rem <= 1500 and not is_pending_cast(runtime.insect_swarm_id) then
-            if utils.can_cast_unit(runtime.insect_swarm_id, me, target) then
-                if utils.cast_unit(runtime.insect_swarm_id, me, target) then
+            if utils.can_cast_unit(runtime.insect_swarm_id, me, hostile_target) then
+                if utils.cast_unit(runtime.insect_swarm_id, me, hostile_target) then
                     mark_pending_cast(runtime.insect_swarm_id, PENDING_CAST_TIMEOUT_S)
                     utils.log_debug(menu, "DPS: Insect Swarm")
                     note_cast()
@@ -762,10 +944,10 @@ local function do_dps_fallback(me, target)
 
     -- Moonfire DoT
     if menu.dps_use_moonfire:get_state() and runtime.moonfire_id then
-        local mf_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE) or 0
+        local mf_rem = utils.get_debuff_remaining_ms and utils.get_debuff_remaining_ms(hostile_target, spells.DEBUFF_MOONFIRE) or 0
         if mf_rem <= 1500 and not is_pending_cast(runtime.moonfire_id) then
-            if utils.can_cast_unit(runtime.moonfire_id, me, target) then
-                if utils.cast_unit(runtime.moonfire_id, me, target) then
+            if utils.can_cast_unit(runtime.moonfire_id, me, hostile_target) then
+                if utils.cast_unit(runtime.moonfire_id, me, hostile_target) then
                     mark_pending_cast(runtime.moonfire_id, PENDING_CAST_TIMEOUT_S)
                     utils.log_debug(menu, "DPS: Moonfire")
                     note_cast()
@@ -786,8 +968,8 @@ local function do_dps_fallback(me, target)
     local fallback_name = prefer_starfire and "Wrath"              or "Starfire"
 
     if menu[primary_key]:get_state() and primary_id and not is_pending_cast(primary_id) then
-        if utils.can_cast_unit(primary_id, me, target) then
-            if utils.cast_unit(primary_id, me, target) then
+        if utils.can_cast_unit(primary_id, me, hostile_target) then
+            if utils.cast_unit(primary_id, me, hostile_target) then
                 mark_pending_cast(primary_id, PENDING_CAST_TIMEOUT_S)
                 utils.log_debug(menu, "DPS: " .. primary_name)
                 note_cast()
@@ -798,8 +980,8 @@ local function do_dps_fallback(me, target)
     end
 
     if menu[fallback_key]:get_state() and fallback_id and not is_pending_cast(fallback_id) then
-        if utils.can_cast_unit(fallback_id, me, target) then
-            if utils.cast_unit(fallback_id, me, target) then
+        if utils.can_cast_unit(fallback_id, me, hostile_target) then
+            if utils.cast_unit(fallback_id, me, hostile_target) then
                 mark_pending_cast(fallback_id, PENDING_CAST_TIMEOUT_S)
                 utils.log_debug(menu, "DPS: " .. fallback_name)
                 note_cast()
@@ -812,23 +994,32 @@ local function do_dps_fallback(me, target)
     return false
 end
 
-local function do_rotation(me, target)
+local function do_rotation(me, hostile_target)
     if not is_gcd_ready() then return false end
 
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
-    local ctx = rotation_context.get(ctx_cache, me, target, deps)
-
-    -- OOC: only allow buffs
-    if not me:is_in_combat() then
-        try_mark_of_the_wild(me)
-        return false
-    end
-
+    local ctx = rotation_context.get(ctx_cache, me, hostile_target, deps)
     local mana_pct = utils.get_mana_pct(me)
     local units    = utils.get_group_units(me, true)
     local mode     = get_effective_mode()
+    local tank = pick_tank_unit(me, units, mode)
 
-    -- Focus target override — always heal focus first
+    -- OOC: only stay in buff-only mode while the group is quiet.
+    -- If party/raid members are already in combat or taking damage, start healing.
+    if not me:is_in_combat() then
+        try_mark_of_the_wild(me)
+        if tank and tank:is_valid() then
+            local tank_hp = utils.get_effective_hp_pct(tank)
+            if tank_hp < 0.95 and not utils.has_buff(tank, spells.BUFF_REJUVENATION) then
+                if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_rejuvenation(me, tank, tank_hp) then return true end
+            end
+        end
+        if not should_activate_healing_rotation(me, units) then
+            return false
+        end
+    end
+
+    -- Focus target override - always heal focus first
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and focus_target:is_valid() and not focus_target:is_dead() then
         local focus_hp = focus_target:get_health_percentage() / 100
@@ -854,12 +1045,12 @@ local function do_rotation(me, target)
 
     -- Gather group state
     local lowest, lowest_hp_pct = utils.get_lowest_health_unit(units)
-    local tank = pick_tank_unit(me, units, mode)
     local heal_target, heal_hp = pick_priority_heal_target(me, tank, lowest, lowest_hp_pct)
     local injured_count = utils.count_injured_units(units, 0.85)
 
     -- Dispel
     if try_remove_curse_resto(me) then return true end
+    if try_abolish_poison(me) then return true end
 
     -- Emergency single-target: Swiftmend -> NS + HT
     if heal_target then
@@ -872,10 +1063,11 @@ local function do_rotation(me, target)
 
     -- Tank maintenance: keep HoTs refreshed before relying on filler casts
     if tank then
-        local tank_hp = utils.get_health_pct(tank)
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_lifebloom(me, tank, tank_hp) then return true end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_regrowth(me, tank, tank_hp, mana_pct) then return true end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_rejuvenation(me, tank, tank_hp) then return true end
+        local tank_raw_hp = utils.get_health_pct(tank)
+        local tank_effective_hp = utils.get_effective_hp_pct(tank)
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_lifebloom(me, tank, tank_raw_hp) then return true end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_regrowth(me, tank, tank_effective_hp, mana_pct) then return true end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_rejuvenation(me, tank, tank_effective_hp) then return true end
     end
 
     -- Spread Rejuvenation to all injured party members (priority sorted by HP)
@@ -886,15 +1078,15 @@ local function do_rotation(me, target)
     if try_innervate(me, mana_pct) then return true end
 
     -- Leveling fallback: wand at enemy target when mana is low
-    if me:is_in_combat() and target and target:is_valid()
-       and not target:is_dead() and me:can_attack(target) then
-        leveling_manager.try_wand(me, target, menu)
+    if me:is_in_combat() and hostile_target and hostile_target:is_valid()
+       and not hostile_target:is_dead() and me:can_attack(hostile_target) then
+        leveling_manager.try_wand(me, hostile_target, menu)
     end
 
     -- Solo DPS fallback
     if mode == "solo" and me:is_in_combat() and (not lowest_hp_pct or lowest_hp_pct >= 0.85) then
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) then
-            do_dps_fallback(me, target)
+            do_dps_fallback(me, hostile_target)
         end
     end
 
@@ -938,16 +1130,7 @@ reactive_adapter = {
         interrupt_control = { noop = "unsupported" },
         anti_overheal = {
             handler = function(_, action_deps)
-                if not should_cancel_druid_cast(action_deps.me, action_deps.current_target) then
-                    return false
-                end
-
-                if SpellStopCasting then
-                    SpellStopCasting()
-                    return true
-                end
-
-                return false
+                return cancel_druid_overheal_cast(action_deps.me, action_deps.current_target)
             end,
         },
         anti_aggro = {
@@ -978,6 +1161,19 @@ end)
 core.register_on_update_callback(function()
     local me = _get_local_player()
     if not me then return end
+    if not spell_resolution_done then
+        resolve_spells()
+        log_resolved_spells()
+        spell_resolution_done = true
+    end
+    if not group_role_validation_logged then
+        local ok, self_role = pcall(function() return me:get_group_role() end)
+        core.log("[Eax Druid Restoration] group_role tank=" .. tostring(GROUP_ROLE_TANK)
+            .. " healer=" .. tostring(GROUP_ROLE_HEALER)
+            .. " damager=" .. tostring(GROUP_ROLE_DAMAGER)
+            .. " self=" .. tostring(ok and self_role or "unknown"))
+        group_role_validation_logged = true
+    end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
 
     if utils.throttle("eaxdruidrestoration_mode_refresh", 5.0) then
@@ -987,6 +1183,8 @@ core.register_on_update_callback(function()
     if utils.throttle("eaxdruidrestoration_set_bonus", 10.0) then
         update_set_bonus(me)
     end
+
+    sync_lifebloom_stack_count(me)
 
     handle_toggle()
 
@@ -1031,21 +1229,21 @@ core.register_on_update_callback(function()
     if eax_utils.is_eating_or_drinking(me) then return end
 
     -- Overheal Protection - cancel slow heals if target is healthy
-    if eax_utils.should_stopcasting(me, menu) then
-        if SpellStopCasting then SpellStopCasting() end
+    if cancel_druid_overheal_cast(me, target) then
+        return
     end
 
     -- Use smart target for wanding/interrupts (prefers units attacking us/party)
-    local target = utils.find_best_target(me)
+    local hostile_target = utils.find_best_target(me)
 
     -- Mana conservation (leveling 1-70)
     if leveling_manager.is_conserving_mana(me, menu) then
-        leveling_manager.ensure_melee(me, target)
+        leveling_manager.ensure_melee(me, hostile_target)
     end
 
     -- Interrupt (PVP)
-    if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "druid", utils) then
+    if hostile_target and hostile_target:is_valid() and me:can_attack(hostile_target) and interrupt_manager.should_interrupt(hostile_target) then
+        if interrupt_manager.try_interrupt(me, hostile_target, "druid", utils) then
             return
         end
     end
@@ -1055,16 +1253,16 @@ core.register_on_update_callback(function()
 
     -- Defensive abilities
     -- Racial abilities
-    racial_manager.try_offensive(me)
-    racial_manager.try_utility(me, target)
-    racial_manager.try_defensive(me)
+    if racial_manager.try_offensive(me) then return true end
+    if racial_manager.try_utility(me, hostile_target) then return true end
+    if racial_manager.try_defensive(me) then return true end
 
     if try_barkskin_defensive(me) then return true end
     if defensive_manager.try_defensive(me, "druid", utils) then
         return
     end
 
-    -- Threat fade protection — don't pull aggro from tank
+    -- Threat fade protection - don't pull aggro from tank
     local current_target = me:get_target()
     local ok, should_fade = pcall(function() return threat_manager.should_fade(me, current_target) end)
     if ok and should_fade then
@@ -1072,9 +1270,9 @@ core.register_on_update_callback(function()
         return
     end
 
-    ttd_tracker.update(target)
+    ttd_tracker.update(hostile_target)
 
-    do_rotation(me, target)
+    do_rotation(me, hostile_target)
 end)
 
 
@@ -1100,7 +1298,7 @@ if control_panel_utility then
             if nxt ~= cur then item:set(nxt) end
         end
         local toggle_key = menu.toggle_key:get_key_code()
-        local label = "EAX Druid Resto] Enabled"
+        local label = "Eax Druid Resto] Enabled"
         if toggle_key ~= 7 then
             label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
         end
@@ -1111,7 +1309,7 @@ if control_panel_utility then
 end
 
 
--- -- EAX Conflict Detection -------------------------------------------------
+-- -- Eax Conflict Detection -------------------------------------------------
 -- Registers this spec at load time; warns at runtime only if both are enabled.
 do
     if not _G.__EAX_LOADED then _G.__EAX_LOADED = {} end
@@ -1142,7 +1340,7 @@ do
         if (now - _conflict_last_warn) < 10 then return end
         _conflict_last_warn = now
         local names = table.concat(enabled_specs, " + ")
-        core.log("[EAX WARNING] Multiple " .. _eax_class .. " specs enabled: "
+        core.log("[Eax WARNING] Multiple " .. _eax_class .. " specs enabled: "
             .. names .. ". Disable all but one.")
         core.graphics.add_notification(
             "eax_conflict_" .. _eax_class,
@@ -1155,4 +1353,4 @@ do
 end
 
 local _pi = pcall(require, "plugin_info") and require("plugin_info") or nil
-core.log("[EAX Druid Restoration] Loaded " .. (_pi and _pi.plugin_version or "?"))
+core.log("[Eax Druid Restoration] Loaded " .. (_pi and _pi.plugin_version or "?"))

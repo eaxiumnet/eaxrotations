@@ -1,6 +1,6 @@
 -- ooc_manager.lua
 -- eax_shared/ooc_manager.lua
--- Out-of-combat utility system for all EAX specs.
+-- Out-of-combat utility system for all Eax specs.
 
 local buff_manager = require("common/modules/buff_manager")
 
@@ -211,21 +211,23 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
 
     local objects = core.object_manager.get_all_objects()
     for i = 1, #objects do
-        local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and obj:is_player()
-           and obj:is_party_member() and not obj:is_dead()
-        then
-            if not has_any_buff(obj, buff_ids) then
-                if utils.can_cast_target(spell_id, me, obj) then
-                    if utils.cast_target(spell_id, obj, buff_name or "Group Buff") then
-                        last_group_buff[spell_id] = now
-                        _last_group_buff_scan = now
-                        utils.log_debug(menu, "OOC: Buffing party - " .. (buff_name or ""))
-                        return true
-                    end
+        local unit = objects[i]
+        if unit and unit:is_unit() and unit:is_player() and unit:is_party_member() then
+            if not unit or not unit:is_valid() then goto continue end
+            if unit:is_dead() then goto continue end
+            if not ((utils.can_cast_unit and utils.can_cast_unit(spell_id, me, unit))
+                or (not utils.can_cast_unit and utils.can_cast_target(spell_id, me, unit))) then goto continue end
+            if not has_any_buff(unit, buff_ids) then
+                if (utils.cast_unit and utils.cast_unit(spell_id, me, unit))
+                    or (not utils.cast_unit and utils.cast_target(spell_id, unit, buff_name or "Group Buff")) then
+                    last_group_buff[spell_id] = now
+                    _last_group_buff_scan = now
+                    utils.log_debug(menu, "OOC: Buffing party - " .. (buff_name or ""))
+                    return true
                 end
             end
         end
+        ::continue::
     end
 
     _last_group_buff_scan = now

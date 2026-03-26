@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Rogue Assassination
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Rogue Assassination
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 
 local ps   = require("ps_theme")
 local settings = require("settings_framework")
@@ -75,10 +75,10 @@ menu.evasion_hp_pct                       = core.menu.slider_int(0, 100, 35, "ea
 menu.main_hand_poison                     = core.menu.combobox(2, "eaxrogueassassination_main_hand_poison")
 menu.off_hand_poison                      = core.menu.combobox(3, "eaxrogueassassination_off_hand_poison")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_mutilate", label = "Mutilate" },
@@ -88,7 +88,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_kick", label = "Kick" },
 }, {
     namespace = "eaxrogueassassination",
-    log_prefix = "[EAX Rogue Assassination] ",
+    log_prefix = "[Eax Rogue Assassination] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -103,12 +103,12 @@ function menu.render()
         ps.draw_space(_win, "eaxrogueassassination")
     end
 
-    root_tree:render("  Eax's Rogue Assassination", function()
+    root_tree:render("Eax's Rogue Assassination", function()
 
         ps.render_controls(menu, "Eax's Rogue Assassination")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_mutilate:render("Mutilate", "Primary combo-point builder")
             menu.use_slice_and_dice:render("Slice and Dice", "Maintain Slice and Dice before finishers")

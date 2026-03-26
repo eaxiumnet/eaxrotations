@@ -1,10 +1,10 @@
--- EAX Priest Shadow | header.lua
+-- Eax Priest Shadow | header.lua
 -- Plugin metadata and spec guard for Shadow Priest.
 
 local plugin = {
-    name = "EAX Priest Shadow",
+    name = "Eax Priest Shadow",
     version = "1.0.0",
-    author = "EAX",
+    author = "Eax",
     load = true,
 }
 

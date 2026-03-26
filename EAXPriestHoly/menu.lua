@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Priest Holy
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Priest Holy
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -71,13 +71,14 @@ menu.use_cooldowns                        = core.menu.checkbox(true, "eax_priest
 menu.auto_prayer_of_mending               = core.menu.checkbox(true, "eax_priest_holy_auto_pom")
 menu.prayer_of_mending_threshold          = core.menu.slider_int(25, 65, 50, "eax_priest_holy_pom_threshold")
 menu.overheal_protection                  = core.menu.checkbox(true, "eax_priest_holy_overheal_protection")
+menu.use_dispels                          = core.menu.checkbox(true, "eax_priest_holy_use_dispels")
 
 mana_conservator.register_menu_items(menu, "eax_priest_holy")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "prayer_of_healing_enabled", label = "Prayer of Healing" },
@@ -87,7 +88,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_desperate_prayer", label = "Desperate Prayer" },
 }, {
     namespace = "eaxpriestholy",
-    log_prefix = "[EAX Priest Holy] ",
+    log_prefix = "[Eax Priest Holy] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -102,12 +103,12 @@ function menu.render()
         ps.draw_space(_win, "eaxpriestholy")
     end
 
-    root_tree:render("  Eax's Priest Holy", function()
+    root_tree:render("Eax's Priest Holy", function()
 
         ps.render_controls(menu, "Eax's Priest Holy")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.renew_threshold:render("Renew Threshold", "Only refresh renew when health drops below this")
             menu.renew_refresh_seconds:render("Renew Refresh Window", "Seconds of Renew remaining before refreshing")
@@ -121,6 +122,7 @@ function menu.render()
             menu.auto_prayer_of_mending:render("Auto Prayer of Mending", "Refresh PoM on wounded allies without clipping Renew")
             menu.prayer_of_mending_threshold:render("PoM Threshold", "Health percent that triggers PoM refresh")
             menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
+            menu.use_dispels:render("Combat Dispels", "Allow Dispel Magic and disease cleanses on the current heal target")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

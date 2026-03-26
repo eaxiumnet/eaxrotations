@@ -1,5 +1,5 @@
 -- mana_conservator.lua
--- Mana conservation system for all EAX caster/healer specs (1-70 leveling safe).
+-- Mana conservation system for all Eax caster/healer specs (1-70 leveling safe).
 -- When mana drops below a threshold, switches to wanding or melee attacks
 -- instead of casting expensive spells, preserving mana for burst situations.
 --
@@ -25,6 +25,7 @@ local MELEE_SPELL_ID   = 6603
 
 -- Inventory slot for ranged weapon (wand slot in TBC = slot 18)
 local RANGED_SLOT      = 18
+local POWER_TYPE_MANA  = 0
 
 -- --- Internal state -----------------------------------------------------------
 
@@ -33,25 +34,21 @@ local last_melee_start_time  = 0
 local WAND_TOGGLE_THROTTLE   = 0.5   -- seconds between wand start/stop attempts
 local MELEE_START_THROTTLE   = 1.0   -- seconds between melee start attempts
 local conserve_mode_active   = false
+local last_mana_pct          = nil
+local _eax_utils             = nil
 
 -- --- Helpers ------------------------------------------------------------------
 
 local function is_leveling_character(me)
     if not me or not me.is_valid or not me:is_valid() or not me.get_level then return false end
-    return (me:get_level() or 70) < 70
+    local lvl = me:get_level() or 0
+    return lvl > 0 and lvl < 70
 end
 
 local function get_mana_pct(me)
-    local ok, enums = pcall(require, "common/enums")
-    if not ok or not enums then
-        -- Fallback: power type 0 = mana in TBC
-        local max_m = pcall(function() return me:get_max_power(0) end)
-        if not max_m or max_m <= 0 then return 100 end
-        return (me:get_power(0) / max_m) * 100
-    end
-    local max_mana = me:get_max_power(enums.power_type.MANA)
+    local max_mana = me:get_max_power(POWER_TYPE_MANA)
     if max_mana <= 0 then return 100 end
-    return (me:get_power(enums.power_type.MANA) / max_mana) * 100
+    return (me:get_power(POWER_TYPE_MANA) / max_mana) * 100
 end
 
 local function has_wand_equipped(me)
@@ -78,6 +75,26 @@ local function is_wanding(me)
     -- is_auto_attacking() returns true for any auto-attack; we also
     -- check if the current spell being channeled is Shoot (5019)
     return result == true
+end
+
+local function is_actively_regenerating(me)
+    local mana_pct = get_mana_pct(me)
+    local was_regenerating = last_mana_pct ~= nil and mana_pct > (last_mana_pct + 0.1)
+    last_mana_pct = mana_pct
+    return was_regenerating
+end
+
+local function is_eating_or_drinking(me)
+    if _eax_utils == nil then
+        local ok, mod = pcall(require, "eax_utils")
+        _eax_utils = ok and mod or false
+    end
+
+    if _eax_utils and _eax_utils.is_eating_or_drinking then
+        return _eax_utils.is_eating_or_drinking(me)
+    end
+
+    return false
 end
 
 local function start_wand(me, target)
@@ -151,21 +168,31 @@ end
 
 -- --- Public API ---------------------------------------------------------------
 
----Returns true if the rotation should be suppressed (mana-conserve mode active).
----The module will handle wanding or melee attacking automatically.
+---Returns true if the rotation should be suppressed while mana is actively recovering.
+---Does not block rotation in combat or merely because mana is below a threshold.
 ---@param me game_object
 ---@param target game_object|nil
 ---@param menu table
 ---@param utils table
 ---@return boolean  suppress_rotation
 function mana_conservator.on_update(me, target, menu, utils)
-    if not me or not me:is_valid() or me:is_dead() then return false end
+    if not me or not me:is_valid() or me:is_dead() then
+        last_mana_pct = nil
+        return false
+    end
+    if me:is_in_combat() then
+        conserve_mode_active = false
+        last_mana_pct = nil
+        return false
+    end
     if not is_leveling_character(me) then
         conserve_mode_active = false
+        last_mana_pct = get_mana_pct(me)
         return false
     end
     if not is_conserve_enabled(menu) then
         conserve_mode_active = false
+        last_mana_pct = get_mana_pct(me)
         return false
     end
 
@@ -184,19 +211,12 @@ function mana_conservator.on_update(me, target, menu, utils)
 
     if not conserve_mode_active then return false end
 
-    -- In conserve mode: wand or melee the target
-    if not target or not target:is_valid() or target:is_dead() then
-        return true  -- suppress rotation but no valid target
-    end
-    if not me:can_attack(target) then return true end
+    -- Only suppress rotation while we are actively recovering mana, not merely
+    -- because the threshold has been crossed.
+    if is_eating_or_drinking(me) then return true end
+    if is_actively_regenerating(me) then return true end
 
-    if has_wand_equipped(me) then
-        start_wand(me, target)
-    else
-        start_melee(me, target)
-    end
-
-    return true  -- tell caller to skip the main rotation
+    return false
 end
 
 ---Returns true if we are currently in mana-conserve mode (useful for UI display).
@@ -207,6 +227,7 @@ end
 ---Force-reset the conserve state (e.g. when leaving combat).
 function mana_conservator.reset()
     conserve_mode_active = false
+    last_mana_pct = nil
 end
 
 -- --- Menu element factory -----------------------------------------------------

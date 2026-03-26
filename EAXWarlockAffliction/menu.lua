@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════╗
--- ║  Eax's Warlock Affliction
--- ║  Space Theme v4.0  ·  Stars drawn inside the panel background
--- ╚══════════════════════════════════════════════════════════════════╝
+-- +------------------------------------------------------------------+
+-- |  Eax's Warlock Affliction
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
 local mana_conservator = require("mana_conservator")
 
 local ps   = require("ps_theme")
@@ -76,10 +76,10 @@ menu.life_tap_threshold                   = core.menu.slider_int(10, 70, 35, "ea
 
 mana_conservator.register_menu_items(menu, "eax_warlock_affliction")
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 -- RENDER  - called every frame by core.register_on_render_menu_callback
 -- The window object is injected via menu.set_window(win) in main.lua
--- ════════════════════════════════════════════════════════════════════════════
+-- ----------------------------------------------------------------------------
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_unstable_affliction", label = "Unstable Affliction" },
@@ -89,7 +89,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_life_tap", label = "Life Tap" },
 }, {
     namespace = "eaxwarlockaffliction",
-    log_prefix = "[EAX Warlock Affliction] ",
+    log_prefix = "[Eax Warlock Affliction] ",
 })
 
 local _win  -- set once from main.lua via menu.set_window(win)
@@ -104,12 +104,12 @@ function menu.render()
         ps.draw_space(_win, "eaxwarlockaffliction")
     end
 
-    root_tree:render("  Eax's Warlock Affliction", function()
+    root_tree:render("Eax's Warlock Affliction", function()
 
         ps.render_controls(menu, "Eax's Warlock Affliction")
 
         -- -- Class-specific settings -------------------------------------------
-        main_tree:render("  Eax's Rotation Settings", function()
+        main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.use_unstable_affliction:render("Unstable Affliction", "Maintain the primary DoT")
             menu.use_corruption:render("Corruption", "Keep Corruption on the current target")

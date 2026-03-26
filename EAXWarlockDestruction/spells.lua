@@ -1,5 +1,5 @@
 -- spells.lua
--- Spell tables for EAX Warlock Destruction.
+-- Spell tables for Eax Warlock Destruction.
 
 local spells = {}
 
