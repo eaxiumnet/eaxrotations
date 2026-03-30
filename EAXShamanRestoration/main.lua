@@ -27,43 +27,43 @@
 --  - OOC: drink, self-heal, prepull totems, totemic recall
 
 require("common/wow_api_clone")  -- exposes GetWeaponEnchantInfo for temp enchant detection
-local menu   = require("menu")
-local rotation_context = require("rotation_context")
-local resource_gate = require("resource_gate")
-local spells = require("spells")
-local spell_downrank = require("spell_downrank")
-local utils  = require("utils")
+local menu   = require("libraries/menu")
+local rotation_context = require("libraries/rotation_context")
+local resource_gate = require("libraries/resource_gate")
+local spells = require("libraries/spells")
+local spell_downrank = require("libraries/spell_downrank")
+local utils  = require("libraries/utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("interrupt_manager")
+local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("vendor_automation")
+local vendor_automation = require("libraries/vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("consumables_manager")
+local consumables_manager = require("libraries/consumables_manager")
 ---@type mount_manager
-local mount_manager = require("mount_manager")
+local mount_manager = require("libraries/mount_manager")
 ---@type leveling_manager
-local leveling_manager = require("leveling_manager")
+local leveling_manager = require("libraries/leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("encounter_manager")
+local encounter_manager = require("libraries/encounter_manager")
 ---@type totem_manager
-local totem_manager = require("totem_manager")
+local totem_manager = require("libraries/totem_manager")
 
 
 ---@type esp_renderer
-local esp_renderer = require("esp_renderer")
+local esp_renderer = require("libraries/esp_renderer")
 esp_renderer.init("sresto", "Shaman Resto")
 -- Smart Cast Manager - addresses spam/sluggishness
-local smart_cast_manager = require("smart_cast_manager")
+local smart_cast_manager = require("libraries/smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("dps_meter")
-local cooldown_tracker = require("cooldown_tracker")
-local visual_state = require("visual_state")
-local reactive_runtime = require("reactive_runtime")
-local healer_triage = require("healer_triage")
+local dps_meter = require("libraries/dps_meter")
+local cooldown_tracker = require("libraries/cooldown_tracker")
+local visual_state = require("libraries/visual_state")
+local reactive_runtime = require("libraries/reactive_runtime")
+local healer_triage = require("libraries/healer_triage")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -78,7 +78,7 @@ smart_cast_manager.init({
 })
 
 local _visual_ttd_tracker = nil
-local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
+local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "libraries/ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
     _visual_ttd_tracker = _visual_ttd_mod
 end
@@ -195,14 +195,14 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type color
-local color = require("color")
+local color = require("libraries/color")
 ---@type racial_manager
-local racial_manager = require("racial_manager")
+local racial_manager = require("libraries/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("defensive_manager")
+local defensive_manager = require("libraries/defensive_manager")
 
 ---@type mana_conservator
-local mana_conservator = require("mana_conservator")
+local mana_conservator = require("libraries/mana_conservator")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -212,15 +212,15 @@ local control_panel_utility = require("common/utility/control_panel_helper")
 local unit_helper = require("common/utility/unit_helper")
 ---@type circle
 local circle = require("common/geometry/circle")
-local heal_engine = require("heal_engine")
+local heal_engine = require("libraries/heal_engine")
 ---@type eax_utils
-local eax_utils = require("eax_utils")
-local dispel_engine = require("dispel_engine")
+local eax_utils = require("libraries/eax_utils")
+local dispel_engine = require("libraries/dispel_engine")
 ---@type auto_attack_helper
 local auto_attack_helper = require("common/utility/auto_attack_helper")
 
 ---@type ttd_tracker
-local ttd_tracker = require("ttd_tracker")
+local ttd_tracker = require("libraries/ttd_tracker")
 
 -- --- Constants ---------------------------------------------------------------
 

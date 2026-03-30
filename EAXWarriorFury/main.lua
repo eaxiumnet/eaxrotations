@@ -6,51 +6,51 @@
 -- sylvanas-dev-docs-llm/pages/dev/api/object-manager.md,
 -- and sylvanas-dev-docs-llm/pages/dev/api/spellbook.md.
 
-local menu = require("menu")
-local spells = require("spells")
-local utils = require("utils")
-local rotation_context = require("rotation_context")
-local resource_gate = require("resource_gate")
+local menu = require("libraries/menu")
+local spells = require("libraries/spells")
+local utils = require("libraries/utils")
+local rotation_context = require("libraries/rotation_context")
+local resource_gate = require("libraries/resource_gate")
 
 if not utils.same_unit then
     function utils.same_unit(a, b)
         return a ~= nil and a == b
     end
 end
-local eax_utils = require("eax_utils")
+local eax_utils = require("libraries/eax_utils")
 
 ---@type interrupt_manager
-local interrupt_manager = require("interrupt_manager")
+local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("vendor_automation")
+local vendor_automation = require("libraries/vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("consumables_manager")
+local consumables_manager = require("libraries/consumables_manager")
 ---@type mount_manager
-local mount_manager = require("mount_manager")
+local mount_manager = require("libraries/mount_manager")
 ---@type leveling_manager
-local leveling_manager = require("leveling_manager")
+local leveling_manager = require("libraries/leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("encounter_manager")
+local encounter_manager = require("libraries/encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
 
 ---@type esp_renderer
-local esp_renderer = require("esp_renderer")
+local esp_renderer = require("libraries/esp_renderer")
 esp_renderer.init("fury", "Warrior Fury")
 -- Smart Cast Manager - addresses spam/sluggishness
-local smart_cast_manager = require("smart_cast_manager")
+local smart_cast_manager = require("libraries/smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("dps_meter")
-local cooldown_tracker = require("cooldown_tracker")
-local visual_state = require("visual_state")
-local reactive_runtime = require("reactive_runtime")
-local dps_risk = require("dps_risk")
-local dps_runtime = require("dps_runtime")
-local set_bonus = require("set_bonus")
+local dps_meter = require("libraries/dps_meter")
+local cooldown_tracker = require("libraries/cooldown_tracker")
+local visual_state = require("libraries/visual_state")
+local reactive_runtime = require("libraries/reactive_runtime")
+local dps_risk = require("libraries/dps_risk")
+local dps_runtime = require("libraries/dps_runtime")
+local set_bonus = require("libraries/set_bonus")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -65,7 +65,7 @@ smart_cast_manager.init({
 })
 
 local _visual_ttd_tracker = nil
-local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
+local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "libraries/ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
     _visual_ttd_tracker = _visual_ttd_mod
 end
@@ -182,11 +182,11 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type ttd_tracker
-local ttd_tracker = require("ttd_tracker")
+local ttd_tracker = require("libraries/ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("racial_manager")
+local racial_manager = require("libraries/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("defensive_manager")
+local defensive_manager = require("libraries/defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -195,12 +195,12 @@ local control_panel_utility = require("common/utility/control_panel_helper")
 ---@type auto_attack_helper
 local auto_attack = require("common/utility/auto_attack_helper")
 ---@type color
-local color = require("color")
+local color = require("libraries/color")
 ---@type vec2
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 ---@type swing_timer
-local swing_timer = require("swing_timer")
+local swing_timer = require("libraries/swing_timer")
 
 local runtime = {
     bloodthirst_id = nil,
@@ -364,8 +364,22 @@ local function log_resolved_spells()
         .. " stance_ret=" .. tostring(runtime.stance_swap_retention))
 end
 
+local function validate_fury_spec()
+    if runtime.bloodthirst_id then
+        return true
+    end
+
+    if menu and menu.enabled and menu.enabled:get_state() then
+        menu.enabled:set(false)
+    end
+
+    core.log("[Eax Warrior Fury] Bloodthirst not found; disabling addon to avoid interfering with non-Fury warrior specs.")
+    return false
+end
+
 resolve_spells()
 log_resolved_spells()
+validate_fury_spec()
 
 -- -- mode detection ----------------------------------------------------------
 
@@ -559,6 +573,10 @@ local function get_home_stance_id()
         return runtime.berserker_stance_id
     end
     return runtime.battle_stance_id
+end
+
+local function reset_on_next_attack_queue_state()
+    runtime.queued_on_next_attack_spell_id = nil
 end
 
 local function update_stance_return_requests(me, target)
@@ -2577,24 +2595,27 @@ end
 
 local function on_control_panel()
     local elements = {}
+    local function add_toggle(label, item, uid)
+        if not item then return end
+        local current = item:get_state()
+        local next_state = control_panel_utility:insert_key_checkbox_(elements, label, current, 0, false, uid)
+        if next_state ~= current then
+            item:set(next_state)
+        end
+    end
+
     local toggle_key_code = menu.toggle_key:get_key_code()
     local display_name = "[Eax Warrior Fury] Enabled"
     if toggle_key_code ~= 7 then
         display_name = "[Eax Warrior Fury] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
     end
 
-    local current_state = menu.enabled:get_state()
-    local new_state = control_panel_utility:insert_key_checkbox_(
-        elements,
-        display_name,
-        current_state,
-        0,
-        false,
-        "simplefury_enabled_control_panel"
-    )
+    add_toggle(display_name, menu.enabled, "simplefury_enabled_control_panel")
 
-    if new_state ~= current_state then
-        menu.enabled:set(new_state)
+    if menu.enabled:get_state() then
+        add_toggle("[Eax WFu] Cooldowns", menu.use_cooldowns, "eax_wfu_cds_cp")
+        add_toggle("[Eax WFu] Focus Priority", menu.focus_priority, "eax_wfu_focus_cp")
+        add_toggle("[Eax WFu] Use Racial", menu.use_racial, "eax_wfu_racial_cp")
     end
 
     return elements
@@ -2669,46 +2690,6 @@ _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
 -- -----------------------------------------------------------------------------
 core.register_on_render_menu_callback(menu.render)
--- Fury-specific debug control panel (registered once at load, not every tick)
-if control_panel_utility then
-    core.register_on_render_control_panel_callback(function()
-        local elements = {}
-        local function add_cb(label, item, uid)
-            if not item then return end
-            local cur = item:get_state()
-            local nxt = control_panel_utility:insert_key_checkbox_(elements, label, cur, 0, false, uid)
-            if nxt ~= cur then item:set(nxt) end
-        end
-        local toggle_key = menu.toggle_key:get_key_code()
-        local label = "Eax Warrior Fury] Enabled"
-        if toggle_key ~= 7 then
-            label = label .. " (" .. key_helper:get_key_name(toggle_key) .. ")"
-        end
-        label = "[" .. label
-        add_cb(label, menu.enabled, "eax_eaxwarriorfury_enabled_cp")
-        if menu.enabled:get_state() then
-            if menu.use_cooldowns then
-                local cur_wfu_cds = menu.use_cooldowns:get_state()
-                local nxt_wfu_cds = control_panel_utility:insert_key_checkbox_(
-                    elements, "[Eax WFu] Cooldowns", cur_wfu_cds, 0, false, "eax_wfu_cds_cp")
-                if nxt_wfu_cds ~= cur_wfu_cds then menu.use_cooldowns:set(nxt_wfu_cds) end
-            end
-            if menu.focus_priority then
-                local cur_wfu_focus = menu.focus_priority:get_state()
-                local nxt_wfu_focus = control_panel_utility:insert_key_checkbox_(
-                    elements, "[Eax WFu] Focus Priority", cur_wfu_focus, 0, false, "eax_wfu_focus_cp")
-                if nxt_wfu_focus ~= cur_wfu_focus then menu.focus_priority:set(nxt_wfu_focus) end
-            end
-            if menu.use_racial then
-                local cur_wfu_racial = menu.use_racial:get_state()
-                local nxt_wfu_racial = control_panel_utility:insert_key_checkbox_(
-                    elements, "[Eax WFu] Use Racial", cur_wfu_racial, 0, false, "eax_wfu_racial_cp")
-                if nxt_wfu_racial ~= cur_wfu_racial then menu.use_racial:set(nxt_wfu_racial) end
-            end
-        end
-        return elements
-    end)
-end
 core.register_on_render_control_panel_callback(on_control_panel)
 
 -- -- public interface --------------------------------------------------------

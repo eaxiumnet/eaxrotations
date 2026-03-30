@@ -1,0 +1,154 @@
+-- spells.lua
+-- Eax Paladin Holy | The Burning Crusade (patch 2.4.3)
+
+local spells = {}
+
+spells.HOLY_LIGHT = {
+    27136,
+    27135,
+    25292,
+    10329,
+    10328,
+    3472,
+    1042,
+    1026,
+    647,
+    639,
+    635,
+}
+
+spells.FLASH_OF_LIGHT = {
+    27137,
+    19943,
+    19942,
+    19941,
+    19940,
+    19939,
+    19750,
+}
+
+spells.HOLY_SHOCK = {
+    20930,
+    20929,
+    20473,
+}
+
+spells.JUDGEMENT = { 20271 }
+spells.SEAL_OF_WISDOM = { 27166, 20357, 20356, 20166 }
+spells.SEAL_OF_LIGHT = { 27160, 20349, 20348, 20347, 20165 }
+spells.JUDGEMENT_OF_WISDOM = { 27165, 20355, 20354, 20186 }
+spells.JUDGEMENT_OF_LIGHT = { 27169, 20337, 20336, 20335, 20334, 20185 }
+
+spells.BLESSING_OF_LIGHT = {
+    27145,
+    19979,
+    19978,
+    19977,
+}
+
+spells.BLESSING_OF_KINGS = { 20217 }
+
+spells.BLESSING_OF_WISDOM = {
+    25894,
+    19853,
+    19852,
+    19850,
+    19742,
+}
+
+spells.BUFF_BLESSING_OF_WISDOM = {
+    27142,
+    25290,
+    25894,
+    19854,
+    19853,
+    19852,
+    19850,
+    19742,
+}
+
+spells.BLESSING_OF_MIGHT = {
+    27140,
+    25291,
+    25782,
+    19838,
+    19836,
+    19835,
+    19834,
+    19837,
+    19832,
+    19831,
+    19830,
+    19740,
+}
+
+spells.LAY_ON_HANDS = {
+    633,
+    1996,
+    1997,
+    1998,
+    2806,
+    2807,
+    2808,
+    2810,
+}
+
+spells.DIVINE_ILLUMINATION = { 20245 }
+spells.DIVINE_FAVOR = { 20216 }
+spells.BUFF_DIVINE_ILLUMINATION = spells.DIVINE_ILLUMINATION
+spells.BUFF_DIVINE_FAVOR = spells.DIVINE_FAVOR
+spells.DIVINE_SHIELD = { 642 }
+spells.HAND_OF_FREEDOM = { 1044 }
+spells.BUFF_HAND_OF_FREEDOM = { 1044 }
+spells.CLEANSE = { 4987 }
+spells.PURIFY = { 1152 }
+spells.REDEMPTION = { 10322, 788, 19752 }
+spells.AVENGING_WRATH = { 31884 }
+spells.REPENTANCE = { 20066 }
+spells.HAMMER_OF_JUSTICE = { 10308, 5589, 5588, 853 }
+spells.BLESSING_OF_PROTECTION = { 10278, 1022, 5599, 5598, 1079 }
+spells.DEVOTION_AURA = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
+spells.RETRIBUTION_AURA = { 27150, 10301, 10300, 10299, 10298, 7294 }
+spells.BUFF_RETRIBUTION_AURA = { 27150, 10301, 10300, 10299, 10298, 7294 }
+spells.CONCENTRATION_AURA = { 19746 }
+spells.RESISTANCE_AURAS = { 27153, 19900, 19899, 19891, 27152, 19898, 19897, 19888, 27151, 19896, 19895, 19876 }
+spells.BUFF_CRUSADER_AURA = { 32223 }
+
+spells.BUFF_BLESSING_OF_LIGHT = {
+    27145,
+    19979,
+    19978,
+    19977,
+}
+spells.BUFF_BLESSING_OF_SANCTUARY = { 25899, 20914, 20911, 20912, 20913 }
+
+spells.BUFF_BLESSING_OF_KINGS = { 20217 }
+
+spells.BUFF_SEAL_OF_WISDOM = { 27166, 20357, 20356, 20166 }
+spells.BUFF_SEAL_OF_LIGHT = { 27160, 20349, 20348, 20347, 20165 }
+spells.DEBUFF_JUDGEMENT_OF_WISDOM = spells.JUDGEMENT_OF_WISDOM
+spells.DEBUFF_JUDGEMENT_OF_LIGHT = spells.JUDGEMENT_OF_LIGHT
+
+spells.BUFF_BLESSING_OF_MIGHT = {
+    27140,
+    25291,
+    25782,
+    19838,
+    19837,
+    19836,
+    19835,
+    19834,
+    19740,
+}
+
+spells.BUFF_AVENGING_WRATH = { 31884 }
+
+spells.BERSERKING = { 26297 }
+spells.BUFF_BERSERKING = { 26297 }
+
+spells.HASTE_POTION = { 28508, 22832 }
+spells.SUPER_MANA_POTION = { 28499, 22828 }
+spells.SCROLL_OF_INTELLECT = { 22732, 10291 }
+spells.SCROLL_OF_STAMINA = { 22733, 10292 }
+
+return spells

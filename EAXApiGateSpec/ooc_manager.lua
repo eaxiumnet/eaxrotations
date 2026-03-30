@@ -6,7 +6,7 @@ local buff_manager = require("common/modules/buff_manager")
 local enchant_checker
 local enchant_checker_error
 do
-    local ok, mod = pcall(require, "eax_shared/enchant_checker")
+    local ok, mod = pcall(require, "enchant_checker")
     if ok then
         enchant_checker = mod
     else

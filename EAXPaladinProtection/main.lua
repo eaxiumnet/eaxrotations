@@ -1,13 +1,13 @@
 -- Eax PaladinProtection | main.lua
 -- Core rotation wiring for Protection Paladin survival and threat management.
 
-local menu = require("menu")
-local rotation_context = require("rotation_context")
-local resource_gate = require("resource_gate")
-local spells = require("spells")
-local utils = require("utils")
-local eax_utils = require("eax_utils")
-local dispel_engine = require("dispel_engine")
+local menu = require("libraries/menu")
+local rotation_context = require("libraries/rotation_context")
+local resource_gate = require("libraries/resource_gate")
+local spells = require("libraries/spells")
+local utils = require("libraries/utils")
+local eax_utils = require("libraries/eax_utils")
+local dispel_engine = require("libraries/dispel_engine")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
 ---@type key_helper
@@ -20,38 +20,38 @@ if not utils.same_unit then
 end
 
 ---@type interrupt_manager
-local interrupt_manager = require("interrupt_manager")
+local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("vendor_automation")
+local vendor_automation = require("libraries/vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("consumables_manager")
+local consumables_manager = require("libraries/consumables_manager")
 ---@type mount_manager
-local mount_manager = require("mount_manager")
+local mount_manager = require("libraries/mount_manager")
 ---@type leveling_manager
-local leveling_manager = require("leveling_manager")
+local leveling_manager = require("libraries/leveling_manager")
 ---@type creature_utils
-local creature_utils = require("creature_utils")
+local creature_utils = require("libraries/creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("encounter_manager")
+local encounter_manager = require("libraries/encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
 
 ---@type esp_renderer
-local esp_renderer = require("esp_renderer")
+local esp_renderer = require("libraries/esp_renderer")
 esp_renderer.init("pprot", "Paladin Prot")
 -- Smart Cast Manager - addresses spam/sluggishness
-local smart_cast_manager = require("smart_cast_manager")
+local smart_cast_manager = require("libraries/smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("dps_meter")
-local cooldown_tracker = require("cooldown_tracker")
-local visual_state = require("visual_state")
-local reactive_runtime = require("reactive_runtime")
-local tank_recovery = require("tank_recovery")
+local dps_meter = require("libraries/dps_meter")
+local cooldown_tracker = require("libraries/cooldown_tracker")
+local visual_state = require("libraries/visual_state")
+local reactive_runtime = require("libraries/reactive_runtime")
+local tank_recovery = require("libraries/tank_recovery")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -66,7 +66,7 @@ smart_cast_manager.init({
 })
 
 local _visual_ttd_tracker = nil
-local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
+local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "libraries/ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
     _visual_ttd_tracker = _visual_ttd_mod
 end
@@ -183,15 +183,18 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type racial_manager
-local racial_manager = require("racial_manager")
+local racial_manager = require("libraries/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("defensive_manager")
+local defensive_manager = require("libraries/defensive_manager")
 
----@type ttd_tracker
-local ttd_tracker = require("ttd_tracker")
+local ttd_tracker = nil
+local _ttd_ok, _ttd_mod = pcall(require, "libraries/ttd_tracker")
+if _ttd_ok and _ttd_mod then
+    ttd_tracker = _ttd_mod
+end
 
 ---@type color
-local color = require("color")
+local color = require("libraries/color")
 
 local MODE_AUTO = "auto"
 local MODE_SOLO = "solo"
@@ -263,7 +266,9 @@ end
 local MAGIC_DISPEL_TYPE = 1
 local DISEASE_DISPEL_TYPE = 3
 local POISON_DISPEL_TYPE = 4
-local JUDGEMENT_REFRESH_MS = 4000
+local JUDGEMENT_REFRESH_MS = 7000
+local JUDGEMENT_COMFORT_MS = 9000
+local LONG_FIGHT_TTD_S = 16
 local BLESSING_RETRY_WINDOW = 6.0
 local AURA_RETRY_WINDOW = 12.0
 
@@ -599,6 +604,14 @@ local function get_judgement_assignment_key(me)
 	return "wisdom"
 end
 
+local function get_judgement_remaining_ms(target, key)
+	local debuff_ids = get_judgement_debuff_ids(key)
+	if not debuff_ids then
+		return 0
+	end
+	return utils.get_debuff_remaining_ms(target, debuff_ids) or 0
+end
+
 local function get_judgement_debuff_ids(key)
 	if key == "crusader" then
 		return spells.DEBUFF_JUDGEMENT_OF_THE_CRUSADER
@@ -620,9 +633,14 @@ local function get_assigned_seal_profile(me, target)
 		return nil, nil, nil
 	end
 
+	local target_ttd = get_target_ttd_s(target)
+	if target_ttd > 0 and target_ttd < 12 then
+		return nil, nil, nil
+	end
+
 	local assignment_key = get_judgement_assignment_key(me)
-	local assignment_debuff = get_judgement_debuff_ids(assignment_key)
-	if assignment_debuff and utils.get_debuff_remaining_ms(target, assignment_debuff) > JUDGEMENT_REFRESH_MS then
+	local assignment_remaining = get_judgement_remaining_ms(target, assignment_key)
+	if assignment_remaining > JUDGEMENT_COMFORT_MS then
 		return nil, nil, nil
 	end
 
@@ -660,17 +678,17 @@ local function get_desired_seal_profile(me, target)
         return runtime.seal_of_wisdom_id, spells.BUFF_SEAL_OF_WISDOM, "Seal of Wisdom"
     end
 
-    local target_ttd = target and get_target_ttd_s(target) or 0
-    local durable_target = is_durable_judgement_target(target)
-    local seal_of_vengeance_id = runtime.seal_of_vengeance_id or runtime.seal_of_corruption_id
-    if durable_target and seal_of_vengeance_id and target_ttd >= 18 and mana_pct >= 0.25 then
-        local vengeance_buff = runtime.seal_of_vengeance_id and spells.BUFF_SEAL_OF_VENGEANCE or spells.BUFF_SEAL_OF_CORRUPTION
-        local vengeance_label = runtime.seal_of_vengeance_id and "Seal of Vengeance" or "Seal of Corruption"
-        local vengeance_stacks = utils.get_debuff_stack_count(target, spells.DEBUFF_HOLY_VENGEANCE) or 0
-        if vengeance_stacks >= 3 or target_ttd >= 24 then
-            return seal_of_vengeance_id, vengeance_buff, vengeance_label
-        end
-    end
+	local target_ttd = target and get_target_ttd_s(target) or 0
+	local durable_target = is_durable_judgement_target(target)
+	local seal_of_vengeance_id = runtime.seal_of_vengeance_id or runtime.seal_of_corruption_id
+	if durable_target and seal_of_vengeance_id and target_ttd >= LONG_FIGHT_TTD_S and mana_pct >= 0.22 then
+		local vengeance_buff = runtime.seal_of_vengeance_id and spells.BUFF_SEAL_OF_VENGEANCE or spells.BUFF_SEAL_OF_CORRUPTION
+		local vengeance_label = runtime.seal_of_vengeance_id and "Seal of Vengeance" or "Seal of Corruption"
+		local vengeance_stacks = utils.get_debuff_stack_count(target, spells.DEBUFF_HOLY_VENGEANCE) or 0
+		if vengeance_stacks >= 1 or target_ttd >= 24 then
+			return seal_of_vengeance_id, vengeance_buff, vengeance_label
+		end
+	end
 
     if runtime.seal_of_righteousness_id then
         return runtime.seal_of_righteousness_id, spells.BUFF_SEAL_OF_RIGHTEOUSNESS, "Seal of Righteousness"
@@ -726,6 +744,10 @@ local function try_avengers_shield(me, target, mode)
         return false
     end
 
+    if enc and not enc.aoe_safe then
+        return false
+    end
+
     if utils.can_cast_hostile(runtime.avengers_shield_id, me, target) then
         if utils.cast_target(runtime.avengers_shield_id, target) then
             note_cast()
@@ -751,8 +773,7 @@ local function try_judgement(me, target)
 
 	if is_durable_judgement_target(target) then
 		local assignment_key = get_judgement_assignment_key(me)
-		local assignment_debuff = get_judgement_debuff_ids(assignment_key)
-		local assignment_remaining = assignment_debuff and utils.get_debuff_remaining_ms(target, assignment_debuff) or 0
+		local assignment_remaining = get_judgement_remaining_ms(target, assignment_key)
 
 		if assignment_remaining <= JUDGEMENT_REFRESH_MS and active_seal == assignment_key then
 			should_cast = true
@@ -761,7 +782,7 @@ local function try_judgement(me, target)
 	end
 
 	if not should_cast then
-		if me:is_in_combat() and mana_pct >= 0.55 then
+		if me:is_in_combat() and mana_pct >= 0.60 then
 			return false
 		end
 		if active_seal == "wisdom" and utils.get_debuff_remaining_ms(target, spells.DEBUFF_JUDGEMENT_OF_WISDOM) > JUDGEMENT_REFRESH_MS then
@@ -1187,15 +1208,14 @@ local function get_group_blessing_assignment(me, unit)
         end
     end
 
-    if utils.same_unit and utils.same_unit(me, unit) then
-        role_id = GROUP_ROLE_TANK
-    end
+    local is_self = utils.same_unit and utils.same_unit(me, unit)
+    local prefers_wisdom = role_id == GROUP_ROLE_HEALER or (is_self and utils.get_mana_pct(me) < 0.75)
 
     if role_id == GROUP_ROLE_TANK and runtime.ooc_blessing_of_sanctuary_id then
         return runtime.ooc_blessing_of_sanctuary_id, spells.BUFF_BLESSING_OF_SANCTUARY, "Blessing of Sanctuary"
     end
 
-    if role_id == GROUP_ROLE_HEALER and runtime.ooc_blessing_of_wisdom_id then
+    if prefers_wisdom and runtime.ooc_blessing_of_wisdom_id then
         return runtime.ooc_blessing_of_wisdom_id, spells.BUFF_BLESSING_OF_WISDOM, "Blessing of Wisdom"
     end
 
@@ -1224,6 +1244,8 @@ local function unit_has_any_paladin_blessing(unit)
         spells.BUFF_BLESSING_OF_KINGS,
         spells.BUFF_BLESSING_OF_MIGHT,
         spells.BUFF_BLESSING_OF_WISDOM,
+        spells.BUFF_BLESSING_OF_LIGHT,
+        spells.BUFF_BLESSING_OF_SANCTUARY,
     }
     for i = 1, #blessing_ids do
         if utils.has_buff(unit, blessing_ids[i]) then
@@ -1240,6 +1262,7 @@ local function unit_has_any_paladin_blessing(unit)
         ["blessing of kings"] = true, ["greater blessing of kings"] = true,
         ["blessing of salvation"] = true, ["greater blessing of salvation"] = true,
         ["blessing of light"] = true, ["greater blessing of light"] = true,
+        ["blessing of sanctuary"] = true, ["greater blessing of sanctuary"] = true,
     }
     for _, buff in ipairs(buffs) do
         local name = buff and buff.name

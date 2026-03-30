@@ -3,54 +3,54 @@
 -- APIs validated against core, object_manager, and spellbook docs
 
 require("common/wow_api_clone")  -- exposes GetWeaponEnchantInfo for temp enchant detection
-local menu = require("menu")
-local spells = require("spells")
-local rotation_context = require("rotation_context")
-local resource_gate = require("resource_gate")
-local utils = require("utils")
+local menu = require("libraries/menu")
+local spells = require("libraries/spells")
+local rotation_context = require("libraries/rotation_context")
+local resource_gate = require("libraries/resource_gate")
+local utils = require("libraries/utils")
 
 if not utils.same_unit then
     function utils.same_unit(a, b)
         return a ~= nil and a == b
     end
 end
-local eax_utils = require("eax_utils")
-local dispel_engine = require("dispel_engine")
+local eax_utils = require("libraries/eax_utils")
+local dispel_engine = require("libraries/dispel_engine")
 
 ---@type interrupt_manager
-local interrupt_manager = require("interrupt_manager")
+local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("vendor_automation")
+local vendor_automation = require("libraries/vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("consumables_manager")
+local consumables_manager = require("libraries/consumables_manager")
 ---@type mount_manager
-local mount_manager = require("mount_manager")
+local mount_manager = require("libraries/mount_manager")
 ---@type leveling_manager
-local leveling_manager = require("leveling_manager")
+local leveling_manager = require("libraries/leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("encounter_manager")
+local encounter_manager = require("libraries/encounter_manager")
 ---@type totem_manager
-local totem_manager = require("totem_manager")
+local totem_manager = require("libraries/totem_manager")
 ---@type swing_timer
-local swing_timer = require("swing_timer")
+local swing_timer = require("libraries/swing_timer")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
 
 ---@type esp_renderer
-local esp_renderer = require("esp_renderer")
+local esp_renderer = require("libraries/esp_renderer")
 esp_renderer.init("enhance", "Shaman Enh")
 -- Smart Cast Manager - addresses spam/sluggishness
-local smart_cast_manager = require("smart_cast_manager")
+local smart_cast_manager = require("libraries/smart_cast_manager")
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("dps_meter")
-local cooldown_tracker = require("cooldown_tracker")
-local visual_state = require("visual_state")
-local reactive_runtime = require("reactive_runtime")
-local dps_risk = require("dps_risk")
-local dps_runtime = require("dps_runtime")
+local dps_meter = require("libraries/dps_meter")
+local cooldown_tracker = require("libraries/cooldown_tracker")
+local visual_state = require("libraries/visual_state")
+local reactive_runtime = require("libraries/reactive_runtime")
+local dps_risk = require("libraries/dps_risk")
+local dps_runtime = require("libraries/dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -65,7 +65,7 @@ smart_cast_manager.init({
 })
 
 local _visual_ttd_tracker = nil
-local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
+local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "libraries/ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
     _visual_ttd_tracker = _visual_ttd_mod
 end
@@ -186,11 +186,11 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type ttd_tracker
-local ttd_tracker = require("ttd_tracker")
+local ttd_tracker = require("libraries/ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("racial_manager")
+local racial_manager = require("libraries/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("defensive_manager")
+local defensive_manager = require("libraries/defensive_manager")
 
 ---@type key_helper
 ---@type key_helper
@@ -198,7 +198,7 @@ local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
 ---@type color
-local color = require("color")
+local color = require("libraries/color")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 

@@ -1,55 +1,55 @@
 -- Eax Paladin Retribution | main.lua
 -- Rotation logic for Seal twists, Crusader Strike, and Judgement.
 
-local menu = require("menu")
-local rotation_context = require("rotation_context")
-local resource_gate = require("resource_gate")
-local spells = require("spells")
-local utils = require("utils")
+local menu = require("libraries/menu")
+local rotation_context = require("libraries/rotation_context")
+local resource_gate = require("libraries/resource_gate")
+local spells = require("libraries/spells")
+local utils = require("libraries/utils")
 
 if not utils.same_unit then
     function utils.same_unit(a, b)
         return a ~= nil and a == b
     end
 end
-local eax_utils = require("eax_utils")
-local color     = require("color")
-local dispel_engine = require("dispel_engine")
+local eax_utils = require("libraries/eax_utils")
+local color     = require("libraries/color")
+local dispel_engine = require("libraries/dispel_engine")
 
 ---@type interrupt_manager
-local interrupt_manager = require("interrupt_manager")
+local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("vendor_automation")
+local vendor_automation = require("libraries/vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("consumables_manager")
+local consumables_manager = require("libraries/consumables_manager")
 ---@type mount_manager
-local mount_manager = require("mount_manager")
+local mount_manager = require("libraries/mount_manager")
 ---@type leveling_manager
-local leveling_manager = require("leveling_manager")
+local leveling_manager = require("libraries/leveling_manager")
 ---@type creature_utils
-local creature_utils = require("creature_utils")
+local creature_utils = require("libraries/creature_utils")
 
 ---@type encounter_manager
-local encounter_manager = require("encounter_manager")
+local encounter_manager = require("libraries/encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
 
 ---@type esp_renderer
-local esp_renderer = require("esp_renderer")
+local esp_renderer = require("libraries/esp_renderer")
 esp_renderer.init("pret", "Paladin Ret")
 -- Smart Cast Manager - addresses spam/sluggishness
-local smart_cast_manager = require("smart_cast_manager")
+local smart_cast_manager = require("libraries/smart_cast_manager")
 
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("dps_meter")
-local cooldown_tracker = require("cooldown_tracker")
-local visual_state = require("visual_state")
-local reactive_runtime = require("reactive_runtime")
-local dps_risk = require("dps_risk")
-local dps_runtime = require("dps_runtime")
+local dps_meter = require("libraries/dps_meter")
+local cooldown_tracker = require("libraries/cooldown_tracker")
+local visual_state = require("libraries/visual_state")
+local reactive_runtime = require("libraries/reactive_runtime")
+local dps_risk = require("libraries/dps_risk")
+local dps_runtime = require("libraries/dps_runtime")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -64,7 +64,7 @@ smart_cast_manager.init({
 })
 
 local _visual_ttd_tracker = nil
-local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
+local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "libraries/ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
     _visual_ttd_tracker = _visual_ttd_mod
 end
@@ -181,11 +181,11 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type ttd_tracker
-local ttd_tracker = require("ttd_tracker")
+local ttd_tracker = require("libraries/ttd_tracker")
 ---@type racial_manager
-local racial_manager = require("racial_manager")
+local racial_manager = require("libraries/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("defensive_manager")
+local defensive_manager = require("libraries/defensive_manager")
 
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
@@ -260,6 +260,7 @@ local SEAL_TWIST_INPUT_DELAY_MS = 100
 local SEAL_TWIST_MANA_RESERVE = 0.20
 local SEAL_TWIST_CONFIRM_TIMEOUT_S = 0.75
 local BASELINE_RESEAL_DELAY_S = 1.5
+local POST_JUDGEMENT_RESEAL_DELAY_S = 1.75
 local PRE_PULL_CONFIRM_TIMEOUT_S = 1.0
 local AURA_RETRY_WINDOW = 12.0
 local BLESSING_RETRY_WINDOW = 6.0
@@ -428,6 +429,7 @@ local function unit_has_any_paladin_blessing(unit)
         spells.BUFF_BLESSING_OF_WISDOM,
         spells.BUFF_BLESSING_OF_KINGS,
         spells.BUFF_BLESSING_OF_SANCTUARY,
+        spells.BUFF_BLESSING_OF_LIGHT,
     }
     for i = 1, #blessing_ids do
         if utils.has_buff(unit, blessing_ids[i]) then
@@ -742,12 +744,16 @@ local function continue_seal_twist(me, target)
     end
 
     if runtime.twist_state == "baseline_pending" then
-        local baseline_seal_id, _, baseline_seal_key = get_preferred_seal()
-        local has_baseline = (baseline_seal_key == "blood" and utils.has_buff(me, spells.BUFF_SEAL_OF_BLOOD))
-            or (baseline_seal_key == "command" and utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND))
-            or (baseline_seal_key == "righteous" and utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS))
-        if has_baseline then
+        if has_baseline_seal(me) then
             reset_twist_state()
+        elseif should_reseal_baseline_now(me, target) then
+            local baseline_seal_id, baseline_seal_name = get_preferred_seal()
+            if baseline_seal_id and utils.cast_self_fast(baseline_seal_id, me) then
+                runtime.twist_state_changed_at = _core_time()
+                utils.log_debug(menu, "Seal twist -> " .. tostring(baseline_seal_name))
+                note_cast()
+                return true
+            end
         elseif (_core_time() - runtime.twist_state_changed_at) > SEAL_TWIST_CONFIRM_TIMEOUT_S then
             reset_twist_state()
         end
@@ -780,6 +786,29 @@ local function ensure_baseline_seal(me)
         return true
     end
     return false
+end
+
+local function has_baseline_seal(me)
+    local _, _, baseline_seal_key = get_preferred_seal()
+    return (baseline_seal_key == "blood" and utils.has_buff(me, spells.BUFF_SEAL_OF_BLOOD))
+        or (baseline_seal_key == "command" and utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND))
+        or (baseline_seal_key == "righteous" and utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS))
+end
+
+local function should_reseal_baseline_now(me, target)
+    if runtime.twist_state ~= "idle" then
+        return false
+    end
+    if not me or not me:is_valid() or not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+    if has_baseline_seal(me) then
+        return false
+    end
+    if should_hold_for_crusader_strike(me, target) then
+        return false
+    end
+    return utils.is_next_swing_within_ms(me, menu.seal_twist_window:get(), SEAL_TWIST_INPUT_DELAY_MS)
 end
 
 local function selected_judgement_key(me)
@@ -1105,7 +1134,7 @@ local function maybe_cast_judgement(me, target)
         if profile.seal_id and utils.can_cast_self(profile.seal_id, me) and utils.cast_self(profile.seal_id, me) then
             note_cast()
             utils.log_debug(menu, profile.seal_label)
-            runtime.pending_judgement_until = _core_time() + BASELINE_RESEAL_DELAY_S
+            runtime.pending_judgement_until = _core_time() + POST_JUDGEMENT_RESEAL_DELAY_S
             return true
         end
         return false
@@ -1115,7 +1144,7 @@ local function maybe_cast_judgement(me, target)
     end
     if utils.cast_target(runtime.judgement_spell_id, target) then
         runtime.pending_judgement_until = 0
-        runtime.pending_baseline_reseal_until = _core_time() + BASELINE_RESEAL_DELAY_S
+        runtime.pending_baseline_reseal_until = _core_time() + POST_JUDGEMENT_RESEAL_DELAY_S
         note_cast()
         utils.log_debug(menu, profile.judgement_label)
         esp_renderer.on_cast(runtime.judgement_spell_id, profile.judgement_label, color.yellow(220))
@@ -1320,7 +1349,7 @@ core.register_on_update_callback(function()
     if runtime.pending_judgement_until <= _core_time() and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_baseline_seal(me) then
         return
     end
-    if runtime.pending_baseline_reseal_until <= _core_time() and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_baseline_seal(me) then
+    if runtime.pending_baseline_reseal_until <= _core_time() and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and should_reseal_baseline_now(me, target) and ensure_baseline_seal(me) then
         return
     end
     if not me:is_in_combat() and ctx and resource_gate.common.has_mana_pct(ctx, 0.20) then

@@ -1,14 +1,14 @@
 -- Eax Warrior Protection | main.lua
 -- Callback registration, control-panel wiring, and documented Eax Warrior Protection logic.
 
-local menu = require("menu")
-local spells = require("spells")
-local utils = require("utils")
-local rotation_context = require("rotation_context")
-local resource_gate = require("resource_gate")
-local eax_utils = require("eax_utils")
-local dps_risk = require("dps_risk")
-local swing_timer = require("swing_timer")
+local menu = require("libraries/menu")
+local spells = require("libraries/spells")
+local utils = require("libraries/utils")
+local rotation_context = require("libraries/rotation_context")
+local resource_gate = require("libraries/resource_gate")
+local eax_utils = require("libraries/eax_utils")
+local dps_risk = require("libraries/dps_risk")
+local swing_timer = require("libraries/swing_timer")
 local health_prediction = require("common/modules/health_prediction")
 
 if not utils.same_unit then
@@ -18,23 +18,23 @@ if not utils.same_unit then
 end
 
 ---@type interrupt_manager
-local interrupt_manager = require("interrupt_manager")
+local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 ---@type vendor_automation
-local vendor_automation = require("vendor_automation")
+local vendor_automation = require("libraries/vendor_automation")
 ---@type consumables_manager
-local consumables_manager = require("consumables_manager")
+local consumables_manager = require("libraries/consumables_manager")
 ---@type mount_manager
-local mount_manager = require("mount_manager")
+local mount_manager = require("libraries/mount_manager")
 ---@type leveling_manager
-local leveling_manager = require("leveling_manager")
+local leveling_manager = require("libraries/leveling_manager")
 ---@type encounter_manager
-local encounter_manager = require("encounter_manager")
+local encounter_manager = require("libraries/encounter_manager")
 
 
 ---@type esp_renderer
-local esp_renderer = require("esp_renderer")
+local esp_renderer = require("libraries/esp_renderer")
 
 local function notify_cast(key, message, color_val, duration_s)
     _ = key, duration_s
@@ -45,16 +45,17 @@ end
 
 esp_renderer.init("wprot", "Warrior Prot")
 -- Smart Cast Manager - addresses spam/sluggishness
-local smart_cast_manager = require("smart_cast_manager")
+local smart_cast_manager = require("libraries/smart_cast_manager")
 -- Phase 04 visual telemetry wiring
-local dps_meter = require("dps_meter")
-local cooldown_tracker = require("cooldown_tracker")
-local visual_state = require("visual_state")
-local reactive_runtime = require("reactive_runtime")
-local tank_recovery = require("tank_recovery")
+local dps_meter = require("libraries/dps_meter")
+local cooldown_tracker = require("libraries/cooldown_tracker")
+local visual_state = require("libraries/visual_state")
+local reactive_runtime = require("libraries/reactive_runtime")
+local tank_recovery = require("libraries/tank_recovery")
 
 local describe_unit
 local is_dangerous_caster
+local is_interruptible_caster
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -69,7 +70,7 @@ smart_cast_manager.init({
 })
 
 local _visual_ttd_tracker = nil
-local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "ttd_tracker")
+local _visual_ttd_ok, _visual_ttd_mod = pcall(require, "libraries/ttd_tracker")
 if _visual_ttd_ok and _visual_ttd_mod then
     _visual_ttd_tracker = _visual_ttd_mod
 end
@@ -186,12 +187,12 @@ core.register_on_update_callback(function()
     visual_update_snapshot(me, target)
 end)
 ---@type racial_manager
-local racial_manager = require("racial_manager")
+local racial_manager = require("libraries/racial_manager")
 ---@type defensive_manager
-local defensive_manager = require("defensive_manager")
+local defensive_manager = require("libraries/defensive_manager")
 
 ---@type color
-local color = require("color")
+local color = require("libraries/color")
 ---@type key_helper
 local key_helper = require("common/utility/key_helper")
 ---@type control_panel_helper
@@ -200,7 +201,7 @@ local control_panel_utility = require("common/utility/control_panel_helper")
 local buff_manager = require("common/modules/buff_manager")
 
 ---@type ttd_tracker
-local ttd_tracker = require("ttd_tracker")
+local ttd_tracker = require("libraries/ttd_tracker")
 
 local runtime = {
     shield_slam_id = nil,
@@ -248,6 +249,10 @@ local runtime = {
     prev_intimidating_shout_state = false,
     pending_stance_action = nil,
     pending_stance_action_started_at = 0,
+    charge_queue_requested_at = 0,
+    charge_pending_return = false,
+    suppress_home_return_after_charge = false,
+    last_charge_cd = 0,
     pending_casts = {},
     auto_intercept_target = nil,
     auto_intercept_retry_target = nil,
@@ -679,7 +684,7 @@ is_dangerous_caster = function(unit)
         and (unit:is_casting_spell() or unit:is_channelling_spell())
 end
 
-local function is_interruptible_caster(unit)
+is_interruptible_caster = function(unit)
     if not unit or not unit:is_valid() then return false end
     if unit:is_casting_spell() then
         return unit:is_active_spell_interruptable()
@@ -1193,6 +1198,56 @@ local function get_home_stance_id()
     return runtime.defensive_stance_id
 end
 
+function runtime.update_charge_return_requests(me, target)
+    local current_stance = utils.get_current_stance(me)
+    local home_stance = get_home_stance()
+    local charge_cd = runtime.charge_id and _get_spell_cd(runtime.charge_id) or -1
+    local charge_just_fired = runtime.charge_id
+        and runtime.last_charge_cd <= 0
+        and charge_cd > 0
+
+    if current_stance == home_stance then
+        runtime.charge_pending_return = false
+        runtime.suppress_home_return_after_charge = false
+    elseif runtime.suppress_home_return_after_charge and current_stance ~= "battle" then
+        runtime.suppress_home_return_after_charge = false
+    end
+
+    if runtime.charge_queue_requested_at <= 0 and charge_just_fired and current_stance == "battle" then
+        if menu.auto_defensive_after_charge:get_state() then
+            runtime.charge_pending_return = true
+            runtime.suppress_home_return_after_charge = false
+        else
+            runtime.charge_pending_return = false
+            runtime.suppress_home_return_after_charge = true
+        end
+    end
+
+    if runtime.charge_queue_requested_at <= 0 then
+        runtime.last_charge_cd = charge_cd
+        return
+    end
+
+    local charge_confirmed = me:is_in_combat()
+        or (runtime.charge_id and _get_spell_cd(runtime.charge_id) > 0)
+        or (target and utils.is_melee_target(me, target))
+
+    if charge_confirmed then
+        runtime.charge_queue_requested_at = 0
+        if menu.auto_defensive_after_charge:get_state() then
+            runtime.charge_pending_return = true
+            runtime.suppress_home_return_after_charge = false
+        else
+            runtime.charge_pending_return = false
+            runtime.suppress_home_return_after_charge = true
+        end
+    elseif (_core_time() - runtime.charge_queue_requested_at) > 1.25 then
+        runtime.charge_queue_requested_at = 0
+    end
+
+    runtime.last_charge_cd = charge_cd
+end
+
 local function get_stance_label(stance_name)
     if stance_name == "battle" then
         return "Battle Stance"
@@ -1380,6 +1435,10 @@ local function process_pending_stance_action(me)
 
     if action.key == "intercept" then
         runtime.auto_intercept_target = action.target
+    elseif action.key == "charge" then
+        runtime.charge_queue_requested_at = _core_time()
+        runtime.charge_pending_return = false
+        runtime.suppress_home_return_after_charge = false
     end
 
     if action.cast_mode == "self" then
@@ -1428,6 +1487,53 @@ local function try_return_home_stance(me)
     end
 
     return false
+end
+
+function runtime.try_return_after_charge(me)
+    if not runtime.charge_pending_return then return false end
+    if not menu.auto_defensive_after_charge:get_state() then
+        runtime.charge_pending_return = false
+        return false
+    end
+
+    if utils.has_buff(me, spells.BUFF_DEFENSIVE_STANCE) then
+        runtime.charge_pending_return = false
+        return false
+    end
+
+    local home = get_home_stance()
+    local home_id = get_home_stance_id()
+    if not home_id then return false end
+    if is_pending_or_current(home_id) then return false end
+
+    if utils.can_cast_self(home_id, me) and utils.cast_self(home_id, me) then
+        runtime.charge_pending_return = false
+        runtime.suppress_home_return_after_charge = false
+        mark_pending_cast(home_id, PENDING_CAST_TIMEOUT_S)
+        utils.set_tracked_stance(home)
+        utils.log_debug(menu, "Charge return -> " .. home)
+        notify_cast("simpleprot:stance:return", "Return -> " .. get_stance_label(home), color.blue(220), 0.9)
+        note_cast()
+        return true
+    end
+
+    return false
+end
+
+function runtime.handle_home_stance_return(me)
+    if not me:is_in_combat() or runtime.pending_stance_action then
+        return false
+    end
+
+    local current_stance = utils.get_current_stance(me)
+    local suppress_charge_return = runtime.suppress_home_return_after_charge and current_stance == "battle"
+    if not suppress_charge_return and try_return_home_stance(me) then
+        return true
+    end
+
+    current_stance = utils.get_current_stance(me)
+    suppress_charge_return = runtime.suppress_home_return_after_charge and current_stance == "battle"
+    return current_stance ~= nil and current_stance ~= get_home_stance() and not suppress_charge_return
 end
 
 local function handle_toggle()
@@ -2881,6 +2987,7 @@ local function try_intimidating_shout_keybind(me, target)
     local was_pressed = runtime.prev_intimidating_shout_state
     runtime.prev_intimidating_shout_state = is_pressed
 
+    if not menu.use_intimidating_shout:get_state() then return false end
     if menu.intimidating_shout_key:get_key_code() == 7 then return false end
     if not is_pressed or was_pressed then return false end
     if not runtime.intimidating_shout_id then return false end
@@ -3213,9 +3320,25 @@ local function on_spell_cast(data)
 
     smart_cast_manager.on_cast_success(data.spell_id)
     clear_pending_cast(data.spell_id)
+    if data.spell_id == runtime.charge_id then
+        runtime.charge_queue_requested_at = _core_time()
+        runtime.charge_pending_return = menu.auto_defensive_after_charge:get_state()
+        runtime.suppress_home_return_after_charge = not menu.auto_defensive_after_charge:get_state()
+    end
     if data.spell_id == runtime.heroic_strike_id or data.spell_id == runtime.cleave_id then
         reset_on_next_attack_queue_state()
     end
+end
+
+local function on_legit_spell_cast(data)
+    local spell_id = type(data) == "table" and data.spell_id or data
+    if spell_id ~= runtime.charge_id then
+        return
+    end
+
+    runtime.charge_queue_requested_at = _core_time()
+    runtime.charge_pending_return = menu.auto_defensive_after_charge:get_state()
+    runtime.suppress_home_return_after_charge = not menu.auto_defensive_after_charge:get_state()
 end
 
 local function on_update()
@@ -3372,6 +3495,13 @@ local function on_update()
         action_target_valid = true
     end
 
+    runtime.update_charge_return_requests(me, action_target_valid and action_target or nil)
+
+    if process_pending_stance_action(me) then return end
+    if runtime.pending_stance_action then return end
+    if runtime.try_return_after_charge(me) then return end
+    if runtime.handle_home_stance_return(me) then return end
+
     ttd_tracker.update(action_target)
 
     if action_target_valid then
@@ -3398,19 +3528,6 @@ local function on_update()
         if do_emergency_defensive_lane(me, action_target, hp_pct) then
             maybe_log_core_starvation(me, action_target, action_target_valid, rage, mode_policy)
             return
-        end
-    end
-
-    if process_pending_stance_action(me) then return end
-    if runtime.pending_stance_action then return end
-
-    if me:is_in_combat() then
-        -- Don't return home if we're mid-way through a staged stance action
-        -- (e.g. swapped to Berserker for Recklessness but haven't cast it yet).
-        if not runtime.pending_stance_action then
-            if try_return_home_stance(me) then return end
-            local current_stance = utils.get_current_stance(me)
-            if current_stance ~= nil and current_stance ~= get_home_stance() then return end
         end
     end
 
@@ -3546,6 +3663,9 @@ end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(on_update)
 core.register_on_spell_cast_callback(on_spell_cast)
+if core.register_on_legit_spell_cast_callback then
+    core.register_on_legit_spell_cast_callback(on_legit_spell_cast)
+end
 
 -- -- Space theme: create menu window and inject into menu ---------------------
 local _vec2 = require("common/geometry/vector_2")

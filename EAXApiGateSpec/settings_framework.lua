@@ -7,7 +7,7 @@
     Standardizes categories, defaults, and tooltips.
     
     Usage:
-        local settings = require("eax_shared/settings_framework")
+        local settings = require("settings_framework")
         
         -- Initialize with spec info
         settings.init({
