@@ -190,11 +190,56 @@
 ---@field WINDOW number
 
 ---@class window_enums
----@field window_behaviour_flags table<string, number>
----@field font_id table<string, number>
----@field rect_borders_rounding_flags number[]
----@field window_resizing_flags table<string, number>
----@field window_cross_visuals table<string, number>
+---@field window_behaviour_flags window_behaviour_flags
+---@field font_id window_fonts
+---@field rect_borders_rounding_flags rect_borders_rounding_flags
+---@field window_resizing_flags window_resizing_flags
+---@field window_cross_visuals window_cross_visuals
+
+---@class window_fonts
+---@field FONT_NORMAL number
+---@field FONT_SMALL number
+---@field FONT_ICONS_VERY_BIG number
+---@field FONT_ICONS_BIG number
+---@field FONT_ICONS_SMALL number
+---@field FONT_BIG number
+---@field FONT_SEMI_BIG number
+
+---@class window_behaviour_flags
+---@field NO_SCROLLBAR number
+---@field ALWAYS_AUTO_RESIZE number
+---@field NO_MOVE number
+
+---@class rect_borders_rounding_flags
+---@field ROUND_TOP_RIGHT_CORNERS number
+---@field ROUND_ALL_CORNERS number
+---@field ROUND_RIGHT_CORNERS number
+---@field ROUND_LEFT_CORNERS number
+---@field ROUND_BOTTOM_CORNERS number
+---@field ROUND_TOP_CORNERS number
+---@field ROUND_BOTTOM_RIGHT_CORNER number
+---@field ROUND_BOTTOM_LEFT_CORNER number
+---@field ROUND_TOP_LEFT_CORNERS number
+---@field NO_ROUNDING number
+
+---@class window_resizing_flags
+---@field NO_RESIZE number
+---@field RESIZE_BOTH_AXIS number
+---@field RESIZE_HEIGHT number
+---@field RESIZE_WIDTH number
+
+---@class window_cross_visuals
+---@field GREY_THEME number
+---@field NO_CROSS number
+---@field NO_BACKGROUND_AND_NO_BORDER number
+---@field NO_BORDER number
+---@field ONLY_HITBOX number
+---@field NO_BACKGROUND number
+---@field BLUE_THEME number
+---@field RED_THEME number
+---@field GREEN_THEME number
+---@field PURPLE_THEME number
+---@field DEFAULT number
 
 ---@class spec_enum
 ---@field ARMS_WARRIOR number

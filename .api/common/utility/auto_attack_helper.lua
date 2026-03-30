@@ -1,3 +1,4 @@
+
 -- Example:
 -- ---@type auto_attack_helper
 -- local x = require("common/utility/auto_attack_helper")

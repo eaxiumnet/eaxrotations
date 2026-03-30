@@ -6,6 +6,16 @@ local enchant_checker = {}
 local _last_weapon_check = 0
 local CHECK_INTERVAL = 300.0
 
+local SLOT_MAP = {
+    head = 0,
+    shoulders = 2,
+    chest = 4,
+    cloak = 14,
+    main_hand = 15,
+}
+
+local SLOT_ORDER = { "main_hand", "chest", "cloak", "head", "shoulders" }
+
 local function get_equipped_main_hand(me)
     if not me then return nil end
 
@@ -28,6 +38,22 @@ local function get_equipped_main_hand(me)
     end
 
     return nil
+end
+
+local function get_equipped_item_at_slot(me, slot)
+    if not me or type(me.get_item_at_inventory_slot) ~= "function" then return nil end
+
+    local ok, slot_info = pcall(me.get_item_at_inventory_slot, me, slot)
+    if not ok or not slot_info then return nil end
+
+    local item = slot_info.object or slot_info.item or slot_info
+    if not item then return nil end
+    if type(item.is_valid) == "function" then
+        local ok_valid, valid = pcall(item.is_valid, item)
+        if ok_valid and not valid then return nil end
+    end
+
+    return item
 end
 
 local function get_item_id(item)
@@ -53,6 +79,89 @@ local function get_item_enchant_id(item)
     return nil
 end
 
+local function item_has_enchant(item)
+    if not item then return false end
+
+    local methods = { "item_has_enchant", "has_enchant" }
+    for _, method in ipairs(methods) do
+        if type(item[method]) == "function" then
+            local ok, value = pcall(item[method], item)
+            if ok then
+                return value == true
+            end
+        end
+    end
+
+    local enchant_id = get_item_enchant_id(item)
+    return type(enchant_id) == "number" and enchant_id > 0
+end
+
+local function format_expected_names(config)
+    if type(config) ~= "table" then return "expected enchant" end
+
+    local names = config.names or config.enchants or {}
+    local parts = {}
+    for i = 1, #names do
+        if type(names[i]) == "string" then
+            parts[#parts + 1] = names[i]
+        end
+    end
+
+    if #parts == 0 then
+        return "expected enchant"
+    end
+
+    return table.concat(parts, " or ")
+end
+
+local function check_slot_config(me, slot_key, config)
+    local slot_id = SLOT_MAP[slot_key]
+    if not slot_id or type(config) ~= "table" then return nil end
+
+    local item = get_equipped_item_at_slot(me, slot_id)
+    if not item then return nil end
+
+    local expected = format_expected_names(config)
+    local enchant_id = get_item_enchant_id(item)
+    local has_any = item_has_enchant(item)
+    local allowed_ids = {}
+    local has_numeric_expectation = false
+
+    local enchants = config.enchants or {}
+    for i = 1, #enchants do
+        if type(enchants[i]) == "number" then
+            allowed_ids[#allowed_ids + 1] = enchants[i]
+            has_numeric_expectation = true
+        end
+    end
+
+    if has_numeric_expectation then
+        for i = 1, #allowed_ids do
+            if enchant_id == allowed_ids[i] then
+                return nil
+            end
+        end
+
+        return {
+            slot_key = slot_key,
+            slot_label = config.label or slot_key,
+            expected = expected,
+            message = string.format("%s missing expected enchant: %s.", config.label or slot_key, expected),
+        }
+    end
+
+    if has_any then
+        return nil
+    end
+
+    return {
+        slot_key = slot_key,
+        slot_label = config.label or slot_key,
+        expected = expected,
+        message = string.format("%s missing expected enchant: %s.", config.label or slot_key, expected),
+    }
+end
+
 function enchant_checker.check_weapon(me)
     local now = core and core.time and core.time() or 0
     if (now - _last_weapon_check) < CHECK_INTERVAL then return false end
@@ -72,6 +181,24 @@ function enchant_checker.check_weapon(me)
     if enchant_id > 0 then return false end
 
     return true
+end
+
+function enchant_checker.check_spec(me, spec_enchants)
+    local now = core and core.time and core.time() or 0
+    if (now - _last_weapon_check) < CHECK_INTERVAL then return nil end
+    _last_weapon_check = now
+
+    if type(spec_enchants) ~= "table" then return nil end
+
+    for i = 1, #SLOT_ORDER do
+        local slot_key = SLOT_ORDER[i]
+        local missing = check_slot_config(me, slot_key, spec_enchants[slot_key])
+        if missing then
+            return missing
+        end
+    end
+
+    return nil
 end
 
 return enchant_checker

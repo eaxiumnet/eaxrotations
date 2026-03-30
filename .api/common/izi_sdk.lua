@@ -550,7 +550,7 @@
 ---@field is_arena                  fun(): boolean                                                  -- Return if local client is inside an arena map type
 ---@field in_arena                  fun(): boolean                                                  -- Return if local client is inside an arena map type
 ---@field is_in_arena               fun(): boolean                                                  -- Return if local client is inside an arena map type
----@field get_time_to_die_global    fun(): table                                                    -- Return global forecast table (combat_forecast data)
+---@field get_time_to_die_global    fun(): number                                                   -- Return global forecast number (time to die of the whole pull, not 1 unit in specific)
 ---@field target                    fun(): game_object|nil                                          -- Current target or nil
 ---@field ts                        fun(i?: integer): game_object|nil                               -- Target selector i (default 1)
 ---@field enemies                   fun(radius?: number, players_only?: boolean): game_object[]     -- Enemies around player

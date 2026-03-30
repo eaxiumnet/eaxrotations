@@ -297,3 +297,8 @@
 ---@field get_empower_current_stage fun(self: game_object): number
 ---Returns the unit's ranged damage information including speed, damage range, buffs, and percentage modifier.
 ---@field get_unit_ranged_damage fun(self: game_object): unit_ranged_damage_data
+---Returns the armor value of the game object.
+---@field get_armor fun(self: game_object): number
+---Returns whatever the npc is tap denied for the localplayer (grey healthbar)
+---@field is_tap_denied fun(self: game_object): number
+

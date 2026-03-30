@@ -1,5 +1,4 @@
 
-
 -- Syntax / IntelliSense helper for: common/utility/control_panel_helper
 -- Usage:
 -- ---@type control_panel_helper

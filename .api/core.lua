@@ -762,6 +762,66 @@ function core.game_ui.get_vendor_item_count()
     return 0
 end
 
+--- Returns a table containing all completed quest IDs for the local player.
+---@return integer[] An array of completed quest IDs.
+function core.game_ui.get_all_completed_quest_ids()
+    return {}
+end
+
+--- Resets all instances for the local player.
+---@return nil
+function core.game_ui.reset_instances()
+    return nil
+end
+
+---@class character
+core.character = {}
+
+--- Returns the combat rating bonus for a given rating index.
+--- The rating index corresponds to the combat rating type (e.g., crit, haste, mastery, etc.).
+---@param rating_index integer The combat rating index.
+---@return number The combat rating bonus value.
+function core.character.get_combat_rating_bonus(rating_index)
+    return 0
+end
+
+--- Returns the combat rating bonus for a specific combat rating value.
+--- Useful for calculating what bonus a hypothetical rating value would provide.
+---@param rating_index integer The combat rating index.
+---@param value integer The combat rating value to calculate the bonus for.
+---@return number The combat rating bonus for the given value.
+function core.character.get_combat_rating_bonus_for_combat_rating_value(rating_index, value)
+    return 0
+end
+
+---@class world
+core.world = {}
+
+--- Returns whether the current area allows regular flying.
+---@return boolean True if the area is flyable, false otherwise.
+function core.world.is_flyable_area()
+    return false
+end
+
+--- Returns whether the current area allows advanced (dynamic/skyriding) flying.
+---@return boolean True if the area allows advanced flying, false otherwise.
+function core.world.is_advanced_flyable_area()
+    return false
+end
+
+---@class encounter_info
+---@field encounter_id integer The encounter ID.
+---@field map_x number The X position on the map.
+---@field map_y number The Y position on the map.
+
+--- Returns a table of encounter data for the specified UI map ID.
+--- Each entry contains the encounter ID and its map position.
+---@param ui_map_id integer The UI map ID to query encounters for.
+---@return encounter_info[] An array of encounter info tables.
+function core.world.get_encounters_on_map(ui_map_id)
+    return {}
+end
+
 ---@class input
 core.input = {}
 
@@ -1045,6 +1105,28 @@ function core.input.pet_move_position(position)
     return nil
 end
 
+--- Enables autocast for a pet spell.
+---@param spell_id integer The ID of the pet spell to enable autocast for.
+---@return nil
+function core.input.enable_pet_autocast(spell_id)
+    return nil
+end
+
+--- Disables autocast for a pet spell.
+---@param spell_id integer The ID of the pet spell to disable autocast for.
+---@return nil
+function core.input.disable_pet_autocast(spell_id)
+    return nil
+end
+
+--- Leaves and re-enters cat form in the same frame.
+--- Useful for legacy mechanics like gaining free energy upon entering cat form,
+--- removing roots via shapeshifting, or instantly re-entering cat form.
+---@return nil
+function core.input.quick_cat()
+    return nil
+end
+
 --- Loots a specified game object.
 ---@param target game_object The game object to loot.
 ---@return nil
@@ -1263,8 +1345,6 @@ end
 function core.spell_book.get_spell_cooldown(spell_id)
     return 0
 end
-
-
 --- Indicates if the spell can be usable based on many requirements.
 ---@param spell_id integer The ID of the spell.
 ---@return boolean to indicate if the spell is usable.
@@ -1459,6 +1539,24 @@ function core.spell_book.get_pet_spells()
     return {}
 end
 
+---@class pet_action_info
+---@field name string The name of the pet action.
+---@field texture string The texture path for the pet action icon.
+---@field is_token boolean Whether the action is a token (stance/mode) action.
+---@field is_active boolean Whether the action is currently active.
+---@field auto_cast_allowed boolean Whether autocast is allowed for this action.
+---@field auto_cast_enabled boolean Whether autocast is currently enabled.
+---@field spell_id integer The spell ID of the pet action.
+---@field checks_range boolean Whether this action checks range.
+---@field in_range boolean Whether the target is currently in range for this action.
+
+--- Retrieves detailed information about a pet action by spell ID.
+---@param spell_id integer The spell ID of the pet action.
+---@return pet_action_info A table containing the pet action information.
+function core.spell_book.get_pet_action_info(spell_id)
+    return {}
+end
+
 ---@class mount_info
 ---@field mount_name string The name of the mount.
 ---@field spell_id integer The spell ID associated with the mount.
@@ -1586,7 +1684,8 @@ end
 
 ---@return number
 ---@param target game_object
-function core.spell_book.get_assisted_spell_id(target)
+---@param ui_check boolean -- true wont suggest the spell unless is on the action bar
+function core.spell_book.get_assisted_spell_id(target, ui_check)
     return 0
 end
 
@@ -2390,8 +2489,6 @@ end
 -- core.register_callback("render", on_render_remote)
 
 ------------------------------------------------------------------------------]]
-
-
 --[[----------------------------------------------------------------------------
 Example C, HTTP GET with headers (data request, not texture)
 
@@ -2730,3 +2827,892 @@ function core.quests.get_reward_money() return 0 end
 ---@param index integer The item index.
 ---@return string link The item link string.
 function core.quests.get_quest_item_link(type, index) return "" end
+
+--------------------------------------------------------------------------------
+-- Auction House
+--------------------------------------------------------------------------------
+
+---@class replicate_item_info
+---@field name string The name of the auction item.
+---@field texture integer The texture/icon ID of the item.
+---@field count integer The stack count of the item.
+---@field quality_id integer The item quality (0 = Poor, 1 = Common, 2 = Uncommon, 3 = Rare, 4 = Epic, 5 = Legendary).
+---@field usable boolean Whether the item is usable by the local player.
+---@field level integer The item level.
+---@field level_type string The type of the level value (e.g. "ilvl").
+---@field min_bid number The minimum bid amount in copper.
+---@field min_increment number The minimum bid increment in copper.
+---@field buyout_price number The buyout price in copper.
+---@field bid_amount number The current highest bid amount in copper.
+---@field high_bidder string The name of the highest bidder.
+---@field owner string The name of the auction owner.
+---@field sale_status integer The sale status of the auction.
+---@field item_id integer The item ID.
+---@field has_all_info boolean Whether all item information has been loaded.
+
+---@class commodity_search_result_info
+---@field item_id integer The item ID.
+---@field quantity integer The quantity available in this listing.
+---@field unit_price number The price per unit in copper.
+---@field auction_id integer The auction ID.
+---@field num_owner_items integer The number of items owned by the local player in this listing.
+---@field contains_owner_item boolean Whether this listing contains items posted by the local player.
+---@field contains_account_item boolean Whether this listing contains items posted by any character on the account.
+
+---@class item_search_result_info
+---@field item_id integer The item ID.
+---@field auction_id integer The auction ID.
+---@field quantity integer The quantity in this listing.
+---@field bid_amount number The current highest bid in copper.
+---@field buyout_amount number The buyout price in copper.
+---@field min_bid number The minimum bid in copper.
+---@field time_left integer The time remaining category (1 = Short, 2 = Medium, 3 = Long, 4 = Very Long).
+---@field item_link string The item link string for this listing.
+---@field contains_owner_item boolean Whether this listing was posted by the local player.
+---@field contains_account_item boolean Whether this listing was posted by any character on the account.
+
+---@class owned_auction_info
+---@field auction_id integer The auction ID.
+---@field item_id integer The item ID.
+---@field item_link string The item link string.
+---@field status integer The auction status.
+---@field quantity integer The quantity listed.
+---@field time_left integer The time remaining category.
+---@field bid_amount number The current highest bid in copper.
+---@field buyout_amount number The buyout price in copper.
+---@field bidder string The name of the current highest bidder.
+
+---@class ah_item_info
+---@field name string The item name.
+---@field item_link string The item link string.
+---@field quality integer The item quality.
+---@field item_level integer The item level.
+---@field min_level integer The minimum required player level.
+---@field item_type string The item type category.
+---@field item_sub_type string The item sub-type category.
+---@field stack_count integer The maximum stack count.
+---@field equip_loc string The equip location slot.
+---@field texture integer The texture/icon ID.
+---@field sell_price integer The vendor sell price in copper.
+---@field bind_type integer The bind type (0 = None, 1 = BoP, 2 = BoE, 3 = BoU).
+
+---@class ah_tooltip_line
+---@field left string The left-side text of the tooltip line.
+---@field right string The right-side text of the tooltip line.
+---@field r number The red color component (0-1).
+---@field g number The green color component (0-1).
+---@field b number The blue color component (0-1).
+
+---@class auction_house
+core.auction_house = {}
+
+--- Initiates a full auction house scan (replicate).
+--- Results become available via get_num_replicate_items / get_replicate_item_info.
+---@return nil
+function core.auction_house.replicate_items() end
+
+--- Returns the total number of items from the last replicate scan.
+---@return integer count The number of replicate items available.
+function core.auction_house.get_num_replicate_items()
+    return 0
+end
+
+--- Returns detailed information about a replicate item at the given index.
+---@param index integer The 0-based index of the replicate item.
+---@return replicate_item_info info A table containing the replicate item information.
+function core.auction_house.get_replicate_item_info(index)
+    return {}
+end
+
+--- Returns the item link string for a replicate item at the given index.
+---@param index integer The 0-based index of the replicate item.
+---@return string link The item link string.
+function core.auction_house.get_replicate_item_link(index)
+    return ""
+end
+
+--- Returns the time remaining category for a replicate item.
+---@param index integer The 0-based index of the replicate item.
+---@return integer time_left The time remaining category.
+function core.auction_house.get_replicate_item_time_left(index)
+    return 0
+end
+
+--- Returns a batch of replicate items as a raw string (for fast bulk processing).
+---@param start integer The starting index.
+---@param count integer The number of items to retrieve.
+---@return string raw_data The raw serialized item data.
+function core.auction_house.batch_get_replicate_items(start, count)
+    return ""
+end
+
+--- Sends a search query for an item on the auction house.
+--- Results are retrieved via commodity or item search result functions depending on the item type.
+---@param item_id integer The item ID to search for.
+---@param item_level? integer Optional item level filter (default 0).
+---@param item_suffix? integer Optional item suffix filter (default 0).
+---@param separate_owner_items? boolean Whether to separate the player's own listings (default false).
+---@return nil
+function core.auction_house.send_search_query(item_id, item_level, item_suffix, separate_owner_items) end
+
+--- Sends a sell-oriented search query (used when posting items to compare prices).
+---@param item_id integer The item ID to search for.
+---@param item_level? integer Optional item level filter (default 0).
+---@param item_suffix? integer Optional item suffix filter (default 0).
+---@param separate_owner_items? boolean Whether to separate the player's own listings (default false).
+---@return nil
+function core.auction_house.send_sell_search_query(item_id, item_level, item_suffix, separate_owner_items) end
+
+--- Returns the number of commodity search results for the given item.
+---@param item_id integer The item ID.
+---@return integer count The number of commodity search results.
+function core.auction_house.get_num_commodity_search_results(item_id)
+    return 0
+end
+
+--- Returns information about a specific commodity search result.
+---@param item_id integer The item ID.
+---@param index integer The 0-based index of the result.
+---@return commodity_search_result_info info A table containing the commodity result information.
+function core.auction_house.get_commodity_search_result_info(item_id, index)
+    return {}
+end
+
+--- Returns whether all commodity search results have been received for the given item.
+---@param item_id integer The item ID.
+---@return boolean has_full True if all results have been received.
+function core.auction_house.has_full_commodity_search_results(item_id)
+    return false
+end
+
+--- Returns the number of item (non-commodity) search results.
+---@param item_id integer The item ID.
+---@param item_level? integer Optional item level filter (default 0).
+---@param item_suffix? integer Optional item suffix filter (default 0).
+---@return integer count The number of item search results.
+function core.auction_house.get_num_item_search_results(item_id, item_level, item_suffix)
+    return 0
+end
+
+--- Returns information about a specific item search result.
+---@param item_id integer The item ID.
+---@param item_level? integer Optional item level filter (default 0).
+---@param item_suffix? integer Optional item suffix filter (default 0).
+---@param index integer The 0-based index of the result.
+---@return item_search_result_info info A table containing the item result information.
+function core.auction_house.get_item_search_result_info(item_id, item_level, item_suffix, index)
+    return {}
+end
+
+--- Returns whether all item search results have been received.
+---@param item_id integer The item ID.
+---@param item_level? integer Optional item level filter (default 0).
+---@param item_suffix? integer Optional item suffix filter (default 0).
+---@return boolean has_full True if all results have been received.
+function core.auction_house.has_full_item_search_results(item_id, item_level, item_suffix)
+    return false
+end
+
+--- Sends a request to query the player's own active auctions.
+--- Results become available via get_num_owned_auctions / get_owned_auction_info.
+---@return nil
+function core.auction_house.query_owned_auctions() end
+
+--- Returns the number of owned auctions.
+---@return integer count The number of the player's active auctions.
+function core.auction_house.get_num_owned_auctions()
+    return 0
+end
+
+--- Returns information about an owned auction at the given index.
+---@param index integer The 0-based index of the owned auction.
+---@return owned_auction_info info A table containing the owned auction information.
+function core.auction_house.get_owned_auction_info(index)
+    return {}
+end
+
+--- Posts a commodity item on the auction house.
+---@param bag integer The bag index containing the item.
+---@param slot integer The slot index within the bag.
+---@param duration integer The auction duration (1 = 12h, 2 = 24h, 3 = 48h).
+---@param quantity integer The quantity to post.
+---@param unit_price number The price per unit in copper.
+---@return boolean success Whether the post was successful.
+function core.auction_house.post_commodity(bag, slot, duration, quantity, unit_price)
+    return false
+end
+
+--- Posts a non-commodity item on the auction house.
+---@param bag integer The bag index containing the item.
+---@param slot integer The slot index within the bag.
+---@param duration integer The auction duration (1 = 12h, 2 = 24h, 3 = 48h).
+---@param quantity integer The quantity to post.
+---@param bid number The starting bid in copper.
+---@param buyout number The buyout price in copper.
+---@return boolean success Whether the post was successful.
+function core.auction_house.post_item(bag, slot, duration, quantity, bid, buyout)
+    return false
+end
+
+--- Places a bid on an auction.
+---@param auction_id integer The auction ID to bid on.
+---@param bid_amount number The bid amount in copper.
+---@return nil
+function core.auction_house.place_bid(auction_id, bid_amount) end
+
+--- Initiates a commodity purchase. Must be confirmed with confirm_commodities_purchase.
+---@param item_id integer The item ID of the commodity.
+---@param quantity integer The quantity to purchase.
+---@return nil
+function core.auction_house.start_commodities_purchase(item_id, quantity) end
+
+--- Confirms a pending commodity purchase started with start_commodities_purchase.
+---@param item_id integer The item ID of the commodity.
+---@param quantity integer The quantity to purchase.
+---@return nil
+function core.auction_house.confirm_commodities_purchase(item_id, quantity) end
+
+--- Cancels a pending commodity purchase.
+---@return nil
+function core.auction_house.cancel_commodities_purchase() end
+
+--- Cancels one of the player's own auctions.
+---@param owned_auction_id integer The owned auction ID (from get_owned_auction_info).
+---@return nil
+function core.auction_house.cancel_auction(owned_auction_id) end
+
+--- Returns whether an owned auction can be cancelled.
+---@param owned_auction_id integer The owned auction ID.
+---@return boolean can_cancel True if the auction can be cancelled.
+function core.auction_house.can_cancel_auction(owned_auction_id)
+    return false
+end
+
+--- Calculates the deposit cost for posting a commodity.
+---@param item_id integer The item ID.
+---@param duration integer The auction duration (1 = 12h, 2 = 24h, 3 = 48h).
+---@param quantity integer The quantity to post.
+---@return number deposit The deposit cost in copper.
+function core.auction_house.calculate_commodity_deposit(item_id, duration, quantity)
+    return 0
+end
+
+--- Returns the cancellation cost for an owned auction.
+---@param owned_auction_id integer The owned auction ID.
+---@return number cost The cancellation cost in copper.
+function core.auction_house.get_cancel_cost(owned_auction_id)
+    return 0
+end
+
+--- Returns whether the AH throttled message system is ready for another request.
+--- Use this to avoid sending requests too quickly and getting throttled.
+---@return boolean ready True if the system is ready for a new request.
+function core.auction_house.is_throttled_message_system_ready()
+    return false
+end
+
+--- Closes the auction house interface.
+---@return nil
+function core.auction_house.close_auction_house() end
+
+--- Returns the remaining duration (in seconds) for the current commodity price quote.
+--- A quote locks in the price for a commodity purchase for a limited time.
+---@return number seconds The remaining quote duration in seconds.
+function core.auction_house.get_quote_duration_remaining()
+    return 0
+end
+
+--- Returns the commodity status of an item in a bag slot.
+--- Determines whether the item will be listed as a commodity or a regular item.
+---@param bag integer The bag index.
+---@param slot integer The slot index within the bag.
+---@return integer status The commodity status code.
+function core.auction_house.get_item_commodity_status(bag, slot)
+    return 0
+end
+
+--- Returns detailed item information for an item ID (similar to GetItemInfo).
+---@param item_id integer The item ID.
+---@return ah_item_info info A table containing the item information.
+function core.auction_house.get_item_info(item_id)
+    return {}
+end
+
+--- Returns the icon texture name/path for an item.
+---@param item_id integer The item ID.
+---@return string icon_name The icon texture name.
+function core.auction_house.get_item_icon_name(item_id)
+    return ""
+end
+
+--- Returns the tooltip lines for an item.
+--- Each line contains left/right text and an RGB color.
+---@param item_id integer The item ID.
+---@param link_fragment? string Optional item link fragment for more specific tooltip data.
+---@return ah_tooltip_line[] lines An array of tooltip line tables.
+function core.auction_house.get_item_tooltip(item_id, link_fragment)
+    return {}
+end
+
+--- Picks up an item from a bag slot onto the cursor (for placing into the AH sell slot).
+---@param bag integer The bag index.
+---@param slot integer The slot index within the bag.
+---@return nil
+function core.auction_house.pickup_container_item(bag, slot) end
+
+--- Clicks the auction sell button to confirm placing the cursor item into the sell slot.
+---@return nil
+function core.auction_house.click_auction_sell_button() end
+
+--- Posts an auction using the classic auction house flow.
+--- Requires an item to be placed in the sell slot first via pickup_container_item + click_auction_sell_button.
+---@param min_bid number The minimum starting bid in copper.
+---@param buyout number The buyout price in copper.
+---@param duration integer The auction duration (1 = 12h, 2 = 24h, 3 = 48h).
+---@param stack_size? integer The stack size per auction (default 1).
+---@param num_stacks? integer The number of stacks to post (default 1).
+---@return boolean success Whether the auction was posted successfully.
+function core.auction_house.do_post_auction(min_bid, buyout, duration, stack_size, num_stacks)
+    return false
+end
+
+--- Returns information about the item currently in the auction sell slot.
+---@return string info The sell item info string.
+function core.auction_house.get_auction_sell_item_info()
+    return ""
+end
+
+--- Returns the name of the item currently on the cursor.
+---@return string name The cursor item name.
+function core.auction_house.get_cursor_item_name()
+    return ""
+end
+
+--- Returns whether the auction house frame is currently shown.
+---@return boolean is_shown True if the auction house is open.
+function core.auction_house.is_auction_house_shown()
+    return false
+end
+
+-- Pet Battle API
+
+---@class pet_battle_name_info
+---@field custom_name string The player-assigned name (empty if none).
+---@field species_name string The species name.
+
+---@class pet_battle_xp_info
+---@field xp number Current XP.
+---@field max_xp number XP needed for next level.
+
+---@class pet_battle_ability_info
+---@field id number The ability ID.
+---@field name string The ability name.
+---@field icon string The icon texture path.
+---@field max_cooldown number Cooldown in turns.
+---@field description string Raw description text.
+---@field num_turns number Duration in rounds (usually 1).
+---@field pet_type number Pet type 1-10.
+---@field no_strong_weak_hints boolean Whether to hide type advantage hints.
+
+---@class pet_battle_ability_state
+---@field is_usable boolean Whether the ability can be used right now.
+---@field current_cooldown number Turns remaining on cooldown.
+---@field current_lockdown number Turns remaining on lockdown.
+
+---@class pet_battle_aura_info
+---@field aura_id number Ability ID of the aura.
+---@field instance_id number Unique aura instance identifier.
+---@field turns_remaining number Turns left.
+---@field is_buff boolean True if displayed to the user.
+
+---@class pet_journal_count_info
+---@field num_pets number Total pets available in the game.
+---@field num_owned number Pets currently owned by the player.
+
+---@class pet_journal_index_info
+---@field pet_id string Pet GUID.
+---@field species_id number BattlePetSpeciesID.
+---@field owned boolean Whether the player owns this pet.
+---@field custom_name string Player-assigned name (empty if none).
+---@field level number Pet level.
+---@field favorite boolean Marked as favorite.
+---@field is_revoked boolean Whether the pet is revoked.
+---@field species_name string Species name.
+---@field icon number Icon FileDataID.
+---@field pet_type number Pet type 1-10.
+---@field companion_id number NPC ID.
+---@field tooltip string Source/location text.
+---@field description string Flavor text.
+---@field is_wild boolean Capturable in the wild.
+---@field can_battle boolean Can participate in battles.
+---@field is_tradeable boolean Can be traded/caged.
+---@field is_unique boolean Limited to one.
+---@field obtainable boolean Currently obtainable.
+
+---@class pet_journal_pet_id_info
+---@field species_id number BattlePetSpeciesID.
+---@field custom_name string Player-assigned name (empty if none).
+---@field level number Pet level.
+---@field xp number Current XP.
+---@field max_xp number XP needed for next level.
+---@field display_id number Creature display ID.
+---@field is_favorite boolean Marked as favorite.
+---@field name string Species name.
+---@field icon number Icon FileDataID.
+---@field pet_type number Pet type 1-10.
+---@field creature_id number NPC ID.
+---@field source_text string Source/location text.
+---@field description string Flavor text.
+---@field is_wild boolean Capturable in the wild.
+---@field can_battle boolean Can participate in battles.
+---@field is_tradeable boolean Can be traded/caged.
+---@field is_unique boolean Limited to one.
+---@field obtainable boolean Currently obtainable.
+
+---@class pet_journal_species_info
+---@field species_name string Species name.
+---@field species_icon number Icon FileDataID.
+---@field pet_type number Pet type 1-10.
+---@field companion_id number NPC ID.
+---@field tooltip_source string Source/location text.
+---@field tooltip_description string Flavor text.
+---@field is_wild boolean Capturable in the wild.
+---@field can_battle boolean Can participate in battles.
+---@field is_tradeable boolean Can be traded/caged.
+---@field is_unique boolean Limited to one.
+---@field obtainable boolean Currently obtainable.
+---@field creature_display_id number Creature display ID.
+
+---@class pet_journal_stats
+---@field health number Current HP (0 or negative if dead).
+---@field max_health number Maximum HP.
+---@field power number Power stat.
+---@field speed number Speed stat.
+---@field rarity number Quality (1=Poor, 2=Common, 3=Uncommon, 4=Rare, 5=Epic, 6=Legendary).
+
+---@class pet_loadout_info
+---@field pet_guid string GUID of the pet in this slot.
+---@field ability1 number Ability ID for slot 1.
+---@field ability2 number Ability ID for slot 2.
+---@field ability3 number Ability ID for slot 3.
+---@field locked boolean Whether the slot is locked/unavailable.
+
+---@class pet_ability_list_info
+---@field ability_ids number[] Array of ability IDs available to the species.
+---@field level_thresholds number[] Parallel array of level requirements for each ability.
+
+---@class pet_ability_info
+---@field name string Ability name.
+---@field icon string Icon texture path.
+---@field type number BattlePetTypeID (1-10).
+
+---@class pet_battle
+core.pet_battle = {}
+
+--- Returns whether the player is currently in a pet battle.
+--- Returns false on Classic.
+---@return boolean is_in_battle Whether a pet battle is active.
+function core.pet_battle.is_in_battle()
+    return false
+end
+
+--- Returns whether the current pet battle is against a wild pet.
+---@return boolean is_wild True if fighting a wild pet.
+function core.pet_battle.is_wild_battle()
+    return false
+end
+
+--- Returns the active pet index (1-3) for the given side.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@return number index The active pet index (1-3).
+function core.pet_battle.get_active_pet(owner)
+    return 0
+end
+
+--- Returns the number of pets on the given side (1-3).
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@return number count The number of pets.
+function core.pet_battle.get_num_pets(owner)
+    return 0
+end
+
+--- Returns the name info for a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return pet_battle_name_info name A table with custom_name and species_name.
+function core.pet_battle.get_name(owner, index)
+    return {}
+end
+
+--- Returns the current HP of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number health Current HP.
+function core.pet_battle.get_health(owner, index)
+    return 0
+end
+
+--- Returns the maximum HP of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number max_health Maximum HP.
+function core.pet_battle.get_max_health(owner, index)
+    return 0
+end
+
+--- Returns the speed stat of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number speed Speed stat.
+function core.pet_battle.get_speed(owner, index)
+    return 0
+end
+
+--- Returns the power stat of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number power Power stat.
+function core.pet_battle.get_power(owner, index)
+    return 0
+end
+
+--- Returns the level of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number level Battle level.
+function core.pet_battle.get_level(owner, index)
+    return 0
+end
+
+--- Returns the XP info of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return pet_battle_xp_info xp A table with xp and max_xp.
+function core.pet_battle.get_xp(owner, index)
+    return {}
+end
+
+--- Returns the BattlePetSpeciesID of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number species_id BattlePetSpeciesID.
+function core.pet_battle.get_pet_species_id(owner, index)
+    return 0
+end
+
+--- Returns the pet type (1-10) of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number pet_type Pet type ID.
+function core.pet_battle.get_pet_type(owner, index)
+    return 0
+end
+
+--- Returns the breed quality of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number quality Quality enum (0=Poor, 1=Common, 2=Uncommon, 3=Rare, 4=Epic, 5=Legendary).
+function core.pet_battle.get_breed_quality(owner, index)
+    return 0
+end
+
+--- Returns the icon FileDataID of a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number icon Icon FileDataID.
+function core.pet_battle.get_icon(owner, index)
+    return 0
+end
+
+--- Returns an arbitrary pet battle state value.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@param state_id integer The state ID to query.
+---@return number value The state value.
+function core.pet_battle.get_state_value(owner, index, state_id)
+    return 0
+end
+
+--- Returns full ability details for a pet's ability slot in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@param ability_index integer The ability slot index (1-3).
+---@return pet_battle_ability_info info A table containing the ability details.
+function core.pet_battle.get_ability_info(owner, index, ability_index)
+    return {}
+end
+
+--- Returns ability details looked up by ability ID.
+---@param ability_id integer The ability ID.
+---@return pet_battle_ability_info info A table containing the ability details.
+function core.pet_battle.get_ability_info_by_id(ability_id)
+    return {}
+end
+
+--- Returns the usability and cooldown state of an ability slot in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@param action_index integer The ability slot index (1-3).
+---@return pet_battle_ability_state state A table with is_usable, current_cooldown, and current_lockdown.
+function core.pet_battle.get_ability_state(owner, index, action_index)
+    return {}
+end
+
+--- Returns the number of active auras on a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@return number count Number of active auras.
+function core.pet_battle.get_num_auras(owner, index)
+    return 0
+end
+
+--- Returns aura details for a specific aura on a pet in battle.
+---@param owner integer The owner side (1 = Ally, 2 = Enemy).
+---@param index integer The pet index (1-3).
+---@param aura_index integer The aura index.
+---@return pet_battle_aura_info info A table containing the aura details.
+function core.pet_battle.get_aura_info(owner, index, aura_index)
+    return {}
+end
+
+--- Returns whether the active pet can be swapped out.
+---@return boolean can_swap True if the active pet can swap out.
+function core.pet_battle.can_active_pet_swap_out()
+    return false
+end
+
+--- Returns whether a pet at the given index can swap in.
+---@param pet_index integer The pet index (1-3).
+---@return boolean can_swap True if the pet can swap in.
+function core.pet_battle.can_pet_swap_in(pet_index)
+    return false
+end
+
+--- Returns whether the trap ability can be used.
+---@return boolean available True if the trap is available.
+function core.pet_battle.is_trap_available()
+    return false
+end
+
+--- Returns whether skip turn is available.
+---@return boolean available True if skip turn is available.
+function core.pet_battle.is_skip_available()
+    return false
+end
+
+--- Uses an ability in the given slot (1-3). Hardware-event restricted.
+---@param action_index integer The ability slot index (1-3).
+function core.pet_battle.use_ability(action_index) end
+
+--- Switches to the pet at the given index (1-3).
+---@param pet_index integer The pet index (1-3).
+function core.pet_battle.change_pet(pet_index) end
+
+--- Forfeits the current pet battle.
+function core.pet_battle.forfeit_game() end
+
+--- Skips your turn. Hardware-event restricted.
+function core.pet_battle.skip_turn() end
+
+--- Attempts to trap the enemy pet. Hardware-event restricted.
+function core.pet_battle.use_trap() end
+
+--- Returns the total and owned pet counts from the journal.
+---@return pet_journal_count_info counts A table with num_pets and num_owned.
+function core.pet_battle.get_num_pets_journal()
+    return {}
+end
+
+--- Returns full pet info by journal index.
+---@param index integer The journal index.
+---@return pet_journal_index_info info A table containing the pet information.
+function core.pet_battle.get_pet_info_by_index(index)
+    return {}
+end
+
+--- Returns full pet info by pet GUID string.
+---@param pet_id string The pet GUID.
+---@return pet_journal_pet_id_info info A table containing the pet information.
+function core.pet_battle.get_pet_info_by_pet_id(pet_id)
+    return {}
+end
+
+--- Returns species-level info by species ID.
+---@param species_id integer The BattlePetSpeciesID.
+---@return pet_journal_species_info info A table containing the species information.
+function core.pet_battle.get_pet_info_by_species_id(species_id)
+    return {}
+end
+
+--- Returns combat stats for an owned pet.
+---@param pet_id string The pet GUID.
+---@return pet_journal_stats stats A table containing health, max_health, power, speed, and rarity.
+function core.pet_battle.get_pet_stats(pet_id)
+    return {}
+end
+
+--- Returns loadout slot info (1-3).
+---@param slot_index integer The loadout slot index (1-3).
+---@return pet_loadout_info info A table containing pet_guid, abilities, and locked state.
+function core.pet_battle.get_pet_load_out_info(slot_index)
+    return {}
+end
+
+--- Assigns a pet GUID to a loadout slot (1-3).
+--- If the pet is already in a different slot, the two pets are swapped.
+---@param slot_index integer The loadout slot index (1-3).
+---@param pet_id string The pet GUID to assign.
+function core.pet_battle.set_pet_load_out_info(slot_index, pet_id) end
+
+--- Returns available abilities for a species.
+---@param species_id integer The BattlePetSpeciesID.
+---@return pet_ability_list_info info A table with ability_ids and level_thresholds arrays.
+function core.pet_battle.get_pet_ability_list(species_id)
+    return {}
+end
+
+--- Returns ability name, icon, and type for an ability ID.
+---@param ability_id integer The ability ID.
+---@return pet_ability_info info A table with name, icon, and type.
+function core.pet_battle.get_pet_ability_info(ability_id)
+    return {}
+end
+
+--- Sets an ability for a loadout slot and spell slot.
+---@param slot_index integer The loadout slot index (1-3).
+---@param spell_index integer The spell slot index (1-3).
+---@param pet_spell_id integer The ability ID to assign.
+function core.pet_battle.set_ability(slot_index, spell_index, pet_spell_id) end
+
+--- Summons a companion pet by GUID. Passing an already-summoned pet's GUID dismisses it.
+--- Cannot be used in combat.
+---@param pet_id string The pet GUID to summon or dismiss.
+function core.pet_battle.summon_pet_by_guid(pet_id) end
+
+--- Returns the current pet battle state as an integer.
+---@return number state The battle state value.
+function core.pet_battle.get_battle_state()
+    return 0
+end
+
+---@class addons
+core.addons = {}
+
+---@class zygor_goal_info
+---@field action string The goal action type.
+---@field quest_id integer The quest ID associated with this goal.
+---@field npc_id integer The NPC ID associated with this goal.
+---@field target_id integer The target ID associated with this goal.
+---@field target string The target name.
+---@field npc string The NPC name.
+---@field is_complete boolean Whether this goal is complete.
+
+---@class zygor_step_info
+---@field num integer The step number.
+---@field is_complete boolean Whether this step is complete.
+---@field goals zygor_goal_info[] An array of goals for this step.
+
+---@class addons_zygor
+core.addons.zygor = {}
+
+--- Returns whether the Zygor addon is loaded and available.
+---@return boolean is_loaded True if Zygor is loaded.
+function core.addons.zygor.is_loaded()
+    return false
+end
+
+--- Returns whether Zygor has an active current step.
+---@return boolean has_step True if a current step exists.
+function core.addons.zygor.has_current_step()
+    return false
+end
+
+--- Returns the current active step from Zygor.
+---@return zygor_step_info step A table containing the step number, completion state, and goals.
+function core.addons.zygor.get_current_step()
+    return {}
+end
+
+--- Returns the current sticky steps from Zygor.
+---@return zygor_step_info[] stickies An array of sticky step tables.
+function core.addons.zygor.get_current_stickies()
+    return {}
+end
+
+--- Returns the current Zygor objectives list.
+--- Each entry can be a number or a string depending on the objective type.
+---@return (number|string)[] objectives An array of objective values.
+function core.addons.zygor.get_objectives()
+    return {}
+end
+
+---@class bigwigs_bar_info
+---@field key integer The bar key identifier.
+---@field text string The bar display text.
+---@field remaining number Time remaining in seconds.
+---@field duration number Total duration in seconds.
+---@field expire_time number The game time when the bar expires.
+---@field is_emphasized boolean Whether the bar is emphasized (important).
+
+---@class addons_bigwigs
+core.addons.bigwigs = {}
+
+--- Returns whether the BigWigs addon is loaded and available.
+---@return boolean is_loaded True if BigWigs is loaded.
+function core.addons.bigwigs.is_loaded()
+    return false
+end
+
+--- Returns whether BigWigs has any active timer bars.
+---@return boolean has_bars True if there are active bars.
+function core.addons.bigwigs.has_active_bars()
+    return false
+end
+
+--- Returns all active BigWigs timer bars.
+---@return bigwigs_bar_info[] bars An array of bar info tables.
+function core.addons.bigwigs.get_bars()
+    return {}
+end
+
+---@class conroc_suggested_spell
+---@field id integer The spell or item ID (always positive).
+---@field is_item boolean Whether this entry is an item (true) or a spell (false).
+
+---@class addons_conroc
+core.addons.conroc = {}
+
+--- Returns whether the Conroc addon is loaded and available.
+---@return boolean is_loaded True if Conroc is loaded.
+function core.addons.conroc.is_loaded()
+    return false
+end
+
+--- Returns the list of suggested offensive spells/items from Conroc.
+--- Each entry contains an id and whether it's an item or spell.
+---@return conroc_suggested_spell[] spells An array of suggested spell tables.
+function core.addons.conroc.get_suggested_spells()
+    return {}
+end
+
+--- Returns the list of suggested defensive spell IDs from Conroc.
+---@return integer[] spell_ids An array of defensive spell IDs.
+function core.addons.conroc.get_suggested_utility_spells()
+    return {}
+end
+
+---@class addons_questie
+core.addons.questie = {}
+
+--- Returns whether the Questie addon is loaded and available.
+---@return boolean is_loaded True if Questie is loaded.
+function core.addons.questie.is_loaded()
+    return false
+end
+
+--- Returns the list of NPC IDs associated with active quests from Questie.
+---@return integer[] npc_ids An array of quest-related NPC IDs.
+function core.addons.questie.get_quest_npc_ids()
+    return {}
+end
+

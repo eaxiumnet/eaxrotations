@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build rotation
+        run: node rotation/build.js
+
+      - name: Get tag annotation
+        id: tag_msg
+        run: |
+          git fetch origin tag "${{ github.ref_name }}" --force
+          MSG=$(git tag -l --format='%(contents)' "${{ github.ref_name }}" 2>/dev/null || echo "")
+          echo "--- DEBUG: tag msg is: $MSG"
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${MSG:-Release ${{ github.ref_name }}}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.tag_msg.outputs.body }}
+          files: rotation/output/TellMeWhen.lua
+
+      - name: Notify Discord
+        if: success()
+        continue-on-error: true
+        env:
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          RELEASE_NOTES: ${{ steps.tag_msg.outputs.body }}
+        run: |
+          BODY=$(jq -nc \
+            --arg tag "${{ github.ref_name }}" \
+            --arg repo "${{ github.repository }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg notes "$RELEASE_NOTES" \
+            '{
+              action: "published",
+              release: {
+                tag_name: $tag,
+                name: $tag,
+                html_url: "https://github.com/\($repo)/releases/tag/\($tag)",
+                body: $notes,
+                published_at: $now,
+                author: {
+                  login: $actor,
+                  avatar_url: "https://github.com/\($actor).png",
+                  html_url: "https://github.com/\($actor)"
+                }
+              }
+            }')
+          SIG="sha256=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print $2}')"
+          curl -s -X POST "http://${VPS_HOST}:3000/webhook/github" \
+            -H "Content-Type: application/json" \
+            -H "X-Hub-Signature-256: ${SIG}" \
+            -H "X-GitHub-Event: release" \
+            -d "$BODY"
