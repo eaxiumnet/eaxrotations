@@ -8,16 +8,19 @@ local ps   = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
 local menu = {}
 
--- -- Tree nodes ----------------------------------------------------------------
+-- Tree nodes
 local root_tree    = ps.tree_node()
-local main_tree    = ps.tree_node()
+local rotation_tree = ps.tree_node()
+local cd_tree      = ps.tree_node()
+local auto_tree    = ps.tree_node()
+local ooc_tree     = ps.tree_node()
+local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
 local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
-local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
 
--- -- Shared plugin controls + shared fields ------------------------------------
+-- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxwarlockdemonology_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxwarlockdemonology_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxwarlockdemonology_mode")
@@ -51,38 +54,82 @@ menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_sh
 menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- -- Class-specific elements ---------------------------------------------------
-menu.preferred_pet                       = core.menu.combobox(1, "eax_demonology_preferred_pet")
-menu.maintain_soul_link                  = core.menu.checkbox(true, "eax_demonology_soul_link")
-menu.use_fel_armor                       = core.menu.checkbox(true, "eax_demonology_use_fel_armor")
-menu.use_curse                           = core.menu.checkbox(true, "eax_demonology_use_curse")
-menu.curse_mode                          = core.menu.combobox(1, "eax_demonology_curse_mode")
-menu.use_immolate                        = core.menu.checkbox(true, "eax_demonology_use_immolate")
-menu.use_corruption                      = core.menu.checkbox(true, "eax_demonology_use_corruption")
-menu.use_unstable_affliction             = core.menu.checkbox(false, "eax_demonology_use_unstable_affliction")
-menu.use_soul_fire                       = core.menu.checkbox(true, "eax_demonology_use_soul_fire")
-menu.use_shadow_bolt                     = core.menu.checkbox(true, "eax_demonology_use_shadow_bolt")
-menu.use_shadow_burn                     = core.menu.checkbox(true, "eax_demonology_use_shadow_burn")
-menu.use_drain_soul                      = core.menu.checkbox(true, "eax_demonology_use_drain_soul")
-menu.use_shadowfury                      = core.menu.checkbox(true, "eax_demonology_use_shadowfury")
-menu.use_life_tap                        = core.menu.checkbox(true, "eax_demonology_use_life_tap")
-menu.use_health_funnel                   = core.menu.checkbox(false, "eax_demonology_use_health_funnel")
-menu.use_fel_domination                  = core.menu.checkbox(true, "eax_demonology_use_fel_domination")
-menu.life_tap_threshold                  = core.menu.slider_int(10, 80, 35, "eax_demonology_lifetap_pct")
-menu.pet_check_interval                  = core.menu.slider_int(1, 10, 4, "eax_demonology_pet_check")
-menu.use_banish                          = core.menu.checkbox(true, "eax_wrl_dem_use_banish")
+-- Rotation
+menu.use_shadow_bolt                     = core.menu.checkbox(true, "eaxwarlockdemonology_use_shadow_bolt")
+menu.use_demon_soul                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_demon_soul")
+menu.use_metamorphosis                   = core.menu.checkbox(true, "eaxwarlockdemonology_use_metamorphosis")
+menu.use_hand_of_guldan                  = core.menu.checkbox(true, "eaxwarlockdemonology_use_hand_of_guldan")
+menu.use_soul_fire                       = core.menu.checkbox(true, "eaxwarlockdemonology_use_soul_fire")
+menu.use_decimation                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_decimation")
+menu.use_corruption                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_corruption")
+menu.use_immolate                        = core.menu.checkbox(true, "eaxwarlockdemonology_use_immolate")
+menu.use_curse_of_elements               = core.menu.checkbox(true, "eaxwarlockdemonology_use_curse_of_elements")
+menu.use_curse_of_weakness               = core.menu.checkbox(true, "eaxwarlockdemonology_use_curse_of_weakness")
+menu.use_curse_of_tongues                = core.menu.checkbox(true, "eaxwarlockdemonology_use_curse_of_tongues")
+menu.use_curse_of_exhaustion             = core.menu.checkbox(true, "eaxwarlockdemonology_use_curse_of_exhaustion")
+menu.use_fear                            = core.menu.checkbox(true, "eaxwarlockdemonology_use_fear")
+menu.use_death_coil                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_death_coil")
+menu.use_howl_of_terror                  = core.menu.checkbox(true, "eaxwarlockdemonology_use_howl_of_terror")
+menu.use_banish                          = core.menu.checkbox(true, "eaxwarlockdemonology_use_banish")
+menu.use_enslave_demon                   = core.menu.checkbox(true, "eaxwarlockdemonology_use_enslave_demon")
+menu.use_health_funnel                   = core.menu.checkbox(true, "eaxwarlockdemonology_use_health_funnel")
+menu.use_life_tap                        = core.menu.checkbox(true, "eaxwarlockdemonology_use_life_tap")
+menu.life_tap_mana_pct                   = core.menu.slider_int(10, 80, 40, "eaxwarlockdemonology_life_tap_mana_pct")
+menu.use_drain_life                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_drain_life")
+menu.drain_life_hp_pct                   = core.menu.slider_int(0, 100, 40, "eaxwarlockdemonology_drain_life_hp_pct")
+menu.use_soulstone                       = core.menu.checkbox(true, "eaxwarlockdemonology_use_soulstone")
+menu.use_healthstone                     = core.menu.checkbox(true, "eaxwarlockdemonology_use_healthstone")
+menu.healthstone_hp_pct                  = core.menu.slider_int(0, 100, 30, "eaxwarlockdemonology_healthstone_hp_pct")
+menu.use_create_healthstone              = core.menu.checkbox(true, "eaxwarlockdemonology_use_create_healthstone")
+menu.use_create_soulstone                = core.menu.checkbox(true, "eaxwarlockdemonology_use_create_soulstone")
+menu.use_create_spellstone               = core.menu.checkbox(true, "eaxwarlockdemonology_use_create_spellstone")
+menu.use_create_firestone                = core.menu.checkbox(true, "eaxwarlockdemonology_use_create_firestone")
+menu.use_demon_armor                     = core.menu.checkbox(true, "eaxwarlockdemonology_use_demon_armor")
+menu.use_fel_armor                       = core.menu.checkbox(true, "eaxwarlockdemonology_use_fel_armor")
+menu.use_unending_breath                 = core.menu.checkbox(true, "eaxwarlockdemonology_use_unending_breath")
+menu.use_detect_invisibility             = core.menu.checkbox(true, "eaxwarlockdemonology_use_detect_invisibility")
+menu.use_eye_of_kilrogg                  = core.menu.checkbox(true, "eaxwarlockdemonology_use_eye_of_kilrogg")
+menu.use_summon_pet                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_summon_pet")
+menu.use_soul_link                       = core.menu.checkbox(true, "eaxwarlockdemonology_use_soul_link")
+menu.use_demonic_sacrifice               = core.menu.checkbox(true, "eaxwarlockdemonology_use_demonic_sacrifice")
+menu.use_shadowburn                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_shadowburn")
+menu.use_searing_pain                    = core.menu.checkbox(true, "eaxwarlockdemonology_use_searing_pain")
+menu.use_rain_of_fire                    = core.menu.checkbox(true, "eaxwarlockdemonology_use_rain_of_fire")
+menu.use_hellfire                        = core.menu.checkbox(true, "eaxwarlockdemonology_use_hellfire")
+menu.use_conflagrate                     = core.menu.checkbox(true, "eaxwarlockdemonology_use_conflagrate")
+menu.use_incinerate                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_incinerate")
+menu.use_chaos_bolt                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_chaos_bolt")
+menu.use_shadowfury                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_shadowfury")
+menu.use_demonic_empowerment             = core.menu.checkbox(true, "eaxwarlockdemonology_use_demonic_empowerment")
+menu.use_immolation_aura                 = core.menu.checkbox(true, "eaxwarlockdemonology_use_immolation_aura")
+menu.use_molten_core                     = core.menu.checkbox(true, "eaxwarlockdemonology_use_molten_core")
+menu.use_improved_soul_fire             = core.menu.checkbox(true, "eaxwarlockdemonology_use_improved_soul_fire")
+menu.use_bane_of_doom                    = core.menu.checkbox(true, "eaxwarlockdemonology_use_bane_of_doom")
+menu.use_bane_of_agony                   = core.menu.checkbox(true, "eaxwarlockdemonology_use_bane_of_agony")
+menu.use_bane_of_havoc                   = core.menu.checkbox(true, "eaxwarlockdemonology_use_bane_of_havoc")
+menu.use_doom_bolt                       = core.menu.checkbox(true, "eaxwarlockdemonology_use_doom_bolt")
+menu.use_touch_of_chaos                  = core.menu.checkbox(true, "eaxwarlockdemonology_use_touch_of_chaos")
+menu.use_hand_of_guldan                  = core.menu.checkbox(true, "eaxwarlockdemonology_use_hand_of_guldan")
+menu.use_demon_soul                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_demon_soul")
+menu.use_decimation                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_decimation")
+menu.use_molten_core                     = core.menu.checkbox(true, "eaxwarlockdemonology_use_molten_core")
+menu.use_improved_soul_fire             = core.menu.checkbox(true, "eaxwarlockdemonology_use_improved_soul_fire")
+menu.use_bane_of_doom                    = core.menu.checkbox(true, "eaxwarlockdemonology_use_bane_of_doom")
+menu.use_bane_of_agony                   = core.menu.checkbox(true, "eaxwarlockdemonology_use_bane_of_agony")
+menu.use_bane_of_havoc                   = core.menu.checkbox(true, "eaxwarlockdemonology_use_bane_of_havoc")
+menu.use_doom_bolt                       = core.menu.checkbox(true, "eaxwarlockdemonology_use_doom_bolt")
+menu.use_touch_of_chaos                  = core.menu.checkbox(true, "eaxwarlockdemonology_use_touch_of_chaos")
 
 mana_conservator.register_menu_items(menu, "eax_warlock_demonology")
 
 settings.setup_major_toggle_keybinds(menu, {
-    { toggle = "use_curse", label = "Curse" },
-    { toggle = "use_immolate", label = "Immolate" },
-    { toggle = "use_corruption", label = "Corruption" },
     { toggle = "use_shadow_bolt", label = "Shadow Bolt" },
-    { toggle = "use_shadowfury", label = "Shadowfury" },
+    { toggle = "use_demon_soul", label = "Demon Soul" },
+    { toggle = "use_metamorphosis", label = "Metamorphosis" },
+    { toggle = "use_hand_of_guldan", label = "Hand of Gul'dan" },
 }, {
     namespace = "eaxwarlockdemonology",
-    log_prefix = "[Eax Warlock Demonology] ",
+    log_prefix = "[Eax Warlock Demo] ",
 })
 
 local _win
@@ -97,51 +144,131 @@ function menu.render()
     end
 
     root_tree:render("Eax's Warlock Demonology", function()
-        ps.render_controls(menu, "Eax's Warlock Demonology")
+        ps.render_controls(menu, "Eax's Warlock Demo")
 
-        main_tree:render("Eax's Rotation Settings", function()
-            ps.header("Spells & Abilities")
-            menu.preferred_pet:render("Pet Summon", { "Disabled", "Imp", "Voidwalker", "Succubus", "Felhunter", "Felguard" })
-            menu.maintain_soul_link:render("Soul Link", "Keep Soul Link active when possible")
-            menu.use_fel_armor:render("Fel Armor", "Maintain Fel Armor outside and inside combat")
-            menu.use_curse:render("Curse", "Automatically pick the best curse for solo or group content")
-            menu.curse_mode:render("Curse Mode", { "Auto / Agony", "Elements", "Weakness", "Tongues" })
-            menu.use_immolate:render("Immolate", "Maintain Immolate on the target")
-            menu.use_corruption:render("Corruption", "Maintain Corruption on the target")
-            menu.use_unstable_affliction:render("Unstable Affliction", "Use UA only if the spell is actually available")
-            menu.use_soul_fire:render("Soul Fire", "Cast Soul Fire as a high-damage nuke when ready")
-            menu.use_shadow_bolt:render("Shadow Bolt", "Use Shadow Bolt as the primary filler")
-            menu.use_shadow_burn:render("Shadowburn", "Fire Shadowburn during execute range")
-            menu.use_drain_soul:render("Drain Soul", "Channel Drain Soul below 25% target HP")
-            menu.use_shadowfury:render("Shadowfury", "Use Shadowfury for interrupts or clustered enemies")
-            menu.use_life_tap:render("Life Tap", "Regain mana when health permits")
-            menu.use_health_funnel:render("Health Funnel", "Channel Health Funnel on a damaged pet when safe")
-            menu.use_fel_domination:render("Fel Domination", "Use Fel Domination before a pet summon when available")
-            menu.life_tap_threshold:render("Life Tap HP %", "Minimum health percent required to Life Tap")
-            menu.pet_check_interval:render("Pet Refresh Interval", "Seconds between pet checks")
-            menu.use_banish:render("Banish", "Crowd control demons and elementals when appropriate")
+        -- Rotation
+        rotation_tree:render("Rotation", function()
+            ps.header("Fillers")
+            menu.use_shadow_bolt:render("Shadow Bolt", "Main filler")
+            menu.use_soul_fire:render("Soul Fire", "Proc")
+            menu.use_decimation:render("Decimation", "Proc")
+            menu.use_hand_of_guldan:render("Hand of Gul'dan", "Cast")
+            menu.use_demon_soul:render("Demon Soul", "Buff")
+            menu.use_metamorphosis:render("Metamorphosis", "Form")
+            menu.use_immolation_aura:render("Immolation Aura", "AoE")
+
+            ps.header("DoTs")
+            menu.use_corruption:render("Corruption", "Maintain")
+            menu.use_immolate:render("Immolate", "Maintain")
+            menu.use_curse_of_elements:render("CoE", "Debuff")
+            menu.use_curse_of_weakness:render("CoW", "Debuff")
+            menu.use_curse_of_tongues:render("CoT", "Cast slow")
+            menu.use_curse_of_exhaustion:render("CoEx", "Slow")
+            menu.use_bane_of_doom:render("BoD", "Maintain")
+            menu.use_bane_of_agony:render("BoA", "Maintain")
+            menu.use_bane_of_havoc:render("BoH", "Maintain")
         end)
 
-        ps.render_defensive(menu, def_tree, {
-        { key = "use_drain_life_def", label = "Drain Life", tip = "Emergency self-heal via Drain Life", hp_key = "use_drain_life_def_hp_pct", hp_label = "Drain Life HP %" },
-        })
+        -- Cooldowns
+        cd_tree:render("Cooldowns", function()
+            menu.use_demonic_empowerment:render("Demonic Empowerment", "Buff")
+            menu.use_molten_core:render("Molten Core", "Proc")
+            menu.use_improved_soul_fire:render("Improved Soul Fire", "Proc")
+            menu.use_doom_bolt:render("Doom Bolt", "Proc")
+            menu.use_touch_of_chaos:render("Touch of Chaos", "Proc")
+            menu.use_shadowfury:render("Shadowfury", "AoE stun")
+            menu.use_death_coil:render("Death Coil", "Heal/fear")
+            menu.use_howl_of_terror:render("Howl of Terror", "AoE fear")
+        end)
+
+        -- Pet
+        def_tree:render("Pet", function()
+            menu.use_summon_pet:render("Summon Pet", "Summon")
+            menu.use_soul_link:render("Soul Link", "Damage share")
+            menu.use_demonic_sacrifice:render("Demonic Sacrifice", "Sacrifice")
+            menu.use_health_funnel:render("Health Funnel", "Heal pet")
+        end)
+
+        -- Utility
+        auto_tree:render("Utility", function()
+            menu.use_fear:render("Fear", "CC")
+            menu.use_banish:render("Banish", "CC")
+            menu.use_enslave_demon:render("Enslave Demon", "CC")
+            menu.use_life_tap:render("Life Tap", "Mana")
+            menu.life_tap_mana_pct:render("Life Tap Mana %", "Below")
+            menu.use_drain_life:render("Drain Life", "Heal")
+            menu.drain_life_hp_pct:render("Drain Life HP %", "Below")
+            menu.use_unending_breath:render("Unending Breath", "Buff")
+            menu.use_detect_invisibility:render("Detect Invisibility", "Buff")
+            menu.use_eye_of_kilrogg:render("Eye of Kilrogg", "Scout")
+        end)
+
+        -- Stones
+        auto_tree:render("Stones", function()
+            menu.use_soulstone:render("Soulstone", "Self-res")
+            menu.use_healthstone:render("Healthstone", "Heal")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
+            menu.use_create_healthstone:render("Create Healthstone", "Create")
+            menu.use_create_soulstone:render("Create Soulstone", "Create")
+            menu.use_create_spellstone:render("Create Spellstone", "Create")
+            menu.use_create_firestone:render("Create Firestone", "Create")
+        end)
+
+        -- Armor
+        auto_tree:render("Armor", function()
+            menu.use_demon_armor:render("Demon Armor", "Armor")
+            menu.use_fel_armor:render("Fel Armor", "Spell damage")
+        end)
+
+        -- AoE
+        auto_tree:render("AoE", function()
+            menu.use_rain_of_fire:render("Rain of Fire", "AoE")
+            menu.use_hellfire:render("Hellfire", "AoE self-damage")
+            menu.use_shadowburn:render("Shadowburn", "Instant")
+            menu.use_searing_pain:render("Searing Pain", "Fast")
+            menu.use_conflagrate:render("Conflagrate", "Instant")
+            menu.use_incinerate:render("Incinerate", "Cast")
+            menu.use_chaos_bolt:render("Chaos Bolt", "Cast")
+        end)
+
+        -- Automation
+        auto_tree:render("Automation", function()
+            menu.auto_combat_potions:render("Combat Potions", "In combat")
+            menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink")
+            menu.auto_flask:render("Auto Flask", "Flask")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
+            menu.leveling_mana_floor:render("Mana %", "Below")
+            menu.use_wand:render("Use Wand", "Low mana")
+            menu.wand_mana_floor:render("Wand Mana %", "Below")
+            menu.wand_at_hp:render("Wand Target HP %", "Below")
+            menu.use_spirit_tap_wand:render("Spirit Tap Wand", "If talented")
+        end)
+
+        -- OOC
+        ooc_tree:render("OOC Sustain", function()
+            menu.ooc_drink:render("Auto-Drink", "Drink")
+            menu.drink_threshold:render("Drink %", "Below")
+            menu.ooc_eat:render("Auto-Eat", "Eat")
+            menu.eat_threshold:render("Eat %", "Below")
+        end)
+
+        -- Group
+        group_tree:render("Group", function()
+            menu.ooc_rez:render("Auto-Rez", "Accept")
+            menu.ooc_group_buff:render("Buffs", "Party")
+        end)
 
         ps.render_targeting(menu, tgt_tree)
         ps.render_racial(menu, racial_tree)
 
-        menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
-        menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
-        menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
-        menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
-        menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
-        menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
-        menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
-        ps.render_ooc(menu, ooc_tree, true)
-        ps.render_esp(menu, esp_tree)
+        -- Display
+        esp_tree:render("Display", function()
+            menu.esp_show_hud:render("Show HUD", "Status")
+            menu.esp_show_target:render("Show Target", "Info")
+            menu.esp_hud_x:render("HUD X", "")
+            menu.esp_hud_y:render("HUD Y", "")
+        end)
     end)
 end
-
-menu.use_drain_life_def = core.menu.checkbox(true, "eaxdemo_drain_life_def")
-menu.use_drain_life_def_hp_pct = core.menu.slider_int(0, 100, 35, "eaxdemo_drain_life_hp")
 
 return menu
