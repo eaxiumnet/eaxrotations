@@ -696,8 +696,23 @@ local function get_selected_curse(me, target, mode)
     local auto_curse = idx == 1
 
     if auto_curse then
+        local in_group_content = mode == "dungeon" or mode == "raid"
+        if in_group_content then
+            if target and target:is_valid() and not target:is_dead() then
+                if ((target.is_casting_spell and target:is_casting_spell()) or (target.is_channelling_spell and target:is_channelling_spell())) and runtime.curse_of_tongues_id then
+                    return runtime.curse_of_tongues_id, spells.DEBUFF_CURSE_OF_TONGUES, "Curse of Tongues", "tongues"
+                end
+            end
+            if runtime.curse_of_elements_id then
+                return runtime.curse_of_elements_id, spells.DEBUFF_CURSE_OF_ELEMENTS, "Curse of Elements", "elements"
+            end
+            if runtime.curse_of_weakness_id and utils.is_melee_target(me, target) then
+                return runtime.curse_of_weakness_id, spells.DEBUFF_CURSE_OF_WEAKNESS, "Curse of Weakness", "weakness"
+            end
+        end
+
         local ttd = visual_get_ttd_seconds(target)
-        if runtime.curse_of_doom_id and type(ttd) == "number" and ttd >= 120 then
+        if runtime.curse_of_doom_id and type(ttd) == "number" and ttd >= 60 then
             return runtime.curse_of_doom_id, spells.DEBUFF_CURSE_OF_DOOM, "Curse of Doom", "doom"
         end
         return runtime.curse_of_elements_id or runtime.curse_of_agony_id,
@@ -1145,7 +1160,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled

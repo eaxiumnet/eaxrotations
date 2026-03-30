@@ -291,7 +291,8 @@ local function set_adjusted_mana_pct(base_pct, damage_weight)
 end
 
 local function refresh_mode_cache()
-    runtime.cached_mode = utils.detect_mode(me)
+    local me = _get_local_player()
+    runtime.cached_mode = me and utils.detect_mode(me) or runtime.cached_mode
 end
 
 local function note_cast()
@@ -357,6 +358,14 @@ local function target_will_die_before_cast_finishes(me, target, spell_id, buffer
     local cast_s = get_spell_cast_time_seconds(spell_id, me)
     if not ttd_s or not cast_s then return false end
     return ttd_s <= (cast_s + (buffer_s or 0.25))
+end
+
+local function should_abort_damage_commit(me, target)
+    if not target or not target:is_valid() or target:is_dead() then
+        return true
+    end
+    return target_will_die_before_cast_finishes(me, target, runtime.fireball_id, 0.35)
+        or target_will_die_before_cast_finishes(me, target, runtime.pyroblast_id, 0.35)
 end
 
 local function is_within_range(a, b, max_range)
@@ -720,15 +729,7 @@ local function do_rotation(me, target)
     -- Defensive abilities
     ttd_tracker.update(target)
 
-    if (me:is_casting_spell() or me:is_channelling_spell()) and dps_risk.should_abort_commit(
-        dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker),
-        {
-            kind = me:is_channelling_spell() and "channel" or "cast",
-            progress_pct = 0.20,
-            remaining_s = 1.0,
-            projected_damage_pct = 0.06,
-        }
-    ) then
+    if (me:is_casting_spell() or me:is_channelling_spell()) and should_abort_damage_commit(me, target) then
         if SpellStopCasting then
             SpellStopCasting()
             return true
@@ -837,7 +838,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -847,6 +848,10 @@ core.register_on_render_callback(function()
 end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
+    local me = _get_local_player()
+    if not me then return end
+    if me:is_dead() then return end
+
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
     end
@@ -857,7 +862,7 @@ core.register_on_update_callback(function()
     handle_toggle()
 
     if not menu.enabled:get_state() then return end
-
+    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
@@ -867,11 +872,6 @@ core.register_on_update_callback(function()
                toggle = menu.ooc_group_buff },
         },
     })
-
-    local me = _get_local_player()
-    if not me then return end
-    if me:is_dead() then return end
-    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end

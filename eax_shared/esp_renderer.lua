@@ -1,7 +1,7 @@
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  EAX Class HUD  v2.0  —  esp_renderer.lua                              ║
+-- +══════════════════════════════════════════════════════════════════════════+
+-- ║  Eax Class HUD  v2.0  -  esp_renderer.lua                              ║
 -- ║                                                                          ║
--- ║  Drop-in replacement for all EAX esp_renderer.lua files.               ║
+-- ║  Drop-in replacement for all Eax esp_renderer.lua files.               ║
 -- ║  Fully backwards-compatible with the v2.1 API surface:                  ║
 -- ║    esp_renderer.init(spec_id, display_name)                             ║
 -- ║    esp_renderer.on_cast(spell_id, name, col, target_name)               ║
@@ -12,19 +12,19 @@
 -- ║    esp_renderer.set_context(spells, utils, runtime)      [Druid ext]    ║
 -- ║                                                                          ║
 -- ║  NEW in v2.0:                                                            ║
--- ║   • Class-aware color palette (auto-detected or injected)               ║
--- ║   • Spec accent glow on proc pills and icon border                      ║
--- ║   • Druid form bar with energy/rage resource strip                      ║
--- ║   • Combo-point pips for energy specs (Druid Feral, Rogue)             ║
--- ║   • Aura strip with spec-tinted active borders                         ║
--- ║   • Shooting-star particle field on panel background                    ║
--- ║   • TBC corner bracket ornaments + diamond gem decorations             ║
--- ║   • Draggable window with minimize button                               ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- ║   - Class-aware color palette (auto-detected or injected)               ║
+-- ║   - Spec accent glow on proc pills and icon border                      ║
+-- ║   - Druid form bar with energy/rage resource strip                      ║
+-- ║   - Combo-point pips for energy specs (Druid Feral, Rogue)             ║
+-- ║   - Aura strip with spec-tinted active borders                         ║
+-- ║   - Shooting-star particle field on panel background                    ║
+-- ║   - TBC corner bracket ornaments + diamond gem decorations             ║
+-- ║   - Draggable window with minimize button                               ║
+-- +══════════════════════════════════════════════════════════════════════════+
 
 local esp_renderer = {}
 
--- ── Lazy deps ─────────────────────────────────────────────────────────────────
+-- -- Lazy deps -----------------------------------------------------------------
 local _color, _vec2, _icons, _color_api, _theme, _identity
 local function load_deps()
     if _color_api then return end
@@ -75,9 +75,9 @@ local function get_screen_size_safe()
     return 1920, 1080
 end
 
--- ── State ──────────────────────────────────────────────────────────────────────
+-- -- State ----------------------------------------------------------------------
 local _spec_id   = "eax"
-local _spec_name = "EAX"
+local _spec_name = "Eax"
 local _class_id  = nil
 
 local _state = {
@@ -100,7 +100,7 @@ local DECAY_S = 3.0
 -- Druid-specific context (set via set_context)
 local _sp, _ut, _rt
 
--- ── Particle field (class-tinted, seeded deterministically) ───────────────────
+-- -- Particle field (class-tinted, seeded deterministically) -------------------
 local STAR_COUNT = 170
 local DUST_COUNT = 60
 local _stars, _dust
@@ -190,7 +190,7 @@ local function _update_meteors(dt, W, H)
     end
 end
 
--- ── Color helpers (class-palette-aware) ───────────────────────────────────────
+-- -- Color helpers (class-palette-aware) ---------------------------------------
 -- These gracefully fall back to generic values if class_theme is absent.
 local function C_bg()
     if _theme then return _theme.col_panel() end
@@ -226,7 +226,7 @@ local function C_green()     return rgba(100, 220, 100, 255) end
 local function C_red()       return rgba(220,  70,  60, 255) end
 local function C_gold()      return rgba(240, 190,  20, 255) end
 
--- ── Layout constants ──────────────────────────────────────────────────────────
+-- -- Layout constants ----------------------------------------------------------
 local W         = 252   -- panel width
 local PAD       = 8
 local PAD_SM    = 4
@@ -246,7 +246,7 @@ local METRIC_H  = 15
 local TITLE_H   = 20
 local MIN_BTN   = 14
 
--- ── Druid form helpers ────────────────────────────────────────────────────────
+-- -- Druid form helpers --------------------------------------------------------
 local FORM_COL = {
     cat    = function() return rgba(220, 140,  40, 255) end,
     bear   = function() return rgba( 80, 150, 215, 255) end,
@@ -263,15 +263,30 @@ local function get_druid_form(me)
     if _sp.BUFF_CAT_FORM and _ut.has_buff(me, _sp.BUFF_CAT_FORM)   then return "cat",    _ut.get_energy(me) end
     if _sp.BUFF_BEAR_FORM and (_ut.has_buff(me, _sp.BUFF_BEAR_FORM) or
        (_sp.BUFF_DIRE_BEAR_FORM and _ut.has_buff(me, _sp.BUFF_DIRE_BEAR_FORM)))
-                                                                     then return "bear",   _ut.get_rage(me)   end
-    if _sp.BUFF_TRAVEL_FORM and _ut.has_buff(me, _sp.BUFF_TRAVEL_FORM) then return "travel", 0 end
-    local ok, mp = pcall(function()
-        return math.floor(me:get_power(0) / me:get_max_power(0) * 100)
-    end)
-    return "caster", ok and mp or 0
+                                                                      then return "bear",   _ut.get_rage(me)   end
+    local power_type = (_ut and _ut.power_type) or { MANA = 0, RAGE = 1, ENERGY = 3 }
+    local function resource_pct(ptype)
+        local ok, mp = pcall(function()
+            local cur = me:get_power(ptype)
+            local max = me:get_max_power(ptype)
+            if not cur or not max or max <= 0 then return 0 end
+            return math.floor(cur / max * 100)
+        end)
+        return ok and mp or 0
+    end
+    if _sp.BUFF_TRAVEL_FORM and _ut.has_buff(me, _sp.BUFF_TRAVEL_FORM) then
+        return "travel", resource_pct(power_type.MANA)
+    end
+    local ptype = power_type.MANA
+    if _sp.BUFF_CAT_FORM and _ut.has_buff(me, _sp.BUFF_CAT_FORM) then
+        ptype = power_type.ENERGY
+    elseif _sp.BUFF_BEAR_FORM and (_ut.has_buff(me, _sp.BUFF_BEAR_FORM) or (_sp.BUFF_DIRE_BEAR_FORM and _ut.has_buff(me, _sp.BUFF_DIRE_BEAR_FORM))) then
+        ptype = power_type.RAGE
+    end
+    return (ptype == power_type.ENERGY and "cat") or (ptype == power_type.RAGE and "bear") or "caster", resource_pct(ptype)
 end
 
--- ── Aura normalization (mirrors v2.1 contract) ────────────────────────────────
+-- -- Aura normalization (mirrors v2.1 contract) --------------------------------
 local function normalize_aura(entry)
     if type(entry) ~= "table" then return nil end
     local label = entry.label or entry.name or entry.id
@@ -398,15 +413,15 @@ local function resolve_class_id(spec_id, display_name)
     return nil
 end
 
--- ── Window drag state ─────────────────────────────────────────────────────────
+-- -- Window drag state ---------------------------------------------------------
 local win = { x = 20, y = 200, minimized = false, dragging = false, dox = 0, doy = 0 }
 local _was_lmb = false
 
--- ── Public API ────────────────────────────────────────────────────────────────
+-- -- Public API ----------------------------------------------------------------
 
 function esp_renderer.init(spec_id, display_name, class_id_hint)
     _spec_id   = spec_id   or "eax"
-    _spec_name = display_name or spec_id or "EAX"
+    _spec_name = display_name or spec_id or "Eax"
     _class_id  = class_id_hint
     load_deps()
     if not _class_id then
@@ -462,12 +477,12 @@ end
 function esp_renderer.notify(uid, plugin_label, msg, dur, col)
     load_deps()
     if core.graphics.is_notification_active and not core.graphics.is_notification_active(uid) then
-        core.graphics.add_notification(uid, plugin_label or "EAX", msg, dur or 2.0,
+    core.graphics.add_notification(uid, plugin_label or "Eax", msg, dur or 2.0,
             to_api(col or (_color and _color.gold(220)) or rgba(240, 190, 20, 220)))
     end
 end
 
--- ── Internal draw helpers ─────────────────────────────────────────────────────
+-- -- Internal draw helpers -----------------------------------------------------
 local function filled(x, y, w, h, col, r)
     core.graphics.rect_2d_filled(v2(x, y), w, h, col, r or 0)
 end
@@ -488,7 +503,7 @@ local function line(x1, y1, x2, y2, col, t)
     core.graphics.line_2d(v2(x1, y1), v2(x2, y2), col, t or 1)
 end
 
--- ── Background particle field ─────────────────────────────────────────────────
+-- -- Background particle field -------------------------------------------------
 local function draw_particles(bx, by, bw, bh)
     _build_particles()
     local now = core.time()
@@ -535,7 +550,7 @@ local function draw_particles(bx, by, bw, bh)
     end
 end
 
--- ── Corner bracket ornaments (TBC stone-carved style) ─────────────────────────
+-- -- Corner bracket ornaments (TBC stone-carved style) -------------------------
 local function draw_ornaments(bx, by, bw, bh)
     local gc = C_border()
     local dc = C_border_dim()
@@ -564,13 +579,13 @@ local function draw_ornaments(bx, by, bw, bh)
     gem(bx + bw - G - 2, by + bh - G - 2, G)
 end
 
--- ── Metric row ────────────────────────────────────────────────────────────────
+-- -- Metric row ----------------------------------------------------------------
 local function draw_metric(bx, y, label, value)
     txt(label, bx, y, FONT_SM, C_text_dim())
     txt(metric_str(value), bx + 26, y, FONT_SM, C_text())
 end
 
--- ── Aura strip ────────────────────────────────────────────────────────────────
+-- -- Aura strip ----------------------------------------------------------------
 local function draw_aura_strip(bx, y, auras)
     local cnt = auras.n or 0
     if cnt == 0 then return 0 end
@@ -590,7 +605,7 @@ local function draw_aura_strip(bx, y, auras)
     return AURA_H + PAD_SM
 end
 
--- ── Proc strip ────────────────────────────────────────────────────────────────
+-- -- Proc strip ----------------------------------------------------------------
 local function draw_proc_strip(bx, y, current_lane, current_form)
     local panel_w = win.w or W
     local visible = {}
@@ -625,7 +640,7 @@ local function draw_proc_strip(bx, y, current_lane, current_form)
     return 12 + ph + PAD_SM
 end
 
--- ── Full HUD draw ─────────────────────────────────────────────────────────────
+-- -- Full HUD draw -------------------------------------------------------------
 local function ensure_class_theme()
     if _class_id then return end
     _class_id = resolve_class_id(_spec_id, _spec_name)
@@ -650,7 +665,10 @@ local function resolve_player_state()
         current_form, res_val = get_druid_form(me)
     elseif me then
         local ok_mp, mp = pcall(function()
-            return math.floor(me:get_power(0) / me:get_max_power(0) * 100)
+            local cur = me:get_power(0)
+            local max = me:get_max_power(0)
+            if not cur or not max or max <= 0 then return 0 end
+            return math.floor(cur / max * 100)
         end)
         if ok_mp then res_val = mp end
     end
@@ -778,7 +796,7 @@ local function render_hud_panel(bx, by, width, height, current_form, res_val, cu
 
     local mb_x, mb_y = bx + width - MIN_BTN - PAD, by + (TITLE_H - MIN_BTN) / 2
     outlined(mb_x, mb_y, MIN_BTN, MIN_BTN, C_accent(), 1.0, 2)
-    txt(win.minimized and "+" or "−", mb_x + 3, mb_y + 1, FONT_SM, C_accent())
+    txt(win.minimized and "+" or "-", mb_x + 3, mb_y + 1, FONT_SM, C_accent())
 
     if win.minimized then return end
 
@@ -876,7 +894,7 @@ local function draw_hud(menu)
     render_hud_panel(bx, by, width, height, current_form, res_val, current_lane, cp, show_cp)
 end
 
--- ── 3D floating cast label above target ───────────────────────────────────────
+-- -- 3D floating cast label above target ---------------------------------------
 local function draw_target_esp(menu)
     if menu.esp_show_target and not menu.esp_show_target:get_state() then return end
     if _state.spell_name == "" then return end
@@ -912,7 +930,7 @@ local function draw_target_esp(menu)
     end)
 end
 
--- ── on_render (called from main.lua each frame) ───────────────────────────────
+-- -- on_render (called from main.lua each frame) -------------------------------
 function esp_renderer.on_render(menu)
     return
 end

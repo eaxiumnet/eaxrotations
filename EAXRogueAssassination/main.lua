@@ -1201,7 +1201,7 @@ end
 core.register_on_spell_cast_callback(on_spell_cast)
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -1242,7 +1242,7 @@ core.register_on_update_callback(function()
     if poison_manager.try_apply_poisons(me, menu, utils, current_poison_loadout()) then
         return
     end
-        ooc_manager.on_update(me, menu, utils)
+        ooc_manager.on_update(me, menu, utils, { show_enchant_warning = true })
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end

@@ -7,7 +7,6 @@ spells.CAT_FORM = { 768 }
 spells.BEAR_FORM = { 9634, 5487 }
 spells.DIRE_BEAR_FORM = { 9635, 9634, 5487 }
 spells.MOONKIN_FORM = { 24858 }
-spells.TRAVEL_FORM = { 783 }
 spells.AQUATIC_FORM = { 1066 }
 spells.FAERIE_FIRE_FERAL = { 27011, 17392, 17391, 17390, 16857 }
 
@@ -27,7 +26,7 @@ spells.FRENZIED_REGENERATION = { 22842 }
 spells.DEMORALIZING_ROAR = { 99, 1738, 9490, 9491, 9745, 9746, 10756, 25275 }
 spells.FAERIE_FIRE = { 26993, 9907, 9749, 778, 770 }
 
-spells.HEALING_TOUCH = { 26981, 8936, 8935, 8931, 5189, 5188, 5187, 5186, 5185, 5184, 3627, 1126 }
+spells.HEALING_TOUCH = { 26979, 26978, 25297, 9889, 9888, 9758, 8903, 6778, 5189, 5188, 5187, 5186, 5185 }
 spells.REJUVENATION = { 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
 spells.REGROWTH = { 26980, 9858, 9857, 9856, 9750, 8941, 8940, 8939, 8938, 8936 }
 spells.MARK_OF_THE_WILD = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }
@@ -36,7 +35,7 @@ spells.BUFF_CAT_FORM = { 768 }
 spells.BUFF_BEAR_FORM = { 5487, 9634, 9635 }
 spells.BUFF_DIRE_BEAR_FORM = { 9635, 9634, 5487 }
 spells.BUFF_MOONKIN_FORM = { 24858 }
-spells.BUFF_TIGERS_FURY = { 5217, 6793, 9845, 9846, 50213 }
+spells.BUFF_TIGERS_FURY = { 5217, 6793, 9845, 9846 }
 spells.BUFF_FRENZIED_REGENERATION = { 22842 }
 
 spells.DEBUFF_FAERIE_FIRE = { 770, 778, 16857, 17390, 17391, 17392, 26993, 27011 }
@@ -45,15 +44,14 @@ spells.DEBUFF_RIP = { 1079, 27008 }
 spells.DEBUFF_MANGLE = { 33876, 33983, 33878, 33986, 33987 }
 -- Trauma (Arms warrior) provides the same bleed-amplification effect as Mangle.
 -- If Trauma is already on the target, our Mangle is redundant.
-spells.DEBUFF_TRAUMA = { 46857 }
 spells.DEBUFF_DEMORALIZING_ROAR = { 99, 1738, 9490, 9491, 9745, 9746, 10756, 25275 }
 
 spells.BERSERKING = { 26297 }
-spells.SHADOWMELD = { 58984, 1784 }
+spells.SHADOWMELD = { 1784 }
 spells.WAR_STOMP = { 20549 }
 
 spells.BUFF_BERSERKING = { 26297 }
-spells.BUFF_SHADOWMELD = { 58984, 1784 }
+spells.BUFF_SHADOWMELD = { 1784 }
 
 spells.HASTE_POTION = { 28508, 22832 }
 spells.SUPER_MANA_POTION = { 28499, 22828 }
@@ -61,13 +59,13 @@ spells.SCROLL_OF_AGILITY = { 22730, 10290 }
 spells.SCROLL_OF_STAMINA = { 22733, 10292 }
 
 
-spells.MAIM              = { 22570, 49802 }
-spells.DEBUFF_MAIM       = { 22570, 49802 }
+spells.MAIM              = { 22570 }
+spells.DEBUFF_MAIM       = { 22570 }
 
 spells.LACERATE          = { 33745 }
 spells.DEBUFF_LACERATE   = { 33745 }
 
-spells.REBIRTH           = { 26994, 20748, 20748, 20910, 20909, 20484 }
+spells.REBIRTH           = { 26994, 20748, 20910, 20909, 20484 }
 
 spells.REMOVE_CURSE = { 2782, 8690, 8691 }
 
@@ -79,7 +77,6 @@ spells.BASH                = { 8983, 6798, 5211 }
 spells.DASH                = { 9821, 1850 }
 spells.FERAL_CHARGE_BEAR   = { 16979, 19675 }
 spells.RAVAGE              = { 9867, 9866, 6785, 3242 }
-spells.TRAVEL_FORM         = { 783 }
 spells.ABOLISH_POISON      = { 2893 }
 spells.NATURES_GRASP       = { 17329, 16813, 16812, 16811, 16810, 16689 }
 

@@ -1,5 +1,5 @@
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  EAX Class Theme  ·  ps_theme.lua  v2.0                                ║
+-- +══════════════════════════════════════════════════════════════════════════+
+-- ║  Eax Class Theme  -  ps_theme.lua  v2.0                                ║
 -- ║                                                                          ║
 -- ║  Drop-in replacement for the original ps_theme.lua.                     ║
 -- ║  Keeps the EXACT same draw_space mechanics as v4.0 (scroll-offset,      ║
@@ -8,11 +8,11 @@
 -- ║  other scripts' menus.                                                   ║
 -- ║                                                                          ║
 -- ║  What changes vs. the original:                                          ║
--- ║   • Star / dust / meteor / gem colors auto-tinted per player class       ║
--- ║   • Corner bracket glow matches class accent color                       ║
--- ║   • Section headers colored with class accent                            ║
--- ║   • Everything else is identical — same layout, same API, same safety    ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- ║   - Star / dust / meteor / gem colors auto-tinted per player class       ║
+-- ║   - Corner bracket glow matches class accent color                       ║
+-- ║   - Section headers colored with class accent                            ║
+-- ║   - Everything else is identical - same layout, same API, same safety    ║
+-- +══════════════════════════════════════════════════════════════════════════+
 
 local ps = {}
 
@@ -134,7 +134,7 @@ local function _spawn_meteor(pool)
         seg = 4 + math.random(2), hue = p })
 end
 
--- MAIN DRAW — identical scroll/offset mechanics to original v4.0
+-- MAIN DRAW - identical scroll/offset mechanics to original v4.0
 function ps.draw_space(win, id)
     return
 end
@@ -163,7 +163,7 @@ ps.MODE = {"Auto","Solo","Dungeon","Raid"}
 -- Render helpers (unchanged from original)
 function ps.render_controls(m,title)
     ps.header("Controls")
-    m.enabled:render("Enabled","Master on/off toggle — set a keybind here to toggle with a hotkey")
+    m.enabled:render("Enabled","Master on/off toggle - set a keybind here to toggle with a hotkey")
     if m.toggle_key then m.toggle_key:render("Toggle Key","Keybind to enable or disable the rotation") end
     m.mode:render("Mode",ps.MODE,"Auto detects party context automatically")
     m.debug:render("Debug Logging","Print rotation decisions to the console")
@@ -176,21 +176,21 @@ function ps.render_controls(m,title)
     end
 end
 function ps.render_targeting(m,tgt_tree)
-    tgt_tree:render("  Eax's Targeting",function()
+        tgt_tree:render("  Eax's Targeting",function()
         ps.header("Priority")
         m.focus_priority:render("Focus Target Priority","Prioritise your focus target over the current target")
         m.combat_self_hp_boost:render("Self-Heal Bonus %","Extra health threshold added to self-heal triggers")
     end)
 end
 function ps.render_racial(m,racial_tree)
-    racial_tree:render("  Eax's Racial",function()
+        racial_tree:render("  Eax's Racial",function()
         ps.header("Racial Ability")
         m.use_racial:render("Use Racial","Automatically use your racial ability at the right moment")
         m.racial_hp:render("Racial HP %","Use defensive racial below this health percent")
     end)
 end
 function ps.render_ooc(m,ooc_tree,is_caster)
-    ooc_tree:render("  Eax's Out-of-Combat",function()
+        ooc_tree:render("  Eax's Out-of-Combat",function()
         ps.header("Sustain")
         m.ooc_drink:render("Auto-Drink","Drink to restore mana when out of combat")
         m.drink_threshold:render("Drink Threshold %","Start drinking below this mana percent")

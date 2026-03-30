@@ -327,6 +327,9 @@ function threat_manager.get_threat_pct_of_tank(target)
         return 0
     end
     local player_threat = threat_manager.get_player_threat(target)
+    if not player_threat or player_threat <= 0 then
+        return 0
+    end
     return (player_threat / tank_threat) * 100
 end
 

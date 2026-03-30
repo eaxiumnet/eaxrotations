@@ -58,17 +58,17 @@ menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "e
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
 -- -- Class-specific elements ---------------------------------------------------
-menu.shield_threshold                     = core.menu.slider_int(10, 90, 60, "eax_priest_discipline_shield_threshold")
-menu.renew_threshold                      = core.menu.slider_int(10, 90, 75, "eax_priest_discipline_renew_threshold")
+menu.shield_threshold                     = core.menu.slider_int(10, 90, 90, "eax_priest_discipline_shield_threshold")
+menu.renew_threshold                      = core.menu.slider_int(10, 90, 85, "eax_priest_discipline_renew_threshold")
 menu.renew_refresh_seconds                = core.menu.slider_int(1, 5, 2, "eax_priest_discipline_renew_refresh_seconds")
-menu.pain_suppression_threshold           = core.menu.slider_int(5, 40, 25, "eax_priest_discipline_pain_suppression_threshold")
+menu.pain_suppression_threshold           = core.menu.slider_int(5, 40, 20, "eax_priest_discipline_pain_suppression_threshold")
 menu.use_pw_shield                        = core.menu.checkbox(true, "eax_priest_discipline_use_pw_shield")
-menu.use_penance                          = core.menu.checkbox(true, "eax_priest_discipline_use_penance")
 menu.use_cooldowns                        = core.menu.checkbox(true, "eax_priest_discipline_use_cooldowns")
+menu.use_inner_focus                      = core.menu.checkbox(true, "eax_priest_discipline_use_inner_focus")
 menu.power_infusion_enabled               = core.menu.checkbox(true, "eax_priest_discipline_power_infusion")
 menu.power_infusion_threshold             = core.menu.slider_int(25, 75, 45, "eax_priest_discipline_power_infusion_threshold")
 menu.prayer_of_mending                    = core.menu.checkbox(true, "eax_priest_discipline_prayer_of_mending")
-menu.prayer_of_mending_threshold          = core.menu.slider_int(20, 80, 55, "eax_priest_discipline_prayer_of_mending_threshold")
+menu.prayer_of_mending_threshold          = core.menu.slider_int(20, 90, 85, "eax_priest_discipline_prayer_of_mending_threshold")
 menu.overheal_protection                  = core.menu.checkbox(true, "eax_priest_discipline_overheal_protection")
 menu.use_dispels                          = core.menu.checkbox(true, "eax_priest_discipline_use_dispels")
 
@@ -119,6 +119,7 @@ function menu.render()
             menu.prayer_of_mending_threshold:render("PoM Threshold", "Cast Prayer of Mending when an ally falls below this percent")
             menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
             menu.use_dispels:render("Combat Dispels", "Allow Dispel Magic and disease cleanses on the current heal target")
+            menu.use_inner_focus:render("Inner Focus", "Use Inner Focus before expensive direct or party heals")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------

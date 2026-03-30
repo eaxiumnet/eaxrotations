@@ -20,7 +20,7 @@ local INTERRUPT_SPELLS = {
         { id = 34490, name = "silencing_shot",  type = "fast" },
     },
     paladin = {
-        { id = 31935, name = "rebuke", type = "fast" },
+        -- TBC Paladin has no dedicated fast interrupt; only a stun-based stop.
         { id = 20066, name = "hammer_of_justice", type = "stun" },
     },
     shaman = {
@@ -43,7 +43,7 @@ local INTERRUPT_SPELLS = {
         { id = 8983,  name = "bash",              type = "stun" },
         { id = 1822,  name = "bash",              type = "stun" },
         { id = 5211,  name = "bash",              type = "stun" },
-        { id = 33786, name = "cyclone",           type = "stun" },
+        -- Cyclone is crowd control and should not be used by the generic boss interrupt path.
     },
     warlock = {
         { id = 19647, name = "shadowfury",  type = "stun" },
@@ -58,7 +58,7 @@ local MIN_CAST_TIME_MS = 200
 -- Class IDs for healer detection
 local HEALER_CLASSES = {
     [5] = true,   -- Priest
-    [6] = true,   -- Druid
+    [11] = true,  -- Druid
     [2] = true,   -- Paladin
     [7] = true,   -- Shaman
 }
@@ -181,29 +181,21 @@ end
 function interrupt_manager.get_best_interrupt_target(me)
     if not me then return nil end
 
-    local ok_me_pos, me_pos = pcall(function() return me:get_position() end)
-    if not ok_me_pos or not me_pos then return nil end
-
-    local enemies = core.object_manager.get_all_objects()
-    if not enemies then return nil end
+    -- Get enemies in interrupt range (~10 yards for most classes)
+    local ok_units, enemies = pcall(function()
+        return core.object_manager.get_units_in_range(me, 10)
+    end)
+    if not ok_units or not enemies then return nil end
 
     local best_target = nil
     local best_priority = 0
-    local max_range = 10
 
     for _, unit in ipairs(enemies) do
-        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead() and me:can_attack(unit) then
-            local ok_unit_pos, unit_pos = pcall(function() return unit:get_position() end)
-            if ok_unit_pos and unit_pos then
-                local sq_dist = me_pos:squared_dist_to_ignore_z(unit_pos)
-                local threshold = max_range + (unit:get_bounding_radius() or 0)
-                if sq_dist <= (threshold * threshold) then
-                    local should_int, priority = interrupt_manager.should_interrupt_target(unit)
-                    if should_int and priority > best_priority then
-                        best_priority = priority
-                        best_target = unit
-                    end
-                end
+        if unit and unit:is_valid() and not unit:is_dead() and me:can_attack(unit) then
+            local should_int, priority = interrupt_manager.should_interrupt_target(unit)
+            if should_int and priority > best_priority then
+                best_priority = priority
+                best_target = unit
             end
         end
     end

@@ -198,18 +198,26 @@ local MISSING_SPELL_REFRESH_INTERVAL_S = 1.0
 local MORTAL_STRIKE_COST = 30
 local WHIRLWIND_COST = 25
 local SLAM_COST = 15
+local HEROIC_STRIKE_COST = 15
+local CLEAVE_COST = 20
+local DUMP_RAGE_RESERVE = 40
 local THUNDER_CLAP_COST = 20
+local REND_COST = 10
 local EXECUTE_MIN_RAGE = 15
 local EXECUTE_HP_THRESHOLD = 0.20
 local STANCE_BUFFER_RAGE = 5
 local ARMS_AOE_RADIUS = 8
+local REND_REFRESH_MS = 4000
 
 local runtime = {
     mortal_strike_id = nil,
     slam_id = nil,
     whirlwind_id = nil,
     execute_id = nil,
+    heroic_strike_id = nil,
+    cleave_id = nil,
     overpower_id = nil,
+    rend_id = nil,
     thunder_clap_id = nil,
     battle_shout_id = nil,
     commanding_shout_id = nil,
@@ -234,6 +242,10 @@ local runtime = {
     set_multiplier = 1.0,
 }
 
+local function note_cast()
+    runtime.last_cast_time = _core_time()
+end
+
 local ctx_cache = rotation_context.new({
     important_buffs = {},
     important_debuffs = {},
@@ -244,7 +256,10 @@ local RUNTIME_SPELL_SPECS = {
     { field = "slam_id", ranks = spells.SLAM },
     { field = "whirlwind_id", ranks = spells.WHIRLWIND },
     { field = "execute_id", ranks = spells.EXECUTE },
+    { field = "heroic_strike_id", ranks = spells.HEROIC_STRIKE },
+    { field = "cleave_id", ranks = spells.CLEAVE },
     { field = "overpower_id", ranks = spells.OVERPOWER },
+    { field = "rend_id", ranks = spells.REND },
     { field = "thunder_clap_id", ranks = spells.THUNDER_CLAP },
     { field = "battle_shout_id", ranks = spells.BATTLE_SHOUT },
     { field = "commanding_shout_id", ranks = spells.COMMANDING_SHOUT },
@@ -327,6 +342,8 @@ local function refresh_mode_cache()
     if (now - runtime.mode_cache_refreshed_at) < MODE_REFRESH_INTERVAL_S and runtime.cached_mode then
         return
     end
+    local me = _get_local_player()
+    if not me then return end
     runtime.cached_mode = utils.detect_mode(me)
     runtime.mode_cache_refreshed_at = now
 end
@@ -532,6 +549,95 @@ local function try_overpower(me, target, ctx)
     return false
 end
 
+local function try_dump(me, target, rage, ctx, target_hp_pct)
+    if not target or target_hp_pct <= EXECUTE_HP_THRESHOLD then
+        return false
+    end
+
+    if utils.get_current_stance(me) ~= "battle" then
+        return false
+    end
+
+    if not utils.is_melee_target(me, target) then
+        return false
+    end
+
+    local nearby = count_nearby_enemies(me)
+    local use_cleave = nearby >= 2 and runtime.cleave_id
+    local dump_id = use_cleave and runtime.cleave_id or runtime.heroic_strike_id
+    if not dump_id then
+        return false
+    end
+
+    if utils.is_spell_already_queued(dump_id) then
+        return false
+    end
+
+    local dump_cost = use_cleave and CLEAVE_COST or HEROIC_STRIKE_COST
+    local reserve = DUMP_RAGE_RESERVE
+
+    if runtime.mortal_strike_id then
+        local ms_cd = _get_spell_cd(runtime.mortal_strike_id) or math.huge
+        if ms_cd <= 1.5 then
+            reserve = reserve + MORTAL_STRIKE_COST
+        end
+    end
+
+    if rage < (dump_cost + reserve) then
+        return false
+    end
+
+    if utils.can_cast_melee(dump_id, me) and utils.cast_target_fast(dump_id, target) then
+        utils.log_debug(menu, use_cleave and "Cleave dump" or "Heroic Strike dump")
+        return true
+    end
+
+    return false
+end
+
+local function try_rend(me, target, rage, target_hp_pct)
+    if not menu.use_rend:get_state() or not target or not runtime.rend_id then
+        return false
+    end
+
+    if target_hp_pct <= EXECUTE_HP_THRESHOLD then
+        return false
+    end
+
+    if utils.get_current_stance(me) ~= "battle" then
+        return false
+    end
+
+    if not utils.is_melee_target(me, target) then
+        return false
+    end
+
+    local rend_remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_REND)
+    if rend_remaining > REND_REFRESH_MS then
+        return false
+    end
+
+    local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or math.huge
+    if ms_cd <= 1.5 and rage < (MORTAL_STRIKE_COST + REND_COST) then
+        return false
+    end
+
+    if menu.use_whirlwind:get_state() and runtime.whirlwind_id and count_nearby_enemies(me) >= 2 then
+        local ww_cd = _get_spell_cd(runtime.whirlwind_id) or math.huge
+        if ww_cd <= 1.5 and rage < (WHIRLWIND_COST + REND_COST) then
+            return false
+        end
+    end
+
+    if utils.can_cast_melee(runtime.rend_id, me) and utils.cast_target(runtime.rend_id, target) then
+        utils.log_debug(menu, rend_remaining > 0 and "Rend refresh" or "Rend")
+        esp_renderer.on_cast(runtime.rend_id, "Rend", color.red(220))
+        return true
+    end
+
+    return false
+end
+
 local function try_mortal_strike(me, target, ctx)
     if not menu.use_mortal_strike:get_state()
         or not target
@@ -602,7 +708,7 @@ local function try_execute(me, target, ctx, target_hp_pct)
         return false
     end
 
-    local can_cast = resource_gate.warrior.has_rage(ctx, 15)
+    local can_cast = resource_gate.warrior.has_rage(ctx, EXECUTE_MIN_RAGE)
     if not can_cast then
         return false
     end
@@ -635,7 +741,7 @@ local function try_whirlwind(me, target, rage, ctx)
         return false
     end
 
-    if count_nearby_enemies(me) < 3 then
+    if count_nearby_enemies(me) < 2 then
         return false
     end
 
@@ -666,11 +772,15 @@ local function try_whirlwind(me, target, rage, ctx)
     return false
 end
 
-local function try_slam(me, target, ctx)
+local function try_slam(me, target, ctx, target_hp_pct)
      if not menu.use_slam:get_state()
-         or not target
-         or not runtime.slam_id
-     then
+          or not target
+          or not runtime.slam_id
+      then
+          return false
+      end
+
+     if target_hp_pct and target_hp_pct <= EXECUTE_HP_THRESHOLD then
          return false
      end
 
@@ -796,6 +906,7 @@ local function try_sweeping_strikes(me)
     if not menu.use_sweeping_strikes or not menu.use_sweeping_strikes:get_state() then return false end
     if not runtime.sweeping_strikes_id then return false end
     if utils.has_buff(me, spells.BUFF_SWEEPING_STRIKES) then return false end
+    if count_nearby_enemies(me) < 2 then return false end
     if not utils.can_cast_self(runtime.sweeping_strikes_id, me) then return false end
     if utils.cast_self_fast(runtime.sweeping_strikes_id, me) then
         utils.log_debug(menu, "Sweeping Strikes")
@@ -882,6 +993,11 @@ local function do_core_lane(me, target, rage, target_hp_pct)
         return true
     end
 
+    if try_rend(me, target, rage, target_hp_pct) then
+        invalidate_ctx()
+        return true
+    end
+
     if try_execute(me, target, ctx, target_hp_pct) then
         invalidate_ctx()
         return true
@@ -902,7 +1018,12 @@ local function do_core_lane(me, target, rage, target_hp_pct)
         return true
     end
 
-    if try_slam(me, target, ctx) then
+    if try_dump(me, target, rage, ctx, target_hp_pct) then
+        invalidate_ctx()
+        return true
+    end
+
+    if try_slam(me, target, ctx, target_hp_pct) then
         invalidate_ctx()
         return true
     end
@@ -920,7 +1041,7 @@ local function on_update()
     if not me or not me:is_valid() then
         return
     end
-        ooc_manager.on_update(me, menu, utils)
+        ooc_manager.on_update(me, menu, utils, { show_enchant_warning = true })
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end
@@ -1047,7 +1168,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled

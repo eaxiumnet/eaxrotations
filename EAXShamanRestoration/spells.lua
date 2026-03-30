@@ -13,16 +13,15 @@ spells.CHAIN_HEAL           = { 25423, 25422, 10623, 10622, 1064 }
 spells.HEALING_WAVE         = { 25396, 25391, 25357, 10396, 10395, 8005, 959, 939, 913, 547, 332, 331 }
 
 -- Lesser Healing Wave r1-7
-spells.LESSER_HEALING_WAVE  = { 25420, 10468, 10467, 10466, 8010, 8008, 8004 }
+spells.LESSER_HEALING_WAVE  = { 25420, 10468, 10467, 10466, 8010, 8008, 8004, 8003 }
 
 -- Earth Shield r1-3 (TBC new spell)
-spells.EARTH_SHIELD         = { 32594, 32593, 974 }
-
 -- --- Totems ------------------------------------------------------------------
 
 -- Water
 spells.MANA_TIDE_TOTEM      = { 16190 }
 spells.HEALING_STREAM_TOTEM = { 25567, 10461, 10460, 6372, 6371, 5672 }
+spells.MANA_SPRING_TOTEM    = { 25569, 10494, 10493, 10491, 5677 }
 
 -- Fire (both give raid throughput - place whichever is learned)
 spells.TOTEM_OF_WRATH       = { 30706 }          -- TBC: +3% spell crit to party
@@ -31,7 +30,6 @@ spells.FLAMETONGUE_TOTEM    = { 25557, 16387, 16386, 16385, 8233 }
 -- Air
 spells.WRATH_OF_AIR_TOTEM   = { 3738 }           -- TBC: 5% spell haste to party
 spells.WINDFURY_TOTEM       = { 25587, 25585, 10614, 10613, 8512 }
-spells.GROUNDING_TOTEM      = { 8177 }
 
 -- Earth
 spells.TREMOR_TOTEM         = { 8143 }
@@ -50,6 +48,10 @@ spells.HEROISM              = { 32182 }
 
 spells.CURE_POISON          = { 526 }
 spells.CURE_DISEASE         = { 2870 }
+spells.POISON_CLEANSING_TOTEM = { 8166 }
+spells.DISEASE_CLEANSING_TOTEM = { 8170 }
+spells.GROUNDING_TOTEM      = { 8177 }
+spells.GHOST_WOLF           = { 2645 }
 spells.PURGE                = { 8012, 370 }       -- removes 1 magic buff from enemy
 
 -- --- DPS fillers -------------------------------------------------------------
@@ -62,7 +64,7 @@ spells.FLAME_SHOCK          = { 29228, 25457, 10448, 10447, 8051, 8050 }
 -- --- Self-buffs ---------------------------------------------------------------
 
 -- Water Shield r1-2 (r3 = 57960 is WotLK - not included)
-spells.WATER_SHIELD         = { 33736, 24398 }
+spells.LIGHTNING_SHIELD     = { 25472, 10432, 10431, 10430, 8134, 8133, 8132, 324 }
 
 -- Flametongue Weapon: TBC Resto mainhand buff (spell power); ranks 1-7
 spells.FLAMETONGUE_WEAPON   = { 25489, 16342, 16341, 16339, 8030, 8027, 8024 }

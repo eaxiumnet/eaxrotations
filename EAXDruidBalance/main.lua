@@ -753,7 +753,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled

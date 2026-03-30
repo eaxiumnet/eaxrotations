@@ -20,7 +20,7 @@ local INTERRUPT_SPELLS = {
         { id = 34490, name = "silencing_shot",  type = "fast" },
     },
     paladin = {
-        { id = 31935, name = "rebuke", type = "fast" },
+        -- TBC Paladin has no dedicated fast interrupt; only a stun-based stop.
         { id = 20066, name = "hammer_of_justice", type = "stun" },
     },
     shaman = {
@@ -43,7 +43,7 @@ local INTERRUPT_SPELLS = {
         { id = 8983,  name = "bash",              type = "stun" },
         { id = 1822,  name = "bash",              type = "stun" },
         { id = 5211,  name = "bash",              type = "stun" },
-        { id = 33786, name = "cyclone",           type = "stun" },
+        -- Cyclone is crowd control and should not be used by the generic boss interrupt path.
     },
     warlock = {
         { id = 19647, name = "shadowfury",  type = "stun" },
@@ -58,7 +58,7 @@ local MIN_CAST_TIME_MS = 200
 -- Class IDs for healer detection
 local HEALER_CLASSES = {
     [5] = true,   -- Priest
-    [6] = true,   -- Druid
+    [11] = true,  -- Druid
     [2] = true,   -- Paladin
     [7] = true,   -- Shaman
 }

@@ -9,14 +9,19 @@
 
 local spell_resolver = {}
 
--- Cache: key = table reference string, value = resolved spell_id
--- Key strategy: use the table reference as string (unique per rank_table)
--- This works because Lua tables passed to resolve_spell_id are persistent
--- (defined at module level in spells.lua), so their references are stable.
+-- Cache: key = deterministic rank-table signature, value = resolved spell_id
 local _cache = {}
 
 -- Track if cache is valid (starts false, auto-validates on first resolve)
 local _is_valid = false
+
+local function make_key(rank_table)
+    local parts = {}
+    for i, id in ipairs(rank_table) do
+        parts[i] = tostring(id)
+    end
+    return table.concat(parts, ",")
+end
 
 --- Resolve the highest-learned rank from a spell rank table.
 --- Results are cached until invalidate_cache() is called.
@@ -33,14 +38,14 @@ function spell_resolver.resolve_spell_id(rank_table)
 
     -- Check cache first (only if cache is valid)
     if _is_valid then
-        local key = tostring(rank_table)
+        local key = make_key(rank_table)
         local cached = _cache[key]
         if cached ~= nil then
             return cached
         end
     end
 
-    -- Cache miss or invalidated — resolve and cache
+    -- Cache miss or invalidated - resolve and cache
     local resolved = nil
     for i = 1, #rank_table do
         local spell_id = rank_table[i]
@@ -50,8 +55,8 @@ function spell_resolver.resolve_spell_id(rank_table)
         end
     end
 
-    -- Store in cache (keyed by table reference)
-    _cache[tostring(rank_table)] = resolved
+    -- Store in cache (keyed by deterministic table contents)
+    _cache[make_key(rank_table)] = resolved
 
     -- Auto-validate cache after first successful resolve (player is loaded)
     if not _is_valid and resolved then

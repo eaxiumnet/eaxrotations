@@ -3,10 +3,10 @@ local spells = {}
 
 -- -- Ranged shots --------------------------------------------------------------
 spells.AUTO_SHOT    = { 75 }
-spells.AIMED_SHOT   = { 19434, 19426, 19407, 19405, 19404, 19403, 19402, 19401, 19400, 19880 }
-spells.ARCANE_SHOT  = { 27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 14280, 3044, 3034, 3018, 3017, 2714 }
+spells.AIMED_SHOT   = { 27065, 20904, 20903, 20902, 20901, 20900, 19434 }
+spells.ARCANE_SHOT  = { 27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 3044 }
 spells.STEADY_SHOT  = { 34120 }
-spells.MULTI_SHOT   = { 27021, 14290, 14289, 14288, 14287, 14286, 2643 }
+spells.MULTI_SHOT   = { 27021, 25294, 14290, 14289, 14288, 2643 }
 spells.AIMED_SHOT_INSTANT = { 20900 }   -- Improved Aimed Shot proc
 
 -- -- Pet abilities -------------------------------------------------------------
@@ -16,10 +16,10 @@ spells.REVIVE_PET   = { 982 }
 spells.CALL_PET     = { 883 }
 
 -- -- Stings --------------------------------------------------------------------
-spells.SERPENT_STING = { 27016, 13550, 13549, 13548, 13547, 13546, 1978 }
+spells.SERPENT_STING = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 spells.SCORPID_STING = { 3043 }
 spells.VIPER_STING   = { 27018, 14280, 14279, 3034 }
-spells.HUNTERS_MARK  = { 14325, 14323, 14322, 1130 }
+spells.HUNTERS_MARK  = { 14325, 14324, 14323, 1130 }
 
 -- -- Aspects -------------------------------------------------------------------
 spells.ASPECT_OF_THE_HAWK         = { 27044, 25296, 14327, 14326, 14325, 14324, 14323, 14322, 13165 }
@@ -30,9 +30,11 @@ spells.ASPECT_OF_THE_PACK         = { 13159 }
 -- -- Traps ---------------------------------------------------------------------
 spells.IMMOLATION_TRAP = { 27023, 14305, 14304, 14303, 14302, 13795 }
 spells.FREEZING_TRAP   = { 14311, 14310, 3355 }
+spells.EXPLOSIVE_TRAP  = { 27025, 14317, 14316, 14315, 14314, 13813 }
 
 -- -- Cooldowns -----------------------------------------------------------------
 spells.RAPID_FIRE     = { 3045 }
+spells.MISDIRECTION   = { 34477 }
 spells.TRUESHOT_AURA  = { 27066, 20906, 14334, 14333, 14332, 14331, 14330 }
 spells.DETERRENCE = { 19263 }
 spells.FLARE = { 1543 }
@@ -51,7 +53,7 @@ spells.RAPTOR_STRIKE    = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 142
 spells.BERSERKING = { 26297 }
 spells.BLOOD_FURY = { 33697, 20572 }
 spells.WAR_STOMP  = { 20549 }
-spells.SHADOWMELD = { 58984 }
+spells.SHADOWMELD = { }
 
 -- -- Buff / Debuff check tables ------------------------------------------------
 spells.BUFF_ASPECT_OF_THE_HAWK  = { 27044, 25296, 14327, 14326, 14325, 14324, 14323, 14322, 13165 }
@@ -59,6 +61,7 @@ spells.BUFF_ASPECT_OF_THE_VIPER = { 34074 }
 spells.BUFF_ASPECT_OF_THE_CHEETAH = { 5118 }
 spells.BUFF_ASPECT_OF_THE_PACK    = { 13159 }
 spells.BUFF_RAPID_FIRE          = { 3045 }
+spells.BUFF_MISDIRECTION        = { 35079 }
 spells.BUFF_TRUESHOT_AURA       = { 27066, 20906, 14334, 14333, 14332, 14331, 14330 }
 spells.BUFF_BERSERKING          = { 26297 }
 spells.BUFF_BLOOD_FURY          = { 33697, 20572 }

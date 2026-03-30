@@ -207,6 +207,7 @@ local runtime = {
     arcane_explosion_id = nil,
     evocation_id = nil,
     remove_curse_id = nil,
+    mage_armor_id = nil,
     fire_blast_id = nil,
     ice_block_id = nil,
     counterspell_id = nil,
@@ -237,6 +238,7 @@ local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
 local function resolve_spells()
     runtime.arcane_intellect_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
+    runtime.mage_armor_id = utils.resolve_spell_id(spells.MAGE_ARMOR)
     runtime.cone_of_cold_id     = utils.resolve_spell_id(spells.CONE_OF_COLD)
     runtime.arcane_blast_id = utils.resolve_spell_id(spells.ARCANE_BLAST)
     runtime.arcane_missiles_id = utils.resolve_spell_id(spells.ARCANE_MISSILES)
@@ -244,7 +246,7 @@ local function resolve_spells()
     runtime.arcane_explosion_id = utils.resolve_spell_id(spells.ARCANE_EXPLOSION)
     runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
-    runtime.counterspell_id = runtime.ooc_counterspell_id
+    runtime.counterspell_id = utils.resolve_spell_id(spells.COUNTERSPELL)
 end
 
 local function log_resolved_spells()
@@ -280,6 +282,8 @@ local function update_set_bonus()
 end
 
 local function refresh_mode_cache()
+    local me = _get_local_player()
+    if not me then return end
     runtime.cached_mode = utils.detect_mode(me)
 end
 
@@ -644,6 +648,18 @@ local function try_arcane_intellect(me)
     return false
 end
 
+local function try_mage_armor(me)
+    if not runtime.mage_armor_id then return false end
+    if me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.MAGE_ARMOR) then return false end
+    if not utils.can_cast_self(runtime.mage_armor_id, me) then return false end
+    if utils.cast_self(runtime.mage_armor_id, me) then
+        utils.log_debug(menu, "Mage Armor")
+        return true
+    end
+    return false
+end
+
 local function try_cone_of_cold(me, target)
     if not menu.use_cone_of_cold or not menu.use_cone_of_cold:get_state() then return false end
     if not runtime.cone_of_cold_id then return false end
@@ -699,16 +715,6 @@ local function do_rotation(me, target)
 
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
-
-    -- Interrupt
-    if target:is_casting_spell() and target:is_active_spell_interruptable() then
-        if runtime.counterspell_id and utils.can_cast_hostile(runtime.counterspell_id, me, target) then
-            if utils.cast_target(runtime.counterspell_id, target) then
-                utils.log_debug(menu, "Counterspell interrupt")
-                return true
-            end
-        end
-    end
 
     -- Defensive abilities
     -- Interrupt
@@ -837,7 +843,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -847,6 +853,10 @@ core.register_on_render_callback(function()
 end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
+    local me = _get_local_player()
+    if not me then return end
+    if me:is_dead() then return end
+
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
     end
@@ -867,10 +877,7 @@ core.register_on_update_callback(function()
                toggle = menu.ooc_group_buff },
         },
     })
-
-    local me = _get_local_player()
-    if not me then return end
-    if me:is_dead() then return end
+    if try_mage_armor(me) then return end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)

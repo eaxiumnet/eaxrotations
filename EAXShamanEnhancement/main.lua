@@ -15,6 +15,7 @@ if not utils.same_unit then
     end
 end
 local eax_utils = require("eax_utils")
+local dispel_engine = require("dispel_engine")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -196,17 +197,35 @@ local key_helper = require("common/utility/key_helper")
 local control_panel_utility = require("common/utility/control_panel_helper")
 ---@type color
 local color = require("color")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 local GCD_INTERVAL = 1.5  -- actual TBC GCD duration
 local MODE_REFRESH_INTERVAL = 4.5
 local PENDING_CAST_TIMEOUT_S = 2.5
 local dev_id = "eax_shaman_enhancement_"
+local LIGHTNING_SHIELD_STACK_FLOOR = 6
 
 local MODE_PROFILE = {
     solo = { aoe_threshold = 2, mana_floor = 5, swing_clip_ms = 140 },
     dungeon = { aoe_threshold = 3, mana_floor = 10, swing_clip_ms = 160 },
     raid = { aoe_threshold = 4, mana_floor = 15, swing_clip_ms = 170 },
 }
+
+local CURE_DISEASE_TYPE = 3
+local CURE_POISON_TYPE = 4
+
+local function target_has_cure_debuff(unit, dispel_type)
+    if not unit or not unit.get_debuffs then return false end
+    local ok, debuffs = pcall(function() return unit:get_debuffs() end)
+    if not ok or not debuffs then return false end
+    for _, debuff in ipairs(debuffs) do
+        if debuff and debuff.type == dispel_type then
+            return true
+        end
+    end
+    return false
+end
 
 local runtime = {
     ancestral_spirit_id = nil,
@@ -220,7 +239,6 @@ local runtime = {
     purge_id = nil,
     cure_poison_id = nil,
     cure_disease_id = nil,
-    totem_of_wrath_id = nil,
     windfury_totem_id = nil,
     windfury_weapon_id = nil,
     water_shield_id      = nil,
@@ -257,9 +275,33 @@ local ctx_cache = rotation_context.new({
 local MANA_POTION_IDS = { 33447, 22832, 13444, 6149, 3827 }
 
 local TOTEM_ROTATION = {
-    { name = "wrath", id_field = "totem_of_wrath_id", toggle = menu.auto_totem_wrath, label = "Totem of Wrath" },
-    { name = "windfury", id_field = "windfury_totem_id", toggle = menu.auto_totem_windfury, label = "Windfury Totem" },
+    { name = "windfury", id_field = "windfury_totem_id", toggle = menu.auto_totem_windfury, label = "Windfury Totem", slot = 4, duration = 115 },
 }
+
+local TOTEM_SLOTS = {
+    windfury = 4,
+    support_air = 4,
+    earth_totem = 2,
+    water_totem = 3,
+    fire_totem = 1,
+}
+
+local function is_totem_slot_empty(slot)
+    if not slot or not core.spell_book or not core.spell_book.get_totem_info then
+        return true
+    end
+    local info = core.spell_book.get_totem_info(slot)
+    return not (info and info.have_totem)
+end
+
+local function should_refresh_named_totem(name, slot, duration_s)
+    local now = _core_time()
+    local last = runtime.totem_last_apply[name] or 0
+    if slot and is_totem_slot_empty(slot) then
+        return true, now
+    end
+    return (duration_s and last > 0 and (now - last) >= duration_s) == true, now
+end
 
 local SHOCK_TABLE = {
     [1] = { id_field = "earth_shock_id", debuff = spells.EARTH_SHOCK, label = "Earth Shock" },
@@ -278,7 +320,6 @@ local function resolve_spells()
     runtime.purge_id = utils.resolve_spell_id(spells.PURGE)
     runtime.cure_poison_id = utils.resolve_spell_id(spells.CURE_POISON)
     runtime.cure_disease_id = utils.resolve_spell_id(spells.CURE_DISEASE)
-    runtime.totem_of_wrath_id = utils.resolve_spell_id(spells.TOTEM_OF_WRATH)
     runtime.windfury_totem_id      = utils.resolve_spell_id(spells.WINDFURY_TOTEM)
     runtime.windfury_weapon_id    = utils.resolve_spell_id(spells.WINDFURY_WEAPON)
     runtime.water_shield_id      = utils.resolve_spell_id(spells.WATER_SHIELD)
@@ -419,20 +460,24 @@ end
 
 local function ensure_totems(me)
     if not menu.auto_totems:get_state() then return end
+    if menu.use_totem_twist and menu.use_totem_twist:get_state() then return false end
     local now = _core_time()
     for _, entry in ipairs(TOTEM_ROTATION) do
         if entry.toggle:get_state() then
             local spell_id = runtime[entry.id_field]
             if spell_id and utils.can_cast_self(spell_id, me) then
-                local last = runtime.totem_last_apply[entry.name] or 0
-                if (now - last) >= 30 then
+                local should_refresh = should_refresh_named_totem(entry.name, entry.slot, entry.duration)
+                if should_refresh then
                     if try_cast_self(me, spell_id, entry.label) then
                         runtime.totem_last_apply[entry.name] = now
+                        runtime.last_windfury_drop = now
+                        return true
                     end
                 end
             end
         end
     end
+    return false
 end
 
 local function try_shamanistic_rage(me, ctx)
@@ -724,6 +769,7 @@ local function try_totem_twist(me)
     if time_since_wf >= WF_TOTEM_DURATION_S and runtime.windfury_totem_id then
         if try_cast_self(me, runtime.windfury_totem_id, "Windfury Totem") then
             runtime.last_windfury_drop = now
+            runtime.totem_last_apply.windfury = now
             return true
         end
     end
@@ -734,9 +780,11 @@ local function try_totem_twist(me)
     -- Check for Grace of Air buff on party (simplified: check self)
     local has_air_buff = utils.has_buff(me, spells.BUFF_GRACE_OF_AIR)
         or utils.has_buff(me, spells.BUFF_WINDFURY_TOTEM)
-    if not has_air_buff then
+    local should_refresh_support_air = should_refresh_named_totem("support_air", TOTEM_SLOTS.support_air, AIR_TOTEM_DURATION_S)
+    if not has_air_buff or should_refresh_support_air then
         local air_id = runtime.wrath_of_air_id or runtime.grace_of_air_id
         if air_id and try_cast_self(me, air_id, "Wrath of Air / Grace of Air") then
+            runtime.totem_last_apply.support_air = now
             return true
         end
     end
@@ -747,26 +795,25 @@ end
 local function try_cure_dispels(me)
     if not menu.use_dispels or not menu.use_dispels:get_state() then return false end
     if not (runtime.cure_poison_id or runtime.cure_disease_id) then return false end
-    local objects = core.object_manager.get_all_objects()
-    for i = 1, #objects do
-        local unit = objects[i]
-        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
-            and (utils.same_unit(me, unit) or unit:is_party_member()) then
-            if runtime.cure_poison_id and utils.has_debuff(unit, spells.CURE_POISON)
-                and utils.can_cast_target(runtime.cure_poison_id, me, unit)
-                and utils.cast_target(runtime.cure_poison_id, unit) then
-                note_cast()
-                utils.log_debug(menu, "Cure Poison")
-                return true
-            end
-            if runtime.cure_disease_id and utils.has_debuff(unit, spells.CURE_DISEASE)
-                and utils.can_cast_target(runtime.cure_disease_id, me, unit)
-                and utils.cast_target(runtime.cure_disease_id, unit) then
-                note_cast()
-                utils.log_debug(menu, "Cure Disease")
-                return true
-            end
-        end
+    local units = { me }
+    local party_units = utils.get_party_units and utils.get_party_units(me) or {}
+    for i = 1, #party_units do
+        units[#units + 1] = party_units[i]
+    end
+    local best_target, priority = dispel_engine.find_best_target({
+        candidates = units,
+        priorities = {
+            { type_def = { numeric = CURE_POISON_TYPE, name = "poison" }, label = "Cure Poison", spell_id = runtime.cure_poison_id },
+            { type_def = { numeric = CURE_DISEASE_TYPE, name = "disease" }, label = "Cure Disease", spell_id = runtime.cure_disease_id },
+        },
+        get_hp = function(unit) return utils.get_health_pct(unit) end,
+    })
+    if best_target and priority and priority.spell_id
+        and utils.can_cast_target(priority.spell_id, me, best_target)
+        and utils.cast_target(priority.spell_id, best_target) then
+        note_cast()
+        utils.log_debug(menu, priority.label)
+        return true
     end
     return false
 end
@@ -789,10 +836,12 @@ end
 
 local function try_earth_totem(me)
     if not menu.use_earth_totem or not menu.use_earth_totem:get_state() then return false end
-    if not utils.throttle("earth_totem_check", 30.0) then return false end
     if me:is_moving() then return false end
     if not is_melee_swing_safe(me) then return false end
+    local should_refresh, now = should_refresh_named_totem("earth_totem", TOTEM_SLOTS.earth_totem, 115.0)
+    if not should_refresh then return false end
     if runtime.strength_earth_id and try_cast_self(me, runtime.strength_earth_id, "Strength of Earth Totem") then
+        runtime.totem_last_apply.earth_totem = now
         return true
     end
     return false
@@ -800,10 +849,12 @@ end
 
 local function try_water_totem(me)
     if not menu.use_water_totem or not menu.use_water_totem:get_state() then return false end
-    if not utils.throttle("water_totem_check", 30.0) then return false end
     if me:is_moving() then return false end
     if not is_melee_swing_safe(me) then return false end
+    local should_refresh, now = should_refresh_named_totem("water_totem", TOTEM_SLOTS.water_totem, 115.0)
+    if not should_refresh then return false end
     if runtime.mana_spring_id and try_cast_self(me, runtime.mana_spring_id, "Mana Spring Totem") then
+        runtime.totem_last_apply.water_totem = now
         return true
     end
     return false
@@ -812,21 +863,21 @@ end
 
 local function try_fire_totem(me, enemy_count)
     if not menu.use_fire_totem or not menu.use_fire_totem:get_state() then return false end
-    if not utils.throttle("fire_totem_check", 5.0) then return false end
     -- Don't drop totems while moving
     if me and me.is_moving and me:is_moving() then return false end
     if not is_melee_swing_safe(me) then return false end
 
     -- Choose totem type by enemy count
+    local use_magma = enemy_count and enemy_count >= 3
     local totem_id = (enemy_count and enemy_count >= 3)
         and runtime.magma_totem_id
         or runtime.searing_totem_id
 
     if not totem_id then return false end
-    local label = (enemy_count and enemy_count >= 3) and "Magma Totem" or "Searing Totem"
-    local now = _core_time()
-    local last_apply = runtime.totem_last_apply.fire_totem or 0
-    if (now - last_apply) < FIRE_TOTEM_REFRESH_S then
+    local label = use_magma and "Magma Totem" or "Searing Totem"
+    local duration_s = use_magma and 18.0 or FIRE_TOTEM_REFRESH_S
+    local should_refresh, now = should_refresh_named_totem("fire_totem", TOTEM_SLOTS.fire_totem, duration_s)
+    if not should_refresh then
         return false
     end
     if try_cast_self(me, totem_id, label) then
@@ -853,7 +904,9 @@ local function ensure_shield(me)
             return try_cast_self(me, runtime.water_shield_id, "Water Shield")
         end
     elseif not use_water and runtime.lightning_shield_id then
-        if not utils.has_buff(me, spells.BUFF_LIGHTNING_SHIELD) then
+        local ls = buff_manager:get_buff_data(me, spells.BUFF_LIGHTNING_SHIELD)
+        local ls_stacks = (ls and ls.is_active and (ls.stacks or ls.count or 0)) or 0
+        if (not ls or not ls.is_active) or ls_stacks < LIGHTNING_SHIELD_STACK_FLOOR then
             return try_cast_self(me, runtime.lightning_shield_id, "Lightning Shield")
         end
     end
@@ -957,13 +1010,13 @@ local function do_rotation(me, target)
     if try_chain_lightning_weave(me, target, ctx) then return true end
     if try_shock(me, target, ctx) then return true end
 
-    ensure_totems(me)
+    if ensure_totems(me) then return true end
     -- Totem maintenance
     local _enh_enemies = utils.enemy_count_in_radius and utils.enemy_count_in_radius(me, 10) or 1
-    try_totem_twist(me)
-    try_fire_totem(me, _enh_enemies)
-    try_earth_totem(me)
-    try_water_totem(me)
+    if try_totem_twist(me) then return true end
+    if try_fire_totem(me, _enh_enemies) then return true end
+    if try_earth_totem(me) then return true end
+    if try_water_totem(me) then return true end
     -- Auto-attack fallback for leveling 1-70
     if me:is_in_combat() and target and target:is_valid() and not target:is_dead()
        and me:can_attack(target) then
@@ -1038,7 +1091,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -1048,6 +1101,9 @@ core.register_on_render_callback(function()
 end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
+    local me = _get_local_player()
+    if not me or me:is_dead() then return end
+
     if utils.throttle("mode_refresh", MODE_REFRESH_INTERVAL) then
         refresh_mode_cache()
     end
@@ -1060,9 +1116,8 @@ core.register_on_update_callback(function()
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils, {
         rez_spell_id = runtime.ancestral_spirit_id,
+        show_enchant_warning = true,
     })
-    local me = _get_local_player()
-    if not me or me:is_dead() then return end
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end

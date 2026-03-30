@@ -86,6 +86,7 @@ end
 function consumables_manager.try_maintain_flask(me, menu, utils)
     if not me or not me.is_valid or not me:is_valid() then return false end
     if me:is_dead() then return false end
+    if me.get_level and me:get_level() < 60 then return false end
     if not can_attempt(last_flask_attempt_at, 5.0) then return false end
 
     last_flask_attempt_at = now_seconds()

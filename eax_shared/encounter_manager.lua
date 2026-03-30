@@ -1,6 +1,6 @@
 -- encounter_manager.lua
 -- eax_shared/encounter_manager.lua
--- TBC dungeon and raid encounter awareness for all EAX specs.
+-- TBC dungeon and raid encounter awareness for all Eax specs.
 
 local encounter_manager = {}
 
@@ -109,7 +109,7 @@ local BOSS_DB = {
     ["fathom-lord karathress"] = { is_boss=true, aoe_safe=false },
     ["morogrim tidewalker"]    = { is_boss=true, raid_aoe_heavy=true },
     ["lady vashj"]             = { is_boss=true, hold_cooldowns=true, disable_pet_attack=true,
-                                    raid_aoe_heavy=true },
+                                    raid_aoe_heavy=true, movement_phase=true },
     ["al'ar"]                  = { is_boss=true, avoid_close_range=true, hold_cooldowns=true },
     ["void reaver"]            = { is_boss=true, avoid_close_range=true, min_range=20, hold_cooldowns=true },
     ["high astromancer solarian"]={ is_boss=true, raid_aoe_heavy=true, hold_cooldowns=true },
@@ -130,7 +130,7 @@ local BOSS_DB = {
     ["illidari council"]        = { is_boss=true, interrupt_priority=true, aoe_safe=false,
                                     disable_pet_attack=true },
     ["illidan stormrage"]       = { is_boss=true, hold_cooldowns=true, avoid_close_range=true,
-                                    pet_follow=true, raid_aoe_heavy=true },
+                                    pet_follow=true, raid_aoe_heavy=true, movement_phase=true },
     ["nalorakk"]               = { is_boss=true, tank_damage_heavy=true },
     ["akil'zon"]               = { is_boss=true, raid_aoe_heavy=true, aoe_safe=false },
     ["jan'alai"]               = { is_boss=true, raid_aoe_heavy=true, aoe_safe=false },
@@ -246,7 +246,7 @@ function encounter_manager.is_instanced()
     return false
 end
 
--- AoE detection — scan for nearby enemies
+-- AoE detection - scan for nearby enemies
 -- Returns estimated number of hostile targets within range of player
 local function count_nearby_enemies(me, range_yards)
     local count = 0
@@ -286,7 +286,7 @@ function encounter_manager.is_target_behind(me, target)
     return false
 end
 
--- Movement phase encounters — bosses with movement mechanics
+-- Movement phase encounters - bosses with movement mechanics
 local MOVEMENT_PHASE_BOSSES = {
     ["prince malchezaar"]         = { min_range = 20 },
     ["gruul the dragonkiller"]    = { min_range = 18 },
@@ -295,13 +295,11 @@ local MOVEMENT_PHASE_BOSSES = {
     ["void reaver"]               = { min_range = 20 },
     ["high astromancer solarian"] = { min_range = 20 },
     ["teron gorefiend"]           = { aoe_safe = false },
-    ["illidan stormrage"]         = { movement_phase = true },
-    ["lady vashj"]                = { movement_phase = true },
     ["brutallus"]                 = { movement_phase = true },
     ["felmyst"]                   = { movement_phase = true },
 }
 
--- Burn phase encounters — hold cooldowns until target reaches threshold HP
+-- Burn phase encounters - hold cooldowns until target reaches threshold HP
 local BURN_PHASE_BOSSES = {
     ["gruul the dragonkiller"]    = { burn_until_pct = 0.30 },
     ["magtheridon"]               = { burn_until_pct = 0.35 },

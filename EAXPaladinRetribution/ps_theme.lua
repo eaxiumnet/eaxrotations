@@ -413,8 +413,10 @@ function ps.render_esp(m, esp_tree)
         m.esp_show_target:render("Show Target Info",
             "Display target information on the HUD")
         ps.header("Size & Position")
-        m.hud_scale:render("HUD Scale",
-            "Scale the HUD up or down (restart needed to apply)")
+        if m.hud_scale then
+            m.hud_scale:render("HUD Scale",
+                "Scale the HUD up or down (restart needed to apply)")
+        end
         m.esp_hud_x:render("HUD Position X",
             "Horizontal screen position of the HUD panel")
         m.esp_hud_y:render("HUD Position Y",

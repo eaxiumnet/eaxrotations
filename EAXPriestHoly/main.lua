@@ -6,7 +6,7 @@ local rotation_context = require("rotation_context")
 local resource_gate = require("resource_gate")
 local key_helper = require("common/utility/key_helper")
 local spells = require("spells")
-local spell_downrank = require("eax_shared/spell_downrank")
+local spell_downrank = require("spell_downrank")
 local utils = require("utils")
 
 if not utils.same_unit then
@@ -34,6 +34,7 @@ local creature_utils = require("creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("encounter_manager")
+local dispel_engine = require("dispel_engine")
 
 
 ---@type esp_renderer
@@ -48,6 +49,7 @@ local cooldown_tracker = require("cooldown_tracker")
 local visual_state = require("visual_state")
 local reactive_runtime = require("reactive_runtime")
 local healer_triage = require("healer_triage")
+local heal_engine = require("heal_engine")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -207,15 +209,25 @@ local runtime = {
 local ctx_cache = rotation_context.new({})
 
 local resolved = {
+    inner_focus = utils.resolve_spell_id(spells.INNER_FOCUS),
     renew = utils.resolve_spell_id(spells.RENEW),
+    flash_heal = utils.resolve_spell_id(spells.FLASH_HEAL),
     greater_heal = utils.resolve_spell_id(spells.GREATER_HEAL),
+    binding_heal = utils.resolve_spell_id(spells.BINDING_HEAL),
     prayer_of_healing = utils.resolve_spell_id(spells.PRAYER_OF_HEALING),
     prayer_of_mending = utils.resolve_spell_id(spells.PRAYER_OF_MENDING),
     circle_of_healing = utils.resolve_spell_id(spells.CIRCLE_OF_HEALING),
     dispel_magic = utils.resolve_spell_id(spells.DISPEL_MAGIC),
     abolish_disease = utils.resolve_spell_id(spells.ABOLISH_DISEASE),
     cure_disease = utils.resolve_spell_id(spells.CURE_DISEASE),
+    ooc_power_word_fortitude_id = nil,
+    ooc_divine_spirit_id = nil,
+    ooc_shadow_protection_id = nil,
 }
+
+resolved.ooc_power_word_fortitude_id = utils.resolve_spell_id(spells.POWER_WORD_FORTITUDE)
+resolved.ooc_divine_spirit_id = utils.resolve_spell_id(spells.DIVINE_SPIRIT)
+resolved.ooc_shadow_protection_id = utils.resolve_spell_id(spells.SHADOW_PROTECTION)
 
 local function log_mode(mode)
     if menu.debug:get_state() and runtime.last_mode_log ~= mode then
@@ -295,7 +307,7 @@ local function try_renew(me)
     for i = 1, #units do
         local unit = units[i]
         if unit then
-            local pct = utils.get_health_pct(unit)
+            local pct = heal_engine.get_effective_hp_pct(unit)
             if pct <= threshold and pct <= lowest_pct then
                 local remaining = utils.get_buff_remaining_ms(unit, spells.RENEW)
                 if remaining <= window_ms then
@@ -307,7 +319,7 @@ local function try_renew(me)
     end
 
     if not candidate then
-        candidate = utils.find_low_health_ally(me, threshold, true)
+        candidate = find_lowest_effective_ally(me, threshold, true)
     end
 
     if candidate and not utils.has_buff(candidate, spells.RENEW) then
@@ -327,18 +339,32 @@ local function try_prayer_of_healing(me)
     local threshold = menu.prayer_of_healing_threshold:get() / 100
     local count = 0
     local units = utils.get_party_units(me)
+    local missing = 0
 
     for i = 1, #units do
         local unit = units[i]
-        if unit and utils.get_health_pct(unit) <= threshold then
+        if unit and heal_engine.get_effective_hp_pct(unit) <= threshold then
             count = count + 1
+            missing = missing + math.max(0, threshold - heal_engine.get_effective_hp_pct(unit))
         end
     end
 
-    if count >= menu.prayer_of_healing_count:get() then
+    if count >= menu.prayer_of_healing_count:get() and missing >= 0.14 and not has_urgent_direct_heal_target(me) then
+        if menu.use_cooldowns and menu.use_cooldowns:get_state() then
+            if try_inner_focus(me) then
+                return true
+            end
+        end
         esp_renderer.on_cast(nil, "Prayer of Healing", color.cyan(220))
         local mana_pct = utils.get_mana_pct(me)
-        local spell_id = spell_downrank.select_heal_rank(spells.PRAYER_OF_HEALING, threshold, mana_pct, {}) or resolved.prayer_of_healing
+        local spell_id = spell_downrank.select_heal_rank(spells.PRAYER_OF_HEALING, threshold, mana_pct, {
+            emergency_hp_threshold = 0.45,
+            sustain_hp_threshold = 0.75,
+            mana_threshold = 0.25,
+            emergency_rank_index = 1,
+            sustain_rank_index = 2,
+            efficient_rank_index = 3,
+        }) or resolved.prayer_of_healing
         if utils.cast_self(spell_id, me) then
             note_cast()
             return true
@@ -353,24 +379,24 @@ local MAGIC_DISPEL_TYPE = 1
 local DISEASE_DISPEL_TYPE = 3
 
 local function get_dispel_target(me)
-    local current = me and me.get_target and me:get_target() or nil
-    if current and current:is_valid() and not current:is_dead() and utils.is_group_member(me, current) then
-        return current
+    local candidates = { me }
+    local party_units = utils.get_party_units(me)
+    for i = 1, #party_units do
+        candidates[#candidates + 1] = party_units[i]
     end
+    local current = me and me.get_target and me:get_target() or nil
+    local best_target = select(1, dispel_engine.find_best_target({
+        candidates = candidates,
+        preferred_target = current,
+        priorities = {
+            { type_def = { numeric = MAGIC_DISPEL_TYPE, name = "magic" }, label = "Dispel Magic" },
+            { type_def = { numeric = DISEASE_DISPEL_TYPE, name = "disease" }, label = "Disease" },
+        },
+        get_hp = function(unit) return heal_engine.get_effective_hp_pct(unit) end,
+    }))
+    if best_target then return best_target end
     local _, triage_target = resolve_reactive_triage(me)
     return triage_target
-end
-
-local function target_has_dispel_type(unit, dispel_type)
-    if not unit or not unit.get_debuffs then return false end
-    local ok, debuffs = pcall(function() return unit:get_debuffs() end)
-    if not ok or not debuffs then return false end
-    for _, debuff in ipairs(debuffs) do
-        if debuff and debuff.type == dispel_type then
-            return true
-        end
-    end
-    return false
 end
 
 local function try_dispel_magic(me)
@@ -379,7 +405,7 @@ local function try_dispel_magic(me)
     end
     local target = get_dispel_target(me)
     if not target or not target:is_valid() or target:is_dead() then return false end
-    if not target_has_dispel_type(target, MAGIC_DISPEL_TYPE) then return false end
+    if not dispel_engine.unit_has_type(target, { numeric = MAGIC_DISPEL_TYPE, name = "magic" }, nil) then return false end
     return utils.cast_target(resolved.dispel_magic, target, nil) and true or false
 end
 
@@ -389,7 +415,7 @@ local function try_cure_disease(me)
     end
     local target = get_dispel_target(me)
     if not target or not target:is_valid() or target:is_dead() then return false end
-    if not target_has_dispel_type(target, DISEASE_DISPEL_TYPE) then return false end
+    if not dispel_engine.unit_has_type(target, { numeric = DISEASE_DISPEL_TYPE, name = "disease" }, nil) then return false end
 
     local spell_id = resolved.abolish_disease or resolved.cure_disease
     if not spell_id then return false end
@@ -402,12 +428,19 @@ local function try_greater_heal(me)
     end
 
     local threshold = menu.greater_heal_threshold:get() / 100
-    local candidate = utils.find_low_health_ally(me, threshold, true)
+    local candidate = find_lowest_effective_ally(me, threshold, true)
 
     if candidate then
-        local hp_pct = tonumber(candidate:get_health_percentage()) or 1.0
+        local hp_pct = heal_engine.get_effective_hp_pct(candidate)
         local mana_pct = utils.get_mana_pct(me)
-        local spell_id = spell_downrank.select_heal_rank(spells.GREATER_HEAL, hp_pct, mana_pct, {}) or resolved.greater_heal
+        local spell_id = spell_downrank.select_heal_rank(spells.GREATER_HEAL, hp_pct, mana_pct, {
+            emergency_hp_threshold = 0.45,
+            sustain_hp_threshold = 0.72,
+            mana_threshold = 0.28,
+            emergency_rank_index = 1,
+            sustain_rank_index = 2,
+            efficient_rank_index = 4,
+        }) or resolved.greater_heal
         esp_renderer.on_cast(nil, "Greater Heal", color.gold(220))
         if utils.cast_target(spell_id, candidate, nil) then note_cast() return true end
         return false
@@ -422,13 +455,30 @@ local function try_prayer_of_mending(me)
     end
 
     local threshold = menu.prayer_of_mending_threshold:get() / 100
-    local candidate = utils.find_low_health_ally(me, threshold, true)
+    if has_urgent_direct_heal_target(me) then
+        return false
+    end
+    local wounded, missing = get_group_damage_profile(me, threshold)
+    if wounded < 2 and missing < 0.12 then
+        return false
+    end
+    local candidate = find_lowest_effective_ally(me, threshold, true)
 
-    if candidate and not utils.has_buff(candidate, spells.PRAYER_OF_MENDING) then
+    if candidate and not utils.has_buff(candidate, spells.BUFF_PRAYER_OF_MENDING) then
         if utils.cast_target(resolved.prayer_of_mending, candidate, nil) then note_cast() return true end
-    return false
     end
 
+    return false
+end
+
+local function try_inner_focus(me)
+    if not menu.use_inner_focus or not menu.use_inner_focus:get_state() then
+        return false
+    end
+    if not resolved.inner_focus then return false end
+    if utils.has_buff(me, spells.INNER_FOCUS) then return false end
+    if not utils.can_cast_self(resolved.inner_focus, me) then return false end
+    if utils.cast_self(resolved.inner_focus, me) then note_cast() return true end
     return false
 end
 
@@ -439,17 +489,20 @@ local function try_circle_of_healing(me)
 
     local threshold = menu.circle_of_healing_threshold:get() / 100
     local min_count = menu.circle_of_healing_count:get()
+    if has_urgent_direct_heal_target(me) then return false end
 
     local units = utils.get_party_units(me)
     local wounded = 0
     local best_target = nil
     local best_hp = 1.0
+    local missing = 0
 
     for _, unit in ipairs(units) do
         if unit and unit:is_valid() and not unit:is_dead() then
-            local hp = utils.get_health_pct(unit)
+            local hp = heal_engine.get_effective_hp_pct(unit)
             if hp <= threshold then
                 wounded = wounded + 1
+                missing = missing + math.max(0, threshold - hp)
                 if hp < best_hp then
                     best_hp = hp
                     best_target = unit
@@ -458,7 +511,7 @@ local function try_circle_of_healing(me)
         end
     end
 
-    if wounded < min_count then return false end
+    if wounded < min_count or missing < 0.10 then return false end
     if not best_target then return false end
 
     if utils.cast_target(resolved.circle_of_healing, best_target, nil) then
@@ -469,11 +522,203 @@ local function try_circle_of_healing(me)
     return false
 end
 
+local function get_normalized_hp(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return 1.0
+    end
+    return heal_engine.get_effective_hp_pct(unit)
+end
+
+local function find_lowest_effective_ally(me, threshold, skip_self)
+    local units = utils.get_party_units(me)
+    local candidate = nil
+    local lowest_pct = threshold or 1.0
+
+    if not skip_self and me and me:is_valid() and not me:is_dead() then
+        local self_pct = heal_engine.get_effective_hp_pct(me)
+        if self_pct <= lowest_pct then
+            candidate = me
+            lowest_pct = self_pct
+        end
+    end
+
+    for i = 1, #units do
+        local unit = units[i]
+        if unit and unit:is_valid() and not unit:is_dead() and unit ~= me then
+            local pct = heal_engine.get_effective_hp_pct(unit)
+            if pct <= lowest_pct then
+                candidate = unit
+                lowest_pct = pct
+            end
+        end
+    end
+
+    return candidate
+end
+
+local function has_urgent_direct_heal_target(me)
+    local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
+    if heal_engine.get_effective_hp_pct(me) < self_threshold then
+        return true
+    end
+
+    local focus_target = eax_utils.get_focus_target(menu)
+    if focus_target and focus_target:is_valid() and not focus_target:is_dead() then
+        if heal_engine.get_effective_hp_pct(focus_target) < (menu.flash_heal_threshold:get() / 100) then
+            return true
+        end
+    end
+
+    local tank_threshold = menu.greater_heal_threshold:get() / 100
+    local units = utils.get_party_units(me)
+    for i = 1, #units do
+        local unit = units[i]
+        if unit and unit:is_valid() and not unit:is_dead() and is_tank_unit(unit) then
+            if heal_engine.get_effective_hp_pct(unit) < tank_threshold then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+local function get_group_damage_profile(me, threshold)
+    local units = utils.get_party_units(me)
+    local wounded = 0
+    local missing = 0
+    for i = 1, #units do
+        local unit = units[i]
+        if unit and unit:is_valid() and not unit:is_dead() then
+            local hp = heal_engine.get_effective_hp_pct(unit)
+            if hp <= threshold then
+                wounded = wounded + 1
+                missing = missing + math.max(0, threshold - hp)
+            end
+        end
+    end
+    return wounded, missing
+end
+
+local function get_lowest_effective_party_unit(me, threshold)
+    local units = utils.get_party_units(me)
+    local candidate = nil
+    local lowest_pct = threshold or 1.0
+
+    if me and me:is_valid() and not me:is_dead() then
+        local self_pct = heal_engine.get_effective_hp_pct(me)
+        if self_pct <= lowest_pct then
+            candidate = me
+            lowest_pct = self_pct
+        end
+    end
+
+    for i = 1, #units do
+        local unit = units[i]
+        if unit and unit:is_valid() and not unit:is_dead() and unit ~= me then
+            local pct = heal_engine.get_effective_hp_pct(unit)
+            if pct <= lowest_pct then
+                candidate = unit
+                lowest_pct = pct
+            end
+        end
+    end
+
+    return candidate
+end
+
+local function select_flash_heal_id(target_hp_pct, mana_pct)
+    return spell_downrank.select_heal_rank(spells.FLASH_HEAL, target_hp_pct, mana_pct, {
+        emergency_hp_threshold = 0.30,
+        sustain_hp_threshold = 0.55,
+        mana_threshold = 0.28,
+        emergency_rank_index = 1,
+        sustain_rank_index = 2,
+        efficient_rank_index = 4,
+    }) or resolved.flash_heal
+end
+
+local function try_flash_heal(me, target)
+    if not resolved.flash_heal then
+        return false
+    end
+
+    local threshold = menu.flash_heal_threshold:get() / 100
+    local candidate = target
+    if not candidate then
+        candidate = find_lowest_effective_ally(me, threshold, true)
+    end
+    if not candidate or not candidate:is_valid() or candidate:is_dead() then
+        return false
+    end
+
+    local hp_pct = get_normalized_hp(candidate)
+    if hp_pct > threshold then
+        return false
+    end
+
+    local spell_id = select_flash_heal_id(hp_pct, utils.get_mana_pct(me))
+    esp_renderer.on_cast(spell_id, "Flash Heal", color.yellow(220))
+    if candidate == me then
+        if utils.cast_self(spell_id, me) then note_cast() return true end
+        return false
+    end
+    if utils.cast_target(spell_id, candidate, nil) then note_cast() return true end
+    return false
+end
+
+local function try_binding_heal(me, target)
+    if not resolved.binding_heal or not menu.binding_heal_enabled:get_state() then
+        return false
+    end
+
+    local self_hp = get_normalized_hp(me)
+    local self_threshold = menu.binding_heal_self_threshold:get() / 100
+    if self_hp > self_threshold then
+        return false
+    end
+
+    local target_threshold = menu.binding_heal_target_threshold:get() / 100
+    local candidate = target
+    if candidate == me then
+        candidate = nil
+    end
+    if not candidate then
+        candidate = find_lowest_effective_ally(me, target_threshold, true)
+    end
+    if not candidate or not candidate:is_valid() or candidate:is_dead() or candidate == me then
+        return false
+    end
+
+    local target_hp = get_normalized_hp(candidate)
+    if target_hp > target_threshold then
+        return false
+    end
+
+    local combined_hp = math.min(self_hp, target_hp)
+    local spell_id = spell_downrank.select_heal_rank(spells.BINDING_HEAL, combined_hp, utils.get_mana_pct(me), {
+        emergency_hp_threshold = 0.35,
+        sustain_hp_threshold = 0.70,
+        mana_threshold = 0.25,
+        emergency_rank_index = 1,
+        sustain_rank_index = 1,
+        efficient_rank_index = 2,
+    }) or resolved.binding_heal
+    esp_renderer.on_cast(spell_id, "Binding Heal", color.cyan(220))
+    if utils.cast_target(spell_id, candidate, nil) then note_cast() return true end
+    return false
+end
+
 
 -- --- try_cast_spell - generic target-cast helper for focus/self priority --
 local function try_cast_spell(me, target, spell_id)
     if not spell_id then return false end
     if not target or not target:is_valid() then return false end
+    if menu.use_cooldowns and menu.use_cooldowns:get_state() and spell_id == resolved.greater_heal then
+        if try_inner_focus(me) then
+            return true
+        end
+    end
     if target == me then
         if utils.can_cast_self(spell_id, me) then
             if utils.cast_self(spell_id, me) then note_cast() return true end
@@ -531,16 +776,15 @@ local function is_tank_unit(unit)
 end
 
 local function build_triage_members(me)
-    local members = {
-        {
-            guid = unit_guid(me) or "self",
-            unit = me,
-            hp_pct = utils.get_health_pct(me),
-            incoming_heal_pct = unit_incoming_heal_pct(me),
-            role = "healer",
-            is_tank = false,
-        },
-    }
+    local members = {}
+    local self_member = heal_engine.make_member(me, {
+        guid = unit_guid(me) or "self",
+        role = "healer",
+        is_tank = false,
+    })
+    if self_member then
+        members[#members + 1] = self_member
+    end
     local seen = { [unit_guid(me) or "self"] = true }
     local units = utils.get_party_units(me)
     for i = 1, #units do
@@ -549,14 +793,15 @@ local function build_triage_members(me)
             local guid = unit_guid(unit) or ("party-" .. i)
             if not seen[guid] then
                 seen[guid] = true
-                members[#members + 1] = {
+                local is_tank = is_tank_unit(unit)
+                local member = heal_engine.make_member(unit, {
                     guid = guid,
-                    unit = unit,
-                    hp_pct = utils.get_health_pct(unit),
-                    incoming_heal_pct = unit_incoming_heal_pct(unit),
-                    role = is_tank_unit(unit) and "tank" or "damager",
-                    is_tank = is_tank_unit(unit),
-                }
+                    role = is_tank and "tank" or "damager",
+                    is_tank = is_tank,
+                })
+                if member then
+                    members[#members + 1] = member
+                end
             end
         end
     end
@@ -581,12 +826,11 @@ local function should_cancel_reactive_cast(me, target)
         return false
     end
     local summary = healer_triage.select_target(me, build_triage_members(me), {})
-    local snapshot = {
-        hp_pct = target and utils.get_health_pct(target) or utils.get_health_pct(me),
-        incoming_heal_pct = target and unit_incoming_heal_pct(target) or unit_incoming_heal_pct(me),
+    local snapshot = heal_engine.make_snapshot(target or me, {
         collapse_risk = summary and summary.collapse_risk == true,
         group_count = summary and summary.group_count or 0,
-    }
+        is_tank = summary and summary.is_tank == true,
+    })
     return healer_triage.should_cancel_overheal(snapshot, {})
 end
 
@@ -608,7 +852,8 @@ reactive_adapter = {
     actions = {
         life_save_self = {
             handler = function(_, action_deps)
-                return try_cast_spell(action_deps.me, action_deps.me, resolved.greater_heal)
+                return try_flash_heal(action_deps.me, action_deps.me)
+                    or try_cast_spell(action_deps.me, action_deps.me, resolved.greater_heal)
             end,
         },
         life_save_ally = {
@@ -622,7 +867,9 @@ reactive_adapter = {
                     return false
                 end
 
-                return try_cast_spell(action_deps.me, ally_target, resolved.greater_heal)
+                return try_binding_heal(action_deps.me, ally_target)
+                    or try_flash_heal(action_deps.me, ally_target)
+                    or try_cast_spell(action_deps.me, ally_target, resolved.greater_heal)
             end,
         },
         interrupt_control = { noop = "unsupported" },
@@ -658,7 +905,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -677,7 +924,7 @@ core.register_on_update_callback(function()
         return
     end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
-        ooc_manager.on_update(me, menu, utils, {
+    ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
             { spell_id = resolved.ooc_power_word_fortitude_id,
                buff_ids = spells.BUFF_POWER_WORD_FORT,
@@ -693,9 +940,6 @@ core.register_on_update_callback(function()
                toggle = menu.ooc_group_buff },
         },
     })
-    if not me:is_in_combat() then
-        return
-    end
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end
@@ -712,6 +956,10 @@ core.register_on_update_callback(function()
         vendor_automation.try_auto_sell_greys(me, menu, utils)
     end
 
+    if not me:is_in_combat() then
+        return
+    end
+
     if me:is_in_combat() then
         if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
             consumables_manager.try_use_combat_consumable(me, menu, utils)
@@ -726,6 +974,8 @@ core.register_on_update_callback(function()
     update_set_bonus(me)
 
     local target = utils.find_best_target(me)
+
+    if mana_conservator.on_update(me, target, menu, utils) then return end
 
     -- Overheal Protection - cancel slow heals if target is healthy
     if cancel_holy_overheal_cast(me, target) then
@@ -778,8 +1028,12 @@ core.register_on_update_callback(function()
     -- Focus Target Priority - heal focus target first
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target then
-        local focus_hp = focus_target:get_health_percentage()
-        if focus_hp < menu.greater_heal_threshold:get() then
+        local focus_hp = heal_engine.get_effective_hp_pct(focus_target) * 100
+        if focus_hp < menu.flash_heal_threshold:get() then
+            if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_flash_heal(me, focus_target) then
+                return
+            end
+        elseif focus_hp < menu.greater_heal_threshold:get() then
             if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cast_spell(me, focus_target, resolved.greater_heal) then
                 return
             end
@@ -788,8 +1042,11 @@ core.register_on_update_callback(function()
 
     -- Combat-aware self HP threshold
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
-    local my_hp = me:get_health_percentage() / 100
+    local my_hp = heal_engine.get_effective_hp_pct(me)
     if my_hp < self_threshold then
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_flash_heal(me, me) then
+            return
+        end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cast_spell(me, me, resolved.greater_heal) then
             return
         end
@@ -798,11 +1055,13 @@ core.register_on_update_callback(function()
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
 
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_renew(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_prayer_of_mending(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_binding_heal(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_flash_heal(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_greater_heal(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_circle_of_healing(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.18) and try_prayer_of_healing(me) then return end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_greater_heal(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_renew(me) then return end
 end)
 
 

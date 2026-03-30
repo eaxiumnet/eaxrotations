@@ -16,6 +16,8 @@ local reactive_runtime = {}
 local CONTEXT_REFRESH = 2.0  -- seconds between context rebuilds
 local _last_context_build = 0
 local _cached_context = nil
+local _health_prediction_module = nil
+local _health_prediction_loaded = false
 
 local REQUIRED_BRANCHES = {
     "life_save_self",
@@ -27,8 +29,14 @@ local REQUIRED_BRANCHES = {
 }
 
 local function load_health_prediction()
+    if _health_prediction_loaded then
+        return _health_prediction_module
+    end
+
+    _health_prediction_loaded = true
     local ok, module = pcall(require, "health_prediction")
     if ok then
+        _health_prediction_module = module
         return module
     end
 
@@ -36,6 +44,7 @@ local function load_health_prediction()
     if type(chunk) == "function" then
         local chunk_ok, fallback = pcall(chunk)
         if chunk_ok then
+            _health_prediction_module = fallback
             return fallback
         end
     end
@@ -263,7 +272,8 @@ local function role_telemetry(ctx, result)
     if action_id == "life_save_ally" and role == "healer" then
         local tank = party.tank or {}
         local group_collapse_risk = clamp01(party.group_collapse_risk)
-        if tank.guid and clamp01(tank.hp_pct) <= 0.55 and clamp01(tank.incoming_heal_pct) < 0.25 then
+        local target_is_tank = target_ctx.is_tank == true or target_ctx.role == "tank"
+        if target_is_tank and tank.guid and clamp01(tank.hp_pct) <= 0.55 and clamp01(tank.incoming_heal_pct) < 0.25 then
             return "tank_save", "tank"
         end
         if group_collapse_risk >= 0.60 then

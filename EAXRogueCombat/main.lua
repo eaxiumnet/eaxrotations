@@ -256,7 +256,6 @@ local runtime = {
     kick_id = nil,
     blade_flurry_id = nil,
     adrenaline_rush_id = nil,
-    killing_spree_id = nil,
     evasion_id = nil,
     feint_id = nil,
     garrote_id = nil,
@@ -287,6 +286,15 @@ local GCD_CAST_INTERVAL = 1.0  -- TBC GCD
 local COMBAT_FINISHER_COMBO_POINTS = 5
 local SND_REFRESH_CRITICAL_MS = 2000
 local SND_CLIP_GUARD_MS = 10000
+local SND_PREDICT_RANGE = 8
+local UNKNOWN_TTD_SENTINEL = 7777
+local SND_BASE_DURATIONS_S = {
+    [1] = 9,
+    [2] = 12,
+    [3] = 15,
+    [4] = 18,
+    [5] = 21,
+}
 
 local function resolve_spells()
     runtime.sinister_strike_id = utils.resolve_spell_id(spells.SINISTER_STRIKE)
@@ -298,7 +306,6 @@ local function resolve_spells()
     runtime.adrenaline_rush_id = utils.resolve_spell_id(spells.ADRENALINE_RUSH)
     runtime.garrote_id = utils.resolve_spell_id(spells.GARROTE)
     runtime.riposte_id = utils.resolve_spell_id(spells.RIPOSTE)
-    runtime.killing_spree_id   = utils.resolve_spell_id(spells.KILLING_SPREE)
     runtime.evasion_id        = utils.resolve_spell_id(spells.EVASION)
     runtime.feint_id   = utils.resolve_spell_id(spells.FEINT)
     runtime.shiv_id    = utils.resolve_spell_id(spells.SHIV)
@@ -423,6 +430,96 @@ end
 local function get_snd_refresh_window_ms()
     local refresh_seconds = menu.snd_refresh_seconds and menu.snd_refresh_seconds:get() or 3
     return math.max(SND_REFRESH_CRITICAL_MS, refresh_seconds * 1000)
+end
+
+local function get_known_ttd_seconds(target)
+    if not target or not target:is_valid() or target:is_dead() then
+        return nil
+    end
+
+    local ok, value = pcall(function() return ttd_tracker.get(target) end)
+    if not ok then
+        return nil
+    end
+
+    value = tonumber(value)
+    if not value or value <= 0 or value >= UNKNOWN_TTD_SENTINEL then
+        return nil
+    end
+
+    return value
+end
+
+local function get_largest_nearby_ttd_seconds(me, target, range)
+    local largest_ttd = get_known_ttd_seconds(target)
+    if not me then
+        return largest_ttd
+    end
+
+    local ok_me, me_pos = pcall(function() return me:get_position() end)
+    if not ok_me or not me_pos then
+        return largest_ttd
+    end
+
+    local radius = tonumber(range) or SND_PREDICT_RANGE
+    local radius_sq = radius * radius
+    local objects = core.object_manager.get_all_objects()
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and not obj:is_dead() and me:can_attack(obj) then
+            local ok_pos, obj_pos = pcall(function() return obj:get_position() end)
+            if ok_pos and obj_pos then
+                local dx = me_pos.x - obj_pos.x
+                local dy = me_pos.y - obj_pos.y
+                local dz = me_pos.z - obj_pos.z
+                local dist_sq = (dx * dx) + (dy * dy) + (dz * dz)
+                if dist_sq <= radius_sq then
+                    local obj_ttd = get_known_ttd_seconds(obj)
+                    if obj_ttd and (not largest_ttd or obj_ttd > largest_ttd) then
+                        largest_ttd = obj_ttd
+                    end
+                end
+            end
+        end
+    end
+
+    return largest_ttd
+end
+
+local function get_slice_and_dice_full_duration_seconds(combo_points)
+    combo_points = tonumber(combo_points) or 0
+    combo_points = math.max(0, math.min(COMBAT_FINISHER_COMBO_POINTS, combo_points))
+    if combo_points == 0 then
+        return 0
+    end
+
+    return SND_BASE_DURATIONS_S[combo_points] or 0
+end
+
+local function get_predictive_snd_combo_points(me, target)
+    if not menu.use_predictive_snd or not menu.use_predictive_snd:get_state() then
+        return nil
+    end
+
+    local largest_ttd = get_largest_nearby_ttd_seconds(me, target, SND_PREDICT_RANGE)
+    if not largest_ttd then
+        return nil
+    end
+
+    local snd_remaining_s = math.max(0, utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE) / 1000)
+    local expiry_buffer_s = menu.snd_predictive_buffer_seconds and menu.snd_predictive_buffer_seconds:get() or 5
+    local target_duration = (largest_ttd - snd_remaining_s) - expiry_buffer_s
+    if target_duration <= 0 then
+        return 1
+    end
+
+    for cp = 1, COMBAT_FINISHER_COMBO_POINTS do
+        if get_slice_and_dice_full_duration_seconds(cp) >= target_duration then
+            return cp
+        end
+    end
+
+    return COMBAT_FINISHER_COMBO_POINTS
 end
 
 local function should_use_major_cooldowns(me)
@@ -558,7 +655,13 @@ local function try_slice_and_dice(me, target, ctx)
     if enemy_count >= 2 or (policy and policy.burn_phase) then
         regular_min_combo_points = 2
     end
-    local min_combo_points = remaining_ms > 0 and regular_min_combo_points or 2
+    local min_combo_points = remaining_ms > 0 and regular_min_combo_points or 1
+    if remaining_ms > 0 and remaining_ms <= 1000 then
+        local predictive_combo_points = get_predictive_snd_combo_points(me, target)
+        if predictive_combo_points then
+            min_combo_points = math.max(1, math.min(COMBAT_FINISHER_COMBO_POINTS, predictive_combo_points))
+        end
+    end
     if runtime.combo_points < min_combo_points or runtime.combo_points > COMBAT_FINISHER_COMBO_POINTS then
         return false
     end
@@ -934,7 +1037,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 local CP_BUILDERS = {}
@@ -1041,7 +1144,7 @@ core.register_on_update_callback(function()
     if poison_manager.try_apply_poisons(me, menu, utils, current_poison_loadout()) then
         return
     end
-        ooc_manager.on_update(me, menu, utils)
+        ooc_manager.on_update(me, menu, utils, { show_enchant_warning = true })
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end

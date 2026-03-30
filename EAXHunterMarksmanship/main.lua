@@ -220,6 +220,7 @@ local rt = {
     disengage_id        = nil,
     feign_death_id      = nil,
     rapid_fire_id       = nil,
+    misdirection_id     = nil,
     immolation_trap_id  = nil,
     freezing_trap_id    = nil,
     trueshot_aura_id    = nil,
@@ -243,6 +244,7 @@ local rt = {
     last_multi_shot_cast_count = 0,
     last_bestial_wrath_cast_count = 0,
     last_rapid_fire_cast_count = 0,
+    last_misdirection_cast_count = 0,
     last_intimidation_cast_count = 0,
     last_trap_time      = 0,
     last_deterrence_cast_count = -1,
@@ -300,6 +302,7 @@ local function resolve()
     rt.disengage_id        = utils.resolve_spell_id(spells.DISENGAGE)
     rt.feign_death_id      = utils.resolve_spell_id(spells.FEIGN_DEATH)
     rt.rapid_fire_id       = utils.resolve_spell_id(spells.RAPID_FIRE)
+    rt.misdirection_id     = utils.resolve_spell_id(spells.MISDIRECTION)
     rt.immolation_trap_id  = utils.resolve_spell_id(spells.IMMOLATION_TRAP)
     rt.freezing_trap_id    = utils.resolve_spell_id(spells.FREEZING_TRAP)
     rt.trueshot_aura_id    = utils.resolve_spell_id(spells.TRUESHOT_AURA)
@@ -1106,6 +1109,25 @@ local function try_rapid_fire(me)
     end
     return false
 end
+
+local function try_misdirection(me, t)
+    if not menu.use_misdirection or not menu.use_misdirection:get_state() then return false end
+    if not rt.misdirection_id then return false end
+    if active_mode() == "solo" then return false end
+    if not t or not t:is_valid() or t:is_dead() then return false end
+    local focus = get_direct_focus_unit(t)
+    if not focus or not focus:is_valid() or focus:is_dead() then return false end
+    if focus == me or (utils.same_unit and utils.same_unit(focus, me)) then return false end
+    if me:can_attack(focus) then return false end
+    if utils.has_buff(me, spells.BUFF_MISDIRECTION) then return false end
+    if rt.last_misdirection_cast_count == core.spell_book.get_spell_cast_count(rt.misdirection_id) then return false end
+    if utils.cast_target(rt.misdirection_id, focus) then
+        rt.last_misdirection_cast_count = core.spell_book.get_spell_cast_count(rt.misdirection_id)
+        utils.log_debug(menu, "Misdirection")
+        return true
+    end
+    return false
+end
 local function try_raptor_strike(me, t)
     if not menu.use_raptor_strike or not menu.use_raptor_strike:get_state() then return false end
     if not rt.raptor_strike_id or dist(t)>5 then return false end
@@ -1213,6 +1235,7 @@ local function do_rotation(me, t)
     if not hold_offense and racial_manager.try_offensive(me) then return true end
     if racial_manager.try_utility(me, t) then return true end
     if racial_manager.try_defensive(me) then return true end
+    if try_misdirection(me, t) then return true end
     if not hold_offense and try_rapid_fire(me) then return true end
     if defensive_manager.try_defensive(me, "hunter", utils) then return end
     ttd_tracker.update(t)

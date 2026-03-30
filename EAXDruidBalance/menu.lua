@@ -130,7 +130,6 @@ function menu.render()
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
         { key = "use_barkskin", label = "Barkskin", tip = "Emergency damage reduction", hp_key = "use_barkskin_hp_pct", hp_label = "Barkskin HP %" },
-        { key = "use_survival_instincts", label = "Survival Instincts", tip = "Emergency 25% max HP boost", hp_key = "use_survival_instincts_hp_pct", hp_label = "Survival Instincts HP %" },
         })
 
         -- -- Targeting --------------------------------------------------------
@@ -157,6 +156,4 @@ end
 
 menu.use_barkskin = core.menu.checkbox(true, "eaxbal_use_barkskin")
 menu.use_barkskin_hp_pct = core.menu.slider_int(0, 100, 40, "eaxbal_barkskin_hp")
-menu.use_survival_instincts = core.menu.checkbox(true, "eaxbal_survival_instincts")
-menu.use_survival_instincts_hp_pct = core.menu.slider_int(0, 100, 30, "eaxbal_survinst_hp")
 return menu

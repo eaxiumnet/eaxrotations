@@ -112,8 +112,6 @@ menu.frenzied_regeneration_hp_pct = core.menu.slider_int(10, 70, 40, "eaxdruidfe
 menu.auto_growl             = core.menu.checkbox(true,  "eaxdruidferal_auto_growl")
 
 -- -- Guardian / Tank -----------------------------------------------------------
-menu.use_survival_instincts       = core.menu.checkbox(true,  "eaxdruidferal_use_survival_instincts")
-menu.survival_instincts_hp_pct    = core.menu.slider_int(10, 60, 35, "eaxdruidferal_survival_instincts_hp")
 menu.use_enrage                   = core.menu.checkbox(true,  "eaxdruidferal_use_enrage")
 menu.enrage_rage_threshold        = core.menu.slider_int(0, 40, 15, "eaxdruidferal_enrage_rage")
 menu.use_challenging_roar         = core.menu.checkbox(true,  "eaxdruidferal_use_challenging_roar")
@@ -157,7 +155,7 @@ function menu.render()
         pcall(function() theme.apply(_win, "eaxdruidferal") end)
     end
 
-    root_tree:render("Eax Druid Feral", function()
+    root_tree:render("Eax's Druid Feral", function()
 
         -- -- Identity banner -------------------------------------------------
         do

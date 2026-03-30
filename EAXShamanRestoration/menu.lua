@@ -58,15 +58,15 @@ menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "e
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
 -- -- Class-specific elements ---------------------------------------------------
-menu.heal_tank_hp                         = core.menu.slider_int(50, 99, 75, "heal_tank_hp")
-menu.heal_party_hp                        = core.menu.slider_int(50, 99, 78, "heal_party_hp")
-menu.chain_heal_targets                   = core.menu.slider_int(2, 6, 3, "chain_heal_targets")
-menu.heal_emergency_hp                    = core.menu.slider_int(20, 70, 40, "heal_emergency_hp")
+menu.heal_tank_hp                         = core.menu.slider_int(50, 99, 70, "heal_tank_hp")
+menu.heal_party_hp                        = core.menu.slider_int(50, 99, 80, "heal_party_hp")
+menu.chain_heal_targets                   = core.menu.slider_int(2, 6, 2, "chain_heal_targets")
+menu.heal_emergency_hp                    = core.menu.slider_int(20, 70, 25, "heal_emergency_hp")
 menu.use_water_shield                     = core.menu.checkbox(true, "use_water_shield")
 menu.use_cooldowns                        = core.menu.checkbox(true, "use_cooldowns")
 menu.cooldowns_key                        = core.menu.keybind(7, false, "cooldowns_key")
 menu.use_natures_swiftness                = core.menu.checkbox(true, "use_natures_swiftness")
-menu.ns_emergency_hp                      = core.menu.slider_int(10, 60, 30, "ns_emergency_hp")
+menu.ns_emergency_hp                      = core.menu.slider_int(10, 60, 25, "ns_emergency_hp")
 menu.use_bloodlust                        = core.menu.checkbox(true, "use_bloodlust")
 menu.bloodlust_hp                         = core.menu.slider_int(10, 60, 35, "bloodlust_hp")
 menu.bloodlust_on_pull                    = core.menu.checkbox(true, "bloodlust_on_pull")
@@ -97,10 +97,10 @@ menu.pvp_use_grounding                    = core.menu.checkbox(true, "pvp_use_gr
 menu.pvp_use_tremor                       = core.menu.checkbox(true, "pvp_use_tremor")
 menu.pvp_use_purge                        = core.menu.checkbox(false, "pvp_use_purge")
 menu.tank_priority_weight                 = core.menu.slider_int(0, 25, 8, "tank_priority_weight")
-menu.mana_floor                           = core.menu.slider_int(5, 60, 25, "mana_floor")
+menu.mana_floor                           = core.menu.slider_int(5, 60, 30, "mana_floor")
 menu.overheal_protection                  = core.menu.checkbox(true, "overheal_protection")
 menu.mana_tide_timing                     = core.menu.checkbox(true, "mana_tide_timing")
-menu.mana_tide_mana_pct                   = core.menu.slider_int(20, 80, 50, "mana_tide_mana_pct")
+menu.mana_tide_mana_pct                   = core.menu.slider_int(20, 80, 30, "mana_tide_mana_pct")
 
 mana_conservator.register_menu_items(menu, "eax_shaman_restoration")
 

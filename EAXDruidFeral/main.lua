@@ -1031,7 +1031,9 @@ local function try_ooc_self_heal(me)
     -- Don't burn mana healing minor scratches - only heal if mana is healthy
     -- enough to afford it. Below 50% mana, save it for the next fight.
     local ok_mp, cur_mp = pcall(function()
-        return me:get_power(0) / me:get_max_power(0)
+        local max_mp = me:get_max_power(0)
+        if not max_mp or max_mp <= 0 then return nil end
+        return me:get_power(0) / max_mp
     end)
     if ok_mp and type(cur_mp) == "number" and cur_mp < 0.50 then return false end
     -- Don't fire during bear form transition (combat flag briefly drops mid-fight)
@@ -1216,7 +1218,9 @@ local function try_innervate(me)
         return false
     end
     local ok, mp = pcall(function()
-        return me:get_power(0) / me:get_max_power(0)
+        local max_mp = me:get_max_power(0)
+        if not max_mp or max_mp <= 0 then return nil end
+        return me:get_power(0) / max_mp
     end)
     if ok and type(mp) == "number" and mp > (menu.innervate_mana_pct:get() / 100.0) then return false end
     if not utils.can_cast_self(runtime.innervate_id, me) then return false end
@@ -2165,7 +2169,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled

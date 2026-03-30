@@ -16,6 +16,7 @@ local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
+local dps_tree     = ps.tree_node()
 
 -- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
@@ -27,7 +28,6 @@ menu.debug                               = core.menu.checkbox(false, "eaxdruidre
 menu.focus_priority                      = core.menu.checkbox(false, "eaxdruidrestoration_focus_priority")
 menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxdruidrestoration_combat_self_hp_boost")
 -- Racial
-menu.use_racial                          = core.menu.checkbox(true, "eaxdruidrestoration_use_racial")
 menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxdruidrestoration_racial_hp")
 -- OOC
 menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
@@ -66,9 +66,10 @@ menu.lifebloom_refresh_seconds            = core.menu.slider_int(1, 4, 2, "eaxdr
 menu.use_rejuvenation                     = core.menu.checkbox(true, "eaxdruidrestoration_use_rejuvenation")
 menu.rejuvenation_refresh_seconds         = core.menu.slider_int(1, 5, 3, "eaxdruidrestoration_rejuvenation_refresh_seconds")
 menu.use_regrowth                         = core.menu.checkbox(true, "eaxdruidrestoration_use_regrowth")
+menu.use_tree_of_life                     = core.menu.checkbox(true, "eaxdruidrestoration_use_tree_of_life")
 menu.regrowth_refresh_seconds             = core.menu.slider_int(1, 5, 2, "eaxdruidrestoration_regrowth_refresh_seconds")
 menu.use_swiftmend                        = core.menu.checkbox(true, "eaxdruidrestoration_use_swiftmend")
-menu.swiftmend_hp_pct                     = core.menu.slider_int(20, 80, 60, "eaxdruidrestoration_swiftmend_hp_pct")
+menu.swiftmend_hp_pct                     = core.menu.slider_int(20, 80, 40, "eaxdruidrestoration_swiftmend_hp_pct")
 menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidrestoration_remove_curse")
 menu.use_abolish_poison                  = core.menu.checkbox(true, "eaxdruidrestoration_abolish_poison")
 menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidrestoration_use_innervate")
@@ -77,10 +78,10 @@ menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 35, "ea
 menu.use_tranquility                      = core.menu.checkbox(true, "eaxdruidrestoration_use_tranquility")
 menu.tranquility_injured_count            = core.menu.slider_int(2, 8, 3, "eaxdruidrestoration_tranquility_injured_count")
 menu.use_natures_swiftness                = core.menu.checkbox(true, "eaxdruidrestoration_use_natures_swiftness")
-menu.emergency_hp_pct                     = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_emergency_hp_pct")
+menu.emergency_hp_pct                     = core.menu.slider_int(10, 60, 25, "eaxdruidrestoration_emergency_hp_pct")
 menu.overheal_protection                  = core.menu.checkbox(true, "eaxdruidrestoration_overheal_protection")
 menu.use_healing_touch                    = core.menu.checkbox(true, "eaxdruidrestoration_use_healing_touch")
-menu.healing_touch_hp_pct                 = core.menu.slider_int(10, 60, 35, "eaxdruidrestoration_healing_touch_hp_pct")
+menu.healing_touch_hp_pct                 = core.menu.slider_int(10, 60, 30, "eaxdruidrestoration_healing_touch_hp_pct")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_rejuvenation", label = "Rejuvenation" },
@@ -125,9 +126,11 @@ function menu.render()
             menu.use_rejuvenation:render("Rejuvenation", "Maintain Rejuvenation on the priority heal target")
             menu.rejuvenation_refresh_seconds:render("Rejuvenation Refresh (sec)", "Refresh Rejuvenation below this remaining time")
             menu.use_regrowth:render("Regrowth", "Use Regrowth for heavier sustained healing")
+            menu.use_tree_of_life:render("Tree of Life", "Keep Tree of Life up in group healing when it is safe to do so")
             menu.regrowth_refresh_seconds:render("Regrowth Refresh (sec)", "Refresh Regrowth below this remaining time")
             menu.use_swiftmend:render("Swiftmend", "Consume an active HoT for burst healing")
             menu.swiftmend_hp_pct:render("Swiftmend HP %", "Health threshold for Swiftmend")
+            menu.use_remove_curse:render("Remove Curse", "Automatically cleanse curse debuffs from friendly units")
             menu.use_abolish_poison:render("Abolish Poison", "Automatically cleanse poison debuffs when Abolish Poison is not already ticking")
             menu.use_innervate:render("Innervate", "Recover mana automatically at the configured threshold")
             menu.innervate_target:render("Innervate Target", INNERVATE_TARGET_OPTIONS, "Choose who receives Innervate before falling back to self")
@@ -153,7 +156,6 @@ function menu.render()
         ps.render_racial(menu, racial_tree)
 
         -- -- DPS Fallback (Solo) -----------------------------------------------
-        local dps_tree = ps.tree_node()
         dps_tree:render("DPS Fallback (Solo)", function()
             ps.header("Solo DPS - used when no healing is needed")
             menu.dps_fallback_enabled:render("Enable DPS Fallback",

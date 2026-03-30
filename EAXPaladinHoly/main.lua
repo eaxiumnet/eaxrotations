@@ -1225,6 +1225,23 @@ local function try_maintain_judgement(me, hostile_target, heal_target_hp_pct, in
     return try_cast_spell(runtime.judgement_id, me, hostile_target, profile.judgement_label)
 end
 
+local function try_ooc_blessing(me)
+    if not menu.auto_blessings or not menu.auto_blessings:get_state() then return false end
+    if not me or me:is_in_combat() or eax_utils.is_eating_or_drinking(me) then return false end
+    if (_core_time() - (runtime.last_blessing_retry_at.__ooc or 0)) < 8.0 then return false end
+    if unit_has_any_paladin_blessing(me) then return false end
+    local spell_id = runtime.blessing_wisdom_id or runtime.blessing_might_id
+    local spell_name = runtime.blessing_wisdom_id and "Blessing of Wisdom" or "Blessing of Might"
+    if not spell_id or not utils.can_cast_self(spell_id, me) then return false end
+    if utils.cast_self(spell_id, me) then
+        runtime.last_blessing_retry_at.__ooc = _core_time()
+        note_cast()
+        utils.log_debug(menu, "OOC: " .. spell_name)
+        return true
+    end
+    return false
+end
+
 
 local function on_update()
     handle_toggle()
@@ -1241,6 +1258,8 @@ local function on_update()
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end
+
+    if try_ooc_blessing(me) then return true end
 
     if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
         consumables_manager.try_use_ooc_food_drink(me, menu, utils)

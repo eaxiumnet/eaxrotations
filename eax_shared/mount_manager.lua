@@ -59,6 +59,7 @@ end
 
 function mount_manager.update_mount_state(me, menu, utils)
     if not me or not me.is_valid or not me:is_valid() then return false end
+    if me.get_level and me:get_level() < 40 then return false end
 
     -- Combat branch: always dismount when combat starts.
     if me:is_in_combat() and me:is_mounted() then

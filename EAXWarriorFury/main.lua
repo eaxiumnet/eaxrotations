@@ -276,7 +276,7 @@ local ctx_cache = rotation_context.new({
 
 local BATTLE_SHOUT_REFRESH_MS = 5000
 local DEMO_SHOUT_REFRESH_MS = 5000
-local RAMPAGE_REFRESH_MS = 1500
+local RAMPAGE_REFRESH_MS = 5000
 local BLOODRAGE_MAX_RAGE = 60
 local BLOODRAGE_MIN_HP_PCT = 0.70
 local EXECUTE_HP_THRESHOLD = 0.20
@@ -713,11 +713,15 @@ local function should_cast_execute(target_hp_pct, ctx)
     if not menu.use_execute:get_state() then return false end
     if not runtime.execute_id then return false end
     if target_hp_pct >= EXECUTE_HP_THRESHOLD then return false end
-    local can_cast = resource_gate.warrior.has_rage(ctx, 15)
+    local can_cast = resource_gate.warrior.has_rage(ctx, EXECUTE_MIN_RAGE)
     if not can_cast then return false end
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
     return bt_cd > 1.5
+end
+
+local function execute_reserve_rage(extra_cost, rage_discount)
+    return EXECUTE_MIN_RAGE + math.max(0, extra_cost - (rage_discount or 0))
 end
 
 local function get_weapon_speed_seconds(me, hand)
@@ -908,8 +912,8 @@ local function try_rampage(me)
 end
 
 local function do_self_only_upkeep(me)
-    if try_shout(me) then return true end
     if try_rampage(me) then return true end
+    if try_shout(me) then return true end
     return false
 end
 
@@ -918,9 +922,7 @@ local function try_sunder_armor(me, target, target_hp_pct)
     if target_hp_pct < EXECUTE_HP_THRESHOLD then return false end
     if not utils.is_melee_target(me, target) then return false end
 
-    local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
-    local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
-    if bt_cd <= 1.5 or ww_cd <= 1.5 then
+    if not should_do_noncore_upkeep() then
         return false
     end
 
@@ -946,12 +948,13 @@ local function try_sunder_armor(me, target, target_hp_pct)
 end
 
 local function do_utility_upkeep(me, target, rage, target_hp_pct)
+    if try_rampage(me) then return true end
+    if not should_do_noncore_upkeep() then return false end
     if try_shout(me) then return true end
     if try_demo_shout(me, target) then return true end
     if try_sunder_armor(me, target, target_hp_pct) then return true end
     if try_bloodrage(me, rage) then return true end
     if try_berserker_rage(me) then return true end
-    if try_rampage(me) then return true end
     return false
 end
 
@@ -1196,10 +1199,11 @@ local function try_overpower_dance(me, target, rage)
     if not utils.can_stance_dance_for_cost(rage, OVERPOWER_COST, 0, runtime.stance_swap_retention) then return false end
     if not core.spell_book.is_spell_learned(runtime.overpower_id) then return false end
     if not core.spell_book.is_usable_spell(runtime.overpower_id) then return false end
+    if rage < (OVERPOWER_COST + runtime.stance_swap_retention + 10) then return false end
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
     local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
-    if bt_cd <= 1.5 or ww_cd <= 1.5 then
+    if bt_cd <= 4.0 or ww_cd <= 4.0 then
         return false
     end
 
@@ -1238,16 +1242,22 @@ local function is_bt_ww_window_open(bt_cd, ww_cd)
     return bt_cd > 3.0 and ww_cd > 3.0
 end
 
+local function should_do_noncore_upkeep()
+    local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
+    local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
+    return is_bt_ww_window_open(bt_cd, ww_cd)
+end
+
 local function try_rend_in_battle_stance(me, target, rage)
     if not menu.use_rend:get_state() or not runtime.rend_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
     if utils.get_current_stance(me) ~= "battle" then return false end
-    if rage < (REND_COST + 5) then return false end
+    if rage < (REND_COST + 10) then return false end
     if utils.has_debuff(target, spells.DEBUFF_REND) then return false end
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
     local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
-    if not is_bt_ww_window_open(bt_cd, ww_cd) then
+    if bt_cd <= 5.5 or ww_cd <= 5.5 then
         return false
     end
 
@@ -1682,6 +1692,17 @@ local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
         and utils.can_cast_hostile_no_usable(runtime.execute_id, me, target)
         or false
 
+    if execute_phase_active then
+        local bt_reserve = execute_reserve_rage(BLOODTHIRST_COST, rage_discount)
+        local ww_reserve = execute_reserve_rage(WHIRLWIND_COST, rage_discount)
+        if rage < bt_reserve then
+            bt_can_cast = false
+        end
+        if rage < ww_reserve then
+            ww_can_cast = false
+        end
+    end
+
     if execute_phase_active and fast_one_hand_execute then
         -- Fast-1H execute lane: explicit execute-first behavior with queue support.
         if execute_swing_safe and ex_can_cast and not is_pending_or_current(runtime.execute_id) then
@@ -1851,6 +1872,9 @@ local function do_aoe_core_lane(me, target, ctx, rage)
     local primary_target = utils.find_best_aoe_target(me, target, AOE_RADIUS) or target
     local execute_target = get_aoe_execute_target(me, primary_target)
     local rage_discount = get_set_rage_discount()
+    local execute_phase_active = execute_target and utils.get_health_pct(execute_target) < EXECUTE_HP_THRESHOLD
+    local ww_reserve = execute_reserve_rage(WHIRLWIND_COST, rage_discount)
+    local bt_reserve = execute_reserve_rage(BLOODTHIRST_COST, rage_discount)
 
     if menu.use_sweeping_strikes:get_state()
         and runtime.sweeping_strikes_id
@@ -1892,6 +1916,7 @@ local function do_aoe_core_lane(me, target, ctx, rage)
             end
         elseif primary_target and utils.is_melee_target(me, primary_target)
             and resource_gate.warrior.has_rage(ctx, math.max(20, WHIRLWIND_COST - rage_discount))
+            and ((not execute_phase_active) or rage >= ww_reserve)
             and _get_spell_cd(runtime.whirlwind_id) <= 0
         then
             if not is_pending_or_current(runtime.whirlwind_id)
@@ -1908,6 +1933,7 @@ local function do_aoe_core_lane(me, target, ctx, rage)
 
     if primary_target and runtime.bloodthirst_id
         and resource_gate.warrior.has_rage(ctx, math.max(15, BLOODTHIRST_COST - rage_discount))
+        and ((not execute_phase_active) or rage >= bt_reserve)
         and utils.can_cast_hostile(runtime.bloodthirst_id, me, primary_target)
     then
         if not is_pending_or_current(runtime.bloodthirst_id)
@@ -2303,6 +2329,7 @@ local on_update_ctx = {
     try_rend_in_battle_stance = try_rend_in_battle_stance,
     try_return_after_charge = try_return_after_charge,
     try_return_to_berserker = try_return_to_berserker,
+    try_tc_dance_return = try_tc_dance_return,
     try_stoneform = try_stoneform,
     try_war_stomp_interrupt = try_war_stomp_interrupt,
     try_overpower_dance = try_overpower_dance,
@@ -2324,9 +2351,9 @@ local function on_update()
     if not menu.enabled:get_state() then return end
 
     local me = d._get_local_player()
-    d.ooc_manager.on_update(me, menu, d.utils)
     if not me then return end
     if me:is_dead() then return end
+    d.ooc_manager.on_update(me, menu, d.utils, { show_enchant_warning = true })
 
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         d.mount_manager.update_mount_state(me, menu, d.utils)
@@ -2543,37 +2570,7 @@ local function draw_proc_status_line(y_offset, label, is_active, active_color)
 end
 
 local function on_render()
-    esp_renderer.on_render(menu)
-    if not menu.show_notifications:get_state() or not menu.track_procs:get_state() then
-        return
-    end
-
-    local me = _get_local_player()
-    if not me then return end
-
-    local flurry_data = buff_manager:get_buff_data(me, spells.BUFF_FLURRY)
-    local enrage_data = buff_manager:get_buff_data(me, spells.BUFF_ENRAGE)
-    local flurry_active = flurry_data and flurry_data.is_active or false
-    local enrage_active = enrage_data and enrage_data.is_active or false
-
-    core.graphics.rect_2d_filled(
-        vec2.new(PROC_HUD_X, PROC_HUD_Y),
-        PROC_HUD_WIDTH,
-        PROC_HUD_HEIGHT,
-        color.new(12, 14, 18, 145),
-        6
-    )
-    core.graphics.rect_2d(
-        vec2.new(PROC_HUD_X, PROC_HUD_Y),
-        PROC_HUD_WIDTH,
-        PROC_HUD_HEIGHT,
-        color.new(70, 78, 88, 180),
-        1,
-        6
-    )
-
-    draw_proc_status_line(PROC_HUD_Y + 10, "Flurry", flurry_active, color.green(220))
-    draw_proc_status_line(PROC_HUD_Y + 10 + PROC_HUD_LINE_HEIGHT, "Enrage", enrage_active, color.cyan(220))
+    return
 end
 
 -- -- control panel callback --------------------------------------------------

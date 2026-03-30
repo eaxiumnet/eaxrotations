@@ -193,13 +193,13 @@ local dot_manager = require("dot_manager")
 local mana_manager = require("mana_manager")
 ---@type threat_manager
 local threat_manager = require("threat_manager")
+local buff_manager = require("common/modules/buff_manager")
 
 -- Guard to init threat_manager only once at startup
 local threat_initialized = false
 
 local runtime = {
     last_cast_time = 0,
-    dispersion_id = nil,
     resurrection_id = nil,
     flash_heal_id = nil,
     silence_id = nil,
@@ -451,6 +451,36 @@ local function try_devouring_plague(me, target)
     return false
 end
 
+local function get_shadow_weaving_state(target)
+    if not target then return 0, 0 end
+    local data = buff_manager:get_debuff_data(target, spells.DEBUFF_SHADOW_WEAVING)
+    if not data or not data.is_active then
+        return 0, 0
+    end
+    local stacks = tonumber(data.stack_count or data.stacks or data.stack or 0) or 0
+    local remaining = tonumber(data.remaining or 0) or 0
+    return stacks, remaining
+end
+
+local function try_shadow_weaving(me, target)
+    if not target or not menu.use_shadow_weaving:get_state() then return false end
+    local stacks, remaining = get_shadow_weaving_state(target)
+    local refresh_window = (menu.shadow_weaving_refresh_window:get() or 3) * 1000
+    if stacks >= 5 and remaining > refresh_window then
+        return false
+    end
+
+    if resolved.mind_blast and utils.can_cast_hostile(resolved.mind_blast, me, target) then
+        if utils.cast_target(resolved.mind_blast, me, target) then note_cast() return true end
+    end
+
+    if resolved.mind_flay and utils.can_cast_hostile(resolved.mind_flay, me, target) then
+        if utils.cast_target(resolved.mind_flay, me, target) then note_cast() return true end
+    end
+
+    return false
+end
+
 
 local function try_mind_blast(me, target)
     if not resolved.mind_blast or not target then
@@ -548,7 +578,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -682,6 +712,7 @@ core.register_on_update_callback(function()
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.16) and refresh_dot(target, resolved.vampiric_touch, spells.DEBUFF_VAMPIRIC_TOUCH) then invalidate_ctx() return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and refresh_dot(target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_devouring_plague(me, target) then return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_shadow_weaving(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_mind_blast(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_sw_death(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_mind_flay(me, target) then return end

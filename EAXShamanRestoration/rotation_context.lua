@@ -7,6 +7,52 @@ local combat_context = require("combat_context")
 
 local rotation_context = {}
 
+local function safe_call(obj, method_name, ...)
+    if not obj or type(obj) ~= "table" and type(obj) ~= "userdata" then
+        return false, nil
+    end
+    local fn = obj[method_name]
+    if type(fn) ~= "function" then
+        return false, nil
+    end
+    return pcall(fn, obj, ...)
+end
+
+local function primitive_value(value)
+    local t = type(value)
+    if t == "string" or t == "number" then
+        return value
+    end
+    return nil
+end
+
+local function safe_guid(obj, method_name)
+    local ok, value = safe_call(obj, method_name)
+    if not ok then
+        return nil
+    end
+    return primitive_value(value)
+end
+
+local function safe_combo_target_guid(me)
+    local ok, cp_target = safe_call(me, "get_combo_points_target")
+    if not ok or not cp_target then
+        return nil
+    end
+    return safe_guid(cp_target, "get_guid")
+end
+
+local function safe_boolean(obj, method_name)
+    local ok, value = safe_call(obj, method_name)
+    if not ok then
+        return nil
+    end
+    if type(value) == "boolean" then
+        return value
+    end
+    return nil
+end
+
 -- Cache validity window for rotation decisions (100ms)
 local ROTATION_REFRESH_MS = 100
 local ROTATION_REFRESH_S = ROTATION_REFRESH_MS / 1000
@@ -43,7 +89,7 @@ end
 -- @param deps table: dependencies (now_s, health_prediction, etc.)
 -- @return table: combat context snapshot
 function rotation_context.get(cache, me, target, deps)
-    if not cache or not me then
+    if not cache then
         return nil
     end
 
@@ -54,63 +100,28 @@ function rotation_context.get(cache, me, target, deps)
         now_s = deps.now()
     end
 
-    -- Get GUIDs for cache key
-    local me_guid = nil
-    local target_guid = nil
+    local me_guid = safe_guid(me, "get_guid")
+    local target_guid = safe_guid(target, "get_guid")
     local combo_target_guid = cache.combo_target_guid
     local current_form = cache.form
     local current_stance = cache.stance
 
-    -- Try to get me GUID
-    if me.get_guid then
-        local ok, guid = pcall(me.get_guid, me)
-        if ok and guid then
-            me_guid = guid
-        end
-    end
+    local me_is_valid = safe_boolean(me, "is_valid")
+    local target_is_valid = safe_boolean(target, "is_valid")
 
-    -- Try to get target GUID
-    local target_is_valid = false
-    if target and target.is_valid then
-        local ok_valid, is_valid = pcall(target.is_valid, target)
-        target_is_valid = ok_valid and is_valid
-    end
-    if target_is_valid then
-        if target.get_guid then
-            local ok, guid = pcall(target.get_guid, target)
-            if ok and guid then
-                target_guid = guid
-            end
-        end
+    if me_is_valid == false then
+        me_guid = nil
+        combo_target_guid = nil
+        current_form = nil
+        current_stance = nil
     else
+        combo_target_guid = safe_combo_target_guid(me) or combo_target_guid
+        current_form = safe_guid(me, "get_form") or current_form
+        current_stance = safe_guid(me, "get_stance") or current_stance
+    end
+
+    if target_is_valid == false then
         target_guid = nil
-    end
-
-    -- Detect combo point target for rogue/feral
-    if me.get_combo_points_target then
-        local ok, cp_target = pcall(me.get_combo_points_target, me)
-        if ok and cp_target and cp_target.get_guid then
-            local ok2, cp_guid = pcall(cp_target.get_guid, cp_target)
-            if ok2 and cp_guid then
-                combo_target_guid = cp_guid
-            end
-        end
-    end
-
-    -- Detect form for druid
-    if me.get_form then
-        local ok, form = pcall(me.get_form, me)
-        if ok and form then
-            current_form = form
-        end
-    end
-
-    -- Detect stance for warrior
-    if me.get_stance then
-        local ok, stance = pcall(me.get_stance, me)
-        if ok and stance then
-            current_stance = stance
-        end
     end
 
     -- Check if cache is still valid
@@ -128,8 +139,23 @@ function rotation_context.get(cache, me, target, deps)
         return cache.ctx
     end
 
+    if me_is_valid == false then
+        cache.ctx = nil
+        cache.last_build_s = now_s
+        cache.me_guid = nil
+        cache.target_guid = nil
+        cache.combo_target_guid = nil
+        cache.form = nil
+        cache.stance = nil
+        cache.dirty = false
+        return nil
+    end
+
     -- Build new context
-    local ctx = combat_context.build(me, target, cache.spec_meta, deps)
+    local ok_build, ctx = pcall(combat_context.build, me, target, cache.spec_meta, deps)
+    if not ok_build then
+        ctx = nil
+    end
 
     -- Update cache
     cache.ctx = ctx

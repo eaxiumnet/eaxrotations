@@ -502,19 +502,55 @@ local function target_has_utility_curse(target)
     )
 end
 
-local function try_apply_curse(me, target)
+local function target_prefers_caster_curse(target)
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+    if target.is_casting_spell and target:is_casting_spell() then
+        return true
+    end
+    if target.is_channelling_spell and target:is_channelling_spell() then
+        return true
+    end
+    if target.get_max_power then
+        local ok, max_mana = pcall(function() return target:get_max_power(0) end)
+        if ok and type(max_mana) == "number" and max_mana > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+local function get_selected_curse(mode, target)
+    local in_group_content = mode == "dungeon" or mode == "raid"
+    if in_group_content and runtime.curse_of_elements_id then
+        return runtime.curse_of_elements_id, spells.DEBUFF_CURSE_OF_ELEMENTS, "Curse of Elements", true
+    end
+
+    local ttd_s = visual_get_ttd_seconds(target)
+    if menu.prefer_doom:get_state() and runtime.curse_doom_id and type(ttd_s) == "number" and ttd_s >= 60 then
+        return runtime.curse_doom_id, spells.DEBUFF_CURSE_OF_DOOM, "Curse of Doom", false
+    end
+
+    if runtime.curse_agony_id then
+        return runtime.curse_agony_id, spells.DEBUFF_CURSE_OF_AGONY, "Curse of Agony", false
+    end
+
+    if runtime.curse_doom_id then
+        return runtime.curse_doom_id, spells.DEBUFF_CURSE_OF_DOOM, "Curse of Doom", false
+    end
+
+    return nil, nil, nil, false
+end
+
+local function try_apply_curse(me, target, mode)
     if not menu.use_curse:get_state() then return false end
-    local curse_id = menu.prefer_doom:get_state() and runtime.curse_doom_id or runtime.curse_agony_id
-    if not curse_id then curse_id = runtime.curse_agony_id or runtime.curse_doom_id end
-    if not curse_id then return false end
-    if target_has_utility_curse(target) then return false end
-    
-    -- Determine which curse debuff IDs to check
-    local debuff_ids = nil
-    if curse_id == runtime.curse_doom_id then
-        debuff_ids = spells.DEBUFF_CURSE_OF_DOOM
-    elseif curse_id == runtime.curse_agony_id then
-        debuff_ids = spells.DEBUFF_CURSE_OF_AGONY
+    local curse_id, debuff_ids, label, selected_is_utility = get_selected_curse(mode, target)
+    if not curse_id or not debuff_ids then return false end
+    if selected_is_utility then
+        if target_has_utility_curse(target) and not utils.has_debuff(target, debuff_ids) then return false end
+    elseif target_has_utility_curse(target) then
+        return false
     end
     
     -- Use dot_manager to check if safe to refresh (never clip final tick)
@@ -523,11 +559,11 @@ local function try_apply_curse(me, target)
     end
     
     -- Amplify Curse before casting for +doom/+agony duration (v1.3)
-    if runtime.amplify_curse_id and utils.can_cast_self(runtime.amplify_curse_id, me) then
+    if not selected_is_utility and runtime.amplify_curse_id and utils.can_cast_self(runtime.amplify_curse_id, me) then
         utils.cast_self_fast(runtime.amplify_curse_id, me)
         utils.log_debug(menu, "Amplify Curse")
     end
-    return try_cast_spell(me, curse_id, target, "Curse")
+    return try_cast_spell(me, curse_id, target, label or "Curse")
 end
 
 local function try_execute(me, target)
@@ -838,7 +874,9 @@ local function do_rotation(me, target)
         return
     end
 
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_apply_curse(me, target) then
+    local effective_mode = get_effective_mode()
+
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_apply_curse(me, target, effective_mode) then
         return
     end
 
@@ -898,7 +936,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled

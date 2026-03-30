@@ -214,6 +214,8 @@ local runtime = {
     seal_of_wisdom_id = nil,
     seal_of_the_crusader_id = nil,
     seal_of_light_id = nil,
+    seal_of_vengeance_id = nil,
+    seal_of_corruption_id = nil,
     exorcism_id = nil,
     cached_mode = MODE_SOLO,
     mode_checked_at = 0,
@@ -248,6 +250,8 @@ local ctx_cache = rotation_context.new({
         spells.BUFF_SEAL_OF_WISDOM,
         spells.BUFF_SEAL_OF_THE_CRUSADER,
         spells.BUFF_SEAL_OF_LIGHT,
+        spells.BUFF_SEAL_OF_VENGEANCE,
+        spells.BUFF_SEAL_OF_CORRUPTION,
     },
     important_debuffs = {},
 })
@@ -298,6 +302,8 @@ local function resolve_spells()
     runtime.seal_of_wisdom_id = utils.resolve_spell_id(spells.SEAL_OF_WISDOM)
     runtime.seal_of_the_crusader_id = utils.resolve_spell_id(spells.SEAL_OF_THE_CRUSADER)
     runtime.seal_of_light_id = utils.resolve_spell_id(spells.SEAL_OF_LIGHT)
+    runtime.seal_of_vengeance_id = utils.resolve_spell_id(spells.SEAL_OF_VENGEANCE)
+    runtime.seal_of_corruption_id = utils.resolve_spell_id(spells.SEAL_OF_CORRUPTION)
     runtime.exorcism_id = utils.resolve_spell_id(spells.EXORCISM)
     runtime.hammer_of_justice_id = utils.resolve_spell_id(spells.HAMMER_OF_JUSTICE)
     runtime.lay_on_hands_id = utils.resolve_spell_id(spells.LAY_ON_HANDS)
@@ -562,12 +568,15 @@ local function is_durable_judgement_target(target)
 end
 
 local function get_active_seal_key(me)
-	if utils.has_buff(me, spells.BUFF_SEAL_OF_THE_CRUSADER) then
-		return "crusader"
-	end
-	if utils.has_buff(me, spells.BUFF_SEAL_OF_WISDOM) then
-		return "wisdom"
-	end
+    if utils.has_buff(me, spells.BUFF_SEAL_OF_THE_CRUSADER) then
+        return "crusader"
+    end
+    if utils.has_buff(me, spells.BUFF_SEAL_OF_VENGEANCE) or utils.has_buff(me, spells.BUFF_SEAL_OF_CORRUPTION) then
+        return "vengeance"
+    end
+    if utils.has_buff(me, spells.BUFF_SEAL_OF_WISDOM) then
+        return "wisdom"
+    end
 	if utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS) then
 		return "righteous"
 	end
@@ -594,10 +603,13 @@ local function get_judgement_debuff_ids(key)
 	if key == "crusader" then
 		return spells.DEBUFF_JUDGEMENT_OF_THE_CRUSADER
 	end
-	if key == "wisdom" then
-		return spells.DEBUFF_JUDGEMENT_OF_WISDOM
-	end
-	return nil
+    if key == "wisdom" then
+        return spells.DEBUFF_JUDGEMENT_OF_WISDOM
+    end
+    if key == "vengeance" then
+        return spells.DEBUFF_HOLY_VENGEANCE
+    end
+    return nil
 end
 
 local function get_assigned_seal_profile(me, target)
@@ -617,11 +629,17 @@ local function get_assigned_seal_profile(me, target)
 	if assignment_key == "crusader" and runtime.seal_of_the_crusader_id then
 		return runtime.seal_of_the_crusader_id, spells.BUFF_SEAL_OF_THE_CRUSADER, "Seal of the Crusader"
 	end
-	if assignment_key == "wisdom" and runtime.seal_of_wisdom_id then
-		return runtime.seal_of_wisdom_id, spells.BUFF_SEAL_OF_WISDOM, "Seal of Wisdom"
-	end
+    if assignment_key == "wisdom" and runtime.seal_of_wisdom_id then
+        return runtime.seal_of_wisdom_id, spells.BUFF_SEAL_OF_WISDOM, "Seal of Wisdom"
+    end
 
-	return nil, nil, nil
+    if assignment_key == "vengeance" and (runtime.seal_of_vengeance_id or runtime.seal_of_corruption_id) then
+        return runtime.seal_of_vengeance_id or runtime.seal_of_corruption_id,
+            runtime.seal_of_vengeance_id and spells.BUFF_SEAL_OF_VENGEANCE or spells.BUFF_SEAL_OF_CORRUPTION,
+            runtime.seal_of_vengeance_id and "Seal of Vengeance" or "Seal of Corruption"
+    end
+
+    return nil, nil, nil
 end
 
 local function get_desired_seal_profile(me, target)
@@ -634,12 +652,24 @@ local function get_desired_seal_profile(me, target)
 	local hp_pct = (me and me.get_health_percentage and me:get_health_percentage() or 100) / 100
 	local defensive_sustain = me and me:is_in_combat() and (hp_pct <= 0.45 or mana_pct <= 0.12)
 
-	if defensive_sustain and runtime.seal_of_light_id then
-		return runtime.seal_of_light_id, spells.BUFF_SEAL_OF_LIGHT, "Seal of Light"
-	end
+    if defensive_sustain and runtime.seal_of_light_id then
+        return runtime.seal_of_light_id, spells.BUFF_SEAL_OF_LIGHT, "Seal of Light"
+    end
 
-	if mana_pct <= 0.18 and runtime.seal_of_wisdom_id then
+    if mana_pct <= 0.18 and runtime.seal_of_wisdom_id then
         return runtime.seal_of_wisdom_id, spells.BUFF_SEAL_OF_WISDOM, "Seal of Wisdom"
+    end
+
+    local target_ttd = target and get_target_ttd_s(target) or 0
+    local durable_target = is_durable_judgement_target(target)
+    local seal_of_vengeance_id = runtime.seal_of_vengeance_id or runtime.seal_of_corruption_id
+    if durable_target and seal_of_vengeance_id and target_ttd >= 18 and mana_pct >= 0.25 then
+        local vengeance_buff = runtime.seal_of_vengeance_id and spells.BUFF_SEAL_OF_VENGEANCE or spells.BUFF_SEAL_OF_CORRUPTION
+        local vengeance_label = runtime.seal_of_vengeance_id and "Seal of Vengeance" or "Seal of Corruption"
+        local vengeance_stacks = utils.get_debuff_stack_count(target, spells.DEBUFF_HOLY_VENGEANCE) or 0
+        if vengeance_stacks >= 3 or target_ttd >= 24 then
+            return seal_of_vengeance_id, vengeance_buff, vengeance_label
+        end
     end
 
     if runtime.seal_of_righteousness_id then
@@ -661,6 +691,13 @@ local function ensure_active_seal(me, target)
     end
 
     if seal_buff_ids and utils.has_buff(me, seal_buff_ids) then
+        if seal_buff_ids == spells.BUFF_SEAL_OF_VENGEANCE or seal_buff_ids == spells.BUFF_SEAL_OF_CORRUPTION then
+            local vengeance_stacks = target and target:is_valid() and not target:is_dead()
+                and (utils.get_debuff_stack_count(target, spells.DEBUFF_HOLY_VENGEANCE) or 0) or 0
+            if vengeance_stacks < 5 then
+                return false
+            end
+        end
         runtime.pending_reseal_until = 0
         return false
     end

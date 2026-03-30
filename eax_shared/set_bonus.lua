@@ -3,29 +3,22 @@
 
 local set_bonus = {}
 
-local INV_SLOT_HEAD    = 0
-local INV_SLOT_NECK    = 1
-local INV_SLOT_SHOULDER = 2
-local INV_SLOT_CHEST   = 4
-local INV_SLOT_WAIST   = 5
-local INV_SLOT_LEGS    = 6
-local INV_SLOT_FEET    = 7
-local INV_SLOT_WRIST   = 8
-local INV_SLOT_HAND    = 9
-local INV_SLOT_FINGER  = 10
-local INV_SLOT_TRINKET1 = 12
-local INV_SLOT_TRINKET2 = 13
-local INV_SLOT_BACK    = 14
-local INV_SLOT_MAINHAND = 15
-local INV_SLOT_OFFHAND = 16
-local INV_SLOT_RANGED  = 18
+local INV_SLOT_HEAD     = 1
+local INV_SLOT_SHOULDER = 3
+local INV_SLOT_CHEST    = 5
+local INV_SLOT_LEGS     = 7
+local INV_SLOT_HAND     = 10
 
+-- TBC tier set detection only needs the five armor-piece slots.
+-- Weapon slots (16/17) and other equipment slots are intentionally excluded
+-- because T4/T5/T6 set bonuses are never granted by weapons, rings, cloaks,
+-- trinkets, or similar non-tier slots.
 local ALL_SLOTS = {
-    INV_SLOT_HEAD, INV_SLOT_NECK, INV_SLOT_SHOULDER,
-    INV_SLOT_CHEST, INV_SLOT_WAIST, INV_SLOT_LEGS,
-    INV_SLOT_FEET, INV_SLOT_WRIST, INV_SLOT_HAND,
-    INV_SLOT_FINGER, INV_SLOT_TRINKET1, INV_SLOT_TRINKET2,
-    INV_SLOT_BACK, INV_SLOT_MAINHAND, INV_SLOT_OFFHAND, INV_SLOT_RANGED
+    INV_SLOT_HEAD,
+    INV_SLOT_SHOULDER,
+    INV_SLOT_CHEST,
+    INV_SLOT_LEGS,
+    INV_SLOT_HAND,
 }
 
 --[[

@@ -209,6 +209,8 @@ local runtime = {
     drain_life_id = nil,
     shadowfury_id = nil,
     felguard_id = nil,
+    health_funnel_id = nil,
+    fel_domination_id = nil,
     life_tap_id = nil,
     immolate_id = nil,
     corruption_id = nil,
@@ -275,6 +277,8 @@ local function resolve_spells()
     runtime.drain_life_id = utils.resolve_spell_id(spells.DRAIN_LIFE)
     runtime.shadowfury_id = utils.resolve_spell_id(spells.SHADOWFURY)
     runtime.felguard_id = utils.resolve_spell_id(spells.SUMMON_FELGUARD)
+    runtime.health_funnel_id = utils.resolve_spell_id(spells.HEALTH_FUNNEL)
+    runtime.fel_domination_id = utils.resolve_spell_id(spells.FEL_DOMINATION)
     runtime.life_tap_id = utils.resolve_spell_id(spells.LIFE_TAP)
     runtime.immolate_id = utils.resolve_spell_id(spells.IMMOLATE)
     runtime.corruption_id = utils.resolve_spell_id(spells.CORRUPTION)
@@ -294,7 +298,9 @@ local function log_spells()
         .. " Corruption=" .. tostring(runtime.corruption_id)
         .. " UA=" .. tostring(runtime.unstable_affliction_id)
         .. " SB=" .. tostring(runtime.shadow_bolt_id)
-        .. " Felguard=" .. tostring(runtime.felguard_id))
+        .. " Felguard=" .. tostring(runtime.felguard_id)
+        .. " Funnel=" .. tostring(runtime.health_funnel_id)
+        .. " FelDom=" .. tostring(runtime.fel_domination_id))
 end
 
 resolve_spells()
@@ -439,6 +445,43 @@ local function try_fel_armor(me)
     return try_cast_self(me, runtime.fel_armor_id, "Fel Armor")
 end
 
+local function try_health_funnel(me)
+    if not menu.use_health_funnel:get_state() or not runtime.health_funnel_id then
+        return false
+    end
+    local pet = me and me.get_pet and me:get_pet() or nil
+    if not pet or not pet:is_valid() or pet:is_dead() then
+        return false
+    end
+    local pet_hp = tonumber(pet.get_health_percentage and pet:get_health_percentage() or nil)
+    local me_hp = tonumber(me:get_health_percentage())
+    if not pet_hp or pet_hp > 50 then
+        return false
+    end
+    if me_hp and me_hp < 50 then
+        return false
+    end
+    if utils.cast_target(runtime.health_funnel_id, pet) then
+        note_cast()
+        utils.log_debug(menu, "Health Funnel cast")
+        return true
+    end
+    return false
+end
+
+local function try_fel_domination(me)
+    if not menu.use_fel_domination:get_state() or not runtime.fel_domination_id then
+        return false
+    end
+    if me:is_in_combat() then
+        return false
+    end
+    if me:get_pet() then
+        return false
+    end
+    return try_cast_self(me, runtime.fel_domination_id, "Fel Domination")
+end
+
 local function ensure_soul_link(me)
     if not menu.maintain_soul_link:get_state() or not runtime.soul_link_id then
         return false
@@ -541,6 +584,10 @@ local function try_summon_correct_pet(me, mode)
     if not desired then return false end
     if current == desired then return false end
 
+    if current == "none" and try_fel_domination(me) then
+        return true
+    end
+
     local spell_table = SUMMON_SPELLS[desired]
     local spell_id = spell_table and utils.resolve_spell_id(spell_table) or nil
     if PET_REQUIRES_SHARD[desired] and count_soul_shards() < 1 then
@@ -618,9 +665,42 @@ local function try_shadowfury(me, target)
     return try_cast_spell(me, runtime.shadowfury_id, target, "Shadowfury")
 end
 
-local function get_selected_curse()
+local function target_prefers_caster_curse(target)
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+    if target.is_casting_spell and target:is_casting_spell() then
+        return true
+    end
+    if target.is_channelling_spell and target:is_channelling_spell() then
+        return true
+    end
+    if target.get_max_power then
+        local ok, max_mana = pcall(function() return target:get_max_power(0) end)
+        if ok and type(max_mana) == "number" and max_mana > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+local function get_selected_curse(me, target, mode)
     local idx = menu.curse_mode:get()
-    if idx == 2 then
+    if idx == 1 then
+        local in_group_content = mode == "dungeon" or mode == "raid"
+        if in_group_content then
+            if target_prefers_caster_curse(target) and runtime.curse_of_tongues_id then
+                return runtime.curse_of_tongues_id, spells.DEBUFF_CURSE_OF_TONGUES, "Curse of Tongues"
+            end
+            if runtime.curse_of_elements_id then
+                return runtime.curse_of_elements_id, spells.DEBUFF_CURSE_OF_ELEMENTS, "Curse of Elements"
+            end
+            if runtime.curse_of_weakness_id and utils.is_melee_target(me, target) then
+                return runtime.curse_of_weakness_id, spells.DEBUFF_CURSE_OF_WEAKNESS, "Curse of Weakness"
+            end
+        end
+        return runtime.curse_of_agony_id, spells.DEBUFF_CURSE_OF_AGONY, "Curse of Agony"
+    elseif idx == 2 then
         return runtime.curse_of_elements_id, spells.DEBUFF_CURSE_OF_ELEMENTS, "Curse of Elements"
     elseif idx == 3 then
         return runtime.curse_of_weakness_id, spells.DEBUFF_CURSE_OF_WEAKNESS, "Curse of Weakness"
@@ -630,20 +710,11 @@ local function get_selected_curse()
     return runtime.curse_of_agony_id, spells.DEBUFF_CURSE_OF_AGONY, "Curse of Agony"
 end
 
-local function target_has_utility_curse(target)
-    return target and (
-        utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS)
-        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_WEAKNESS)
-        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_TONGUES)
-        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_RECKLESSNESS)
-    )
-end
-
-local function try_apply_curse(me, target)
+local function try_apply_curse(me, target, mode)
     if not menu.use_curse:get_state() then
         return false
     end
-    local curse_id, curse_debuffs, label = get_selected_curse()
+    local curse_id, curse_debuffs, label = get_selected_curse(me, target, mode)
     if not curse_id then
         return false
     end
@@ -658,6 +729,15 @@ local function try_apply_curse(me, target)
         return false
     end
     return try_cast_spell(me, curse_id, target, label)
+end
+
+local function target_has_utility_curse(target)
+    return target and (
+        utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_WEAKNESS)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_TONGUES)
+        or utils.has_debuff(target, spells.DEBUFF_CURSE_OF_RECKLESSNESS)
+    )
 end
 
 local function try_refresh_dots(me, target)
@@ -833,6 +913,7 @@ local function do_rotation(me, target)
 
     if try_drain_life_defensive(me, target) then return true end
     if defensive_manager.try_defensive(me, "warlock", utils) then return end
+    if try_health_funnel(me) then return true end
 
     if me:is_in_combat() then
         local current_target = me:get_target()
@@ -863,7 +944,7 @@ local function do_rotation(me, target)
         if try_soul_fire(me, target) then return end
     end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_shadow_bolt(me, target) then return end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_apply_curse(me, target) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_apply_curse(me, target, effective_mode) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_refresh_dots(me, target) then return end
     try_life_tap(me, effective_mode)
 end
@@ -912,7 +993,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 core.register_on_render_callback(function()

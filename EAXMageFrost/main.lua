@@ -13,6 +13,7 @@ if not utils.same_unit then
 end
 local eax_utils = require("eax_utils")
 local color     = require("color")
+local buff_manager = require("common/modules/buff_manager")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -215,6 +216,7 @@ local runtime = {
     pending_casts = {},
     set_multiplier = 1.0,
     ooc_arcane_intellect_id = nil,
+    cold_snap_id = nil,
 }
 
 local ctx_cache = rotation_context.new({
@@ -239,6 +241,50 @@ local function resolve_spells()
     runtime.ice_lance_id = utils.resolve_spell_id(spells.ICE_LANCE)
     runtime.icy_veins_id = utils.resolve_spell_id(spells.ICY_VEINS)
     runtime.water_elemental_id = utils.resolve_spell_id(spells.WATER_ELEMENTAL)
+    runtime.cold_snap_id = utils.resolve_spell_id(spells.COLD_SNAP)
+end
+
+local function get_debuff_state(unit, id_table)
+    if not unit or not unit:is_valid() or not id_table then return nil end
+    local ok, data = pcall(function()
+        return buff_manager:get_debuff_data(unit, id_table)
+    end)
+    if not ok then return nil end
+    return data
+end
+
+local function get_debuff_stacks_and_remaining(unit, id_table)
+    local data = get_debuff_state(unit, id_table)
+    if not data or not data.is_active then return 0, nil end
+    local stacks = tonumber(data.stack_count or data.stacks or data.stack or data.application_count) or 1
+    local remaining = tonumber(data.remaining_time or data.remaining or data.time_left or data.duration_remaining)
+    return stacks, remaining
+end
+
+local function should_refresh_winters_chill(target)
+    if not menu.use_winters_chill:get_state() then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    local stacks, remaining = get_debuff_stacks_and_remaining(target, spells.DEBUFF_WINTERS_CHILL)
+    if stacks <= 0 then return false end
+    if stacks < 5 then return true end
+    local refresh_s = menu.winters_chill_refresh:get()
+    return remaining ~= nil and remaining <= refresh_s
+end
+
+local function try_winters_chill_frostbolt(me, target)
+    if not menu.use_winters_chill:get_state() then return false end
+    if not runtime.frostbolt_id then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if me:is_moving() then return false end
+    if not should_refresh_winters_chill(target) then return false end
+    return try_frostbolt(me, target)
+end
+
+local function should_abort_frostbolt_commit(me, target)
+    if not target or not target:is_valid() or target:is_dead() then
+        return true
+    end
+    return target_will_die_before_cast_finishes(me, target, runtime.frostbolt_id, 0.35)
 end
 
 local function log_resolved_spells()
@@ -274,7 +320,8 @@ local function update_set_bonus()
 end
 
 local function refresh_mode_cache()
-    runtime.cached_mode = utils.detect_mode(me)
+    local me = _get_local_player()
+    runtime.cached_mode = me and utils.detect_mode(me) or runtime.cached_mode
 end
 
 local function note_cast()
@@ -336,6 +383,8 @@ local function is_within_range(a, b, max_range)
     local dz = pos_a.z - pos_b.z
     return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
 end
+
+local try_frostbolt
 
 local function try_water_elemental(me, target)
     if not menu.use_water_elemental:get_state() then return false end
@@ -419,7 +468,7 @@ local function try_ice_lance(me, target)
     return false
 end
 
-local function try_frostbolt(me, target)
+try_frostbolt = function(me, target)
     if not menu.use_frostbolt:get_state() then return false end
     if not runtime.frostbolt_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
@@ -525,6 +574,28 @@ local function try_cone_of_cold_frost(me, target)
     return false
 end
 
+local function try_cold_snap(me, target)
+    if not menu.use_cold_snap:get_state() then return false end
+    if not runtime.cold_snap_id then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if not me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.BUFF_ICY_VEINS) then return false end
+    if is_pending_cast(runtime.cold_snap_id) or utils.is_spell_already_queued(runtime.cold_snap_id) then return false end
+    if not utils.can_cast_self(runtime.cold_snap_id, me) then return false end
+
+    local iv_cd = tonumber(_get_spell_cd(runtime.icy_veins_id)) or 0
+    local we_cd = tonumber(_get_spell_cd(runtime.water_elemental_id)) or 0
+    if iv_cd < 8 and we_cd < 8 then return false end
+
+    if utils.cast_self_fast(runtime.cold_snap_id, me, "Cold Snap") then
+        mark_pending_cast(runtime.cold_snap_id, FAST_PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Cold Snap")
+        note_cast()
+        return true
+    end
+    return false
+end
+
 local function try_remove_curse(me)
     if not menu.use_remove_curse or not menu.use_remove_curse:get_state() then return false end
     if not runtime.remove_curse_id then runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE) end
@@ -596,15 +667,7 @@ local function do_rotation(me, target)
 
     if try_arcane_explosion(me, target) then return true end
 
-    if (me:is_casting_spell() or me:is_channelling_spell()) and dps_risk.should_abort_commit(
-        dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker),
-        {
-            kind = me:is_channelling_spell() and "channel" or "cast",
-            progress_pct = 0.20,
-            remaining_s = 1.0,
-            projected_damage_pct = 0.06,
-        }
-    ) then
+    if (me:is_casting_spell() or me:is_channelling_spell()) and should_abort_frostbolt_commit(me, target) then
         if SpellStopCasting then
             SpellStopCasting()
             return true
@@ -630,11 +693,13 @@ local function do_rotation(me, target)
         end
     end
 
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cold_snap(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_water_elemental(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_ice_barrier(me) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cone_of_cold_frost(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and not hold_offense and try_icy_veins(me, target) then return true end
     if not hold_offense and try_trinkets(me) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_winters_chill_frostbolt(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_ice_lance(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_frostbolt(me, target) then return true end
 
@@ -714,7 +779,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -724,6 +789,10 @@ core.register_on_render_callback(function()
 end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
+    local me = _get_local_player()
+    if not me then return end
+    if me:is_dead() then return end
+
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
     end
@@ -734,7 +803,7 @@ core.register_on_update_callback(function()
     handle_toggle()
 
     if not menu.enabled:get_state() then return end
-
+    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     -- OOC management (drink/eat/rez/group buffs)
     ooc_manager.on_update(me, menu, utils, {
         group_buffs = {
@@ -744,11 +813,6 @@ core.register_on_update_callback(function()
                toggle = menu.ooc_group_buff },
         },
     })
-
-    local me = _get_local_player()
-    if not me then return end
-    if me:is_dead() then return end
-    if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end

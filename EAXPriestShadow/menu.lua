@@ -59,6 +59,8 @@ menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "e
 
 -- -- Class-specific elements ---------------------------------------------------
 menu.dot_refresh_window                   = core.menu.slider_int(1, 5, 3, "eax_priest_shadow_dot_window")
+menu.use_shadow_weaving                   = core.menu.checkbox(true, "eax_priest_shadow_use_shadow_weaving")
+menu.shadow_weaving_refresh_window        = core.menu.slider_int(1, 5, 3, "eax_priest_shadow_shadow_weaving_window")
 menu.mind_blast_burst                     = core.menu.checkbox(true, "eax_priest_shadow_mb_burst")
 menu.mind_blast_burst_window              = core.menu.slider_float(0.5, 3, 1.4, "eax_priest_shadow_mb_burst_window")
 menu.shadowfiend_enabled                  = core.menu.checkbox(true, "eax_priest_shadow_shadowfiend")
@@ -106,6 +108,8 @@ function menu.render()
         main_tree:render("Eax's Rotation Settings", function()
             ps.header("Spells & Abilities")
             menu.dot_refresh_window:render("DoT Refresh Window", "Refresh Vampiric Touch / Shadow Word: Pain when only this many seconds remain")
+            menu.use_shadow_weaving:render("Shadow Weaving", "Maintain the Shadow Weaving debuff on the target")
+            menu.shadow_weaving_refresh_window:render("Shadow Weaving Refresh", "Refresh Shadow Weaving when this many seconds or less remain")
             menu.mind_blast_burst:render("Burst Mind Blast", "Allow Mind Blast even when the DoTs are nearing expiry")
             menu.mind_blast_burst_window:render("Burst Window", "Force Mind Blast if one DoT has this many seconds or less remaining")
             menu.shadowfiend_enabled:render("Shadowfiend", "Summon Shadowfiend on cooldown for mana return")
@@ -118,7 +122,6 @@ function menu.render()
 
         -- -- Defensive cooldowns -----------------------------------------------
         ps.render_defensive(menu, def_tree, {
-        { key = "use_dispersion", label = "Dispersion", tip = "Emergency 90% damage reduction and mana regen", hp_key = "use_dispersion_hp_pct", hp_label = "Dispersion HP %" },
         { key = "use_psychic_scream_def", label = "Psychic Scream", tip = "AoE fear when overwhelmed", hp_key = "use_psychic_scream_def_hp_pct", hp_label = "Psychic Scream HP %" },
         })
 
@@ -146,8 +149,6 @@ end
 
 menu.use_psychic_scream = core.menu.checkbox(true, "eaxpriestshadow_psychic_scream")
 menu.use_fade          = core.menu.checkbox(true, "eaxpriestshadow_fade")
-menu.use_dispersion = core.menu.checkbox(true, "eaxpshadow_dispersion")
-menu.use_dispersion_hp_pct = core.menu.slider_int(0, 100, 30, "eaxpshadow_dispersion_hp")
 menu.use_psychic_scream_def = core.menu.checkbox(true, "eaxpshadow_ps_def")
 menu.use_psychic_scream_def_hp_pct = core.menu.slider_int(0, 100, 40, "eaxpshadow_ps_hp")
 return menu

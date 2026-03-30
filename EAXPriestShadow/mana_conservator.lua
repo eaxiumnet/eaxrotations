@@ -45,8 +45,8 @@ local function get_mana_pct(me)
     local ok, enums = pcall(require, "common/enums")
     if not ok or not enums then
         -- Fallback: power type 0 = mana in TBC
-        local max_m = pcall(function() return me:get_max_power(0) end)
-        if not max_m or max_m <= 0 then return 100 end
+        local ok, max_m = pcall(function() return me:get_max_power(0) end)
+        if not ok or not max_m or max_m <= 0 then return 100 end
         return (me:get_power(0) / max_m) * 100
     end
     local max_mana = me:get_max_power(enums.power_type.MANA)

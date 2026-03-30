@@ -1,7 +1,7 @@
 --[[
     smart_cast_manager.lua
     
-    EAX TBC Rotation Framework - Smart Cast Management
+    Eax TBC Rotation Framework - Smart Cast Management
     
     Solves common rotation issues:
     1. Repetitive ability spam - intelligent throttling between similar abilities
@@ -53,7 +53,6 @@ local CONFIG = {
     -- GCD settings (TBC accurate)
     gcd_base = 1.5,              -- Base GCD in seconds
     gcd_min = 1.0,               -- Minimum GCD (with ~27% haste from talents)
-    gcd_cap = 1.5,                -- GCD never goes below this
     
     -- Throttle settings (seconds between same action)
     throttle_default = 0.3,       -- Default throttle
@@ -162,20 +161,29 @@ function smart_cast_manager.is_gcd_ready()
     local now = get_time()
     local elapsed = now - state.last_gcd_trigger
     local actual_gcd = get_gcd()
-    local gcd_duration = state.current_gcd_duration or CONFIG.gcd_base
+    local computed_gcd = state.current_gcd_duration or CONFIG.gcd_base
     if actual_gcd and actual_gcd > 0 then
-        gcd_duration = actual_gcd
+        computed_gcd = actual_gcd
     end
+    local gcd_duration = math.max(CONFIG.gcd_min, computed_gcd)
     return elapsed >= gcd_duration
 end
 
---- Get the current effective GCD duration
-function smart_cast_manager.get_gcd_duration()
+--- Get the remaining GCD time after enforcing the configured minimum floor.
+function smart_cast_manager.get_remaining_gcd()
+    local elapsed = get_time() - state.last_gcd_trigger
     local actual_gcd = get_gcd()
+    local computed_gcd = state.current_gcd_duration or CONFIG.gcd_base
     if actual_gcd and actual_gcd > 0 then
-        return actual_gcd
+        computed_gcd = actual_gcd
     end
-    return math.max(0, CONFIG.gcd_base - (get_time() - state.last_gcd_trigger))
+    local gcd_duration = math.max(CONFIG.gcd_min, computed_gcd)
+    return math.max(0, gcd_duration - elapsed)
+end
+
+--- Backward-compatible alias for remaining GCD time.
+function smart_cast_manager.get_gcd_duration()
+    return smart_cast_manager.get_remaining_gcd()
 end
 
 --- Check if we should throttle a specific action
@@ -300,7 +308,7 @@ function smart_cast_manager.is_pending(spell_id)
     if state._get_spell_cd then
         local cd = state._get_spell_cd(spell_id)
         if cd and cd <= 0 then
-            -- Spell cast completed successfully
+            smart_cast_manager.on_cast_success(spell_id)
             return false
         end
     end

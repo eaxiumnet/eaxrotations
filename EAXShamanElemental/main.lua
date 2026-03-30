@@ -14,6 +14,7 @@ if not utils.same_unit then
     end
 end
 local eax_utils = require("eax_utils")
+local dispel_engine = require("dispel_engine")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 
@@ -262,9 +263,25 @@ local runtime = {
 local ctx_cache = rotation_context.new({})
 
 local TOTEM_ROTATION = {
-    { name = "wrath", id_field = "totem_of_wrath_id", toggle = menu.auto_totem_wrath, label = "Totem of Wrath" },
-    { name = "mana_spring", id_field = "mana_spring_id", toggle = menu.auto_totem_mana, label = "Mana Spring Totem" },
+    { name = "wrath", id_field = "totem_of_wrath_id", toggle = menu.auto_totem_wrath, label = "Totem of Wrath", slot = 1, duration = 115 },
+    { name = "mana_spring", id_field = "mana_spring_id", toggle = menu.auto_totem_mana, label = "Mana Spring Totem", slot = 3, duration = 115 },
 }
+
+local function is_totem_slot_empty(slot)
+    if not slot or not core.spell_book or not core.spell_book.get_totem_info then
+        return true
+    end
+    local info = core.spell_book.get_totem_info(slot)
+    return not (info and info.have_totem)
+end
+
+local function should_refresh_totem(entry, now)
+    local last = runtime.totem_last_apply[entry.name] or 0
+    if entry.slot and is_totem_slot_empty(entry.slot) then
+        return last == 0 or (now - last) >= 2.0
+    end
+    return entry.duration and last > 0 and (now - last) >= entry.duration
+end
 
 local function resolve_spells()
     runtime.earth_shock_id  = utils.resolve_spell_id(spells.EARTH_SHOCK)
@@ -287,6 +304,13 @@ local function resolve_spells()
     runtime.ancestral_spirit_id  = utils.resolve_spell_id(spells.ANCESTRAL_SPIRIT)
 end
 
+local function should_abort_lightning_bolt_commit(me, target)
+    if not target or not target:is_valid() or target:is_dead() then
+        return true
+    end
+    return target_will_die_before_cast_finishes(me, target, runtime.lightning_bolt_id, 0.35)
+end
+
 local function log_resolved_spells()
     utils.log_debug(menu, "Spells resolved: LB=" .. tostring(runtime.lightning_bolt_id)
         .. " CL=" .. tostring(runtime.chain_lightning_id)
@@ -295,7 +319,8 @@ local function log_resolved_spells()
 end
 
 local function refresh_mode_cache()
-    runtime.cached_mode = utils.detect_mode(me)
+    local me = _get_local_player()
+    runtime.cached_mode = me and utils.detect_mode(me) or runtime.cached_mode
 end
 
 local function get_effective_mode()
@@ -427,23 +452,23 @@ end
 
 local function ensure_totems(me)
     if not menu.auto_totems:get_state() then
-        return
+        return false
     end
     local now = _core_time()
-    local interval = menu.totem_twist_interval:get()
     for _, entry in ipairs(TOTEM_ROTATION) do
         if entry.toggle:get_state() then
             local spell_id = runtime[entry.id_field]
             if spell_id and utils.can_cast_self(spell_id, me) then
-                local last = runtime.totem_last_apply[entry.name] or 0
-                if (now - last) >= interval then
+                if should_refresh_totem(entry, now) then
                     if try_cast_self(me, spell_id, entry.label) then
                         runtime.totem_last_apply[entry.name] = now
+                        return true
                     end
                 end
             end
         end
     end
+    return false
 end
 
 
@@ -495,18 +520,21 @@ end
 
 local function try_cure_dispels(me)
     if not menu.use_dispels:get_state() then return false end
-    local objects = core.object_manager.get_all_objects()
-    for i = 1, #objects do
-        local unit = objects[i]
-        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
-            and (utils.same_unit(me, unit) or unit:is_party_member()) then
-            if runtime.cure_poison_id and utils.has_debuff(unit, spells.CURE_POISON) and utils.can_cast_target(runtime.cure_poison_id, me, unit) then
-                if utils.cast_target(runtime.cure_poison_id, unit) then return true end
-            end
-            if runtime.cure_disease_id and utils.has_debuff(unit, spells.CURE_DISEASE) and utils.can_cast_target(runtime.cure_disease_id, me, unit) then
-                if utils.cast_target(runtime.cure_disease_id, unit) then return true end
-            end
-        end
+    local units = { me }
+    local party_units = utils.get_party_units and utils.get_party_units(me) or {}
+    for i = 1, #party_units do
+        units[#units + 1] = party_units[i]
+    end
+    local best_target, priority = dispel_engine.find_best_target({
+        candidates = units,
+        priorities = {
+            { type_def = { numeric = 4, name = "poison" }, label = "Cure Poison", spell_id = runtime.cure_poison_id },
+            { type_def = { numeric = 3, name = "disease" }, label = "Cure Disease", spell_id = runtime.cure_disease_id },
+        },
+        get_hp = function(unit) return utils.get_health_pct(unit) end,
+    })
+    if best_target and priority and priority.spell_id and utils.can_cast_target(priority.spell_id, me, best_target) then
+        if utils.cast_target(priority.spell_id, best_target) then return true end
     end
     return false
 end
@@ -743,15 +771,7 @@ local function do_rotation(me, target)
     -- Defensive abilities
     ttd_tracker.update(target)
 
-    if (me:is_casting_spell() or me:is_channelling_spell()) and dps_risk.should_abort_commit(
-        dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker),
-        {
-            kind = me:is_channelling_spell() and "channel" or "cast",
-            progress_pct = 0.20,
-            remaining_s = 1.0,
-            projected_damage_pct = 0.06,
-        }
-    ) then
+    if (me:is_casting_spell() or me:is_channelling_spell()) and should_abort_lightning_bolt_commit(me, target) then
         if SpellStopCasting then
             SpellStopCasting()
             return true
@@ -844,7 +864,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -854,6 +874,10 @@ core.register_on_render_callback(function()
 end)
 -- __EAX_ESP_GUARD
 core.register_on_update_callback(function()
+    local me = _get_local_player()
+    if not me or me:is_dead() then
+        return
+    end
     if utils.throttle("mode_refresh", MODE_REFRESH_INTERVAL) then
         refresh_mode_cache()
     end
@@ -864,11 +888,7 @@ core.register_on_update_callback(function()
     if not menu.enabled:get_state() then
         return
     end
-    local me = _get_local_player()
-    if not me or me:is_dead() then
-        return
-    end
-        ooc_manager.on_update(me, menu, utils)
+    	    ooc_manager.on_update(me, menu, utils)
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end

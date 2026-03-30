@@ -31,7 +31,7 @@ local menu   = require("menu")
 local rotation_context = require("rotation_context")
 local resource_gate = require("resource_gate")
 local spells = require("spells")
-local spell_downrank = require("eax_shared/spell_downrank")
+local spell_downrank = require("spell_downrank")
 local utils  = require("utils")
 
 ---@type interrupt_manager
@@ -215,6 +215,7 @@ local circle = require("common/geometry/circle")
 local heal_engine = require("heal_engine")
 ---@type eax_utils
 local eax_utils = require("eax_utils")
+local dispel_engine = require("dispel_engine")
 ---@type auto_attack_helper
 local auto_attack_helper = require("common/utility/auto_attack_helper")
 
@@ -273,7 +274,9 @@ local rt = {
     -- Totems
     mana_tide_id           = nil,
     healing_stream_id      = nil,
+    mana_spring_id         = nil,
     totem_of_wrath_id      = nil,
+    flametongue_totem_id   = nil,
     wrath_of_air_id        = nil,
     grounding_totem_id     = nil,
     tremor_totem_id        = nil,
@@ -285,7 +288,6 @@ local rt = {
     -- DPS
     chain_lightning_id     = nil,
     lightning_bolt_id      = nil,
-    wind_shear_id          = nil,
     earth_shock_id         = nil,
     -- DPS cooldowns
     last_dps_at            = 0,
@@ -317,12 +319,27 @@ local ctx_cache = rotation_context.new({})
 
 local TOTEM_ROTATION = nil
 local function build_totem_rotation()
-    TOTEM_ROTATION = {
-        { name = "mana_tide",      id_field = "mana_tide_id",      toggle = menu.auto_totem_mana_tide,      label = "Mana Tide Totem",      cooldown = 300 },
-        { name = "healing_stream", id_field = "healing_stream_id", toggle = menu.auto_totem_healing_stream, label = "Healing Stream Totem", cooldown = 30  },
-        { name = "totem_of_wrath", id_field = "totem_of_wrath_id", toggle = menu.auto_totem_wrath,          label = "Totem of Wrath",       cooldown = 120 },
-        { name = "wrath_of_air",   id_field = "wrath_of_air_id",   toggle = menu.auto_totem_wrath_of_air,   label = "Wrath of Air Totem",   cooldown = 120 },
-    }
+    TOTEM_ROTATION = {}
+
+    if menu.auto_totem_healing_stream:get_state() then
+        if rt.healing_stream_id then
+            TOTEM_ROTATION[#TOTEM_ROTATION + 1] = { name = "healing_stream", id_field = "healing_stream_id", label = "Healing Stream Totem", cooldown = 55 }
+        elseif rt.mana_spring_id then
+            TOTEM_ROTATION[#TOTEM_ROTATION + 1] = { name = "mana_spring", id_field = "mana_spring_id", label = "Mana Spring Totem", cooldown = 115 }
+        end
+    end
+
+    if menu.auto_totem_wrath:get_state() then
+        if rt.totem_of_wrath_id then
+            TOTEM_ROTATION[#TOTEM_ROTATION + 1] = { name = "totem_of_wrath", id_field = "totem_of_wrath_id", label = "Totem of Wrath", cooldown = 115 }
+        elseif rt.flametongue_totem_id then
+            TOTEM_ROTATION[#TOTEM_ROTATION + 1] = { name = "flametongue_totem", id_field = "flametongue_totem_id", label = "Flametongue Totem", cooldown = 115 }
+        end
+    end
+
+    if menu.auto_totem_wrath_of_air:get_state() and rt.wrath_of_air_id then
+        TOTEM_ROTATION[#TOTEM_ROTATION + 1] = { name = "wrath_of_air", id_field = "wrath_of_air_id", label = "Wrath of Air Totem", cooldown = 115 }
+    end
 end
 
 -- --- Spell resolution --------------------------------------------------------
@@ -336,7 +353,9 @@ local function resolve_spells()
     rt.nature_s_swift_id      = utils.resolve_spell_id(spells.NATURES_SWIFTNESS)
     rt.mana_tide_id           = utils.resolve_spell_id(spells.MANA_TIDE_TOTEM)
     rt.healing_stream_id      = utils.resolve_spell_id(spells.HEALING_STREAM_TOTEM)
+    rt.mana_spring_id         = utils.resolve_spell_id(spells.MANA_SPRING_TOTEM)
     rt.totem_of_wrath_id      = utils.resolve_spell_id(spells.TOTEM_OF_WRATH)
+    rt.flametongue_totem_id   = utils.resolve_spell_id(spells.FLAMETONGUE_TOTEM)
     rt.wrath_of_air_id        = utils.resolve_spell_id(spells.WRATH_OF_AIR_TOTEM)
     rt.grounding_totem_id     = utils.resolve_spell_id(spells.GROUNDING_TOTEM)
     rt.tremor_totem_id        = utils.resolve_spell_id(spells.TREMOR_TOTEM)
@@ -346,7 +365,6 @@ local function resolve_spells()
     rt.purge_id               = utils.resolve_spell_id(spells.PURGE)
     rt.chain_lightning_id     = utils.resolve_spell_id(spells.CHAIN_LIGHTNING)
     rt.lightning_bolt_id      = utils.resolve_spell_id(spells.LIGHTNING_BOLT)
-    rt.wind_shear_id          = utils.resolve_spell_id(spells.WINDSHEAR)
     rt.earth_shock_id         = utils.resolve_spell_id(spells.EARTH_SHOCK)
     rt.bloodlust_id           = utils.resolve_spell_id(spells.BLOODLUST)
     rt.heroism_id             = utils.resolve_spell_id(spells.HEROISM)
@@ -695,39 +713,43 @@ end
 local TOTEM_SLOTS = {
     mana_tide      = 3,   -- Water slot
     healing_stream = 3,   -- Water slot
+    mana_spring    = 3,   -- Water slot
     totem_of_wrath = 1,   -- Fire slot
+    flametongue_totem = 1,-- Fire slot
     wrath_of_air   = 4,   -- Air slot
 }
 
 local function ensure_totems(me)
     if not menu.auto_totems:get_state() then return end
+    if not is_gcd_ready() then return end
+    if should_delay_totem_drop(me, heal_engine.lowest_tank()) then return end
+    build_totem_rotation()
     if not TOTEM_ROTATION then return end
     local now = _core_time()
     for _, entry in ipairs(TOTEM_ROTATION) do
-        if entry.toggle and entry.toggle:get_state() then
-            local spell_id = rt[entry.id_field]
-            if spell_id then
-                local cd = _get_spell_cd(spell_id)
-                if cd <= 0 then
-                    local last = rt.totem_last_apply[entry.name] or 0
-                    local slot = TOTEM_SLOTS[entry.name]
-                    -- Check if totem was destroyed (slot empty before timer expired)
-                    local slot_empty = false
-                    if slot then
-                        local info = core.spell_book.get_totem_info(slot)
-                        slot_empty = not (info and info.have_totem)
-                    end
-                    local timer_expired = (now - last) >= (entry.cooldown or 30)
-                    if timer_expired or slot_empty then
-                        if try_cast_self(me, spell_id, entry.label) then
-                            rt.totem_last_apply[entry.name] = now
-                            return  -- one totem per pass
-                        end
+        local spell_id = rt[entry.id_field]
+        if spell_id then
+            local cd = _get_spell_cd(spell_id)
+            if cd <= 0 then
+                local last = rt.totem_last_apply[entry.name] or 0
+                local slot = TOTEM_SLOTS[entry.name]
+                -- Check if totem was destroyed (slot empty before timer expired)
+                local slot_empty = false
+                if slot then
+                    local info = core.spell_book.get_totem_info(slot)
+                    slot_empty = not (info and info.have_totem)
+                end
+                local timer_expired = (now - last) >= (entry.cooldown or 30)
+                if timer_expired or slot_empty then
+                    if try_cast_self(me, spell_id, entry.label) then
+                        rt.totem_last_apply[entry.name] = now
+                        return  -- one totem per pass
                     end
                 end
             end
         end
     end
+    return
 end
 
 -- --- Pre-pull totems ---------------------------------------------------------
@@ -735,14 +757,15 @@ end
 local function try_prepull_totems(me)
     if not menu.prepull_totems:get_state() then return false end
     if me:is_in_combat() then return false end
+    build_totem_rotation()
     local now = _core_time()
     if (now - rt.last_prepull_totem_at) < 5.0 then return false end
     local enemies = unit_helper:get_enemy_list_around(me:get_position(), PREPULL_ENEMY_RANGE, false)
     if not enemies or #enemies == 0 then return false end
     local placed = false
     local candidates = {
-        { name = "healing_stream", id = rt.healing_stream_id, label = "Healing Stream (pre-pull)", cd = 30  },
-        { name = "totem_of_wrath", id = rt.totem_of_wrath_id, label = "Totem of Wrath (pre-pull)", cd = 120 },
+        { name = rt.healing_stream_id and "healing_stream" or "mana_spring", id = rt.healing_stream_id or rt.mana_spring_id, label = rt.healing_stream_id and "Healing Stream (pre-pull)" or "Mana Spring (pre-pull)", cd = rt.healing_stream_id and 55 or 115 },
+        { name = rt.totem_of_wrath_id and "totem_of_wrath" or "flametongue_totem", id = rt.totem_of_wrath_id or rt.flametongue_totem_id, label = rt.totem_of_wrath_id and "Totem of Wrath (pre-pull)" or "Flametongue Totem (pre-pull)", cd = 115 },
     }
     for _, c in ipairs(candidates) do
         if c.id then
@@ -772,7 +795,7 @@ local function try_ooc_self_heal(me)
     if not menu.ooc_self_heal:get_state() then return false end
     if me:is_in_combat() then return false end
     if not is_gcd_ready() then return false end
-    if utils.get_health_pct(me) >= (menu.ooc_self_hp:get() / 100.0) then return false end
+    if heal_engine.get_effective_hp_pct(me) >= (menu.ooc_self_hp:get() / 100.0) then return false end
     local spell_id = rt.lesser_healing_wave_id or rt.healing_wave_id
     if not spell_id then return false end
     return try_cast_ally(me, me, spell_id, "OOC Self-heal")
@@ -839,9 +862,13 @@ local function try_proactive_mana_tide(me)
     if is_pending(rt.mana_tide_id) then return false end
     if _get_spell_cd(rt.mana_tide_id) > 0 then return false end
     local threshold = menu.mana_tide_mana_pct:get() / 100.0
-    if utils.get_mana_pct(me) > threshold then return false end
-    if utils.get_mana_pct(me) > 0.40 then
-        if not eax_utils.should_use_mana_tide(me, menu) then return false end
+    local mana_pct = utils.get_mana_pct(me)
+    local forecast_ready = eax_utils.should_use_mana_tide(me, menu)
+    local proactive_threshold = math.min(0.60, threshold + 0.10)
+    if mana_pct > threshold then
+        if not forecast_ready or mana_pct > proactive_threshold then
+            return false
+        end
     end
     if try_cast_self(me, rt.mana_tide_id, "Mana Tide (proactive)") then
         rt.totem_last_apply["mana_tide"] = _core_time()
@@ -859,22 +886,85 @@ local function try_earth_shield(me, tank)
     return try_cast_ally(me, tank, rt.earth_shield_id, "Earth Shield")
 end
 
+local function select_shaman_direct_heal_target(me, tank)
+    local profile = get_mode_profile()
+    local tank_threshold = math.min(menu.heal_tank_hp:get(), profile.heal_tank_hp) / 100.0
+    local party_threshold = math.min(menu.heal_party_hp:get(), profile.heal_party_hp) / 100.0
+    local best_target, best_hp, best_is_tank = nil, 1.0, false
+
+    if tank and tank:is_valid() and not tank:is_dead() and tank ~= me then
+        local tank_hp = heal_engine.get_effective_hp_pct(tank)
+        if tank_hp <= tank_threshold then
+            best_target = tank
+            best_hp = tank_hp
+            best_is_tank = true
+        end
+    end
+
+    for _, entry in ipairs(heal_engine.friends) do
+        local unit = entry and entry.unit or nil
+        if unit and unit:is_valid() and not unit:is_dead() and unit ~= me then
+            local hp = entry.eff_hp_pct or heal_engine.get_effective_hp_pct(unit)
+            if hp <= party_threshold then
+                local is_tank = unit == tank
+                if (not best_target)
+                    or hp < (best_hp - 0.03)
+                    or (is_tank and not best_is_tank and hp <= best_hp) then
+                    best_target = unit
+                    best_hp = hp
+                    best_is_tank = is_tank
+                end
+            end
+        end
+    end
+
+    return best_target, best_hp
+end
+
+local function should_delay_totem_drop(me, tank)
+    local profile = get_mode_profile()
+    local self_threshold = eax_utils.get_self_heal_threshold(me, menu.ns_emergency_hp:get() / 100.0, menu)
+    local tank_threshold = math.min(menu.heal_tank_hp:get(), profile.heal_tank_hp) / 100.0
+    local party_threshold = math.min(menu.heal_party_hp:get(), profile.heal_party_hp) / 100.0
+
+    if heal_engine.get_effective_hp_pct(me) < self_threshold then
+        return true
+    end
+    if tank and tank:is_valid() and not tank:is_dead() and tank ~= me then
+        if heal_engine.get_effective_hp_pct(tank) <= tank_threshold then
+            return true
+        end
+    end
+    for _, entry in ipairs(heal_engine.friends) do
+        local unit = entry and entry.unit or nil
+        if unit and unit:is_valid() and not unit:is_dead() and unit ~= me then
+            local hp = entry.eff_hp_pct or heal_engine.get_effective_hp_pct(unit)
+            if hp <= party_threshold then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 -- --- Chain Heal --------------------------------------------------------------
 
 local function score_chain_heal_candidate(entry, party_threshold)
     local bounce_circle = circle:create(entry.pos, spells.CHAIN_HEAL_JUMP_RANGE)
     local nearby = bounce_circle:get_allies_inside()
     local score = 0
+    local qualified = 0
     for _, ally in ipairs(nearby) do
         if ally and ally:is_valid() and not ally:is_dead() then
             local eff = heal_engine.get_eff_pct(ally)
             if eff <= party_threshold then
+                qualified = qualified + 1
                 local weight = (eff < 0.30) and 1.5 or 1.0
                 score = score + weight * (1.0 - eff) * 100
             end
         end
     end
-    return score
+    return score, qualified
 end
 
 local function try_chain_heal(me)
@@ -886,26 +976,47 @@ local function try_chain_heal(me)
     if heal_engine.count_below(party_threshold) < min_targets then return false end
     if utils.get_mana_pct(me) < mana_floor then return false end
     local best_target, best_score = nil, 0
+    local best_qualified = 0
     for _, entry in ipairs(heal_engine.friends) do
         if entry.eff_pct > party_threshold then break end
-        local score = score_chain_heal_candidate(entry, party_threshold)
-        if score > best_score then best_score = score; best_target = entry.unit end
+        local score, qualified = score_chain_heal_candidate(entry, party_threshold)
+        if qualified >= 2 and score > best_score then
+            best_score = score
+            best_qualified = qualified
+            best_target = entry.unit
+        end
     end
     if not best_target then return false end
-    return try_cast_ally(me, best_target, rt.chain_heal_id, "Chain Heal")
+    local min_score = (min_targets >= 4) and 80 or 110
+    if best_score < min_score or best_qualified < min_targets then return false end
+    local target_hp_pct = heal_engine.get_eff_pct(best_target)
+    local spell_id = spell_downrank.select_heal_rank(spells.CHAIN_HEAL, target_hp_pct, utils.get_mana_pct(me), {
+        mana_floor = mana_floor,
+        hard_mana_floor = mana_floor,
+        mana_threshold = 0.55,
+        target_hp_threshold = 0.75,
+    }) or rt.chain_heal_id
+    return try_cast_ally(me, best_target, spell_id, "Chain Heal")
 end
 
 -- --- Healing Wave ------------------------------------------------------------
 
 local function try_healing_wave(me, tank)
-    if not rt.healing_wave_id or not tank then return false end
+    if not rt.healing_wave_id then return false end
     local profile = get_mode_profile()
     local tank_threshold = math.min(menu.heal_tank_hp:get(), profile.heal_tank_hp) / 100.0
-    if heal_engine.get_eff_pct(tank) > tank_threshold then return false end
+    local mana_floor = math.max(menu.mana_floor:get(), profile.mana_floor) / 100.0
+    local target = select_shaman_direct_heal_target(me, tank)
+    if not target then return false end
+    if heal_engine.get_effective_hp_pct(target) > tank_threshold then return false end
     local mana_pct = utils.get_mana_pct(me)
-    local hp_pct = heal_engine.get_eff_pct(tank)
-    local spell_id = spell_downrank.select_heal_rank(spells.HEALING_WAVE, hp_pct, mana_pct, {}) or rt.healing_wave_id
-    return try_cast_ally(me, tank, spell_id, "Healing Wave")
+    if mana_pct < mana_floor then return false end
+    local hp_pct = heal_engine.get_effective_hp_pct(target)
+    local spell_id = spell_downrank.select_heal_rank(spells.HEALING_WAVE, hp_pct, mana_pct, {
+        mana_floor = mana_floor,
+        hard_mana_floor = mana_floor,
+    }) or rt.healing_wave_id
+    return try_cast_ally(me, target, spell_id, "Healing Wave")
 end
 
 -- --- Dispels -----------------------------------------------------------------
@@ -913,25 +1024,19 @@ end
 local function try_dispel(me)
     if not menu.use_dispels:get_state() then return false end
     local emergency = menu.heal_emergency_hp:get() / 100.0
-    local best_target, best_eff, best_spell, best_label = nil, 1.0, nil, nil
-    for _, entry in ipairs(heal_engine.friends) do
-        local ally = entry.unit
-        if ally and ally:is_valid() and not ally:is_dead() and entry.eff_pct >= emergency then
-            local debuffs = ally:get_debuffs()
-            if debuffs then
-                for _, d in ipairs(debuffs) do
-                    local sid, lbl
-                    if d.type == CURE_POISON_TYPE  and rt.cure_poison_id  then sid = rt.cure_poison_id;  lbl = "Cure Poison"  end
-                    if d.type == CURE_DISEASE_TYPE and rt.cure_disease_id then sid = rt.cure_disease_id; lbl = "Cure Disease" end
-                    if sid and not is_pending(sid) and entry.eff_pct < best_eff then
-                        best_eff = entry.eff_pct; best_target = ally; best_spell = sid; best_label = lbl
-                        break
-                    end
-                end
-            end
-        end
+    local best_target, priority = dispel_engine.find_best_target({
+        candidates = heal_engine.friends,
+        extract_unit = function(entry) return entry.unit end,
+        get_hp = function(_, entry) return entry.eff_pct end,
+        can_consider = function(_, entry) return entry and entry.eff_pct and entry.eff_pct >= emergency end,
+        priorities = {
+            { type_def = { numeric = CURE_POISON_TYPE, name = "poison" }, label = "Cure Poison", spell_id = rt.cure_poison_id },
+            { type_def = { numeric = CURE_DISEASE_TYPE, name = "disease" }, label = "Cure Disease", spell_id = rt.cure_disease_id },
+        },
+    })
+    if best_target and priority and priority.spell_id and not is_pending(priority.spell_id) then
+        return try_cast_ally(me, best_target, priority.spell_id, priority.label)
     end
-    if best_target then return try_cast_ally(me, best_target, best_spell, best_label) end
     return false
 end
 
@@ -939,12 +1044,20 @@ end
 
 local function try_lesser_healing_wave(me)
     if not rt.lesser_healing_wave_id then return false end
-    local threshold = menu.heal_party_hp:get() / 100.0
-    local entry = heal_engine.friends[1]
-    if not entry or entry.eff_pct > threshold then return false end
+    local profile = get_mode_profile()
+    local threshold = math.min(menu.heal_party_hp:get(), profile.heal_party_hp) / 100.0
+    local mana_floor = math.max(menu.mana_floor:get(), profile.mana_floor) / 100.0
+    local tank = heal_engine.lowest_tank()
+    local entry = select_shaman_direct_heal_target(me, tank)
+    if not entry or heal_engine.get_effective_hp_pct(entry) > threshold then return false end
     local mana_pct = utils.get_mana_pct(me)
-    local spell_id = spell_downrank.select_heal_rank(spells.LESSER_HEALING_WAVE, entry.eff_pct, mana_pct, {}) or rt.lesser_healing_wave_id
-    return try_cast_ally(me, entry.unit, spell_id, "Lesser Healing Wave")
+    if mana_pct < mana_floor then return false end
+    local hp_pct = heal_engine.get_effective_hp_pct(entry)
+    local spell_id = spell_downrank.select_heal_rank(spells.LESSER_HEALING_WAVE, hp_pct, mana_pct, {
+        mana_floor = mana_floor,
+        hard_mana_floor = mana_floor,
+    }) or rt.lesser_healing_wave_id
+    return try_cast_ally(me, entry, spell_id, "Lesser Healing Wave")
 end
 
 local function unit_guid(unit)
@@ -976,7 +1089,10 @@ local function build_shaman_triage(me)
         {
             guid = unit_guid(me) or "self",
             unit = me,
-            hp_pct = heal_engine.get_eff_pct(me),
+            hp_pct = heal_engine.get_effective_hp_pct(me),
+            raw_hp_pct = heal_engine.get_raw_hp_pct(me),
+            eff_hp_pct = heal_engine.get_effective_hp_pct(me),
+            priority_hp_pct = heal_engine.get_eff_pct(me),
             incoming_heal_pct = unit_incoming_heal_pct(me),
             role = "healer",
             is_tank = false,
@@ -993,7 +1109,10 @@ local function build_shaman_triage(me)
             members[#members + 1] = {
                 guid = guid,
                 unit = unit,
-                hp_pct = entry.eff_pct or heal_engine.get_eff_pct(unit),
+                hp_pct = entry.eff_hp_pct or heal_engine.get_effective_hp_pct(unit),
+                raw_hp_pct = entry.raw_hp_pct or heal_engine.get_raw_hp_pct(unit),
+                eff_hp_pct = entry.eff_hp_pct or heal_engine.get_effective_hp_pct(unit),
+                priority_hp_pct = entry.priority_hp_pct or entry.eff_pct or heal_engine.get_eff_pct(unit),
                 incoming_heal_pct = unit_incoming_heal_pct(unit),
                 role = is_tank and "tank" or "damager",
                 is_tank = is_tank,
@@ -1009,7 +1128,9 @@ local function should_cancel_shaman_cast(me, target)
     end
     local summary = select(1, build_shaman_triage(me))
     local snapshot = {
-        hp_pct = target and heal_engine.get_eff_pct(target) or heal_engine.get_eff_pct(me),
+        hp_pct = target and heal_engine.get_effective_hp_pct(target) or heal_engine.get_effective_hp_pct(me),
+        raw_hp_pct = target and heal_engine.get_raw_hp_pct(target) or heal_engine.get_raw_hp_pct(me),
+        eff_hp_pct = target and heal_engine.get_effective_hp_pct(target) or heal_engine.get_effective_hp_pct(me),
         incoming_heal_pct = target and unit_incoming_heal_pct(target) or unit_incoming_heal_pct(me),
         collapse_risk = summary and summary.collapse_risk == true,
         group_count = summary and summary.group_count or 0,
@@ -1025,10 +1146,16 @@ local function try_pvp_utilities(me)
         local info = core.spell_book.get_totem_info(slot)
         return info and info.have_totem or false
     end
+    local function should_redrop_pvp_totem(name, slot, min_delay_s)
+        local last = rt.totem_last_apply[name] or 0
+        if slot_has_totem(slot) then
+            return false
+        end
+        return (_core_time() - last) >= (min_delay_s or 1.0)
+    end
     if menu.pvp_use_grounding:get_state() and rt.grounding_totem_id then
         local cd = _get_spell_cd(rt.grounding_totem_id)
-        local last = rt.totem_last_apply["grounding"] or 0
-        if cd <= 0 and not slot_has_totem(4) and (_core_time() - last) >= 2 then
+        if cd <= 0 and should_redrop_pvp_totem("grounding", 4, 1.0) then
             if try_cast_self(me, rt.grounding_totem_id, "Grounding Totem") then
                 rt.totem_last_apply["grounding"] = _core_time()
                 return true
@@ -1042,8 +1169,7 @@ local function try_pvp_utilities(me)
                 local ally = entry and entry.unit or nil
                 local d = ally and buff_manager:get_debuff_data(ally, { fid }) or nil
                 if d and d.is_active then
-                    local last = rt.totem_last_apply["tremor"] or 0
-                    if not slot_has_totem(2) and (_core_time() - last) >= 2 then
+                    if should_redrop_pvp_totem("tremor", 2, 1.0) then
                         if try_cast_self(me, rt.tremor_totem_id, "Tremor Totem") then
                             rt.totem_last_apply["tremor"] = _core_time()
                             return true
@@ -1151,6 +1277,7 @@ local function do_rotation(me)
     -- -- heal_engine update ------------------------------------------------
     heal_engine.update(me)
     local target = me:get_target()
+    if mana_conservator.on_update(me, target, menu, utils) then return end
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
@@ -1354,7 +1481,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -1366,11 +1493,9 @@ end)
 core.register_on_update_callback(function()
     local me = _get_local_player()
 
-    if utils.throttle("mode_refresh", MODE_REFRESH_INTERVAL) then
-        if me then
-            rt.cached_mode = utils.detect_mode(me)
-            heal_engine.set_tank_priority(menu.tank_priority_weight:get())
-        end
+    if me and utils.throttle("mode_refresh", MODE_REFRESH_INTERVAL) then
+        rt.cached_mode = utils.detect_mode(me)
+        heal_engine.set_tank_priority(menu.tank_priority_weight:get())
     end
 
     if utils.throttle("set_bonus", 5.0) then

@@ -207,6 +207,7 @@ local runtime = {
     seal_wisdom_id = nil,
     seal_light_id = nil,
     seal_crusader_id = nil,
+    holy_light_id = nil,
     judgement_ids = {
         wisdom = nil,
         crusader = nil,
@@ -232,7 +233,6 @@ local runtime = {
     cleanse_id = nil,
     purify_id = nil,
     judgement_id = nil,
-    pending_command_reseal_until = 0,
     pending_judgement_until = 0,
     pending_baseline_reseal_until = 0,
     pre_pull_state = "idle",
@@ -240,6 +240,7 @@ local runtime = {
     pre_pull_target_guid = nil,
     last_aura_cast_at = 0,
     last_blessing_retry_at = {},
+    last_ooc_blessing_at = 0,
 }
 
 local ctx_cache = rotation_context.new({
@@ -294,6 +295,7 @@ local function resolve_spells()
     runtime.divine_favor_id  = utils.resolve_spell_id(spells.DIVINE_FAVOR)
     runtime.exorcism_id      = utils.resolve_spell_id(spells.EXORCISM)
     runtime.redemption_id  = utils.resolve_spell_id(spells.REDEMPTION)
+    runtime.holy_light_id = utils.resolve_spell_id(spells.HOLY_LIGHT)
     runtime.hand_of_freedom_id = utils.resolve_spell_id(spells.HAND_OF_FREEDOM)
     runtime.cleanse_id = utils.resolve_spell_id(spells.CLEANSE)
     runtime.purify_id = utils.resolve_spell_id(spells.PURIFY)
@@ -417,6 +419,51 @@ local function target_has_dispellable_debuff(unit)
     return false
 end
 
+local function unit_has_any_paladin_blessing(unit)
+    if not unit or not unit:is_valid() or unit:is_dead() then
+        return false
+    end
+    local blessing_ids = {
+        spells.BUFF_BLESSING_OF_MIGHT,
+        spells.BUFF_BLESSING_OF_WISDOM,
+        spells.BUFF_BLESSING_OF_KINGS,
+        spells.BUFF_BLESSING_OF_SANCTUARY,
+    }
+    for i = 1, #blessing_ids do
+        if utils.has_buff(unit, blessing_ids[i]) then
+            return true
+        end
+    end
+    return false
+end
+
+local function try_holy_light(me)
+    if not runtime.holy_light_id or not me or not me:is_in_combat() then return false end
+    if not is_gcd_ready() then return false end
+    if utils.get_health_pct(me) > 0.42 then return false end
+    if not utils.can_cast_self(runtime.holy_light_id, me) then return false end
+    if utils.cast_self(runtime.holy_light_id, me) then
+        note_cast()
+        utils.log_debug(menu, "Holy Light")
+        return true
+    end
+    return false
+end
+
+local function try_ooc_blessing(me)
+    if not me or me:is_in_combat() or eax_utils.is_eating_or_drinking(me) then return false end
+    if (_core_time() - (runtime.last_ooc_blessing_at or 0)) < 8.0 then return false end
+    if unit_has_any_paladin_blessing(me) then return false end
+    if not runtime.ooc_blessing_of_wisdom_id then return false end
+    if utils.can_cast_self(runtime.ooc_blessing_of_wisdom_id, me) and utils.cast_self(runtime.ooc_blessing_of_wisdom_id, me) then
+        runtime.last_ooc_blessing_at = _core_time()
+        note_cast()
+        utils.log_debug(menu, "OOC: Blessing of Wisdom")
+        return true
+    end
+    return false
+end
+
 local function invalidate_ctx()
     rotation_context.invalidate(ctx_cache)
 end
@@ -453,6 +500,16 @@ local function get_preferred_seal()
         return runtime.seal_command_id, "Command", "command"
     end
     if runtime.seal_righteousness_id and core.spell_book.is_spell_learned(runtime.seal_righteousness_id) then
+        return runtime.seal_righteousness_id, "Righteousness", "righteous"
+    end
+    return nil, nil, nil
+end
+
+local function get_twist_seal_choice()
+    if runtime.seal_blood_id and core.spell_book.is_spell_learned(runtime.seal_blood_id) then
+        return runtime.seal_command_id, "Command", "command"
+    end
+    if runtime.seal_command_id and core.spell_book.is_spell_learned(runtime.seal_command_id) then
         return runtime.seal_righteousness_id, "Righteousness", "righteous"
     end
     return nil, nil, nil
@@ -498,13 +555,6 @@ local function get_unit_guid(unit)
     return tostring(guid)
 end
 
-local function get_twist_seal_choice()
-    if runtime.seal_righteousness_id and core.spell_book.is_spell_learned(runtime.seal_righteousness_id) then
-        return runtime.seal_righteousness_id, "Righteousness"
-    end
-    return nil, nil
-end
-
 local function can_consider_seal_twist(me, target)
     if not menu.use_seal_twist:get_state() then
         return nil, nil
@@ -522,13 +572,20 @@ local function can_consider_seal_twist(me, target)
     end
 
     local twist_seal_id, twist_seal_name = get_twist_seal_choice()
-    if not runtime.seal_command_id or not twist_seal_id then
+    local baseline_seal_id, baseline_seal_name, baseline_seal_key = get_preferred_seal()
+    if not baseline_seal_id or not twist_seal_id then
         return nil, nil
     end
-    if not utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
+    if baseline_seal_key == "blood" and not utils.has_buff(me, spells.BUFF_SEAL_OF_BLOOD) then
         return nil, nil
     end
-    if twist_seal_name == "Blood" and utils.has_buff(me, spells.BUFF_SEAL_OF_BLOOD) then
+    if baseline_seal_key == "command" and not utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
+        return nil, nil
+    end
+    if baseline_seal_key == "righteous" and not utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS) then
+        return nil, nil
+    end
+    if twist_seal_name == "Command" and utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
         return nil, nil
     end
     if twist_seal_name == "Righteousness" and utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS) then
@@ -546,8 +603,8 @@ local function has_active_twist_seal(me)
         return false
     end
 
-    if runtime.twist_seal_name == "Blood" then
-        return utils.has_buff(me, spells.BUFF_SEAL_OF_BLOOD)
+    if runtime.twist_seal_name == "Command" then
+        return utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND)
     end
     if runtime.twist_seal_name == "Righteousness" then
         return utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS)
@@ -673,47 +730,29 @@ local function continue_seal_twist(me, target)
         if not is_gcd_ready() then
             return false
         end
-        if utils.cast_self_fast(runtime.seal_command_id, me) then
-            runtime.twist_state = "command_pending"
+        local baseline_seal_id, baseline_seal_name = get_preferred_seal()
+        if baseline_seal_id and utils.cast_self_fast(baseline_seal_id, me) then
+            runtime.twist_state = "baseline_pending"
             runtime.twist_state_changed_at = _core_time()
-            utils.log_debug(menu, "Seal twist -> Command")
+            utils.log_debug(menu, "Seal twist -> " .. tostring(baseline_seal_name))
             note_cast()
             return true
         end
         return false
     end
 
-    if runtime.twist_state == "command_pending" then
-        if utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
+    if runtime.twist_state == "baseline_pending" then
+        local baseline_seal_id, _, baseline_seal_key = get_preferred_seal()
+        local has_baseline = (baseline_seal_key == "blood" and utils.has_buff(me, spells.BUFF_SEAL_OF_BLOOD))
+            or (baseline_seal_key == "command" and utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND))
+            or (baseline_seal_key == "righteous" and utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS))
+        if has_baseline then
             reset_twist_state()
         elseif (_core_time() - runtime.twist_state_changed_at) > SEAL_TWIST_CONFIRM_TIMEOUT_S then
             reset_twist_state()
         end
     end
 
-    return false
-end
-
-local function ensure_command_active(me)
-    if runtime.twist_state ~= "idle" then
-        return false
-    end
-    if not runtime.seal_command_id then
-        return false
-    end
-    if utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
-        runtime.pending_command_reseal_until = 0
-        return false
-    end
-    if not is_gcd_ready() then
-        return false
-    end
-    if utils.cast_self(runtime.seal_command_id, me) then
-        runtime.pending_command_reseal_until = 0
-        note_cast()
-        utils.log_debug(menu, "Seal: Command baseline")
-        return true
-    end
     return false
 end
 
@@ -846,10 +885,14 @@ local function continue_pre_pull_judgement(me, target)
         return false
     end
     if runtime.pre_pull_state == "baseline_pending" then
-        if is_gcd_ready() and runtime.seal_command_id and not utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
-            if utils.cast_self(runtime.seal_command_id, me) then
+        local seal_id, seal_name, seal_key = get_preferred_seal()
+        local has_baseline = (seal_key == "blood" and utils.has_buff(me, spells.BUFF_SEAL_OF_BLOOD))
+            or (seal_key == "command" and utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND))
+            or (seal_key == "righteous" and utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS))
+        if is_gcd_ready() and seal_id and not has_baseline then
+            if utils.cast_self(seal_id, me) then
                 note_cast()
-                utils.log_debug(menu, "Pre-pull -> Seal of Command")
+                utils.log_debug(menu, "Pre-pull -> " .. tostring(seal_name))
                 reset_pre_pull_state()
                 return true
             end
@@ -1229,12 +1272,14 @@ core.register_on_update_callback(function()
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = me:get_health_percentage() / 100
     if my_hp < self_threshold then
-        if try_holy_light then try_holy_light(me, me) end
+        if try_holy_light(me) then return true end
     end
     
     if me:is_in_combat() then
         utils.ensure_melee_auto_attack(me, target)
     end
+
+    if try_ooc_blessing(me) then return true end
 
 
     -- Mana conservation (leveling 1-70)
@@ -1269,13 +1314,13 @@ core.register_on_update_callback(function()
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_hand_of_freedom(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_cleanse(me) then return end
-    if runtime.pending_baseline_reseal_until <= _core_time() and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_baseline_seal(me) then
-        return
-    end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and continue_seal_twist(me, target) then
         return
     end
     if runtime.pending_judgement_until <= _core_time() and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_baseline_seal(me) then
+        return
+    end
+    if runtime.pending_baseline_reseal_until <= _core_time() and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_baseline_seal(me) then
         return
     end
     if not me:is_in_combat() and ctx and resource_gate.common.has_mana_pct(ctx, 0.20) then

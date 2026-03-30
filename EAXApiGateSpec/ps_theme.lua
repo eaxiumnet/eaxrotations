@@ -1,18 +1,18 @@
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  EAX Class Theme  ·  ps_theme.lua  v2.0                                ║
--- ║                                                                          ║
--- ║  Drop-in replacement for the original ps_theme.lua.                     ║
--- ║  Keeps the EXACT same draw_space mechanics as v4.0 (scroll-offset,      ║
--- ║  dynamic-drawing-offset, hardcoded 460 canvas width, get_max_scroll_y   ║
--- ║  for height) so it NEVER bleeds outside its own tree node or covers      ║
--- ║  other scripts' menus.                                                   ║
--- ║                                                                          ║
--- ║  What changes vs. the original:                                          ║
--- ║   • Star / dust / meteor / gem colors auto-tinted per player class       ║
--- ║   • Corner bracket glow matches class accent color                       ║
--- ║   • Section headers colored with class accent                            ║
--- ║   • Everything else is identical — same layout, same API, same safety    ║
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- +--------------------------------------------------------------------------+
+-- |  Eax Class Theme  -  ps_theme.lua  v2.0                                |
+-- |                                                                          |
+-- |  Drop-in replacement for the original ps_theme.lua.                     |
+-- |  Keeps the EXACT same draw_space mechanics as v4.0 (scroll-offset,      |
+-- |  dynamic-drawing-offset, hardcoded 460 canvas width, get_max_scroll_y   |
+-- |  for height) so it NEVER bleeds outside its own tree node or covers      |
+-- |  other scripts' menus.                                                   |
+-- |                                                                          |
+-- |  What changes vs. the original:                                          |
+-- |   - Star / dust / meteor / gem colors auto-tinted per player class       |
+-- |   - Corner bracket glow matches class accent color                       |
+-- |   - Section headers colored with class accent                            |
+-- |   - Everything else is identical - same layout, same API, same safety    |
+-- +--------------------------------------------------------------------------+
 
 local ps = {}
 
@@ -134,8 +134,117 @@ local function _spawn_meteor(pool)
         seg = 4 + math.random(2), hue = p })
 end
 
--- MAIN DRAW — identical scroll/offset mechanics to original v4.0
+-- MAIN DRAW - identical scroll/offset mechanics to original v4.0
 function ps.draw_space(win, id)
+    _build_field()
+
+    local W = 460
+    if W < 10 then return end
+
+    if not _vec2_mod then _vec2_mod = require("common/geometry/vector_2") end
+
+    local oy = 0
+    local ok_off, off = pcall(function() return win:get_current_context_dynamic_drawing_offset() end)
+    if ok_off and off and off.y then oy = off.y end
+
+    local scroll_y = 0
+    local ok_sc, sc = pcall(function() return win:get_scroll() end)
+    if ok_sc and sc and sc.y then scroll_y = sc.y end
+
+    local H = 580
+    local ok_ms, ms = pcall(function() return win:get_max_scroll_y() end)
+    if ok_ms and ms and ms > 0 then H = 580 + ms end
+
+    local oy_screen = oy - scroll_y
+    local function v(x, y) return _vec2_mod.new(x, y + oy_screen) end
+
+    local t = core.time()
+
+    win:render_rect_filled(v(0, 0), v(W, H), ps.col.panel, 0)
+
+    local p = pal()
+    for _, d in ipairs(_dust) do
+        win:render_circle_filled(v(d.rx * W, d.ry * H), d.rad, c(p[4], p[5], p[6], d.a))
+    end
+
+    for _, s in ipairs(_stars) do
+        local tw = 0.3 + 0.7 * math.abs(math.sin(t * s.spd + s.phase))
+        local al = s.bright and (0.4 + 0.6 * tw) or (0.08 + 0.38 * tw)
+        local alb = math.floor(al * 255)
+        win:render_circle_filled(v(s.rx * W, s.ry * H), s.rad * (0.7 + 0.3 * tw), c(p[1], p[2], p[3], alb))
+
+        if s.bright and s.rad > 1.6 and tw > 0.88 then
+            local fl = c(p[1], p[2], p[3], math.floor(alb * 0.28))
+            local fx, fy = s.rx * W, s.ry * H
+            local fr = s.rad * 3.5
+            win:render_line(v(fx - fr, fy), v(fx + fr, fy), fl, 0.5)
+            win:render_line(v(fx, fy - fr), v(fx, fy + fr), fl, 0.5)
+        end
+    end
+
+    local pool = _get_meteors(id)
+    local dt = math.min(t - (pool.last_t or t), 0.05)
+    pool.last_t = t
+
+    if t >= pool.next_spawn and #pool.list < 4 then
+        _spawn_meteor(pool)
+        pool.next_spawn = t + 0.8 + math.random() * 2.5
+    end
+
+    local dead = {}
+    for i, m in ipairs(pool.list) do
+        m.life = m.life + dt
+        m.x = m.x + m.vx * dt / W
+        m.y = m.y + m.vy * dt / H
+        if m.life < 0.1 then
+            m.a = m.life / 0.1
+        else
+            m.a = math.max(0, 1 - (m.life - 0.1) / (m.max_life - 0.1))
+        end
+
+        if m.life >= m.max_life or m.x > 1.15 or m.y > 1.1 then
+            dead[#dead + 1] = i
+        else
+            local ang = math.atan2(m.vy, m.vx)
+            local mx, my = m.x * W, m.y * H
+            local tx = mx - math.cos(ang) * m.len
+            local ty = my - math.sin(ang) * m.len
+            local mx2 = mx - math.cos(ang) * m.len * 0.45
+            local my2 = my - math.sin(ang) * m.len * 0.45
+            local p = pal()
+            win:render_line(v(tx, ty), v(mx2, my2), c(p[4], p[5], p[6], math.floor(m.a * 60)), m.w * 0.7)
+            win:render_line(v(mx2, my2), v(mx, my), c(p[1], p[2], p[3], math.floor(m.a * 180)), m.w)
+            win:render_circle_filled(v(mx, my), 5.5, c(p[1], p[2], p[3], math.floor(m.a * 70)))
+            win:render_circle_filled(v(mx, my), 2.6, c(240, 235, 255, math.floor(m.a * 255)))
+        end
+    end
+    for i = #dead, 1, -1 do table.remove(pool.list, dead[i]) end
+
+    win:render_line(v(0, 22), v(W, 22), c(110, 64, 201, 80), 1.0)
+    win:render_rect_filled(v(0, 22), v(W, 24), c(110, 64, 201, 35), 0)
+
+    local BL = 18
+    local gcol = ps.col.border_glow
+    win:render_line(v(2, 2), v(2 + BL, 2), gcol, 1.2)
+    win:render_line(v(2, 2), v(2, 2 + BL), gcol, 1.2)
+    win:render_line(v(W - 2, 2), v(W - 2 - BL, 2), gcol, 1.2)
+    win:render_line(v(W - 2, 2), v(W - 2, 2 + BL), gcol, 1.2)
+    win:render_line(v(2, H - 2), v(2 + BL, H - 2), gcol, 1.2)
+    win:render_line(v(2, H - 2), v(2, H - 2 - BL), gcol, 1.2)
+    win:render_line(v(W - 2, H - 2), v(W - 2 - BL, H - 2), gcol, 1.2)
+    win:render_line(v(W - 2, H - 2), v(W - 2, H - 2 - BL), gcol, 1.2)
+
+    local function gem(cx, cy, sz2)
+        win:render_triangle_filled(v(cx, cy - sz2), v(cx + sz2, cy), v(cx - sz2, cy), ps.col.border_dim)
+        win:render_triangle_filled(v(cx, cy + sz2), v(cx + sz2, cy), v(cx - sz2, cy), ps.col.border_dim)
+        win:render_circle_filled(v(cx, cy), sz2 * 0.35, ps.col.accent)
+    end
+    local G = 9
+    gem(G + 2, G + 2, G)
+    gem(W - G - 2, G + 2, G)
+    gem(G + 2, H - G - 2, G)
+    gem(W - G - 2, H - G - 2, G)
+
     return
 end
 
@@ -163,7 +272,7 @@ ps.MODE = {"Auto","Solo","Dungeon","Raid"}
 -- Render helpers (unchanged from original)
 function ps.render_controls(m,title)
     ps.header("Controls")
-    m.enabled:render("Enabled","Master on/off toggle — set a keybind here to toggle with a hotkey")
+    m.enabled:render("Enabled","Master on/off toggle - set a keybind here to toggle with a hotkey")
     if m.toggle_key then m.toggle_key:render("Toggle Key","Keybind to enable or disable the rotation") end
     m.mode:render("Mode",ps.MODE,"Auto detects party context automatically")
     m.debug:render("Debug Logging","Print rotation decisions to the console")

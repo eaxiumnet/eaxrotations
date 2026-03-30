@@ -56,7 +56,7 @@ mana_manager.MANA_POTION_BUFF_IDS = {
 -- Class-specific spell IDs
 mana_manager.EVOCATION_ID = 12051      -- Mage: Evocation
 mana_manager.INNERVATE_ID = 29166     -- Druid: Innervate
-mana_manager.HYMN_OF_HOPE_ID = 64904  -- Priest: Hymn of Hope (Wrath of the Lich King, TBC uses 27541)
+mana_manager.HYMN_OF_HOPE_ID = 27541  -- Priest: Hymn of Hope (TBC rank 1)
 mana_manager.LIFE_TAP_ID = 27222       -- Warlock: Life Tap (updated rank)
 mana_manager.ARCANE_TORRENT_MANA_ID = 28730  -- Blood Elf: Arcane Torrent (mana restore)
 
@@ -65,7 +65,7 @@ mana_manager.DEFAULT_POTION_THRESHOLD_PCT = 30   -- Use potion below 30% mana
 mana_manager.DEFAULT_EVOCATION_THRESHOLD_PCT = 30 -- Evocation at 30% mana
 mana_manager.DEFAULT_INNERVATE_THRESHOLD_PCT = 25 -- Innervate at 25% mana
 mana_manager.DEFAULT_LIFE_TAP_HP_THRESHOLD_PCT = 30 -- Don't Life Tap below 30% HP
-mana_manager.DEFAULT_LIFE_TAP_MANA_THRESHOLD_PCT = 80 -- Life Tap above 80% mana
+mana_manager.DEFAULT_LIFE_TAP_MANA_FLOOR_PCT = 60 -- Life Tap below 60% mana
 
 -- Mana potion cooldown (seconds) - Super Mana Potion: 120s shared cooldown
 mana_manager.POTION_COOLDOWN_S = 120
@@ -190,7 +190,7 @@ function mana_manager.should_use_mana_potion(me, threshold_pct)
 
     -- Check mana level
     local mana_pct = mana_manager.get_mana_pct(me)
-    if mana_pct >= threshold_pct then
+    if mana_pct >= threshold_pct then  -- skip if mana already above threshold
         return false
     end
 
@@ -252,7 +252,7 @@ function mana_manager.should_evocate(me, class_name, menu)
         if menu and menu.arcane_torrent_threshold then
             threshold = menu.arcane_torrent_threshold:get()
         end
-        if mana_pct >= threshold then
+        if mana_pct >= threshold then  -- skip if mana already above threshold
             return false
         end
         if is_on_cooldown(mana_manager.ARCANE_TORRENT_MANA_ID) then
@@ -268,7 +268,7 @@ function mana_manager.should_evocate(me, class_name, menu)
         if menu and menu.evocation_threshold then
             threshold = menu.evocation_threshold:get()
         end
-        if mana_pct >= threshold then
+        if mana_pct >= threshold then  -- skip if mana already above threshold
             return false
         end
         -- Check Evocation is learned and not on cooldown
@@ -285,7 +285,7 @@ function mana_manager.should_evocate(me, class_name, menu)
         if menu and menu.innervate_threshold then
             threshold = menu.innervate_threshold:get()
         end
-        if mana_pct >= threshold then
+        if mana_pct >= threshold then  -- skip if mana already above threshold
             return false
         end
         -- Innervate is a buff we cast on ourselves, check cooldown
@@ -295,11 +295,8 @@ function mana_manager.should_evocate(me, class_name, menu)
         return true
     end
 
-    -- Priest: Shadowfiend + Hymn of Hope (TBC doesn't have Hymn, use Shadowfiend)
-    -- For TBC, Hymn of Hope doesn't exist (added in WotLK). Use Shadowfiend instead.
+    -- Priest mana recovery is handled in spec-local logic.
     if class_name == "priest" then
-        -- In TBC, Priests rely on Shadowfiend for mana recovery
-        -- The shadowfiend mana return is handled in the priest spec itself
         return false  -- Priests handle mana differently in TBC
     end
 
@@ -307,13 +304,13 @@ function mana_manager.should_evocate(me, class_name, menu)
 end
 
 ---Check if player should Life Tap (Warlock self-damage for mana).
----Only when: above HP threshold, below mana threshold, target above HP threshold,
+---Only when: above HP threshold, below mana floor, target above HP threshold,
 ---Evocation not on cooldown (dual-use check).
 ---@param me game_object
 ---@param menu table|nil optional menu for per-class settings
 ---@return boolean
 function mana_manager.should_life_tap(me, menu)
-    -- Check HP
+    -- Check HP safety floor first
     local hp_pct = me:get_health_percentage()
     local hp_threshold = mana_manager.DEFAULT_LIFE_TAP_HP_THRESHOLD_PCT
     if menu and menu.life_tap_hp_threshold then
@@ -323,13 +320,13 @@ function mana_manager.should_life_tap(me, menu)
         return false
     end
 
-    -- Check mana (don't tap when high mana)
+    -- Check mana floor (tap only when mana is below the floor)
     local mana_pct = mana_manager.get_mana_pct(me)
-    local mana_threshold = mana_manager.DEFAULT_LIFE_TAP_MANA_THRESHOLD_PCT
-    if menu and menu.life_tap_mana_threshold then
-        mana_threshold = menu.life_tap_mana_threshold:get()
+    local mana_floor_pct = mana_manager.DEFAULT_LIFE_TAP_MANA_FLOOR_PCT
+    if menu and menu.life_tap_mana_floor then
+        mana_floor_pct = menu.life_tap_mana_floor:get()
     end
-    if mana_pct >= mana_threshold then
+    if mana_pct >= mana_floor_pct then
         return false
     end
 

@@ -387,6 +387,15 @@ function utils.get_group_units(me, include_self)
         push(me)
     end
 
+    local current_target = me and me.get_target and me:get_target() or nil
+    if current_target
+        and current_target:is_valid()
+        and not current_target:is_dead()
+        and not me:can_attack(current_target)
+    then
+        push(current_target)
+    end
+
     local objects = core.object_manager.get_all_objects()
     for i = 1, #objects do
         local obj = objects[i]
