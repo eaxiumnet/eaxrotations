@@ -8,27 +8,32 @@ local ps   = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
 local menu = {}
 
--- -- Tree nodes ----------------------------------------------------------------
+-- Tree nodes
 local root_tree    = ps.tree_node()
-local main_tree    = ps.tree_node()
+local rotation_tree = ps.tree_node()
+local cd_tree      = ps.tree_node()
+local auto_tree    = ps.tree_node()
+local ooc_tree     = ps.tree_node()
+local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
 local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
-local ooc_tree     = ps.tree_node()
 local esp_tree     = ps.tree_node()
 
--- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxpriestholy_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxpriestholy_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxpriestholy_mode")
 menu.debug                               = core.menu.checkbox(false, "eaxpriestholy_debug")
+
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxpriestholy_focus_priority")
 menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxpriestholy_combat_self_hp_boost")
+
 -- Racial
 menu.use_racial                          = core.menu.checkbox(true, "eaxpriestholy_use_racial")
 menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxpriestholy_racial_hp")
+
 -- OOC
 menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
 menu.ooc_eat                             = core.menu.checkbox(true,  "eax_ooc_eat")
@@ -37,6 +42,7 @@ menu.ooc_group_buff                      = core.menu.checkbox(true,  "eax_ooc_gr
 menu.drink_threshold                     = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
+-- Automation
 -- menu.auto_repair                        = core.menu.checkbox(true, "eaxpriestholy_auto_repair")
 -- menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxpriestholy_auto_sell_greys")
 -- menu.auto_mount                         = core.menu.checkbox(true, "eaxpriestholy_auto_mount")
@@ -44,59 +50,57 @@ menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "ea
 menu.auto_combat_potions                = core.menu.checkbox(false, "eaxpriestholy_auto_combat_potions")
 menu.auto_ooc_food_drink                = core.menu.checkbox(true, "eaxpriestholy_auto_ooc_food_drink")
 menu.auto_flask                         = core.menu.checkbox(false, "eaxpriestholy_auto_flask")
--- Leveling
 menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxpriestholy_lev_conserve")
 menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxpriestholy_lev_mana_floor")
 menu.use_wand                            = core.menu.checkbox(true,  "eaxpriestholy_use_wand")
 menu.wand_mana_floor                     = core.menu.slider_int(5, 80, 25, "eaxpriestholy_wand_mana_floor")
 menu.wand_at_hp                          = core.menu.slider_int(5, 60, 20, "eaxpriestholy_wand_at_hp")
 menu.use_spirit_tap_wand                 = core.menu.checkbox(true,  "eaxpriestholy_spirit_tap_wand")
+
 -- ESP
 menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
 menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
 menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
 menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
--- -- Class-specific elements ---------------------------------------------------
-menu.renew_threshold                      = core.menu.slider_int(10, 90, 85, "eax_priest_holy_renew_threshold")
-menu.renew_refresh_seconds                = core.menu.slider_int(1, 5, 2, "eax_priest_holy_renew_refresh_seconds")
-menu.flash_heal_threshold                 = core.menu.slider_int(10, 60, 30, "eax_priest_holy_flash_heal_threshold")
-menu.greater_heal_threshold               = core.menu.slider_int(25, 70, 50, "eax_priest_holy_greater_heal_threshold")
-menu.binding_heal_enabled                 = core.menu.checkbox(true, "eax_priest_holy_binding_heal_enabled")
-menu.binding_heal_target_threshold        = core.menu.slider_int(20, 80, 50, "eax_priest_holy_binding_heal_target_threshold")
-menu.binding_heal_self_threshold          = core.menu.slider_int(30, 95, 80, "eax_priest_holy_binding_heal_self_threshold")
-menu.prayer_of_healing_enabled            = core.menu.checkbox(true, "eax_priest_holy_pohealing_enabled")
-menu.prayer_of_healing_threshold          = core.menu.slider_int(30, 85, 75, "eax_priest_holy_prayer_of_healing_threshold")
-menu.prayer_of_healing_count              = core.menu.slider_int(1, 5, 3, "eax_priest_holy_prayer_of_healing_count")
-menu.circle_of_healing_enabled            = core.menu.checkbox(true, "eax_priest_holy_coh_enabled")
-menu.circle_of_healing_threshold          = core.menu.slider_int(30, 90, 80, "eax_priest_holy_circle_of_healing_threshold")
-menu.circle_of_healing_count              = core.menu.slider_int(1, 5, 3, "eax_priest_holy_circle_of_healing_count")
-menu.use_cooldowns                        = core.menu.checkbox(true, "eax_priest_holy_use_cooldowns")
-menu.use_inner_focus                      = core.menu.checkbox(true, "eax_priest_holy_use_inner_focus")
-menu.auto_prayer_of_mending               = core.menu.checkbox(true, "eax_priest_holy_auto_pom")
-menu.prayer_of_mending_threshold          = core.menu.slider_int(25, 90, 80, "eax_priest_holy_pom_threshold")
-menu.overheal_protection                  = core.menu.checkbox(true, "eax_priest_holy_overheal_protection")
-menu.use_dispels                          = core.menu.checkbox(true, "eax_priest_holy_use_dispels")
+-- Healing
+menu.use_greater_heal                    = core.menu.checkbox(true, "eaxpriestholy_use_greater_heal")
+menu.use_flash_heal                      = core.menu.checkbox(true, "eaxpriestholy_use_flash_heal")
+menu.use_renew                           = core.menu.checkbox(true, "eaxpriestholy_use_renew")
+menu.use_holy_nova                       = core.menu.checkbox(true, "eaxpriestholy_use_holy_nova")
+menu.use_circle_of_healing               = core.menu.checkbox(true, "eaxpriestholy_use_circle_of_healing")
+menu.use_prayer_of_mending               = core.menu.checkbox(true, "eaxpriestholy_use_prayer_of_mending")
+menu.use_lightwell                       = core.menu.checkbox(true, "eaxpriestholy_use_lightwell")
+menu.use_divine_hymn                     = core.menu.checkbox(true, "eaxpriestholy_use_divine_hymn")
+menu.use_spirit_of_redemption            = core.menu.checkbox(true, "eaxpriestholy_use_spirit_of_redemption")
+menu.use_inner_fire                      = core.menu.checkbox(true, "eaxpriestholy_use_inner_fire")
+menu.use_power_word_fortitude            = core.menu.checkbox(true, "eaxpriestholy_use_power_word_fortitude")
+menu.use_power_word_shield               = core.menu.checkbox(true, "eaxpriestholy_use_power_word_shield")
+menu.power_word_shield_hp_pct            = core.menu.slider_int(0, 100, 40, "eaxpriestholy_power_word_shield_hp_pct")
+menu.use_dispel_magic                    = core.menu.checkbox(true, "eaxpriestholy_use_dispel_magic")
+menu.use_cure_disease                    = core.menu.checkbox(true, "eaxpriestholy_use_cure_disease")
+menu.use_abolish_disease                 = core.menu.checkbox(true, "eaxpriestholy_use_abolish_disease")
+menu.use_psychic_scream                  = core.menu.checkbox(true, "eaxpriestholy_use_psychic_scream")
+menu.use_shackle_undead                  = core.menu.checkbox(true, "eaxpriestholy_use_shackle_undead")
+menu.use_resurrection                    = core.menu.checkbox(true, "eaxpriestholy_use_resurrection")
+menu.use_smite                           = core.menu.checkbox(true, "eaxpriestholy_use_smite")
+menu.use_holy_fire                       = core.menu.checkbox(true, "eaxpriestholy_use_holy_fire")
+menu.use_shadow_word_pain                = core.menu.checkbox(true, "eaxpriestholy_use_shadow_word_pain")
+menu.use_mind_blast                      = core.menu.checkbox(true, "eaxpriestholy_use_mind_blast")
 
 mana_conservator.register_menu_items(menu, "eax_priest_holy")
 
--- ----------------------------------------------------------------------------
--- RENDER  - called every frame by core.register_on_render_menu_callback
--- The window object is injected via menu.set_window(win) in main.lua
--- ----------------------------------------------------------------------------
-
 settings.setup_major_toggle_keybinds(menu, {
-    { toggle = "prayer_of_healing_enabled", label = "Prayer of Healing" },
-    { toggle = "auto_prayer_of_mending", label = "Prayer of Mending" },
-    { toggle = "circle_of_healing_enabled", label = "Circle of Healing" },
-    { toggle = "overheal_protection", label = "Overheal Protection" },
-    { toggle = "use_desperate_prayer", label = "Desperate Prayer" },
+    { toggle = "use_greater_heal", label = "Greater Heal" },
+    { toggle = "use_flash_heal", label = "Flash Heal" },
+    { toggle = "use_renew", label = "Renew" },
+    { toggle = "use_prayer_of_mending", label = "Prayer of Mending" },
 }, {
     namespace = "eaxpriestholy",
     log_prefix = "[Eax Priest Holy] ",
 })
 
-local _win  -- set once from main.lua via menu.set_window(win)
+local _win
 
 function menu.set_window(win)
     _win = win
@@ -104,64 +108,90 @@ end
 
 function menu.render()
     if _win and root_tree:is_open() then
-        -- Draw animated space background BEFORE imgui elements
         ps.draw_space(_win, "eaxpriestholy")
     end
 
     root_tree:render("Eax's Priest Holy", function()
-
         ps.render_controls(menu, "Eax's Priest Holy")
 
-        -- -- Class-specific settings -------------------------------------------
-        main_tree:render("Eax's Rotation Settings", function()
-            ps.header("Spells & Abilities")
-            menu.renew_threshold:render("Renew Threshold", "Only refresh renew when health drops below this")
-            menu.renew_refresh_seconds:render("Renew Refresh Window", "Seconds of Renew remaining before refreshing")
-            menu.flash_heal_threshold:render("Flash Heal Threshold", "Emergency Flash Heal threshold for critical targets")
-            menu.greater_heal_threshold:render("Greater Heal Threshold", "Use Greater Heal for sustained healing below this percent")
-            menu.binding_heal_enabled:render("Binding Heal", "Use Binding Heal when both you and an ally need healing")
-            menu.binding_heal_target_threshold:render("Binding Target HP", "Use Binding Heal when an ally falls below this percent")
-            menu.binding_heal_self_threshold:render("Binding Self HP", "Use Binding Heal when your own health is below this percent")
-            menu.prayer_of_healing_enabled:render("Prayer of Healing", "Allow Prayer of Healing when multiple targets are hurt")
-            menu.prayer_of_healing_threshold:render("PoH Threshold", "Health percent that counts targets toward Prayer of Healing")
-            menu.prayer_of_healing_count:render("PoH Count", "Minimum wounded allies to fire Prayer of Healing")
-            menu.circle_of_healing_enabled:render("Circle of Healing", "Allow Circle of Healing when multiple targets are hurt")
-            menu.circle_of_healing_threshold:render("CoH Threshold", "Health percent that counts targets toward Circle of Healing")
-            menu.circle_of_healing_count:render("CoH Count", "Minimum wounded allies to fire Circle of Healing")
-            menu.use_inner_focus:render("Inner Focus", "Use Inner Focus before expensive direct or party heals")
-            menu.auto_prayer_of_mending:render("Auto Prayer of Mending", "Keep Prayer of Mending rolling on injured allies")
-            menu.prayer_of_mending_threshold:render("PoM Threshold", "Health percent that triggers Prayer of Mending refresh")
-            menu.overheal_protection:render("Stopcast on Overheal Risk", "Cancel slow heals when the target is near full HP")
-            menu.use_dispels:render("Combat Dispels", "Allow Dispel Magic and disease cleanses on the current heal target")
+        -- Healing
+        rotation_tree:render("Healing", function()
+            ps.header("Direct Heals")
+            menu.use_greater_heal:render("Greater Heal", "Main heal")
+            menu.use_flash_heal:render("Flash Heal", "Fast heal")
+            menu.use_renew:render("Renew", "HoT")
+            menu.use_holy_nova:render("Holy Nova", "AoE heal")
+            menu.use_circle_of_healing:render("Circle of Healing", "Instant AoE")
+            menu.use_prayer_of_mending:render("Prayer of Mending", "Bouncing heal")
+            menu.use_lightwell:render("Lightwell", "Click heal")
+            menu.use_divine_hymn:render("Divine Hymn", "AoE heal")
+            menu.use_spirit_of_redemption:render("Spirit of Redemption", "Death heal")
         end)
 
-        -- -- Defensive cooldowns -----------------------------------------------
-        ps.render_defensive(menu, def_tree, {
-        { key = "use_desperate_prayer", label = "Desperate Prayer", tip = "Emergency instant self-heal", hp_key = "use_desperate_prayer_hp_pct", hp_label = "Desperate Prayer HP %" },
-        })
+        -- Buffs
+        cd_tree:render("Buffs", function()
+            menu.use_inner_fire:render("Inner Fire", "Armor")
+            menu.use_power_word_fortitude:render("PW:F", "Stamina")
+            menu.use_power_word_shield:render("PW:Shield", "Shield")
+            menu.power_word_shield_hp_pct:render("PW:S HP %", "Below")
+        end)
 
-        -- -- Targeting --------------------------------------------------------
+        -- Utility
+        def_tree:render("Utility", function()
+            menu.use_dispel_magic:render("Dispel Magic", "Dispel")
+            menu.use_cure_disease:render("Cure Disease", "Dispel")
+            menu.use_abolish_disease:render("Abolish Disease", "Dispel")
+            menu.use_psychic_scream:render("Psychic Scream", "Fear")
+            menu.use_shackle_undead:render("Shackle Undead", "CC")
+        end)
+
+        -- DPS Fallback
+        auto_tree:render("DPS Fallback", function()
+            menu.use_smite:render("Smite", "Filler")
+            menu.use_holy_fire:render("Holy Fire", "Cast")
+            menu.use_shadow_word_pain:render("SW:P", "DoT")
+            menu.use_mind_blast:render("Mind Blast", "Instant")
+        end)
+
+        -- Automation
+        auto_tree:render("Automation", function()
+            menu.auto_combat_potions:render("Combat Potions", "In combat")
+            menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink")
+            menu.auto_flask:render("Auto Flask", "Flask")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
+            menu.leveling_mana_floor:render("Mana %", "Below")
+            menu.use_wand:render("Use Wand", "Low mana")
+            menu.wand_mana_floor:render("Wand Mana %", "Below")
+            menu.wand_at_hp:render("Wand Target HP %", "Below")
+            menu.use_spirit_tap_wand:render("Spirit Tap Wand", "If talented")
+        end)
+
+        -- OOC
+        ooc_tree:render("OOC Sustain", function()
+            menu.ooc_drink:render("Auto-Drink", "Drink")
+            menu.drink_threshold:render("Drink %", "Below")
+            menu.ooc_eat:render("Auto-Eat", "Eat")
+            menu.eat_threshold:render("Eat %", "Below")
+        end)
+
+        -- Group
+        group_tree:render("Group", function()
+            menu.ooc_rez:render("Auto-Rez", "Accept")
+            menu.ooc_group_buff:render("Buffs", "Party")
+            menu.use_resurrection:render("Resurrection", "Resurrect")
+        end)
+
         ps.render_targeting(menu, tgt_tree)
-
-        -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
 
-        -- -- Out-of-combat -----------------------------------------------------
-        menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
-        menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
-        menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
-        menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
-        menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
-        menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
-        menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
-        ps.render_ooc(menu, ooc_tree, true)
-
-        -- -- Display & HUD -----------------------------------------------------
-        ps.render_esp(menu, esp_tree)
-
+        -- Display
+        esp_tree:render("Display", function()
+            menu.esp_show_hud:render("Show HUD", "Status")
+            menu.esp_show_target:render("Show Target", "Info")
+            menu.esp_hud_x:render("HUD X", "")
+            menu.esp_hud_y:render("HUD Y", "")
+        end)
     end)
 end
 
-menu.use_desperate_prayer = core.menu.checkbox(true, "eaxpholy_desperate_prayer")
-menu.use_desperate_prayer_hp_pct = core.menu.slider_int(0, 100, 40, "eaxpholy_desp_prayer_hp")
 return menu
