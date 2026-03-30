@@ -100,11 +100,7 @@ function menu.set_window(win)
 end
 
 function menu.render()
-    if _win and root_tree:is_open() then
-        -- Draw animated space background BEFORE imgui elements
-        ps.draw_space(_win, "eaxmagefire")
-    end
-
+    
     root_tree:render("Eax's Mage Fire", function()
 
         ps.render_controls(menu, "Eax's Mage Fire")
