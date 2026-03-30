@@ -71,6 +71,8 @@ menu.use_innervate                        = core.menu.checkbox(true, "eaxdruidba
 menu.innervate_mana_pct                   = core.menu.slider_int(10, 60, 30, "eaxdruidbalance_innervate_mana_pct")
 menu.use_tranquility                      = core.menu.checkbox(true, "eaxdruidbalance_use_tranquility")
 menu.tranquility_hp_pct                   = core.menu.slider_int(20, 70, 35, "eaxdruidbalance_tranquility_hp_pct")
+menu.use_barkskin                         = core.menu.checkbox(true, "eaxdruidbalance_use_barkskin")
+menu.use_barkskin_hp_pct                  = core.menu.slider_int(0, 100, 40, "eaxdruidbalance_barkskin_hp_pct")
 
 mana_conservator.register_menu_items(menu, "eax_druid_balance")
 
@@ -149,6 +151,4 @@ function menu.render()
     end)
 end
 
-menu.use_barkskin = core.menu.checkbox(true, "eaxbal_use_barkskin")
-menu.use_barkskin_hp_pct = core.menu.slider_int(0, 100, 40, "eaxbal_barkskin_hp")
 return menu
