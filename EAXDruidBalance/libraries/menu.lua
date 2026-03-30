@@ -96,6 +96,9 @@ function menu.set_window(win)
 end
 
 function menu.render()
+    if _win and root_tree:is_open() then
+        ps.draw_space(_win, "EAXDruidBalance")
+    end
     
     root_tree:render("Eax's Druid Balance", function()
 

@@ -94,7 +94,10 @@ function menu.set_window(win)
 end
 
 function menu.render()
-    
+    if _win and root_tree:is_open() then
+        ps.draw_space(_win, "eaxwarriorarms")
+    end
+
     root_tree:render("Eax's Warrior Arms", function()
 
         ps.render_controls(menu, "Eax's Warrior Arms")

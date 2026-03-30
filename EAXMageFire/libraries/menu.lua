@@ -100,6 +100,9 @@ function menu.set_window(win)
 end
 
 function menu.render()
+    if _win and root_tree:is_open() then
+        ps.draw_space(_win, "EAXMageFire")
+    end
     
     root_tree:render("Eax's Mage Fire", function()
 

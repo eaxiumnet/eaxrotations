@@ -349,8 +349,8 @@ function menu.render()
 --         menu.auto_sell_greys:render("Auto Sell Greys",
 --         menu.auto_mount:render("Auto Mount",
 --         menu.auto_dismount:render("Auto Dismount",
-        menu.auto_combat_potions:render("Auto Combat Potions",
-            "Use combat potions automatically at the right moment")
+        -- menu.auto_combat_potions:render("Auto Combat Potions",
+        --     "Use combat potions automatically at the right moment")
         menu.auto_ooc_food_drink:render("Auto OOC Food / Drink",
             "Eat and drink out of combat when health or mana is low")
         menu.auto_flask:render("Auto Flask",
