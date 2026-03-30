@@ -13,7 +13,7 @@ local def_tree    = ps.tree_node()
 local tgt_tree    = ps.tree_node()
 local racial_tree = ps.tree_node()
 local ooc_tree    = ps.tree_node()
-local esp_tree    = ps.tree_node()
+-- local esp_tree    = ps.tree_node()
 
 -- -- Controls ------------------------------------------------------------------
 menu.enabled          = core.menu.checkbox(true,  "eaxhunterbm_enabled")
@@ -37,21 +37,19 @@ menu.ooc_group_buff  = core.menu.checkbox(true,  "eax_ooc_group_buff")
 menu.drink_threshold = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold   = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
-menu.auto_repair                        = core.menu.checkbox(true, "eaxhunterbm_auto_repair")
-menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxhunterbm_auto_sell_greys")
-menu.auto_mount                         = core.menu.checkbox(true, "eaxhunterbm_auto_mount")
-menu.auto_dismount                      = core.menu.checkbox(true, "eaxhunterbm_auto_dismount")
-menu.auto_combat_potions                = core.menu.checkbox(false, "eaxhunterbm_auto_combat_potions")
+-- menu.auto_repair                        = core.menu.checkbox(true, "eaxhunterbm_auto_repair")
+-- menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxhunterbm_auto_sell_greys")
+-- menu.auto_mount                         = core.menu.checkbox(true, "eaxhunterbm_auto_mount")
+-- menu.auto_dismount                      = core.menu.checkbox(true, "eaxhunterbm_auto_dismount")
 menu.auto_flask                         = core.menu.checkbox(false, "eaxhunterbm_auto_flask")
 menu.leveling_conserve_mana = core.menu.checkbox(true,  "eaxhunterbm_lev_conserve")
 menu.leveling_mana_floor    = core.menu.slider_int(5, 50, 20, "eaxhunterbm_lev_mana_floor")
 
 -- -- ESP -----------------------------------------------------------------------
-menu.esp_show_hud    = core.menu.checkbox(true,  "eax_esp_show_hud")
-menu.esp_show_target = core.menu.checkbox(true,  "eax_esp_show_target")
-menu.esp_hud_x       = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
-menu.esp_hud_y       = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
-
+-- menu.esp_show_hud    = core.menu.checkbox(true,  "eax_esp_show_hud")
+-- menu.esp_show_target = core.menu.checkbox(true,  "eax_esp_show_target")
+-- menu.esp_hud_x       = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
+-- menu.esp_hud_y       = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 -- -- Rotation ------------------------------------------------------------------
 menu.use_hunters_mark   = core.menu.checkbox(true, "eaxhunterbm_use_hunters_mark")
 menu.use_serpent_sting  = core.menu.checkbox(true, "eaxhunterbm_use_serpent_sting")
@@ -212,19 +210,17 @@ function menu.render()
             menu.ooc_group_buff:render("Group Buffs", "Apply class buffs to party members between pulls")
 
             ps.header("Automation")
-            menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
-            menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
-            menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
-            menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
-            menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
+--             menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
+--             menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
+--             menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
+--             menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
             menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
 
             ps.header("Leveling")
             menu.leveling_conserve_mana:render("Conserve Mana", "Use a more mana-efficient leveling rotation")
             menu.leveling_mana_floor:render("Mana Floor %", "Switch to conservation mode below this mana percent")
         end)
-        ps.render_esp(menu, esp_tree)
-    end)
+    -- ps.render_esp(menu, esp_tree) -- DISABLED    end)
 end
 
 return menu

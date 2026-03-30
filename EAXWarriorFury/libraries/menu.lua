@@ -14,7 +14,7 @@ local def_tree     = ps.tree_node()
 local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
-local esp_tree     = ps.tree_node()
+-- local esp_tree     = ps.tree_node()
 
 -- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
@@ -36,22 +36,20 @@ menu.ooc_group_buff                      = core.menu.checkbox(true,  "eax_ooc_gr
 menu.drink_threshold                     = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
-menu.auto_repair                        = core.menu.checkbox(true, "eaxwarriorfury_auto_repair")
-menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxwarriorfury_auto_sell_greys")
-menu.auto_mount                         = core.menu.checkbox(true, "eaxwarriorfury_auto_mount")
-menu.auto_dismount                      = core.menu.checkbox(true, "eaxwarriorfury_auto_dismount")
-menu.auto_combat_potions                = core.menu.checkbox(false, "eaxwarriorfury_auto_combat_potions")
+-- menu.auto_repair                        = core.menu.checkbox(true, "eaxwarriorfury_auto_repair")
+-- menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxwarriorfury_auto_sell_greys")
+-- menu.auto_mount                         = core.menu.checkbox(true, "eaxwarriorfury_auto_mount")
+-- menu.auto_dismount                      = core.menu.checkbox(true, "eaxwarriorfury_auto_dismount")
 menu.auto_ooc_food_drink                = core.menu.checkbox(true, "eaxwarriorfury_auto_ooc_food_drink")
 menu.auto_flask                         = core.menu.checkbox(false, "eaxwarriorfury_auto_flask")
 -- Leveling
 menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxwarriorfury_lev_conserve")
 menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxwarriorfury_lev_mana_floor")
 -- ESP
-menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
-menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
-menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
-menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
-
+-- menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
+-- menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
+-- menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
+-- menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 -- -- Class-specific elements ---------------------------------------------------
 menu.use_battle_shout                     = core.menu.checkbox(true, "simplefury_use_battle_shout")
 menu.use_cooldowns                        = core.menu.checkbox(true, "simplefury_use_cooldowns")
@@ -196,18 +194,16 @@ function menu.render()
         ps.render_racial(menu, racial_tree)
 
         -- -- Out-of-combat -----------------------------------------------------
-        menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
-        menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
-        menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
-        menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
-        menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
+--         menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
+--         menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
+--         menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
+--         menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
         menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
         menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
         ps.render_ooc(menu, ooc_tree, false)
 
         -- -- Display & HUD -----------------------------------------------------
-        ps.render_esp(menu, esp_tree)
-
+    -- ps.render_esp(menu, esp_tree) -- DISABLED
     end)
 end
 

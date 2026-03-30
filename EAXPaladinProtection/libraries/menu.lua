@@ -14,7 +14,7 @@ local def_tree     = ps.tree_node()
 local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
-local esp_tree     = ps.tree_node()
+-- local esp_tree     = ps.tree_node()
 
 settings.init({
     spec_name = "eaxpaladinprotection",
@@ -49,11 +49,10 @@ menu.ooc_group_buff                      = core.menu.checkbox(true,  "eax_ooc_gr
 menu.drink_threshold                     = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
-menu.auto_repair                        = core.menu.checkbox(true, "eaxpaladinprotection_auto_repair")
-menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxpaladinprotection_auto_sell_greys")
-menu.auto_mount                         = core.menu.checkbox(true, "eaxpaladinprotection_auto_mount")
-menu.auto_dismount                      = core.menu.checkbox(true, "eaxpaladinprotection_auto_dismount")
-menu.auto_combat_potions                = core.menu.checkbox(false, "eaxpaladinprotection_auto_combat_potions")
+-- menu.auto_repair                        = core.menu.checkbox(true, "eaxpaladinprotection_auto_repair")
+-- menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxpaladinprotection_auto_sell_greys")
+-- menu.auto_mount                         = core.menu.checkbox(true, "eaxpaladinprotection_auto_mount")
+-- menu.auto_dismount                      = core.menu.checkbox(true, "eaxpaladinprotection_auto_dismount")
 menu.auto_ooc_food_drink                = core.menu.checkbox(true, "eaxpaladinprotection_auto_ooc_food_drink")
 menu.auto_flask                         = core.menu.checkbox(false, "eaxpaladinprotection_auto_flask")
 -- Leveling
@@ -65,11 +64,10 @@ menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladi
 menu.use_dispels                          = core.menu.checkbox(false, "eaxpaladinprotection_use_dispels")
 menu.use_aura                             = core.menu.checkbox(true, "eaxpaladinprotection_use_aura")
 -- ESP
-menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
-menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
-menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
-menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
-
+-- menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
+-- menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
+-- menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
+-- menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 -- -- Class-specific elements ---------------------------------------------------
 menu.show_notifications                   = core.menu.checkbox(false, "eaxpaladinprot_notifications")
 menu.use_righteous_fury                   = core.menu.checkbox(true, "eaxpaladinprot_use_righteous_fury")
