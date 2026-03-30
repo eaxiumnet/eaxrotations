@@ -63,6 +63,7 @@ menu.use_hand_of_freedom                  = core.menu.checkbox(true, "eaxpaladin
 menu.use_hand_of_freedom_key              = core.menu.keybind(7, false, "eaxpaladinprotection_use_hof_key")
 menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinprotection_hof_slows")
 menu.use_dispels                          = core.menu.checkbox(false, "eaxpaladinprotection_use_dispels")
+menu.use_aura                             = core.menu.checkbox(true, "eaxpaladinprotection_use_aura")
 -- ESP
 menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
 menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
@@ -81,6 +82,8 @@ menu.consecration_radius                  = core.menu.slider_int(6, 12, 8, "eaxp
 menu.use_avengers_shield                  = core.menu.checkbox(true, "eaxpaladinprot_use_avengers_shield")
 menu.use_avengers_shield_key              = core.menu.keybind(7, false, "eaxpaladinprot_use_avengers_shield_key")
 menu.use_judgement                        = core.menu.checkbox(true, "eaxpaladinprot_use_judgement")
+menu.judgement_assignment                 = core.menu.combobox(1, "eaxpaladinprot_judgement_assignment")
+menu.judgement_target_ttd                 = core.menu.slider_int(8, 30, 12, "eaxpaladinprot_judgement_target_ttd")
 menu.ooc_group_buff_key                   = core.menu.keybind(7, false, "eaxpaladinprot_ooc_group_buff_key")
 
 -- ----------------------------------------------------------------------------
@@ -117,10 +120,13 @@ function menu.render()
             menu.consecration_radius:render("Consecration Radius", "Radius used when counting enemies for Consecration")
             menu.use_avengers_shield:render("Avenger's Shield", "Use Avenger's Shield when fighting from range")
             menu.use_avengers_shield_key:render("Avenger's Hotkey", "Toggle Avenger's Shield on/off")
-            menu.use_judgement:render("Judgement", "Apply Judgement of the Crusader once per target when ready")
+            menu.use_judgement:render("Judgement", "Maintain a configured wisdom or crusader judgement on durable targets and use Judgement of Righteousness more conservatively")
+            menu.judgement_assignment:render("Judgement Assignment", { "Auto", "Wisdom", "Crusader" })
+            menu.judgement_target_ttd:render("Judgement TTD", "Minimum target time-to-die in seconds before swapping seals to maintain Judgement of Wisdom or the Crusader")
             menu.ooc_group_buff_key:render("Blessings Hotkey", "Toggle group blessings on/off")
             menu.use_hand_of_freedom_key:render("Freedom Hotkey", "Toggle Hand of Freedom on/off")
             menu.use_dispels:render("Cleanse", "Conservative friendly cleanse for poison/disease")
+            menu.use_aura:render("Aura Upkeep", "Maintain Devotion Aura when not already active")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------
@@ -143,7 +149,7 @@ function menu.render()
     end)
 end
 
-menu.use_divine_shield = core.menu.checkbox(true, "eaxpprot_divine_shield")
+menu.use_divine_shield = core.menu.checkbox(false, "eaxpprot_divine_shield")
 menu.use_divine_shield_hp_pct = core.menu.slider_int(0, 100, 20, "eaxpprot_divine_shield_hp")
 menu.use_lay_on_hands = core.menu.checkbox(true, "eaxpprot_lay_on_hands")
 menu.use_lay_on_hands_hp_pct = core.menu.slider_int(0, 100, 10, "eaxpprot_loh_hp")

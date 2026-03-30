@@ -7,8 +7,11 @@ local resource_gate = require("resource_gate")
 local spells = require("spells")
 local utils = require("utils")
 local eax_utils = require("eax_utils")
+local dispel_engine = require("dispel_engine")
 ---@type control_panel_helper
 local control_panel_utility = require("common/utility/control_panel_helper")
+---@type key_helper
+local key_helper = require("common/utility/key_helper")
 
 if not utils.same_unit then
     function utils.same_unit(a, b)
@@ -208,6 +211,9 @@ local runtime = {
     avengers_shield_id = nil,
     judgement_id = nil,
     seal_of_righteousness_id = nil,
+    seal_of_wisdom_id = nil,
+    seal_of_the_crusader_id = nil,
+    seal_of_light_id = nil,
     exorcism_id = nil,
     cached_mode = MODE_SOLO,
     mode_checked_at = 0,
@@ -227,6 +233,11 @@ local runtime = {
     holy_wrath_id = nil,
     lay_on_hands_id = nil,
     pending_reseal_until = 0,
+    last_blessing_target_guid = nil,
+    last_blessing_name = nil,
+    last_blessing_at = 0,
+    last_blessing_retry_at = {},
+    last_aura_cast_at = 0,
 }
 
 local ctx_cache = rotation_context.new({
@@ -234,12 +245,37 @@ local ctx_cache = rotation_context.new({
         spells.BUFF_RIGHTEOUS_FURY,
         spells.BUFF_HOLY_SHIELD,
         spells.BUFF_SEAL_OF_RIGHTEOUSNESS,
+        spells.BUFF_SEAL_OF_WISDOM,
+        spells.BUFF_SEAL_OF_THE_CRUSADER,
+        spells.BUFF_SEAL_OF_LIGHT,
     },
     important_debuffs = {},
 })
 
 local function note_cast()
     rotation_context.invalidate(ctx_cache)
+end
+
+local MAGIC_DISPEL_TYPE = 1
+local DISEASE_DISPEL_TYPE = 3
+local POISON_DISPEL_TYPE = 4
+local JUDGEMENT_REFRESH_MS = 4000
+local BLESSING_RETRY_WINDOW = 6.0
+local AURA_RETRY_WINDOW = 12.0
+
+local function target_has_dispellable_debuff(unit)
+    if not unit then return false end
+    local type_defs = {
+        { numeric = MAGIC_DISPEL_TYPE, name = "magic" },
+        { numeric = DISEASE_DISPEL_TYPE, name = "disease" },
+        { numeric = POISON_DISPEL_TYPE, name = "poison" },
+    }
+    for i = 1, #type_defs do
+        if dispel_engine.unit_has_type(unit, type_defs[i], nil) then
+            return true
+        end
+    end
+    return false
 end
 
 local function invalidate_ctx()
@@ -253,11 +289,15 @@ local GROUP_ROLE_DAMAGER = 2
 local function resolve_spells()
     runtime.righteous_fury_id = utils.resolve_spell_id(spells.RIGHTEOUS_FURY)
     runtime.holy_shield_id = utils.resolve_spell_id(spells.HOLY_SHIELD)
+    runtime.divine_shield_id = utils.resolve_spell_id(spells.DIVINE_SHIELD)
     runtime.holy_wrath_id = utils.resolve_spell_id(spells.HOLY_WRATH)
     runtime.consecration_id = utils.resolve_spell_id(spells.CONSECRATION)
     runtime.avengers_shield_id = utils.resolve_spell_id(spells.AVENGERS_SHIELD)
     runtime.judgement_id = utils.resolve_spell_id(spells.JUDGEMENT)
     runtime.seal_of_righteousness_id = utils.resolve_spell_id(spells.SEAL_OF_RIGHTEOUSNESS)
+    runtime.seal_of_wisdom_id = utils.resolve_spell_id(spells.SEAL_OF_WISDOM)
+    runtime.seal_of_the_crusader_id = utils.resolve_spell_id(spells.SEAL_OF_THE_CRUSADER)
+    runtime.seal_of_light_id = utils.resolve_spell_id(spells.SEAL_OF_LIGHT)
     runtime.exorcism_id = utils.resolve_spell_id(spells.EXORCISM)
     runtime.hammer_of_justice_id = utils.resolve_spell_id(spells.HAMMER_OF_JUSTICE)
     runtime.lay_on_hands_id = utils.resolve_spell_id(spells.LAY_ON_HANDS)
@@ -274,7 +314,8 @@ local function refresh_mode_cache(now)
     if (now - runtime.mode_checked_at) < MODE_DETECT_INTERVAL then
         return
     end
-    runtime.cached_mode = utils.detect_mode(me)
+    local me = _get_local_player()
+    runtime.cached_mode = me and utils.detect_mode(me) or runtime.cached_mode or MODE_SOLO
     runtime.mode_checked_at = now
 end
 
@@ -362,7 +403,11 @@ local function ensure_holy_shield(me, target)
         return false
     end
 
-    if not utils.is_melee_target(me, target) then
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+
+    if me:is_in_combat() and not utils.is_melee_target(me, target) then
         return false
     end
 
@@ -409,31 +454,57 @@ end
 
 local function try_cleanse(me, target)
     if not menu.use_dispels:get_state() then return false end
-    if not runtime.cleanse_id then return false end
-    local units = target and { target } or { me }
-    if me and target and not target:is_party_member() then
-        units = { me }
+    local cleanse_id = runtime.cleanse_id or runtime.purify_id
+    if not cleanse_id then return false end
+    local units = { me }
+    local party_units = utils.get_party_units and utils.get_party_units(me) or {}
+    for i = 1, #party_units do
+        units[#units + 1] = party_units[i]
     end
-    if not target then
-        local objects = core.object_manager.get_all_objects()
-        units = { me }
-        for i = 1, #objects do
-            local unit = objects[i]
-            if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead() and unit:is_party_member() then
-                units[#units + 1] = unit
-            end
-        end
+    local preferred = (target and target:is_valid() and not target:is_dead() and (utils.same_unit(me, target) or (target.is_party_member and target:is_party_member()))) and target or nil
+    local best_target = select(1, dispel_engine.find_best_target({
+        candidates = units,
+        preferred_target = preferred,
+        priorities = {
+            { type_def = { numeric = MAGIC_DISPEL_TYPE, name = "magic" }, label = "Cleanse" },
+            { type_def = { numeric = DISEASE_DISPEL_TYPE, name = "disease" }, label = "Cleanse" },
+            { type_def = { numeric = POISON_DISPEL_TYPE, name = "poison" }, label = "Cleanse" },
+        },
+        get_hp = function(unit) return utils.get_health_pct(unit) end,
+    }))
+    if best_target and utils.can_cast_target(cleanse_id, me, best_target) and utils.cast_target(cleanse_id, best_target) then
+        note_cast()
+        utils.log_debug(menu, "Cleanse -> " .. (best_target.get_name and best_target:get_name() or "ally"))
+        return true
     end
-    for _, unit in ipairs(units) do
-        if unit and unit:is_valid() and not unit:is_dead() and (utils.same_unit(me, unit) or unit:is_party_member()) then
-            if utils.has_debuff(unit, spells.CLEANSE) or utils.has_debuff(unit, spells.PURIFY) then
-                if utils.can_cast_target(runtime.cleanse_id, me, unit) and utils.cast_target(runtime.cleanse_id, unit) then
-                    note_cast()
-                    utils.log_debug(menu, "Cleanse -> " .. (unit.get_name and unit:get_name() or "ally"))
-                    return true
-                end
-            end
-        end
+    return false
+end
+
+local function ensure_aura_upkeep(me)
+    if not menu.use_aura or not menu.use_aura:get_state() then
+        return false
+    end
+    if not runtime.last_aura_cast_at then
+        runtime.last_aura_cast_at = 0
+    end
+    if utils.has_buff(me, spells.BUFF_DEVOTION_AURA)
+        or utils.has_buff(me, spells.BUFF_RETRIBUTION_AURA)
+        or utils.has_buff(me, spells.BUFF_CONCENTRATION_AURA)
+    then
+        return false
+    end
+    if (_core_time() - runtime.last_aura_cast_at) < AURA_RETRY_WINDOW then
+        return false
+    end
+    local aura_id = utils.resolve_spell_id(spells.DEVOTION_AURA)
+    if not aura_id then
+        return false
+    end
+    if utils.can_cast_self(aura_id, me) and utils.cast_self(aura_id, me) then
+        runtime.last_aura_cast_at = _core_time()
+        note_cast()
+        utils.log_debug(menu, "Devotion Aura")
+        return true
     end
     return false
 end
@@ -444,7 +515,24 @@ local function try_consecration(me, enemy_count)
         return false
     end
 
-    if enemy_count < menu.consecration_enemy_count:get() then
+    local consecration_enemy_count = menu.consecration_enemy_count:get()
+    local mana_pct = utils.get_mana_pct(me)
+
+    if enemy_count < consecration_enemy_count then
+        if enemy_count ~= 1 then
+            return false
+        end
+
+        if mana_pct < 0.60 then
+            return false
+        end
+
+        if not utils.is_melee_target(me, me:get_target()) then
+            return false
+        end
+    end
+
+    if mana_pct < 0.20 then
         return false
     end
 
@@ -456,29 +544,132 @@ local function try_consecration(me, enemy_count)
         return true
     end
 
-    return false
+	return false
 end
 
-local function ensure_seal_of_righteousness(me)
-    if not runtime.seal_of_righteousness_id then
-        return false
+local function get_target_ttd_s(target)
+	local ttd = tonumber(ttd_tracker.get(target))
+	return ttd or 0
+end
+
+local function is_durable_judgement_target(target)
+	if not target or not target:is_valid() or target:is_dead() then
+		return false
+	end
+	local min_ttd = menu.judgement_target_ttd and menu.judgement_target_ttd:get() or 10
+	local ttd = get_target_ttd_s(target)
+	return ttd == 999 or ttd >= min_ttd
+end
+
+local function get_active_seal_key(me)
+	if utils.has_buff(me, spells.BUFF_SEAL_OF_THE_CRUSADER) then
+		return "crusader"
+	end
+	if utils.has_buff(me, spells.BUFF_SEAL_OF_WISDOM) then
+		return "wisdom"
+	end
+	if utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS) then
+		return "righteous"
+	end
+	return nil
+end
+
+local function get_judgement_assignment_key(me)
+	local assignment = menu.judgement_assignment and menu.judgement_assignment:get() or 1
+	if assignment == 2 then
+		return "wisdom"
+	end
+	if assignment == 3 then
+		return "crusader"
+	end
+
+	local mode = get_effective_mode()
+	if mode == MODE_SOLO and utils.get_mana_pct(me) >= 0.35 and runtime.seal_of_the_crusader_id then
+		return "crusader"
+	end
+	return "wisdom"
+end
+
+local function get_judgement_debuff_ids(key)
+	if key == "crusader" then
+		return spells.DEBUFF_JUDGEMENT_OF_THE_CRUSADER
+	end
+	if key == "wisdom" then
+		return spells.DEBUFF_JUDGEMENT_OF_WISDOM
+	end
+	return nil
+end
+
+local function get_assigned_seal_profile(me, target)
+	if not menu.use_judgement:get_state() or not runtime.judgement_id then
+		return nil, nil, nil
+	end
+	if not is_durable_judgement_target(target) then
+		return nil, nil, nil
+	end
+
+	local assignment_key = get_judgement_assignment_key(me)
+	local assignment_debuff = get_judgement_debuff_ids(assignment_key)
+	if assignment_debuff and utils.get_debuff_remaining_ms(target, assignment_debuff) > JUDGEMENT_REFRESH_MS then
+		return nil, nil, nil
+	end
+
+	if assignment_key == "crusader" and runtime.seal_of_the_crusader_id then
+		return runtime.seal_of_the_crusader_id, spells.BUFF_SEAL_OF_THE_CRUSADER, "Seal of the Crusader"
+	end
+	if assignment_key == "wisdom" and runtime.seal_of_wisdom_id then
+		return runtime.seal_of_wisdom_id, spells.BUFF_SEAL_OF_WISDOM, "Seal of Wisdom"
+	end
+
+	return nil, nil, nil
+end
+
+local function get_desired_seal_profile(me, target)
+	local assignment_seal_id, assignment_buff_ids, assignment_label = get_assigned_seal_profile(me, target)
+	if assignment_seal_id then
+		return assignment_seal_id, assignment_buff_ids, assignment_label
+	end
+
+	local mana_pct = utils.get_mana_pct(me)
+	local hp_pct = (me and me.get_health_percentage and me:get_health_percentage() or 100) / 100
+	local defensive_sustain = me and me:is_in_combat() and (hp_pct <= 0.45 or mana_pct <= 0.12)
+
+	if defensive_sustain and runtime.seal_of_light_id then
+		return runtime.seal_of_light_id, spells.BUFF_SEAL_OF_LIGHT, "Seal of Light"
+	end
+
+	if mana_pct <= 0.18 and runtime.seal_of_wisdom_id then
+        return runtime.seal_of_wisdom_id, spells.BUFF_SEAL_OF_WISDOM, "Seal of Wisdom"
     end
+
+    if runtime.seal_of_righteousness_id then
+        return runtime.seal_of_righteousness_id, spells.BUFF_SEAL_OF_RIGHTEOUSNESS, "Seal of Righteousness"
+    end
+
+	return nil, nil, nil
+end
+
+local function ensure_active_seal(me, target)
+	local seal_id, seal_buff_ids, seal_label = get_desired_seal_profile(me, target)
+	if not seal_id then
+		return false
+	end
 
     local now = _core_time()
     if runtime.pending_reseal_until > 0 and now >= runtime.pending_reseal_until then
         runtime.pending_reseal_until = 0
     end
 
-    if utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS) then
+    if seal_buff_ids and utils.has_buff(me, seal_buff_ids) then
         runtime.pending_reseal_until = 0
         return false
     end
 
-    if utils.can_cast_self(runtime.seal_of_righteousness_id, me) and utils.cast_self(runtime.seal_of_righteousness_id, me) then
+    if utils.can_cast_self(seal_id, me) and utils.cast_self(seal_id, me) then
         runtime.pending_reseal_until = 0
         note_cast()
-        utils.log_debug(menu, "Seal of Righteousness")
-        notify_cast("paladin:seal_of_righteousness", "Seal of Righteousness", color.gold(220))
+        utils.log_debug(menu, seal_label)
+        notify_cast("paladin:active_seal", seal_label, color.gold(220))
         return true
     end
 
@@ -491,6 +682,10 @@ local function try_avengers_shield(me, target, mode)
     end
 
     if not target then
+        return false
+    end
+
+    if me:is_in_combat() and utils.is_melee_target(me, target) then
         return false
     end
 
@@ -508,30 +703,70 @@ local function try_avengers_shield(me, target, mode)
 end
 
 local function try_judgement(me, target)
-    if not menu.use_judgement:get_state() or not runtime.judgement_id or not target then
-        return false
-    end
+	if not menu.use_judgement:get_state() or not runtime.judgement_id or not target then
+		return false
+	end
 
-    if not utils.can_cast_hostile(runtime.judgement_id, me, target) then
-        return false
-    end
+	local mana_pct = utils.get_mana_pct(me)
+	local active_seal = get_active_seal_key(me)
+	local judgement_label = "Judgement"
+	local should_cast = false
 
-    if utils.cast_target(runtime.judgement_id, target) then
-        runtime.pending_reseal_until = _core_time() + 2.0
-        note_cast()
-        utils.log_debug(menu, "Cast Judgement")
-        notify_cast("paladin:judgement", "Judgement", color.gold(220))
-        return true
-    end
+	if is_durable_judgement_target(target) then
+		local assignment_key = get_judgement_assignment_key(me)
+		local assignment_debuff = get_judgement_debuff_ids(assignment_key)
+		local assignment_remaining = assignment_debuff and utils.get_debuff_remaining_ms(target, assignment_debuff) or 0
+
+		if assignment_remaining <= JUDGEMENT_REFRESH_MS and active_seal == assignment_key then
+			should_cast = true
+			judgement_label = assignment_key == "crusader" and "Judgement of the Crusader" or "Judgement of Wisdom"
+		end
+	end
+
+	if not should_cast then
+		if me:is_in_combat() and mana_pct >= 0.55 then
+			return false
+		end
+		if active_seal == "wisdom" and utils.get_debuff_remaining_ms(target, spells.DEBUFF_JUDGEMENT_OF_WISDOM) > JUDGEMENT_REFRESH_MS then
+			return false
+		end
+		if active_seal == "crusader" and utils.get_debuff_remaining_ms(target, spells.DEBUFF_JUDGEMENT_OF_THE_CRUSADER) > JUDGEMENT_REFRESH_MS then
+			return false
+		end
+		if active_seal ~= "righteous" and active_seal ~= "wisdom" and active_seal ~= "crusader" then
+			return false
+		end
+		if active_seal == "righteous" then
+			judgement_label = "Judgement of Righteousness"
+		end
+	end
+
+	if not utils.can_cast_hostile(runtime.judgement_id, me, target) then
+		return false
+	end
+
+	if utils.cast_target(runtime.judgement_id, target) then
+		runtime.pending_reseal_until = _core_time() + 2.0
+		note_cast()
+		utils.log_debug(menu, judgement_label)
+		notify_cast("paladin:judgement", judgement_label, color.gold(220))
+		return true
+	end
 
     return false
 end
 
-local function try_holy_wrath(me)
+local function try_holy_wrath(me, target)
     if not runtime.holy_wrath_id then
         return false
     end
     if enc and not enc.aoe_safe then
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+    if not (creature_utils.is_undead(target) or creature_utils.is_demon(target)) then
         return false
     end
     if utils.get_mana_pct(me) < 0.20 then
@@ -592,6 +827,12 @@ end
 local function try_divine_shield_emergency(me)
     if not menu.use_divine_shield:get_state() or not runtime.divine_shield_id then
         return false
+    end
+    if me:is_in_combat() then
+        local mode = get_effective_mode()
+        if mode ~= MODE_SOLO then
+            return false
+        end
     end
     local hp_threshold = menu.use_divine_shield_hp_pct:get() / 100
     if (me:get_health_percentage() / 100) > hp_threshold then
@@ -688,6 +929,9 @@ local function on_update()
         return
     end
     ooc_manager.on_update(me, menu, utils, {})
+    if ensure_aura_upkeep(me) then
+        return
+    end
     if try_ooc_group_blessings(me) then
         return
     end
@@ -727,13 +971,13 @@ local function on_update()
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
-    if try_cleanse(me, target) then return true end
+	if try_cleanse(me, target) then return true end
 
-    if me:is_in_combat() and runtime.pending_reseal_until > now and utils.get_mana_pct(me) >= 0.08 then
-        if ensure_seal_of_righteousness(me) then
-            return
-        end
-    end
+	if me:is_in_combat() and runtime.pending_reseal_until > now and utils.get_mana_pct(me) >= 0.08 then
+		if ensure_active_seal(me, target) then
+			return
+		end
+	end
     
     if not target or not me:can_attack(target) then
         return
@@ -760,7 +1004,7 @@ local function on_update()
     if racial_manager.try_defensive(me) then return true end
 
     -- Defensive abilities
-    if try_divine_shield_emergency(me) then return true end
+    if try_divine_shield_emergency(me, get_effective_mode()) then return true end
     if try_lay_on_hands_emergency(me) then return true end
     if defensive_manager.try_defensive(me, "paladin", utils) then
         return
@@ -785,18 +1029,18 @@ local function on_update()
         return
     end
 
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_seal_of_righteousness(me) then
-        return
-    end
+	if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_active_seal(me, target) then
+		return
+	end
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and ensure_holy_shield(me, target) then
         return
     end
 
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_judgement(me, target) then
-        ensure_seal_of_righteousness(me)
-        return
-    end
+	if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_judgement(me, target) then
+		ensure_active_seal(me, target)
+		return
+	end
 
     local enemy_count = utils.count_enemies_within_radius(me, menu.consecration_radius:get())
 
@@ -808,7 +1052,7 @@ local function on_update()
         return
     end
 
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_holy_wrath(me) then
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_holy_wrath(me, target) then
         return
     end
 
@@ -933,6 +1177,40 @@ local function get_group_blessing_assignment(me, unit)
     return nil, nil, nil
 end
 
+local function unit_has_any_paladin_blessing(unit)
+    if not unit or not unit:is_valid() or unit:is_dead() then
+        return false
+    end
+
+    local blessing_ids = {
+        spells.BUFF_BLESSING_OF_SANCTUARY,
+        spells.BUFF_BLESSING_OF_KINGS,
+        spells.BUFF_BLESSING_OF_MIGHT,
+        spells.BUFF_BLESSING_OF_WISDOM,
+    }
+    for i = 1, #blessing_ids do
+        if utils.has_buff(unit, blessing_ids[i]) then
+            return true
+        end
+    end
+
+    local ok, buffs = pcall(function() return unit:get_buffs() end)
+    if not ok or not buffs then return false end
+    local blessing_names = {
+        ["blessing of might"] = true, ["greater blessing of might"] = true,
+        ["blessing of wisdom"] = true, ["greater blessing of wisdom"] = true,
+        ["blessing of sanctuary"] = true, ["greater blessing of sanctuary"] = true,
+        ["blessing of kings"] = true, ["greater blessing of kings"] = true,
+        ["blessing of salvation"] = true, ["greater blessing of salvation"] = true,
+        ["blessing of light"] = true, ["greater blessing of light"] = true,
+    }
+    for _, buff in ipairs(buffs) do
+        local name = buff and buff.name
+        if type(name) == "string" and blessing_names[string.lower(name)] then return true end
+    end
+    return false
+end
+
 try_ooc_group_blessings = function(me)
     if not menu.ooc_group_buff or not menu.ooc_group_buff:get_state() then
         return false
@@ -954,10 +1232,6 @@ try_ooc_group_blessings = function(me)
         return false
     end
 
-    if not utils.throttle("paladin_protection_group_blessings", 2.0) then
-        return false
-    end
-
     local units = { me }
     local objects = core.object_manager.get_all_objects()
     for i = 1, #objects do
@@ -972,12 +1246,24 @@ try_ooc_group_blessings = function(me)
 
     for _, unit in ipairs(units) do
         local spell_id, buff_ids, buff_name = get_group_blessing_assignment(me, unit)
-        if spell_id and buff_ids and not utils.has_buff(unit, buff_ids) then
+        local unit_guid = safe_get_guid(unit)
+        local retry_key = unit_guid or buff_name or "unknown"
+        local recently_blessed_same_target = unit_guid
+            and runtime.last_blessing_target_guid == unit_guid
+            and runtime.last_blessing_name == buff_name
+            and (_core_time() - runtime.last_blessing_at) < 6.0
+        local last_retry = runtime.last_blessing_retry_at[retry_key] or 0
+
+        if spell_id and buff_ids and not recently_blessed_same_target and not unit_has_any_paladin_blessing(unit) and not utils.has_buff(unit, buff_ids) and (_core_time() - last_retry) >= BLESSING_RETRY_WINDOW then
             local is_self = utils.same_unit and utils.same_unit(me, unit)
             local can_cast = is_self and utils.can_cast_self(spell_id, me) or utils.can_cast_target(spell_id, me, unit)
             if can_cast then
                 local cast_ok = is_self and utils.cast_self(spell_id, me) or utils.cast_target(spell_id, unit)
                 if cast_ok then
+                    runtime.last_blessing_retry_at[retry_key] = _core_time()
+                    runtime.last_blessing_target_guid = unit_guid
+                    runtime.last_blessing_name = buff_name
+                    runtime.last_blessing_at = _core_time()
                     utils.log_debug(menu, "OOC: " .. buff_name)
                     return true
                 end
@@ -1099,7 +1385,7 @@ reactive_adapter = {
 
                 if try_hammer_of_justice(action_deps.me, recovery_target) then return true end
                 if try_avengers_shield(action_deps.me, recovery_target, get_effective_mode()) then return true end
-                if try_holy_wrath(action_deps.me) then return true end
+                if try_holy_wrath(action_deps.me, recovery_target) then return true end
                 return false
             end,
         },
@@ -1123,7 +1409,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled

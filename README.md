@@ -18,6 +18,14 @@
 - **Important:** these numbers are **not** live raid logs or in-game benchmarks; they are source-based readiness estimates
 - **TBC truth:** this repo aims for true TBC behavior, but a few specs still contain leftover non-TBC spell references in source and are explicitly called out below instead of being misrepresented as clean
 
+### Paladin Release Status — 2026-03-30
+
+- **Holy:** `█████████░` **92%** — release-candidate healer shell after cooldown, cleanse, blessing, mana, and aura fixes
+- **Protection:** `█████████░` **90%** — release-candidate tank shell after seal/judgement cleanup, prepull flow, blessing fixes, and survivability fallback
+- **Retribution:** `█████████░` **91%** — release-candidate DPS shell after real seal → judgement flow, reseal cleanup, aura upkeep, and prepull setup
+- **Biggest remaining Paladin gap:** full **Protection SoV / SoCorruption / twist parity** with NAG is still intentionally deferred for safety
+- **Release stance:** ship **after smoke tests**, not blind ship
+
 ### Usefulness Matrix
 
 | Class | Spec | Solo | Dungeon | Raid |
@@ -31,9 +39,9 @@
 | Mage | Arcane | 72% | 76% | 80% |
 | Mage | Fire | 72% | 76% | 78% |
 | Mage | Frost | 78% | 82% | 85% |
-| Paladin | Holy | 40% | 95% | 90% |
-| Paladin | Protection | 52% | 90% | 86% |
-| Paladin | Retribution | 80% | 84% | 80% |
+| Paladin | Holy | 48% | 96% | 92% |
+| Paladin | Protection | 68% | 93% | 90% |
+| Paladin | Retribution | 88% | 88% | 85% |
 | Priest | Discipline | 48% | 78% | 72% |
 | Priest | Holy | 45% | 82% | 78% |
 | Priest | Shadow | 80% | 76% | 72% |
@@ -90,6 +98,7 @@ cd eax-tbc-classic-rotations
 - **Closest to clean TBC behavior:** Holy Paladin, Protection Paladin, Retribution Paladin, Shadow Priest, Elemental Shaman, Enhancement Shaman, Affliction Warlock, Destruction Warlock, Arms Warrior
 - **Mostly TBC, but still wants live validation:** Druid specs, Hunter specs, Mage specs, Assassination Rogue, Subtlety Rogue, Restoration Shaman, Demonology Warlock, Protection Warrior
 - **Still carrying visible non-TBC leftovers in source:** Marksmanship Hunter utility flags, Discipline Priest, Holy Priest, Combat Rogue, Fury Warrior
+- **Current release-candidate class focus:** **Paladin** — all three specs have had a major NAG/TBC parity pass and now mainly need live smoke validation, not major new architecture
 
 <details>
 <summary><strong>Druid</strong></summary>
@@ -146,16 +155,16 @@ cd eax-tbc-classic-rotations
 <summary><strong>Paladin</strong></summary>
 
 ### Holy
-- **Supported:** `Holy Light`, `Flash of Light`, `Holy Shock`, `Lay on Hands`, `Divine Illumination`, `Cleanse`, `Purify`, `Blessing of Light`, `Blessing of Wisdom`, `Blessing of Might`
-- **Unsupported / caveats:** no `Beacon of Light`, no `Divine Plea`, no `Word of Glory`; poor solo fit, very strong healer fit
+- **Supported:** `Holy Light`, `Flash of Light`, `Holy Shock`, `Lay on Hands`, `Divine Illumination`, `Divine Favor`, `Cleanse`, `Purify`, `Blessing of Wisdom`, `Blessing of Might`, conservative `Seal of Wisdom` sustain, `Concentration Aura`
+- **Unsupported / caveats:** no `Beacon of Light`, no `Divine Plea`, no `Word of Glory`; poor solo fit, very strong healer fit; still wants live raid-heal and blessing smoke tests
 
 ### Protection
-- **Supported:** `Avenger's Shield`, `Consecration`, `Judgement`, `Holy Shield`, `Righteous Fury`, `Seal of Righteousness`, `Exorcism`, basic self-heal fallback
-- **Unsupported / caveats:** no `Hammer of the Righteous`, no `Shield of the Righteous`, no `Holy Power`; strong dungeon/raid tank shell, weak solo efficiency
+- **Supported:** `Avenger's Shield`, `Consecration`, `Judgement`, `Holy Shield`, `Righteous Fury`, `Seal of Righteousness`, `Seal of Wisdom`, `Seal of Light`, `Exorcism`, `Holy Wrath`, prepull `Holy Shield`, `Devotion Aura`
+- **Unsupported / caveats:** no `Hammer of the Righteous`, no `Shield of the Righteous`, no `Holy Power`; full `Seal of Vengeance/Corruption` parity is still deferred for safety; strong dungeon/raid tank shell, weak solo efficiency
 
 ### Retribution
-- **Supported:** `Seal of Command`, `Seal of Righteousness`, `Seal of Blood`, `Judgement of Wisdom`, `Judgement of the Crusader`, `Crusader Strike`, `Exorcism`, `Consecration`, `Hammer of Wrath`
-- **Unsupported / caveats:** no `Divine Storm`, no `Templar's Verdict`, no `Holy Power`; good TBC core, still needs live burst-window validation
+- **Supported:** `Seal of Command`, `Seal of Blood`, `Seal of Righteousness`, `Seal of Wisdom`, `Seal of Light`, `Seal of the Crusader`, real `Judgement` flow, `Crusader Strike`, `Exorcism`, `Consecration`, `Hammer of Wrath`, optional seal twisting, `Retribution Aura`
+- **Unsupported / caveats:** no `Divine Storm`, no `Templar's Verdict`, no `Holy Power`; good TBC core, still needs live burst-window and twist timing validation
 
 </details>
 

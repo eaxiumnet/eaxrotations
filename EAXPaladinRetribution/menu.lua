@@ -63,6 +63,7 @@ menu.use_hand_of_freedom                  = core.menu.checkbox(true, "eaxpaladin
 menu.use_hand_of_freedom_key              = core.menu.keybind(7, false, "eaxpaladinretribution_use_hof_key")
 menu.hof_include_slows                    = core.menu.checkbox(false, "eaxpaladinretribution_hof_slows")
 menu.use_cleanse                          = core.menu.checkbox(true, "eaxpaladinretribution_use_cleanse")
+menu.use_aura                             = core.menu.checkbox(true, "eaxpaladinretribution_use_aura")
 -- ESP
 menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
 menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
@@ -124,11 +125,11 @@ function menu.render()
             menu.seal_twist_cooldown:render("Twist Cooldown (ms)", "Minimum time between completed twists")
             menu.allow_twist_dungeon:render("Allow in Dungeon", "Permit twisting when dungeon mode is active")
             menu.allow_twist_raid:render("Allow in Raid", "Permit twisting when raid mode is active")
-            menu.judgement_choice:render("Judgement Mode", { "Wisdom", "Crusader" })
+            menu.judgement_choice:render("Judgement Mode", { "Wisdom", "Crusader", "Light" })
             menu.use_hammer_of_wrath:render("Hammer of Wrath", "Use execute at low target HP")
-            menu.use_divine_illumination:render("Divine Illumination", "Use mana reduction cooldown when low on mana")
             menu.use_hand_of_freedom_key:render("Freedom Hotkey", "Toggle Hand of Freedom on/off")
             menu.use_cleanse:render("Cleanse", "Lightly remove poison and disease from allies")
+            menu.use_aura:render("Aura Upkeep", "Maintain Retribution Aura when not already active")
         end)
 
         -- -- Defensive cooldowns -----------------------------------------------
@@ -151,7 +152,6 @@ function menu.render()
 end
 
 menu.use_hammer_of_wrath = core.menu.checkbox(true, "eaxpret_hammer_of_wrath")
-menu.use_divine_illumination = core.menu.checkbox(true, "eaxpret_divine_illumination")
 menu.use_lay_on_hands   = core.menu.checkbox(true, "eaxpret_lay_on_hands")
 menu.use_divine_shield = core.menu.checkbox(true, "eaxpret_divine_shield")
 menu.use_divine_shield_hp_pct = core.menu.slider_int(0, 100, 20, "eaxpret_divine_shield_hp")

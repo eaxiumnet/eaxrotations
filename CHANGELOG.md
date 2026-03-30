@@ -2,6 +2,31 @@
 
 ---
 
+## [Unreleased] — 2026-03-30
+
+### EAX Paladin Protection
+- **Blessing spam fixed:** OOC blessing handling now has stronger Paladin-blessing detection, greater-blessing-aware name fallback, and anti-retry throttling to stop repeated self-buff spam.
+- **Aura upkeep:** Added safe Devotion Aura upkeep that only auto-fills when no Paladin aura is already active, so it no longer overwrites intentional manual aura swaps.
+- **Seal/Judgement cleanup:** Stabilized the TBC seal engine around Righteousness/Wisdom/Crusader, added durable-target judgement assignment, and improved reseal behavior after Judgement.
+- **Prepull + filler upgrades:** Holy Shield can now preload safely before pull, Avenger's Shield remains a ranged opener, and Consecration has a conservative single-target filler path when mana is healthy.
+- **Defensive sustain:** Added a narrow Seal of Light fallback for clear sustain windows without trying to force full NAG-style SoV/twist complexity into the release build.
+
+### EAX Paladin Retribution
+- **Real Judgement flow:** Retribution now sets up the correct seal before Judgement based on menu choice (`Wisdom` / `Crusader` / `Light`) instead of faking JoX casts through mismatched IDs.
+- **Reseal cleanup:** Temporary judgement seals now return cleanly to the normal DPS baseline without fighting the baseline seal loop.
+- **Aura upkeep:** Added safe Retribution Aura upkeep that respects existing manual aura choices instead of overwriting them.
+- **Prepull setup:** Added a conservative out-of-combat `Seal of the Crusader` → `Judgement of the Crusader` opener path.
+- **Reliability fixes:** Tightened Exorcism target validation and cleaned up blessing churn.
+
+### EAX Paladin Holy
+- **Runtime fixes:** Repaired forward-declaration/runtime hazards, corrected Holy Light top-rank ordering, and fixed poison dispel typing.
+- **Healing support upgrades:** Added Divine Favor, conservative low-mana Seal of Wisdom sustain, and a Judgement refresh window instead of apply-once behavior.
+- **Blessings and OOC behavior:** Improved blessing detection, reduced OOC blessing churn, and added non-destructive aura upkeep with Concentration → Devotion fallback.
+- **Quality-of-life:** Improved out-of-combat group top-off behavior and stronger triage integration.
+
+### Release note
+- **Paladin is now a release-candidate class** for same-night customer delivery, with the biggest deferred gap being full Protection `Seal of Vengeance / Seal of Corruption` parity.
+
 ## [2.1.0] — 2026-03-19
 
 ### Global (all specs)

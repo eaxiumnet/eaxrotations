@@ -14,6 +14,7 @@ if not utils.same_unit then
 end
 local eax_utils = require("eax_utils")
 local color     = require("color")
+local dispel_engine = require("dispel_engine")
 
 ---@type interrupt_manager
 local interrupt_manager = require("interrupt_manager")
@@ -203,10 +204,15 @@ local runtime = {
     exorcism_id = nil,
     seal_righteousness_id = nil,
     seal_blood_id = nil,
+    seal_wisdom_id = nil,
+    seal_light_id = nil,
+    seal_crusader_id = nil,
     judgement_ids = {
         wisdom = nil,
         crusader = nil,
+        light = nil,
     },
+    judgement_spell_id = nil,
     last_cast_time = 0,
     cached_mode = "solo",
     last_toggle_state = false,
@@ -225,8 +231,15 @@ local runtime = {
     hand_of_freedom_id = nil,
     cleanse_id = nil,
     purify_id = nil,
-    divine_illumination_id = nil,
     judgement_id = nil,
+    pending_command_reseal_until = 0,
+    pending_judgement_until = 0,
+    pending_baseline_reseal_until = 0,
+    pre_pull_state = "idle",
+    pre_pull_state_changed_at = 0,
+    pre_pull_target_guid = nil,
+    last_aura_cast_at = 0,
+    last_blessing_retry_at = {},
 }
 
 local ctx_cache = rotation_context.new({
@@ -245,6 +258,10 @@ local RET_AOE_RADIUS = 8
 local SEAL_TWIST_INPUT_DELAY_MS = 100
 local SEAL_TWIST_MANA_RESERVE = 0.20
 local SEAL_TWIST_CONFIRM_TIMEOUT_S = 0.75
+local BASELINE_RESEAL_DELAY_S = 1.5
+local PRE_PULL_CONFIRM_TIMEOUT_S = 1.0
+local AURA_RETRY_WINDOW = 12.0
+local BLESSING_RETRY_WINDOW = 6.0
 
 local function count_nearby_enemies(me)
     local ok_count, count = pcall(function()
@@ -264,14 +281,15 @@ end
 
 local function resolve_spells()
     runtime.hammer_of_wrath_id = utils.resolve_spell_id(spells.HAMMER_OF_WRATH)
-    runtime.divine_illumination_id = utils.resolve_spell_id(spells.DIVINE_ILLUMINATION)
     runtime.lay_on_hands_id    = utils.resolve_spell_id(spells.LAY_ON_HANDS)
     runtime.crusader_strike_id = utils.resolve_spell_id(spells.CRUSADER_STRIKE)
-    runtime.divine_storm_id      = utils.resolve_spell_id(spells.DIVINE_STORM)
     runtime.avenging_wrath_id    = utils.resolve_spell_id(spells.AVENGING_WRATH)
     runtime.seal_command_id = utils.resolve_spell_id(spells.SEAL_OF_COMMAND)
     runtime.seal_righteousness_id = utils.resolve_spell_id(spells.SEAL_OF_RIGHTEOUSNESS)
     runtime.seal_blood_id = utils.resolve_spell_id(spells.SEAL_OF_BLOOD)
+    runtime.seal_wisdom_id = utils.resolve_spell_id(spells.SEAL_OF_WISDOM)
+    runtime.seal_light_id = utils.resolve_spell_id(spells.SEAL_OF_LIGHT)
+    runtime.seal_crusader_id = utils.resolve_spell_id(spells.SEAL_OF_THE_CRUSADER)
     runtime.consecration_id = utils.resolve_spell_id(spells.CONSECRATION)
     runtime.divine_favor_id  = utils.resolve_spell_id(spells.DIVINE_FAVOR)
     runtime.exorcism_id      = utils.resolve_spell_id(spells.EXORCISM)
@@ -281,8 +299,10 @@ local function resolve_spells()
     runtime.purify_id = utils.resolve_spell_id(spells.PURIFY)
     runtime.ooc_blessing_of_might_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT)
     runtime.ooc_blessing_of_wisdom_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM)
+    runtime.judgement_spell_id = utils.resolve_spell_id(spells.JUDGEMENT)
     runtime.judgement_ids.wisdom = utils.resolve_spell_id(spells.JUDGEMENT_OF_WISDOM)
     runtime.judgement_ids.crusader = utils.resolve_spell_id(spells.JUDGEMENT_OF_THE_CRUSADER)
+    runtime.judgement_ids.light = utils.resolve_spell_id(spells.JUDGEMENT_OF_LIGHT)
     runtime.divine_shield_id = utils.resolve_spell_id(spells.DIVINE_SHIELD)
 end
 
@@ -373,35 +393,28 @@ local function should_throttle_aoe(action_key)
     return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
-local function is_pending_cast(spell_id)
-    if not spell_id then return false end
-    return smart_cast_manager.is_pending(spell_id)
-end
-
-local function mark_pending_cast(spell_id, timeout_s, options)
-    if not spell_id then return end
-    options = options or {}
-    smart_cast_manager.on_cast_attempt(spell_id, options.action_key or "unknown", {
-        triggers_gcd = true,
-        category = options.category,
-        cast_time = options.cast_time,
-    })
-end
-
--- Intelligent throttling for specific ability categories
-local function should_throttle_dot(action_key)
-    return smart_cast_manager.should_throttle(action_key, "dots")
-end
-local function should_throttle_filler(action_key)
-    return smart_cast_manager.should_throttle(action_key, "filler")
-end
-local function should_throttle_aoe(action_key)
-    return smart_cast_manager.should_throttle(action_key, "aoe")
-end
-
 local function note_cast()
     runtime.last_cast_time = _core_time()
     rotation_context.invalidate(ctx_cache)
+end
+
+local MAGIC_DISPEL_TYPE = 1
+local DISEASE_DISPEL_TYPE = 3
+local POISON_DISPEL_TYPE = 4
+
+local function target_has_dispellable_debuff(unit)
+    if not unit then return false end
+    local type_defs = {
+        { numeric = MAGIC_DISPEL_TYPE, name = "magic" },
+        { numeric = DISEASE_DISPEL_TYPE, name = "disease" },
+        { numeric = POISON_DISPEL_TYPE, name = "poison" },
+    }
+    for i = 1, #type_defs do
+        if dispel_engine.unit_has_type(unit, type_defs[i], nil) then
+            return true
+        end
+    end
+    return false
 end
 
 local function invalidate_ctx()
@@ -432,6 +445,40 @@ local function get_current_seal(me)
     return "none"
 end
 
+local function get_preferred_seal()
+    if runtime.seal_blood_id and core.spell_book.is_spell_learned(runtime.seal_blood_id) then
+        return runtime.seal_blood_id, "Blood", "blood"
+    end
+    if runtime.seal_command_id and core.spell_book.is_spell_learned(runtime.seal_command_id) then
+        return runtime.seal_command_id, "Command", "command"
+    end
+    if runtime.seal_righteousness_id and core.spell_book.is_spell_learned(runtime.seal_righteousness_id) then
+        return runtime.seal_righteousness_id, "Righteousness", "righteous"
+    end
+    return nil, nil, nil
+end
+
+local function ensure_aura_upkeep(me)
+    if not menu.use_aura or not menu.use_aura:get_state() then return false end
+    if utils.has_buff(me, spells.BUFF_CRUSADER_AURA)
+        or utils.has_buff(me, spells.BUFF_RETRIBUTION_AURA)
+        or utils.has_buff(me, spells.BUFF_DEVOTION_AURA)
+        or utils.has_buff(me, spells.BUFF_CONCENTRATION_AURA)
+    then
+        return false
+    end
+    if (_core_time() - (runtime.last_aura_cast_at or 0)) < AURA_RETRY_WINDOW then return false end
+    local aura_id = utils.resolve_spell_id(spells.RETRIBUTION_AURA)
+    if not aura_id then return false end
+    if utils.can_cast_self(aura_id, me) and utils.cast_self(aura_id, me) then
+        runtime.last_aura_cast_at = _core_time()
+        note_cast()
+        utils.log_debug(menu, "Retribution Aura")
+        return true
+    end
+    return false
+end
+
 local function reset_twist_state()
     runtime.twist_state = "idle"
     runtime.twist_state_changed_at = 0
@@ -452,9 +499,6 @@ local function get_unit_guid(unit)
 end
 
 local function get_twist_seal_choice()
-    if runtime.seal_blood_id and core.spell_book.is_spell_learned(runtime.seal_blood_id) then
-        return runtime.seal_blood_id, "Blood"
-    end
     if runtime.seal_righteousness_id and core.spell_book.is_spell_learned(runtime.seal_righteousness_id) then
         return runtime.seal_righteousness_id, "Righteousness"
     end
@@ -658,12 +702,14 @@ local function ensure_command_active(me)
         return false
     end
     if utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
+        runtime.pending_command_reseal_until = 0
         return false
     end
     if not is_gcd_ready() then
         return false
     end
     if utils.cast_self(runtime.seal_command_id, me) then
+        runtime.pending_command_reseal_until = 0
         note_cast()
         utils.log_debug(menu, "Seal: Command baseline")
         return true
@@ -671,11 +717,173 @@ local function ensure_command_active(me)
     return false
 end
 
-local function selected_judgement_key()
+local function reset_pre_pull_state()
+    runtime.pre_pull_state = "idle"
+    runtime.pre_pull_state_changed_at = 0
+    runtime.pre_pull_target_guid = nil
+end
+
+local function ensure_baseline_seal(me)
+    if runtime.twist_state ~= "idle" then
+        return false
+    end
+    local seal_id, seal_name, seal_key = get_preferred_seal()
+    if not seal_id then
+        return false
+    end
+    if seal_key == "blood" and utils.has_buff(me, spells.BUFF_SEAL_OF_BLOOD) then return false end
+    if seal_key == "command" and utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then return false end
+    if seal_key == "righteous" and utils.has_buff(me, spells.BUFF_SEAL_OF_RIGHTEOUSNESS) then return false end
+    if not is_gcd_ready() then return false end
+    if utils.cast_self(seal_id, me) then
+        note_cast()
+        utils.log_debug(menu, "Seal baseline -> " .. tostring(seal_name))
+        return true
+    end
+    return false
+end
+
+local function selected_judgement_key(me)
     if menu.judgement_choice:get() == 2 then
         return "crusader"
     end
+    if menu.judgement_choice:get() == 3 then
+        return "light"
+    end
     return "wisdom"
+end
+
+local function get_requested_judgement_profile(me)
+    local key = selected_judgement_key(me)
+    if key == "crusader" and runtime.judgement_ids.crusader and runtime.seal_crusader_id then
+        return {
+            key = key,
+            debuff_ids = spells.DEBUFF_JUDGEMENT_OF_THE_CRUSADER,
+            seal_id = runtime.seal_crusader_id,
+            seal_buff = spells.BUFF_SEAL_OF_THE_CRUSADER,
+            seal_label = "Seal of the Crusader",
+            judgement_label = "Judgement of the Crusader",
+        }
+    end
+    if key == "light" and runtime.judgement_ids.light and runtime.seal_light_id then
+        return {
+            key = key,
+            debuff_ids = spells.DEBUFF_JUDGEMENT_OF_LIGHT,
+            seal_id = runtime.seal_light_id,
+            seal_buff = spells.BUFF_SEAL_OF_LIGHT,
+            seal_label = "Seal of Light",
+            judgement_label = "Judgement of Light",
+        }
+    end
+    if key == "wisdom" and runtime.judgement_ids.wisdom and runtime.seal_wisdom_id then
+        return {
+            key = key,
+            debuff_ids = spells.DEBUFF_JUDGEMENT_OF_WISDOM,
+            seal_id = runtime.seal_wisdom_id,
+            seal_buff = spells.BUFF_SEAL_OF_WISDOM,
+            seal_label = "Seal of Wisdom",
+            judgement_label = "Judgement of Wisdom",
+        }
+    end
+    return nil
+end
+
+local function can_consider_pre_pull_judgement(me, target)
+    if not menu.use_judgement:get_state() then
+        return nil
+    end
+    if not me or not me:is_valid() or me:is_in_combat() then
+        return nil
+    end
+    if not target or not target:is_valid() or target:is_dead() or not me:can_attack(target) then
+        return nil
+    end
+    if selected_judgement_key(me) ~= "crusader" then
+        return nil
+    end
+    local profile = get_requested_judgement_profile(me)
+    if not profile or not profile.seal_id or not profile.seal_buff then
+        return nil
+    end
+    if utils.has_buff(me, profile.seal_buff) then
+        return nil
+    end
+    return profile
+end
+
+local function continue_pre_pull_judgement(me, target)
+    if runtime.pre_pull_state == "idle" then
+        return false
+    end
+    if not me or not me:is_valid() or me:is_in_combat() then
+        reset_pre_pull_state()
+        return false
+    end
+    if not target or not target:is_valid() or target:is_dead() or not me:can_attack(target) then
+        reset_pre_pull_state()
+        return false
+    end
+    if runtime.pre_pull_target_guid and runtime.pre_pull_target_guid ~= get_unit_guid(target) then
+        reset_pre_pull_state()
+        return false
+    end
+    if runtime.pre_pull_state == "seal_pending" then
+        if utils.has_buff(me, spells.BUFF_SEAL_OF_THE_CRUSADER) then
+            runtime.pre_pull_state = "judgement_pending"
+            runtime.pre_pull_state_changed_at = _core_time()
+        elseif (_core_time() - runtime.pre_pull_state_changed_at) > PRE_PULL_CONFIRM_TIMEOUT_S then
+            reset_pre_pull_state()
+        end
+        return false
+    end
+    if runtime.pre_pull_state == "judgement_pending" then
+        if utils.get_debuff_remaining_ms(target, spells.DEBUFF_JUDGEMENT_OF_THE_CRUSADER) > 0 then
+            runtime.pre_pull_state = "baseline_pending"
+            runtime.pre_pull_state_changed_at = _core_time()
+        elseif (_core_time() - runtime.pre_pull_state_changed_at) > PRE_PULL_CONFIRM_TIMEOUT_S then
+            reset_pre_pull_state()
+        end
+        return false
+    end
+    if runtime.pre_pull_state == "baseline_pending" then
+        if is_gcd_ready() and runtime.seal_command_id and not utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
+            if utils.cast_self(runtime.seal_command_id, me) then
+                note_cast()
+                utils.log_debug(menu, "Pre-pull -> Seal of Command")
+                reset_pre_pull_state()
+                return true
+            end
+        end
+        if (_core_time() - runtime.pre_pull_state_changed_at) > PRE_PULL_CONFIRM_TIMEOUT_S then
+            reset_pre_pull_state()
+        end
+    end
+    return false
+end
+
+local function maybe_start_pre_pull_judgement(me, target)
+    local profile = can_consider_pre_pull_judgement(me, target)
+    if not profile then
+        return false
+    end
+    if not is_gcd_ready() then
+        return false
+    end
+    if utils.get_mana_pct(me) < 0.20 then
+        return false
+    end
+    if runtime.pre_pull_state ~= "idle" then
+        return false
+    end
+    if utils.cast_self(profile.seal_id, me) then
+        runtime.pre_pull_state = "seal_pending"
+        runtime.pre_pull_state_changed_at = _core_time()
+        runtime.pre_pull_target_guid = get_unit_guid(target)
+        note_cast()
+        utils.log_debug(menu, "Pre-pull -> Seal of the Crusader")
+        return true
+    end
+    return false
 end
 
 
@@ -711,40 +919,26 @@ end
 
 local function try_cleanse(me)
     if not menu.use_cleanse or not menu.use_cleanse:get_state() then return false end
-    if not runtime.cleanse_id then return false end
-    local objects = core.object_manager.get_all_objects()
-    for i = 1, #objects do
-        local unit = objects[i]
-        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
-            and (utils.same_unit(me, unit) or unit:is_party_member()) then
-            if utils.has_debuff(unit, spells.CLEANSE) or utils.has_debuff(unit, spells.PURIFY) then
-                if utils.can_cast_target(runtime.cleanse_id, me, unit) and utils.cast_target(runtime.cleanse_id, unit) then
-                    note_cast()
-                    utils.log_debug(menu, "Cleanse")
-                    return true
-                end
-            end
-        end
+    local cleanse_id = runtime.cleanse_id or runtime.purify_id
+    if not cleanse_id then return false end
+    local units = { me }
+    local party_units = utils.get_party_units and utils.get_party_units(me) or {}
+    for i = 1, #party_units do
+        units[#units + 1] = party_units[i]
     end
-    return false
-end
-
-local function try_cleanse(me)
-    if not menu.use_cleanse or not menu.use_cleanse:get_state() then return false end
-    if not runtime.cleanse_id then return false end
-    local objects = core.object_manager.get_all_objects()
-    for i = 1, #objects do
-        local unit = objects[i]
-        if unit and unit:is_valid() and unit:is_unit() and not unit:is_dead()
-            and (utils.same_unit(me, unit) or unit:is_party_member()) then
-            if utils.has_debuff(unit, spells.CLEANSE) or utils.has_debuff(unit, spells.PURIFY) then
-                if utils.can_cast_target(runtime.cleanse_id, me, unit) and utils.cast_target(runtime.cleanse_id, unit) then
-                    note_cast()
-                    utils.log_debug(menu, "Cleanse")
-                    return true
-                end
-            end
-        end
+    local best_target = select(1, dispel_engine.find_best_target({
+        candidates = units,
+        priorities = {
+            { type_def = { numeric = MAGIC_DISPEL_TYPE, name = "magic" }, label = "Cleanse" },
+            { type_def = { numeric = DISEASE_DISPEL_TYPE, name = "disease" }, label = "Cleanse" },
+            { type_def = { numeric = POISON_DISPEL_TYPE, name = "poison" }, label = "Cleanse" },
+        },
+        get_hp = function(unit) return utils.get_health_pct(unit) end,
+    }))
+    if best_target and utils.can_cast_target(cleanse_id, me, best_target) and utils.cast_target(cleanse_id, best_target) then
+        note_cast()
+        utils.log_debug(menu, "Cleanse -> " .. (best_target.get_name and best_target:get_name() or "ally"))
+        return true
     end
     return false
 end
@@ -780,26 +974,13 @@ local function try_divine_favor(me)
     return false
 end
 
-local function try_divine_illumination(me)
-    if not menu.use_divine_illumination or not menu.use_divine_illumination:get_state() then return false end
-    if not runtime.divine_illumination_id then return false end
-    if not me:is_in_combat() then return false end
-    if utils.get_mana_pct(me) > 0.30 then return false end
-    if not utils.can_cast_self(runtime.divine_illumination_id, me) then return false end
-    if utils.cast_self_fast(runtime.divine_illumination_id, me) then
-        note_cast()
-        utils.log_debug(menu, "Divine Illumination")
-        return true
-    end
-    return false
-end
-
 -- --- Exorcism (v1.6) - Undead / Demon only ------------------------------------
 
 local function try_exorcism(me, target)
     if not menu.use_exorcism or not menu.use_exorcism:get_state() then return false end
     if not runtime.exorcism_id then return false end
     if should_hold_for_seal_twist(me, target) then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
     -- TBC: Exorcism only works on undead and demons
     local target_type = target.get_creature_type and target:get_creature_type() or 0
     local UNDEAD, DEMON = 5, 2  -- creature type IDs
@@ -856,6 +1037,9 @@ local function maybe_cast_judgement(me, target)
     if not menu.use_judgement:get_state() then
         return false
     end
+    if not me:is_in_combat() and selected_judgement_key(me) == "crusader" then
+        return false
+    end
     if not target or not target:is_valid() or target:is_dead() or not utils.is_melee_target(me, target) then
         return false
     end
@@ -866,18 +1050,32 @@ local function maybe_cast_judgement(me, target)
         return false
     end
 
-    local mode_key = selected_judgement_key()
-    local spell_id = runtime.judgement_id or runtime.judgement_ids[mode_key]
-    if not spell_id then
+    local profile = get_requested_judgement_profile(me)
+    if not profile or not runtime.judgement_spell_id then
         return false
     end
-    if not utils.can_cast_hostile(spell_id, me, target) then
+    if profile.debuff_ids and utils.get_debuff_remaining_ms(target, profile.debuff_ids) > 4000 then
         return false
     end
-    if utils.cast_target(spell_id, target) then
+    local has_required_seal = profile.seal_buff and utils.has_buff(me, profile.seal_buff)
+    if not has_required_seal then
+        if profile.seal_id and utils.can_cast_self(profile.seal_id, me) and utils.cast_self(profile.seal_id, me) then
+            note_cast()
+            utils.log_debug(menu, profile.seal_label)
+            runtime.pending_judgement_until = _core_time() + BASELINE_RESEAL_DELAY_S
+            return true
+        end
+        return false
+    end
+    if not utils.can_cast_hostile(runtime.judgement_spell_id, me, target) then
+        return false
+    end
+    if utils.cast_target(runtime.judgement_spell_id, target) then
+        runtime.pending_judgement_until = 0
+        runtime.pending_baseline_reseal_until = _core_time() + BASELINE_RESEAL_DELAY_S
         note_cast()
-        utils.log_debug(menu, "Judgement -> " .. (mode_key == "crusader" and "Crusader" or "Wisdom"))
-                esp_renderer.on_cast(spell_id, "Judgement", color.yellow(220))
+        utils.log_debug(menu, profile.judgement_label)
+        esp_renderer.on_cast(runtime.judgement_spell_id, profile.judgement_label, color.yellow(220))
         return true
     end
     return false
@@ -936,13 +1134,6 @@ local function try_avenging_wrath(me)
     return false
 end
 
-local function try_divine_storm(me, target, enemy_count)
-    -- Divine Storm (53385) is a WotLK spell - not available in TBC. No-op.
-    return false
-end
-
-
-
 reactive_adapter = {
     spec = "EAXPaladinRetribution",
     actions = {
@@ -973,7 +1164,7 @@ reactive_adapter = {
 }
 
 local function on_render()
-    esp_renderer.on_render(menu)
+    return
 end
 
 -- ESP only renders when this spec is enabled
@@ -993,18 +1184,7 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then
         return
     end
-        ooc_manager.on_update(me, menu, utils, {
-        group_buffs = {
-            { spell_id = runtime.ooc_blessing_of_might_id,
-               buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
-               name = "Blessing of Might",
-               toggle = menu.ooc_group_buff },
-            { spell_id = runtime.ooc_blessing_of_wisdom_id,
-               buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
-               name = "Blessing of Wisdom",
-               toggle = menu.ooc_group_buff },
-        },
-    })
+        ooc_manager.on_update(me, menu, utils, {})
     if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
         mount_manager.update_mount_state(me, menu, utils)
     end
@@ -1031,6 +1211,8 @@ core.register_on_update_callback(function()
     end
 
     if eax_utils.is_eating_or_drinking(me) then return end
+
+    if ensure_aura_upkeep(me) then return end
 
     if utils.throttle("eaxpr:mode", MODE_REFRESH_INTERVAL) then
         refresh_mode_cache(me)
@@ -1087,15 +1269,27 @@ core.register_on_update_callback(function()
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_hand_of_freedom(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and try_cleanse(me) then return end
+    if runtime.pending_baseline_reseal_until <= _core_time() and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_baseline_seal(me) then
+        return
+    end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and continue_seal_twist(me, target) then
         return
     end
-
+    if runtime.pending_judgement_until <= _core_time() and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and ensure_baseline_seal(me) then
+        return
+    end
+    if not me:is_in_combat() and ctx and resource_gate.common.has_mana_pct(ctx, 0.20) then
+        if continue_pre_pull_judgement(me, target) then
+            return
+        end
+        if maybe_start_pre_pull_judgement(me, target) then
+            return
+        end
+    end
+    
     -- Offensive CDs
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and not hold_offense then try_avenging_wrath(me) end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_divine_illumination(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and not hold_offense and try_divine_favor(me) then return end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and is_aoe_rotation(enemy_count) and try_divine_storm(me, target, enemy_count) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_hammer_of_wrath(me, target) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_exorcism(me, target) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.06) and maybe_cast_crusader_strike(me, target) then return end
@@ -1104,7 +1298,6 @@ core.register_on_update_callback(function()
         return
     end
 
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and is_aoe_rotation(enemy_count) and try_divine_storm(me, target, enemy_count) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_consecration(me, target) then return end
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and begin_seal_twist(me, target) then
@@ -1112,7 +1305,7 @@ core.register_on_update_callback(function()
     end
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) then
-        ensure_command_active(me)
+        ensure_baseline_seal(me)
     end
 end)
 
