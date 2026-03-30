@@ -24,7 +24,7 @@ local shared_tree   = theme.tree_node()
 local tgt_tree      = theme.tree_node()
 local racial_tree   = theme.tree_node()
 local ooc_tree      = theme.tree_node()
--- local esp_tree      = theme.tree_node()
+local esp_tree      = theme.tree_node()
 local def_tree      = theme.tree_node()
 
 -- -- Controls ------------------------------------------------------------------
@@ -50,10 +50,11 @@ menu.drink_threshold  = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold    = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
 -- -- Vendor / Travel ------------------------------------------------------------
--- menu.auto_repair         = core.menu.checkbox(true,  "eaxdruidferal_auto_repair")
--- menu.auto_sell_greys     = core.menu.checkbox(true,  "eaxdruidferal_auto_sell_greys")
--- menu.auto_mount          = core.menu.checkbox(true,  "eaxdruidferal_auto_mount")
--- menu.auto_dismount       = core.menu.checkbox(true,  "eaxdruidferal_auto_dismount")
+menu.auto_repair         = core.menu.checkbox(true,  "eaxdruidferal_auto_repair")
+menu.auto_sell_greys     = core.menu.checkbox(true,  "eaxdruidferal_auto_sell_greys")
+menu.auto_mount          = core.menu.checkbox(true,  "eaxdruidferal_auto_mount")
+menu.auto_dismount       = core.menu.checkbox(true,  "eaxdruidferal_auto_dismount")
+menu.auto_combat_potions = core.menu.checkbox(false, "eaxdruidferal_auto_combat_potions")
 menu.auto_ooc_food_drink = core.menu.checkbox(true,  "eaxdruidferal_auto_ooc_food_drink")
 menu.auto_flask          = core.menu.checkbox(false, "eaxdruidferal_auto_flask")
 
@@ -62,10 +63,11 @@ menu.leveling_conserve_mana = core.menu.checkbox(true,  "eaxdruidferal_lev_conse
 menu.leveling_mana_floor    = core.menu.slider_int(5, 50, 20, "eaxdruidferal_lev_mana_floor")
 
 -- -- ESP / HUD -----------------------------------------------------------------
--- menu.esp_show_hud    = core.menu.checkbox(true,  "eax_esp_show_hud")
--- menu.esp_show_target = core.menu.checkbox(true,  "eax_esp_show_target")
--- menu.esp_hud_x       = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
--- menu.esp_hud_y       = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
+menu.esp_show_hud    = core.menu.checkbox(true,  "eax_esp_show_hud")
+menu.esp_show_target = core.menu.checkbox(true,  "eax_esp_show_target")
+menu.esp_hud_x       = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
+menu.esp_hud_y       = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
+menu.hud_scale       = core.menu.slider_float(0.8, 2.5, 1.0, "eax_esp_hud_scale")
 
 -- -- Spec / Role ----------------------------------------------------------------
 menu.lane      = core.menu.combobox(1, "eaxdruidferal_lane")
@@ -74,7 +76,6 @@ menu.shift_mana_floor = core.menu.slider_int(0, 50, 20, "eaxdruidferal_shift_man
 
 -- -- Cat Form - Builders -------------------------------------------------------
 menu.use_faerie_fire  = core.menu.checkbox(true,  "eaxdruidferal_use_faerie_fire")
-menu.use_likely_shred = core.menu.checkbox(true,  "eaxdruidferal_use_likely_shred")
 menu.use_mangle_cat   = core.menu.checkbox(true,  "eaxdruidferal_use_mangle_cat")
 menu.use_rake         = core.menu.checkbox(true,  "eaxdruidferal_use_rake")
 menu.rake_refresh_seconds = core.menu.slider_int(1, 5, 3, "eaxdruidferal_rake_refresh_seconds")
@@ -197,8 +198,6 @@ function menu.render()
             theme.spec_header("Builders")
             menu.use_faerie_fire:render("Faerie Fire (Feral)",
                 "Armor reduction - apply on every target pull")
-            menu.use_likely_shred:render("Likely Shred",
-                "Prefer Shred on grouped targets when not tanking and the target is not on you")
             menu.use_mangle_cat:render("Mangle (Cat)",
                 "Maintain the shared Mangle / bleed-amplification debuff")
             menu.use_rake:render("Rake",
@@ -269,6 +268,10 @@ function menu.render()
         guardian_tree:render("Guardian - Tank", function()
 
             theme.spec_header("Defensive Cooldowns")
+            menu.use_survival_instincts:render("Survival Instincts",
+                "Major tank survival CD - use automatically below HP threshold")
+            menu.survival_instincts_hp_pct:render("Survival Instincts HP %",
+                "Trigger threshold")
             menu.tank_cd_overlap:render("Allow CD Overlap",
                 "Allow Survival Instincts and Frenzied Regen simultaneously")
 
@@ -345,12 +348,16 @@ function menu.render()
 
         -- -- Vendor / Travel -----------------------------------------------
         theme.header("Automation")
---         menu.auto_repair:render("Auto Repair",
---         menu.auto_sell_greys:render("Auto Sell Greys",
---         menu.auto_mount:render("Auto Mount",
---         menu.auto_dismount:render("Auto Dismount",
-        -- menu.auto_combat_potions:render("Auto Combat Potions",
-        --     "Use combat potions automatically at the right moment")
+        menu.auto_repair:render("Auto Repair",
+            "Automatically repair gear at vendors")
+        menu.auto_sell_greys:render("Auto Sell Greys",
+            "Automatically sell poor-quality items at vendors")
+        menu.auto_mount:render("Auto Mount",
+            "Automatically mount when traveling out of combat")
+        menu.auto_dismount:render("Auto Dismount",
+            "Automatically dismount when entering combat")
+        menu.auto_combat_potions:render("Auto Combat Potions",
+            "Use combat potions automatically at the right moment")
         menu.auto_ooc_food_drink:render("Auto OOC Food / Drink",
             "Eat and drink out of combat when health or mana is low")
         menu.auto_flask:render("Auto Flask",
@@ -360,7 +367,7 @@ function menu.render()
         theme.render_ooc(menu, ooc_tree, false)
 
         -- -- Display & HUD -------------------------------------------------
-        -- theme.render_esp(menu, esp_tree)
+        theme.render_esp(menu, esp_tree)
 
     end)
 end

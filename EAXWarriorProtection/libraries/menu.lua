@@ -14,7 +14,7 @@ local def_tree     = ps.tree_node()
 local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local ooc_tree     = ps.tree_node()
--- local esp_tree     = ps.tree_node()
+local esp_tree     = ps.tree_node()
 
 -- -- Shared plugin controls + shared fields ------------------------------------
 -- Controls
@@ -36,20 +36,22 @@ menu.ooc_group_buff                      = core.menu.checkbox(true,  "eax_ooc_gr
 menu.drink_threshold                     = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
--- menu.auto_repair                        = core.menu.checkbox(true, "eaxwarriorprotection_auto_repair")
--- menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxwarriorprotection_auto_sell_greys")
--- menu.auto_mount                         = core.menu.checkbox(true, "eaxwarriorprotection_auto_mount")
--- menu.auto_dismount                      = core.menu.checkbox(true, "eaxwarriorprotection_auto_dismount")
+menu.auto_repair                        = core.menu.checkbox(true, "eaxwarriorprotection_auto_repair")
+menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxwarriorprotection_auto_sell_greys")
+menu.auto_mount                         = core.menu.checkbox(true, "eaxwarriorprotection_auto_mount")
+menu.auto_dismount                      = core.menu.checkbox(true, "eaxwarriorprotection_auto_dismount")
+menu.auto_combat_potions                = core.menu.checkbox(false, "eaxwarriorprotection_auto_combat_potions")
 menu.auto_ooc_food_drink                = core.menu.checkbox(true, "eaxwarriorprotection_auto_ooc_food_drink")
 menu.auto_flask                         = core.menu.checkbox(false, "eaxwarriorprotection_auto_flask")
 -- Leveling
 menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxwarriorprotection_lev_conserve")
 menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxwarriorprotection_lev_mana_floor")
 -- ESP
--- menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
--- menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
--- menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
--- menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
+menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
+menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
+menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
+menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
+
 -- -- Class-specific elements ---------------------------------------------------
 menu.use_shield_slam                      = core.menu.checkbox(true, "simpleprot_use_shield_slam")
 menu.use_cooldowns                        = core.menu.checkbox(true, "eaxwarriorprotection_use_cooldowns")
@@ -86,7 +88,6 @@ menu.cancel_pws                           = core.menu.checkbox(true, "simpleprot
 menu.cancel_bop                           = core.menu.checkbox(true, "simpleprot_cancel_bop")
 menu.use_intervene                        = core.menu.checkbox(false, "simpleprot_use_intervene")
 menu.use_charge                           = core.menu.checkbox(true, "simpleprot_use_charge")
-menu.auto_defensive_after_charge          = core.menu.checkbox(true, "simpleprot_auto_defensive_after_charge")
 menu.use_rage_potion                      = core.menu.checkbox(false, "simpleprot_use_rage_potion")
 menu.rage_potion_rage_threshold           = core.menu.slider_int(0, 40, 20, "simpleprot_rage_potion_rage_threshold")
 menu.use_shield_block                     = core.menu.checkbox(true, "simpleprot_use_shield_block")
@@ -109,7 +110,6 @@ menu.use_blood_fury                       = core.menu.checkbox(true, "simpleprot
 menu.use_berserking                       = core.menu.checkbox(true, "simpleprot_use_berserking")
 menu.use_trinkets                         = core.menu.checkbox(true, "simpleprot_use_trinkets")
 menu.use_war_stomp_interrupt              = core.menu.checkbox(true, "simpleprot_use_war_stomp_interrupt")
-menu.use_intimidating_shout               = core.menu.checkbox(false, "simpleprot_use_intimidating_shout")
 menu.intimidating_shout_key               = core.menu.keybind(7, false, "simpleprot_intimidating_shout_key")
 menu.use_disarm                           = core.menu.checkbox(true, "simpleprot_use_disarm")
 menu.use_berserker_rage                   = core.menu.checkbox(true, "simpleprot_use_berserker_rage")
@@ -144,9 +144,10 @@ end
 
 function menu.render()
     if _win and root_tree:is_open() then
-        ps.draw_space(_win, "EAXWarriorProtection")
+        -- Draw animated space background BEFORE imgui elements
+        ps.draw_space(_win, "eaxwarriorprotection")
     end
-    
+
     root_tree:render("Eax's Warrior Protection", function()
 
         ps.render_controls(menu, "Eax's Warrior Protection")
@@ -186,7 +187,6 @@ function menu.render()
             menu.use_piercing_howl:render("Piercing Howl", "Use Piercing Howl for snare control and peel utility")
             menu.use_intervene:render("Intervene", "Use Intervene to protect allies when enabled")
             menu.use_charge:render("Charge", "Use Charge to engage targets when available")
-            menu.auto_defensive_after_charge:render("Auto Defensive After Charge", "After a Charge opener, automatically return to Defensive Stance when enabled")
             menu.cancel_pws:render("Cancel Power Word: Shield", "Cancel Power Word: Shield from allies when needed")
             menu.cancel_bop:render("Cancel Blessing of Protection", "Cancel Blessing of Protection from allies when needed")
             menu.use_shield_block:render("Shield Block", "Solo uses Shield Block as emergency or elite mitigation; dungeon and raid use it proactively under real tank pressure")
@@ -207,8 +207,7 @@ function menu.render()
             menu.use_berserking:render("Berserking", "Use Troll Berserking during safe burst windows")
             menu.use_trinkets:render("Trinkets", "Use ready self-cast trinkets during safe burst windows")
             menu.use_war_stomp_interrupt:render("War Stomp Interrupt", "Use War Stomp as interrupt")
-            menu.use_intimidating_shout:render("Intimidating Shout", "Enable the manual panic fear key; disable to avoid fearing packs into extra groups")
-            menu.intimidating_shout_key:render("Intimidating Shout Key", "Manual panic key; only fires while Intimidating Shout is enabled")
+            menu.intimidating_shout_key:render("Intimidating Shout Key", "Manual panic key")
             menu.use_disarm:render("Disarm", "Solo: disarm melee enemies for strong mitigation")
             menu.use_berserker_rage:render("Berserker Rage", "Use Berserker Rage to break fears and generate extra rage on crits")
             menu.use_retaliation:render("Retaliation", "Solo burst: Battle Stance cooldown that reflects melee attacks")
@@ -232,16 +231,18 @@ function menu.render()
         ps.render_racial(menu, racial_tree)
 
         -- -- Out-of-combat -----------------------------------------------------
---         menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
---         menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
---         menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
---         menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
+        menu.auto_repair:render("Auto Repair", "Automatically repair gear at vendors")
+        menu.auto_sell_greys:render("Auto Sell Greys", "Automatically sell poor-quality items at vendors")
+        menu.auto_mount:render("Auto Mount", "Automatically mount when traveling out of combat")
+        menu.auto_dismount:render("Auto Dismount", "Automatically dismount when entering combat")
+        menu.auto_combat_potions:render("Auto Combat Potions", "Use combat potions automatically when appropriate")
         menu.auto_ooc_food_drink:render("Auto OOC Food/Drink", "Use food and drink out of combat when needed")
         menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
         ps.render_ooc(menu, ooc_tree, false)
 
         -- -- Display & HUD -----------------------------------------------------
-    -- ps.render_esp(menu, esp_tree) -- DISABLED
+        ps.render_esp(menu, esp_tree)
+
     end)
 end
 
