@@ -497,6 +497,13 @@ local function target_will_die_before_cast_finishes(me, target, spell_id, buffer
     return ttd_s <= (cast_s + (buffer_s or 0.25))
 end
 
+local function get_immolate_remaining_ms(target)
+    if not target or not target:is_valid() or target:is_dead() then return 0 end
+    return utils.get_debuff_remaining_ms(target, spells.DEBUFF_IMMOLATE) or 0
+end
+
+local is_conflagrate_proc_ready
+
 local function get_nearby_hostiles_snapshot(me, target, radius)
     local now_s = _core_time()
     local cache = aoe_snapshot_cache
@@ -566,6 +573,9 @@ local function try_immolate(me, target)
     if runtime.last_immolate_cast_s > 0 and (now_s - runtime.last_immolate_cast_s) < IMMOLATE_RECAST_GUARD_S then
         return false
     end
+    if get_profile() == "fire" and get_immolate_remaining_ms(target) > 0 and is_conflagrate_proc_ready(me, target) then
+        return false
+    end
     -- Use dot_manager for safe refresh timing (never clips final tick)
     if utils.has_debuff(target, spells.DEBUFF_IMMOLATE) then
         if not dot_manager.can_refresh_dot(target, spells.DEBUFF_IMMOLATE, runtime.immolate_id, utils.get_debuff_remaining_ms) then
@@ -592,7 +602,7 @@ local function try_shadowfury(me, target, snapshot)
     return try_cast_spell(me, runtime.shadowfury_id, target, "Shadowfury")
 end
 
-local function is_conflagrate_proc_ready(me, target)
+is_conflagrate_proc_ready = function(me, target)
     if not menu.use_conflagrate:get_state() or not runtime.conflagrate_id then
         return false
     end
@@ -670,7 +680,6 @@ local function count_soul_shards()
             end
         end
     end
-    total = math.min(total, 3)
     cache.count = total
     cache.updated_s = in_combat and now_s or 0
     return total
@@ -715,10 +724,16 @@ local function get_selected_curse(me, target, mode)
         if runtime.curse_of_doom_id and type(ttd) == "number" and ttd >= 60 then
             return runtime.curse_of_doom_id, spells.DEBUFF_CURSE_OF_DOOM, "Curse of Doom", "doom"
         end
-        return runtime.curse_of_elements_id or runtime.curse_of_agony_id,
-            runtime.curse_of_elements_id and spells.DEBUFF_CURSE_OF_ELEMENTS or spells.DEBUFF_CURSE_OF_AGONY,
-            runtime.curse_of_elements_id and "Curse of Elements" or "Curse of Agony",
-            runtime.curse_of_elements_id and "elements" or "agony"
+        if runtime.curse_of_agony_id then
+            return runtime.curse_of_agony_id, spells.DEBUFF_CURSE_OF_AGONY, "Curse of Agony", "agony"
+        end
+        if runtime.curse_of_elements_id then
+            return runtime.curse_of_elements_id, spells.DEBUFF_CURSE_OF_ELEMENTS, "Curse of Elements", "elements"
+        end
+        if runtime.curse_of_doom_id then
+            return runtime.curse_of_doom_id, spells.DEBUFF_CURSE_OF_DOOM, "Curse of Doom", "doom"
+        end
+        return nil, nil, nil, nil
     elseif idx == 2 then
         return runtime.curse_of_elements_id, spells.DEBUFF_CURSE_OF_ELEMENTS, "Curse of Elements", "elements"
     elseif idx == 3 then
@@ -828,6 +843,9 @@ end
 
 local function try_nuke(me, target, profile)
     if target_will_die_before_cast_finishes(me, target, profile == "fire" and runtime.incinerate_id or runtime.shadow_bolt_id, 0.35) then
+        return false
+    end
+    if profile == "fire" and menu.use_immolate:get_state() and get_immolate_remaining_ms(target) <= 2500 then
         return false
     end
     if profile == "fire" and menu.use_incinerate:get_state() and runtime.incinerate_id then
@@ -976,6 +994,8 @@ local function try_soul_shard_farm(me, target, drain_soul_id)
     if count_soul_shards() >= min_shards then return false end
     if not utils.can_cast_hostile(drain_soul_id, me, target) then return false end
     if utils.cast_target(drain_soul_id, target, "Drain Soul (shard)") then
+        mark_pending_cast(drain_soul_id)
+        note_cast()
         utils.log_debug(menu, "Drain Soul for shard farm")
         return true
     end

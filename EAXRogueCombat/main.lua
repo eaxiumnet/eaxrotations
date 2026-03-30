@@ -424,7 +424,24 @@ local function track_target(me, target)
     if cp == nil then return end
 
     runtime.combo_points = math.max(0, math.min(COMBAT_FINISHER_COMBO_POINTS, cp))
-    runtime.combo_target = (runtime.combo_points > 0 and target and target:is_valid()) and target or nil
+    if runtime.combo_points <= 0 then
+        runtime.combo_target = nil
+        return
+    end
+
+    local ok_cp_target, cp_target = pcall(function()
+        return me and me.get_combo_points_target and me:get_combo_points_target() or nil
+    end)
+    if ok_cp_target and cp_target and cp_target:is_valid() then
+        runtime.combo_target = cp_target
+    end
+end
+
+local function combo_points_match_target(target)
+    if (runtime.combo_points or 0) <= 0 then
+        return true
+    end
+    return runtime.combo_target and target and utils.same_unit(runtime.combo_target, target)
 end
 
 local function get_snd_refresh_window_ms()
@@ -602,6 +619,7 @@ local function try_blade_flurry(me, target)
     if utils.cast_self_fast(runtime.blade_flurry_id, me, "Blade Flurry") then
         utils.log_debug(menu, "Blade Flurry")
         note_cast()
+        esp_renderer.on_cast(runtime.blade_flurry_id, "Blade Flurry", color.cyan(220))
         return true
     end
 
@@ -626,9 +644,67 @@ local function try_adrenaline_rush(me)
     if utils.cast_self_fast(runtime.adrenaline_rush_id, me, "Adrenaline Rush") then
         utils.log_debug(menu, "Adrenaline Rush")
         note_cast()
+        esp_renderer.on_cast(runtime.adrenaline_rush_id, "Adrenaline Rush", color.cyan(220))
         return true
     end
 
+    return false
+end
+
+local function expose_armor_due(me, target)
+    if not menu.use_expose_armor or not menu.use_expose_armor:get_state() then
+        return false
+    end
+    if not runtime.expose_armor_id or not target or not target:is_valid() then
+        return false
+    end
+    if current_mode() == "solo" then
+        return false
+    end
+    if utils.has_debuff(target, spells.DEBUFF_EXPOSE_ARMOR) then
+        return false
+    end
+    if utils.has_debuff(target, spells.DEBUFF_SUNDERED_ARMOR) then
+        return false
+    end
+    return true
+end
+
+local function should_pool_for_finisher(me, target)
+    if not me or not target or not target:is_valid() then
+        return false
+    end
+
+    local cp = runtime.combo_points or 0
+    if cp < (menu.finish_combo_points:get() - 1) then
+        return false
+    end
+
+    local energy = current_energy(me)
+    local snd_remaining_ms = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
+    local snd_due = menu.use_slice_and_dice:get_state() and snd_remaining_ms <= get_snd_refresh_window_ms()
+    local rupture_due = menu.use_rupture:get_state()
+        and cp >= menu.finish_combo_points:get()
+        and utils.get_debuff_remaining_ms(target, spells.DEBUFF_RUPTURE) <= 3000
+        and ((get_known_ttd_seconds(target) or UNKNOWN_TTD_SENTINEL) >= 12)
+    local damage_finisher_due = menu.use_eviscerate:get_state()
+        and cp >= menu.finish_combo_points:get()
+        and snd_remaining_ms >= 2000
+        and not rupture_due
+        and not expose_armor_due(me, target)
+
+    if cp >= COMBAT_FINISHER_COMBO_POINTS then
+        if snd_due and energy < 25 then return true end
+        if expose_armor_due(me, target) and energy < 25 then return true end
+        if rupture_due and energy < 25 then return true end
+        if damage_finisher_due and energy < 35 then return true end
+        return false
+    end
+
+    if snd_due and energy < 70 then return true end
+    if expose_armor_due(me, target) and energy < 70 then return true end
+    if rupture_due and energy < 70 then return true end
+    if damage_finisher_due and energy < 80 then return true end
     return false
 end
 
@@ -637,6 +713,9 @@ local function try_slice_and_dice(me, target, ctx)
         return false
     end
     if not runtime.slice_and_dice_id or runtime.combo_points <= 0 or not utils.can_attack(me, target) then
+        return false
+    end
+    if not combo_points_match_target(target) then
         return false
     end
 
@@ -691,6 +770,9 @@ local function try_rupture(me, target, ctx)
     if not runtime.rupture_id or not utils.can_attack(me, target) then
         return false
     end
+    if not combo_points_match_target(target) then
+        return false
+    end
     local min_combo_points = menu.finish_combo_points:get()
     if runtime.combo_points < min_combo_points then
         return false
@@ -726,6 +808,9 @@ local function try_eviscerate(me, target, ctx)
         return false
     end
     if not runtime.eviscerate_id or not utils.can_attack(me, target) then
+        return false
+    end
+    if not combo_points_match_target(target) then
         return false
     end
     local min_combo_points = menu.finish_combo_points:get()
@@ -768,7 +853,13 @@ local function try_sinister_strike(me, target, ctx)
     if not runtime.sinister_strike_id or not utils.can_attack(me, target) then
         return false
     end
+    if (runtime.combo_points or 0) > 0 and not combo_points_match_target(target) then
+        return false
+    end
     if runtime.combo_points >= 5 then
+        return false
+    end
+    if should_pool_for_finisher(me, target) then
         return false
     end
     if ctx then
@@ -870,6 +961,7 @@ local function try_expose_armor(me, target)
     if not runtime.expose_armor_id then return false end
     local mode = current_mode()
     if mode == "solo" then return false end
+    if not combo_points_match_target(target) then return false end
     -- Only use if Expose Armor not active AND Sunder Armor not active
     if utils.has_debuff(target, spells.DEBUFF_EXPOSE_ARMOR) then return false end
     if utils.has_debuff(target, spells.DEBUFF_SUNDERED_ARMOR) then return false end
@@ -943,6 +1035,10 @@ local function do_rotation(me, target)
         return false
     end
 
+    if ttd_tracker and ttd_tracker.update then
+        ttd_tracker.update(target)
+    end
+
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
     local risk_snapshot = dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker)
@@ -967,6 +1063,10 @@ local function do_rotation(me, target)
     track_target(me, target)
 
     if try_slice_and_dice(me, target, ctx) then invalidate_ctx() return true end
+    if (not hold_offense) and try_blade_flurry(me, target) then return true end
+    if (not hold_offense) and try_adrenaline_rush(me) then return true end
+    if try_riposte(me, target) then invalidate_ctx() return true end
+    if try_shiv(me, target) then invalidate_ctx() return true end
     if (not hold_offense) and (not abort_finisher_commit) then
         if try_expose_armor(me, target) then invalidate_ctx() return true end
         if try_rupture(me, target, ctx) then

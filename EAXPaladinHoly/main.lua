@@ -232,8 +232,11 @@ local function get_matching_debuff_data(unit, debuff_ids)
     return nil
 end
 
----@type ttd_tracker
-local ttd_tracker = require("ttd_tracker")
+local ttd_tracker = nil
+local _ttd_ok, _ttd_mod = pcall(require, "ttd_tracker")
+if _ttd_ok and _ttd_mod then
+    ttd_tracker = _ttd_mod
+end
 
 local CLEANSE_SPELL_IDS = spells.CLEANSE
 local PURIFY_SPELL_IDS = spells.PURIFY
@@ -634,7 +637,7 @@ local function is_probable_tank(unit, me)
     return class_name == "warrior" or class_name == "paladin" or class_name == "druid"
 end
 
-local function should_use_holy_light(target, hp_pct)
+local function should_use_holy_light(me, target, hp_pct, injured_allies)
     if not target or not hp_pct then
         return false
     end
@@ -645,6 +648,9 @@ local function should_use_holy_light(target, hp_pct)
     end
     if is_probable_tank(target) then
         base_threshold = math.max(base_threshold, 0.80)
+    end
+    if injured_allies >= 2 then
+        base_threshold = math.max(base_threshold, is_probable_tank(target) and 0.88 or 0.72)
     end
     return hp_pct <= base_threshold
 end
@@ -657,7 +663,7 @@ local function should_use_divine_illumination(target, hp_pct, injured_allies)
         return false
     end
     local tank_pressure = is_probable_tank(target) and hp_pct <= 0.78
-    local group_pressure = (injured_allies or 0) >= 3 and hp_pct <= 0.70
+    local group_pressure = (injured_allies or 0) >= 2 and hp_pct <= 0.70
     local emergency_pressure = hp_pct <= 0.45 and (injured_allies or 0) >= 1
     if tank_pressure or group_pressure or emergency_pressure then
         return true
@@ -669,9 +675,9 @@ local function should_use_avenging_wrath(target, hp_pct, injured_allies)
     if not menu.use_avenging_wrath:get_state() then
         return false
     end
-    local tank_pressure = is_probable_tank(target) and hp_pct <= 0.60 and (injured_allies or 0) >= 2
-    local group_pressure = (injured_allies or 0) >= 3 and hp_pct <= 0.72
-    local emergency_pressure = hp_pct <= 0.40 and (injured_allies or 0) >= 1
+    local tank_pressure = is_probable_tank(target) and hp_pct <= 0.55 and (injured_allies or 0) >= 2
+    local group_pressure = (injured_allies or 0) >= 4 and hp_pct <= 0.68
+    local emergency_pressure = hp_pct <= 0.35 and (injured_allies or 0) >= 1
     if tank_pressure or group_pressure or emergency_pressure then
         return true
     end
@@ -806,6 +812,7 @@ local function unit_has_any_paladin_blessing(unit)
         spells.BUFF_BLESSING_OF_KINGS,
         spells.BUFF_BLESSING_OF_MIGHT,
         spells.BUFF_BLESSING_OF_WISDOM,
+        spells.BUFF_BLESSING_OF_SANCTUARY,
     }
     for i = 1, #blessing_ids do
         if utils.has_buff(unit, blessing_ids[i]) then
@@ -826,6 +833,8 @@ local function unit_has_any_paladin_blessing(unit)
         ["greater blessing of kings"] = true,
         ["blessing of salvation"] = true,
         ["greater blessing of salvation"] = true,
+        ["blessing of sanctuary"] = true,
+        ["greater blessing of sanctuary"] = true,
     }
 
     local ok, buffs = pcall(function()
@@ -843,6 +852,45 @@ local function unit_has_any_paladin_blessing(unit)
     end
 
     return false
+end
+
+local function normalize_spell_id_list(value)
+    if type(value) == "number" then
+        return { value }
+    end
+    if type(value) ~= "table" then
+        return nil
+    end
+    local normalized = {}
+    for i = 1, #value do
+        local spell_id = tonumber(value[i])
+        if spell_id then
+            normalized[#normalized + 1] = spell_id
+        end
+    end
+    return #normalized > 0 and normalized or nil
+end
+
+local function blessing_wisdom_rank_ids()
+    return normalize_spell_id_list(spells.BLESSING_OF_WISDOM)
+        or normalize_spell_id_list(spells.BUFF_BLESSING_OF_WISDOM)
+end
+
+local function blessing_assignment_score(unit, me)
+    if not unit or not unit:is_valid() or unit:is_dead() then
+        return nil, nil
+    end
+    local score
+    if unit == me then
+        score = 0
+    elseif is_probable_tank(unit, me) then
+        score = 10
+    elseif unit_uses_mana(unit) then
+        score = 20
+    else
+        score = 30
+    end
+    return score, unit_guid(unit) or ""
 end
 
 local function try_hand_of_freedom(me)
@@ -988,9 +1036,10 @@ local function desired_blessing_for_unit(unit, me)
         return nil, nil, nil
     end
 
-    if unit_uses_mana(unit) and runtime.blessing_wisdom_id then
+    local wisdom_ranks = blessing_wisdom_rank_ids()
+    if unit_uses_mana(unit) and runtime.blessing_wisdom_id and wisdom_ranks then
         if not utils.has_buff(unit, spells.BUFF_BLESSING_OF_WISDOM) then
-            return runtime.blessing_wisdom_id, spells.BUFF_BLESSING_OF_WISDOM, "Blessing of Wisdom"
+            return runtime.blessing_wisdom_id, wisdom_ranks, "Blessing of Wisdom"
         end
     end
 
@@ -1009,6 +1058,14 @@ local function ensure_blessings(me)
     end
 
     local candidates = gather_heal_candidates(me)
+    table.sort(candidates, function(a, b)
+        local a_score, a_guid = blessing_assignment_score(a, me)
+        local b_score, b_guid = blessing_assignment_score(b, me)
+        if a_score ~= b_score then
+            return (a_score or 999) < (b_score or 999)
+        end
+        return tostring(a_guid) < tostring(b_guid)
+    end)
     for i = 1, #candidates do
         local unit = candidates[i]
         local blessing_id, _, label = desired_blessing_for_unit(unit, me)
@@ -1030,6 +1087,8 @@ local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
     local mana_pct = utils.get_mana_pct(me)
     local is_tank_target = is_probable_tank(target, me)
     local emergency_heal = hp_pct <= 0.35 or (injured_allies or 0) >= 2
+    local group_pressure = (injured_allies or 0) >= 2
+    local tank_pressure = is_tank_target and hp_pct <= 0.72
 
     local emergency_flash_threshold = math.min(menu.flash_of_light_hp_pct:get() / 100, 0.40)
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08)
@@ -1042,28 +1101,29 @@ local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10)
         and menu.use_holy_shock:get_state() and runtime.holy_shock_id then
         local threshold = menu.holy_shock_hp_pct:get() / 100
-        if hp_pct <= threshold and try_divine_favor(me, target, hp_pct, injured_allies or 0) then
+        if hp_pct <= threshold and (hp_pct <= 0.42 or group_pressure or tank_pressure) and try_divine_favor(me, target, hp_pct, injured_allies or 0) then
             return true
         end
-        if hp_pct <= threshold and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock") then
+        if hp_pct <= threshold and (hp_pct <= 0.48 or group_pressure or tank_pressure) and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock") then
             esp_renderer.on_cast(runtime.holy_shock_id, "Holy Shock", color.yellow(220))
             return true
         end
     end
 
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10)
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.14)
+        and (tank_pressure or group_pressure or emergency_heal)
         and try_divine_illumination(me, target, hp_pct, injured_allies or 0) then
         return true
     end
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.18)
-        and menu.use_holy_light:get_state() and runtime.holy_light_id and should_use_holy_light(target, hp_pct) then
+        and menu.use_holy_light:get_state() and runtime.holy_light_id and should_use_holy_light(me, target, hp_pct, injured_allies) then
         if try_divine_favor(me, target, hp_pct, injured_allies or 0) then
             return true
         end
         local allow_holy_light = true
         if mana_pct < 0.40 then
-            allow_holy_light = is_tank_target and emergency_heal and hp_pct <= 0.60
+            allow_holy_light = is_tank_target and emergency_heal and hp_pct <= 0.66
         end
         if not allow_holy_light then
             goto flash_fallback
@@ -1072,8 +1132,10 @@ local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
             mana_threshold = is_tank_target and 0.40 or 0.55,
             target_hp_threshold = is_tank_target and 0.75 or 0.65,
         }) or runtime.holy_light_id
-        if try_cast_spell(holy_light_id, me, target, "Holy Light") then
-            return true
+        if hp_pct <= 0.62 or tank_pressure or (group_pressure and hp_pct <= 0.72) then
+            if try_cast_spell(holy_light_id, me, target, "Holy Light") then
+                return true
+            end
         end
     end
 
@@ -1087,8 +1149,10 @@ local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
         end
         if hp_pct <= flash_threshold then
             local flash_of_light_id = spell_downrank.select_heal_rank(spells.FLASH_OF_LIGHT, hp_pct, mana_pct, {}) or runtime.flash_of_light_id
-            if try_cast_spell(flash_of_light_id, me, target, "Flash of Light") then
-                return true
+            if not group_pressure or hp_pct <= 0.50 or tank_pressure then
+                if try_cast_spell(flash_of_light_id, me, target, "Flash of Light") then
+                    return true
+                end
             end
         end
     end
@@ -1169,7 +1233,7 @@ end
 
 local function should_holy_paladin_spend_gcd_on_judgement(hp_pct, injured_allies)
     if not hp_pct then return true end
-    if hp_pct < 0.95 then return false end
+    if hp_pct < 0.995 then return false end
     if (injured_allies or 0) > 0 then return false end
     return true
 end
@@ -1200,7 +1264,9 @@ local function try_maintain_judgement(me, hostile_target, heal_target_hp_pct, in
     if not me or not me:is_in_combat() then return false end
     if not hostile_target or not hostile_target:is_valid() or hostile_target:is_dead() or not me:can_attack(hostile_target) then return false end
     if not runtime.judgement_id then return false end
+    if (injured_allies or 0) > 0 then return false end
     if not should_holy_paladin_spend_gcd_on_judgement(heal_target_hp_pct, injured_allies) then return false end
+    if heal_target_hp_pct and heal_target_hp_pct < 0.99 then return false end
 
     local profile = get_selected_holy_judgement_profile()
     if not profile.seal_id or not profile.debuff_ids then return false end
@@ -1318,7 +1384,9 @@ local function on_update()
         return
     end
 
-    ttd_tracker.update(target)
+    if ttd_tracker and ttd_tracker.update then
+        ttd_tracker.update(target)
+    end
 
     -- Focus Target Priority - heal focus target first
     local focus_target = eax_utils.get_focus_target(menu)

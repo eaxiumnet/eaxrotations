@@ -78,6 +78,8 @@ local _visual_runtime = {
 }
 
 local reactive_adapter = {}
+local runtime
+local has_flame_shock
 
 local _visual_on_cast = esp_renderer.on_cast
 function esp_renderer.on_cast(spell_id, name, col, target_name)
@@ -227,7 +229,7 @@ local function target_has_cure_debuff(unit, dispel_type)
     return false
 end
 
-local runtime = {
+runtime = {
     ancestral_spirit_id = nil,
     stormstrike_id = nil,
     shamanistic_rage_id = nil,
@@ -431,7 +433,7 @@ local function try_cast_target(me, target, spell_id, label)
     if is_pending_cast(spell_id) then
         return false
     end
-    if not utils.cast_target(spell_id, target, nil) then
+    if not utils.cast_target(spell_id, me, target) then
         return false
     end
     mark_pending_cast(spell_id)
@@ -567,6 +569,25 @@ local function can_weave_chain_lightning(me)
     return swing_timer.can_cast_before_swing(me, 1.5, get_swing_clip_window_s())
 end
 
+local ENH_FLAME_SHOCK_REFRESH_MS = 3000
+local ENH_EARTH_SHOCK_SHORT_TTD_S = 8.0
+
+local function get_enh_target_ttd_seconds(target)
+    if not target or not ttd_tracker or not ttd_tracker.get then return nil end
+    local ok, value = pcall(function() return ttd_tracker.get(target) end)
+    if not ok then return nil end
+    return tonumber(value)
+end
+
+local function get_enh_debuff_remaining_ms(target, debuff_ids)
+    if not target or not target:is_valid() or not debuff_ids then return 0 end
+    local data = buff_manager:get_debuff_data(target, debuff_ids)
+    if data and data.is_active then
+        return tonumber(data.remaining or data.remaining_time or 0) or 0
+    end
+    return 0
+end
+
 local function try_chain_lightning_weave(me, target, ctx)
     if not menu.use_chain_lightning_weave:get_state() or not runtime.chain_lightning_id or not target then
         return false
@@ -579,9 +600,11 @@ local function try_chain_lightning_weave(me, target, ctx)
     if not can_weave_chain_lightning(me) then return false end
     local profile = get_mode_profile()
     local enemies = utils.count_enemies_in_range(me, spells.CHAIN_LIGHTNING_RADIUS)
-    if enemies < profile.aoe_threshold then return false end
     local mana_pct = utils.get_mana_pct(me)
     if mana_pct < (profile.mana_floor / 100) then return false end
+    local target_ttd = get_enh_target_ttd_seconds(target)
+    local allow_single_target_weave = mana_pct >= 0.35 and target_ttd and target_ttd >= 8
+    if enemies < profile.aoe_threshold and not allow_single_target_weave then return false end
     return try_cast_target(me, target, runtime.chain_lightning_id, "Chain Lightning")
 end
 
@@ -597,13 +620,19 @@ local function try_shock(me, target, ctx)
     if not shock_entry then return false end
     local spell_id = runtime[shock_entry.id_field]
     if not spell_id then return false end
-    if shock_entry.id_field == "earth_shock_id" or shock_entry.id_field == "flame_shock_id" then
-        local can_cast = resource_gate.shaman.has_mana_pct(ctx, 0.10)
-        if not can_cast then
+    if shock_entry.id_field == "frost_shock_id" then
+        if utils.has_debuff(target, shock_entry.debuff) then return false end
+    elseif shock_entry.id_field == "flame_shock_id" then
+        if get_enh_debuff_remaining_ms(target, spells.DEBUFF_FLAME_SHOCK) > ENH_FLAME_SHOCK_REFRESH_MS then
+            return false
+        end
+    elseif shock_entry.id_field == "earth_shock_id" then
+        local target_ttd = get_enh_target_ttd_seconds(target)
+        local short_window = target_ttd and target_ttd > 0 and target_ttd <= ENH_EARTH_SHOCK_SHORT_TTD_S
+        if not has_flame_shock(target) and not short_window then
             return false
         end
     end
-    if utils.has_debuff(target, shock_entry.debuff) then return false end
     return try_cast_target(me, target, spell_id, shock_entry.label)
 end
 
@@ -689,7 +718,7 @@ end
 
 -- --- Offensive CDs (v1.1) -------------------------------------------------
 
-local function has_flame_shock(target)
+has_flame_shock = function(target)
     return utils.has_debuff(target, spells.DEBUFF_FLAME_SHOCK)
         or utils.has_debuff(target, spells.BUFF_FLAME_SHOCK)
         or utils.has_debuff(target, spells.FLAME_SHOCK)
@@ -706,7 +735,7 @@ local function try_flame_shock(me, target, ctx)
     if not can_cast then
         return false
     end
-    if has_flame_shock(target) then
+    if get_enh_debuff_remaining_ms(target, spells.DEBUFF_FLAME_SHOCK) > ENH_FLAME_SHOCK_REFRESH_MS then
         return false
     end
     if utils.get_mana_pct(me) < 0.20 then
@@ -726,7 +755,9 @@ local function try_earth_shock(me, target, ctx)
     if not can_cast then
         return false
     end
-    if not has_flame_shock(target) then
+    local target_ttd = get_enh_target_ttd_seconds(target)
+    local short_window = target_ttd and target_ttd > 0 and target_ttd <= ENH_EARTH_SHOCK_SHORT_TTD_S
+    if not has_flame_shock(target) and not short_window then
         return false
     end
     if utils.get_mana_pct(me) < 0.18 then
@@ -779,8 +810,8 @@ local function try_totem_twist(me)
 
     -- Check for Grace of Air buff on party (simplified: check self)
     local has_air_buff = utils.has_buff(me, spells.BUFF_GRACE_OF_AIR)
-        or utils.has_buff(me, spells.BUFF_WINDFURY_TOTEM)
-    local should_refresh_support_air = should_refresh_named_totem("support_air", TOTEM_SLOTS.support_air, AIR_TOTEM_DURATION_S)
+    local should_refresh_support_air, _ = should_refresh_named_totem("support_air", TOTEM_SLOTS.support_air, AIR_TOTEM_DURATION_S)
+    should_refresh_support_air = should_refresh_support_air or (runtime.totem_last_apply.support_air or 0) <= 0
     if not has_air_buff or should_refresh_support_air then
         local air_id = runtime.wrath_of_air_id or runtime.grace_of_air_id
         if air_id and try_cast_self(me, air_id, "Wrath of Air / Grace of Air") then
@@ -810,7 +841,7 @@ local function try_cure_dispels(me)
     })
     if best_target and priority and priority.spell_id
         and utils.can_cast_target(priority.spell_id, me, best_target)
-        and utils.cast_target(priority.spell_id, best_target) then
+        and utils.cast_target(priority.spell_id, me, best_target) then
         note_cast()
         utils.log_debug(menu, priority.label)
         return true
@@ -824,7 +855,7 @@ local function try_purge(me, target)
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not me:can_attack(target) then return false end
     if not utils.can_cast_hostile(runtime.purge_id, me, target) then return false end
-    if utils.cast_target(runtime.purge_id, target) then
+    if utils.cast_target(runtime.purge_id, me, target) then
         note_cast()
         utils.log_debug(menu, "Purge")
         return true
@@ -1005,8 +1036,9 @@ local function do_rotation(me, target)
     if try_mana_potion(me) then return true end
     if try_shamanistic_rage(me, ctx) then return true end
     if try_stormstrike(me, target, ctx) then return true end
-    if try_flame_shock(me, target, ctx) then return true end
-    if try_earth_shock(me, target, ctx) then return true end
+    local shock_mode = menu.shock_mode and menu.shock_mode:get() or 1
+    if shock_mode == 2 and try_flame_shock(me, target, ctx) then return true end
+    if shock_mode == 1 and try_earth_shock(me, target, ctx) then return true end
     if try_chain_lightning_weave(me, target, ctx) then return true end
     if try_shock(me, target, ctx) then return true end
 
@@ -1155,8 +1187,8 @@ core.register_on_update_callback(function()
         -- Enhancement self-heal: use Lesser Healing Wave if learned, else skip
         -- (Shamanistic Rage handles mana-based self-sustain; NS is not in this rotation)
         local lhw_id = utils.resolve_spell_id({ 25420, 10468, 10467, 10466, 8010, 8008, 8004 })
-        if lhw_id and utils.can_cast_self(lhw_id, me) then
-            utils.cast_self(lhw_id, me)
+        if lhw_id and try_cast_self(me, lhw_id, "Lesser Healing Wave") then
+            return
         end
     end
     -- OOC: ghost wolf

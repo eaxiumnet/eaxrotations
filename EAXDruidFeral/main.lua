@@ -294,6 +294,7 @@ local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 local POWER_TYPE_COMBO_POINTS = 4
 local BUFF_TYPE_CURSE = 4
+local GROUP_ROLE_TANK = 0
 local spell_resolution_done = false
 
 -- Wire up HUD context now that runtime exists
@@ -391,6 +392,14 @@ local function detect_ctx_form(me)
     return "caster"
 end
 
+local function is_in_any_bear_form(me)
+    return utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM)
+end
+
+local function get_preferred_bear_form_id()
+    return runtime.dire_bear_form_id or runtime.bear_form_id
+end
+
 local function is_gcd_ready()
     return smart_cast_manager.is_gcd_ready()
 end
@@ -443,7 +452,7 @@ local function get_requested_lane(me)
     -- bear form, stay in bear/guardian and use rage-based abilities.
     local mana_floor = menu.shift_mana_floor:get() / 100
     if mana_floor > 0 and utils.get_mana_pct(me) < mana_floor then
-        if utils.has_buff(me, spells.BUFF_BEAR_FORM) then
+        if is_in_any_bear_form(me) then
             -- Preserve guardian lane if that's what was selected
             return lane_idx == 4 and "guardian" or "bear"
         end
@@ -455,7 +464,7 @@ local function get_requested_lane(me)
     if mode == "solo" then return "cat" end
     local ok_r, role = pcall(function() return me:get_group_role() end)
     if not ok_r then role = 0 end
-    if role == 2 then return "guardian" end  -- tank role -> guardian
+    if role == GROUP_ROLE_TANK then return "guardian" end
     return "cat"
 end
 
@@ -735,16 +744,61 @@ local function mangle_debuff_confirmed_by_other(unit, id_table, me)
     return false
 end
 
+local function is_rip_due(target, cp)
+    if not menu.use_rip:get_state() then return false end
+    if creature_utils.is_bleed_immune(target) then return false end
+    if cp < menu.rip_combo_points:get() then return false end
+    local rip_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP)
+    return rip_rem <= (menu.rip_refresh_seconds:get() * 1000)
+end
+
+local function is_grouped_cat_context()
+    return get_effective_mode() ~= "solo"
+end
+
+local function should_prefer_shred_builder(me, target)
+    if not menu.use_likely_shred or not menu.use_likely_shred:get_state() then
+        return false
+    end
+    if not is_grouped_cat_context() then
+        return false
+    end
+    local ok_role, role = pcall(function() return me:get_group_role() end)
+    if ok_role and role == GROUP_ROLE_TANK then
+        return false
+    end
+    return not utils.target_is_me(target, me)
+end
+
+local function has_cat_mangle_trick_window(me, target, cp)
+    if cp >= 5 and is_rip_due(target, cp) then
+        return false
+    end
+    if should_prefer_shred_builder(me, target) and utils.is_behind_target(me, target) then
+        return false
+    end
+
+    local energy = utils.get_energy(me)
+    local has_stronger_set_window = (runtime.set_multiplier or 1.0) >= 1.10
+    local low_band = has_stronger_set_window and 50 or 60
+    local high_band = has_stronger_set_window and 57 or 62
+    return energy >= low_band and energy <= high_band
+end
+
 local function try_mangle_cat(me, target, ctx)
     if not menu.use_mangle_cat:get_state() then return false end
     if not runtime.mangle_cat_id then return false end
     local can_cast = resource_gate.feral.can_cat_builder(ctx, 35, runtime.combo_points, 5)
     if not can_cast then return false end
+    local cp = runtime.combo_points
+    if cp >= 5 and is_rip_due(target, cp) then return false end
     local mangle_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_MANGLE)
     local refresh_threshold = 1500
-    if mangle_rem > refresh_threshold then return false end
     if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_MANGLE, me) then return false end
     if mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me) then return false end
+    local needs_refresh = mangle_rem <= refresh_threshold
+    local has_trick_window = has_cat_mangle_trick_window(me, target, cp)
+    if not needs_refresh and not has_trick_window then return false end
     if is_pending_cast(runtime.mangle_cat_id) then return false end
     if not utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then return false end
 
@@ -875,7 +929,7 @@ local function try_rake(me, target)
         return true
     end
     -- Cast failed - clear the pending so we can retry sooner
-    runtime.pending_casts[runtime.rake_id] = nil
+    smart_cast_manager.clear_pending(runtime.rake_id)
     return false
 end
 
@@ -884,9 +938,19 @@ local try_claw  -- forward declaration (defined after try_shred_or_filler)
 local function try_shred_or_filler(me, target, ctx)
     local cp = runtime.combo_points
     local energy = utils.get_energy(me)
+    local likely_shred = should_prefer_shred_builder(me, target) and utils.is_behind_target(me, target)
+    local builder_pool = likely_shred and ENERGY_POOL_FOR_SHRED or 35
+
+    if cp >= 5 and is_rip_due(target, cp) then
+        return false
+    end
+
+    if cp >= 4 and energy < builder_pool then
+        return false
+    end
 
     if menu.use_shred:get_state() and runtime.shred_id and cp < 5 then
-        if utils.is_behind_target(me, target) then
+        if likely_shred then
             -- Energy pooling: if we're one builder from a finisher, wait for
             -- enough energy to chain Shred -> finisher without an energy gap.
             if cp >= 4 and energy < ENERGY_POOL_FOR_SHRED then
@@ -913,6 +977,9 @@ local function try_shred_or_filler(me, target, ctx)
        and not mangle_debuff_confirmed_by_other(target, spells.DEBUFF_TRAUMA, me)
        and resource_gate.feral.can_cat_builder(ctx, 35, cp, 5)
        and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
+        if likely_shred then
+            return false
+        end
         if utils.cast_target(runtime.mangle_cat_id, target) then
             mark_pending_cast(runtime.mangle_cat_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "Cat filler Mangle")
@@ -960,7 +1027,7 @@ local function try_root_escape(me)
     if not me:is_rooted(400) then return false end
     -- Only if in an animal form (cat, prowl, or bear)
     local in_animal = utils.is_in_cat_form(me, spells)
-                   or utils.has_buff(me, spells.BUFF_BEAR_FORM)
+                   or is_in_any_bear_form(me)
     if not in_animal then return false end
     -- Cancel form by cancelling the aura (standard TBC technique)
     -- We call cast_self on an invalid form to trigger cancellation,
@@ -972,8 +1039,11 @@ local function try_root_escape(me)
         -- Fallback: cast self without buff active check to trigger drop
         if runtime.cat_form_id and utils.is_in_cat_form(me, spells) then
             utils.cast_self(runtime.cat_form_id, me)
-        elseif runtime.bear_form_id then
-            utils.cast_self(runtime.bear_form_id, me)
+        else
+            local bear_form_id = get_preferred_bear_form_id()
+            if bear_form_id then
+                utils.cast_self(bear_form_id, me)
+            end
         end
     end
     utils.log_debug(menu, "Root escape: shifted out of form")
@@ -985,7 +1055,7 @@ local function try_remove_curse_feral(me)
     if not menu.use_remove_curse:get_state() then return false end
     if not runtime.remove_curse_id then return false end
     -- Only castable in caster form
-    if utils.is_in_cat_form(me, spells) or utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
+    if utils.is_in_cat_form(me, spells) or is_in_any_bear_form(me) then return false end
     if is_pending_cast(runtime.remove_curse_id) then return false end
     -- Scan self and party for curses
     local units = { me }
@@ -1042,7 +1112,7 @@ local function try_ooc_self_heal(me)
     end
     -- Must be in caster form to cast - if in cat/bear/prowl, shift out first
     local in_animal = utils.is_in_cat_form(me, spells)
-                   or utils.has_buff(me, spells.BUFF_BEAR_FORM)
+                   or is_in_any_bear_form(me)
     if in_animal then
         -- Cancel form to enable healing - try_shift_form will re-enter on next tick
         local ok = pcall(function()
@@ -1051,8 +1121,11 @@ local function try_ooc_self_heal(me)
         if not ok then
             if runtime.cat_form_id and utils.is_in_cat_form(me, spells) then
                 utils.cast_self(runtime.cat_form_id, me)
-            elseif runtime.bear_form_id then
-                utils.cast_self(runtime.bear_form_id, me)
+            else
+                local bear_form_id = get_preferred_bear_form_id()
+                if bear_form_id then
+                    utils.cast_self(bear_form_id, me)
+                end
             end
         end
         utils.log_debug(menu, "OOC self-heal: dropping form to cast")
@@ -1169,12 +1242,13 @@ local function try_feral_charge_bear(me, target)
         return false
     end
     -- Must be in bear form to cast it
-    if not utils.has_buff(me, spells.BUFF_BEAR_FORM) then
+    if not is_in_any_bear_form(me) then
         local mana_floor = menu.shift_mana_floor:get() / 100
         if mana_floor > 0 and utils.get_mana_pct(me) < mana_floor then return false end
-        if menu.auto_form:get_state() and runtime.bear_form_id then
-            if utils.can_cast_self(runtime.bear_form_id, me) then
-                utils.cast_self(runtime.bear_form_id, me)
+        local bear_form_id = get_preferred_bear_form_id()
+        if menu.auto_form:get_state() and bear_form_id then
+            if utils.can_cast_self(bear_form_id, me) then
+                utils.cast_self(bear_form_id, me)
                 runtime.bear_charge_shift_at = _core_time()
                 utils.log_debug(menu, "Shifting Bear for Feral Charge")
             end
@@ -1194,7 +1268,7 @@ end
 local function try_bash(me, target)
     if not menu.use_bash:get_state() then return false end
     if not runtime.bash_id then return false end
-    if not utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
+    if not is_in_any_bear_form(me) then return false end
     if utils.has_debuff(target, spells.DEBUFF_BASH) then return false end
     if not utils.can_cast_hostile(runtime.bash_id, me, target) then return false end
     if utils.cast_target(runtime.bash_id, target) then
@@ -1319,7 +1393,7 @@ end
 local function try_natures_grasp(me)
     if not menu.use_natures_grasp:get_state() then return false end
     if not runtime.natures_grasp_id then return false end
-    if utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.is_in_cat_form(me, spells) then return false end
+    if is_in_any_bear_form(me) or utils.is_in_cat_form(me, spells) then return false end
     if not utils.can_cast_self(runtime.natures_grasp_id, me) then return false end
     if utils.cast_self(runtime.natures_grasp_id, me) then
         utils.log_debug(menu, "Nature's Grasp")
@@ -1467,7 +1541,7 @@ local function try_cyclone(me, target)
     -- Cyclone is last resort - only cast when already in caster form.
     -- Never shift out of cat/bear mid-rotation just to Cyclone.
     local in_cat  = utils.is_in_cat_form(me, spells)
-    local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM)
+    local in_bear = is_in_any_bear_form(me)
     if in_cat or in_bear then return false end
     -- Bash must be on cooldown - if Bash is available, use that instead
     if runtime.bash_id then
@@ -1545,7 +1619,7 @@ local function do_cat_rotation(me, target, ctx)
     local has_clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
     if has_clearcasting and runtime.combo_points < 5 then
         -- Shred is best value on a free proc
-        if menu.use_shred:get_state() and runtime.shred_id
+        if menu.use_shred:get_state() and runtime.shred_id and should_prefer_shred_builder(me, target)
            and utils.is_behind_target(me, target)
            and not is_pending_cast(runtime.shred_id)
            and utils.can_cast_hostile(runtime.shred_id, me, target) then
@@ -1556,10 +1630,10 @@ local function do_cat_rotation(me, target, ctx)
                 return true
             end
         end
-        -- Mangle if not behind
+        -- Mangle if Shred is not the preferred free spender
         if menu.use_mangle_cat:get_state() and runtime.mangle_cat_id
-           and not is_pending_cast(runtime.mangle_cat_id)
-           and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
+            and not is_pending_cast(runtime.mangle_cat_id)
+            and utils.can_cast_hostile(runtime.mangle_cat_id, me, target) then
             if utils.cast_target(runtime.mangle_cat_id, target) then
                 mark_pending_cast(runtime.mangle_cat_id, PENDING_CAST_TIMEOUT_S)
                 utils.log_debug(menu, "Mangle [Clearcasting]")
@@ -1618,12 +1692,13 @@ local function try_frenzied_regeneration(me)
 
     -- If we're in cat form (or caster), shift to bear first so we can use Frenzied Regen.
     -- Only do this in combat - no point emergency-shifting while OOC.
-    local in_bear = utils.has_buff(me, spells.BUFF_BEAR_FORM) or utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM)
+    local in_bear = is_in_any_bear_form(me)
     if not in_bear then
-        if me:is_in_combat() and menu.auto_form:get_state() and runtime.bear_form_id then
-            if not is_pending_cast(runtime.bear_form_id) and utils.can_cast_self(runtime.bear_form_id, me) then
-                utils.cast_self(runtime.bear_form_id, me)
-                mark_pending_cast(runtime.bear_form_id, PENDING_CAST_TIMEOUT_S)
+        local bear_form_id = get_preferred_bear_form_id()
+        if me:is_in_combat() and menu.auto_form:get_state() and bear_form_id then
+            if not is_pending_cast(bear_form_id) and utils.can_cast_self(bear_form_id, me) then
+                utils.cast_self(bear_form_id, me)
+                mark_pending_cast(bear_form_id, PENDING_CAST_TIMEOUT_S)
                 runtime.bear_charge_shift_at = _core_time()  -- suppress cat snap-back for 2s
                 utils.log_debug(menu, "Shifting Bear for Frenzied Regen")
             end
@@ -1833,7 +1908,7 @@ end
 local function try_challenging_roar(me)
     if not menu.use_challenging_roar:get_state() then return false end
     if not runtime.challenging_roar_id then return false end
-    if not utils.has_buff(me, spells.BUFF_BEAR_FORM) then return false end
+    if not is_in_any_bear_form(me) then return false end
     -- Only fire when a party member is being hammered
     if not party_member_in_danger(me) then return false end
     -- Growl should be on cooldown first - Challenging Roar is the AoE fallback

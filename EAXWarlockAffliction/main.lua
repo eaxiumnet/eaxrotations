@@ -521,6 +521,26 @@ local function target_prefers_caster_curse(target)
     return false
 end
 
+local function should_hold_filler_for_dot_refresh(target)
+    if not target or not target:is_valid() or target:is_dead() then
+        return false
+    end
+    local refresh_window_ms = 2500
+    if menu.use_unstable_affliction:get_state() and runtime.unstable_affliction_id
+        and utils.get_debuff_remaining_ms(target, spells.UNSTABLE_AFFLICTION) <= refresh_window_ms then
+        return true
+    end
+    if menu.use_corruption:get_state() and runtime.corruption_id
+        and utils.get_debuff_remaining_ms(target, spells.CORRUPTION) <= refresh_window_ms then
+        return true
+    end
+    if menu.use_siphon_life:get_state() and runtime.siphon_life_id
+        and utils.get_debuff_remaining_ms(target, spells.SIPHON_LIFE) <= refresh_window_ms then
+        return true
+    end
+    return false
+end
+
 local function get_selected_curse(mode, target)
     local in_group_content = mode == "dungeon" or mode == "raid"
     if in_group_content and runtime.curse_of_elements_id then
@@ -587,11 +607,17 @@ local function try_execute(me, target)
         if ttd_s < commit_window_s then
             return false
         end
+        if ttd_s > 6 and should_hold_filler_for_dot_refresh(target) then
+            return false
+        end
     end
     return try_cast_spell(me, runtime.drain_soul_id, target, "Drain Soul")
 end
 
 local function try_filler(me, target)
+    if should_hold_filler_for_dot_refresh(target) then
+        return false
+    end
     if menu.use_shadow_bolt:get_state() then
         local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.shadow_bolt_id)
         local cast_time_s = cast_time_ms / 1000
@@ -881,6 +907,9 @@ local function do_rotation(me, target)
     end
 
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) then
+        if try_soul_shard_farm(me, target, runtime.drain_soul_id) then
+            return
+        end
         if try_execute(me, target) then
             return
         end

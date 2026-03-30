@@ -267,6 +267,8 @@ local TOTEM_ROTATION = {
     { name = "mana_spring", id_field = "mana_spring_id", toggle = menu.auto_totem_mana, label = "Mana Spring Totem", slot = 3, duration = 115 },
 }
 
+local target_will_die_before_cast_finishes
+
 local function is_totem_slot_empty(slot)
     if not slot or not core.spell_book or not core.spell_book.get_totem_info then
         return true
@@ -393,7 +395,7 @@ local function try_cast_target(me, target, spell_id, label)
     if is_pending_cast(spell_id) then
         return false
     end
-    if not utils.cast_target(spell_id, target, nil) then
+    if not utils.cast_target(spell_id, me, target) then
         return false
     end
     mark_pending_cast(spell_id)
@@ -443,16 +445,33 @@ local function get_spell_cast_time_seconds(spell_id, me)
     return ms and ms > 0 and (ms / 1000) or nil
 end
 
-local function target_will_die_before_cast_finishes(me, target, spell_id, buffer_s)
+target_will_die_before_cast_finishes = function(me, target, spell_id, buffer_s)
     local ttd_s = get_target_ttd_seconds(target)
     local cast_s = get_spell_cast_time_seconds(spell_id, me)
     if not ttd_s or not cast_s then return false end
     return ttd_s <= (cast_s + (buffer_s or 0.25))
 end
 
-local function ensure_totems(me)
+local function ensure_totems(me, target)
     if not menu.auto_totems:get_state() then
         return false
+    end
+    if me:is_in_combat() then
+        local hp_pct = utils.get_health_pct(me)
+        local mana_pct = utils.get_mana_pct(me)
+        if hp_pct and hp_pct < 0.60 then
+            return false
+        end
+        if mana_pct and mana_pct < 0.25 then
+            return false
+        end
+        if target and target:is_valid() and not target:is_dead() then
+            local ok_cast, casting = pcall(function() return target:is_casting_spell() end)
+            local ok_chan, channelling = pcall(function() return target:is_channelling_spell() end)
+            if (ok_cast and casting) or (ok_chan and channelling) then
+                return false
+            end
+        end
     end
     local now = _core_time()
     for _, entry in ipairs(TOTEM_ROTATION) do
@@ -480,7 +499,7 @@ local function try_earth_shock_interrupt(me, target)
     local ok2, channing = pcall(function() return target:is_channelling_spell() end)
     if not ((ok and casting) or (ok2 and channing)) then return false end
     if not utils.can_cast_hostile(runtime.earth_shock_id, me, target) then return false end
-    if utils.cast_target(runtime.earth_shock_id, target) then
+    if utils.cast_target(runtime.earth_shock_id, me, target) then
         invalidate_ctx()
         utils.log_debug(menu, "Earth Shock (interrupt)")
         return true
@@ -496,7 +515,7 @@ local function try_frost_shock_slow(me, target)
     local ok, moving = pcall(function() return target:is_moving() end)
     if not (ok and moving) then return false end
     if not utils.can_cast_hostile(runtime.frost_shock_id, me, target) then return false end
-    if utils.cast_target(runtime.frost_shock_id, target) then
+    if utils.cast_target(runtime.frost_shock_id, me, target) then
         invalidate_ctx()
         utils.log_debug(menu, "Frost Shock (slow)")
         return true
@@ -510,7 +529,7 @@ local function try_purge(me, target)
     if not me:can_attack(target) then return false end
     if not ((enc and enc.force_dispel) or menu.use_purge:get_state()) then return false end
     if not utils.can_cast_hostile(runtime.purge_id, me, target) then return false end
-    if utils.cast_target(runtime.purge_id, target) then
+    if utils.cast_target(runtime.purge_id, me, target) then
         invalidate_ctx()
         utils.log_debug(menu, "Purge")
         return true
@@ -534,7 +553,7 @@ local function try_cure_dispels(me)
         get_hp = function(unit) return utils.get_health_pct(unit) end,
     })
     if best_target and priority and priority.spell_id and utils.can_cast_target(priority.spell_id, me, best_target) then
-        if utils.cast_target(priority.spell_id, best_target) then return true end
+        if utils.cast_target(priority.spell_id, me, best_target) then return true end
     end
     return false
 end
@@ -562,7 +581,19 @@ local function try_burst(me, target)
 end
 
 local _flame_shock_last_applied = {}  -- [target_guid] = timestamp
-local FLAME_SHOCK_DURATION = 12.0    -- seconds (TBC Rank 8)
+local FLAME_SHOCK_REFRESH_BUFFER = 3.0
+local EARTH_SHOCK_SHORT_TTD = 8.0
+
+local function get_debuff_remaining_ms(unit, id_table)
+    if not unit or not unit:is_valid() or not id_table then
+        return 0
+    end
+    local data = buff_manager:get_debuff_data(unit, id_table)
+    if data and data.is_active then
+        return data.remaining or 0
+    end
+    return 0
+end
 
 local function try_flame_shock(me, target)
     if not menu.use_flame_shock:get_state() or not runtime.flame_shock_id then
@@ -571,19 +602,8 @@ local function try_flame_shock(me, target)
     if not target or not target:is_valid() or target:is_dead() then
         return false
     end
-    if target:is_moving() then
-        return false
-    end
-    -- Check debuff via buff_manager; also use time-based fallback for dummies/immune targets
-    local has_fs = utils.has_debuff(target, spells.BUFF_FLAME_SHOCK)
-    if not has_fs then
-        -- Time-based fallback: don't reapply if we applied recently
-        local guid = tostring(target)
-        local last = _flame_shock_last_applied[guid] or 0
-        if (_core_time() - last) < (FLAME_SHOCK_DURATION - 2) then
-            return false
-        end
-    else
+    local fs_remaining_ms = get_debuff_remaining_ms(target, spells.BUFF_FLAME_SHOCK)
+    if fs_remaining_ms > (FLAME_SHOCK_REFRESH_BUFFER * 1000) then
         return false
     end
     local target_hp = utils.get_health_pct(target)
@@ -597,6 +617,47 @@ local function try_flame_shock(me, target)
         return true
     end
     return false
+end
+
+local function try_earth_shock_damage(me, target)
+    if not runtime.earth_shock_id or not target then
+        return false
+    end
+    if not target:is_valid() or target:is_dead() then
+        return false
+    end
+    local mana_pct = utils.get_mana_pct(me)
+    local mana_stop = menu.mana_floor and menu.mana_floor:get() or 0
+    if mana_stop > 0 and mana_pct < (mana_stop / 100) then
+        return false
+    end
+
+    local profile = get_mode_profile()
+    local execute_cutoff = math.max(menu.execute_hp:get(), profile.execute_hp) / 100
+    local target_hp = utils.get_health_pct(target)
+    local target_ttd = get_target_ttd_seconds(target)
+    local fs_remaining_ms = get_debuff_remaining_ms(target, spells.BUFF_FLAME_SHOCK)
+    local fs_remaining = fs_remaining_ms / 1000
+    local flame_missing = fs_remaining_ms <= 0
+    local short_window = (target_ttd and target_ttd > 0 and target_ttd <= EARTH_SHOCK_SHORT_TTD)
+    local execute_window = target_hp <= execute_cutoff
+    local ok_moving, moving_window = pcall(function() return me:is_moving() end)
+    moving_window = ok_moving and moving_window or false
+
+    if not (execute_window or short_window or moving_window) then
+        return false
+    end
+
+    local ok_casting, hostile_casting = pcall(function() return target:is_casting_spell() or target:is_channelling_spell() end)
+    if ok_casting and hostile_casting then
+        return false
+    end
+
+    if (not flame_missing) and fs_remaining > FLAME_SHOCK_REFRESH_BUFFER and not (execute_window or short_window) then
+        return false
+    end
+
+    return try_cast_target(me, target, runtime.earth_shock_id, "Earth Shock (damage)")
 end
 
 local function try_chain_lightning(me, target)
@@ -616,7 +677,12 @@ local function try_chain_lightning(me, target)
             or (enc and enc.burn_phase)
     end
     if enemy_count < threshold and not burn_phase then
-        return false
+        local mana_pct = utils.get_mana_pct(me)
+        local mana_cutoff = math.max(menu.chain_lightning_mana:get(), profile.chain_lightning_mana) / 100
+        local target_ttd = get_target_ttd_seconds(target)
+        if mana_pct < (mana_cutoff + 0.20) or not target_ttd or target_ttd < 10 then
+            return false
+        end
     end
     local mana_pct = utils.get_mana_pct(me)
     local mana_cutoff = math.max(menu.chain_lightning_mana:get(), profile.chain_lightning_mana) / 100
@@ -782,12 +848,15 @@ local function do_rotation(me, target)
         return true
     end
 
-    ensure_totems(me)
+    if ensure_totems(me, target) then return true end
     if try_earth_shock_interrupt(me, target) then return true end
     if try_frost_shock_slow(me, target) then return true end
     if try_purge(me, target) then return true end
     if not hold_offense and try_burst(me, target) then return true end
     if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.12) and try_flame_shock(me, target) then
+        return true
+    end
+    if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.12) and try_earth_shock_damage(me, target) then
         return true
     end
     if ctx and resource_gate.shaman.has_mana_pct(ctx, 0.18) and try_chain_lightning(me, target) then

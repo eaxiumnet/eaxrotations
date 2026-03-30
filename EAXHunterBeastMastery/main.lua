@@ -300,6 +300,7 @@ local try_deterrence
 local try_scare_beast
 local try_flare
 local sync_pet_autocast
+local pet_is_committed_on_target
 
 local function is_gcd_ready()
     return smart_cast_manager.is_gcd_ready()
@@ -479,19 +480,12 @@ local function try_pet_ability(spell_id, target)
     return true
 end
 
-local function do_pet_abilities(t)
+local function do_pet_abilities(t, bm_state)
     local p = get_pet()
     if not p or not p:is_valid() or p:is_dead() then return end
     if not rt.pet_spells_scanned then scan_pet_spells() end
 
-    -- Only fire pet abilities when pet is close enough to actually be in combat
-    -- (pet within 10 yards of target = it's in melee/fighting)
-    local pp = p:get_position()
-    local tp = t and t:get_position()
-    if pp and tp then
-        local dx,dy,dz = pp.x-tp.x, pp.y-tp.y, pp.z-tp.z
-        if math.sqrt(dx*dx+dy*dy+dz*dz) > 10 then return end
-    end
+    if not pet_is_committed_on_target(p, t, bm_state, _core_time()) then return end
 
     -- 1. Growl on cooldown - keeps threat on pet so it tanks
     try_pet_ability(rt.pet_growl_id, t)
@@ -513,7 +507,13 @@ local function auto_eta(me)
     return swing_timer.get_time_to_swing(me) * 1000
 end
 local function allow_instant(me)
-    return swing_timer.is_swing_safe(me, math.max(AUTO_CLIP_MS, 250) / 1000)
+    return swing_timer.can_use_instant_before_swing(me, math.max(AUTO_CLIP_MS, 250) / 1000)
+end
+
+local function allow_queue_window(me, cast_time, buffer_s)
+    buffer_s = buffer_s or 0.20
+    if swing_timer.is_swing_imminent(me, buffer_s) then return false end
+    return swing_timer.can_cast_before_swing(me, cast_time or 0, buffer_s)
 end
 
 local function can_cast_casted_spell(me, cast_time)
@@ -521,7 +521,7 @@ local function can_cast_casted_spell(me, cast_time)
     if cast_time and cast_time >= 2.0 then
         clip_buffer = 0.25
     end
-    return swing_timer.can_cast_before_swing(me, cast_time, clip_buffer)
+    return allow_queue_window(me, cast_time, clip_buffer)
 end
 local function get_haste_breakpoint(me)
     local effective_speed = swing_timer.get_mh_speed(me)
@@ -985,7 +985,8 @@ local function pet_is_engaged_on_target(pet, target)
 
     local ok, pet_target = pcall(function() return pet:get_target() end)
     if ok and pet_target and pet_target:is_valid() and utils.same_unit and utils.same_unit(pet_target, target) then
-        return true
+        local ok_combat, in_combat = pcall(function() return pet:is_in_combat() end)
+        if ok_combat and in_combat then return true end
     end
 
     local pp, tp = pet:get_position(), target:get_position()
@@ -994,12 +995,12 @@ local function pet_is_engaged_on_target(pet, target)
     end
 
     local dx, dy, dz = pp.x - tp.x, pp.y - tp.y, pp.z - tp.z
-    return (dx * dx + dy * dy + dz * dz) <= 100
+    return (dx * dx + dy * dy + dz * dz) <= 36
 end
 
 local KILL_COMMAND_SETTLE_S = 0.20
 
-local function pet_is_committed_on_target(pet, target, bm_state, now)
+pet_is_committed_on_target = function(pet, target, bm_state, now)
     if not pet_is_engaged_on_target(pet, target) then return false end
     if not bm_state or not target or not target:is_valid() then return true end
 
@@ -1181,6 +1182,7 @@ local function try_serpent_sting(me, t, ctx)
     if not utils.can_fire(me, "serpent_sting") then return false end
     if rt.last_serpent_sting_cast_count == core.spell_book.get_spell_cast_count(rt.serpent_sting_id) then return false end
     if not allow_instant(me) then return false end
+    if swing_timer.is_swing_imminent(me, 0.20) then return false end
     if not utils.can_cast_hostile(rt.serpent_sting_id, me, t) then return false end
     if utils.cast_target(rt.serpent_sting_id, t) then
         rt.last_serpent_sting_cast_count = core.spell_book.get_spell_cast_count(rt.serpent_sting_id)
@@ -1198,6 +1200,7 @@ local function try_scorpid_sting(me, t)
     if has_debuff(t, spells.DEBUFF_SCORPID_STING) then return false end
     if rt.last_scorpid_sting_cast_count == core.spell_book.get_spell_cast_count(rt.scorpid_sting_id) then return false end
     if not allow_instant(me) then return false end
+    if swing_timer.is_swing_imminent(me, 0.20) then return false end
     if not utils.can_cast_hostile(rt.scorpid_sting_id, me, t) then return false end
     if utils.cast_target(rt.scorpid_sting_id, t) then
         rt.last_scorpid_sting_cast_count = core.spell_book.get_spell_cast_count(rt.scorpid_sting_id)
@@ -1212,6 +1215,7 @@ local function try_viper_sting(me, t)
     if has_debuff(t, spells.DEBUFF_VIPER_STING) then return false end
     if rt.last_viper_sting_cast_count == core.spell_book.get_spell_cast_count(rt.viper_sting_id) then return false end
     if not allow_instant(me) then return false end
+    if swing_timer.is_swing_imminent(me, 0.20) then return false end
     if not utils.can_cast_hostile(rt.viper_sting_id, me, t) then return false end
     if utils.cast_target(rt.viper_sting_id, t) then
         rt.last_viper_sting_cast_count = core.spell_book.get_spell_cast_count(rt.viper_sting_id)
@@ -1220,11 +1224,13 @@ local function try_viper_sting(me, t)
     return false
 end
 
-local function try_bestial_wrath(me, t)
+local function try_bestial_wrath(me, t, bm_state, now)
     if enc and enc.hold_cooldowns then return false end
     if not menu.use_bestial_wrath or not menu.use_bestial_wrath:get_state() then return false end
     if not rt.bestial_wrath_id or not pet_alive() then return false end
     if utils.has_buff(me, spells.BUFF_BESTIAL_WRATH) then return false end
+    local pet = get_pet()
+    if not pet_is_committed_on_target(pet, t, bm_state, now or _core_time()) then return false end
     if rt.last_bestial_wrath_cast_count == core.spell_book.get_spell_cast_count(rt.bestial_wrath_id) then return false end
     if utils.can_cast_self(rt.bestial_wrath_id, me) then
         rt.last_bestial_wrath_cast_count = core.spell_book.get_spell_cast_count(rt.bestial_wrath_id)
@@ -1294,6 +1300,7 @@ local function try_kill_command(me, t, ctx, bm_state, now)
     local pet = get_pet()
     if not pet_is_committed_on_target(pet, t, bm_state, now) then return false end
     if not allow_instant(me) then return false end
+    if swing_timer.is_swing_imminent(me, 0.20) then return false end
     if not utils.can_cast_hostile(rt.kill_command_id, me, t) then return false end
     if utils.cast_target(rt.kill_command_id, t) then
         rt.last_kill_command_cast_count = core.spell_book.get_spell_cast_count(rt.kill_command_id)
@@ -1310,6 +1317,7 @@ local function try_arcane_shot(me, t, ctx)
     if not resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.15, 1.15)) then return false end
     if serpent_sting_refresh_due(t) then return false end
     if not allow_instant(me) then return false end
+    if swing_timer.is_swing_imminent(me, 0.20) then return false end
     if not utils.can_fire(me, "arcane_shot") then return false end
     if rt.last_arcane_shot_cast_count == core.spell_book.get_spell_cast_count(rt.arcane_shot_id) then return false end
     if not utils.can_cast_hostile(rt.arcane_shot_id, me, t) then return false end
@@ -1331,6 +1339,7 @@ local function try_multi_shot(me, t, ctx)
     if utils.get_aoe_count(me, t) < 2 then return false end
     if is_moving() then return false end
     if not allow_instant(me) then return false end
+    if swing_timer.is_swing_imminent(me, 0.20) then return false end
     if not utils.can_fire(me, "multi_shot") then return false end
     if rt.last_multi_shot_cast_count == core.spell_book.get_spell_cast_count(rt.multi_shot_id) then return false end
     if not utils.can_cast_hostile(rt.multi_shot_id, me, t) then return false end
@@ -1553,7 +1562,7 @@ local function do_rotation(me, t)
         return
     end
 
-    if not hold_offense and try_bestial_wrath(me, t) then return end
+    if not hold_offense and try_bestial_wrath(me, t, bm_state, now) then return end
     if try_intimidation(me, t) then return end
 
     if try_aimed_shot(me, t, ctx) then
@@ -1585,13 +1594,14 @@ end
 local function on_update()
     resolve()
 
+    local me = get_me()
     if utils.throttle("bm_mode", MODE_REFRESH) then rt.cached_mode = utils.detect_mode(me) end
     if utils.throttle("bm_set_bonus", 5.0) then
-        update_set_bonus_multiplier(get_me())
+        update_set_bonus_multiplier(me)
     end
+
     handle_toggle()
     if not menu.enabled or not menu.enabled:get_state() then return end
-    local me = get_me()
     if not me or me:is_dead() then return end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     ooc_manager.on_update(me, menu, utils, {})

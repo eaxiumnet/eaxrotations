@@ -244,10 +244,12 @@ local function resolve_spells()
     runtime.blast_wave_id        = utils.resolve_spell_id(spells.BLAST_WAVE)
     runtime.dragons_breath_id    = utils.resolve_spell_id(spells.DRAGONS_BREATH)
     runtime.arcane_intellect_id  = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
+    runtime.ooc_arcane_intellect_id = runtime.arcane_intellect_id
     runtime.scorch_id = utils.resolve_spell_id(spells.SCORCH)
     runtime.fireball_id = utils.resolve_spell_id(spells.FIREBALL)
     runtime.pyroblast_id = utils.resolve_spell_id(spells.PYROBLAST)
     runtime.combustion_id = utils.resolve_spell_id(spells.COMBUSTION)
+    runtime.icy_veins_id = utils.resolve_spell_id(spells.ICY_VEINS)
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
     runtime.flamestrike_id = utils.resolve_spell_id(spells.FLAMESTRIKE)
     runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
@@ -385,6 +387,34 @@ local function is_within_range(a, b, max_range)
     return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
 end
 
+local IMPROVED_SCORCH_ID = 22959
+local COMBUSTION_EXECUTE_HP_PCT = 35
+local COMBUSTION_MIN_TTD_S = 18
+
+local function scorch_refresh_due(me, target)
+    local stacks = utils.get_debuff_stacks(target, spells.DEBUFF_FIRE_VULNERABILITY) or 0
+    local remaining_ms = utils.get_debuff_remaining_ms(target, spells.DEBUFF_FIRE_VULNERABILITY) or 0
+    local remaining = remaining_ms / 1000
+    local target_stacks = menu.scorch_stack_target and menu.scorch_stack_target:get() or 5
+    local refresh_window_s = ((menu.scorch_refresh_ms and menu.scorch_refresh_ms:get()) or 1500) / 1000
+    if stacks < target_stacks then return true end
+    if remaining > 0 and remaining <= refresh_window_s then return true end
+
+    local current_cast_remaining = 0
+    local fireball_cast_time = get_spell_cast_time_seconds(runtime.fireball_id, me) or 0
+    return remaining > 0 and remaining <= (current_cast_remaining + fireball_cast_time + 0.25)
+end
+
+local function should_use_combustion(target)
+    local hp_pct = tonumber(target and target:get_health_percentage()) or 100
+    if hp_pct <= COMBUSTION_EXECUTE_HP_PCT then
+        return true
+    end
+
+    local ttd_s = get_target_ttd_seconds(target)
+    return ttd_s ~= nil and ttd_s >= COMBUSTION_MIN_TTD_S
+end
+
 local function try_combustion(me, target)
     if enc and enc.hold_cooldowns then return false end
     if not menu.use_combustion:get_state() then return false end
@@ -392,8 +422,13 @@ local function try_combustion(me, target)
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_COMBUSTION) then return false end
+    if not should_use_combustion(target) then return false end
+    if menu.use_scorch:get_state() and scorch_refresh_due(me, target) then return false end
     if is_pending_cast(runtime.combustion_id) or utils.is_spell_already_queued(runtime.combustion_id) then return false end
     if not utils.can_cast_self(runtime.combustion_id, me) then return false end
+    if runtime.icy_veins_id and not utils.has_buff(me, spells.BUFF_ICY_VEINS) and not utils.can_cast_self(runtime.icy_veins_id, me) then
+        return false
+    end
 
     if utils.cast_self_fast(runtime.combustion_id, me, "Combustion") then
         mark_pending_cast(runtime.combustion_id, FAST_PENDING_CAST_TIMEOUT_S)
@@ -430,6 +465,7 @@ local function try_pyroblast(me, target)
     if not runtime.pyroblast_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
+    if menu.use_scorch:get_state() and scorch_refresh_due(me, target) then return false end
 
     if runtime.combustion_id and not utils.has_buff(me, spells.BUFF_COMBUSTION) then return false end
     if target_will_die_before_cast_finishes(me, target, runtime.pyroblast_id, 0.35) then return false end
@@ -451,10 +487,8 @@ local function try_scorch(me, target)
     if not menu.use_scorch:get_state() then return false end
     if not runtime.scorch_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-
-    local stacks = utils.get_debuff_stacks(target, spells.DEBUFF_FIRE_VULNERABILITY)
-    local remaining_ms = utils.get_debuff_remaining_ms(target, spells.DEBUFF_FIRE_VULNERABILITY)
-    if stacks >= menu.scorch_stack_target:get() and remaining_ms > menu.scorch_refresh_ms:get() then
+    if me:is_moving() then return false end
+    if not scorch_refresh_due(me, target) then
         return false
     end
 
@@ -476,6 +510,7 @@ local function try_fire_blast_move(me, target)
     if not runtime.fire_blast_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_moving() then return false end
+
     if not utils.can_cast_hostile(runtime.fire_blast_id, me, target) then return false end
 
     if utils.cast_target_fast(runtime.fire_blast_id, target, "Fire Blast") then

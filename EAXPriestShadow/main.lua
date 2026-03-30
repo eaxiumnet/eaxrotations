@@ -294,10 +294,23 @@ local function refresh_dot(me, target, spell_id, debuff_ids)
     return false
 end
 
+local function should_refresh_shadow_dot(target, debuff_ids, spell_id, aggressive)
+    if not target or not spell_id then
+        return false
+    end
+    if not dot_manager.can_refresh_dot(target, debuff_ids, spell_id, utils.get_debuff_remaining_ms) then
+        return false
+    end
+    if aggressive then
+        return true
+    end
+    local remaining_ms = utils.get_debuff_remaining_ms(target, debuff_ids)
+    return remaining_ms <= dot_manager.get_safe_refresh_ms(spell_id)
+end
+
 local function dots_active(target)
     return utils.get_debuff_remaining_ms(target, spells.DEBUFF_VAMPIRIC_TOUCH) > 0
         and utils.get_debuff_remaining_ms(target, spells.DEBUFF_SHADOW_WORD_PAIN) > 0
-        and utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEVOURING_PLAGUE) > 0
 end
 
 
@@ -434,7 +447,7 @@ local function try_sw_death(me, target)
     if not resolved.shadow_word_death then return false end
     local hp = utils.get_health_pct(target)
     local ttd = ttd_tracker.get(target) or 999
-    local is_execute = hp <= 0.25 or (hp <= 0.35 and ttd <= 2)
+    local is_execute = hp <= 0.28 or (hp <= 0.36 and ttd <= 4)
     if not is_execute then return false end
     if not utils.can_cast_hostile(resolved.shadow_word_death, me, target) then return false end
     if utils.cast_target(resolved.shadow_word_death, me, target) then note_cast() return true end
@@ -497,6 +510,13 @@ end
 
 local function try_mind_flay(me, target)
     if not resolved.mind_flay or not target then
+        return false
+    end
+    local vt_ms = utils.get_debuff_remaining_ms(target, spells.DEBUFF_VAMPIRIC_TOUCH)
+    local swp_ms = utils.get_debuff_remaining_ms(target, spells.DEBUFF_SHADOW_WORD_PAIN)
+    local dp_ms = resolved.devouring_plague and utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEVOURING_PLAGUE) or nil
+    local dp_refresh_due = dp_ms ~= nil and dp_ms > 0 and dp_ms <= 2500
+    if vt_ms > 0 and swp_ms > 0 and (vt_ms <= 2500 or swp_ms <= 2500 or dp_refresh_due) then
         return false
     end
     if utils.cast_target(resolved.mind_flay, me, target) then note_cast() return true end
@@ -709,12 +729,16 @@ core.register_on_update_callback(function()
 
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_vampiric_embrace(me) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_inner_fire(me) then return end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.16) and refresh_dot(target, resolved.vampiric_touch, spells.DEBUFF_VAMPIRIC_TOUCH) then invalidate_ctx() return end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and refresh_dot(target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.16)
+            and should_refresh_shadow_dot(target, spells.DEBUFF_VAMPIRIC_TOUCH, resolved.vampiric_touch)
+            and refresh_dot(me, target, resolved.vampiric_touch, spells.DEBUFF_VAMPIRIC_TOUCH) then invalidate_ctx() return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.10)
+            and should_refresh_shadow_dot(target, spells.DEBUFF_SHADOW_WORD_PAIN, resolved.shadow_word_pain)
+            and refresh_dot(me, target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_devouring_plague(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_shadow_weaving(me, target) then return end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_mind_blast(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_sw_death(me, target) then return end
+        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_mind_blast(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_mind_flay(me, target) then return end
     end
 

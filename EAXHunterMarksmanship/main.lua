@@ -391,8 +391,34 @@ end
 local function auto_eta(me)
     return swing_timer.get_time_to_swing(me) * 1000
 end
-local function allow_instant(me) return swing_timer.is_swing_safe(me, AUTO_CLIP_MS / 1000) end
-local function can_cast_casted_spell(me, cast_time) return swing_timer.can_cast_before_swing(me, cast_time, 0.1) end
+local AUTO_QUEUE_ZONE_MS = 350
+local AUTO_IMMINENT_MS = 200
+
+local function in_auto_queue_zone(me)
+    return auto_eta(me) <= AUTO_QUEUE_ZONE_MS
+end
+
+local function auto_is_imminent(me)
+    if swing_timer.is_swing_imminent then
+        return swing_timer.is_swing_imminent(me, AUTO_IMMINENT_MS / 1000)
+    end
+    return auto_eta(me) <= AUTO_IMMINENT_MS
+end
+
+local function allow_instant(me)
+    if in_auto_queue_zone(me) or auto_is_imminent(me) then return false end
+    return swing_timer.is_swing_safe(me, AUTO_CLIP_MS / 1000)
+end
+
+local function can_cast_casted_spell(me, cast_time)
+    if in_auto_queue_zone(me) or auto_is_imminent(me) then return false end
+    return swing_timer.can_cast_before_swing(me, cast_time, 0.1)
+end
+
+local function can_start_steady_shot(me)
+    if in_auto_queue_zone(me) or auto_is_imminent(me) then return false end
+    return can_cast_casted_spell(me, 1.5)
+end
 local function get_haste_breakpoint(me)
     local effective_speed = swing_timer.get_mh_speed(me)
     if not effective_speed or effective_speed <= 0 then
@@ -1082,7 +1108,7 @@ local function try_steady_shot(me, t, ctx)
     if not rt.steady_shot_id then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, 0.05) then return false end
     if is_moving() then return false end
-    if not can_cast_casted_spell(me, 1.5) then return false end
+    if not can_start_steady_shot(me) then return false end
     if rt.last_steady_shot_cast_count == core.spell_book.get_spell_cast_count(rt.steady_shot_id) then return false end
     if not utils.can_cast_hostile(rt.steady_shot_id, me, t) then return false end
     if utils.cast_target(rt.steady_shot_id, t) then
@@ -1302,10 +1328,11 @@ end
 local function on_update()
     resolve()
 
+    local me = get_me()
+
     if utils.throttle("mm_mode", MODE_REFRESH) then rt.cached_mode = utils.detect_mode(me) end
     handle_toggle()
     if not menu.enabled or not menu.enabled:get_state() then return end
-    local me = get_me()
     if not me or me:is_dead() then return end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     ooc_manager.on_update(me, menu, utils, {})

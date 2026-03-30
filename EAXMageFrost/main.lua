@@ -233,6 +233,9 @@ local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
 
+local is_valid_hostile_target
+local try_frostbolt
+
 local function resolve_spells()
     runtime.ice_barrier_id  = utils.resolve_spell_id(spells.ICE_BARRIER)
     runtime.cone_of_cold_id = utils.resolve_spell_id(spells.CONE_OF_COLD)
@@ -242,6 +245,30 @@ local function resolve_spells()
     runtime.icy_veins_id = utils.resolve_spell_id(spells.ICY_VEINS)
     runtime.water_elemental_id = utils.resolve_spell_id(spells.WATER_ELEMENTAL)
     runtime.cold_snap_id = utils.resolve_spell_id(spells.COLD_SNAP)
+    runtime.arcane_intellect_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
+    runtime.ooc_arcane_intellect_id = runtime.arcane_intellect_id
+end
+
+local function get_target_ttd_seconds(target)
+    if not target or not ttd_tracker or not ttd_tracker.get then return nil end
+    local ok, value = pcall(function() return ttd_tracker.get(target) end)
+    if not ok then return nil end
+    return tonumber(value)
+end
+
+local function get_spell_cast_time_seconds(spell_id)
+    if not spell_id or not mana_manager or not mana_manager.get_spell_cast_time_ms then return nil end
+    local ok, value = pcall(function() return mana_manager.get_spell_cast_time_ms(spell_id) end)
+    if not ok then return nil end
+    local ms = tonumber(value)
+    return ms and ms > 0 and (ms / 1000) or nil
+end
+
+local function target_will_die_before_cast_finishes(me, target, spell_id, buffer_s)
+    local ttd_s = get_target_ttd_seconds(target)
+    local cast_s = get_spell_cast_time_seconds(spell_id)
+    if not ttd_s or not cast_s then return false end
+    return ttd_s <= (cast_s + (buffer_s or 0.25))
 end
 
 local function get_debuff_state(unit, id_table)
@@ -278,6 +305,20 @@ local function try_winters_chill_frostbolt(me, target)
     if me:is_moving() then return false end
     if not should_refresh_winters_chill(target) then return false end
     return try_frostbolt(me, target)
+end
+
+local function should_use_ice_lance_for_winters_chill(me, target)
+    if not menu.use_winters_chill:get_state() then return false end
+    if not me or not me:is_moving() then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+
+    local stacks, remaining = get_debuff_stacks_and_remaining(target, spells.DEBUFF_WINTERS_CHILL)
+    if stacks <= 0 then return false end
+
+    if stacks < 5 then return true end
+
+    local refresh_s = menu.winters_chill_refresh:get()
+    return remaining ~= nil and remaining <= refresh_s
 end
 
 local function should_abort_frostbolt_commit(me, target)
@@ -363,7 +404,7 @@ local function should_throttle_aoe(action_key)
     return smart_cast_manager.should_throttle(action_key, "aoe")
 end
 
-local function is_valid_hostile_target(me, target)
+is_valid_hostile_target = function(me, target)
     return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
 end
 
@@ -383,8 +424,6 @@ local function is_within_range(a, b, max_range)
     local dz = pos_a.z - pos_b.z
     return (dx * dx + dy * dy + dz * dz) <= (max_range * max_range)
 end
-
-local try_frostbolt
 
 local function try_water_elemental(me, target)
     if not menu.use_water_elemental:get_state() then return false end
@@ -450,7 +489,11 @@ local function try_ice_lance(me, target)
     if not is_valid_hostile_target(me, target) then return false end
 
     local frozen = utils.has_debuff(target, spells.DEBUFF_FROZEN)
-    if not me:is_moving() and not frozen then
+    local winters_chill_refresh = should_use_ice_lance_for_winters_chill(me, target)
+    if not me:is_moving() and not frozen and not winters_chill_refresh then
+        return false
+    end
+    if me:is_moving() and not winters_chill_refresh and not frozen then
         return false
     end
 
@@ -583,8 +626,8 @@ local function try_cold_snap(me, target)
     if is_pending_cast(runtime.cold_snap_id) or utils.is_spell_already_queued(runtime.cold_snap_id) then return false end
     if not utils.can_cast_self(runtime.cold_snap_id, me) then return false end
 
-    local iv_cd = tonumber(_get_spell_cd(runtime.icy_veins_id)) or 0
-    local we_cd = tonumber(_get_spell_cd(runtime.water_elemental_id)) or 0
+    local iv_cd = runtime.icy_veins_id and (tonumber(_get_spell_cd(runtime.icy_veins_id)) or 0) or 999
+    local we_cd = runtime.water_elemental_id and (tonumber(_get_spell_cd(runtime.water_elemental_id)) or 0) or 999
     if iv_cd < 8 and we_cd < 8 then return false end
 
     if utils.cast_self_fast(runtime.cold_snap_id, me, "Cold Snap") then

@@ -212,6 +212,8 @@ local runtime = {
     ice_block_id = nil,
     counterspell_id = nil,
     presence_of_mind_id = nil,
+    icy_veins_id = nil,
+    cold_snap_id = nil,
     frost_nova_id = nil,
     blink_id = nil,
     prev_toggle_state = false,
@@ -228,6 +230,7 @@ local ctx_cache = rotation_context.new({
         spells.BUFF_ARCANE_POWER,
         spells.BUFF_CLEARCASTING,
         spells.BUFF_ARCANE_BLAST,
+        spells.BUFF_PRESENCE_OF_MIND,
     },
     important_debuffs = {},
 })
@@ -235,7 +238,6 @@ local ctx_cache = rotation_context.new({
 local GCD_CAST_INTERVAL = 1.5  -- TBC GCD
 local PENDING_CAST_TIMEOUT_S = 2.5
 local FAST_PENDING_CAST_TIMEOUT_S = 0.75
-
 local function resolve_spells()
     runtime.arcane_intellect_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
     runtime.mage_armor_id = utils.resolve_spell_id(spells.MAGE_ARMOR)
@@ -245,8 +247,13 @@ local function resolve_spells()
     runtime.arcane_power_id = utils.resolve_spell_id(spells.ARCANE_POWER)
     runtime.arcane_explosion_id = utils.resolve_spell_id(spells.ARCANE_EXPLOSION)
     runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
+    runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
     runtime.counterspell_id = utils.resolve_spell_id(spells.COUNTERSPELL)
+    runtime.presence_of_mind_id = utils.resolve_spell_id(spells.PRESENCE_OF_MIND)
+    runtime.icy_veins_id = utils.resolve_spell_id(spells.ICY_VEINS)
+    runtime.cold_snap_id = utils.resolve_spell_id(spells.COLD_SNAP)
+    runtime.ooc_arcane_intellect_id = runtime.arcane_intellect_id
 end
 
 local function log_resolved_spells()
@@ -468,6 +475,9 @@ local function try_arcane_power(me, target)
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_ARCANE_POWER) then return false end
+    if runtime.icy_veins_id and not utils.has_buff(me, spells.BUFF_ICY_VEINS) and utils.can_cast_self(runtime.icy_veins_id, me) then
+        return false
+    end
 
     local min_mana = menu.burn_mana_pct:get()
     if get_effective_mode() == "raid" then
@@ -519,6 +529,9 @@ local function try_arcane_missiles(me, target)
     local dump_stacks = menu.arcane_blast_dump_stacks:get()
     local clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
     local low_mana = utils.get_mana_pct(me) <= (menu.evocation_pct:get() + 15)
+    if (utils.has_buff(me, spells.BUFF_ICY_VEINS) or utils.has_buff(me, spells.BUFF_ARCANE_POWER)) and not clearcasting and not low_mana and ab_stacks < dump_stacks then
+        return false
+    end
     if not clearcasting and not low_mana and ab_stacks < dump_stacks then
         return false
     end
@@ -562,6 +575,20 @@ local function try_arcane_blast(me, target)
     if target_will_die_before_cast_finishes(me, target, runtime.arcane_blast_id, 0.35) then return false end
     if is_pending_cast(runtime.arcane_blast_id) or utils.is_spell_already_queued(runtime.arcane_blast_id) then return false end
     if not utils.can_cast_hostile(runtime.arcane_blast_id, me, target) then return false end
+    local ab_stacks = utils.get_buff_stacks(me, spells.BUFF_ARCANE_BLAST)
+    local ap_active = utils.has_buff(me, spells.BUFF_ARCANE_POWER)
+    local iv_active = utils.has_buff(me, spells.BUFF_ICY_VEINS)
+    local pom_active = utils.has_buff(me, spells.BUFF_PRESENCE_OF_MIND)
+    local clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
+    local low_mana = utils.get_mana_pct(me) <= (menu.evocation_pct:get() + 15)
+    local dump_stacks = menu.arcane_blast_dump_stacks:get()
+    local should_dump = ab_stacks >= dump_stacks
+        or (clearcasting and ab_stacks >= 1)
+        or (low_mana and ab_stacks >= math.max(1, dump_stacks - 1))
+
+    if should_dump and not ap_active and not iv_active and not pom_active then
+        return false
+    end
 
     if utils.cast_target(runtime.arcane_blast_id, target, "Arcane Blast") then
         mark_pending_cast(runtime.arcane_blast_id, PENDING_CAST_TIMEOUT_S)
@@ -625,8 +652,8 @@ local function try_presence_of_mind(me)
     if not runtime.presence_of_mind_id then return false end
     if utils.has_buff(me, spells.BUFF_PRESENCE_OF_MIND) then return false end
     if not me:is_in_combat() then return false end
-    -- Only pop PoM when Arcane Power is active or as opener
-    if runtime.arcane_power_id and not utils.has_buff(me, spells.BUFF_ARCANE_POWER) then return false end
+    if not utils.has_buff(me, spells.BUFF_ARCANE_POWER) then return false end
+    if utils.get_buff_remaining_ms(me, spells.BUFF_ARCANE_POWER) > 3000 then return false end
     if not utils.can_cast_self(runtime.presence_of_mind_id, me) then return false end
     if utils.cast_self_fast(runtime.presence_of_mind_id, me) then
         utils.log_debug(menu, "Presence of Mind")
@@ -645,6 +672,45 @@ local function try_arcane_intellect(me)
         utils.log_debug(menu, "Arcane Intellect")
         return true
     end
+    return false
+end
+
+local function try_icy_veins(me, target)
+    if enc and enc.hold_cooldowns then return false end
+    if not menu.use_arcane_power:get_state() then return false end
+    if not runtime.icy_veins_id then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if not me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.BUFF_ICY_VEINS) then return false end
+    if not utils.can_cast_self(runtime.icy_veins_id, me) then return false end
+
+    if utils.cast_self_fast(runtime.icy_veins_id, me, "Icy Veins") then
+        mark_pending_cast(runtime.icy_veins_id, FAST_PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Icy Veins")
+        note_cast()
+        return true
+    end
+
+    return false
+end
+
+local function try_cold_snap_reset(me)
+    if enc and enc.hold_cooldowns then return false end
+    if not runtime.cold_snap_id then return false end
+    if not me:is_in_combat() then return false end
+    if not runtime.icy_veins_id then return false end
+    if utils.has_buff(me, spells.BUFF_ICY_VEINS) then return false end
+    if _get_spell_cd(runtime.cold_snap_id) > 0 then return false end
+    if _get_spell_cd(runtime.icy_veins_id) <= 0 then return false end
+    if not utils.can_cast_self(runtime.cold_snap_id, me) then return false end
+
+    if utils.cast_self_fast(runtime.cold_snap_id, me, "Cold Snap") then
+        mark_pending_cast(runtime.cold_snap_id, FAST_PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Cold Snap")
+        note_cast()
+        return true
+    end
+
     return false
 end
 
@@ -779,12 +845,14 @@ local function do_rotation(me, target)
 
     if try_mana_gem(me) then return true end
     if try_evocation(me) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and not hold_offense and try_cold_snap_reset(me) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and not hold_offense and try_presence_of_mind(me) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.30) and not hold_offense and try_icy_veins(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.30) and not hold_offense and try_arcane_power(me, target) then return true end
     if not hold_offense and try_trinkets(me) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_fire_blast_move(me, target) then return true end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_arcane_missiles(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_arcane_blast(me, target) then return true end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_arcane_missiles(me, target) then return true end
 
     return false
 end

@@ -76,6 +76,7 @@ menu.shift_mana_floor = core.menu.slider_int(0, 50, 20, "eaxdruidferal_shift_man
 
 -- -- Cat Form - Builders -------------------------------------------------------
 menu.use_faerie_fire  = core.menu.checkbox(true,  "eaxdruidferal_use_faerie_fire")
+menu.use_likely_shred = core.menu.checkbox(true,  "eaxdruidferal_use_likely_shred")
 menu.use_mangle_cat   = core.menu.checkbox(true,  "eaxdruidferal_use_mangle_cat")
 menu.use_rake         = core.menu.checkbox(true,  "eaxdruidferal_use_rake")
 menu.rake_refresh_seconds = core.menu.slider_int(1, 5, 3, "eaxdruidferal_rake_refresh_seconds")
@@ -198,6 +199,8 @@ function menu.render()
             theme.spec_header("Builders")
             menu.use_faerie_fire:render("Faerie Fire (Feral)",
                 "Armor reduction - apply on every target pull")
+            menu.use_likely_shred:render("Likely Shred",
+                "Prefer Shred on grouped targets when not tanking and the target is not on you")
             menu.use_mangle_cat:render("Mangle (Cat)",
                 "Maintain the shared Mangle / bleed-amplification debuff")
             menu.use_rake:render("Rake",
@@ -268,10 +271,6 @@ function menu.render()
         guardian_tree:render("Guardian - Tank", function()
 
             theme.spec_header("Defensive Cooldowns")
-            menu.use_survival_instincts:render("Survival Instincts",
-                "Major tank survival CD - use automatically below HP threshold")
-            menu.survival_instincts_hp_pct:render("Survival Instincts HP %",
-                "Trigger threshold")
             menu.tank_cd_overlap:render("Allow CD Overlap",
                 "Allow Survival Instincts and Frenzied Regen simultaneously")
 

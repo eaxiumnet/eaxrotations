@@ -208,6 +208,11 @@ local EXECUTE_HP_THRESHOLD = 0.20
 local STANCE_BUFFER_RAGE = 5
 local ARMS_AOE_RADIUS = 8
 local REND_REFRESH_MS = 4000
+local SLAM_NOW_WINDOW_MS = 350
+local SLAM_HOLD_REGION_MS = 250
+local SLAM_SAFE_BUFFER_MS = 100
+
+local should_hold_for_slam
 
 local runtime = {
     mortal_strike_id = nil,
@@ -268,6 +273,7 @@ local RUNTIME_SPELL_SPECS = {
     { field = "hamstring_id", ranks = spells.HAMSTRING },
     { field = "battle_stance_id", ranks = spells.BATTLE_STANCE },
     { field = "berserker_stance_id",  ranks = spells.BERSERKER_STANCE },
+    { field = "berserker_rage_id", ranks = spells.BERSERKER_RAGE },
     { field = "charge_id",            ranks = spells.CHARGE },
     { field = "death_wish_id",        ranks = spells.DEATH_WISH },
     { field = "recklessness_id",      ranks = spells.RECKLESSNESS },
@@ -281,6 +287,19 @@ local function resolve_spells()
         runtime[spec.field] = utils.resolve_spell_id(spec.ranks)
     end
     runtime.stance_swap_retention = utils.get_stance_swap_retention()
+end
+
+local function validate_arms_spec()
+    if runtime.mortal_strike_id then
+        return true
+    end
+
+    if menu and menu.enabled and menu.enabled:get_state() then
+        menu.enabled:set(false)
+    end
+
+    core.log("[Eax Warrior Arms] Mortal Strike not found; disabling addon to avoid interfering with non-Arms warrior specs.")
+    return false
 end
 
 local function has_missing_runtime_spell_ids()
@@ -541,6 +560,10 @@ local function try_overpower(me, target, ctx)
         return false
     end
 
+    if not utils.can_cast_hostile(runtime.overpower_id, me, target) then
+        return false
+    end
+
     if utils.cast_target(runtime.overpower_id, target) then
         utils.log_debug(menu, "Overpower")
         return true
@@ -655,6 +678,10 @@ local function try_mortal_strike(me, target, ctx)
         return false
     end
 
+    if should_hold_for_slam(me) then
+        return false
+    end
+
     if utils.cast_target(runtime.mortal_strike_id, target) then
         utils.log_debug(menu, "Mortal Strike")
                 esp_renderer.on_cast(runtime.mortal_strike_id, "Mortal Strike", color.red(220))
@@ -668,11 +695,14 @@ local function try_thunder_clap(me, target, ctx)
     if not runtime.thunder_clap_id or not target then
         return false
     end
-    local can_cast = resource_gate.warrior.has_rage(ctx, 10)
+    local can_cast = resource_gate.warrior.has_rage(ctx, THUNDER_CLAP_COST)
     if not can_cast then
         return false
     end
     if not utils.is_melee_target(me, target) then
+        return false
+    end
+    if should_hold_for_slam(me) then
         return false
     end
     -- Prefer Thunder Clap for AoE, but still allow group-mode single-target upkeep
@@ -713,13 +743,27 @@ local function try_execute(me, target, ctx, target_hp_pct)
         return false
     end
 
+    local next_swing_ms = utils.get_next_swing_ms(me, 2)
+    if next_swing_ms <= (SLAM_HOLD_REGION_MS + SLAM_SAFE_BUFFER_MS) then
+        return false
+    end
+
     if utils.cast_target(runtime.execute_id, target) then
         utils.log_debug(menu, "Execute")
-                esp_renderer.on_cast(runtime.execute_id, "Execute", color.orange(220))
+        esp_renderer.on_cast(runtime.execute_id, "Execute", color.orange(220))
         return true
     end
 
     return false
+end
+
+should_hold_for_slam = function(me)
+    if not menu.use_slam:get_state() then
+        return false
+    end
+    local safety_buffer_ms = menu.slam_safety_buffer_ms:get() or SLAM_SAFE_BUFFER_MS
+    local next_swing_ms = utils.get_next_swing_ms(me, 2)
+    return next_swing_ms > 0 and next_swing_ms <= (SLAM_HOLD_REGION_MS + safety_buffer_ms)
 end
 
 local function try_whirlwind(me, target, rage, ctx)
@@ -745,6 +789,10 @@ local function try_whirlwind(me, target, rage, ctx)
         return false
     end
 
+    if should_hold_for_slam(me) then
+        return false
+    end
+
     local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or 0
     if ms_cd <= 1.5 then
         return false
@@ -757,7 +805,6 @@ local function try_whirlwind(me, target, rage, ctx)
             and utils.cast_self(runtime.berserker_stance_id, me)
         then
             utils.set_tracked_stance("berserker")
-            runtime.ww_pending_return = true
             utils.log_debug(menu, "Stance -> berserker (WW)")
             return true
         end
@@ -765,6 +812,7 @@ local function try_whirlwind(me, target, rage, ctx)
     end
 
     if utils.cast_target(runtime.whirlwind_id, target) then
+        runtime.ww_pending_return = true
         utils.log_debug(menu, "Whirlwind")
         return true
     end
@@ -773,10 +821,10 @@ local function try_whirlwind(me, target, rage, ctx)
 end
 
 local function try_slam(me, target, ctx, target_hp_pct)
-     if not menu.use_slam:get_state()
-          or not target
-          or not runtime.slam_id
-      then
+      if not menu.use_slam:get_state()
+           or not target
+           or not runtime.slam_id
+       then
           return false
       end
 
@@ -789,28 +837,34 @@ local function try_slam(me, target, ctx, target_hp_pct)
          return false
      end
 
-     if not utils.is_melee_target(me, target) then
-         return false
-     end
+      if not utils.is_melee_target(me, target) then
+          return false
+      end
 
       local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or 0
-     if ms_cd <= 1.5 then
-         return false
-     end
+      if ms_cd <= 1.5 then
+          return false
+      end
 
-     if not swing_timer.is_in_post_swing_window(me, 0.35) then
-         return false
-     end
+      local time_since_last_swing_ms = swing_timer.get_time_since_last_swing(me) * 1000
+      if time_since_last_swing_ms > SLAM_NOW_WINDOW_MS then
+          return false
+      end
 
-     -- Use swing timer for safety buffer to prevent clipping
-     if not swing_timer.is_swing_safe(me, menu.slam_safety_buffer_ms:get() / 1000) then
-         return false
-     end
+      local safety_buffer_ms = menu.slam_safety_buffer_ms:get() or SLAM_SAFE_BUFFER_MS
+      if not utils.can_slam_without_clipping(me, runtime.slam_id, safety_buffer_ms) then
+          return false
+      end
 
-     if utils.cast_target(runtime.slam_id, target) then
-         utils.log_debug(menu, "Slam weave")
-         return true
-     end
+      local next_swing_ms = utils.get_next_swing_ms(me, 2)
+      if next_swing_ms > 0 and next_swing_ms <= (SLAM_HOLD_REGION_MS + safety_buffer_ms) then
+          return false
+      end
+
+      if utils.cast_target(runtime.slam_id, target) then
+          utils.log_debug(menu, "Slam weave")
+          return true
+      end
 
      return false
  end
@@ -998,11 +1052,6 @@ local function do_core_lane(me, target, rage, target_hp_pct)
         return true
     end
 
-    if try_execute(me, target, ctx, target_hp_pct) then
-        invalidate_ctx()
-        return true
-    end
-
     if try_mortal_strike(me, target, ctx) then
         invalidate_ctx()
         return true
@@ -1014,6 +1063,11 @@ local function do_core_lane(me, target, rage, target_hp_pct)
     end
 
     if try_whirlwind(me, target, rage, ctx) then
+        invalidate_ctx()
+        return true
+    end
+
+    if try_execute(me, target, ctx, target_hp_pct) then
         invalidate_ctx()
         return true
     end
@@ -1135,6 +1189,7 @@ local function on_control_panel()
 end
 
 resolve_spells()
+validate_arms_spec()
 refresh_mode_cache()
 
 

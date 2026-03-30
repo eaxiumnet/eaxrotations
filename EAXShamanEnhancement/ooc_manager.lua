@@ -189,7 +189,7 @@ function ooc_manager.try_resurrect(me, rez_spell_id, menu, utils, allow_in_comba
         local now  = core.time()
         if (now - (last_rez_attempt[guid] or 0)) < 10.0 then goto continue end
         if not utils.can_cast_target(rez_spell_id, me, target) then goto continue end
-        if utils.cast_target(rez_spell_id, target, "Resurrect") then
+        if utils.cast_target(rez_spell_id, me, target) then
             last_rez_attempt[guid] = now
             utils.log_debug(menu, "OOC: Resurrecting party member")
             return true
@@ -245,7 +245,7 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
             if not has_any_buff(obj, buff_ids) then
                 all_buffed = false
                 if (now - last_cast) >= BUFF_RECAST_COOLDOWN_S and utils.can_cast_target(spell_id, me, obj) then
-                    if utils.cast_target(spell_id, obj, buff_name or "Group Buff") then
+                    if utils.cast_target(spell_id, me, obj) then
                         last_group_buff[spell_id] = now
                         _last_group_buff_scan = now
                         utils.log_debug(menu, "OOC: Buffing party - " .. (buff_name or ""))

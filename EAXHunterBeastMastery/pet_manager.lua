@@ -148,6 +148,7 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
     local pet = pet_manager.get_pet(me)
     if not pet then
         st.state = STATE_IDLE
+        st.last_target_guid = nil
         st.engage_started_at = 0
         st.fight_started_at = 0
         return
@@ -160,19 +161,13 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
     local pet_alive = pet_manager.pet_alive(pet)
     if not pet_alive then
         st.state = STATE_IDLE
+        st.last_target_guid = nil
         st.engage_started_at = 0
         st.fight_started_at = 0
         return
     end
 
-    if me.is_moving and me:is_moving() then
-        if st.state ~= STATE_IDLE then
-            core.input.set_pet_follow()
-            st.last_follow = now
-            st.state = STATE_IDLE
-            st.engage_started_at = 0
-            st.fight_started_at = 0
-        end
+    if me.is_moving and me:is_moving() and st.state == STATE_IDLE then
         return
     end
 
@@ -191,6 +186,7 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
                 st.last_follow = now
             end
             st.state = STATE_IDLE
+            st.last_target_guid = nil
             st.engage_started_at = 0
             st.fight_started_at = 0
         end
@@ -205,6 +201,7 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
             core.input.set_pet_follow()
             st.last_follow = now
             st.state = STATE_IDLE
+            st.last_target_guid = nil
             st.engage_started_at = 0
             st.fight_started_at = 0
         end
@@ -250,6 +247,9 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
 
     if pet_to_target_sq <= 25 then  -- 5^2 = 25
         if st.state ~= STATE_FIGHTING then
+            if (now - st.engage_started_at) < 0.35 then
+                return
+            end
             st.fight_started_at = now
         end
         st.state = STATE_FIGHTING
@@ -262,7 +262,14 @@ function pet_manager.on_update(me, target, st, now, menu, utils)
     end
 
     if st.state == STATE_FIGHTING then
-        if now - st.last_growl > 2.0 and st.growl_id then
+        if (now - st.engage_started_at) < 0.35 then
+            return
+        end
+        local growl_allowed = true
+        if menu.disable_growl_in_group and menu.disable_growl_in_group:get_state() then
+            growl_allowed = utils.detect_mode(me) == "solo"
+        end
+        if growl_allowed and now - st.last_growl > 2.0 and st.growl_id then
             if try_pet_cast(st.growl_id, target, pet) then
                 st.last_growl = now
             end
@@ -295,7 +302,7 @@ end
 function pet_manager.try_mend(me, pet, st, rt, spells, utils, menu, now)
     if not rt.mend_pet_id then return false end
     if not pet then return false end
-    if pet_manager.pet_alive(pet) then return false end
+    if not pet_manager.pet_alive(pet) then return false end
     if me.is_moving and me:is_moving() then return false end
     if core.spell_book.get_spell_cooldown(rt.mend_pet_id) > 0 then return false end
     local pet_hp = pet:get_health_percentage() or 100
@@ -364,7 +371,7 @@ function pet_manager.pet_attack(me, target, st, now)
     if me.is_moving and me:is_moving() then return end
     local ok, guid = pcall(function() return tostring(target:get_guid()) end)
     if not ok or not guid then return end
-    if st.last_target_guid == guid then return end
+    if st.last_target_guid == guid and st.state ~= STATE_IDLE and st.state ~= STATE_RETREATING then return end
     st.last_target_guid = guid
     st.engage_started_at = now
     st.fight_started_at = 0

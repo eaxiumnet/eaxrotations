@@ -67,7 +67,9 @@ function utils.get_power_pct(unit, power_type)
 end
 
 function utils.get_mana_pct(unit)
-    
+    return utils.get_power_pct(unit, 0)
+end
+
 -- Find the best hostile target using priority logic:
 -- 1. Current target if it is a valid hostile
 -- 2. A hostile unit that is actively targeting ME (attacking me)
@@ -230,9 +232,6 @@ function utils.same_unit(a, b)
     return false
 end
 
-return utils.get_power_pct(unit, 0)
-end
-
 function utils.can_cast_self(spell_id, me)
     if not spell_id or not me or not me:is_valid() then
         return false
@@ -304,6 +303,14 @@ function utils.cast_target(spell_id, _caster, target)
         return false
     end
     spell_queue:queue_spell_target(spell_id, target, 1)
+    return true
+end
+
+function utils.can_cast_target(spell_id, _caster, target)
+    if not spell_id or not target or not target:is_valid() then return false end
+    if not core.spell_book.is_spell_learned(spell_id) then return false end
+    if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
+    if not core.spell_book.is_usable_spell(spell_id) then return false end
     return true
 end
 
