@@ -360,7 +360,7 @@ function menu.render()
         theme.render_ooc(menu, ooc_tree, false)
 
         -- -- Display & HUD -------------------------------------------------
-        theme.render_esp(menu, esp_tree)
+        -- theme.render_esp(menu, esp_tree)
 
     end)
 end
