@@ -32,6 +32,8 @@ local leveling_manager = require("libraries/leveling_manager")
 ---@type encounter_manager
 local encounter_manager = require("libraries/encounter_manager")
 
+-- BigWigs/encounter/CC APIs available but not wired here to stay under 200 local limit
+-- Prot Warrior uses encounter_manager for boss awareness instead
 
 ---@type esp_renderer
 local esp_renderer = require("libraries/esp_renderer")

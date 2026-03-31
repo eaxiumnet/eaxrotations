@@ -36,6 +36,26 @@ local creature_utils = require("libraries/creature_utils")
 local encounter_manager = require("libraries/encounter_manager")
 local dispel_engine = require("libraries/dispel_engine")
 
+-- BigWigs integration: check for upcoming boss abilities
+local function is_bigwigs_danger_window()
+    local ok, bw = pcall(function() return core.addons.bigwigs end)
+    if not ok or not bw then return false end
+    local bars = bw.get_bars and bw:get_bars() or {}
+    for _, bar in ipairs(bars) do
+        if bar and bar.remaining and bar.remaining < 3.0 then
+            return true
+        end
+    end
+    return false
+end
+
+-- Dynamic encounter detection from API
+local function get_current_encounter_info()
+    local ok, encounters = pcall(function() return core.world.get_encounters_on_map() end)
+    if not ok or not encounters then return nil end
+    return encounters
+end
+
 
 ---@type esp_renderer
 local esp_renderer = require("libraries/esp_renderer")

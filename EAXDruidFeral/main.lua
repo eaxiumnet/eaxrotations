@@ -41,6 +41,35 @@ local encounter_manager = require("libraries/encounter_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
+-- BigWigs integration: check for upcoming boss abilities
+local function is_bigwigs_danger_window()
+    local ok, bw = pcall(function() return core.addons.bigwigs end)
+    if not ok or not bw then return false end
+    local bars = bw.get_bars and bw:get_bars() or {}
+    for _, bar in ipairs(bars) do
+        if bar and bar.remaining and bar.remaining < 3.0 then
+            return true
+        end
+    end
+    return false
+end
+
+-- Dynamic encounter detection from API
+local function get_current_encounter_info()
+    local ok, encounters = pcall(function() return core.world.get_encounters_on_map() end)
+    if not ok or not encounters then return nil end
+    return encounters
+end
+
+-- Flyable area check for travel form decisions
+local function should_use_travel_form()
+    local ok, flyable = pcall(function() return core.world.is_flyable_area() end)
+    if ok and not flyable then
+        return false
+    end
+    return true
+end
+
 
 ---@type esp_renderer
 local esp_renderer = require("libraries/esp_renderer")
