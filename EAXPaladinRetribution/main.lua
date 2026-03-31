@@ -241,6 +241,8 @@ local runtime = {
     last_aura_cast_at = 0,
     last_blessing_retry_at = {},
     last_ooc_blessing_at = 0,
+    vengeance_stacks = 0,
+    last_vengeance_check = 0,
 }
 
 local ctx_cache = rotation_context.new({
@@ -401,6 +403,16 @@ local function note_cast()
     rotation_context.invalidate(ctx_cache)
 end
 
+local function update_vengeance_stacks(target)
+    if not target or not target:is_valid() then
+        runtime.vengeance_stacks = 0
+        return
+    end
+    local stacks = utils.get_debuff_stack_count(target, spells.DEBUFF_HOLY_VENGEANCE) or 0
+    runtime.vengeance_stacks = stacks
+    runtime.last_vengeance_check = _core_time()
+end
+
 local MAGIC_DISPEL_TYPE = 1
 local DISEASE_DISPEL_TYPE = 3
 local POISON_DISPEL_TYPE = 4
@@ -504,6 +516,11 @@ local function get_preferred_seal()
     if runtime.seal_righteousness_id and core.spell_book.is_spell_learned(runtime.seal_righteousness_id) then
         return runtime.seal_righteousness_id, "Righteousness", "righteous"
     end
+    -- Low mana: switch to SoW
+    local me = _get_local_player()
+    if me and utils.get_mana_pct(me) < 0.20 and runtime.seal_wisdom_id then
+        return runtime.seal_wisdom_id, "Wisdom", "wisdom"
+    end
     return nil, nil, nil
 end
 
@@ -595,6 +612,15 @@ local function can_consider_seal_twist(me, target)
     end
     if utils.get_mana_pct(me) < SEAL_TWIST_MANA_RESERVE then
         return nil, nil
+    end
+
+    -- Don't twist away from SoV if stacks >= 3 and target will live long enough
+    if baseline_seal_key == "command" then
+        local vengeance_stacks = runtime.vengeance_stacks
+        if vengeance_stacks >= 3 then
+            local ttd = ttd_tracker and ttd_tracker.get and ttd_tracker.get(target) or 999
+            if ttd >= 15 then return nil, nil end
+        end
     end
 
     return twist_seal_id, twist_seal_name
@@ -1293,6 +1319,8 @@ core.register_on_update_callback(function()
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and not me:can_attack(focus_target) then focus_target = nil end
     local target = focus_target or utils.find_best_target(me)
+    -- Update Vengeance stacks for Seal of Vengeance tracking
+    update_vengeance_stacks(target)
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
     local enemy_count = count_nearby_enemies(me)

@@ -287,6 +287,7 @@ local runtime = {
     ooc_blessing_of_wisdom_id = nil,
     last_aura_cast_at = 0,
     last_blessing_retry_at = {},
+    lights_grace_active = false,
 }
 
 local ctx_cache = rotation_context.new({
@@ -655,7 +656,7 @@ local function should_use_holy_light(me, target, hp_pct, injured_allies)
     return hp_pct <= base_threshold
 end
 
-local function should_use_divine_illumination(target, hp_pct, injured_allies)
+local function should_use_divine_illumination(me, target, hp_pct, injured_allies)
     if not target or not hp_pct then
         return false
     end
@@ -666,6 +667,11 @@ local function should_use_divine_illumination(target, hp_pct, injured_allies)
     local group_pressure = (injured_allies or 0) >= 2 and hp_pct <= 0.70
     local emergency_pressure = hp_pct <= 0.45 and (injured_allies or 0) >= 1
     if tank_pressure or group_pressure or emergency_pressure then
+        return true
+    end
+    -- Proactive: fire DI when mana is low and healing is needed
+    local mana_pct = me and utils.get_mana_pct(me) or 1.0
+    if mana_pct < 0.50 and injured_allies >= 1 then
         return true
     end
     return false
@@ -961,7 +967,7 @@ local function try_divine_illumination(me, target, hp_pct, injured_allies)
     if not runtime.divine_illumination_id then
         return false
     end
-    if not should_use_divine_illumination(target, hp_pct, injured_allies) then
+    if not should_use_divine_illumination(me, target, hp_pct, injured_allies) then
         return false
     end
     if not utils.can_cast_self(runtime.divine_illumination_id, me) then
@@ -1106,6 +1112,8 @@ local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
         end
         if hp_pct <= threshold and (hp_pct <= 0.48 or group_pressure or tank_pressure) and try_cast_spell(runtime.holy_shock_id, me, target, "Holy Shock") then
             esp_renderer.on_cast(runtime.holy_shock_id, "Holy Shock", color.yellow(220))
+            -- Track Light's Grace proc (after Holy Shock crit: -0.5s cast time on next Holy Light)
+            runtime.lights_grace_active = utils.has_buff(me, spells.BUFF_LIGHTS_GRACE)
             return true
         end
     end
@@ -1132,8 +1140,11 @@ local function try_cast_heal(me, target, hp_pct, injured_allies, ctx)
             mana_threshold = is_tank_target and 0.40 or 0.55,
             target_hp_threshold = is_tank_target and 0.75 or 0.65,
         }) or runtime.holy_light_id
-        if hp_pct <= 0.62 or tank_pressure or (group_pressure and hp_pct <= 0.72) then
+        -- Light's Grace active: prioritize Holy Light (reduced cast time)
+        local lights_grace_priority = runtime.lights_grace_active
+        if hp_pct <= 0.62 or tank_pressure or (group_pressure and hp_pct <= 0.72) or lights_grace_priority then
             if try_cast_spell(holy_light_id, me, target, "Holy Light") then
+                runtime.lights_grace_active = false
                 return true
             end
         end

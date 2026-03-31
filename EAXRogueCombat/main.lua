@@ -637,6 +637,8 @@ local function try_adrenaline_rush(me)
     if utils.get_buff_remaining_ms(me, spells.BUFF_ADRENALINE_RUSH) > 0 then
         return false
     end
+    -- Blade Flurry is already checked/fired in the rotation before AR (see do_rotation)
+    -- so if BF is available and not active, it will be cast first automatically
     if not utils.can_cast_self(runtime.adrenaline_rush_id, me) then
         return false
     end
@@ -712,19 +714,24 @@ local function try_slice_and_dice(me, target, ctx)
     if not menu.use_slice_and_dice:get_state() then
         return false
     end
-    if not runtime.slice_and_dice_id or runtime.combo_points <= 0 or not utils.can_attack(me, target) then
+    if not runtime.slice_and_dice_id or not utils.can_attack(me, target) then
         return false
     end
     if not combo_points_match_target(target) then
         return false
     end
 
+    -- SnD at ANY CP count when critical (wowsims pattern)
     local remaining_ms = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
     local refresh_window_ms = get_snd_refresh_window_ms()
     if remaining_ms > SND_CLIP_GUARD_MS then
         return false
     end
-    if remaining_ms > refresh_window_ms and remaining_ms > 0 then
+    if remaining_ms > SND_REFRESH_CRITICAL_MS and remaining_ms > 0 then
+        return false
+    end
+    -- Allow SnD at 1+ CP when critical
+    if runtime.combo_points < 1 then
         return false
     end
 
@@ -744,6 +751,12 @@ local function try_slice_and_dice(me, target, ctx)
     if runtime.combo_points < min_combo_points or runtime.combo_points > COMBAT_FINISHER_COMBO_POINTS then
         return false
     end
+    -- Energy pooling: wait if SnD/Rupture have > 2s remaining and energy < 50
+    local energy = current_energy(me)
+    local snd_rem = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
+    local rupture_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RUPTURE)
+    if snd_rem > 2000 and energy < 50 then return false end
+    if rupture_rem > 2000 and energy < 50 then return false end
     if ctx then
         local can_cast = resource_gate.rogue.can_finisher(ctx, 25, runtime.combo_points, min_combo_points)
         if not can_cast then
@@ -780,6 +793,12 @@ local function try_rupture(me, target, ctx)
     if (target:is_casting_spell() or target:is_channelling_spell()) and current_energy(me) <= (KICK_ENERGY_RESERVE + 10) then
         return false
     end
+    -- Energy pooling: wait if SnD/Rupture have > 2s remaining and energy < 50
+    local energy = current_energy(me)
+    local snd_rem = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
+    local rupture_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RUPTURE)
+    if snd_rem > 2000 and energy < 50 then return false end
+    if rupture_rem > 2000 and energy < 50 then return false end
     if ctx then
         local can_cast = resource_gate.rogue.can_finisher(ctx, 25, runtime.combo_points, min_combo_points)
         if not can_cast then
@@ -823,6 +842,12 @@ local function try_eviscerate(me, target, ctx)
     if (target:is_casting_spell() or target:is_channelling_spell()) and current_energy(me) <= (KICK_ENERGY_RESERVE + 10) then
         return false
     end
+    -- Energy pooling: wait if SnD/Rupture have > 2s remaining and energy < 50
+    local energy = current_energy(me)
+    local snd_rem = utils.get_buff_remaining_ms(me, spells.BUFF_SLICE_AND_DICE)
+    local rupture_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RUPTURE)
+    if snd_rem > 2000 and energy < 50 then return false end
+    if rupture_rem > 2000 and energy < 50 then return false end
     if ctx then
         local can_cast = resource_gate.rogue.can_finisher(ctx, 35, runtime.combo_points, min_combo_points)
         if not can_cast then
@@ -1063,8 +1088,15 @@ local function do_rotation(me, target)
     track_target(me, target)
 
     if try_slice_and_dice(me, target, ctx) then invalidate_ctx() return true end
-    if (not hold_offense) and try_blade_flurry(me, target) then return true end
-    if (not hold_offense) and try_adrenaline_rush(me) then return true end
+    -- Stack BF + AR together for maximum burst: fire BF first if available, then AR
+    if (not hold_offense) then
+        local bf_active = utils.has_buff(me, spells.BUFF_BLADE_FLURRY)
+        local bf_available = runtime.blade_flurry_id and (_get_spell_cd(runtime.blade_flurry_id) or 0) <= 0
+        if not bf_active and bf_available then
+            if try_blade_flurry(me, target) then return true end
+        end
+        if try_adrenaline_rush(me) then return true end
+    end
     if try_riposte(me, target) then invalidate_ctx() return true end
     if try_shiv(me, target) then invalidate_ctx() return true end
     if (not hold_offense) and (not abort_finisher_commit) then

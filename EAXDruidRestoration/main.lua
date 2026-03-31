@@ -749,6 +749,17 @@ local function try_lifebloom(me, tank, tank_hp_pct)
     return false
 end
 
+local function sync_lifebloom_from_api(me, tank)
+    if not tank or not tank:is_valid() then return end
+    local api_stacks = utils.get_buff_stacks(tank, spells.BUFF_LIFEBLOOM) or 0
+    local remaining = utils.get_buff_remaining_ms(tank, spells.BUFF_LIFEBLOOM)
+    if remaining <= 0 then
+        runtime.lifebloom_stack_count = 0
+    else
+        runtime.lifebloom_stack_count = math.max(runtime.lifebloom_stack_count, api_stacks)
+    end
+end
+
 local function sync_lifebloom_stack_count(me)
     if runtime.lifebloom_stack_count <= 0 then return end
 
@@ -907,7 +918,7 @@ end
 local function try_spread_rejuvenation(me, units, mana_pct)
     if not menu.use_rejuvenation or not menu.use_rejuvenation:get_state() then return false end
     if not runtime.rejuvenation_id then return false end
-    if menu.mana_saver:get_state() and mana_pct < 0.55 then return false end
+    if menu.mana_saver and menu.mana_saver:get_state() and mana_pct < 0.55 then return false end
     if is_pending_cast(runtime.rejuvenation_id) then return false end
     local refresh_ms = (menu.rejuvenation_refresh_seconds and menu.rejuvenation_refresh_seconds:get() or 3) * 1000
     if mana_pct < 0.40 then
@@ -951,7 +962,7 @@ local function try_regrowth(me, target, target_hp_pct, mana_pct)
     if not menu.use_regrowth or not menu.use_regrowth:get_state() then return false end
     if not runtime.regrowth_id then return false end
     if target_hp_pct >= 0.80 then return false end
-    if menu.mana_saver:get_state() and mana_pct < 0.45 and target_hp_pct > 0.80 then return false end
+    if menu.mana_saver and menu.mana_saver:get_state() and mana_pct < 0.45 and target_hp_pct > 0.80 then return false end
     if utils.get_buff_remaining_ms(target, spells.BUFF_REGROWTH) > ((menu.regrowth_refresh_seconds and menu.regrowth_refresh_seconds:get() or 3) * 1000) then return false end
     if is_pending_cast(runtime.regrowth_id) then return false end
     if not utils.can_cast_unit(runtime.regrowth_id, me, target) then return false end
@@ -978,7 +989,7 @@ local function try_healing_touch(me, target, target_hp_pct, mana_pct)
     if not menu.use_healing_touch or not menu.use_healing_touch:get_state() then return false end
     if not runtime.healing_touch_id then return false end
     if target_hp_pct >= ((menu.healing_touch_hp_pct and menu.healing_touch_hp_pct:get() or 75) / 100) then return false end
-    if menu.mana_saver:get_state() and mana_pct < 0.30 then return false end
+    if menu.mana_saver and menu.mana_saver:get_state() and mana_pct < 0.30 then return false end
     if is_pending_cast(runtime.healing_touch_id) then return false end
     if not utils.can_cast_unit(runtime.healing_touch_id, me, target) then return false end
     local mana_now_pct = mana_pct or utils.get_mana_pct(me)
@@ -1169,6 +1180,18 @@ local function do_rotation(me, hostile_target)
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, hostile_target, deps)
     local mana_pct = utils.get_mana_pct(me)
+    
+    -- Mana tier system for healing prioritization
+    -- Full mana (>60%): use highest-rank heals
+    -- Conserve (30-60%): use mid-rank heals, prioritize Rejuvenation
+    -- Emergency (<30%): only Swiftmend + NS+HT, skip expensive heals
+    local mana_tier = "full"
+    if mana_pct < 0.30 then
+        mana_tier = "emergency"
+    elseif mana_pct < 0.60 then
+        mana_tier = "conserve"
+    end
+    
     local units    = utils.get_group_units(me, true)
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and focus_target:is_valid() and not focus_target:is_dead() then
@@ -1177,6 +1200,11 @@ local function do_rotation(me, hostile_target)
     local mode     = get_effective_mode()
     local tank = pick_tank_unit(me, units, mode)
     local group_under_pressure = group_has_active_damage(me, units, tank)
+    
+    -- Sync Lifebloom stacks from API before using them
+    if tank and tank:is_valid() and not tank:is_dead() then
+        sync_lifebloom_from_api(me, tank)
+    end
 
     -- OOC: only stay in buff-only mode while the group is quiet.
     -- If party/raid members are already in combat or taking damage, start healing.
@@ -1236,20 +1264,27 @@ local function do_rotation(me, hostile_target)
         if try_tank_shell(me, tank, tank_effective_hp, mana_pct, ctx) then return true end
     end
 
-    -- Emergency single-target: Swiftmend -> NS + HT
+    -- Emergency single-target: Swiftmend -> NS + HT (always allowed)
     if heal_target then
         if heal_hp <= 0.55 and ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_swiftmend(me, heal_target, heal_hp) then return true end
         if heal_hp <= 0.40 and ctx and resource_gate.common.has_mana_pct(ctx, heal_hp < 0.35 and 0.10 or 0.12) and try_natures_swiftness_healing_touch(me, heal_target, heal_hp) then return true end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_regrowth(me, heal_target, heal_hp, mana_pct) then return true end
+        -- Mana tier gating: skip Regrowth and Healing Touch in emergency (<30%) mana
+        if mana_tier ~= "emergency" and ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_regrowth(me, heal_target, heal_hp, mana_pct) then return true end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_rejuvenation(me, heal_target, heal_hp) then return true end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_healing_touch(me, heal_target, heal_hp, mana_pct) then return true end
+        -- Only use Healing Touch in full mana or conserve if HP is critical
+        if mana_tier ~= "emergency" and ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_healing_touch(me, heal_target, heal_hp, mana_pct) then return true end
     end
 
     -- Spread Rejuvenation to all injured party members (priority sorted by HP)
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_spread_rejuvenation(me, units, mana_pct) then return true end
+    -- Skip spread in emergency mana tier
+    if mana_tier ~= "emergency" and ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_spread_rejuvenation(me, units, mana_pct) then return true end
+
+    -- Tree of Life: skip if mana is in emergency
+    if mana_tier ~= "emergency" and try_tree_of_life(me, units, mode, injured_count) then return true end
 
     -- Raid emergency and mana recovery come after immediate single-target stabilisation
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.25) and try_tranquility(me, injured_count, lowest_hp_pct, mode) then return true end
+    -- Tranquility: skip if mana is in emergency
+    if mana_tier ~= "emergency" and ctx and resource_gate.common.has_mana_pct(ctx, 0.25) and try_tranquility(me, injured_count, lowest_hp_pct, mode) then return true end
     if try_innervate(me, mana_pct) then return true end
 
     -- Leveling fallback: wand at enemy target when mana is low

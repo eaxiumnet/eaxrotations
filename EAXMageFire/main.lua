@@ -222,6 +222,7 @@ local runtime = {
     set_multiplier = 1.0,
     ooc_arcane_intellect_id = nil,
     is_execute = false,
+    scorch_stacks_on_target = 0,
 }
 
 local ctx_cache = rotation_context.new({
@@ -391,6 +392,14 @@ local IMPROVED_SCORCH_ID = 22959
 local COMBUSTION_EXECUTE_HP_PCT = 35
 local COMBUSTION_MIN_TTD_S = 18
 
+local function update_scorch_stacks(target)
+    if not target or not target:is_valid() then
+        runtime.scorch_stacks_on_target = 0
+        return
+    end
+    runtime.scorch_stacks_on_target = utils.get_debuff_stacks(target, spells.DEBUFF_FIRE_VULNERABILITY) or 0
+end
+
 local function scorch_refresh_due(me, target)
     local stacks = utils.get_debuff_stacks(target, spells.DEBUFF_FIRE_VULNERABILITY) or 0
     local remaining_ms = utils.get_debuff_remaining_ms(target, spells.DEBUFF_FIRE_VULNERABILITY) or 0
@@ -408,6 +417,11 @@ end
 local function should_use_combustion(target)
     local hp_pct = tonumber(target and target:get_health_percentage()) or 100
     if hp_pct <= COMBUSTION_EXECUTE_HP_PCT then
+        return true
+    end
+
+    -- Fire Combustion when Scorch stacks are maxed (guaranteed crits)
+    if runtime.scorch_stacks_on_target >= 5 then
         return true
     end
 
@@ -716,6 +730,13 @@ local function do_rotation(me, target)
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
+    -- Update Scorch stack tracking for Improved Scorch
+    if target and target:is_valid() and not target:is_dead() then
+        update_scorch_stacks(target)
+    else
+        runtime.scorch_stacks_on_target = 0
+    end
+
 
     -- Wanding / mana conservation (leveling 1-70)
     if leveling_manager.try_wand(me, target, menu) then return true end
@@ -789,6 +810,8 @@ local function do_rotation(me, target)
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.20, 1.00)) and try_arcane_explosion(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.25, 1.05)) and try_flamestrike(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.18, runtime.is_execute and 1.30 or 1.20)) and try_pyroblast(me, target) then return true end
+    -- Maintain 5/5 Scorch stacks for raid (priority over Fireball when not at max)
+    if runtime.scorch_stacks_on_target < 5 and try_scorch(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.08, 1.00)) and try_scorch(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.08, 1.05)) and try_fire_blast_move(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.08, runtime.is_execute and 1.20 or 1.10)) and try_fireball(me, target) then return true end

@@ -282,6 +282,8 @@ local runtime = {
     enrage_id = nil,
     challenging_roar_id = nil,
     healing_touch_id = nil,
+    mangle_stacks_on_target = 0,
+    lacerate_stacks = 0,
 }
 
 local ctx_cache = rotation_context.new({
@@ -642,7 +644,8 @@ local function try_rip(me, target, ctx)
     if not can_cast then return false end
     if runtime.combo_points < menu.rip_combo_points:get() then return false end
     local rip_rem = utils.get_debuff_remaining_ms(target, spells.DEBUFF_RIP)
-    if rip_rem > (menu.rip_refresh_seconds:get() * 1000) then return false end
+    local rip_refresh_ms = math.max(2000, menu.rip_refresh_seconds:get() * 1000)
+    if rip_rem > rip_refresh_ms and rip_rem > 0 then return false end
     -- Snapshotting: if Rip isn't active yet (or is almost gone) and Tiger's Fury
     -- is about to come off cooldown, hold briefly.
     if rip_rem <= 0 then
@@ -742,6 +745,22 @@ local function mangle_debuff_confirmed_by_other(unit, id_table, me)
         end
     end
     return false
+end
+
+local function update_mangle_stacks(target)
+    if not target or not target:is_valid() then
+        runtime.mangle_stacks_on_target = 0
+        return
+    end
+    runtime.mangle_stacks_on_target = utils.get_debuff_stacks(target, spells.DEBUFF_MANGLE) or 0
+end
+
+local function update_lacerate_stacks(target)
+    if not target or not target:is_valid() then
+        runtime.lacerate_stacks = 0
+        return
+    end
+    runtime.lacerate_stacks = utils.get_debuff_stack_count(target, spells.DEBUFF_LACERATE) or 0
 end
 
 local function is_rip_due(target, cp)

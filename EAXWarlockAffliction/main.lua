@@ -219,6 +219,7 @@ local runtime = {
     cached_mode = "solo",
     prev_toggle_state = false,
     set_multiplier = 1.0,
+    nightfall_active = false,
 }
 
 local ctx_cache = rotation_context.new({})
@@ -286,6 +287,11 @@ local function update_set_bonus()
     if runtime.set_multiplier > 1.0 then
         utils.log_debug(menu, "Set bonus: " .. tostring(runtime.set_multiplier))
     end
+end
+
+local function check_nightfall(me)
+    runtime.nightfall_active = utils.has_buff(me, spells.BUFF_NIGHTFALL)
+    return runtime.nightfall_active
 end
 
 local function note_cast()
@@ -484,10 +490,14 @@ local function try_refresh_dots(me, target)
             return true
         end
     end
-    if menu.use_siphon_life:get_state()
-        and dot_manager.can_refresh_dot(target, spells.SIPHON_LIFE, runtime.siphon_life_id, utils.get_debuff_remaining_ms) then
-        if try_cast_spell(me, runtime.siphon_life_id, target, "Siphon Life") then
-            return true
+    -- Siphon Life: only refresh if UA and Corruption are stable (not about to expire)
+    if menu.use_siphon_life:get_state() then
+        local ua_stable = not runtime.unstable_affliction_id or utils.get_debuff_remaining_ms(target, spells.UNSTABLE_AFFLICTION) > 3000
+        local corr_stable = not runtime.corruption_id or utils.get_debuff_remaining_ms(target, spells.CORRUPTION) > 3000
+        if ua_stable and corr_stable and dot_manager.can_refresh_dot(target, spells.SIPHON_LIFE, runtime.siphon_life_id, utils.get_debuff_remaining_ms) then
+            if try_cast_spell(me, runtime.siphon_life_id, target, "Siphon Life") then
+                return true
+            end
         end
     end
     return false
@@ -602,6 +612,10 @@ local function try_execute(me, target)
         local ok, value = pcall(function() return ttd_tracker.get(target) end)
         if ok then ttd_s = tonumber(value) end
     end
+    -- Don't channel if target will die before channel finishes (~3s)
+    if ttd_s and ttd_s > 0 and ttd_s < 3 then
+        return false
+    end
     if ttd_s and ttd_s > 0 then
         local commit_window_s = 2.0
         if ttd_s < commit_window_s then
@@ -628,6 +642,10 @@ local function try_filler(me, target)
         end
         if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then
             return false
+        end
+        -- Nightfall: prioritize instant Shadow Bolt
+        if check_nightfall(me) then
+            return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt (Nightfall)")
         end
         return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt")
     end

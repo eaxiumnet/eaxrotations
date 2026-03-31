@@ -1693,8 +1693,10 @@ local function should_use_shield_block(me, target, rage, mode_policy)
         return false, nil
     end
 
-    if utils.has_buff(me, spells.BUFF_SHIELD_BLOCK) then
-        return false, "Shield Block blocked: buff already active"
+    -- Track Shield Block buff duration - only refresh when about to expire
+    local sb_remaining = utils.get_buff_remaining_ms(me, spells.BUFF_SHIELD_BLOCK)
+    if sb_remaining > 0 and sb_remaining > 3000 then
+        return false, "Shield Block blocked: still has 3s+ of buff"
     end
 
     if is_pending_or_current(runtime.shield_block_id) then
@@ -2330,6 +2332,20 @@ end
 
 local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
     -- Shield Block synergy: Shield Slam crits guaranteed under Shield Block - rush it first
+    -- Revenge is free (proc-based) - always prioritize when available
+    if runtime.revenge_id and core.spell_book.is_usable_spell(runtime.revenge_id) then
+        if utils.cast_target(runtime.revenge_id, target) then
+            utils.log_debug(menu, "ST: Revenge (proc)")
+            esp_renderer.on_cast(nil, "Revenge", color.orange(220))
+            runtime.last_revenge_cast_at = _core_time()
+            runtime.revenge_proc_latch_until = 0
+            note_cast()
+            note_core_action()
+            invalidate_ctx()
+            return true
+        end
+    end
+
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
         and resource_gate.warrior.has_rage(ctx, 20)
@@ -2373,6 +2389,18 @@ local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
             esp_renderer.on_cast(nil, "Revenge", color.orange(220))
             runtime.last_revenge_cast_at = _core_time()
             runtime.revenge_proc_latch_until = 0
+            note_cast()
+            note_core_action()
+            invalidate_ctx()
+            return true
+        end
+    end
+
+    -- Devastate is the primary threat builder (applies Sunder + damage)
+    if runtime.devastate_id and resource_gate.warrior.has_rage(ctx, 15) then
+        if utils.cast_target(runtime.devastate_id, target) then
+            utils.log_debug(menu, "ST: Devastate")
+            esp_renderer.on_cast(nil, "Devastate", color.yellow(220))
             note_cast()
             note_core_action()
             invalidate_ctx()

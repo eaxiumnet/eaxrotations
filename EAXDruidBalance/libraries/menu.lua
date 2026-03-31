@@ -62,12 +62,6 @@ menu.wand_mana_floor                     = core.menu.slider_int(5, 80, 25, "eaxd
 menu.wand_at_hp                          = core.menu.slider_int(5, 60, 20, "eaxdruidbalance_wand_at_hp")
 menu.use_spirit_tap_wand                 = core.menu.checkbox(true,  "eaxdruidbalance_spirit_tap_wand")
 
--- -- ESP/HUD -------------------------------------------------------------------
-menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
-menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
-menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
-menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
-
 -- -- Rotation - DPS -------------------------------------------------------------
 menu.force_moonkin                        = core.menu.checkbox(true, "eaxdruidbalance_force_moonkin")
 menu.use_faerie_fire                      = core.menu.checkbox(true, "eaxdruidbalance_use_faerie_fire")
@@ -195,14 +189,6 @@ function menu.render()
 
         -- -- Racial ------------------------------------------------------------
         ps.render_racial(menu, racial_tree)
-
-        -- -- Display/HUD -------------------------------------------------------
-        esp_tree:render("Display", function()
-            menu.esp_show_hud:render("Show HUD", "Display rotation status")
-            menu.esp_show_target:render("Show Target", "Display target info")
-            menu.esp_hud_x:render("HUD X", "Horizontal position")
-            menu.esp_hud_y:render("HUD Y", "Vertical position")
-        end)
 
     end)
 end

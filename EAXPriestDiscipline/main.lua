@@ -208,6 +208,8 @@ local runtime = {
     last_mode_log = nil,
     set_multiplier = 1.0,
     last_set_check = 0,
+    weakened_soul_remaining = 0,
+    rapture_active = false,
 }
 
 local ctx_cache = rotation_context.new({})
@@ -263,6 +265,14 @@ local function update_set_bonus(me)
         end
         runtime.set_multiplier = best_multiplier
     end
+end
+
+local function update_weakened_soul(target)
+    if not target or not target:is_valid() then
+        runtime.weakened_soul_remaining = 0
+        return
+    end
+    runtime.weakened_soul_remaining = utils.get_debuff_remaining_ms(target, spells.BUFF_WEAKENED_SOUL)
 end
 
 
@@ -419,6 +429,18 @@ local function try_shield(me)
     local enc = encounter_manager.get_policy(me)
     local threshold = menu.shield_threshold:get() / 100
     local candidate = nil
+    
+    -- Proactive: shield tank before pull if not on CD
+    if not runtime.rapture_active then
+        local tank = get_tank_unit(me)
+        if tank and not utils.has_debuff(tank, spells.BUFF_WEAKENED_SOUL) and not utils.has_buff(tank, spells.BUFF_POWER_WORD_SHIELD) then
+            local is_tank = true
+            if is_tank and heal_engine.get_effective_hp_pct(tank) > 0.90 then
+                -- Tank is healthy but might take damage soon
+                if utils.cast_target(runtime.pw_shield_id, tank, "PW:Shield (proactive)") then note_cast() return true end
+            end
+        end
+    end
     
     -- If tank damage heavy, prioritize tank
     if enc.tank_damage_heavy then
@@ -986,7 +1008,13 @@ core.register_on_update_callback(function()
 
     update_set_bonus(me)
 
+    -- Track Rapture proc
+    runtime.rapture_active = utils.has_buff(me, spells.BUFF_RAPTURE)
+
     local target = utils.find_best_target(me)
+
+    -- Update Weakened Soul tracking for current target
+    update_weakened_soul(target)
 
     if mana_conservator.on_update(me, target, menu, utils) then return end
 

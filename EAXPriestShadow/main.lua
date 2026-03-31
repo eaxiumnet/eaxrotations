@@ -508,10 +508,24 @@ local function try_mind_blast(me, target)
     return false
 end
 
+local function get_mind_flay_tick_count(target)
+    local mb_cd = resolved.mind_blast and (_get_spell_cd(resolved.mind_blast) or 0) or 99
+    local swd_cd = resolved.shadow_word_death and (_get_spell_cd(resolved.shadow_word_death) or 0) or 99
+    local next_cd = math.min(mb_cd, swd_cd)
+    
+    if next_cd <= 1.0 then return 1  -- MF1: clip immediately
+    elseif next_cd <= 2.0 then return 2  -- MF2: 2 ticks
+    else return 3  -- MF3: full channel
+    end
+end
+
 local function try_mind_flay(me, target)
     if not resolved.mind_flay or not target then
         return false
     end
+    -- Mind Flay clipping: determine tick count based on MB/SWD cooldown
+    local tick_count = get_mind_flay_tick_count(target)
+    -- Don't channel if DoTs need refresh within 2.5s
     local vt_ms = utils.get_debuff_remaining_ms(target, spells.DEBUFF_VAMPIRIC_TOUCH)
     local swp_ms = utils.get_debuff_remaining_ms(target, spells.DEBUFF_SHADOW_WORD_PAIN)
     local dp_ms = resolved.devouring_plague and utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEVOURING_PLAGUE) or nil
@@ -729,11 +743,15 @@ core.register_on_update_callback(function()
 
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_vampiric_embrace(me) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_inner_fire(me) then return end
+        -- VT: refresh when remaining <= cast time (haste-aware)
+        local vt_remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_VAMPIRIC_TOUCH)
+        local vt_cast_ms = 1500  -- TODO: apply haste reduction
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.16)
-            and should_refresh_shadow_dot(target, spells.DEBUFF_VAMPIRIC_TOUCH, resolved.vampiric_touch)
+            and (vt_remaining <= vt_cast_ms or vt_remaining <= 0)
             and refresh_dot(me, target, resolved.vampiric_touch, spells.DEBUFF_VAMPIRIC_TOUCH) then invalidate_ctx() return end
+        -- SW:P: only reapply when it falls off entirely (wowsims pattern)
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.10)
-            and should_refresh_shadow_dot(target, spells.DEBUFF_SHADOW_WORD_PAIN, resolved.shadow_word_pain)
+            and not utils.has_debuff(target, spells.DEBUFF_SHADOW_WORD_PAIN)
             and refresh_dot(me, target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_devouring_plague(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_shadow_weaving(me, target) then return end

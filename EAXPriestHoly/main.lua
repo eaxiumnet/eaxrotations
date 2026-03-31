@@ -204,6 +204,7 @@ local runtime = {
     last_mode_log = nil,
     set_multiplier = 1.0,
     last_set_check = 0,
+    spiritual_guidance_active = false,
 }
 
 local ctx_cache = rotation_context.new({})
@@ -310,7 +311,8 @@ local function try_renew(me)
             local pct = heal_engine.get_effective_hp_pct(unit)
             if pct <= threshold and pct <= lowest_pct then
                 local remaining = utils.get_buff_remaining_ms(unit, spells.RENEW)
-                if remaining <= window_ms then
+                local renew_refresh_ms = math.max(3000, window_ms)
+                if remaining <= renew_refresh_ms and remaining > 0 then
                     candidate = unit
                     lowest_pct = pct
                 end
@@ -1055,11 +1057,12 @@ core.register_on_update_callback(function()
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
 
+    -- Pair PoM + CoH for maximum group heal
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_prayer_of_mending(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_circle_of_healing(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_binding_heal(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_flash_heal(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_greater_heal(me) then return end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_circle_of_healing(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.18) and try_prayer_of_healing(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_renew(me) then return end
 end)

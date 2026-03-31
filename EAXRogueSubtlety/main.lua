@@ -247,6 +247,7 @@ local runtime = {
     backstab_id = nil,
     hemorrhage_id = nil,
     sinister_strike_id = nil,
+    ghostly_strike_id = nil,
     slice_and_dice_id = nil,
     rupture_id = nil,
     eviscerate_id = nil,
@@ -294,6 +295,7 @@ local function resolve_spells()
     runtime.rupture_id = utils.resolve_spell_id(spells.RUPTURE)
     runtime.eviscerate_id = utils.resolve_spell_id(spells.EVISCERATE)
     runtime.shadowstep_id = utils.resolve_spell_id(spells.SHADOWSTEP)
+    runtime.ghostly_strike_id = utils.resolve_spell_id(spells.GHOSTLY_STRIKE)
     runtime.preparation_id = utils.resolve_spell_id(spells.PREPARATION)
     runtime.vanish_id = utils.resolve_spell_id(spells.VANISH)
     runtime.feint_id = utils.resolve_spell_id(spells.FEINT)
@@ -520,9 +522,6 @@ local function try_shadowstep(me, target)
     if not runtime.shadowstep_id or not utils.can_attack(me, target) then
         return false
     end
-    if current_mode() == "solo" then
-        return false
-    end
     if not target or not target:is_valid() or target:is_dead() then
         return false
     end
@@ -546,32 +545,25 @@ local function try_shadowstep(me, target)
 end
 
 local function try_preparation(me, target)
-    if not menu.use_preparation:get_state() then
-        return false
+    if not menu.use_preparation:get_state() then return false end
+    if not runtime.preparation_id then return false end
+    if not me:is_in_combat() then return false end
+    -- Fire when any key CD is > 5s
+    local key_cds = {
+        runtime.shadowstep_id and _get_spell_cd(runtime.shadowstep_id) or 0,
+        runtime.vanish_id and _get_spell_cd(runtime.vanish_id) or 0,
+    }
+    local has_valuable_cd = false
+    for _, cd in ipairs(key_cds) do
+        if cd > 5 then has_valuable_cd = true; break end
     end
-    if not runtime.preparation_id then
-        return false
-    end
-    if not me:is_in_combat() then
-        return false
-    end
-    local shadowstep_cd = runtime.shadowstep_id and tonumber(_get_spell_cd(runtime.shadowstep_id)) or 0
-    local vanish_cd = runtime.vanish_id and tonumber(_get_spell_cd(runtime.vanish_id)) or 0
-    local has_soon_value = (shadowstep_cd > 0 and target and target:is_valid() and not target:is_dead() and not target:is_in_melee_range(5))
-        or (vanish_cd > 0 and not is_stealthed(me))
-    if not has_soon_value then
-        return false
-    end
-    if not utils.can_cast_self(runtime.preparation_id, me) then
-        return false
-    end
-
+    if not has_valuable_cd then return false end
+    if not utils.can_cast_self(runtime.preparation_id, me) then return false end
     if utils.cast_self_fast(runtime.preparation_id, me, "Preparation") then
         utils.log_debug(menu, "Preparation")
         note_cast()
         return true
     end
-
     return false
 end
 
@@ -790,6 +782,26 @@ local function try_hemorrhage(me, target, ctx)
     return false
 end
 
+local function try_ghostly_strike(me, target, ctx)
+    if not menu.use_ghostly_strike or not menu.use_ghostly_strike:get_state() then return false end
+    if not runtime.ghostly_strike_id then return false end
+    if not target or not utils.can_attack(me, target) then return false end
+    if runtime.combo_points >= SUB_FINISHER_COMBO_POINTS then return false end
+    local cd = runtime.ghostly_strike_id and _get_spell_cd(runtime.ghostly_strike_id) or 99
+    if cd > 0 then return false end
+    if ctx then
+        local can_cast = resource_gate.rogue.can_builder(ctx, 40, runtime.combo_points, 5)
+        if not can_cast then return false end
+    end
+    if not utils.can_cast_hostile(runtime.ghostly_strike_id, me, target) then return false end
+    if utils.cast_target(runtime.ghostly_strike_id, target, "Ghostly Strike") then
+        utils.log_debug(menu, "Ghostly Strike")
+        note_cast()
+        return true
+    end
+    return false
+end
+
 local function try_sinister_strike(me, target, ctx)
     if not runtime.sinister_strike_id or not utils.can_attack(me, target) then
         return false
@@ -900,6 +912,12 @@ local function do_rotation(me, target)
         end
     end
 
+    -- Shadowstep on CD (moved up from after builders)
+    if try_shadowstep(me, target) then
+        invalidate_ctx()
+        return true
+    end
+
     if try_expose_armor(me, target, ctx) then invalidate_ctx() return true end
     if try_slice_and_dice(me, target, ctx) then invalidate_ctx() return true end
     if try_feint(me) then invalidate_ctx() return true end
@@ -919,15 +937,15 @@ local function do_rotation(me, target)
         invalidate_ctx()
         return true
     end
+    if try_ghostly_strike(me, target, ctx) then
+        invalidate_ctx()
+        return true
+    end
     if try_sinister_strike(me, target, ctx) then
         invalidate_ctx()
         return true
     end
 
-    if try_shadowstep(me, target) then
-        invalidate_ctx()
-        return true
-    end
     if try_preparation(me, target) then
         invalidate_ctx()
         return true

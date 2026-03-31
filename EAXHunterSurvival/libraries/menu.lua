@@ -42,11 +42,6 @@ menu.auto_flask      = core.menu.checkbox(false, "eaxhuntersv_auto_flask")
 menu.leveling_conserve_mana = core.menu.checkbox(true,  "eaxhuntersv_lev_conserve")
 menu.leveling_mana_floor    = core.menu.slider_int(5, 50, 20, "eaxhuntersv_lev_mana_floor")
 
-menu.esp_show_hud    = core.menu.checkbox(true,  "eax_esp_show_hud")
-menu.esp_show_target = core.menu.checkbox(true,  "eax_esp_show_target")
-menu.esp_hud_x      = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
-menu.esp_hud_y      = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
-
 menu.use_hunters_mark   = core.menu.checkbox(true, "eaxhuntersv_use_hunters_mark")
 menu.use_serpent_sting  = core.menu.checkbox(true, "eaxhuntersv_use_serpent_sting")
 menu.use_scorpid_sting  = core.menu.checkbox(false,"eaxhuntersv_use_scorpid_sting")
@@ -143,13 +138,6 @@ function menu.render()
 
         ps.render_targeting(menu, tgt_tree)
         ps.render_racial(menu, racial_tree)
-
-        esp_tree:render("Display", function()
-            menu.esp_show_hud:render("Show HUD", "Status")
-            menu.esp_show_target:render("Show Target", "Info")
-            menu.esp_hud_x:render("HUD X", "")
-            menu.esp_hud_y:render("HUD Y", "")
-        end)
     end)
 end
 

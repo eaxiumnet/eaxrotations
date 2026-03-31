@@ -217,6 +217,7 @@ local runtime = {
     set_multiplier = 1.0,
     ooc_arcane_intellect_id = nil,
     cold_snap_id = nil,
+    winters_chill_stacks = 0,
 }
 
 local ctx_cache = rotation_context.new({
@@ -286,6 +287,14 @@ local function get_debuff_stacks_and_remaining(unit, id_table)
     local stacks = tonumber(data.stack_count or data.stacks or data.stack or data.application_count) or 1
     local remaining = tonumber(data.remaining_time or data.remaining or data.time_left or data.duration_remaining)
     return stacks, remaining
+end
+
+local function update_winters_chill(target)
+    if not target or not target:is_valid() then
+        runtime.winters_chill_stacks = 0
+        return
+    end
+    runtime.winters_chill_stacks = utils.get_debuff_stacks(target, spells.DEBUFF_WINTERS_CHILL) or 0
 end
 
 local function should_refresh_winters_chill(target)
@@ -488,6 +497,21 @@ local function try_ice_lance(me, target)
     if not runtime.ice_lance_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
 
+    -- Check for Fingers of Frost proc (if available via API)
+    local has_fof = utils.has_buff(me, spells.BUFF_FINGERS_OF_FROST)
+    if has_fof then
+        -- Ice Lance with FOF is always good
+        if is_pending_cast(runtime.ice_lance_id) or utils.is_spell_already_queued(runtime.ice_lance_id) then return false end
+        if not utils.can_cast_hostile(runtime.ice_lance_id, me, target) then return false end
+        if utils.cast_target(runtime.ice_lance_id, target, "Ice Lance (FOF)") then
+            mark_pending_cast(runtime.ice_lance_id, PENDING_CAST_TIMEOUT_S)
+            utils.log_debug(menu, "Ice Lance (Fingers of Frost)")
+            note_cast()
+            esp_renderer.on_cast(runtime.ice_lance_id, "Ice Lance (FOF)", color.blue(220))
+            return true
+        end
+    end
+
     local frozen = utils.has_debuff(target, spells.DEBUFF_FROZEN)
     local winters_chill_refresh = should_use_ice_lance_for_winters_chill(me, target)
     if not me:is_moving() and not frozen and not winters_chill_refresh then
@@ -530,7 +554,7 @@ try_frostbolt = function(me, target)
     if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then
         return false
     end
-    if not swing_timer.can_cast_before_swing(me, cast_time_s) then
+    if not swing_timer.can_cast_before_swing(me, cast_time_s + 0.10) then
         return false
     end
 
@@ -742,6 +766,10 @@ local function do_rotation(me, target)
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cone_of_cold_frost(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and not hold_offense and try_icy_veins(me, target) then return true end
     if not hold_offense and try_trinkets(me) then return true end
+
+    -- Update Winters Chill tracking
+    update_winters_chill(target)
+
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_winters_chill_frostbolt(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.05) and try_ice_lance(me, target) then return true end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_frostbolt(me, target) then return true end

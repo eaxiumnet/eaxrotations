@@ -911,7 +911,9 @@ local function try_rampage(me)
     if not core.spell_book.is_spell_learned(runtime.rampage_id) then return false end
 
     local remaining = utils.get_buff_remaining_ms(me, spells.BUFF_RAMPAGE)
-    if remaining >= RAMPAGE_REFRESH_MS then
+    local rampage_stacks = utils.get_buff_stacks(me, spells.BUFF_RAMPAGE) or 0
+    -- Refresh when stacks < 5 OR duration < threshold
+    if rampage_stacks >= 5 and remaining >= RAMPAGE_REFRESH_MS then
         return false
     end
 
@@ -921,7 +923,7 @@ local function try_rampage(me)
 
     if utils.can_cast_self(runtime.rampage_id, me) and utils.cast_self(runtime.rampage_id, me) then
         mark_pending_cast(runtime.rampage_id, PENDING_CAST_TIMEOUT_S)
-        utils.log_debug(menu, "Rampage refresh (" .. remaining .. "ms)")
+        utils.log_debug(menu, "Rampage refresh (" .. remaining .. "ms, " .. rampage_stacks .. " stacks)")
         note_cast()
         return true
     end
@@ -996,8 +998,8 @@ local function try_pummel(me, target)
 end
 
 local function try_heroic_strike(me, target, ctx, rage, target_hp_pct, is_aoe)
-    -- Only consider heroic strike in execute phase (below 20% HP)
-    if target_hp_pct >= EXECUTE_HP_THRESHOLD then
+    -- HS is disabled during execute phase - dump all rage into Execute instead
+    if target_hp_pct < EXECUTE_HP_THRESHOLD then
         return false
     end
     if not menu.use_heroic_strike:get_state() or not runtime.heroic_strike_id then
@@ -1211,6 +1213,7 @@ local function try_return_after_charge(me)
     return false
 end
 
+--[[ DISABLED: Overpower is Battle Stance only (Arms), not Fury
 local function try_overpower_dance(me, target, rage)
     if not menu.use_overpower:get_state() or not runtime.overpower_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
@@ -1255,6 +1258,7 @@ local function try_overpower_dance(me, target, rage)
 
     return false
 end
+--]]
 
 local function is_bt_ww_window_open(bt_cd, ww_cd)
     return bt_cd > 3.0 and ww_cd > 3.0
@@ -1266,6 +1270,7 @@ local function should_do_noncore_upkeep()
     return is_bt_ww_window_open(bt_cd, ww_cd)
 end
 
+--[[ DISABLED: Rend is Arms-only, not Fury
 local function try_rend_in_battle_stance(me, target, rage)
     if not menu.use_rend:get_state() or not runtime.rend_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
@@ -1294,6 +1299,7 @@ local function try_rend_in_battle_stance(me, target, rage)
 
     return false
 end
+--]]
 
 local function death_wish_is_unavailable(me)
     if not menu.use_death_wish:get_state() then return true end
@@ -1738,13 +1744,25 @@ local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
         end
     end
 
+    -- Flurry-aware decision making: prioritize Bloodthirst when Flurry is about to expire
+    local flurry_about_to_expire = false
+    if runtime.flurry_uptime_start > 0 then
+        local remaining_flurry = utils.get_buff_remaining_ms(me, spells.BUFF_FLURRY)
+        if remaining_flurry <= 1000 then  -- <= 1 swing remaining
+            flurry_about_to_expire = true
+        end
+    end
+
     if bt_can_cast and not is_pending_or_current(runtime.bloodthirst_id) then
-        if utils.cast_target(runtime.bloodthirst_id, target) then
-            mark_pending_cast(runtime.bloodthirst_id, PENDING_CAST_TIMEOUT_S)
-            utils.log_debug(menu, "ST: Bloodthirst")
-            note_cast()
-            invalidate_ctx()
-            return true
+        -- If Flurry is about to expire, prioritize BT to refresh it
+        if flurry_about_to_expire or not ww_can_cast then
+            if utils.cast_target(runtime.bloodthirst_id, target) then
+                mark_pending_cast(runtime.bloodthirst_id, PENDING_CAST_TIMEOUT_S)
+                utils.log_debug(menu, "ST: Bloodthirst (Flurry priority)")
+                note_cast()
+                invalidate_ctx()
+                return true
+            end
         end
     end
 

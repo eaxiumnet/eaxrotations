@@ -455,7 +455,12 @@ local function try_health_funnel(me)
     end
     local pet_hp = tonumber(pet.get_health_percentage and pet:get_health_percentage() or nil)
     local me_hp = tonumber(me:get_health_percentage())
-    if not pet_hp or pet_hp > 50 then
+    -- Proactive at 70% in combat, reactive at lower HP otherwise
+    if not pet_hp or pet_hp > 70 then
+        return false
+    end
+    -- If not in combat, allow lower threshold
+    if not me:is_in_combat() and pet_hp > 50 then
         return false
     end
     if me_hp and me_hp < 50 then
@@ -467,6 +472,24 @@ local function try_health_funnel(me)
         return true
     end
     return false
+end
+
+local function try_felguard_felstorm(me, target)
+    if not runtime.felguard_id then
+        return false
+    end
+    local pet = me and me.get_pet and me:get_pet() or nil
+    if not pet or not pet:is_valid() or pet:is_dead() then
+        return false
+    end
+    -- Only cast Felstorm if pet is engaged on target
+    local pet_target = pet.get_target and pet:get_target() or nil
+    if not pet_target or not pet_target:is_valid() then
+        return false
+    end
+    -- Try to cast Felstorm via pet action
+    core.input.pet_cast_target_spell(runtime.felguard_id, target)
+    return true
 end
 
 local function try_fel_domination(me)
@@ -828,6 +851,14 @@ local function try_shadow_bolt(me, target)
     if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then
         return false
     end
+    -- More aggressive SB when Soul Link is active
+    local soul_link_active = utils.has_buff(me, spells.BUFF_SOUL_LINK)
+    if soul_link_active then
+        -- Lower mana threshold for SB when Soul Link is active
+        if utils.get_mana_pct(me) < 0.15 then return false end
+    else
+        if utils.get_mana_pct(me) < 0.20 then return false end
+    end
     return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt")
 end
 
@@ -914,6 +945,7 @@ local function do_rotation(me, target)
     if try_drain_life_defensive(me, target) then return true end
     if defensive_manager.try_defensive(me, "warlock", utils) then return end
     if try_health_funnel(me) then return true end
+    if try_felguard_felstorm(me, target) then return true end
 
     if me:is_in_combat() then
         local current_target = me:get_target()

@@ -33,6 +33,8 @@ local mount_manager = require("libraries/mount_manager")
 local leveling_manager = require("libraries/leveling_manager")
 ---@type creature_utils
 local creature_utils = require("libraries/creature_utils")
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
 
 ---@type encounter_manager
 local encounter_manager = require("libraries/encounter_manager")
@@ -243,6 +245,7 @@ local runtime = {
     last_blessing_at = 0,
     last_blessing_retry_at = {},
     last_aura_cast_at = 0,
+    sov_stacks_on_target = 0,
 }
 
 local ctx_cache = rotation_context.new({
@@ -409,30 +412,34 @@ local function ensure_righteous_fury(me)
     return false
 end
 
+local HOLY_SHIELD_REFRESH_CHARGES = 2
+
 local function ensure_holy_shield(me, target)
     if not menu.use_holy_shield:get_state() or not runtime.holy_shield_id then
         return false
     end
-
     if not target or not target:is_valid() or target:is_dead() then
         return false
     end
-
     if me:is_in_combat() and not utils.is_melee_target(me, target) then
         return false
     end
-
-    if utils.has_buff(me, spells.BUFF_HOLY_SHIELD) then
+    -- Check charges: refresh when ≤ 2 charges remaining
+    local hs_data = buff_manager:get_buff_data(me, spells.BUFF_HOLY_SHIELD)
+    local hs_charges = 0
+    if hs_data and hs_data.is_active then
+        hs_charges = hs_data.stacks or hs_data.count or 4
+    end
+    -- If buff is active and charges are healthy, skip
+    if hs_data and hs_data.is_active and hs_charges > HOLY_SHIELD_REFRESH_CHARGES then
         return false
     end
-
     if utils.can_cast_self(runtime.holy_shield_id, me) and utils.cast_self(runtime.holy_shield_id, me) then
         note_cast()
         utils.log_debug(menu, "Cast Holy Shield")
         notify_cast("paladin:holy_shield", "Holy Shield", color.blue(220))
         return true
     end
-
     return false
 end
 
@@ -586,6 +593,14 @@ local function get_active_seal_key(me)
 		return "righteous"
 	end
 	return nil
+end
+
+local function update_sov_stacks(target)
+    if not target or not target:is_valid() then
+        runtime.sov_stacks_on_target = 0
+        return
+    end
+    runtime.sov_stacks_on_target = utils.get_debuff_stack_count(target, spells.DEBUFF_HOLY_VENGEANCE) or 0
 end
 
 local function get_judgement_assignment_key(me)
@@ -768,6 +783,16 @@ local function try_judgement(me, target)
 
 	local mana_pct = utils.get_mana_pct(me)
 	local active_seal = get_active_seal_key(me)
+	
+	-- SoV: hold Judgement until 5 stacks (unless debuff expiring)
+	if active_seal == "vengeance" then
+		local sov_stacks = runtime.sov_stacks_on_target
+		if sov_stacks < 5 then
+			local sov_remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_HOLY_VENGEANCE)
+			if sov_remaining > 3000 then return false end  -- hold until 5 stacks
+		end
+	end
+	
 	local judgement_label = "Judgement"
 	local should_cast = false
 
@@ -1028,6 +1053,9 @@ local function on_update()
     local target = focus_target or utils.find_best_target(me)
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
+    
+    -- Update SoV stack tracking for rotation decisions
+    update_sov_stacks(target)
 
 	if try_cleanse(me, target) then return true end
 

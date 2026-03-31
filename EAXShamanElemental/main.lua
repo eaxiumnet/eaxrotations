@@ -258,6 +258,7 @@ local runtime = {
     last_ns_at = 0,
     set_multiplier = 1.0,
     lightning_shield_stacks = 0,
+    clearcasting_active = false,
 }
 
 local ctx_cache = rotation_context.new({})
@@ -304,6 +305,11 @@ local function resolve_spells()
     runtime.cure_poison_id = utils.resolve_spell_id(spells.CURE_POISON)
     runtime.cure_disease_id = utils.resolve_spell_id(spells.CURE_DISEASE)
     runtime.ancestral_spirit_id  = utils.resolve_spell_id(spells.ANCESTRAL_SPIRIT)
+end
+
+local function check_clearcasting(me)
+    runtime.clearcasting_active = utils.has_buff(me, spells.BUFF_CLEARCASTING)
+    return runtime.clearcasting_active
 end
 
 local function should_abort_lightning_bolt_commit(me, target)
@@ -603,7 +609,8 @@ local function try_flame_shock(me, target)
         return false
     end
     local fs_remaining_ms = get_debuff_remaining_ms(target, spells.BUFF_FLAME_SHOCK)
-    if fs_remaining_ms > (FLAME_SHOCK_REFRESH_BUFFER * 1000) then
+    -- FLUX pattern: refresh when remaining ≤ 2s (instant cast DoT)
+    if fs_remaining_ms > 2000 and fs_remaining_ms > 0 then
         return false
     end
     local target_hp = utils.get_health_pct(target)
@@ -676,18 +683,21 @@ local function try_chain_lightning(me, target)
             or utils.has_buff(me, BLOODLUST_HEROISM_BUFFS)
             or (enc and enc.burn_phase)
     end
-    if enemy_count < threshold and not burn_phase then
+    -- If Clearcasting is active, cast regardless of mana (free CL is better than free LB)
+    if not runtime.clearcasting_active then
+        if enemy_count < threshold and not burn_phase then
+            local mana_pct = utils.get_mana_pct(me)
+            local mana_cutoff = math.max(menu.chain_lightning_mana:get(), profile.chain_lightning_mana) / 100
+            local target_ttd = get_target_ttd_seconds(target)
+            if mana_pct < (mana_cutoff + 0.20) or not target_ttd or target_ttd < 10 then
+                return false
+            end
+        end
         local mana_pct = utils.get_mana_pct(me)
         local mana_cutoff = math.max(menu.chain_lightning_mana:get(), profile.chain_lightning_mana) / 100
-        local target_ttd = get_target_ttd_seconds(target)
-        if mana_pct < (mana_cutoff + 0.20) or not target_ttd or target_ttd < 10 then
+        if mana_pct < mana_cutoff then
             return false
         end
-    end
-    local mana_pct = utils.get_mana_pct(me)
-    local mana_cutoff = math.max(menu.chain_lightning_mana:get(), profile.chain_lightning_mana) / 100
-    if mana_pct < mana_cutoff then
-        return false
     end
     return try_cast_target(me, target, runtime.chain_lightning_id, "Chain Lightning")
 end
@@ -699,7 +709,8 @@ local function try_lightning_bolt(me, target)
     local profile = get_mode_profile()
     local mana_pct = utils.get_mana_pct(me)
     local mana_floor = math.max(menu.mana_floor:get(), profile.mana_floor) / 100
-    if mana_pct < mana_floor then
+    -- If Clearcasting is active, cast regardless of mana floor (free LB)
+    if not runtime.clearcasting_active and mana_pct < mana_floor then
         return false
     end
     local target_hp = utils.get_health_pct(target)
@@ -800,6 +811,17 @@ end
 local function do_rotation(me, target)
     -- Lazy re-resolve: spells may not be learned yet at plugin load time
     if not runtime.lightning_bolt_id then resolve_spells() end
+    -- Check Clearcasting (Elemental Focus) buff
+    check_clearcasting(me)
+    -- Determine rotation type based on state
+    local profile = get_mode_profile()
+    local enemy_count = utils.count_enemies_in_range(me, spells.CHAIN_LIGHTNING_RADIUS)
+    local rotation_type = "lb_filler"
+    if runtime.clearcasting_active then
+        rotation_type = "cl_on_clearcast"
+    elseif enemy_count >= profile.aoe_threshold then
+        rotation_type = "cl_on_cd"
+    end
     -- Shield maintenance (always, even when GCD not ready)
     ensure_shield(me)
     -- Emergency self-heal

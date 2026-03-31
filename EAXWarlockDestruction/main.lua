@@ -234,6 +234,7 @@ local runtime = {
         count = 0,
         updated_s = 0,
     },
+    backlash_active = false,
 }
 
 local ctx_cache = rotation_context.new({})
@@ -291,6 +292,12 @@ end
 
 resolve_spells()
 log_spells()
+
+-- Backlash proc tracking: +30% spell crit, +25% spell haste for 10s after melee crit
+local function check_backlash(me)
+    runtime.backlash_active = utils.has_buff(me, spells.BUFF_BACKLASH)
+    return runtime.backlash_active
+end
 
 local function update_set_bonus()
     local me = _get_local_player()
@@ -794,6 +801,11 @@ local function try_shadowburn(me, target)
     if not runtime.shadowburn_id then
         return false
     end
+    -- Only use Shadowburn when we have enough shards (save for rez/summons)
+    local shards = count_soul_shards()
+    if shards < 3 then
+        return false
+    end
     if utils.get_health_pct(target) > SHADOWBURN_HP_PCT then
         return false
     end
@@ -801,9 +813,6 @@ local function try_shadowburn(me, target)
     local primary_nuke_id = (profile == "fire" and runtime.incinerate_id) or runtime.shadow_bolt_id or runtime.incinerate_id
     local target_hp = utils.get_health_pct(target)
     if target_hp > 0.10 and primary_nuke_id and not target_will_die_before_cast_finishes(me, target, primary_nuke_id, 0.35) then
-        return false
-    end
-    if count_soul_shards() <= 0 then
         return false
     end
     return try_cast_spell(me, runtime.shadowburn_id, target, "Shadowburn")
@@ -816,13 +825,15 @@ local function try_soul_fire(me, target)
     if not runtime.soul_fire_id or me:is_moving() then
         return false
     end
+    -- Only use Soul Fire when we have enough shards (save for rez/summons)
+    local shards = count_soul_shards()
+    if shards < 3 then
+        return false
+    end
     if utils.get_health_pct(target) <= SOUL_FIRE_MIN_HP_PCT then
         return false
     end
     if target_will_die_before_cast_finishes(me, target, runtime.soul_fire_id, 0.35) then
-        return false
-    end
-    if count_soul_shards() <= 0 then
         return false
     end
     return try_cast_spell(me, runtime.soul_fire_id, target, "Soul Fire")
@@ -842,25 +853,35 @@ local function try_drain_soul(me, target)
 end
 
 local function try_nuke(me, target, profile)
+    -- Check Backlash proc: prioritize Shadow Bolt/Incinerate when active (higher crit chance)
+    local backlash = check_backlash(me)
     if target_will_die_before_cast_finishes(me, target, profile == "fire" and runtime.incinerate_id or runtime.shadow_bolt_id, 0.35) then
         return false
     end
     if profile == "fire" and menu.use_immolate:get_state() and get_immolate_remaining_ms(target) <= 2500 then
         return false
     end
-    if profile == "fire" and menu.use_incinerate:get_state() and runtime.incinerate_id then
-        if try_cast_spell(me, runtime.incinerate_id, target, "Incinerate") then
-            esp_renderer.on_cast(nil, "Incinerate", color.red(220))
-            return true
+    -- Fire profile: Immolate -> Conflagrate -> Incinerate cycle
+    -- Shadow Bolt (filler) only when not in fire profile or Backlash active
+    if profile == "fire" and not backlash then
+        -- Fire profile: prefer Incinerate as main nuke (unless Backlash prioritizes it)
+        if menu.use_incinerate:get_state() and runtime.incinerate_id then
+            if try_cast_spell(me, runtime.incinerate_id, target, "Incinerate") then
+                esp_renderer.on_cast(nil, "Incinerate", color.red(220))
+                return true
+            end
         end
-    end
-    if menu.use_shadow_bolt:get_state() and runtime.shadow_bolt_id then
-        if try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt") then
-            return true
+    else
+        -- Shadow profile or Backlash active: use Shadow Bolt
+        if menu.use_shadow_bolt:get_state() and runtime.shadow_bolt_id then
+            if try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt") then
+                return true
+            end
         end
-    end
-    if profile ~= "fire" and menu.use_incinerate:get_state() and runtime.incinerate_id then
-        return try_cast_spell(me, runtime.incinerate_id, target, "Incinerate")
+        -- Fallback to Incinerate in shadow profile if Shadow Bolt unavailable
+        if profile ~= "fire" and menu.use_incinerate:get_state() and runtime.incinerate_id then
+            return try_cast_spell(me, runtime.incinerate_id, target, "Incinerate")
+        end
     end
     return false
 end

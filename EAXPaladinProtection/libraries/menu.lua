@@ -65,12 +65,6 @@ menu.auto_flask                         = core.menu.checkbox(false, "eaxpaladinp
 menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxpaladinprotection_lev_conserve")
 menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxpaladinprotection_lev_mana_floor")
 
--- ESP
-menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
-menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
-menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
-menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
-
 -- Rotation
 menu.use_holy_shield                     = core.menu.checkbox(true, "eaxpaladinprotection_use_holy_shield")
 menu.use_shield_of_righteous             = core.menu.checkbox(true, "eaxpaladinprotection_use_shield_of_righteous")
@@ -189,14 +183,6 @@ function menu.render()
 
         ps.render_targeting(menu, tgt_tree)
         ps.render_racial(menu, racial_tree)
-
-        -- Display
-        esp_tree:render("Display", function()
-            menu.esp_show_hud:render("Show HUD", "Status")
-            menu.esp_show_target:render("Show Target", "Info")
-            menu.esp_hud_x:render("HUD X", "")
-            menu.esp_hud_y:render("HUD Y", "")
-        end)
     end)
 end
 

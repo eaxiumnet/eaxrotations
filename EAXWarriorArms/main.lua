@@ -245,6 +245,8 @@ local runtime = {
     pending_battle_stance_return = false,
     prev_toggle_state = false,
     set_multiplier = 1.0,
+    overpower_available = false,
+    last_overpower_check = 0,
 }
 
 local function note_cast()
@@ -546,9 +548,24 @@ local function try_return_to_battle(me)
     return false
 end
 
+local function check_overpower_availability(me, target)
+    if not runtime.overpower_id then return false end
+    runtime.overpower_available = core.spell_book.is_usable_spell(runtime.overpower_id)
+    return runtime.overpower_available
+end
+
 local function try_overpower(me, target, ctx)
     if not menu.use_overpower:get_state() or not target or not runtime.overpower_id then
         return false
+    end
+
+    -- Prioritize Overpower when it just becomes available
+    if check_overpower_availability(me, target) then
+        -- Use immediately, don't wait for Slam window
+        if utils.cast_target(runtime.overpower_id, target) then
+            utils.log_debug(menu, "Overpower (proc)")
+            return true
+        end
     end
 
     local can_cast = resource_gate.warrior.has_rage(ctx, 5)
@@ -705,14 +722,11 @@ local function try_thunder_clap(me, target, ctx)
     if should_hold_for_slam(me) then
         return false
     end
-    -- Prefer Thunder Clap for AoE, but still allow group-mode single-target upkeep
-    -- when the debuff is missing.
-    local nearby = count_nearby_enemies(me)
+    local mode = get_effective_mode()
     if nearby < 3 then
-        local mode = get_effective_mode()
-        if mode == "solo" or utils.has_debuff(target, spells.DEBUFF_THUNDER_CLAP) then
-            return false
-        end
+        if mode == "solo" then return false end
+        -- Dungeon/raid: maintain TC debuff for attack speed reduction
+        if utils.has_debuff(target, spells.DEBUFF_THUNDER_CLAP) then return false end
     end
     if nearby < 1 then
         return false
@@ -763,7 +777,17 @@ should_hold_for_slam = function(me)
     end
     local safety_buffer_ms = menu.slam_safety_buffer_ms:get() or SLAM_SAFE_BUFFER_MS
     local next_swing_ms = utils.get_next_swing_ms(me, 2)
-    return next_swing_ms > 0 and next_swing_ms <= (SLAM_HOLD_REGION_MS + safety_buffer_ms)
+    if next_swing_ms > 0 and next_swing_ms <= (SLAM_HOLD_REGION_MS + safety_buffer_ms) then
+        -- Don't hold for Slam if MS or Overpower is available
+        if runtime.mortal_strike_id and core.spell_book.is_usable_spell(runtime.mortal_strike_id) then
+            return false
+        end
+        if runtime.overpower_id and core.spell_book.is_usable_spell(runtime.overpower_id) then
+            return false
+        end
+        return true
+    end
+    return false
 end
 
 local function try_whirlwind(me, target, rage, ctx)

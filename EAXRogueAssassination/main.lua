@@ -561,7 +561,7 @@ local function try_kick(me, target)
     return false
 end
 
-local function try_cold_blood(me)
+local function try_cold_blood(me, target)
     local mode = current_mode()
     if enc and enc.hold_cooldowns then return false end
     if not menu.use_cold_blood:get_state() then
@@ -576,6 +576,12 @@ local function try_cold_blood(me)
     if utils.get_buff_remaining_ms(me, spells.BUFF_COLD_BLOOD) > 0 then
         return false
     end
+    -- Only use Cold Blood when Envenom is about to fire (DP stacks >= 3, CP >= 4)
+    if target and target:is_valid() then
+        local dp_stacks = utils.get_debuff_stacks(target, spells.DEBUFF_DEADLY_POISON) or 0
+        if dp_stacks < 3 then return false end  -- wait for DP stacks
+    end
+    if runtime.combo_points < 4 then return false end  -- wait for CP
     if not utils.can_cast_self(runtime.cold_blood_id, me) then
         return false
     end
@@ -650,6 +656,9 @@ local function try_envenom(me, target, ctx)
     if not combo_points_match_target(me, target) then
         return false
     end
+    -- Only Envenom when DP stacks >= 3
+    local dp_stacks = utils.get_debuff_stacks(target, spells.DEBUFF_DEADLY_POISON) or 0
+    if dp_stacks < 3 then return false end
     local required_combo_points = menu.envenom_combo_points:get()
     if runtime.set_multiplier > 1.0 then
         required_combo_points = math.max(4, required_combo_points - 1)
@@ -691,7 +700,7 @@ local function try_envenom(me, target, ctx)
     end
 
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
-    if not hold_offense and try_cold_blood(me) then
+    if not hold_offense and try_cold_blood(me, target) then
                 esp_renderer.on_cast(nil, "Envenom", color.green(220))
         return true
     end
@@ -826,7 +835,7 @@ local function try_eviscerate(me, target, ctx)
     end
 
     local hold_offense = dps_risk.should_hold_offense(dps_runtime.build_snapshot(me, target, encounter_manager, ttd_tracker))
-    if not hold_offense and try_cold_blood(me) then
+    if not hold_offense and try_cold_blood(me, target) then
         return true
     end
 
@@ -927,14 +936,20 @@ end
 
 
 
-local function try_shiv(me, target)
+local function try_shiv(me, target, ctx)
     if not menu.use_shiv or not menu.use_shiv:get_state() then return false end
     if not runtime.shiv_id then return false end
-    local dp_remain = utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEADLY_POISON)
-    if dp_remain <= 0 or dp_remain > 2000 then return false end
+    if not target or not target:is_valid() then return false end
+    -- Check Deadly Poison duration
+    local dp_remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEADLY_POISON)
+    if dp_remaining > 2000 or dp_remaining <= 0 then return false end
+    if ctx then
+        local ok, energy = pcall(function() return me:get_power(3) end)
+        if ok and type(energy) == "number" and energy < 20 then return false end
+    end
     if not utils.can_cast_hostile(runtime.shiv_id, me, target) then return false end
     if utils.cast_target(runtime.shiv_id, target, "Shiv") then
-        utils.log_debug(menu, "Shiv (Deadly Poison refresh)")
+        utils.log_debug(menu, "Shiv (DP refresh)")
         note_cast()
         return true
     end
@@ -1044,7 +1059,7 @@ local function do_rotation(me, target)
         return true
     end
     if try_garrote(me, target) then invalidate_ctx() return true end
-    if try_shiv(me, target) then invalidate_ctx() return true end
+    if try_shiv(me, target, ctx) then invalidate_ctx() return true end
     if try_mutilate(me, target, ctx) then invalidate_ctx() return true end
     if try_sinister_strike(me, target, ctx) then invalidate_ctx() return true end
 

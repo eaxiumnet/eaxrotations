@@ -57,12 +57,6 @@ menu.wand_mana_floor                     = core.menu.slider_int(5, 80, 25, "eaxp
 menu.wand_at_hp                          = core.menu.slider_int(5, 60, 20, "eaxpriestholy_wand_at_hp")
 menu.use_spirit_tap_wand                 = core.menu.checkbox(true,  "eaxpriestholy_spirit_tap_wand")
 
--- ESP
-menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
-menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
-menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
-menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
-
 -- Healing
 menu.use_greater_heal                    = core.menu.checkbox(true, "eaxpriestholy_use_greater_heal")
 menu.use_flash_heal                      = core.menu.checkbox(true, "eaxpriestholy_use_flash_heal")
@@ -183,14 +177,6 @@ function menu.render()
 
         ps.render_targeting(menu, tgt_tree)
         ps.render_racial(menu, racial_tree)
-
-        -- Display
-        esp_tree:render("Display", function()
-            menu.esp_show_hud:render("Show HUD", "Status")
-            menu.esp_show_target:render("Show Target", "Info")
-            menu.esp_hud_x:render("HUD X", "")
-            menu.esp_hud_y:render("HUD Y", "")
-        end)
     end)
 end
 

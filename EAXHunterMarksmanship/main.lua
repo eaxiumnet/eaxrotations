@@ -537,7 +537,8 @@ local function try_aspect_viper(me)
     if not rt.viper_aspect_id then return false end
     if not menu.use_aspect_viper or not menu.use_aspect_viper:get_state() then return false end
     local mp = mana_pct(me)
-    local enter = (menu.viper_mana_enter and menu.viper_mana_enter:get() or 35)/100
+    local mode = active_mode()
+    local enter = (menu.viper_mana_enter and menu.viper_mana_enter:get() or (mode == "raid" and 45 or 35))/100
     local exit  = (menu.viper_mana_exit  and menu.viper_mana_exit:get()  or 85)/100
     local on_viper = utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER)
     if on_viper and mp >= exit then
@@ -579,7 +580,8 @@ end
 local function try_trueshot_aura(me)
     if not menu.use_trueshot_aura or not menu.use_trueshot_aura:get_state() then return false end
     if not rt.trueshot_aura_id then return false end
-    if utils.has_buff(me, spells.BUFF_TRUESHOT_AURA) then return false end
+    local has_buff = utils.has_buff(me, spells.BUFF_TRUESHOT_AURA)
+    if has_buff then return false end
     if utils.can_cast_self(rt.trueshot_aura_id, me) then
         utils.cast_self(rt.trueshot_aura_id, me)
         utils.log_debug(menu, "Trueshot Aura"); return true
@@ -1064,6 +1066,7 @@ local function try_aimed_shot(me, t, ctx)
     if not rt.aimed_shot_id then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, 0.20) then return false end
     if is_moving() then return false end
+    if not swing_timer.is_swing_safe(me, 0.30) then return false end
     if not can_cast_casted_spell(me, 2.0) then return false end
     if not utils.can_cast_hostile(rt.aimed_shot_id, me, t) then return false end
     if utils.cast_target(rt.aimed_shot_id, t) then

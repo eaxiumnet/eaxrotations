@@ -248,14 +248,6 @@ function menu.render()
 
         ps.render_targeting(menu, tgt_tree)
         ps.render_racial(menu, racial_tree)
-
-        -- Display
-        esp_tree:render("Display", function()
-            menu.esp_show_hud:render("Show HUD", "Status")
-            menu.esp_show_target:render("Show Target", "Info")
-            menu.esp_hud_x:render("HUD X", "")
-            menu.esp_hud_y:render("HUD Y", "")
-        end)
     end)
 end
 

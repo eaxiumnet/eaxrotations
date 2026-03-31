@@ -227,6 +227,7 @@ local runtime = {
     hurricane_id = nil,
     innervate_id = nil,
     tranquility_id = nil,
+    natures_grace_id = nil,
     prev_toggle_state = false,
     last_cast_time = 0,
     cached_mode = "solo",
@@ -273,6 +274,7 @@ local function resolve_spells()
     runtime.gift_of_the_wild_id    = utils.resolve_spell_id(spells.GIFT_OF_THE_WILD)
     runtime.mark_of_the_wild_id    = utils.resolve_spell_id(spells.MARK_OF_THE_WILD)
     runtime.barkskin_id = utils.resolve_spell_id(spells.BARKSKIN)
+    runtime.natures_grace_id = utils.resolve_spell_id(spells.BUFF_NATURES_GRACE)
 end
 
 local function log_resolved_spells()
@@ -437,8 +439,10 @@ local function try_moonfire(me, target, ctx)
     if is_pending_cast(runtime.moonfire_id) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.10) then return false end
-    local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE) > refresh_ms then return false end
+    -- FLUX pattern: refresh at ≤ 2s remaining (instant cast)
+    local refresh_ms = 2000
+    local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_MOONFIRE)
+    if remaining > refresh_ms and remaining > 0 then return false end
     if should_throttle_dot("moonfire") then return false end
     if not utils.can_cast_hostile(runtime.moonfire_id, me, target) then return false end
     if utils.cast_target(runtime.moonfire_id, target) then
@@ -457,8 +461,10 @@ local function try_insect_swarm(me, target, ctx)
     if is_pending_cast(runtime.insect_swarm_id) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.10) then return false end
-    local refresh_ms = (menu.dot_refresh_seconds and menu.dot_refresh_seconds:get() or 3) * 1000
-    if utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM) > refresh_ms then return false end
+    -- FLUX pattern: refresh at ≤ 2s remaining (instant cast)
+    local refresh_ms = 2000
+    local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_INSECT_SWARM)
+    if remaining > refresh_ms and remaining > 0 then return false end
     if should_throttle_dot("insect_swarm") then return false end
     if not utils.can_cast_hostile(runtime.insect_swarm_id, me, target) then return false end
     if utils.cast_target(runtime.insect_swarm_id, target) then
@@ -490,11 +496,13 @@ local function try_force_of_nature(me, target, mana_pct)
     return false
 end
 
-local function try_starfire(me, target, ctx)
+local function try_starfire(me, target, ctx, mana_tier)
     if not runtime.starfire_id then return false end
     if is_pending_cast(runtime.starfire_id) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
+    -- Emergency mana tier: skip Starfire
+    if mana_tier == "emergency" then return false end
     if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.05) then return false end
     if should_throttle_filler("starfire") then return false end
     local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.starfire_id)
@@ -505,6 +513,9 @@ local function try_starfire(me, target, ctx)
         if ok then ttd_s = tonumber(value) end
     end
     if ttd_s and ttd_s > 0 and ttd_s < (cast_time_s + 0.5) then return false end
+    -- Nature's Grace: if buff is active, prioritize Starfire more aggressively
+    local has_natures_grace = runtime.natures_grace_id and utils.has_buff(me, spells.BUFF_NATURES_GRACE)
+    if not has_natures_grace and mana_tier == "conserve" then return false end
     if not utils.can_cast_hostile(runtime.starfire_id, me, target) then return false end
     if utils.cast_target(runtime.starfire_id, target) then
         mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S, { action_key = "starfire", category = "long" })
@@ -677,6 +688,14 @@ local function do_rotation(me, target, menu, utils)
 
     local mana_pct = utils.get_mana_pct(me)
 
+    -- Mana tier system for TBC balance druid
+    local mana_tier = "full"
+    if mana_pct < 0.30 then
+        mana_tier = "emergency"
+    elseif mana_pct < 0.70 then
+        mana_tier = "conserve"
+    end
+
     if try_root_escape_balance(me) then return true end
     if try_innervate(me, mana_pct) then return true end
     if try_moonkin_form(me) then return true end
@@ -702,7 +721,7 @@ local function do_rotation(me, target, menu, utils)
     if try_faerie_fire(me, dot_target, ctx) then return true end
     if try_insect_swarm(me, dot_target, ctx) then return true end
     if try_moonfire(me, dot_target, ctx) then return true end
-    if try_starfire(me, dot_target, ctx) then return true end
+    if try_starfire(me, dot_target, ctx, mana_tier) then return true end
     if try_wrath(me, dot_target, ctx) then return true end
 
     return false

@@ -507,7 +507,7 @@ local function auto_eta(me)
     return swing_timer.get_time_to_swing(me) * 1000
 end
 local function allow_instant(me)
-    return swing_timer.can_use_instant_before_swing(me, math.max(AUTO_CLIP_MS, 250) / 1000)
+    return swing_timer.can_use_instant_before_swing(me, math.max(AUTO_CLIP_MS, 300) / 1000)
 end
 
 local function allow_queue_window(me, cast_time, buffer_s)
@@ -1178,7 +1178,8 @@ local function try_serpent_sting(me, t, ctx)
     if not menu.use_serpent_sting or not menu.use_serpent_sting:get_state() then return false end
     if not rt.serpent_sting_id then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.10, 1.05)) then return false end
-    if not serpent_sting_refresh_due(t) then return false end
+    local ss_remaining = debuff_rem(t, spells.DEBUFF_SERPENT_STING)
+    if ss_remaining > 2000 and ss_remaining > 0 then return false end
     if not utils.can_fire(me, "serpent_sting") then return false end
     if rt.last_serpent_sting_cast_count == core.spell_book.get_spell_cast_count(rt.serpent_sting_id) then return false end
     if not allow_instant(me) then return false end
@@ -1298,6 +1299,10 @@ local function try_kill_command(me, t, ctx, bm_state, now)
     if not resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.15, 1.20)) then return false end
     if rt.last_kill_command_cast_count == core.spell_book.get_spell_cast_count(rt.kill_command_id) then return false end
     local pet = get_pet()
+    -- Verify pet is engaged on target
+    if not pet or not pet:is_valid() or pet:is_dead() then return false end
+    local pet_target = pet:get_target()
+    if not pet_target or not utils.same_unit(pet_target, t) then return false end
     if not pet_is_committed_on_target(pet, t, bm_state, now) then return false end
     if not allow_instant(me) then return false end
     if swing_timer.is_swing_imminent(me, 0.20) then return false end

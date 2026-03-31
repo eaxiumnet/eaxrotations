@@ -7,6 +7,7 @@
 
 local theme    = require("libraries/class_theme")
 local identity = require("libraries/class_identity")
+local settings = require("libraries/settings_framework")
 
 -- -- Init theme for Druid Feral ---------------------------------------------
 -- class_id 11 = Druid, spec_id 26 = Druid Feral Cat (used as default)
@@ -64,12 +65,6 @@ menu.auto_flask          = core.menu.checkbox(false, "eaxdruidferal_auto_flask")
 -- -- Leveling ------------------------------------------------------------------
 menu.leveling_conserve_mana = core.menu.checkbox(true, "eaxdruidferal_lev_conserve")
 menu.leveling_mana_floor    = core.menu.slider_int(5, 50, 20, "eaxdruidferal_lev_mana_floor")
-
--- -- ESP/HUD -------------------------------------------------------------------
-menu.esp_show_hud    = core.menu.checkbox(true,  "eax_esp_show_hud")
-menu.esp_show_target = core.menu.checkbox(true,  "eax_esp_show_target")
-menu.esp_hud_x      = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
-menu.esp_hud_y      = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
 
 -- -- Cat Form ------------------------------------------------------------------
 menu.use_prowl              = core.menu.checkbox(true, "eaxdruidferal_use_prowl")
@@ -135,12 +130,12 @@ menu.use_remove_curse       = core.menu.checkbox(true, "eaxdruidferal_use_remove
 menu.use_natures_grasp      = core.menu.checkbox(true, "eaxdruidferal_use_natures_grasp")
 
 -- -- Form Management -----------------------------------------------------------
-menu.lane       = core.menu.combobox(0, "eaxdruidferal_lane")
+menu.lane       = core.menu.combobox(1, "eaxdruidferal_lane")
 menu.auto_form  = core.menu.checkbox(true, "eaxdruidferal_auto_form")
 menu.shift_mana_floor = core.menu.slider_int(10, 50, 20, "eaxdruidferal_shift_mana_floor")
 
 -- -- Window --------------------------------------------------------------------
-theme.setup_major_toggle_keybinds(menu, {
+settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_mangle_cat", label = "Mangle (Cat)" },
     { toggle = "use_shred", label = "Shred" },
     { toggle = "use_rip", label = "Rip" },
@@ -296,14 +291,6 @@ function menu.render()
             theme.header("Leveling")
             menu.leveling_conserve_mana:render("Conserve Mana", "Use a more mana-efficient leveling rotation")
             menu.leveling_mana_floor:render("Mana Floor %", "Switch to conservation mode below this mana percent")
-        end)
-
-        -- Display & HUD
-        esp_tree:render("Display & HUD", function()
-            menu.esp_show_hud:render("Show HUD", "Display rotation status HUD")
-            menu.esp_show_target:render("Show Target", "Display target info")
-            menu.esp_hud_x:render("HUD X", "Horizontal position")
-            menu.esp_hud_y:render("HUD Y", "Vertical position")
         end)
 
     end)

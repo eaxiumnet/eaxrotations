@@ -264,7 +264,9 @@ runtime = {
     pending_casts = {},
     cached_mode = "solo",
     prev_toggle_state = false,
-    last_stormstrike_at = 0,
+    fire_nova_totem_id = nil,
+    last_fire_nova_drop = 0,
+    last_stormstrike_debuff_at = 0,
     totem_last_apply = {},
     last_potion_at = 0,
 }
@@ -338,6 +340,7 @@ local function resolve_spells()
     runtime.magma_totem_id         = utils.resolve_spell_id(spells.MAGMA_TOTEM)
     runtime.flametongue_weapon_id   = utils.resolve_spell_id(spells.FLAMETONGUE_WEAPON)
     runtime.ancestral_spirit_id  = utils.resolve_spell_id(spells.ANCESTRAL_SPIRIT)
+    runtime.fire_nova_totem_id     = utils.resolve_spell_id(spells.FIRE_NOVA_TOTEM)
 end
 
 local function log_resolved_spells()
@@ -541,6 +544,7 @@ local function try_stormstrike(me, target, ctx)
     end
     if try_cast_target(me, target, runtime.stormstrike_id, "Stormstrike") then
         runtime.last_stormstrike_at = _core_time()
+        runtime.last_stormstrike_debuff_at = _core_time()
         return true
     end
     return false
@@ -766,6 +770,26 @@ local function try_earth_shock(me, target, ctx)
     return try_cast_target(me, target, runtime.earth_shock_id, "Earth Shock")
 end
 
+local function try_frost_shock(me, target, ctx)
+    if not runtime.frost_shock_id or not target then
+        return false
+    end
+    if not is_melee_swing_safe(me) then
+        return false
+    end
+    local can_cast = resource_gate.shaman.has_mana_pct(ctx, 0.10)
+    if not can_cast then
+        return false
+    end
+    if utils.has_debuff(target, spells.FROST_SHOCK) then
+        return false
+    end
+    if utils.get_mana_pct(me) < 0.18 then
+        return false
+    end
+    return try_cast_target(me, target, runtime.frost_shock_id, "Frost Shock")
+end
+
 
 
 -- --- Fire Totem maintenance (v1.3) ---------------------------------------
@@ -806,7 +830,7 @@ local function try_totem_twist(me)
     end
 
     -- In between WF drops: maintain Grace/Wrath of Air if not active
-    if time_since_wf < 1.5 then return false end  -- just dropped WF, wait
+    if time_since_wf < 2.0 then return false end  -- just dropped WF, wait
 
     -- Check for Grace of Air buff on party (simplified: check self)
     local has_air_buff = utils.has_buff(me, spells.BUFF_GRACE_OF_AIR)
@@ -913,6 +937,24 @@ local function try_fire_totem(me, enemy_count)
     end
     if try_cast_self(me, totem_id, label) then
         runtime.totem_last_apply.fire_totem = now
+        return true
+    end
+    return false
+end
+
+-- Fire Nova Totem twist: drop Fire Nova every 15s for AoE burst
+local FIRE_NOVA_CD_S = 15.0
+
+local function try_fire_nova_twist(me, enemy_count)
+    if not menu.use_fire_nova_twist or not menu.use_fire_nova_twist:get_state() then return false end
+    if not runtime.fire_nova_totem_id then return false end
+    if enemy_count and enemy_count < 3 then return false end
+    if me:is_moving() then return false end
+    if not is_melee_swing_safe(me) then return false end
+    local now = _core_time()
+    if (now - runtime.last_fire_nova_drop) < FIRE_NOVA_CD_S then return false end
+    if try_cast_self(me, runtime.fire_nova_totem_id, "Fire Nova Totem") then
+        runtime.last_fire_nova_drop = now
         return true
     end
     return false
@@ -1037,8 +1079,11 @@ local function do_rotation(me, target)
     if try_shamanistic_rage(me, ctx) then return true end
     if try_stormstrike(me, target, ctx) then return true end
     local shock_mode = menu.shock_mode and menu.shock_mode:get() or 1
-    if shock_mode == 2 and try_flame_shock(me, target, ctx) then return true end
+    -- Flame Shock maintenance (always, not shock_mode gated)
+    if try_flame_shock(me, target, ctx) then return true end
+    -- Shock filler (based on shock_mode)
     if shock_mode == 1 and try_earth_shock(me, target, ctx) then return true end
+    if shock_mode == 2 and try_frost_shock(me, target, ctx) then return true end
     if try_chain_lightning_weave(me, target, ctx) then return true end
     if try_shock(me, target, ctx) then return true end
 
@@ -1046,6 +1091,7 @@ local function do_rotation(me, target)
     -- Totem maintenance
     local _enh_enemies = utils.enemy_count_in_radius and utils.enemy_count_in_radius(me, 10) or 1
     if try_totem_twist(me) then return true end
+    if try_fire_nova_twist(me, _enh_enemies) then return true end
     if try_fire_totem(me, _enh_enemies) then return true end
     if try_earth_totem(me) then return true end
     if try_water_totem(me) then return true end

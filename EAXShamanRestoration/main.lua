@@ -863,12 +863,10 @@ local function try_proactive_mana_tide(me)
     if _get_spell_cd(rt.mana_tide_id) > 0 then return false end
     local threshold = menu.mana_tide_mana_pct:get() / 100.0
     local mana_pct = utils.get_mana_pct(me)
+    -- Fire when below threshold, or when forecast predicts OOM
     local forecast_ready = eax_utils.should_use_mana_tide(me, menu)
-    local proactive_threshold = math.min(0.60, threshold + 0.10)
-    if mana_pct > threshold then
-        if not forecast_ready or mana_pct > proactive_threshold then
-            return false
-        end
+    if mana_pct > threshold and not forecast_ready then
+        return false
     end
     if try_cast_self(me, rt.mana_tide_id, "Mana Tide (proactive)") then
         rt.totem_last_apply["mana_tide"] = _core_time()
@@ -879,10 +877,21 @@ end
 
 -- --- Earth Shield ------------------------------------------------------------
 
+local EARTH_SHIELD_REFRESH_CHARGES = 2
+
 local function try_earth_shield(me, tank)
     if not rt.earth_shield_id or not tank then return false end
     if tank == me then return false end
-    if utils.has_buff(tank, spells.EARTH_SHIELD_BUFF) then return false end
+    -- Check charges: refresh when ≤ 2 charges remaining
+    local es_data = buff_manager:get_buff_data(tank, spells.EARTH_SHIELD_BUFF)
+    local es_charges = 0
+    if es_data and es_data.is_active then
+        es_charges = es_data.stacks or es_data.count or 6
+    end
+    -- If buff is active and charges are healthy, skip
+    if es_data and es_data.is_active and es_charges > EARTH_SHIELD_REFRESH_CHARGES then
+        return false
+    end
     return try_cast_ally(me, tank, rt.earth_shield_id, "Earth Shield")
 end
 

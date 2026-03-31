@@ -452,6 +452,22 @@ local function try_evocation(me)
     if not runtime.evocation_id then return false end
     if not me:is_in_combat() then return false end
     if me:is_channelling_spell() then return false end
+
+    -- Conserve phase detection
+    local conserve_phase = utils.get_mana_pct(me) < 0.40
+    -- Force evocate in conserve phase at critical mana
+    if conserve_phase and utils.get_mana_pct(me) < 0.25 then
+        if is_pending_cast(runtime.evocation_id) or utils.is_spell_already_queued(runtime.evocation_id) then return false end
+        if not utils.can_cast_self(runtime.evocation_id, me) then return false end
+        if utils.cast_self(runtime.evocation_id, me, "Evocation (conserve)") then
+            mark_pending_cast(runtime.evocation_id, PENDING_CAST_TIMEOUT_S)
+            utils.log_debug(menu, "Evocation (conserve)")
+            note_cast()
+            esp_renderer.on_cast(runtime.evocation_id, "Evocation (conserve)", color.blue(220))
+            return true
+        end
+    end
+
     -- Use mana_manager for proactive Evocation timing
     if not mana_manager.should_evocate(me, "mage", menu) then return false end
     if is_pending_cast(runtime.evocation_id) or utils.is_spell_already_queued(runtime.evocation_id) then return false end
@@ -528,6 +544,20 @@ local function try_arcane_missiles(me, target)
     local ab_stacks = utils.get_buff_stacks(me, spells.BUFF_ARCANE_BLAST)
     local dump_stacks = menu.arcane_blast_dump_stacks:get()
     local clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
+
+    -- Always use free Arcane Missiles from Clearcasting
+    if clearcasting then
+        if is_pending_cast(runtime.arcane_missiles_id) or utils.is_spell_already_queued(runtime.arcane_missiles_id) then return false end
+        if not utils.can_cast_hostile(runtime.arcane_missiles_id, me, target) then return false end
+        if utils.cast_target(runtime.arcane_missiles_id, target, "Arcane Missiles (Clearcast)") then
+            mark_pending_cast(runtime.arcane_missiles_id, PENDING_CAST_TIMEOUT_S)
+            utils.log_debug(menu, "Arcane Missiles (Clearcast)")
+            note_cast()
+            esp_renderer.on_cast(runtime.arcane_missiles_id, "Arcane Missiles (Clearcast)", color.cyan(220))
+            return true
+        end
+    end
+
     local low_mana = utils.get_mana_pct(me) <= (menu.evocation_pct:get() + 15)
     if (utils.has_buff(me, spells.BUFF_ICY_VEINS) or utils.has_buff(me, spells.BUFF_ARCANE_POWER)) and not clearcasting and not low_mana and ab_stacks < dump_stacks then
         return false
@@ -582,6 +612,16 @@ local function try_arcane_blast(me, target)
     local clearcasting = utils.has_buff(me, spells.BUFF_CLEARCASTING)
     local low_mana = utils.get_mana_pct(me) <= (menu.evocation_pct:get() + 15)
     local dump_stacks = menu.arcane_blast_dump_stacks:get()
+
+    -- Burn/conserve phase detection
+    local burn_phase = ap_active or iv_active
+    local conserve_phase = utils.get_mana_pct(me) < 0.40
+
+    -- In conserve phase, reduce dump_stacks by 1 to save mana
+    if conserve_phase then
+        dump_stacks = math.max(1, dump_stacks - 1)
+    end
+
     local should_dump = ab_stacks >= dump_stacks
         or (clearcasting and ab_stacks >= 1)
         or (low_mana and ab_stacks >= math.max(1, dump_stacks - 1))

@@ -257,6 +257,8 @@ local rt = {
     haste_breakpoint    = "2:1",
     cached_mode         = "solo",
     prev_toggle_state   = false,
+    -- Expose Weakness debuff tracking (Survival Hunter raid buff)
+    expose_weakness_active = false,
 }
 
 local ctx_cache = rotation_context.new({
@@ -426,6 +428,14 @@ local function debuff_rem(t, tbl)
     if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
     return 0
 end
+
+-- Expose Weakness debuff check (Survival Hunter's key raid buff: +AP based on agility)
+local function check_expose_weakness(target)
+    if not target or not target:is_valid() then return false end
+    rt.expose_weakness_active = utils.has_debuff(target, spells.DEBUFF_EXPOSE_WEAKNESS)
+    return rt.expose_weakness_active
+end
+
 local function detect_mode()
     local n=0
     for _,o in ipairs(core.object_manager.get_all_objects()) do
@@ -967,7 +977,8 @@ local function try_serpent_sting(me, t, ctx)
     if not menu.use_serpent_sting or not menu.use_serpent_sting:get_state() then return false end
     if not rt.serpent_sting_id then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, 0.10) then return false end
-    if debuff_rem(t, spells.DEBUFF_SERPENT_STING) > 3000 then return false end
+    local ss_remaining = debuff_rem(t, spells.DEBUFF_SERPENT_STING)
+    if ss_remaining > 2000 and ss_remaining > 0 then return false end
     if rt.last_serpent_sting_cast_count == core.spell_book.get_spell_cast_count(rt.serpent_sting_id) then return false end
     if not allow_instant(me) then return false end
     if not utils.can_cast_hostile(rt.serpent_sting_id, me, t) then return false end
@@ -1099,6 +1110,8 @@ local function try_raptor_strike(me, t)
     return false
 end
 local function try_mongoose_bite(me, t, ctx)
+    -- Only counter when target actually dodges/parries (not just any melee attack)
+    if not utils.is_melee_target(me, t) then return false end
     if not menu.use_mongoose_bite or not menu.use_mongoose_bite:get_state() then return false end
     if not rt.mongoose_bite_id or dist(t) > 5 then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, 0.10) then return false end
