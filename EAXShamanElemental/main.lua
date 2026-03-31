@@ -5,6 +5,7 @@
 local menu = require("libraries/menu")
 local rotation_context = require("libraries/rotation_context")
 local resource_gate = require("libraries/resource_gate")
+local spell_downrank = require("libraries/spell_downrank")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
@@ -726,6 +727,14 @@ local function try_lightning_bolt(me, target)
     if not runtime.lightning_bolt_id or not target then
         return false
     end
+    -- Leveling: use appropriate spell rank
+    local lightning_bolt_id = runtime.lightning_bolt_id
+    if menu.leveling_conserve_mana and menu.leveling_conserve_mana:get_state() then
+        local player_level = me.get_level and me:get_level() or 70
+        local target_level = target.get_level and target:get_level() or 70
+        local mana_pct = utils.get_mana_pct(me)
+        lightning_bolt_id = spell_downrank.select_dps_rank(spells.LIGHTNING_BOLT, target_level, player_level, mana_pct) or lightning_bolt_id
+    end
     local profile = get_mode_profile()
     local mana_pct = utils.get_mana_pct(me)
     local mana_floor = math.max(menu.mana_floor:get(), profile.mana_floor) / 100
@@ -738,14 +747,14 @@ local function try_lightning_bolt(me, target)
     if target_hp <= execute_cutoff then
         return false
     end
-    if target_will_die_before_cast_finishes(me, target, runtime.lightning_bolt_id, 0.35) then return false end
+    if target_will_die_before_cast_finishes(me, target, lightning_bolt_id, 0.35) then return false end
     local distance = utils.get_distance(me, target)
     local min_range = math.max(menu.range_min:get(), profile.range_min)
     local max_range = math.max(menu.range_max:get(), profile.range_max)
     if distance < min_range or distance > max_range then
         return false
     end
-    return try_cast_target(me, target, runtime.lightning_bolt_id, "Lightning Bolt")
+    return try_cast_target(me, target, lightning_bolt_id, "Lightning Bolt")
 end
 
 

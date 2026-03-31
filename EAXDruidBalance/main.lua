@@ -4,6 +4,7 @@
 local menu = require("libraries/menu")
 local rotation_context = require("libraries/rotation_context")
 local resource_gate = require("libraries/resource_gate")
+local spell_downrank = require("libraries/spell_downrank")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
@@ -534,7 +535,15 @@ local function try_starfire(me, target, ctx, mana_tier)
     if mana_tier == "emergency" then return false end
     if not ctx or not resource_gate.common.has_mana_pct(ctx, 0.05) then return false end
     if should_throttle_filler("starfire") then return false end
-    local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.starfire_id)
+    -- Leveling: use appropriate spell rank
+    local starfire_id = runtime.starfire_id
+    if menu.leveling_conserve_mana and menu.leveling_conserve_mana:get_state() then
+        local player_level = me.get_level and me:get_level() or 70
+        local target_level = target.get_level and target:get_level() or 70
+        local mana_pct = utils.get_mana_pct(me)
+        starfire_id = spell_downrank.select_dps_rank(spells.STARFIRE, target_level, player_level, mana_pct) or starfire_id
+    end
+    local cast_time_ms = mana_manager.get_spell_cast_time_ms(starfire_id)
     local cast_time_s = cast_time_ms / 1000
     local ttd_s = nil
     if ttd_tracker and ttd_tracker.get then
@@ -545,12 +554,12 @@ local function try_starfire(me, target, ctx, mana_tier)
     -- Nature's Grace: if buff is active, prioritize Starfire more aggressively
     local has_natures_grace = runtime.natures_grace_id and utils.has_buff(me, spells.BUFF_NATURES_GRACE)
     if not has_natures_grace and mana_tier == "conserve" then return false end
-    if not utils.can_cast_hostile(runtime.starfire_id, me, target) then return false end
-    if utils.cast_target(runtime.starfire_id, target) then
-        mark_pending_cast(runtime.starfire_id, PENDING_CAST_TIMEOUT_S, { action_key = "starfire", category = "long" })
+    if not utils.can_cast_hostile(starfire_id, me, target) then return false end
+    if utils.cast_target(starfire_id, target) then
+        mark_pending_cast(starfire_id, PENDING_CAST_TIMEOUT_S, { action_key = "starfire", category = "long" })
         utils.log_debug(menu, "Starfire")
         note_cast()
-        esp_renderer.on_cast(runtime.starfire_id, "Starfire", color.purple(220))
+        esp_renderer.on_cast(starfire_id, "Starfire", color.purple(220))
         return true
     end
     return false

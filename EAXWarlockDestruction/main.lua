@@ -4,6 +4,7 @@
 local menu = require("libraries/menu")
 local rotation_context = require("libraries/rotation_context")
 local resource_gate = require("libraries/resource_gate")
+local spell_downrank = require("libraries/spell_downrank")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
@@ -882,7 +883,17 @@ end
 local function try_nuke(me, target, profile)
     -- Check Backlash proc: prioritize Shadow Bolt/Incinerate when active (higher crit chance)
     local backlash = check_backlash(me)
-    if target_will_die_before_cast_finishes(me, target, profile == "fire" and runtime.incinerate_id or runtime.shadow_bolt_id, 0.35) then
+    -- Leveling: use appropriate spell rank
+    local shadow_bolt_id = runtime.shadow_bolt_id
+    local incinerate_id = runtime.incinerate_id
+    if menu.leveling_conserve_mana and menu.leveling_conserve_mana:get_state() then
+        local player_level = me.get_level and me:get_level() or 70
+        local target_level = target.get_level and target:get_level() or 70
+        local mana_pct = utils.get_mana_pct(me)
+        shadow_bolt_id = spell_downrank.select_dps_rank(spells.SHADOW_BOLT, target_level, player_level, mana_pct) or shadow_bolt_id
+        incinerate_id = spell_downrank.select_dps_rank(spells.INCINERATE, target_level, player_level, mana_pct) or incinerate_id
+    end
+    if target_will_die_before_cast_finishes(me, target, profile == "fire" and incinerate_id or shadow_bolt_id, 0.35) then
         return false
     end
     if profile == "fire" and menu.use_immolate:get_state() and get_immolate_remaining_ms(target) <= 2500 then
@@ -892,22 +903,22 @@ local function try_nuke(me, target, profile)
     -- Shadow Bolt (filler) only when not in fire profile or Backlash active
     if profile == "fire" and not backlash then
         -- Fire profile: prefer Incinerate as main nuke (unless Backlash prioritizes it)
-        if menu.use_incinerate:get_state() and runtime.incinerate_id then
-            if try_cast_spell(me, runtime.incinerate_id, target, "Incinerate") then
+        if menu.use_incinerate:get_state() and incinerate_id then
+            if try_cast_spell(me, incinerate_id, target, "Incinerate") then
                 esp_renderer.on_cast(nil, "Incinerate", color.red(220))
                 return true
             end
         end
     else
         -- Shadow profile or Backlash active: use Shadow Bolt
-        if menu.use_shadow_bolt:get_state() and runtime.shadow_bolt_id then
-            if try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt") then
+        if menu.use_shadow_bolt:get_state() and shadow_bolt_id then
+            if try_cast_spell(me, shadow_bolt_id, target, "Shadow Bolt") then
                 return true
             end
         end
         -- Fallback to Incinerate in shadow profile if Shadow Bolt unavailable
-        if profile ~= "fire" and menu.use_incinerate:get_state() and runtime.incinerate_id then
-            return try_cast_spell(me, runtime.incinerate_id, target, "Incinerate")
+        if profile ~= "fire" and menu.use_incinerate:get_state() and incinerate_id then
+            return try_cast_spell(me, incinerate_id, target, "Incinerate")
         end
     end
     return false

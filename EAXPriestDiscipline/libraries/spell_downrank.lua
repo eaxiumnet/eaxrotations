@@ -99,4 +99,64 @@ function spell_downrank.select_heal_rank(rank_table, target_hp_pct, mana_pct, op
     return sustain_rank
 end
 
+function spell_downrank.select_dps_rank(rank_table, target_level, player_level, mana_pct)
+    if type(rank_table) == "number" then
+        return is_learned(rank_table) and rank_table or nil
+    end
+    if type(rank_table) ~= "table" or #rank_table == 0 then
+        return nil
+    end
+    local learned = learned_ranks(rank_table)
+    if #learned == 0 then return nil end
+
+    local level_diff = (player_level or 70) - (target_level or 70)
+
+    if level_diff > 15 then
+        return learned[1]
+    elseif level_diff > 8 then
+        local idx = math.max(1, math.floor(#learned * 0.3))
+        return learned[idx]
+    elseif level_diff > 3 then
+        local idx = math.max(1, math.floor(#learned * 0.6))
+        return learned[idx]
+    end
+
+    if mana_pct and mana_pct < 0.30 then
+        local idx = math.max(1, math.floor(#learned * 0.4))
+        return learned[idx]
+    end
+
+    return learned[#learned]
+end
+
+function spell_downrank.select_dps_rank(rank_table, target_level, player_level, mana_pct)
+    if type(rank_table) == "number" then
+        return is_learned(rank_table) and rank_table or nil
+    end
+    if type(rank_table) ~= "table" or #rank_table == 0 then
+        return nil
+    end
+    local learned = learned_ranks(rank_table)
+    if #learned == 0 then return nil end
+
+    local level_diff = (player_level or 70) - (target_level or 70)
+
+    if level_diff > 15 then
+        return learned[1]
+    elseif level_diff > 8 then
+        local idx = math.max(1, math.floor(#learned * 0.3))
+        return learned[idx]
+    elseif level_diff > 3 then
+        local idx = math.max(1, math.floor(#learned * 0.6))
+        return learned[idx]
+    end
+
+    if mana_pct and mana_pct < 0.30 then
+        local idx = math.max(1, math.floor(#learned * 0.4))
+        return learned[idx]
+    end
+
+    return learned[#learned]
+end
+
 return spell_downrank

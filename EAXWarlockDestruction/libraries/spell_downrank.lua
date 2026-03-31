@@ -1,5 +1,5 @@
 -- spell_downrank.lua
--- Conservative first-wave TBC heal downranking helper.
+-- Conservative first-wave TBC heal downranking helper + DPS downranking for leveling.
 
 local spell_downrank = {}
 
@@ -99,63 +99,48 @@ function spell_downrank.select_heal_rank(rank_table, target_hp_pct, mana_pct, op
     return sustain_rank
 end
 
+-- DPS spell downranking for leveling: use mana-efficient spell ranks matching target HP.
 function spell_downrank.select_dps_rank(rank_table, target_level, player_level, mana_pct)
+    -- For leveling: use spell rank that matches target HP
+    -- If target will die in 1-2 casts, use lower rank
+    -- If mana is low, use lower rank
+    -- If player level is close to target level, use max rank
+    
     if type(rank_table) == "number" then
         return is_learned(rank_table) and rank_table or nil
     end
+    
     if type(rank_table) ~= "table" or #rank_table == 0 then
         return nil
     end
+    
     local learned = learned_ranks(rank_table)
     if #learned == 0 then return nil end
-
+    
+    -- Leveling optimization: use rank that matches target HP
     local level_diff = (player_level or 70) - (target_level or 70)
-
-    if level_diff > 15 then
-        return learned[1]
-    elseif level_diff > 8 then
-        local idx = math.max(1, math.floor(#learned * 0.3))
-        return learned[idx]
-    elseif level_diff > 3 then
-        local idx = math.max(1, math.floor(#learned * 0.6))
-        return learned[idx]
+    
+    -- If target is much lower level, use lower rank
+    if level_diff > 10 then
+        -- Use rank 1-2 for trivial targets
+        return learned[1] or learned[#learned]
+    elseif level_diff > 5 then
+        -- Use mid-rank for easy targets
+        local mid = math.max(1, math.floor(#learned * 0.5))
+        return learned[mid]
+    elseif level_diff > 0 then
+        -- Use high-rank for close-level targets
+        local high = math.max(1, math.floor(#learned * 0.8))
+        return learned[high]
     end
-
+    
+    -- Mana conservation: if low mana, use lower rank
     if mana_pct and mana_pct < 0.30 then
-        local idx = math.max(1, math.floor(#learned * 0.4))
-        return learned[idx]
+        local low = math.max(1, math.floor(#learned * 0.4))
+        return learned[low]
     end
-
-    return learned[#learned]
-end
-
-function spell_downrank.select_dps_rank(rank_table, target_level, player_level, mana_pct)
-    if type(rank_table) == "number" then
-        return is_learned(rank_table) and rank_table or nil
-    end
-    if type(rank_table) ~= "table" or #rank_table == 0 then
-        return nil
-    end
-    local learned = learned_ranks(rank_table)
-    if #learned == 0 then return nil end
-
-    local level_diff = (player_level or 70) - (target_level or 70)
-
-    if level_diff > 15 then
-        return learned[1]
-    elseif level_diff > 8 then
-        local idx = math.max(1, math.floor(#learned * 0.3))
-        return learned[idx]
-    elseif level_diff > 3 then
-        local idx = math.max(1, math.floor(#learned * 0.6))
-        return learned[idx]
-    end
-
-    if mana_pct and mana_pct < 0.30 then
-        local idx = math.max(1, math.floor(#learned * 0.4))
-        return learned[idx]
-    end
-
+    
+    -- Default: max rank
     return learned[#learned]
 end
 

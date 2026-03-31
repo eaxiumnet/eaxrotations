@@ -3,6 +3,7 @@
 local menu = require("libraries/menu")
 local rotation_context = require("libraries/rotation_context")
 local resource_gate = require("libraries/resource_gate")
+local spell_downrank = require("libraries/spell_downrank")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
@@ -629,9 +630,17 @@ local function try_arcane_blast(me, target)
     if not runtime.arcane_blast_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
-    if target_will_die_before_cast_finishes(me, target, runtime.arcane_blast_id, 0.35) then return false end
-    if is_pending_cast(runtime.arcane_blast_id) or utils.is_spell_already_queued(runtime.arcane_blast_id) then return false end
-    if not utils.can_cast_hostile(runtime.arcane_blast_id, me, target) then return false end
+    -- Leveling: use appropriate spell rank
+    local arcane_blast_id = runtime.arcane_blast_id
+    if menu.leveling_conserve_mana and menu.leveling_conserve_mana:get_state() then
+        local player_level = me.get_level and me:get_level() or 70
+        local target_level = target.get_level and target:get_level() or 70
+        local mana_pct = utils.get_mana_pct(me)
+        arcane_blast_id = spell_downrank.select_dps_rank(spells.ARCANE_BLAST, target_level, player_level, mana_pct) or arcane_blast_id
+    end
+    if target_will_die_before_cast_finishes(me, target, arcane_blast_id, 0.35) then return false end
+    if is_pending_cast(arcane_blast_id) or utils.is_spell_already_queued(arcane_blast_id) then return false end
+    if not utils.can_cast_hostile(arcane_blast_id, me, target) then return false end
     local ab_stacks = utils.get_buff_stacks(me, spells.BUFF_ARCANE_BLAST)
     local ap_active = utils.has_buff(me, spells.BUFF_ARCANE_POWER)
     local iv_active = utils.has_buff(me, spells.BUFF_ICY_VEINS)
@@ -657,10 +666,10 @@ local function try_arcane_blast(me, target)
         return false
     end
 
-    if utils.cast_target(runtime.arcane_blast_id, target, "Arcane Blast") then
-        mark_pending_cast(runtime.arcane_blast_id, PENDING_CAST_TIMEOUT_S)
+    if utils.cast_target(arcane_blast_id, target, "Arcane Blast") then
+        mark_pending_cast(arcane_blast_id, PENDING_CAST_TIMEOUT_S)
         note_cast()
-                esp_renderer.on_cast(runtime.arcane_blast_id, "Arcane Blast", color.purple(220))
+                esp_renderer.on_cast(arcane_blast_id, "Arcane Blast", color.purple(220))
         return true
     end
 

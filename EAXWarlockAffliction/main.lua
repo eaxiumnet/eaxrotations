@@ -4,6 +4,7 @@
 local menu = require("libraries/menu")
 local rotation_context = require("libraries/rotation_context")
 local resource_gate = require("libraries/resource_gate")
+local spell_downrank = require("libraries/spell_downrank")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
@@ -653,7 +654,15 @@ local function try_filler(me, target)
         return false
     end
     if menu.use_shadow_bolt:get_state() then
-        local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.shadow_bolt_id)
+        -- Leveling: use appropriate spell rank
+        local shadow_bolt_id = runtime.shadow_bolt_id
+        if menu.leveling_conserve_mana and menu.leveling_conserve_mana:get_state() then
+            local player_level = me.get_level and me:get_level() or 70
+            local target_level = target.get_level and target:get_level() or 70
+            local mana_pct = utils.get_mana_pct(me)
+            shadow_bolt_id = spell_downrank.select_dps_rank(spells.SHADOW_BOLT, target_level, player_level, mana_pct) or shadow_bolt_id
+        end
+        local cast_time_ms = mana_manager.get_spell_cast_time_ms(shadow_bolt_id)
         local cast_time_s = cast_time_ms / 1000
         local ttd_s = nil
         if ttd_tracker and ttd_tracker.get then
@@ -665,9 +674,9 @@ local function try_filler(me, target)
         end
         -- Nightfall: prioritize instant Shadow Bolt
         if check_nightfall(me) then
-            return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt (Nightfall)")
+            return try_cast_spell(me, shadow_bolt_id, target, "Shadow Bolt (Nightfall)")
         end
-        return try_cast_spell(me, runtime.shadow_bolt_id, target, "Shadow Bolt")
+        return try_cast_spell(me, shadow_bolt_id, target, "Shadow Bolt")
     end
     return false
 end

@@ -4,6 +4,7 @@
 local menu = require("libraries/menu")
 local rotation_context = require("libraries/rotation_context")
 local resource_gate = require("libraries/resource_gate")
+local spell_downrank = require("libraries/spell_downrank")
 local key_helper = require("common/utility/key_helper")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -543,6 +544,14 @@ local function try_mind_flay(me, target)
     if not resolved.mind_flay or not target then
         return false
     end
+    -- Leveling: use appropriate spell rank
+    local mind_flay_id = resolved.mind_flay
+    if menu.leveling_conserve_mana and menu.leveling_conserve_mana:get_state() then
+        local player_level = me.get_level and me:get_level() or 70
+        local target_level = target.get_level and target:get_level() or 70
+        local mana_pct = utils.get_mana_pct(me)
+        mind_flay_id = spell_downrank.select_dps_rank(spells.MIND_FLAY, target_level, player_level, mana_pct) or mind_flay_id
+    end
     -- Mind Flay clipping: determine tick count based on MB/SWD cooldown
     local tick_count = get_mind_flay_tick_count(target)
     -- Don't channel if DoTs need refresh within 2.5s
@@ -553,7 +562,7 @@ local function try_mind_flay(me, target)
     if vt_ms > 0 and swp_ms > 0 and (vt_ms <= 2500 or swp_ms <= 2500 or dp_refresh_due) then
         return false
     end
-    if utils.cast_target(resolved.mind_flay, me, target) then note_cast() return true end
+    if utils.cast_target(mind_flay_id, me, target) then note_cast() return true end
     return false
 end
 

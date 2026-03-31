@@ -3,6 +3,7 @@
 local menu = require("libraries/menu")
 local rotation_context = require("libraries/rotation_context")
 local resource_gate = require("libraries/resource_gate")
+local spell_downrank = require("libraries/spell_downrank")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
@@ -567,11 +568,19 @@ try_frostbolt = function(me, target)
     if not runtime.frostbolt_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
-    if is_pending_cast(runtime.frostbolt_id) or utils.is_spell_already_queued(runtime.frostbolt_id) then return false end
-    if not utils.can_cast_hostile(runtime.frostbolt_id, me, target) then return false end
+    -- Leveling: use appropriate spell rank
+    local frostbolt_id = runtime.frostbolt_id
+    if menu.leveling_conserve_mana and menu.leveling_conserve_mana:get_state() then
+        local player_level = me.get_level and me:get_level() or 70
+        local target_level = target.get_level and target:get_level() or 70
+        local mana_pct = utils.get_mana_pct(me)
+        frostbolt_id = spell_downrank.select_dps_rank(spells.FROSTBOLT, target_level, player_level, mana_pct) or frostbolt_id
+    end
+    if is_pending_cast(frostbolt_id) or utils.is_spell_already_queued(frostbolt_id) then return false end
+    if not utils.can_cast_hostile(frostbolt_id, me, target) then return false end
 
     -- FSCT timing: only cast if we can finish before next swing (cast time < swing time)
-    local cast_time_ms = mana_manager.get_spell_cast_time_ms(runtime.frostbolt_id)
+    local cast_time_ms = mana_manager.get_spell_cast_time_ms(frostbolt_id)
     local cast_time_s = cast_time_ms / 1000
     local ttd_s = nil
     if ttd_tracker and ttd_tracker.get then
@@ -585,10 +594,10 @@ try_frostbolt = function(me, target)
         return false
     end
 
-    if utils.cast_target(runtime.frostbolt_id, target, "Frostbolt") then
-        mark_pending_cast(runtime.frostbolt_id, PENDING_CAST_TIMEOUT_S)
+    if utils.cast_target(frostbolt_id, target, "Frostbolt") then
+        mark_pending_cast(frostbolt_id, PENDING_CAST_TIMEOUT_S)
         note_cast()
-                esp_renderer.on_cast(runtime.frostbolt_id, "Frostbolt", color.cyan(220))
+                esp_renderer.on_cast(frostbolt_id, "Frostbolt", color.cyan(220))
         return true
     end
 
