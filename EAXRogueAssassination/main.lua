@@ -660,10 +660,13 @@ local function try_envenom(me, target, ctx)
     local dp_stacks = utils.get_debuff_stacks(target, spells.DEBUFF_DEADLY_POISON) or 0
     if dp_stacks < 3 then return false end
     local required_combo_points = menu.envenom_combo_points:get()
+    -- Execute phase: lower CP threshold for Envenom
+    local execute_phase = utils.get_health_pct(target) < 0.35
+    local min_cp = execute_phase and 3 or 4
     if runtime.set_multiplier > 1.0 then
         required_combo_points = math.max(4, required_combo_points - 1)
     end
-    if runtime.combo_points < required_combo_points then
+    if runtime.combo_points < min_cp then
         return false
     end
     if runtime.combo_points < ASSA_FINISHER_COMBO_POINTS and runtime.set_multiplier <= 1.0 then

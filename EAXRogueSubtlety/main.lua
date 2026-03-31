@@ -694,6 +694,12 @@ local function try_eviscerate(me, target, ctx)
     if runtime.combo_points < menu.finisher_combo_points:get() then
         return false
     end
+    -- Execute phase: lower CP threshold for Eviscerate
+    local execute_phase = utils.get_health_pct(target) < 0.35
+    local min_cp = execute_phase and 3 or 4
+    if runtime.combo_points < min_cp then
+        return false
+    end
     if ctx then
         local can_cast = resource_gate.rogue.can_finisher(ctx, 35, runtime.combo_points, 4)
         if not can_cast then

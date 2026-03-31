@@ -833,10 +833,13 @@ local function try_eviscerate(me, target, ctx)
         return false
     end
     local min_combo_points = menu.finish_combo_points:get()
+    -- Execute phase: lower CP threshold for Eviscerate
+    local execute_phase = utils.get_health_pct(target) < 0.35
+    local min_cp = execute_phase and 3 or 4
     if utils.get_buff_remaining_ms(me, spells.BUFF_BLADE_FLURRY) > 0 then
         min_combo_points = COMBAT_FINISHER_COMBO_POINTS
     end
-    if runtime.combo_points < min_combo_points then
+    if runtime.combo_points < min_cp then
         return false
     end
     if (target:is_casting_spell() or target:is_channelling_spell()) and current_energy(me) <= (KICK_ENERGY_RESERVE + 10) then

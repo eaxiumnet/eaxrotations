@@ -754,8 +754,23 @@ core.register_on_update_callback(function()
             and not utils.has_debuff(target, spells.DEBUFF_SHADOW_WORD_PAIN)
             and refresh_dot(me, target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_devouring_plague(me, target) then return end
+
+        -- Execute phase: SW:D is highest priority when target < 25% HP
+        local target_hp_pct = target and target:is_valid() and target:get_health_percentage() / 100 or 1.0
+        if target_hp_pct < 0.25 and resolved.shadow_word_death then
+            if resource_gate.common.has_mana_pct(ctx, 0.08) then
+                if utils.can_cast_hostile(resolved.shadow_word_death, me, target) then
+                    if utils.cast_target(resolved.shadow_word_death, target, "Shadow Word: Death") then
+                        mark_pending_cast(resolved.shadow_word_death, 2.0)
+                        utils.log_debug(menu, "SW:D (execute)")
+                        note_cast()
+                        return
+                    end
+                end
+            end
+        end
+
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_shadow_weaving(me, target) then return end
-        if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_sw_death(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_mind_blast(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_mind_flay(me, target) then return end
     end

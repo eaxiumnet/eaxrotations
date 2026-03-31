@@ -803,7 +803,7 @@ local function try_shadowburn(me, target)
     end
     -- Only use Shadowburn when we have enough shards (save for rez/summons)
     local shards = count_soul_shards()
-    if shards < 3 then
+    if shards < 2 then
         return false
     end
     if utils.get_health_pct(target) > SHADOWBURN_HP_PCT then
@@ -827,7 +827,7 @@ local function try_soul_fire(me, target)
     end
     -- Only use Soul Fire when we have enough shards (save for rez/summons)
     local shards = count_soul_shards()
-    if shards < 3 then
+    if shards < 2 then
         return false
     end
     if utils.get_health_pct(target) <= SOUL_FIRE_MIN_HP_PCT then
@@ -1123,10 +1123,11 @@ local function do_rotation(me, target)
         return
     end
     if ctx and resource_gate.common.has_mana_pct(ctx, set_adjusted_mana_pct(0.12, 1.20)) then
-        if try_shadowburn(me, target) then
+        -- Execute phase: Drain Soul first (highest DPS), then Shadowburn, then Soul Fire
+        if try_drain_soul(me, target) then
             return
         end
-        if try_drain_soul(me, target) then
+        if try_shadowburn(me, target) then
             return
         end
         if (not ctx.self) or (not ctx.self.soul_shards) or ctx.self.soul_shards >= 1 then

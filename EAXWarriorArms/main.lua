@@ -590,6 +590,9 @@ local function try_overpower(me, target, ctx)
 end
 
 local function try_dump(me, target, rage, ctx, target_hp_pct)
+    -- Disable HS during execute phase — all rage goes to Execute
+    if target_hp_pct and target_hp_pct < 0.20 then return false end
+
     if not target or target_hp_pct <= EXECUTE_HP_THRESHOLD then
         return false
     end
@@ -1066,6 +1069,14 @@ local function do_core_lane(me, target, rage, target_hp_pct)
     end
     try_sweeping_strikes(me)
 
+    -- Execute phase: prioritize Execute over MS/Overpower
+    if target_hp_pct and target_hp_pct < EXECUTE_HP_THRESHOLD then
+        if try_execute(me, target, ctx, target_hp_pct) then
+            invalidate_ctx()
+            return true
+        end
+    end
+
     if try_overpower(me, target, ctx) then
         invalidate_ctx()
         return true
@@ -1091,9 +1102,12 @@ local function do_core_lane(me, target, rage, target_hp_pct)
         return true
     end
 
-    if try_execute(me, target, ctx, target_hp_pct) then
-        invalidate_ctx()
-        return true
+    -- Non-execute phase: Execute after other abilities
+    if target_hp_pct and target_hp_pct >= EXECUTE_HP_THRESHOLD then
+        if try_execute(me, target, ctx, target_hp_pct) then
+            invalidate_ctx()
+            return true
+        end
     end
 
     if try_dump(me, target, rage, ctx, target_hp_pct) then
