@@ -60,7 +60,6 @@ menu.use_rupture                         = core.menu.checkbox(true, "eaxrogueass
 menu.use_envenom                         = core.menu.checkbox(true, "eaxrogueassassination_use_envenom")
 menu.use_expose_armor                    = core.menu.checkbox(true, "eaxrogueassassination_use_expose_armor")
 menu.use_deadly_poison                   = core.menu.checkbox(true, "eaxrogueassassination_use_deadly_poison")
-menu.use_vendetta                        = core.menu.checkbox(true, "eaxrogueassassination_use_vendetta")
 menu.use_cold_blood                      = core.menu.checkbox(true, "eaxrogueassassination_use_cold_blood")
 menu.use_preparation                     = core.menu.checkbox(true, "eaxrogueassassination_use_preparation")
 menu.use_stealth                         = core.menu.checkbox(true, "eaxrogueassassination_use_stealth")
@@ -78,8 +77,6 @@ menu.use_vanish                          = core.menu.checkbox(true, "eaxrogueass
 menu.vanish_hp_pct                       = core.menu.slider_int(0, 100, 20, "eaxrogueassassination_vanish_hp_pct")
 menu.use_blade_flurry                    = core.menu.checkbox(true, "eaxrogueassassination_use_blade_flurry")
 menu.use_adrenaline_rush                 = core.menu.checkbox(true, "eaxrogueassassination_use_adrenaline_rush")
-menu.use_killing_spree                   = core.menu.checkbox(true, "eaxrogueassassination_use_killing_spree")
-menu.use_tricks_of_the_trade             = core.menu.checkbox(true, "eaxrogueassassination_use_tricks_of_the_trade")
 menu.use_distract                        = core.menu.checkbox(true, "eaxrogueassassination_use_distract")
 menu.use_sap                             = core.menu.checkbox(true, "eaxrogueassassination_use_sap")
 menu.use_gouge                           = core.menu.checkbox(true, "eaxrogueassassination_use_gouge")
@@ -87,32 +84,13 @@ menu.use_kick                            = core.menu.checkbox(true, "eaxrogueass
 menu.use_blind                           = core.menu.checkbox(true, "eaxrogueassassination_use_blind")
 menu.use_sprint                          = core.menu.checkbox(true, "eaxrogueassassination_use_sprint")
 menu.use_shadowstep                      = core.menu.checkbox(true, "eaxrogueassassination_use_shadowstep")
-menu.use_ambush                          = core.menu.checkbox(true, "eaxrogueassassination_use_ambush")
 menu.use_backstab                        = core.menu.checkbox(true, "eaxrogueassassination_use_backstab")
-menu.use_hemorrhage                      = core.menu.checkbox(true, "eaxrogueassassination_use_hemorrhage")
 menu.use_sinister_strike                 = core.menu.checkbox(true, "eaxrogueassassination_use_sinister_strike")
-menu.use_revealing_strike                = core.menu.checkbox(true, "eaxrogueassassination_use_revealing_strike")
-menu.use_fan_of_knives                   = core.menu.checkbox(true, "eaxrogueassassination_use_fan_of_knives")
-menu.use_tricks_of_the_trade             = core.menu.checkbox(true, "eaxrogueassassination_use_tricks_of_the_trade")
-menu.use_distract                        = core.menu.checkbox(true, "eaxrogueassassination_use_distract")
-menu.use_sap                             = core.menu.checkbox(true, "eaxrogueassassination_use_sap")
-menu.use_gouge                           = core.menu.checkbox(true, "eaxrogueassassination_use_gouge")
-menu.use_kick                            = core.menu.checkbox(true, "eaxrogueassassination_use_kick")
-menu.use_blind                           = core.menu.checkbox(true, "eaxrogueassassination_use_blind")
-menu.use_sprint                          = core.menu.checkbox(true, "eaxrogueassassination_use_sprint")
-menu.use_shadowstep                      = core.menu.checkbox(true, "eaxrogueassassination_use_shadowstep")
-menu.use_ambush                          = core.menu.checkbox(true, "eaxrogueassassination_use_ambush")
-menu.use_backstab                        = core.menu.checkbox(true, "eaxrogueassassination_use_backstab")
-menu.use_hemorrhage                      = core.menu.checkbox(true, "eaxrogueassassination_use_hemorrhage")
-menu.use_sinister_strike                 = core.menu.checkbox(true, "eaxrogueassassination_use_sinister_strike")
-menu.use_revealing_strike                = core.menu.checkbox(true, "eaxrogueassassination_use_revealing_strike")
-menu.use_fan_of_knives                   = core.menu.checkbox(true, "eaxrogueassassination_use_fan_of_knives")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_mutilate", label = "Mutilate" },
     { toggle = "use_rupture", label = "Rupture" },
     { toggle = "use_envenom", label = "Envenom" },
-    { toggle = "use_vendetta", label = "Vendetta" },
 }, {
     namespace = "eaxrogueassassination",
     log_prefix = "[Eax Rogue Assass] ",
@@ -150,13 +128,10 @@ function menu.render()
 
         -- Cooldowns
         cd_tree:render("Cooldowns", function()
-            menu.use_vendetta:render("Vendetta", "Burst")
             menu.use_cold_blood:render("Cold Blood", "Guaranteed crit")
             menu.use_preparation:render("Preparation", "Reset CDs")
             menu.use_blade_flurry:render("Blade Flurry", "AoE")
             menu.use_adrenaline_rush:render("Adrenaline Rush", "Energy")
-            menu.use_killing_spree:render("Killing Spree", "Burst")
-            menu.use_tricks_of_the_trade:render("Tricks of the Trade", "Threat")
         end)
 
         -- Defensive
@@ -181,11 +156,8 @@ function menu.render()
             menu.use_blind:render("Blind", "CC")
             menu.use_sprint:render("Sprint", "Speed")
             menu.use_shadowstep:render("Shadowstep", "Teleport")
-            menu.use_ambush:render("Ambush", "Stealth opener")
             menu.use_backstab:render("Backstab", "Behind")
-            menu.use_hemorrhage:render("Hemorrhage", "Debuff")
             menu.use_sinister_strike:render("Sinister Strike", "Filler")
-            menu.use_revealing_strike:render("Revealing Strike", "Debuff")
         end)
 
         -- Automation

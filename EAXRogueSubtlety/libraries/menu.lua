@@ -55,7 +55,6 @@ menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxr
 
 -- Rotation
 menu.use_backstab                        = core.menu.checkbox(true, "eaxroguesubtlety_use_backstab")
-menu.use_shadow_dance                    = core.menu.checkbox(true, "eaxroguesubtlety_use_shadow_dance")
 menu.use_ambush                          = core.menu.checkbox(true, "eaxroguesubtlety_use_ambush")
 menu.use_garrote                         = core.menu.checkbox(true, "eaxroguesubtlety_use_garrote")
 menu.use_rupture                         = core.menu.checkbox(true, "eaxroguesubtlety_use_rupture")
@@ -71,7 +70,6 @@ menu.use_cloak_of_shadows                = core.menu.checkbox(true, "eaxroguesub
 menu.cloak_of_shadows_hp_pct             = core.menu.slider_int(0, 100, 30, "eaxroguesubtlety_cloak_of_shadows_hp_pct")
 menu.use_vanish                          = core.menu.checkbox(true, "eaxroguesubtlety_use_vanish")
 menu.vanish_hp_pct                       = core.menu.slider_int(0, 100, 20, "eaxroguesubtlety_vanish_hp_pct")
-menu.use_tricks_of_the_trade             = core.menu.checkbox(true, "eaxroguesubtlety_use_tricks_of_the_trade")
 menu.use_distract                        = core.menu.checkbox(true, "eaxroguesubtlety_use_distract")
 menu.use_sap                             = core.menu.checkbox(true, "eaxroguesubtlety_use_sap")
 menu.use_gouge                           = core.menu.checkbox(true, "eaxroguesubtlety_use_gouge")
@@ -90,19 +88,9 @@ menu.use_mind_numbing_poison             = core.menu.checkbox(true, "eaxroguesub
 menu.use_stealth                         = core.menu.checkbox(true, "eaxroguesubtlety_use_stealth")
 menu.use_premeditation                   = core.menu.checkbox(true, "eaxroguesubtlety_use_premeditation")
 menu.use_cold_blood                      = core.menu.checkbox(true, "eaxroguesubtlety_use_cold_blood")
-menu.use_vendetta                        = core.menu.checkbox(true, "eaxroguesubtlety_use_vendetta")
-menu.use_envenom                         = core.menu.checkbox(true, "eaxroguesubtlety_use_envenom")
-menu.use_mutilate                        = core.menu.checkbox(true, "eaxroguesubtlety_use_mutilate")
-menu.use_fan_of_knives                   = core.menu.checkbox(true, "eaxroguesubtlety_use_fan_of_knives")
-menu.use_sinister_strike                 = core.menu.checkbox(true, "eaxroguesubtlety_use_sinister_strike")
-menu.use_revealing_strike                = core.menu.checkbox(true, "eaxroguesubtlety_use_revealing_strike")
-menu.use_blade_flurry                    = core.menu.checkbox(true, "eaxroguesubtlety_use_blade_flurry")
-menu.use_adrenaline_rush                 = core.menu.checkbox(true, "eaxroguesubtlety_use_adrenaline_rush")
-menu.use_killing_spree                   = core.menu.checkbox(true, "eaxroguesubtlety_use_killing_spree")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_backstab", label = "Backstab" },
-    { toggle = "use_shadow_dance", label = "Shadow Dance" },
     { toggle = "use_rupture", label = "Rupture" },
     { toggle = "use_eviscerate", label = "Eviscerate" },
 }, {
@@ -128,7 +116,6 @@ function menu.render()
         rotation_tree:render("Rotation", function()
             ps.header("Abilities")
             menu.use_backstab:render("Backstab", "Main filler")
-            menu.use_shadow_dance:render("Shadow Dance", "Stealth burst")
             menu.use_ambush:render("Ambush", "Stealth opener")
             menu.use_garrote:render("Garrote", "Opener")
             menu.use_rupture:render("Rupture", "Maintain")
@@ -137,7 +124,6 @@ function menu.render()
             menu.use_slice_and_dice:render("Slice and Dice", "Buff")
             menu.use_feint:render("Feint", "Threat")
             menu.feint_energy_threshold:render("Feint Energy", "Above")
-            menu.use_fan_of_knives:render("Fan of Knives", "AoE")
         end)
 
         -- Cooldowns
@@ -145,8 +131,6 @@ function menu.render()
             menu.use_preparation:render("Preparation", "Reset CDs")
             menu.use_premeditation:render("Premeditation", "Combo points")
             menu.use_cold_blood:render("Cold Blood", "Guaranteed crit")
-            menu.use_vendetta:render("Vendetta", "Burst")
-            menu.use_tricks_of_the_trade:render("Tricks of the Trade", "Threat")
         end)
 
         -- Defensive

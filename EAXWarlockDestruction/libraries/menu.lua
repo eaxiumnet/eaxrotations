@@ -54,7 +54,6 @@ menu.use_immolate                        = core.menu.checkbox(true, "eaxwarlockd
 menu.use_conflagrate                     = core.menu.checkbox(true, "eaxwarlockdestruction_use_conflagrate")
 menu.use_incinerate                      = core.menu.checkbox(true, "eaxwarlockdestruction_use_incinerate")
 menu.use_shadow_bolt                     = core.menu.checkbox(true, "eaxwarlockdestruction_use_shadow_bolt")
-menu.use_chaos_bolt                      = core.menu.checkbox(true, "eaxwarlockdestruction_use_chaos_bolt")
 menu.use_soul_fire                       = core.menu.checkbox(true, "eaxwarlockdestruction_use_soul_fire")
 menu.use_corruption                      = core.menu.checkbox(true, "eaxwarlockdestruction_use_corruption")
 menu.use_curse_of_elements               = core.menu.checkbox(true, "eaxwarlockdestruction_use_curse_of_elements")
@@ -91,29 +90,6 @@ menu.use_searing_pain                    = core.menu.checkbox(true, "eaxwarlockd
 menu.use_rain_of_fire                    = core.menu.checkbox(true, "eaxwarlockdestruction_use_rain_of_fire")
 menu.use_hellfire                        = core.menu.checkbox(true, "eaxwarlockdestruction_use_hellfire")
 menu.use_shadowfury                      = core.menu.checkbox(true, "eaxwarlockdestruction_use_shadowfury")
-menu.use_demonic_empowerment             = core.menu.checkbox(true, "eaxwarlockdestruction_use_demonic_empowerment")
-menu.use_metamorphosis                   = core.menu.checkbox(true, "eaxwarlockdestruction_use_metamorphosis")
-menu.use_immolation_aura                 = core.menu.checkbox(true, "eaxwarlockdestruction_use_immolation_aura")
-menu.use_hand_of_guldan                  = core.menu.checkbox(true, "eaxwarlockdestruction_use_hand_of_guldan")
-menu.use_demon_soul                      = core.menu.checkbox(true, "eaxwarlockdestruction_use_demon_soul")
-menu.use_decimation                      = core.menu.checkbox(true, "eaxwarlockdestruction_use_decimation")
-menu.use_molten_core                     = core.menu.checkbox(true, "eaxwarlockdestruction_use_molten_core")
-menu.use_improved_soul_fire             = core.menu.checkbox(true, "eaxwarlockdestruction_use_improved_soul_fire")
-menu.use_bane_of_doom                    = core.menu.checkbox(true, "eaxwarlockdestruction_use_bane_of_doom")
-menu.use_bane_of_agony                   = core.menu.checkbox(true, "eaxwarlockdestruction_use_bane_of_agony")
-menu.use_bane_of_havoc                   = core.menu.checkbox(true, "eaxwarlockdestruction_use_bane_of_havoc")
-menu.use_doom_bolt                       = core.menu.checkbox(true, "eaxwarlockdestruction_use_doom_bolt")
-menu.use_touch_of_chaos                  = core.menu.checkbox(true, "eaxwarlockdestruction_use_touch_of_chaos")
-menu.use_hand_of_guldan                  = core.menu.checkbox(true, "eaxwarlockdestruction_use_hand_of_guldan")
-menu.use_demon_soul                      = core.menu.checkbox(true, "eaxwarlockdestruction_use_demon_soul")
-menu.use_decimation                      = core.menu.checkbox(true, "eaxwarlockdestruction_use_decimation")
-menu.use_molten_core                     = core.menu.checkbox(true, "eaxwarlockdestruction_use_molten_core")
-menu.use_improved_soul_fire             = core.menu.checkbox(true, "eaxwarlockdestruction_use_improved_soul_fire")
-menu.use_bane_of_doom                    = core.menu.checkbox(true, "eaxwarlockdestruction_use_bane_of_doom")
-menu.use_bane_of_agony                   = core.menu.checkbox(true, "eaxwarlockdestruction_use_bane_of_agony")
-menu.use_bane_of_havoc                   = core.menu.checkbox(true, "eaxwarlockdestruction_use_bane_of_havoc")
-menu.use_doom_bolt                       = core.menu.checkbox(true, "eaxwarlockdestruction_use_doom_bolt")
-menu.use_touch_of_chaos                  = core.menu.checkbox(true, "eaxwarlockdestruction_use_touch_of_chaos")
 
 mana_conservator.register_menu_items(menu, "eax_warlock_destruction")
 
@@ -121,7 +97,6 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_immolate", label = "Immolate" },
     { toggle = "use_conflagrate", label = "Conflagrate" },
     { toggle = "use_incinerate", label = "Incinerate" },
-    { toggle = "use_chaos_bolt", label = "Chaos Bolt" },
 }, {
     namespace = "eaxwarlockdestruction",
     log_prefix = "[Eax Warlock Destro] ",
@@ -146,7 +121,6 @@ function menu.render()
             ps.header("Fillers")
             menu.use_incinerate:render("Incinerate", "Main filler")
             menu.use_shadow_bolt:render("Shadow Bolt", "Filler")
-            menu.use_chaos_bolt:render("Chaos Bolt", "Cast")
             menu.use_soul_fire:render("Soul Fire", "Proc")
             menu.use_conflagrate:render("Conflagrate", "Instant")
             menu.use_immolate:render("Immolate", "Maintain")
@@ -164,14 +138,6 @@ function menu.render()
             menu.use_shadowfury:render("Shadowfury", "AoE stun")
             menu.use_death_coil:render("Death Coil", "Heal/fear")
             menu.use_howl_of_terror:render("Howl of Terror", "AoE fear")
-            menu.use_demonic_empowerment:render("Demonic Empowerment", "Buff")
-            menu.use_molten_core:render("Molten Core", "Proc")
-            menu.use_improved_soul_fire:render("Improved Soul Fire", "Proc")
-            menu.use_bane_of_doom:render("BoD", "Maintain")
-            menu.use_bane_of_agony:render("BoA", "Maintain")
-            menu.use_bane_of_havoc:render("BoH", "Maintain")
-            menu.use_doom_bolt:render("Doom Bolt", "Proc")
-            menu.use_touch_of_chaos:render("Touch of Chaos", "Proc")
         end)
 
         -- Pet
