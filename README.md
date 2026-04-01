@@ -20,9 +20,10 @@
 - **Important:** these numbers are **not** live raid logs or in-game benchmarks; they are source-based readiness estimates
 - **TBC truth:** this repo aims for true TBC behavior, verified against FLUX/wowsims research docs and Icy Veins TBC guides
 
-### Current Release Status — 2026-04-01
+### Current Release Status — 2026-04-02
 
 - **All 27 specs:** rotation logic improved with FLUX/wowsims verified priorities
+- **Code optimization:** -591 lines of bloat removed, 42% pcall reduction in HunterMM, 14% size reduction in WarriorProtection
 - **Leveling 1-70:** spell rank downranking, pull speed optimization, mana conservation
 - **PvP:** enemy player targeting, spec-specific cooldowns, arena/BG awareness
 - **Dungeons:** encounter awareness, CC tracking, interrupt management
@@ -132,9 +133,9 @@ cd eax-tbc-classic-rotations
 
 ### TBC Cleanliness Summary
 
-- **Closest to clean TBC behavior:** Holy Paladin, Protection Paladin, Retribution Paladin, Shadow Priest, Elemental Shaman, Enhancement Shaman, Affliction Warlock, Destruction Warlock, Arms Warrior
-- **Mostly TBC, but still wants live validation:** Druid specs, Hunter specs, Mage specs, Assassination Rogue, Subtlety Rogue, Restoration Shaman, Demonology Warlock, Protection Warrior
-- **Still carrying visible non-TBC leftovers in source:** Marksmanship Hunter utility flags, Discipline Priest, Holy Priest, Combat Rogue, Fury Warrior
+- **Closest to clean TBC behavior:** Holy Paladin, Protection Paladin, Retribution Paladin, Shadow Priest, Elemental Shaman, Enhancement Shaman, Affliction Warlock, Destruction Warlock, Arms Warrior, **Marksmanship Hunter** ✅
+- **Mostly TBC, but still wants live validation:** Druid specs, Hunter specs (BM/Survival), Mage specs, Assassination Rogue, Subtlety Rogue, Restoration Shaman, Demonology Warlock, Protection Warrior
+- **Still carrying visible non-TBC leftovers in source:** ~~Marksmanship Hunter utility flags~~ ✅ cleaned, Discipline Priest, Holy Priest, Combat Rogue, Fury Warrior
 
 <details>
 <summary><strong>Druid</strong></summary>
@@ -162,6 +163,7 @@ cd eax-tbc-classic-rotations
 
 ### Marksmanship
 - **Supported:** `Auto Shot`, `Aimed Shot`, `Arcane Shot`, `Steady Shot`, `Multi-Shot`, `Serpent Sting`, `Scorpid Sting`, `Kill Command`
+- **Optimized:** Non-TBC stealth detection bloat removed (-380 lines, -42% pcall overhead)
 - **Unsupported / caveats:** no `Chimera Shot`, no `Black Arrow`; shot weaving timing improved
 
 ### Survival
@@ -230,6 +232,7 @@ cd eax-tbc-classic-rotations
 
 ### Combat
 - **Supported:** `Sinister Strike`, `Slice and Dice`, `Eviscerate`, `Rupture`, `Kick`, `Blade Flurry`, `Adrenaline Rush`, stealth openers, poison support
+- **Optimized:** Unused stealth constants removed (STEALTH, VANISH, BUFF_STEALTH)
 - **Unsupported / caveats:** energy pooling, SnD state machine, BF+AR stacking
 
 ### Subtlety
@@ -281,10 +284,12 @@ cd eax-tbc-classic-rotations
 
 ### Fury
 - **Supported:** `Bloodthirst`, `Whirlwind`, `Execute`, `Heroic Strike`, `Cleave`, `Sunder Armor`, `Hamstring`, `Slam`, stance tools
+- **Optimized:** Duplicate require cleaned (ooc_manager)
 - **Unsupported / caveats:** no `Heroic Throw`; Rampage buff maintenance (stacks + duration), HS disabled during execute, Rend/Overpower removed, Flurry-aware Bloodthirst priority
 
 ### Protection
 - **Supported:** `Shield Slam`, `Revenge`, `Devastate`, `Heroic Strike`, `Cleave`, `Sunder Armor`, `Thunder Clap`, `Shield Block`, stance and taunt tools
+- **Optimized:** Stance and burst systems refactored (-528 lines, -14% size, table-driven approach)
 - **Unsupported / caveats:** no `Shockwave`, no `Sword and Board`; Shield Block charge tracking, Revenge proc priority, Devastate integration
 
 </details>
