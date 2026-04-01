@@ -241,6 +241,12 @@ local runtime = {
     prev_toggle_state = false,
     set_multiplier = 1.0,
     nightfall_active = false,
+    -- Warlock utility
+    soulstone_id = nil,
+    create_healthstone_id = nil,
+    create_soulstone_id = nil,
+    last_healthstone_create = 0,
+    last_soulstone_apply = 0,
 }
 
 local ctx_cache = rotation_context.new({})
@@ -266,6 +272,9 @@ local function resolve_spells()
     runtime.life_tap_id       = utils.resolve_spell_id(spells.LIFE_TAP)
     runtime.howl_of_terror_id     = utils.resolve_spell_id(spells.HOWL_OF_TERROR)
     runtime.seed_of_corruption_id = utils.resolve_spell_id(spells.SEED_OF_CORRUPTION)
+    runtime.soulstone_id = utils.resolve_spell_id(spells.SOULSTONE)
+    runtime.create_healthstone_id = utils.resolve_spell_id(spells.CREATE_HEALTHSTONE)
+    runtime.create_soulstone_id = utils.resolve_spell_id(spells.CREATE_SOULSTONE)
 end
 
 local function log_spells()
@@ -967,6 +976,101 @@ local function do_rotation(me, target)
     try_life_tap(me)
 end
 
+-- --- Warlock Utility: Soulstone, Healthstone, Self-Soulstone (v1.0) --------
+
+local SOULSTONE_COOLDOWN_S = 1800  -- 30 min CD
+local HEALTHSTONE_COOLDOWN_S = 120  -- 2 min CD
+local HEALTHSTONE_USE_HP = 0.50
+
+local function try_create_healthstone(me)
+    if not menu.use_create_healthstone or not menu.use_create_healthstone:get_state() then return false end
+    if not runtime.create_healthstone_id then return false end
+    if me:is_in_combat() then return false end
+    if me:is_moving() then return false end
+    local now = _core_time()
+    if (now - runtime.last_healthstone_create) < HEALTHSTONE_COOLDOWN_S then return false end
+    -- Check if we already have a healthstone in inventory
+    local has_healthstone = false
+    for _, item_id in ipairs(spells.HEALTHSTONE_ITEMS) do
+        if core.inventory and core.inventory.get_item_count then
+            local count = core.inventory.get_item_count(item_id)
+            if count and count > 0 then has_healthstone = true; break end
+        end
+    end
+    if has_healthstone then return false end
+    if not utils.can_cast_self(runtime.create_healthstone_id, me) then return false end
+    if utils.cast_self(runtime.create_healthstone_id, me) then
+        runtime.last_healthstone_create = now
+        utils.log_debug(menu, "Create Healthstone")
+        return true
+    end
+    return false
+end
+
+local function try_use_healthstone(me)
+    if not menu.use_create_healthstone or not menu.use_create_healthstone:get_state() then return false end
+    if not me:is_in_combat() then return false end
+    local hp = utils.get_health_pct(me)
+    if hp > HEALTHSTONE_USE_HP then return false end
+    for _, item_id in ipairs(spells.HEALTHSTONE_ITEMS) do
+        if core.inventory and core.inventory.get_item_count then
+            local count = core.inventory.get_item_count(item_id)
+            if count and count > 0 then
+                if core.input.use_item(item_id) then
+                    utils.log_debug(menu, "Use Healthstone (HP=" .. math.floor(hp * 100) .. "%)")
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function try_soulstone_dead_ally(me)
+    if not menu.use_soulstone or not menu.use_soulstone:get_state() then return false end
+    if not runtime.soulstone_id then return false end
+    if me:is_in_combat() then return false end
+    if me:is_moving() then return false end
+    local now = _core_time()
+    if (now - runtime.last_soulstone_apply) < 30 then return false end  -- throttle
+    -- Find dead party member
+    local objects = core.object_manager.get_all_objects()
+    for _, obj in ipairs(objects) do
+        if obj and obj:is_valid() and obj:is_unit() and obj:is_player()
+            and obj:is_party_member() and obj:is_dead() and not obj:is_ghost() then
+            -- Check if already has soulstone
+            if not utils.has_buff(obj, spells.SOULSTONE) then
+                if utils.can_cast_target(runtime.soulstone_id, me, obj) then
+                    if utils.cast_target(runtime.soulstone_id, obj, "Soulstone") then
+                        runtime.last_soulstone_apply = now
+                        utils.log_debug(menu, "Soulstone on " .. (obj.get_name and obj:get_name() or "party member"))
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function try_self_soulstone(me)
+    if not menu.use_soulstone or not menu.use_soulstone:get_state() then return false end
+    if not runtime.soulstone_id then return false end
+    if me:is_in_combat() then return false end
+    if me:is_moving() then return false end
+    -- Only apply if we don't already have soulstone
+    if utils.has_buff(me, spells.SOULSTONE) then return false end
+    local now = _core_time()
+    if (now - runtime.last_soulstone_apply) < 30 then return false end
+    if not utils.can_cast_self(runtime.soulstone_id, me) then return false end
+    if utils.cast_self(runtime.soulstone_id, me) then
+        runtime.last_soulstone_apply = now
+        utils.log_debug(menu, "Soulstone (self)")
+        return true
+    end
+    return false
+end
+
 
 reactive_adapter = {
     spec = "EAXWarlockAffliction",
@@ -1053,6 +1157,12 @@ core.register_on_update_callback(function()
     if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
         vendor_automation.try_auto_sell_greys(me, menu, utils)
     end
+
+    -- Warlock utility: healthstone, soulstone
+    if try_create_healthstone(me) then return end
+    if try_soulstone_dead_ally(me) then return end
+    if try_self_soulstone(me) then return end
+    if try_use_healthstone(me) then return end
 
     if me:is_in_combat() then
         if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
