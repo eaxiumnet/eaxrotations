@@ -25,6 +25,7 @@ local consumables_manager = require("libraries/consumables_manager")
 
 ---@type leveling_manager
 local leveling_manager = require("libraries/leveling_manager")
+local pull_optimizer = require("eax_shared/pull_optimizer")
 ---@type creature_utils
 local creature_utils = require("libraries/creature_utils")
 
@@ -568,6 +569,8 @@ local function try_fireball(me, target)
     if not runtime.fireball_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if me:is_moving() then return false end
+    -- Pull speed: skip Fireball on trivial targets (use instant spells instead)
+    if pull_optimizer.should_use_instant_only(me, target) then return false end
     -- Leveling: use appropriate spell rank
     local fireball_id = runtime.fireball_id
     if menu.leveling_conserve_mana and menu.leveling_conserve_mana:get_state() then
