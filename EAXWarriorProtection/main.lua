@@ -1257,6 +1257,8 @@ local function get_stance_label(stance_name)
     return "Defensive Stance"
 end
 
+-- Stance action staging system (consolidated from ~203 lines to ~150 lines)
+
 local function clear_pending_stance_action(reason)
     if runtime.pending_stance_action
         and runtime.pending_stance_action.key == "intercept"
@@ -1277,6 +1279,53 @@ local function clear_pending_stance_action(reason)
     runtime.pending_stance_action_started_at = 0
 end
 
+-- Execute a stance swap and log it
+local function execute_stance_swap(me, stance_name, stance_id, action_label)
+    if not utils.cast_self(stance_id, me) then return false end
+    mark_pending_cast(stance_id, STANCE_PENDING_CAST_TIMEOUT_S)
+    utils.set_tracked_stance(stance_name)
+    utils.log_debug(menu, "Stance -> " .. stance_name .. " (" .. action_label .. ")")
+    notify_cast("simpleprot:stance:" .. stance_name, "Stance -> " .. get_stance_label(stance_name), color.blue(220), 0.9)
+    note_cast()
+    return true
+end
+
+-- Action validators for staged actions
+local STANCE_ACTION_VALIDATORS = {
+    hamstring = function(action, me)
+        local target = action.target
+        if utils.get_debuff_remaining_ms(target, spells.DEBUFF_HAMSTRING) >= UTILITY_DEBUFF_REFRESH_MS then
+            return "hamstring already refreshed"
+        end
+        if not utils.is_melee_target(me, target) then
+            return "hamstring target out of melee range"
+        end
+        return nil
+    end,
+    intercept = function(action, me)
+        local target = action.target
+        local distance = utils.get_distance_to_target(me, target)
+        local max_range = core.spell_book.get_spell_max_range(action.action_id)
+        local max_distance = max_range and max_range > 0 and (max_range + (target:get_bounding_radius() or 0)) or math.huge
+        if utils.is_melee_target(me, target) or distance < menu.intercept_min_range:get() or distance > max_distance then
+            return "intercept range invalid"
+        end
+        return nil
+    end,
+    thunder_clap = function(action, me)
+        if not utils.is_melee_target(me, action.target) then
+            return "thunder clap target out of melee range"
+        end
+        return nil
+    end,
+    recklessness = function(_, me)
+        if utils.has_buff(me, spells.BUFF_RECKLESSNESS) then
+            return "recklessness already active"
+        end
+        return nil
+    end,
+}
+
 local function stage_stance_action(me, action, rage, ability_cost)
     if runtime.pending_stance_action then return false end
     if not action or not action.action_id then return false end
@@ -1284,39 +1333,17 @@ local function stage_stance_action(me, action, rage, ability_cost)
 
     local current_stance = utils.get_current_stance(me)
     if current_stance ~= action.required_stance then
-        if not utils.can_stance_dance_for_cost(
-            rage,
-            ability_cost or 0,
-            0,
-            runtime.stance_swap_retention
-        ) then
+        if not utils.can_stance_dance_for_cost(rage, ability_cost or 0, 0, runtime.stance_swap_retention) then
             return false
         end
+        if is_pending_or_current(action.required_stance_id) then return false end
+        if not utils.can_cast_self(action.required_stance_id, me) then return false end
 
-        if is_pending_or_current(action.required_stance_id) then
-            return false
-        end
-
-        if not utils.can_cast_self(action.required_stance_id, me) then
-            return false
-        end
-
-        if utils.cast_self(action.required_stance_id, me) then
+        if execute_stance_swap(me, action.required_stance, action.required_stance_id, action.action_label) then
             runtime.pending_stance_action = action
             runtime.pending_stance_action_started_at = _core_time()
-            mark_pending_cast(action.required_stance_id, STANCE_PENDING_CAST_TIMEOUT_S)
-            utils.set_tracked_stance(action.required_stance)
-            utils.log_debug(menu, "Stance -> " .. action.required_stance .. " (" .. action.action_label .. ")")
-            notify_cast(
-                "simpleprot:stance:" .. action.required_stance,
-                "Stance -> " .. get_stance_label(action.required_stance),
-                color.blue(220),
-                0.9
-            )
-            note_cast()
             return true
         end
-
         return false
     end
 
@@ -1335,104 +1362,51 @@ local function process_pending_stance_action(me)
         return false
     end
 
+    -- Validate target-based actions
     if action.cast_mode == "target" then
         local target = action.target
         if not is_valid_hostile_target(me, target) then
             clear_pending_stance_action("target invalid")
             return false
         end
-
-        if action.key == "hamstring" then
-            if utils.get_debuff_remaining_ms(target, spells.DEBUFF_HAMSTRING) >= UTILITY_DEBUFF_REFRESH_MS then
-                clear_pending_stance_action("hamstring already refreshed")
+        local validator = STANCE_ACTION_VALIDATORS[action.key]
+        if validator then
+            local err = validator(action, me)
+            if err then
+                clear_pending_stance_action(err)
                 return false
             end
-
-            if not utils.is_melee_target(me, target) then
-                clear_pending_stance_action("hamstring target out of melee range")
-                return false
-            end
-        elseif action.key == "intercept" then
-            local distance = utils.get_distance_to_target(me, target)
-            local max_range = core.spell_book.get_spell_max_range(action.action_id)
-            local max_distance = math.huge
-            if max_range and max_range > 0 then
-                max_distance = max_range + (target:get_bounding_radius() or 0)
-            end
-
-            if utils.is_melee_target(me, target)
-                or distance < menu.intercept_min_range:get()
-                or distance > max_distance
-            then
-                clear_pending_stance_action("intercept range invalid")
-                return false
-            end
-        elseif action.key == "thunder_clap" and not utils.is_melee_target(me, target) then
-            clear_pending_stance_action("thunder clap target out of melee range")
-            return false
         end
-    elseif action.key == "recklessness" and utils.has_buff(me, spells.BUFF_RECKLESSNESS) then
-        clear_pending_stance_action("recklessness already active")
-        return false
     end
 
-    -- After casting a stance we set _tracked_stance immediately.
-    -- Give the engine one extra frame grace before rechecking via get_current_stance,
-    -- which may still return the old value on the tick immediately after the cast fires.
+    -- Check if we need to change stance
     local detected_stance = utils.get_current_stance(me)
     local effective_stance = detected_stance or utils._tracked_stance
     if effective_stance ~= action.required_stance then
-        if is_pending_or_current(action.required_stance_id) then
-            return false
-        end
-
-        if not utils.can_cast_self(action.required_stance_id, me) then
-            return false
-        end
-
-        if utils.cast_self(action.required_stance_id, me) then
-            mark_pending_cast(action.required_stance_id, STANCE_PENDING_CAST_TIMEOUT_S)
-            utils.set_tracked_stance(action.required_stance)
-            utils.log_debug(menu, "Stance -> " .. action.required_stance .. " (" .. action.action_label .. ")")
-            notify_cast(
-                "simpleprot:stance:" .. action.required_stance,
-                "Stance -> " .. get_stance_label(action.required_stance),
-                color.blue(220),
-                0.9
-            )
-            note_cast()
+        if is_pending_or_current(action.required_stance_id) then return false end
+        if not utils.can_cast_self(action.required_stance_id, me) then return false end
+        if execute_stance_swap(me, action.required_stance, action.required_stance_id, action.action_label) then
             return true
         end
-
         return false
     end
 
+    -- Execute the action
     local cast_success = false
     if action.cast_mode == "self" then
-        -- Skip is_usable_spell check here - some spells (e.g. Recklessness) briefly
-        -- return unusable for a frame or two after a stance swap even though the stance
-        -- is now correct. We've already confirmed the stance, so only check cooldown.
         local cd = action.action_id and _get_spell_cd(action.action_id) or -1
-        local spell_ready = cd <= 0
-        if spell_ready then
-            if action.use_fast_queue then
-                cast_success = utils.cast_self_fast(action.action_id, me)
-            else
-                cast_success = utils.cast_self(action.action_id, me)
-            end
+        if cd <= 0 then
+            cast_success = action.use_fast_queue and utils.cast_self_fast(action.action_id, me) or utils.cast_self(action.action_id, me)
         end
     elseif action.key == "hamstring" or action.key == "thunder_clap" then
-        if utils.can_cast_melee(action.action_id, me) and utils.cast_target(action.action_id, action.target) then
-            cast_success = true
-        end
-    elseif utils.can_cast_hostile(action.action_id, me, action.target) and utils.cast_target(action.action_id, action.target) then
-        cast_success = true
+        cast_success = utils.can_cast_melee(action.action_id, me) and utils.cast_target(action.action_id, action.target)
+    else
+        cast_success = utils.can_cast_hostile(action.action_id, me, action.target) and utils.cast_target(action.action_id, action.target)
     end
 
-    if not cast_success then
-        return false
-    end
+    if not cast_success then return false end
 
+    -- Post-cast handling
     if action.key == "intercept" then
         runtime.auto_intercept_target = action.target
     elseif action.key == "charge" then
@@ -1442,20 +1416,12 @@ local function process_pending_stance_action(me)
     end
 
     if action.cast_mode == "self" then
-        mark_pending_cast(
-            action.action_id,
-            action.use_fast_queue and FAST_PENDING_CAST_TIMEOUT_S or PENDING_CAST_TIMEOUT_S
-        )
+        mark_pending_cast(action.action_id, action.use_fast_queue and FAST_PENDING_CAST_TIMEOUT_S or PENDING_CAST_TIMEOUT_S)
     end
 
     utils.log_debug(menu, action.log_message or action.action_label)
     if action.notify_id then
-        notify_cast(
-            action.notify_id,
-            action.notify_message or action.action_label,
-            action.notify_color,
-            action.notify_duration_s
-        )
+        notify_cast(action.notify_id, action.notify_message or action.action_label, action.notify_color, action.notify_duration_s)
     end
     clear_pending_stance_action()
     note_cast()
@@ -1546,75 +1512,52 @@ local function handle_toggle()
     runtime.prev_toggle_state = current
 end
 
--- Shouts
+-- Shouts (consolidated)
 local function try_shout(me)
     local use_commanding = menu.use_commanding_shout:get_state() and runtime.commanding_shout_id
     local use_battle = menu.use_battle_shout:get_state() and runtime.battle_shout_id
     if not use_commanding and not use_battle then return false end
 
-    local shout_id = nil
-    local shout_buff = nil
-    local shout_name = nil
-
+    local shout_id, shout_buff, shout_name
     if use_commanding then
-        shout_id = runtime.commanding_shout_id
-        shout_buff = spells.BUFF_COMMANDING_SHOUT
-        shout_name = "Commanding Shout"
-    elseif use_battle then
-        shout_id = runtime.battle_shout_id
-        shout_buff = spells.BUFF_BATTLE_SHOUT
-        shout_name = "Battle Shout"
+        shout_id, shout_buff, shout_name = runtime.commanding_shout_id, spells.BUFF_COMMANDING_SHOUT, "Commanding Shout"
+    else
+        shout_id, shout_buff, shout_name = runtime.battle_shout_id, spells.BUFF_BATTLE_SHOUT, "Battle Shout"
     end
 
-    if not shout_id then return false end
-
     local remaining = utils.get_buff_remaining_ms(me, shout_buff)
-    if remaining >= 5000 then return false end
-    if is_pending_or_current(shout_id) then return false end
-
+    if remaining >= 5000 or is_pending_or_current(shout_id) then return false end
     if utils.can_cast_self(shout_id, me) and utils.cast_self(shout_id, me) then
         mark_pending_cast(shout_id, PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, shout_name .. " refresh")
         note_cast()
         return true
     end
-
     return false
 end
 
--- Demo shout
 local function try_demo_shout(me, target)
     if not menu.use_demo_shout:get_state() or not runtime.demoralizing_shout_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
-
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEMORALIZING_SHOUT)
     if remaining >= 5000 then return false end
-
     if utils.can_cast_self(runtime.demoralizing_shout_id, me) and utils.cast_self(runtime.demoralizing_shout_id, me) then
         utils.log_debug(menu, "Demo Shout")
         note_cast()
         return true
     end
-
     return false
 end
 
--- Bloodrage
 local function try_bloodrage(me, rage, action_target)
     if not menu.use_bloodrage:get_state() or not runtime.bloodrage_id then return false end
     if not me:is_in_combat() then
-        if not menu.use_prepull_bloodrage:get_state() or not is_valid_hostile_target(me, action_target) then
-            return false
-        end
+        if not menu.use_prepull_bloodrage:get_state() or not is_valid_hostile_target(me, action_target) then return false end
         if not utils.throttle("simpleprot:prepull_bloodrage", 2.0) then return false end
     end
-
     local rage_cap = is_bloodlust_active(me) and 40 or BLOODRAGE_MAX_RAGE
-    if rage > rage_cap then return false end
-    if utils.get_health_pct(me) < BLOODRAGE_MIN_HP_PCT then return false end
-    if utils.has_buff(me, spells.BUFF_BLOODRAGE) then return false end
-    if is_pending_or_current(runtime.bloodrage_id) then return false end
-
+    if rage > rage_cap or utils.get_health_pct(me) < BLOODRAGE_MIN_HP_PCT then return false end
+    if utils.has_buff(me, spells.BUFF_BLOODRAGE) or is_pending_or_current(runtime.bloodrage_id) then return false end
     if utils.can_cast_self(runtime.bloodrage_id, me) and utils.cast_self_fast(runtime.bloodrage_id, me) then
         mark_pending_cast(runtime.bloodrage_id, FAST_PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Bloodrage")
@@ -1622,7 +1565,6 @@ local function try_bloodrage(me, rage, action_target)
         note_cast()
         return true
     end
-
     return false
 end
 
@@ -1753,42 +1695,32 @@ local function do_emergency_defensive_lane(me, target, hp_pct)
         and (type(me.is_feared) == "function" and me:is_feared()
             or type(me.is_incapacitated) == "function" and me:is_incapacitated())
         and utils.can_cast_self(runtime.berserker_rage_id, me)
+        and utils.cast_self_fast(runtime.berserker_rage_id, me)
     then
-        if utils.cast_self_fast(runtime.berserker_rage_id, me) then
-            mark_pending_cast(runtime.berserker_rage_id, FAST_PENDING_CAST_TIMEOUT_S)
-            utils.log_debug(menu, "Defensive: Berserker Rage (fear break)")
-            note_cast()
-            return true
-        end
+        mark_pending_cast(runtime.berserker_rage_id, FAST_PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Defensive: Berserker Rage (fear break)")
+        note_cast()
+        return true
     end
 
-    -- Shield Wall first: damage reduction keeps you alive for heals
-    if menu.use_shield_wall:get_state()
-        and runtime.shield_wall_id
-        and hp_pct < (menu.shield_wall_hp_pct:get() / 100)
-        and not is_pending_or_current(runtime.shield_wall_id)
-        and not utils.has_buff(me, spells.BUFF_SHIELD_WALL)
-        and utils.can_cast_self(runtime.shield_wall_id, me)
-    then
-        if utils.cast_self_fast(runtime.shield_wall_id, me) then
-            mark_pending_cast(runtime.shield_wall_id, FAST_PENDING_CAST_TIMEOUT_S)
-            utils.log_debug(menu, "Defensive: Shield Wall")
-            note_cast()
-            return true
-        end
-    end
-
-    -- Last Stand second: HP buffer after damage is reduced
-    if menu.use_last_stand:get_state()
-        and runtime.last_stand_id
-        and hp_pct < (menu.last_stand_hp_pct:get() / 100)
-        and not is_pending_or_current(runtime.last_stand_id)
-        and not utils.has_buff(me, spells.BUFF_LAST_STAND)
-        and utils.can_cast_self(runtime.last_stand_id, me)
-    then
-        if utils.cast_self_fast(runtime.last_stand_id, me) then
-            mark_pending_cast(runtime.last_stand_id, FAST_PENDING_CAST_TIMEOUT_S)
-            utils.log_debug(menu, "Defensive: Last Stand")
+    -- Defensive abilities table: Shield Wall, Last Stand
+    local DEF_ABILITIES = {
+        { menu_key = "use_shield_wall", spell_id_fn = function() return runtime.shield_wall_id end,
+          hp_pct_menu = "shield_wall_hp_pct", buff = spells.BUFF_SHIELD_WALL, log_msg = "Shield Wall" },
+        { menu_key = "use_last_stand", spell_id_fn = function() return runtime.last_stand_id end,
+          hp_pct_menu = "last_stand_hp_pct", buff = spells.BUFF_LAST_STAND, log_msg = "Last Stand" },
+    }
+    for i = 1, #DEF_ABILITIES do
+        local def = DEF_ABILITIES[i]
+        if menu[def.menu_key] and menu[def.menu_key]:get_state()
+            and def.spell_id_fn() and hp_pct < (menu[def.hp_pct_menu]:get() / 100)
+            and not is_pending_or_current(def.spell_id_fn())
+            and not utils.has_buff(me, def.buff)
+            and utils.can_cast_self(def.spell_id_fn(), me)
+            and utils.cast_self_fast(def.spell_id_fn(), me)
+        then
+            mark_pending_cast(def.spell_id_fn(), FAST_PENDING_CAST_TIMEOUT_S)
+            utils.log_debug(menu, "Defensive: " .. def.log_msg)
             note_cast()
             return true
         end
@@ -1796,21 +1728,17 @@ local function do_emergency_defensive_lane(me, target, hp_pct)
 
     -- Spell Reflection: wait until cast is past configured progress threshold
     if menu.use_spell_reflection:get_state()
-        and runtime.spell_reflection_id
-        and target
-        and should_spell_reflect_target(target)
+        and runtime.spell_reflection_id and target and should_spell_reflect_target(target)
         and not is_pending_or_current(runtime.spell_reflection_id)
         and not utils.has_buff(me, spells.BUFF_SPELL_REFLECTION)
         and utils.can_cast_self(runtime.spell_reflection_id, me)
+        and get_active_cast_progress_pct(target) >= menu.spell_reflection_progress_pct:get()
+        and utils.cast_self_fast(runtime.spell_reflection_id, me)
     then
-        if get_active_cast_progress_pct(target) >= menu.spell_reflection_progress_pct:get()
-            and utils.cast_self_fast(runtime.spell_reflection_id, me)
-        then
-            mark_pending_cast(runtime.spell_reflection_id, FAST_PENDING_CAST_TIMEOUT_S)
-            utils.log_debug(menu, "Defensive: Spell Reflection")
-            note_cast()
-            return true
-        end
+        mark_pending_cast(runtime.spell_reflection_id, FAST_PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, "Defensive: Spell Reflection")
+        note_cast()
+        return true
     end
 
     return false
@@ -1842,80 +1770,75 @@ local function do_mitigation_lane(me, target, rage, mode_policy, hp_pct)
     return false
 end
 
--- Healthstone
-try_rage_potion = function(me, rage)
-    if not menu.use_rage_potion:get_state() then return false end
+-- Consolidated defensive consumable helpers
+local CONSUMABLE_DEFS = {
+    {
+        key = "rage_potion",
+        use_menu = "use_rage_potion",
+        hp_threshold_menu = nil,
+        hp_threshold_fn = function(me) return false end,  -- uses rage threshold instead
+        get_items = function() return spells.MIGHTY_RAGE_POTION end,
+        check_fn = function(me, rage)
+            return rage < menu.rage_potion_rage_threshold:get()
+        end,
+        log_msg = "Defensive: Rage Potion",
+    },
+    {
+        key = "healthstone",
+        use_menu = "use_healthstone",
+        hp_threshold_menu = "healthstone_hp_pct",
+        hp_threshold_fn = function(me) return utils.get_health_pct(me) end,
+        get_items = function() return spells.HEALTHSTONE_ITEMS end,
+        check_fn = function(me)
+            return utils.get_health_pct(me) < (menu.healthstone_hp_pct:get() / 100)
+        end,
+        log_msg = "Defensive: Healthstone",
+    },
+    {
+        key = "health_potion",
+        use_menu = "use_health_potion",
+        hp_threshold_menu = "health_potion_hp_pct",
+        hp_threshold_fn = function(me) return utils.get_health_pct(me) end,
+        get_items = function() return spells.HEALING_POTION_ITEMS end,
+        check_fn = function(me)
+            return utils.get_health_pct(me) < (menu.health_potion_hp_pct:get() / 100)
+        end,
+        log_msg = "Defensive: Health Potion",
+    },
+}
+
+local function try_consumable(def, me)
+    if not menu[def.use_menu] or not menu[def.use_menu]:get_state() then return false end
     if not me:is_in_combat() then return false end
-    if rage >= menu.rage_potion_rage_threshold:get() then return false end
-
-    local rage_potions = {
-        spells.MIGHTY_RAGE_POTION,
-        spells.GREATER_RAGE_POTION,
-    }
-    for i = 1, #rage_potions do
-        local item_list = rage_potions[i]
-        for j = 1, #item_list do
-            if utils.use_consumable_if_ready(me, item_list[j]) then
-                utils.log_debug(menu, "Defensive: Rage Potion")
-                note_cast()
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
-try_healthstone = function(me)
-    if not menu.use_healthstone:get_state() then return false end
-    if not me:is_in_combat() then return false end
-    if utils.get_health_pct(me) >= (menu.healthstone_hp_pct:get() / 100) then return false end
-
-    for i = 1, #spells.HEALTHSTONE_ITEMS do
-        local item_id = spells.HEALTHSTONE_ITEMS[i]
-        if utils.use_consumable_if_ready(me, item_id) then
-            utils.log_debug(menu, "Defensive: Healthstone")
+    if not def.check_fn(me) then return false end
+    local items = def.get_items()
+    for i = 1, #items do
+        if utils.use_consumable_if_ready(me, items[i]) then
+            utils.log_debug(menu, def.log_msg)
             note_cast()
             return true
         end
     end
-
     return false
 end
 
--- Health Potion
-try_health_potion = function(me)
-    if not menu.use_health_potion:get_state() then return false end
-    if not me:is_in_combat() then return false end
-    if utils.get_health_pct(me) >= (menu.health_potion_hp_pct:get() / 100) then return false end
+-- Individual consumable functions using consolidated helper
+try_rage_potion = function(me, rage) return try_consumable(CONSUMABLE_DEFS[1], me) end
+try_healthstone = function(me) return try_consumable(CONSUMABLE_DEFS[2], me) end
+try_health_potion = function(me) return try_consumable(CONSUMABLE_DEFS[3], me) end
 
-    for i = 1, #spells.HEALING_POTION_ITEMS do
-        local item_id = spells.HEALING_POTION_ITEMS[i]
-        if utils.use_consumable_if_ready(me, item_id) then
-            utils.log_debug(menu, "Defensive: Health Potion")
-            note_cast()
-            return true
-        end
-    end
-
-    return false
-end
-
--- Stoneform
 try_stoneform = function(me)
     if not menu.use_stoneform:get_state() or not runtime.stoneform_id then return false end
     if not me:is_in_combat() then return false end
     if utils.get_health_pct(me) >= (menu.stoneform_hp_pct:get() / 100) then return false end
     if is_pending_or_current(runtime.stoneform_id) then return false end
     if utils.has_buff(me, spells.BUFF_STONEFORM) then return false end
-
     if utils.can_cast_self(runtime.stoneform_id, me) and utils.cast_self_fast(runtime.stoneform_id, me) then
         mark_pending_cast(runtime.stoneform_id, FAST_PENDING_CAST_TIMEOUT_S)
         utils.log_debug(menu, "Defensive: Stoneform")
         note_cast()
         return true
     end
-
     return false
 end
 
@@ -1923,48 +1846,35 @@ try_ironshield_potion = function(me, target, mode_policy, hp_pct)
     if not menu.use_ironshield_potion:get_state() then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_IRONSHIELD_POTION) then return false end
-
     local under_pressure = count_melee_attackers_on_me(me) >= 2
-    local elite_tank_window = is_valid_hostile_target(me, target)
-        and is_elite_or_boss(target)
-        and is_tanking_target(me, target)
-
+    local elite_tank_window = is_valid_hostile_target(me, target) and is_elite_or_boss(target) and is_tanking_target(me, target)
     if mode_policy.name == "solo" then
-        if hp_pct > SHIELD_BLOCK_SOLO_HP_PCT then
-            return false
-        end
-
-        if not under_pressure and not elite_tank_window then
-            return false
-        end
+        if hp_pct > SHIELD_BLOCK_SOLO_HP_PCT then return false end
+        if not under_pressure and not elite_tank_window then return false end
     elseif not under_pressure and not elite_tank_window then
         return false
     end
-
     for i = 1, #spells.IRONSHIELD_POTION_ITEMS do
-        local item_id = spells.IRONSHIELD_POTION_ITEMS[i]
-        if utils.use_consumable_if_ready(me, item_id) then
+        if utils.use_consumable_if_ready(me, spells.IRONSHIELD_POTION_ITEMS[i]) then
             utils.log_debug(menu, "Defensive: Ironshield Potion")
             note_cast()
             return true
         end
     end
-
     return false
 end
 
+-- Burst window management (consolidated from ~336 lines to ~120 lines)
 local function reset_burst_state()
     runtime.burst_window_active = false
     runtime.burst_window_started_at = 0
     runtime.burst_attempted = {}
 end
 
--- Burst window management
 local function close_burst_window(reason, completed)
     if runtime.burst_window_active then
         utils.log_debug(menu, "Burst window closed: " .. reason)
     end
-
     runtime.burst_window_active = false
     runtime.burst_window_started_at = 0
     if completed then
@@ -1980,27 +1890,151 @@ local function open_burst_window()
     notify_cast("simpleprot:burst:open", "Burst window open", color.gold(220), 1.1)
 end
 
-local function can_use_direct_self_burst(me, spell_id, buff_table)
-    return spell_id
-        and not utils.has_buff(me, buff_table)
-        and not is_pending_or_current(spell_id)
-        and utils.can_cast_self(spell_id, me)
+-- Burst action definitions table
+local BURST_ACTIONS = {
+    {
+        key = "death_wish",
+        get_spell_id = function() return runtime.death_wish_id end,
+        buff = spells.BUFF_DEATH_WISH,
+        menu_key = "use_death_wish",
+        burst_type = "risky",
+    },
+    {
+        key = "recklessness",
+        get_spell_id = function() return runtime.recklessness_id end,
+        buff = spells.BUFF_RECKLESSNESS,
+        menu_key = "use_recklessness",
+        burst_type = "risky",
+        requires_stance = "berserker",
+        get_stance_id = function() return runtime.berserker_stance_id end,
+    },
+    {
+        key = "blood_fury",
+        get_spell_id = function() return runtime.blood_fury_id end,
+        buff = spells.BUFF_BLOOD_FURY,
+        menu_key = "use_blood_fury",
+        burst_type = "safe",
+    },
+    {
+        key = "berserking",
+        get_spell_id = function() return runtime.berserking_id end,
+        buff = spells.BUFF_BERSERKING,
+        menu_key = "use_berserking",
+        burst_type = "safe",
+    },
+    {
+        key = "retaliation",
+        get_spell_id = function() return runtime.retaliation_id end,
+        buff = spells.BUFF_RETALIATION,
+        menu_key = "use_retaliation",
+        burst_type = "risky",
+        requires_stance = "battle",
+        get_stance_id = function() return runtime.battle_stance_id end,
+    },
+}
+
+-- Check if a burst action can be used
+local function can_use_burst_action(me, action, rage)
+    local spell_id = action.get_spell_id()
+    if not spell_id then return false end
+    if utils.has_buff(me, action.buff) then return false end
+    if is_pending_or_current(spell_id) then return false end
+    if action.requires_stance then
+        if action.requires_stance == "berserker" then
+            if utils.get_current_stance(me) ~= "berserker" then
+                if not action.get_stance_id() or _get_spell_cd(spell_id) > 0 then return false end
+                if not utils.can_cast_self(action.get_stance_id(), me) then return false end
+                return utils.can_stance_dance_for_cost(rage, 0, 0, runtime.stance_swap_retention)
+            end
+        end
+        return utils.can_cast_self(spell_id, me)
+    end
+    return utils.can_cast_self(spell_id, me)
 end
 
-local function can_stage_recklessness(me, rage)
-    if not menu.use_recklessness:get_state() or not runtime.recklessness_id then return false end
-    if utils.has_buff(me, spells.BUFF_RECKLESSNESS) then return false end
-    if is_pending_or_current(runtime.recklessness_id) then return false end
+-- Attempt a single burst action
+local function attempt_burst_action(me, action, rage)
+    local key = action.key
+    if runtime.burst_attempted[key] then return false end
+    if not menu[action.menu_key] or not menu[action.menu_key]:get_state() then return false end
+    if action.burst_type == "risky" and not mode_policy.allow_risky_burst then return false end
+    if action.burst_type == "safe" and not mode_policy.allow_safe_burst then return false end
 
-    if utils.get_current_stance(me) == "berserker" then
-        return utils.can_cast_self(runtime.recklessness_id, me)
+    runtime.burst_attempted[key] = true
+    local spell_id = action.get_spell_id()
+    if not spell_id or utils.has_buff(me, action.buff) or is_pending_or_current(spell_id) then
+        return false
     end
 
-    if not runtime.berserker_stance_id then return false end
-    if _get_spell_cd(runtime.recklessness_id) > 0 then return false end
-    if not utils.can_cast_self(runtime.berserker_stance_id, me) then return false end
+    if action.requires_stance then
+        if action.requires_stance == "berserker" and utils.get_current_stance(me) ~= "berserker" then
+            local result = stage_stance_action(me, {
+                key = key,
+                action_id = spell_id,
+                action_label = key:sub(1, 1):upper() .. key:sub(2),
+                required_stance = "berserker",
+                required_stance_id = runtime.berserker_stance_id,
+                cast_mode = "self",
+                use_fast_queue = true,
+                notify_id = "simpleprot:cast:" .. key,
+                notify_message = key:sub(1, 1):upper() .. key:sub(2),
+                notify_color = color.gold(220),
+                notify_duration_s = 1.0,
+                log_message = "Burst: " .. key,
+            }, rage, 0)
+            if result then runtime.burst_attempted[key] = true end
+            return result
+        end
+    end
 
-    return utils.can_stance_dance_for_cost(rage, 0, 0, runtime.stance_swap_retention)
+    utils.log_debug(menu, "Burst: " .. key)
+    if utils.can_cast_self(spell_id, me) and utils.cast_self_fast(spell_id, me) then
+        mark_pending_cast(spell_id, FAST_PENDING_CAST_TIMEOUT_S)
+        note_cast()
+        return true
+    end
+    return false
+end
+
+-- Count available burst opportunities
+local function count_burst_opportunities(me, rage, mode_policy)
+    local count = 0
+    for i = 1, #BURST_ACTIONS do
+        local action = BURST_ACTIONS[i]
+        if not runtime.burst_attempted[action.key]
+            and menu[action.menu_key]
+            and menu[action.menu_key]:get_state()
+            and can_use_burst_action(me, action, rage)
+        then
+            count = count + 1
+        end
+    end
+    if mode_policy.allow_safe_burst and menu.use_trinkets:get_state() then
+        local trinkets = utils.get_self_cast_trinket_ids(me)
+        for i = 1, #trinkets do
+            local key = "trinket_" .. tostring(trinkets[i].slot_id)
+            if not runtime.burst_attempted[key] then count = count + 1 end
+        end
+    end
+    return count
+end
+
+-- Check if all burst actions have been attempted
+local function all_burst_actions_attempted(me, rage, mode_policy)
+    for i = 1, #BURST_ACTIONS do
+        local action = BURST_ACTIONS[i]
+        if menu[action.menu_key] and menu[action.menu_key]:get_state() and not runtime.burst_attempted[action.key] then
+            if can_use_burst_action(me, action, rage) then return false end
+        end
+    end
+    if mode_policy.allow_safe_burst and menu.use_trinkets:get_state() then
+        local trinkets = utils.get_self_cast_trinket_ids(me)
+        for i = 1, #trinkets do
+            local key = "trinket_" .. tostring(trinkets[i].slot_id)
+            if not runtime.burst_attempted[key] then return false end
+        end
+    end
+    return true
 end
 
 local function should_open_burst_window(me, target, rage, mode_policy)
@@ -2010,231 +2044,20 @@ local function should_open_burst_window(me, target, rage, mode_policy)
     if not me:is_in_combat() then return false end
     if not mode_policy.allow_risky_burst and not mode_policy.allow_safe_burst then return false end
     if mode_policy.name ~= "solo" and not is_safe_group_burst_window(me, target) then return false end
-    -- Don't open burst until we have enough rage to actually complete stance-dance actions.
-    -- Recklessness needs a Berserker Stance swap; opening on 15 rage causes timeout.
     if rage < runtime.stance_swap_retention then return false end
-
-    local burst_opportunity_count = 0
-
-    if mode_policy.allow_risky_burst
-        and not runtime.burst_attempted.death_wish
-        and menu.use_death_wish:get_state()
-        and can_use_direct_self_burst(me, runtime.death_wish_id, spells.BUFF_DEATH_WISH)
-    then
-        burst_opportunity_count = burst_opportunity_count + 1
-    end
-
-    if mode_policy.allow_risky_burst
-        and not runtime.burst_attempted.recklessness
-        and can_stage_recklessness(me, rage)
-    then
-        burst_opportunity_count = burst_opportunity_count + 1
-    end
-
-    if mode_policy.allow_safe_burst
-        and not runtime.burst_attempted.blood_fury
-        and menu.use_blood_fury:get_state()
-        and can_use_direct_self_burst(me, runtime.blood_fury_id, spells.BUFF_BLOOD_FURY)
-    then
-        burst_opportunity_count = burst_opportunity_count + 1
-    end
-
-    if mode_policy.allow_safe_burst
-        and not runtime.burst_attempted.berserking
-        and menu.use_berserking:get_state()
-        and can_use_direct_self_burst(me, runtime.berserking_id, spells.BUFF_BERSERKING)
-    then
-        burst_opportunity_count = burst_opportunity_count + 1
-    end
-
-    if mode_policy.allow_safe_burst and menu.use_trinkets:get_state() then
-        local ready_trinkets = utils.get_self_cast_trinket_ids(me)
-        for i = 1, #ready_trinkets do
-            local key = "trinket_" .. tostring(ready_trinkets[i].slot_id)
-            if not runtime.burst_attempted[key] then
-                burst_opportunity_count = burst_opportunity_count + 1
-            end
-        end
-    end
-
-    return burst_opportunity_count >= 2
-end
-
-local function all_enabled_burst_actions_attempted(me, rage, mode_policy)
-    if mode_policy.allow_risky_burst
-        and menu.use_death_wish:get_state()
-        and not runtime.burst_attempted.death_wish
-        and can_use_direct_self_burst(me, runtime.death_wish_id, spells.BUFF_DEATH_WISH)
-    then
-        return false
-    end
-
-    if mode_policy.allow_risky_burst
-        and not runtime.burst_attempted.recklessness
-        and can_stage_recklessness(me, rage)
-    then
-        return false
-    end
-
-    if mode_policy.allow_safe_burst
-        and menu.use_blood_fury:get_state()
-        and not runtime.burst_attempted.blood_fury
-        and can_use_direct_self_burst(me, runtime.blood_fury_id, spells.BUFF_BLOOD_FURY)
-    then
-        return false
-    end
-
-    if mode_policy.allow_safe_burst
-        and menu.use_berserking:get_state()
-        and not runtime.burst_attempted.berserking
-        and can_use_direct_self_burst(me, runtime.berserking_id, spells.BUFF_BERSERKING)
-    then
-        return false
-    end
-
-    if mode_policy.allow_safe_burst and menu.use_trinkets:get_state() then
-        local ready_trinkets = utils.get_self_cast_trinket_ids(me)
-        for i = 1, #ready_trinkets do
-            local key = "trinket_" .. tostring(ready_trinkets[i].slot_id)
-            if not runtime.burst_attempted[key] then
-                return false
-            end
-        end
-    end
-
-    return true
-end
-
--- Burst attempt functions
-local function attempt_death_wish(me, mode_policy)
-    if not menu.use_death_wish:get_state() or runtime.burst_attempted.death_wish then return false end
-    if not mode_policy.allow_risky_burst then return false end
-
-    runtime.burst_attempted.death_wish = true
-    if not runtime.death_wish_id
-        or utils.has_buff(me, spells.BUFF_DEATH_WISH)
-        or is_pending_or_current(runtime.death_wish_id)
-    then
-        return false
-    end
-
-    utils.log_debug(menu, "Burst: Death Wish")
-    if utils.can_cast_self(runtime.death_wish_id, me) and utils.cast_self_fast(runtime.death_wish_id, me) then
-        mark_pending_cast(runtime.death_wish_id, FAST_PENDING_CAST_TIMEOUT_S)
-        note_cast()
-        return true
-    end
-    return false
-end
-
-local function attempt_recklessness(me, rage, mode_policy)
-    if not menu.use_recklessness:get_state() or runtime.burst_attempted.recklessness then return false end
-    if not mode_policy.allow_risky_burst then return false end
-    if not runtime.recklessness_id
-        or utils.has_buff(me, spells.BUFF_RECKLESSNESS)
-        or _get_spell_cd(runtime.recklessness_id) > 0
-    then
-        runtime.burst_attempted.recklessness = true
-        return false
-    end
-
-    local result = stage_stance_action(me, {
-        key = "recklessness",
-        action_id = runtime.recklessness_id,
-        action_label = "Recklessness",
-        required_stance = "berserker",
-        required_stance_id = runtime.berserker_stance_id,
-        cast_mode = "self",
-        use_fast_queue = true,
-        notify_id = "simpleprot:cast:recklessness",
-        notify_message = "Recklessness",
-        notify_color = color.gold(220),
-        notify_duration_s = 1.0,
-        log_message = "Burst: Recklessness",
-    }, rage, 0)
-    if result then
-        runtime.burst_attempted.recklessness = true
-    end
-    return result
-end
-
-local function attempt_blood_fury(me, mode_policy)
-    if not menu.use_blood_fury:get_state() or runtime.burst_attempted.blood_fury then return false end
-    if not mode_policy.allow_safe_burst then return false end
-
-    runtime.burst_attempted.blood_fury = true
-    if not runtime.blood_fury_id
-        or utils.has_buff(me, spells.BUFF_BLOOD_FURY)
-        or is_pending_or_current(runtime.blood_fury_id)
-    then
-        return false
-    end
-
-    utils.log_debug(menu, "Burst: Blood Fury")
-    if utils.can_cast_self(runtime.blood_fury_id, me) and utils.cast_self_fast(runtime.blood_fury_id, me) then
-        mark_pending_cast(runtime.blood_fury_id, FAST_PENDING_CAST_TIMEOUT_S)
-        note_cast()
-        return true
-    end
-    return false
-end
-
-local function attempt_berserking(me, mode_policy)
-    if not menu.use_berserking:get_state() or runtime.burst_attempted.berserking then return false end
-    if not mode_policy.allow_safe_burst then return false end
-
-    runtime.burst_attempted.berserking = true
-    if not runtime.berserking_id
-        or utils.has_buff(me, spells.BUFF_BERSERKING)
-        or is_pending_or_current(runtime.berserking_id)
-    then
-        return false
-    end
-
-    utils.log_debug(menu, "Burst: Berserking")
-    if utils.can_cast_self(runtime.berserking_id, me) and utils.cast_self_fast(runtime.berserking_id, me) then
-        mark_pending_cast(runtime.berserking_id, FAST_PENDING_CAST_TIMEOUT_S)
-        note_cast()
-        return true
-    end
-    return false
+    return count_burst_opportunities(me, rage, mode_policy) >= 2
 end
 
 local function attempt_trinket(trinket)
     local key = "trinket_" .. tostring(trinket.slot_id)
     if runtime.burst_attempted[key] then return false end
-
     runtime.burst_attempted[key] = true
     if utils.use_item_if_ready(trinket.item_id) then
         utils.log_debug(menu, "Burst: Trinket slot " .. tostring(trinket.slot_id))
         note_cast()
         return true
     end
-
     return false
-end
-
-local function attempt_retaliation(me, rage, mode_policy)
-    if not menu.use_retaliation:get_state() or runtime.burst_attempted.retaliation then return false end
-    if not mode_policy.allow_risky_burst then return false end
-
-    runtime.burst_attempted.retaliation = true
-    if not runtime.retaliation_id or utils.has_buff(me, spells.BUFF_RETALIATION) then return false end
-
-    return stage_stance_action(me, {
-        key = "retaliation",
-        action_id = runtime.retaliation_id,
-        action_label = "Retaliation",
-        required_stance = "battle",
-        required_stance_id = runtime.battle_stance_id,
-        cast_mode = "self",
-        use_fast_queue = true,
-        notify_id = "simpleprot:cast:retaliation",
-        notify_message = "Retaliation",
-        notify_color = color.gold(220),
-        notify_duration_s = 1.0,
-        log_message = "Burst: Retaliation",
-    }, rage, 0)
 end
 
 local function do_burst_lane(me, target, rage, mode_policy)
@@ -2253,13 +2076,12 @@ local function do_burst_lane(me, target, rage, mode_policy)
         return false
     end
 
-    if attempt_death_wish(me, mode_policy) then return true end
-    if attempt_recklessness(me, rage, mode_policy) then return true end
-    if attempt_retaliation(me, rage, mode_policy) then return true end
-    if attempt_blood_fury(me, mode_policy) then return true end
-    if attempt_berserking(me, mode_policy) then return true end
+    -- Try each burst action in order
+    for i = 1, #BURST_ACTIONS do
+        if attempt_burst_action(me, BURST_ACTIONS[i], rage) then return true end
+    end
 
-    -- Berserker Rage: proactive during burst for extra rage on crits
+    -- Berserker Rage during burst for extra rage on crits
     if mode_policy.allow_safe_burst
         and menu.use_berserker_rage:get_state()
         and runtime.berserker_rage_id
@@ -2275,16 +2097,15 @@ local function do_burst_lane(me, target, rage, mode_policy)
         end
     end
 
+    -- Trinkets
     if mode_policy.allow_safe_burst and menu.use_trinkets:get_state() then
-        local ready_trinkets = utils.get_self_cast_trinket_ids(me)
-        for i = 1, #ready_trinkets do
-            if attempt_trinket(ready_trinkets[i]) then
-                return true
-            end
+        local trinkets = utils.get_self_cast_trinket_ids(me)
+        for i = 1, #trinkets do
+            if attempt_trinket(trinkets[i]) then return true end
         end
     end
 
-    if all_enabled_burst_actions_attempted(me, rage, mode_policy) then
+    if all_burst_actions_attempted(me, rage, mode_policy) then
         close_burst_window("all actions attempted", true)
     end
 
@@ -2331,7 +2152,6 @@ local function try_sunder_armor(me, target, target_hp_pct)
 end
 
 local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
-    -- Shield Block synergy: Shield Slam crits guaranteed under Shield Block - rush it first
     -- Revenge is free (proc-based) - always prioritize when available
     if runtime.revenge_id and core.spell_book.is_usable_spell(runtime.revenge_id) then
         if utils.cast_target(runtime.revenge_id, target) then
@@ -2346,44 +2166,34 @@ local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
         end
     end
 
+    -- Shield Slam: rush when Shield Block is up (guaranteed crit), otherwise normal priority
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
         and resource_gate.warrior.has_rage(ctx, 20)
-        and utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
         and utils.can_cast_hostile(runtime.shield_slam_id, me, target)
     then
+        local has_block = utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
         if utils.cast_target(runtime.shield_slam_id, target) then
-            utils.log_debug(menu, "ST: Shield Slam (Shield Block synergy)")
-            note_cast()
+            utils.log_debug(menu, has_block and "ST: Shield Slam (Shield Block synergy)" or "ST: Shield Slam")
+            if has_block then
+                note_cast()
+            else
+                esp_renderer.on_cast(nil, "Shield Slam", color.red(220))
+                note_cast()
+            end
             note_core_action()
             invalidate_ctx()
             return true
         end
     end
 
-    if menu.use_shield_slam:get_state()
-        and runtime.shield_slam_id
-        and resource_gate.warrior.has_rage(ctx, 20)
-        and utils.can_cast_hostile(runtime.shield_slam_id, me, target)
-    then
-        if utils.cast_target(runtime.shield_slam_id, target) then
-            utils.log_debug(menu, "ST: Shield Slam")
-            esp_renderer.on_cast(nil, "Shield Slam", color.red(220))
-            note_cast()
-            note_core_action()
-            invalidate_ctx()
-            return true
-        end
-    end
-
+    -- Revenge when proc latch is ready
     local revenge_ready = menu.use_revenge:get_state()
         and runtime.revenge_id
         and resource_gate.warrior.has_rage(ctx, 5)
         and is_revenge_ready(me, target)
 
-    if revenge_ready
-        and utils.can_cast_melee(runtime.revenge_id, me)
-    then
+    if revenge_ready and utils.can_cast_melee(runtime.revenge_id, me) then
         if utils.cast_target(runtime.revenge_id, target) then
             utils.log_debug(menu, "ST: Revenge")
             esp_renderer.on_cast(nil, "Revenge", color.orange(220))
@@ -2396,7 +2206,7 @@ local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
         end
     end
 
-    -- Devastate is the primary threat builder (applies Sunder + damage)
+    -- Devastate: primary threat builder (applies Sunder + damage)
     if runtime.devastate_id and resource_gate.warrior.has_rage(ctx, 15) then
         if utils.cast_target(runtime.devastate_id, target) then
             utils.log_debug(menu, "ST: Devastate")
@@ -2461,29 +2271,15 @@ local function do_aoe_core_lane(me, target, ctx, rage)
         return true
     end
 
-    -- Shield Block synergy: rush Shield Slam for guaranteed crit threat
-    if menu.use_shield_slam:get_state()
-        and runtime.shield_slam_id
-        and resource_gate.warrior.has_rage(ctx, 20)
-        and utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
-        and utils.can_cast_hostile(runtime.shield_slam_id, me, primary_target)
-    then
-        if utils.cast_target(runtime.shield_slam_id, primary_target) then
-            utils.log_debug(menu, "AoE: Shield Slam (Shield Block synergy)")
-            note_cast()
-            note_core_action()
-            invalidate_ctx()
-            return true
-        end
-    end
-
+    -- Shield Slam: rush when Shield Block is up (guaranteed crit), otherwise normal
     if menu.use_shield_slam:get_state()
         and runtime.shield_slam_id
         and resource_gate.warrior.has_rage(ctx, 20)
         and utils.can_cast_hostile(runtime.shield_slam_id, me, primary_target)
     then
+        local has_block = utils.has_buff(me, spells.BUFF_SHIELD_BLOCK)
         if utils.cast_target(runtime.shield_slam_id, primary_target) then
-            utils.log_debug(menu, "AoE: Shield Slam")
+            utils.log_debug(menu, has_block and "AoE: Shield Slam (Shield Block synergy)" or "AoE: Shield Slam")
             note_cast()
             note_core_action()
             invalidate_ctx()
@@ -2496,9 +2292,7 @@ local function do_aoe_core_lane(me, target, ctx, rage)
         and resource_gate.warrior.has_rage(ctx, 5)
         and is_revenge_ready(me, primary_target)
 
-    if revenge_ready
-        and utils.can_cast_melee(runtime.revenge_id, me)
-    then
+    if revenge_ready and utils.can_cast_melee(runtime.revenge_id, me) then
         if utils.cast_target(runtime.revenge_id, primary_target) then
             utils.log_debug(menu, "AoE: Revenge")
             runtime.last_revenge_cast_at = _core_time()
