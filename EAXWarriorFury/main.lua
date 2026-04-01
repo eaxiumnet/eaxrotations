@@ -2473,8 +2473,18 @@ local function on_update()
     if pvp_instance or d.pvp_manager.is_world_pvp(me) then
         local enemy_players = d.pvp_manager.find_enemy_players(me, 40)
         if #enemy_players > 0 then
-            local priority = d.pvp_manager.priority_target(me, enemy_players)
-            if priority then target = priority end
+            -- Arena: focus fire lowest HP target
+            if pvp_instance == "arena" then
+                local focus = d.pvp_manager.get_arena_focus_target(me, enemy_players)
+                if focus then target = focus end
+            -- BG: prioritize flag carriers
+            elseif pvp_instance == "battleground" then
+                local fc = d.pvp_manager.get_flag_carrier_target(me, enemy_players)
+                if fc then target = fc end
+            else
+                local priority = d.pvp_manager.priority_target(me, enemy_players)
+                if priority then target = priority end
+            end
         end
     end
 

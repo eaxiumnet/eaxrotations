@@ -464,4 +464,90 @@ function pvp_manager.try_hunter_pvp_cooldowns(me, target)
     return false
 end
 
+-- --- Arena/BG-Specific Logic -------------------------------------------------
+
+-- Arena 2v2/3v3 focus fire coordination
+function pvp_manager.get_arena_focus_target(me, enemy_players)
+    if not enemy_players or #enemy_players == 0 then return nil end
+    -- In arena, focus the lowest HP enemy player
+    local lowest_hp = nil
+    local lowest_target = nil
+    for _, p in ipairs(enemy_players) do
+        local hp = p.get_health_percentage and p:get_health_percentage() or 100
+        if not lowest_hp or hp < lowest_hp then
+            lowest_hp = hp
+            lowest_target = p
+        end
+    end
+    return lowest_target
+end
+
+-- Battleground: flag carrier priority
+function pvp_manager.get_flag_carrier_target(me, enemy_players)
+    if not enemy_players or #enemy_players == 0 then return nil end
+    for _, p in ipairs(enemy_players) do
+        if pvp_manager.is_flag_carrier(p) then
+            return p
+        end
+    end
+    return nil
+end
+
+-- Battleground: node defense awareness
+function pvp_manager.should_defend_node(me)
+    local objectives = pvp_manager.get_bg_objectives()
+    -- If enemy score is close to winning, prioritize defense
+    if objectives.enemy_score and objectives.enemy_score >= 1500 then
+        return true
+    end
+    return false
+end
+
+-- Arena: CC chain coordination
+function pvp_manager.get_cc_chain_info(me, target)
+    if not target or not target:is_valid() then return nil end
+    local cc_remaining = 0
+    for _, cc_id in ipairs(CC_SPELL_IDS) do
+        local remaining = target.get_buff_remaining_ms and target:get_buff_remaining_ms(cc_id) or 0
+        if remaining > 0 then
+            cc_remaining = math.max(cc_remaining, remaining)
+        end
+    end
+    return {
+        is_cced = cc_remaining > 0,
+        remaining_ms = cc_remaining,
+    }
+end
+
+-- Arena: burst window coordination
+function pvp_manager.should_burst_target(me, target)
+    if not target or not target:is_valid() then return false end
+    local hp = target.get_health_percentage and target:get_health_percentage() or 100
+    -- Burst when target is below 35% HP
+    if hp < 35 then return true end
+    -- Burst when target is CCed
+    if pvp_manager.is_cced(target) then return true end
+    return false
+end
+
+-- Arena: defensive positioning
+function pvp_manager.should_reposition(me, target)
+    if not me or not me:is_valid() then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+    local attackers = 0
+    local objects = core.object_manager.get_all_objects()
+    for _, obj in ipairs(objects) do
+        if obj and obj:is_valid() and obj:is_unit() and obj:is_player()
+            and me:can_attack(obj) then
+            local t = obj.get_target and obj:get_target()
+            if t and t == me then
+                attackers = attackers + 1
+            end
+        end
+    end
+    -- Reposition when attacked by 2+ players and HP < 50%
+    if attackers >= 2 and hp < 50 then return true end
+    return false
+end
+
 return pvp_manager
