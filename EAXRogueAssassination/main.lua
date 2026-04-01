@@ -1289,20 +1289,9 @@ core.register_on_update_callback(function()
         return
     end
         ooc_manager.on_update(me, menu, utils, { show_enchant_warning = true })
-    if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
-        mount_manager.update_mount_state(me, menu, utils)
-    end
 
     if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
         consumables_manager.try_use_ooc_food_drink(me, menu, utils)
-    end
-
-    if menu.auto_repair and menu.auto_repair:get_state() then
-        vendor_automation.try_auto_repair(me, menu, utils)
-    end
-
-    if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
-        vendor_automation.try_auto_sell_greys(me, menu, utils)
     end
 
     if me:is_in_combat() then

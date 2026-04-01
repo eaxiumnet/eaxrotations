@@ -21,13 +21,10 @@ local color     = require("libraries/color")
 local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
 local ooc_manager = require("libraries/ooc_manager")
----@type vendor_automation
-local vendor_automation = require("libraries/vendor_automation")
+
 ---@type consumables_manager
 local consumables_manager = require("libraries/consumables_manager")
----@type mount_manager
-local mount_manager = require("libraries/mount_manager")
----@type leveling_manager
+local leveling_manager
 local leveling_manager = require("libraries/leveling_manager")
 ---@type creature_utils
 local creature_utils = require("libraries/creature_utils")
@@ -962,20 +959,8 @@ core.register_on_update_callback(function()
                toggle = menu.ooc_group_buff },
         },
     })
-    if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
-        mount_manager.update_mount_state(me, menu, utils)
-    end
-
     if menu.auto_ooc_food_drink and menu.auto_ooc_food_drink:get_state() then
         consumables_manager.try_use_ooc_food_drink(me, menu, utils)
-    end
-
-    if menu.auto_repair and menu.auto_repair:get_state() then
-        vendor_automation.try_auto_repair(me, menu, utils)
-    end
-
-    if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
-        vendor_automation.try_auto_sell_greys(me, menu, utils)
     end
 
     if not me:is_in_combat() then

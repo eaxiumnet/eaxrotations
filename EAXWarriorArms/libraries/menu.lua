@@ -44,10 +44,6 @@ menu.drink_threshold                     = core.menu.slider_int(50, 100, 80, "ea
 menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
 -- Automation
--- menu.auto_repair                        = core.menu.checkbox(true, "eaxwarriorarms_auto_repair")
--- menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxwarriorarms_auto_sell_greys")
--- menu.auto_mount                         = core.menu.checkbox(true, "eaxwarriorarms_auto_mount")
--- menu.auto_dismount                      = core.menu.checkbox(true, "eaxwarriorarms_auto_dismount")
 menu.auto_combat_potions                = core.menu.checkbox(false, "eaxwarriorarms_auto_combat_potions")
 menu.auto_ooc_food_drink                = core.menu.checkbox(true, "eaxwarriorarms_auto_ooc_food_drink")
 menu.auto_flask                         = core.menu.checkbox(false, "eaxwarriorarms_auto_flask")

@@ -38,10 +38,6 @@ menu.drink_threshold = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold   = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
 -- Automation
--- menu.auto_repair     = core.menu.checkbox(true, "eaxhunterbm_auto_repair")
--- menu.auto_sell_greys = core.menu.checkbox(true, "eaxhunterbm_auto_sell_greys")
--- menu.auto_mount      = core.menu.checkbox(true, "eaxhunterbm_auto_mount")
--- menu.auto_dismount   = core.menu.checkbox(true, "eaxhunterbm_auto_dismount")
 menu.auto_combat_potions = core.menu.checkbox(false, "eaxhunterbm_auto_combat_potions")
 menu.auto_flask      = core.menu.checkbox(false, "eaxhunterbm_auto_flask")
 
@@ -190,10 +186,6 @@ function menu.render()
 
         -- Automation
         auto_tree:render("Automation", function()
---            menu.auto_repair:render("Auto Repair", "Repair at vendors")
---            menu.auto_sell_greys:render("Auto Sell Greys", "Sell grey items")
---            menu.auto_mount:render("Auto Mount", "Mount when OOC")
---            menu.auto_dismount:render("Auto Dismount", "Dismount in combat")
             menu.auto_combat_potions:render("Combat Potions", "Use in combat")
             menu.auto_flask:render("Auto Flask", "Maintain flask")
 

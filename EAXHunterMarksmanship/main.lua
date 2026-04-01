@@ -26,12 +26,10 @@ local buff_manager  = require("common/modules/buff_manager")
 local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
 local ooc_manager   = require("libraries/ooc_manager")
----@type vendor_automation
-local vendor_automation = require("libraries/vendor_automation")
+
 ---@type consumables_manager
 local consumables_manager = require("libraries/consumables_manager")
----@type mount_manager
-local mount_manager = require("libraries/mount_manager")
+
 ---@type leveling_manager
 local leveling_manager  = require("libraries/leveling_manager")
 ---@type encounter_manager
@@ -1367,17 +1365,6 @@ local function on_update()
     if not me or me:is_dead() then return end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     ooc_manager.on_update(me, menu, utils, {})
-    if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
-        mount_manager.update_mount_state(me, menu, utils)
-    end
-
-    if menu.auto_repair and menu.auto_repair:get_state() then
-        vendor_automation.try_auto_repair(me, menu, utils)
-    end
-
-    if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
-        vendor_automation.try_auto_sell_greys(me, menu, utils)
-    end
 
     if try_auto_stealth_flare(me) then return end
 

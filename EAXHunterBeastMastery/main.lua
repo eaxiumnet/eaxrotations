@@ -1638,17 +1638,6 @@ local function on_update()
     if not me or me:is_dead() then return end
     if not threat_initialized then threat_manager.init(me); threat_initialized = true end
     ooc_manager.on_update(me, menu, utils, {})
-    if (menu.auto_mount and menu.auto_mount:get_state()) or (menu.auto_dismount and menu.auto_dismount:get_state()) then
-        mount_manager.update_mount_state(me, menu, utils)
-    end
-
-    if menu.auto_repair and menu.auto_repair:get_state() then
-        vendor_automation.try_auto_repair(me, menu, utils)
-    end
-
-    if menu.auto_sell_greys and menu.auto_sell_greys:get_state() then
-        vendor_automation.try_auto_sell_greys(me, menu, utils)
-    end
 
     if try_auto_stealth_flare(me) then return end
 

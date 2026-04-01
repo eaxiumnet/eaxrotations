@@ -47,10 +47,6 @@ menu.ooc_rez                             = core.menu.checkbox(true,  "eax_ooc_re
 menu.ooc_group_buff                      = core.menu.checkbox(true,  "eax_ooc_group_buff")
 
 -- -- Automation ----------------------------------------------------------------
--- menu.auto_repair                        = core.menu.checkbox(true, "eaxdruidbalance_auto_repair")
--- menu.auto_sell_greys                    = core.menu.checkbox(true, "eaxdruidbalance_auto_sell_greys")
--- menu.auto_mount                         = core.menu.checkbox(true, "eaxdruidbalance_auto_mount")
--- menu.auto_dismount                      = core.menu.checkbox(true, "eaxdruidbalance_auto_dismount")
 menu.auto_combat_potions                = core.menu.checkbox(false, "eaxdruidbalance_auto_combat_potions")
 menu.auto_ooc_food_drink                = core.menu.checkbox(true, "eaxdruidbalance_auto_ooc_food_drink")
 
@@ -148,10 +144,6 @@ function menu.render()
 
         -- -- Automation --------------------------------------------------------
         auto_tree:render("Automation", function()
---            menu.auto_repair:render("Auto Repair", "Repair at vendors")
---            menu.auto_sell_greys:render("Auto Sell Greys", "Sell grey items")
---            menu.auto_mount:render("Auto Mount", "Mount when OOC")
---            menu.auto_dismount:render("Auto Dismount", "Dismount in combat")
             menu.auto_combat_potions:render("Combat Potions", "Use in combat")
             menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink OOC")
             menu.auto_flask:render("Auto Flask", "Maintain flask buff")
