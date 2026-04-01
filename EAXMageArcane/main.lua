@@ -26,6 +26,7 @@ local consumables_manager = require("libraries/consumables_manager")
 ---@type leveling_manager
 local leveling_manager = require("libraries/leveling_manager")
 local pull_optimizer = require("eax_shared/pull_optimizer")
+local pvp_manager = require("eax_shared/pvp_manager")
 ---@type creature_utils
 local creature_utils = require("libraries/creature_utils")
 
@@ -1043,6 +1044,15 @@ core.register_on_update_callback(function()
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and not me:can_attack(focus_target) then focus_target = nil end
     local target = focus_target or utils.find_best_target(me)
+    -- PvP: prioritize enemy players in arena/BG/world PvP
+    local pvp_instance = pvp_manager.is_in_pvp_instance()
+    if pvp_instance or pvp_manager.is_world_pvp(me) then
+        local enemy_players = pvp_manager.find_enemy_players(me, 40)
+        if #enemy_players > 0 then
+            local priority = pvp_manager.priority_target(me, enemy_players)
+            if priority then target = priority end
+        end
+    end
     
     -- Self-emergency (Mage has Ice Block)
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.30, menu)

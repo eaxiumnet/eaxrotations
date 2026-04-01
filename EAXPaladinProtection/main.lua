@@ -35,6 +35,7 @@ local buff_manager = require("common/modules/buff_manager")
 
 ---@type encounter_manager
 local encounter_manager = require("libraries/encounter_manager")
+local pvp_manager = require("eax_shared/pvp_manager")
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
@@ -1057,6 +1058,15 @@ local function on_update()
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
     local target = focus_target or utils.find_best_target(me)
+    -- PvP: prioritize enemy players in arena/BG/world PvP
+    local pvp_instance = pvp_manager.is_in_pvp_instance()
+    if pvp_instance or pvp_manager.is_world_pvp(me) then
+        local enemy_players = pvp_manager.find_enemy_players(me, 40)
+        if #enemy_players > 0 then
+            local priority = pvp_manager.priority_target(me, enemy_players)
+            if priority then target = priority end
+        end
+    end
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
     

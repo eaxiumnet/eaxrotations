@@ -29,6 +29,7 @@ local leveling_manager = require("libraries/leveling_manager")
 local encounter_manager = require("libraries/encounter_manager")
 ---@type totem_manager
 local totem_manager = require("libraries/totem_manager")
+local pvp_manager = require("eax_shared/pvp_manager")
 ---@type swing_timer
 local swing_timer = require("libraries/swing_timer")
 -- Module-level encounter policy cache (updated each tick)
@@ -1231,6 +1232,15 @@ core.register_on_update_callback(function()
     if focus_target and not me:can_attack(focus_target) then focus_target = nil end
     -- Smart target selection: prioritize units actively fighting us/party
     local target = focus_target or utils.find_best_target(me)
+    -- PvP: prioritize enemy players in arena/BG/world PvP
+    local pvp_instance = pvp_manager.is_in_pvp_instance()
+    if pvp_instance or pvp_manager.is_world_pvp(me) then
+        local enemy_players = pvp_manager.find_enemy_players(me, 40)
+        if #enemy_players > 0 then
+            local priority = pvp_manager.priority_target(me, enemy_players)
+            if priority then target = priority end
+        end
+    end
     local self_threshold = eax_utils.get_self_heal_threshold(me, 0.40, menu)
     local my_hp = utils.get_health_pct(me)
     if my_hp < self_threshold then
