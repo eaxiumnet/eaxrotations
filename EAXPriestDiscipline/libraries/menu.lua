@@ -81,7 +81,6 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_greater_heal", label = "Greater Heal" },
     { toggle = "use_flash_heal", label = "Flash Heal" },
     { toggle = "use_power_word_shield", label = "PW:Shield" },
-    { toggle = "use_penance", label = "Penance" },
 }, {
     namespace = "eaxpriestdiscipline",
     log_prefix = "[Eax Priest Disc] ",
@@ -108,7 +107,6 @@ function menu.render()
             menu.use_flash_heal:render("Flash Heal", "Fast heal")
             menu.use_power_word_shield:render("PW:Shield", "Shield")
             menu.use_weakened_soul:render("Weakened Soul", "Track debuff")
-            menu.use_penance:render("Penance", "Instant heal")
             menu.use_aegis:render("Aegis", "Shield proc")
             menu.use_power_infusion:render("Power Infusion", "Haste buff")
             menu.use_divine_aegis:render("Divine Aegis", "Shield proc")

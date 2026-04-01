@@ -115,12 +115,10 @@ menu.use_earthgrab_totem                 = core.menu.checkbox(true, "eaxshamanen
 menu.use_stoneclaw_totem                 = core.menu.checkbox(true, "eaxshamanenhancement_use_stoneclaw_totem")
 menu.use_stoneclaw_hp_pct                = core.menu.slider_int(0, 100, 40, "eaxshamanenhancement_stoneclaw_hp_pct")
 menu.use_earthbind_totem                 = core.menu.checkbox(true, "eaxshamanenhancement_use_earthbind_totem")
-menu.use_spiritwalkers_grace             = core.menu.checkbox(true, "eaxshamanenhancement_use_spiritwalkers_grace")
 menu.use_totemic_recall                  = core.menu.checkbox(true, "eaxshamanenhancement_use_totemic_recall")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_stormstrike", label = "Stormstrike" },
-    { toggle = "use_lava_lash", label = "Lava Lash" },
     { toggle = "use_earth_shock", label = "Earth Shock" },
     { toggle = "use_flame_shock", label = "Flame Shock" },
 }, {
@@ -146,15 +144,9 @@ function menu.render()
         rotation_tree:render("Rotation", function()
             ps.header("Abilities")
             menu.use_stormstrike:render("Stormstrike", "On CD")
-            menu.use_lava_lash:render("Lava Lash", "Filler")
             menu.use_earth_shock:render("Earth Shock", "Instant")
             menu.use_flame_shock:render("Flame Shock", "DoT")
             menu.use_frost_shock:render("Frost Shock", "Slow")
-            menu.use_wind_shear:render("Wind Shear", "Interrupt")
-            menu.use_lightning_bolt:render("Lightning Bolt", "Maelstrom")
-            menu.use_chain_lightning:render("Chain Lightning", "AoE Maelstrom")
-            menu.use_hex:render("Hex", "CC")
-            menu.use_bind_elemental:render("Bind Elemental", "CC")
         end)
 
         -- Cooldowns
@@ -164,12 +156,6 @@ function menu.render()
             menu.use_heroism:render("Heroism", "Haste")
             menu.use_fire_elemental:render("Fire Elemental", "Pet")
             menu.use_shamanistic_rage:render("Shamanistic Rage", "Mana")
-            menu.use_maelstrom_weapon:render("Maelstrom Weapon", "Proc")
-            menu.use_unleash_elements:render("Unleash Elements", "Buff")
-            menu.use_thunderstorm:render("Thunderstorm", "AoE knockback")
-            menu.use_astral_shift:render("Astral Shift", "Damage reduction")
-            menu.astral_shift_hp_pct:render("Astral Shift HP %", "Below")
-            menu.use_spiritwalkers_grace:render("Spiritwalker's Grace", "Cast while moving")
         end)
 
         -- Totems

@@ -733,15 +733,6 @@ local function try_pw_shield(me, target)
     return false
 end
 
--- --- Penance - Disc spec burst heal (v1.4) -------------------------------
-
-local function try_penance(me, target)
-    -- Penance is not part of TBC Discipline.
-    return false
-end
-
-
-
 -- --- try_cast_spell - generic target-cast helper for focus/self priority --
 try_cast_spell = function(me, target, spell_id, action_key)
     if not spell_id then return false end

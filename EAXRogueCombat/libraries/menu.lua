@@ -156,7 +156,6 @@ function menu.render()
             menu.use_hemorrhage:render("Hemorrhage", "Debuff")
             menu.use_garrote:render("Garrote", "Opener")
             menu.use_expose_armor:render("Expose Armor", "Debuff")
-            menu.use_shadow_dance:render("Shadow Dance", "Stealth burst")
         end)
 
         -- Poisons

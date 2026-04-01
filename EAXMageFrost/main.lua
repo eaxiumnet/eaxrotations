@@ -525,21 +525,6 @@ local function try_ice_lance(me, target)
     if not runtime.ice_lance_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
 
-    -- Check for Fingers of Frost proc (if available via API)
-    local has_fof = utils.has_buff(me, spells.BUFF_FINGERS_OF_FROST)
-    if has_fof then
-        -- Ice Lance with FOF is always good
-        if is_pending_cast(runtime.ice_lance_id) or utils.is_spell_already_queued(runtime.ice_lance_id) then return false end
-        if not utils.can_cast_hostile(runtime.ice_lance_id, me, target) then return false end
-        if utils.cast_target(runtime.ice_lance_id, target, "Ice Lance (FOF)") then
-            mark_pending_cast(runtime.ice_lance_id, PENDING_CAST_TIMEOUT_S)
-            utils.log_debug(menu, "Ice Lance (Fingers of Frost)")
-            note_cast()
-            esp_renderer.on_cast(runtime.ice_lance_id, "Ice Lance (FOF)", color.blue(220))
-            return true
-        end
-    end
-
     local frozen = utils.has_debuff(target, spells.DEBUFF_FROZEN)
     local winters_chill_refresh = should_use_ice_lance_for_winters_chill(me, target)
     if not me:is_moving() and not frozen and not winters_chill_refresh then

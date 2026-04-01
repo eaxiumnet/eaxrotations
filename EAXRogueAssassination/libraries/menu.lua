@@ -84,7 +84,6 @@ menu.use_backstab                        = core.menu.checkbox(true, "eaxrogueass
 menu.use_sinister_strike                 = core.menu.checkbox(true, "eaxrogueassassination_use_sinister_strike")
 
 settings.setup_major_toggle_keybinds(menu, {
-    { toggle = "use_mutilate", label = "Mutilate" },
     { toggle = "use_rupture", label = "Rupture" },
     { toggle = "use_envenom", label = "Envenom" },
 }, {
@@ -109,7 +108,6 @@ function menu.render()
         -- Rotation
         rotation_tree:render("Rotation", function()
             ps.header("Abilities")
-            menu.use_mutilate:render("Mutilate", "Main filler")
             menu.use_garrote:render("Garrote", "Opener")
             menu.use_rupture:render("Rupture", "Maintain")
             menu.use_envenom:render("Envenom", "Finisher")
@@ -119,7 +117,6 @@ function menu.render()
             menu.use_slice_and_dice:render("Slice and Dice", "Buff")
             menu.use_feint:render("Feint", "Threat")
             menu.feint_energy_threshold:render("Feint Energy", "Above")
-            menu.use_fan_of_knives:render("Fan of Knives", "AoE")
         end)
 
         -- Cooldowns

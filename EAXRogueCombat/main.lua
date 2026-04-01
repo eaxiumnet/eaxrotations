@@ -953,15 +953,6 @@ local function try_evasion(me)
 end
 
 
--- --- Killing Spree (v1.1) -------------------------------------------------
-
-local function try_killing_spree(me, target)
-    -- Killing Spree (51690) is a WotLK spell - not available in TBC. No-op.
-    return false
-end
-
-
-
 -- --- Feint - threat drop (v1.3) ------------------------------------------
 
 

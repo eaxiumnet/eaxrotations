@@ -123,7 +123,6 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_healing_wave", label = "Healing Wave" },
     { toggle = "use_lesser_healing_wave", label = "Lesser Healing Wave" },
     { toggle = "use_chain_heal", label = "Chain Heal" },
-    { toggle = "use_riptide", label = "Riptide" },
 }, {
     namespace = "eaxshamanrestoration",
     log_prefix = "[Eax Shaman Resto] ",
@@ -149,7 +148,6 @@ function menu.render()
             menu.use_healing_wave:render("Healing Wave", "Main heal")
             menu.use_lesser_healing_wave:render("Lesser Healing Wave", "Fast heal")
             menu.use_chain_heal:render("Chain Heal", "AoE heal")
-            menu.use_riptide:render("Riptide", "HoT")
             menu.use_earth_shield:render("Earth Shield", "Shield")
             menu.use_mana_tide:render("Mana Tide", "Mana regen")
         end)
@@ -159,10 +157,6 @@ function menu.render()
             menu.use_bloodlust:render("Bloodlust", "Haste")
             menu.use_heroism:render("Heroism", "Haste")
             menu.use_earth_elemental:render("Earth Elemental", "Pet")
-            menu.use_thunderstorm:render("Thunderstorm", "AoE knockback")
-            menu.use_astral_shift:render("Astral Shift", "Damage reduction")
-            menu.astral_shift_hp_pct:render("Astral Shift HP %", "Below")
-            menu.use_spiritwalkers_grace:render("Spiritwalker's Grace", "Cast while moving")
         end)
 
         -- Totems

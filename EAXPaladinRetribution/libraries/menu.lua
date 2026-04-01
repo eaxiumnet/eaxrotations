@@ -99,7 +99,6 @@ menu.use_holy_wrath                      = core.menu.checkbox(true, "eaxpaladinr
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_crusader_strike", label = "Crusader Strike" },
     { toggle = "use_judgement", label = "Judgement" },
-    { toggle = "use_divine_storm", label = "Divine Storm" },
     { toggle = "use_consecration", label = "Consecration" },
 }, {
     namespace = "eaxpaladinretribution",
@@ -128,8 +127,6 @@ function menu.render()
             menu.use_hammer_of_wrath:render("Hammer of Wrath", "Execute")
             menu.use_exorcism:render("Exorcism", "Undead/Demon")
             menu.use_consecration:render("Consecration", "AoE")
-            menu.use_divine_storm:render("Divine Storm", "AoE")
-            menu.use_blade_of_justice:render("Blade of Justice", "Filler")
             menu.use_seal_of_command:render("Seal of Command", "Proc")
             menu.use_seal_of_vengeance:render("Seal of Vengeance", "DoT")
             menu.use_seal_of_righteousness:render("Seal of Righteousness", "DPS")
@@ -141,8 +138,6 @@ function menu.render()
         -- Cooldowns
         cd_tree:render("Cooldowns", function()
             menu.use_divine_illumination:render("Divine Illumination", "CD reduction")
-            menu.use_zealotry:render("Zealotry", "Burst")
-            menu.use_crusader_aura:render("Crusader Aura", "Speed")
             menu.use_retribution_aura:render("Retribution Aura", "Damage")
         end)
 

@@ -114,8 +114,6 @@ function menu.render()
             menu.use_circle_of_healing:render("Circle of Healing", "Instant AoE")
             menu.use_prayer_of_mending:render("Prayer of Mending", "Bouncing heal")
             menu.use_lightwell:render("Lightwell", "Click heal")
-            menu.use_divine_hymn:render("Divine Hymn", "AoE heal")
-            menu.use_spirit_of_redemption:render("Spirit of Redemption", "Death heal")
         end)
 
         -- Buffs

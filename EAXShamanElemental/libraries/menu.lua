@@ -156,9 +156,6 @@ function menu.render()
             menu.use_earth_shock:render("Earth Shock", "Instant")
             menu.use_lava_burst:render("Lava Burst", "Proc")
             menu.use_frost_shock:render("Frost Shock", "Slow")
-            menu.use_wind_shear:render("Wind Shear", "Interrupt")
-            menu.use_hex:render("Hex", "CC")
-            menu.use_bind_elemental:render("Bind Elemental", "CC")
         end)
 
         -- Cooldowns
@@ -167,10 +164,7 @@ function menu.render()
             menu.use_bloodlust:render("Bloodlust", "Haste")
             menu.use_heroism:render("Heroism", "Haste")
             menu.use_fire_elemental:render("Fire Elemental", "Pet")
-            menu.use_thunderstorm:render("Thunderstorm", "AoE knockback")
             menu.use_astral_shift:render("Astral Shift", "Damage reduction")
-            menu.astral_shift_hp_pct:render("Astral Shift HP %", "Below")
-            menu.use_spiritwalkers_grace:render("Spiritwalker's Grace", "Cast while moving")
         end)
 
         -- Totems
