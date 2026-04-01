@@ -1375,6 +1375,21 @@ core.register_on_update_callback(function()
     if racial_manager.try_utility(me, target) then return true end
     if racial_manager.try_defensive(me) then return true end
 
+    -- PvP cooldowns: trinket, divine shield, blessing of protection
+    local pvp_instance = pvp_manager.is_in_pvp_instance()
+    if pvp_instance or pvp_manager.is_world_pvp(me) then
+        if pvp_manager.should_use_pvp_trinket(me) then
+            local trinket_ids = { 40426, 40427, 40428, 40429, 40430, 40431 }
+            for _, tid in ipairs(trinket_ids) do
+                if core.inventory and core.inventory.get_item_count and core.inventory.get_item_count(tid) > 0 then
+                    core.input.use_item(tid)
+                    break
+                end
+            end
+        end
+        if pvp_manager.try_paladin_pvp_cooldowns(me, target) then return true end
+    end
+
     -- Defensive abilities
     ttd_tracker.update(target)
 

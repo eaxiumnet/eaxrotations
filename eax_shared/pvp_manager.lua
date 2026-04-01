@@ -156,4 +156,312 @@ function pvp_manager.should_use_defensive_cd(me, target)
     return false
 end
 
+-- --- Arena/BG Awareness ------------------------------------------------------
+
+function pvp_manager.get_arena_size()
+    local ok, size = pcall(function()
+        if GetNumBattlefieldScores then
+            local scores = GetNumBattlefieldScores()
+            if scores and scores > 0 then return "battleground" end
+        end
+        if IsActiveBattlefieldArena then
+            return IsActiveBattlefieldArena() and "arena" or nil
+        end
+        return nil
+    end)
+    return ok and size or nil
+end
+
+function pvp_manager.get_bg_objectives()
+    -- Returns table of BG objectives (flags, nodes, etc.)
+    local objectives = {}
+    local ok, result = pcall(function()
+        if GetBattlefieldTeamInfo then
+            local _, ally_score, _, enemy_score = GetBattlefieldTeamInfo(0)
+            objectives.ally_score = ally_score or 0
+            objectives.enemy_score = enemy_score or 0
+        end
+        if GetNumBattlefieldScores then
+            local num = GetNumBattlefieldScores()
+            objectives.player_count = num or 0
+        end
+    end)
+    return ok and objectives or {}
+end
+
+function pvp_manager.is_flag_carrier(unit)
+    if not unit or not unit:is_valid() then return false end
+    -- Check for flag carrier buffs (WG, AB, EotS)
+    local flag_buffs = {
+        23333, -- Warsong Flag
+        23335, -- Silverwing Flag
+        34976, -- Netherstorm Flag
+        12345, -- Arathi Basin resources
+    }
+    for _, buff_id in ipairs(flag_buffs) do
+        if unit.has_buff and unit:has_buff(buff_id) then
+            return true
+        end
+    end
+    return false
+end
+
+-- --- Spec-Specific PvP Cooldowns ---------------------------------------------
+
+-- Rogue PvP cooldowns
+function pvp_manager.try_rogue_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+    local target_hp = target.get_health_percentage and target:get_health_percentage() or 100
+
+    -- Evasion when HP < 30% and being attacked by players
+    if hp < 30 then
+        local evasion_id = 5277
+        if core.spell_book.is_usable_spell(evasion_id) then
+            core.input.cast_spell(evasion_id)
+            return true
+        end
+    end
+
+    -- Cloak of Shadows when CCed or low HP
+    if hp < 40 or pvp_manager.is_cced(me) then
+        local cloak_id = 31224
+        if core.spell_book.is_usable_spell(cloak_id) then
+            core.input.cast_spell(cloak_id)
+            return true
+        end
+    end
+
+    -- Vanish when HP < 20%
+    if hp < 20 then
+        local vanish_id = 1856
+        if core.spell_book.is_usable_spell(vanish_id) then
+            core.input.cast_spell(vanish_id)
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Warrior PvP cooldowns
+function pvp_manager.try_warrior_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+
+    -- Berserker Rage when feared/rooted
+    if pvp_manager.is_cced(me) then
+        local berserker_rage_id = 18499
+        if core.spell_book.is_usable_spell(berserker_rage_id) then
+            core.input.cast_spell(berserker_rage_id)
+            return true
+        end
+    end
+
+    -- Shield Wall when HP < 30%
+    if hp < 30 then
+        local shield_wall_id = 871
+        if core.spell_book.is_usable_spell(shield_wall_id) then
+            core.input.cast_spell(shield_wall_id)
+            return true
+        end
+    end
+
+    -- Last Stand when HP < 25%
+    if hp < 25 then
+        local last_stand_id = 12975
+        if core.spell_book.is_usable_spell(last_stand_id) then
+            core.input.cast_spell(last_stand_id)
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Mage PvP cooldowns
+function pvp_manager.try_mage_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+
+    -- Ice Block when HP < 20% or CCed
+    if hp < 20 or pvp_manager.is_cced(me) then
+        local ice_block_id = 45438
+        if core.spell_book.is_usable_spell(ice_block_id) then
+            core.input.cast_spell(ice_block_id)
+            return true
+        end
+    end
+
+    -- Blink when rooted or HP < 30%
+    if hp < 30 then
+        local blink_id = 1953
+        if core.spell_book.is_usable_spell(blink_id) then
+            core.input.cast_spell(blink_id)
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Druid PvP cooldowns
+function pvp_manager.try_druid_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+
+    -- Barkskin when HP < 40%
+    if hp < 40 then
+        local barkskin_id = 22812
+        if core.spell_book.is_usable_spell(barkskin_id) then
+            core.input.cast_spell(barkskin_id)
+            return true
+        end
+    end
+
+    -- Nature's Swiftness + Healing Touch when HP < 30%
+    if hp < 30 then
+        local ns_id = 17116
+        if core.spell_book.is_usable_spell(ns_id) then
+            core.input.cast_spell(ns_id)
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Priest PvP cooldowns
+function pvp_manager.try_priest_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+
+    -- Pain Suppression when HP < 35%
+    if hp < 35 then
+        local ps_id = 33206
+        if core.spell_book.is_usable_spell(ps_id) then
+            core.input.cast_spell(ps_id)
+            return true
+        end
+    end
+
+    -- Dispersion when HP < 25%
+    if hp < 25 then
+        local dispersion_id = 47585
+        if core.spell_book.is_usable_spell(dispersion_id) then
+            core.input.cast_spell(dispersion_id)
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Paladin PvP cooldowns
+function pvp_manager.try_paladin_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+
+    -- Divine Shield when HP < 20%
+    if hp < 20 then
+        local ds_id = 642
+        if core.spell_book.is_usable_spell(ds_id) then
+            core.input.cast_spell(ds_id)
+            return true
+        end
+    end
+
+    -- Blessing of Protection when HP < 30%
+    if hp < 30 then
+        local bop_id = 1022
+        if core.spell_book.is_usable_spell(bop_id) then
+            core.input.cast_spell(bop_id)
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Shaman PvP cooldowns
+function pvp_manager.try_shaman_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+
+    -- Shamanistic Rage when HP < 40%
+    if hp < 40 then
+        local sr_id = 30823
+        if core.spell_book.is_usable_spell(sr_id) then
+            core.input.cast_spell(sr_id)
+            return true
+        end
+    end
+
+    -- Wind Shear (interrupt) on caster targets
+    if target then
+        local class = target.get_class and target:get_class() or nil
+        if class and (class == "MAGE" or class == "WARLOCK" or class == "PRIEST") then
+            local ws_id = 57994
+            if core.spell_book.is_usable_spell(ws_id) then
+                core.input.cast_spell(ws_id)
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+-- Warlock PvP cooldowns
+function pvp_manager.try_warlock_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+
+    -- Death Coil when HP < 35%
+    if hp < 35 then
+        local dc_id = 6789
+        if core.spell_book.is_usable_spell(dc_id) then
+            core.input.cast_spell(dc_id)
+            return true
+        end
+    end
+
+    -- Fear when being attacked by multiple players
+    if hp < 50 then
+        local fear_id = 5782
+        if core.spell_book.is_usable_spell(fear_id) then
+            core.input.cast_spell(fear_id)
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Hunter PvP cooldowns
+function pvp_manager.try_hunter_pvp_cooldowns(me, target)
+    if not me or not me:is_valid() or not target then return false end
+    local hp = me.get_health_percentage and me:get_health_percentage() or 100
+
+    -- Deterrence when HP < 30%
+    if hp < 30 then
+        local det_id = 19263
+        if core.spell_book.is_usable_spell(det_id) then
+            core.input.cast_spell(det_id)
+            return true
+        end
+    end
+
+    -- Disengage when rooted or HP < 40%
+    if hp < 40 then
+        local disengage_id = 781
+        if core.spell_book.is_usable_spell(disengage_id) then
+            core.input.cast_spell(disengage_id)
+            return true
+        end
+    end
+
+    return false
+end
+
 return pvp_manager

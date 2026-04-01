@@ -2497,6 +2497,20 @@ local function on_update()
         return
     end
 
+    -- PvP cooldowns: trinket, berserker rage, shield wall, last stand
+    if pvp_instance or d.pvp_manager.is_world_pvp(me) then
+        if d.pvp_manager.should_use_pvp_trinket(me) then
+            local trinket_ids = { 40426, 40427, 40428, 40429, 40430, 40431 }
+            for _, tid in ipairs(trinket_ids) do
+                if core.inventory and core.inventory.get_item_count and core.inventory.get_item_count(tid) > 0 then
+                    core.input.use_item(tid)
+                    break
+                end
+            end
+        end
+        if d.pvp_manager.try_warrior_pvp_cooldowns(me, target) then return end
+    end
+
     d.ttd_tracker.update(target)
 
     local focus_target = d.eax_utils.get_focus_target(menu)

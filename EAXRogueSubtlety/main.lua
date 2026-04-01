@@ -1190,6 +1190,21 @@ core.register_on_update_callback(function()
     -- Smart target selection: prioritize units actively fighting us/party
     local target = focus_target or target or utils.find_best_target(me)
 
+    -- PvP cooldowns: trinket, evasion, cloak, vanish
+    if pvp_manager.is_in_pvp_instance() or pvp_manager.is_world_pvp(me) then
+        if pvp_manager.should_use_pvp_trinket(me) then
+            -- Use PvP trinket (Insignia of the Alliance/Horde)
+            local trinket_ids = { 40426, 40427, 40428, 40429, 40430, 40431 }
+            for _, tid in ipairs(trinket_ids) do
+                if core.inventory and core.inventory.get_item_count and core.inventory.get_item_count(tid) > 0 then
+                    core.input.use_item(tid)
+                    break
+                end
+            end
+        end
+        pvp_manager.try_rogue_pvp_cooldowns(me, target)
+    end
+
     do_rotation(me, target)
 end)
 

@@ -1713,6 +1713,20 @@ local function on_update()
         end
     end
     do_rotation(me, t)
+
+    -- PvP cooldowns: trinket, deterrence, disengage
+    if pvp_instance or pvp_manager.is_world_pvp(me) then
+        if pvp_manager.should_use_pvp_trinket(me) then
+            local trinket_ids = { 40426, 40427, 40428, 40429, 40430, 40431 }
+            for _, tid in ipairs(trinket_ids) do
+                if core.inventory and core.inventory.get_item_count and core.inventory.get_item_count(tid) > 0 then
+                    core.input.use_item(tid)
+                    break
+                end
+            end
+        end
+        pvp_manager.try_hunter_pvp_cooldowns(me, t)
+    end
 end
 
 reactive_adapter = {
