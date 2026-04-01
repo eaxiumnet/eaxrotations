@@ -23,8 +23,6 @@ local eax_utils = require("libraries/eax_utils")
 local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
 local ooc_manager = require("libraries/ooc_manager")
----@type ooc_manager
-local ooc_manager = require("libraries/ooc_manager")
 ---@type consumables_manager
 local consumables_manager = require("libraries/consumables_manager")
 ---@type leveling_manager
