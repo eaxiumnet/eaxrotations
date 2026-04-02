@@ -33,37 +33,50 @@
 
 ### Usefulness Matrix
 
-| Class | Spec | Solo | Dungeon | Raid | PvP |
-|-------|------|:----:|:-------:|:----:|:---:|
-| Druid | Balance | 78% | 76% | 72% | 60% |
-| Druid | Feral | 84% | 80% | 76% | 65% |
-| Druid | Restoration | 70% | 92% | 88% | 55% |
-| Hunter | Beast Mastery | 88% | 84% | 82% | 70% |
-| Hunter | Marksmanship | 82% | 78% | 76% | 68% |
-| Hunter | Survival | 78% | 74% | 72% | 72% |
-| Mage | Arcane | 76% | 80% | 84% | 75% |
-| Mage | Fire | 76% | 80% | 82% | 72% |
-| Mage | Frost | 82% | 86% | 88% | 80% |
-| Paladin | Holy | 52% | 96% | 94% | 45% |
-| Paladin | Protection | 72% | 94% | 92% | 60% |
-| Paladin | Retribution | 90% | 90% | 88% | 70% |
-| Priest | Discipline | 55% | 82% | 76% | 75% |
-| Priest | Holy | 50% | 86% | 82% | 50% |
-| Priest | Shadow | 84% | 80% | 76% | 70% |
-| Rogue | Assassination | 88% | 86% | 86% | 80% |
-| Rogue | Combat | 84% | 88% | 84% | 75% |
-| Rogue | Subtlety | 78% | 74% | 70% | 85% |
-| Shaman | Elemental | 76% | 76% | 72% | 65% |
-| Shaman | Enhancement | 84% | 84% | 80% | 70% |
-| Shaman | Restoration | 70% | 92% | 88% | 55% |
-| Warlock | Affliction | 88% | 84% | 84% | 70% |
-| Warlock | Demonology | 78% | 78% | 74% | 65% |
-| Warlock | Destruction | 84% | 84% | 84% | 72% |
-| Warrior | Arms | 84% | 80% | 80% | 75% |
-| Warrior | Fury | 86% | 82% | 78% | 70% |
-| Warrior | Protection | 60% | 92% | 88% | 65% |
+| Class | Spec | Role | Races | Solo | Dungeon | Raid | PvP |
+|-------|------|:----:|:-----:|:----:|:-------:|:----:|:---:|
+| **Druid** | | | | | | | |
+| | Balance | ⚔️ DPS | Night Elf, Tauren | 78% | 76% | 72% | 60% |
+| | Feral | 🛡️⚔️ Tank/DPS | Night Elf, Tauren | 84% | 80% | 76% | 65% |
+| | Restoration | 💚 Healer | Night Elf, Tauren | 70% | 92% | 88% | 55% |
+| **Hunter** | | | | | | | |
+| | Beast Mastery | ⚔️ DPS | Dwarf, Night Elf, Orc, Tauren, Troll, Blood Elf | 88% | 84% | 82% | 70% |
+| | Marksmanship | ⚔️ DPS | Dwarf, Night Elf, Orc, Tauren, Troll, Blood Elf | 82% | 78% | 76% | 68% |
+| | Survival | ⚔️ DPS | Dwarf, Night Elf, Orc, Tauren, Troll, Blood Elf | 78% | 74% | 72% | 72% |
+| **Mage** | | | | | | | |
+| | Arcane | ⚔️ DPS | Gnome, Human, Dwarf, Undead, Troll, Blood Elf | 76% | 80% | 84% | 75% |
+| | Fire | ⚔️ DPS | Gnome, Human, Dwarf, Undead, Troll, Blood Elf | 76% | 80% | 82% | 72% |
+| | Frost | ⚔️ DPS | Gnome, Human, Dwarf, Undead, Troll, Blood Elf | 82% | 86% | 88% | 80% |
+| **Paladin** | | | | | | | |
+| | Holy | 💚 Healer | Human, Dwarf, Blood Elf | 52% | 96% | 94% | 45% |
+| | Protection | 🛡️ Tank | Human, Dwarf, Blood Elf | 72% | 94% | 92% | 60% |
+| | Retribution | ⚔️ DPS | Human, Dwarf, Blood Elf | 90% | 90% | 88% | 70% |
+| **Priest** | | | | | | | |
+| | Discipline | 💚 Healer | Human, Dwarf, Night Elf, Undead, Troll, Blood Elf, Draenei | 55% | 82% | 76% | 75% |
+| | Holy | 💚 Healer | Human, Dwarf, Night Elf, Undead, Troll, Blood Elf, Draenei | 50% | 86% | 82% | 50% |
+| | Shadow | ⚔️ DPS | Human, Dwarf, Night Elf, Undead, Troll, Blood Elf, Draenei | 84% | 80% | 76% | 70% |
+| **Rogue** | | | | | | | |
+| | Assassination | ⚔️ DPS | Human, Dwarf, Night Elf, Gnome, Orc, Troll, Undead, Blood Elf | 88% | 86% | 86% | 80% |
+| | Combat | ⚔️ DPS | Human, Dwarf, Night Elf, Gnome, Orc, Troll, Undead, Blood Elf | 84% | 88% | 84% | 75% |
+| | Subtlety | ⚔️ DPS | Human, Dwarf, Night Elf, Gnome, Orc, Troll, Undead, Blood Elf | 78% | 74% | 70% | 85% |
+| **Shaman** | | | | | | | |
+| | Elemental | ⚔️ DPS | Orc, Tauren, Troll, Draenei | 76% | 76% | 72% | 65% |
+| | Enhancement | ⚔️ DPS | Orc, Tauren, Troll, Draenei | 84% | 84% | 80% | 70% |
+| | Restoration | 💚 Healer | Orc, Tauren, Troll, Draenei | 70% | 92% | 88% | 55% |
+| **Warlock** | | | | | | | |
+| | Affliction | ⚔️ DPS | Human, Gnome, Orc, Undead, Blood Elf | 88% | 84% | 84% | 70% |
+| | Demonology | ⚔️ DPS | Human, Gnome, Orc, Undead, Blood Elf | 78% | 78% | 74% | 65% |
+| | Destruction | ⚔️ DPS | Human, Gnome, Orc, Undead, Blood Elf | 84% | 84% | 84% | 72% |
+| **Warrior** | | | | | | | |
+| | Arms | ⚔️ DPS | All Races | 84% | 80% | 80% | 75% |
+| | Fury | ⚔️ DPS | All Races | 86% | 82% | 78% | 70% |
+| | Protection | 🛡️ Tank | All Races | 60% | 92% | 88% | 65% |
 
-> **Reading the scores:** `90-100` = strong fit for that role, `75-89` = very usable, `60-74` = workable with caveats, `<60` = partial or role-mismatched.
+**Legend:** ⚔️ DPS | 🛡️ Tank | 💚 Healer | 🛡️⚔️ Dual Role
+
+> **Reading the scores:** `90-100` = strong fit, `75-89` = very usable, `60-74` = workable, `<60` = partial
+> 
+> **Races:** Alliance = Human, Dwarf, Night Elf, Gnome, Draenei | Horde = Orc, Undead, Tauren, Troll, Blood Elf
 
 ---
 
