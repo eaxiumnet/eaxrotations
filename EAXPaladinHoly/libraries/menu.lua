@@ -64,16 +64,15 @@ menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxp
 
 -- Healing
 menu.use_holy_light                      = core.menu.checkbox(true, "eaxpaladinholy_use_holy_light")
-menu.holy_light_hp_pct                   = core.menu.slider_int(0, 100, 60, "eaxpaladinholy_holy_light_hp_pct")
+menu.holy_light_hp_pct                   = core.menu.slider_int(10, 100, 60, "eaxpaladinholy_holy_light_hp_pct")
 menu.use_flash_of_light                  = core.menu.checkbox(true, "eaxpaladinholy_use_flash_of_light")
-menu.flash_of_light_hp_pct               = core.menu.slider_int(0, 100, 75, "eaxpaladinholy_flash_of_light_hp_pct")
+menu.flash_of_light_hp_pct               = core.menu.slider_int(10, 100, 80, "eaxpaladinholy_flash_of_light_hp_pct")
 menu.use_holy_shock                      = core.menu.checkbox(true, "eaxpaladinholy_use_holy_shock")
-menu.holy_shock_hp_pct                   = core.menu.slider_int(0, 100, 50, "eaxpaladinholy_holy_shock_hp_pct")
+menu.holy_shock_hp_pct                   = core.menu.slider_int(10, 100, 70, "eaxpaladinholy_holy_shock_hp_pct")
 menu.use_divine_illumination             = core.menu.checkbox(true, "eaxpaladinholy_use_divine_illumination")
-menu.use_beacon                          = core.menu.checkbox(true, "eaxpaladinholy_use_beacon")
 menu.use_cleanse                         = core.menu.checkbox(true, "eaxpaladinholy_use_cleanse")
 menu.use_lay_on_hands                    = core.menu.checkbox(true, "eaxpaladinholy_use_lay_on_hands")
-menu.lay_on_hands_hp_pct                 = core.menu.slider_int(5, 30, 15, "eaxpaladinholy_lay_on_hands_hp_pct")
+menu.lay_on_hands_hp_pct                 = core.menu.slider_int(5, 50, 20, "eaxpaladinholy_lay_on_hands_hp_pct")
 menu.use_divine_favor                    = core.menu.checkbox(true, "eaxpaladinholy_use_divine_favor")
 menu.use_divine_shield                   = core.menu.checkbox(true, "eaxpaladinholy_use_divine_shield")
 menu.divine_shield_hp_pct                = core.menu.slider_int(0, 100, 20, "eaxpaladinholy_divine_shield_hp_pct")
@@ -90,6 +89,26 @@ menu.use_exorcism                        = core.menu.checkbox(true, "eaxpaladinh
 menu.use_holy_wrath                      = core.menu.checkbox(true, "eaxpaladinholy_use_holy_wrath")
 menu.use_turn_undead                     = core.menu.checkbox(true, "eaxpaladinholy_use_turn_undead")
 menu.use_redemption                      = core.menu.checkbox(true, "eaxpaladinholy_use_redemption")
+
+-- Missing toggles (12 total)
+-- Judgement Maintenance (1)
+menu.maintain_judgement                  = core.menu.checkbox(true, "eaxpaladinholy_maintain_judgement")
+
+-- Auto Blessings (1)
+menu.auto_blessings                      = core.menu.checkbox(true, "eaxpaladinholy_auto_blessings")
+
+-- Cooldowns (2) - divine_illumination already defined above
+menu.divine_illumination_mana_pct        = core.menu.slider_int(10, 80, 50, "eaxpaladinholy_divine_illumination_mana_pct")
+
+-- Target Selection (1)
+menu.heal_target_priority                = core.menu.combobox(1, "eaxpaladinholy_heal_target_priority")
+
+-- HP Thresholds (5) - bop_hp_pct is new
+menu.bop_hp_pct                          = core.menu.slider_int(5, 50, 30, "eaxpaladinholy_bop_hp_pct")
+
+-- Utility (2)
+menu.use_bop_on_tank                     = core.menu.checkbox(false, "eaxpaladinholy_use_bop_on_tank")
+menu.use_divine_protection               = core.menu.checkbox(true, "eaxpaladinholy_use_divine_protection")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_holy_light", label = "Holy Light" },
@@ -117,6 +136,8 @@ function menu.render()
 
         -- Healing
         healing_tree:render("Healing", function()
+            ps.header("Target Priority")
+            menu.heal_target_priority:render("Heal Target Priority", "Selection")
             ps.header("Direct Heals")
             menu.use_holy_light:render("Holy Light", "Main heal")
             menu.holy_light_hp_pct:render("Holy Light HP %", "Below")
@@ -125,6 +146,7 @@ function menu.render()
             menu.use_holy_shock:render("Holy Shock", "Instant heal")
             menu.holy_shock_hp_pct:render("Holy Shock HP %", "Below")
             menu.use_divine_illumination:render("Divine Illumination", "CD reduction")
+            menu.divine_illumination_mana_pct:render("Divine Illumination Mana %", "Below")
             menu.use_cleanse:render("Cleansing", "Dispel")
             menu.use_lay_on_hands:render("Lay on Hands", "Emergency")
             menu.lay_on_hands_hp_pct:render("LoH HP %", "Below")
@@ -137,6 +159,7 @@ function menu.render()
             menu.use_seal_of_wisdom:render("Seal of Wisdom", "Mana on hit")
             menu.use_seal_of_righteousness:render("Seal of Righteousness", "DPS")
             menu.use_judgement:render("Judgement", "On CD")
+            menu.maintain_judgement:render("Maintain Judgement", "Keep active")
             menu.use_consecration:render("Consecration", "AoE")
             menu.use_exorcism:render("Exorcism", "Undead/Demon")
             menu.use_holy_wrath:render("Holy Wrath", "AoE undead")
@@ -145,6 +168,8 @@ function menu.render()
 
         -- Blessings
         cd_tree:render("Blessings", function()
+            menu.auto_blessings:render("Auto Blessings", "Auto-cast")
+            ps.header("Blessing Selection")
             menu.use_blessing_of_light:render("BoL", "Heal boost")
             menu.use_blessing_of_wisdom:render("BoW", "Mana regen")
             menu.use_blessing_of_might:render("BoM", "AP buff")
@@ -153,8 +178,12 @@ function menu.render()
 
         -- Defensive
         def_tree:render("Defensive", function()
+            menu.use_divine_protection:render("Divine Protection", "-50% physical")
             menu.use_divine_shield:render("Divine Shield", "Immunity")
             menu.divine_shield_hp_pct:render("Divine Shield HP %", "Below")
+            ps.header("Blessing of Protection")
+            menu.use_bop_on_tank:render("BoP on Tank", "Allow tank BoP")
+            menu.bop_hp_pct:render("BoP HP %", "Below")
         end)
 
         -- Automation

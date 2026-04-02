@@ -213,7 +213,6 @@ local runtime = {
     divine_shield_id = nil,
     redemption_id = nil,
     crusader_strike_id = nil,
-    divine_storm_id = nil,
     avenging_wrath_id = nil,
     seal_command_id = nil,
     consecration_id = nil,

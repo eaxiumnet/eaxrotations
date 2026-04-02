@@ -447,7 +447,7 @@ local function try_greater_heal(me)
         return false
     end
 
-    local threshold = menu.greater_heal_threshold:get() / 100
+    local threshold = menu.greater_heal_hp_pct:get() / 100
     local candidate = find_lowest_effective_ally(me, threshold, true)
 
     if candidate then
@@ -584,12 +584,12 @@ local function has_urgent_direct_heal_target(me)
 
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and focus_target:is_valid() and not focus_target:is_dead() then
-        if heal_engine.get_effective_hp_pct(focus_target) < (menu.flash_heal_threshold:get() / 100) then
+        if heal_engine.get_effective_hp_pct(focus_target) < (menu.flash_heal_hp_pct:get() / 100) then
             return true
         end
     end
 
-    local tank_threshold = menu.greater_heal_threshold:get() / 100
+    local tank_threshold = menu.greater_heal_hp_pct:get() / 100
     local units = utils.get_party_units(me)
     for i = 1, #units do
         local unit = units[i]
@@ -663,7 +663,7 @@ local function try_flash_heal(me, target)
         return false
     end
 
-    local threshold = menu.flash_heal_threshold:get() / 100
+    local threshold = menu.flash_heal_hp_pct:get() / 100
     local candidate = target
     if not candidate then
         candidate = find_lowest_effective_ally(me, threshold, true)
@@ -1046,11 +1046,11 @@ core.register_on_update_callback(function()
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target then
         local focus_hp = heal_engine.get_effective_hp_pct(focus_target) * 100
-        if focus_hp < menu.flash_heal_threshold:get() then
+        if focus_hp < menu.flash_heal_hp_pct:get() then
             if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_flash_heal(me, focus_target) then
                 return
             end
-        elseif focus_hp < menu.greater_heal_threshold:get() then
+        elseif focus_hp < menu.greater_heal_hp_pct:get() then
             if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_cast_spell(me, focus_target, resolved.greater_heal) then
                 return
             end

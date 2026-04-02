@@ -1058,10 +1058,10 @@ end
 
 
 local function try_cloak_of_shadows(me)
-    if not menu.use_cloak or not menu.use_cloak:get_state() then return false end
+    if not menu.use_cloak_of_shadows or not menu.use_cloak_of_shadows:get_state() then return false end
     if not runtime.cloak_id then return false end
     local hp = me:get_health_percentage() / 100
-    local threshold = menu.use_cloak_hp_pct and (menu.use_cloak_hp_pct:get() / 100) or 0.60
+    local threshold = menu.cloak_of_shadows_hp_pct and (menu.cloak_of_shadows_hp_pct:get() / 100) or 0.60
     if hp > threshold then return false end
     if not utils.can_cast_self(runtime.cloak_id, me) then return false end
     if utils.cast_self(runtime.cloak_id, me) then

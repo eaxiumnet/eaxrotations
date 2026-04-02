@@ -86,7 +86,6 @@ menu.use_preparation                     = core.menu.checkbox(true, "eaxroguecom
 menu.use_cold_blood                      = core.menu.checkbox(true, "eaxroguecombat_use_cold_blood")
 menu.use_cheap_shot                      = core.menu.checkbox(true, "eaxroguecombat_use_cheap_shot")
 menu.use_kidney_shot                     = core.menu.checkbox(true, "eaxroguecombat_use_kidney_shot")
-menu.use_shadow_dance                    = core.menu.checkbox(true, "eaxroguecombat_use_shadow_dance")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_sinister_strike", label = "Sinister Strike" },
