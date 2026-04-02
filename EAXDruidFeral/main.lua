@@ -700,19 +700,27 @@ end
 local function try_ferocious_bite(me, target, target_hp_pct, ctx)
     if not menu.use_ferocious_bite:get_state() then return false end
     if not runtime.ferocious_bite_id then return false end
-    if runtime.combo_points < 1 then return false end
 
-    local killshot_threshold = menu.bite_killshot_hp_pct:get() / 100
-    local min_cp = target_hp_pct <= killshot_threshold and 1 or 5
-    local can_cast = resource_gate.feral.can_cat_finisher(ctx, 35, runtime.combo_points, min_cp)
-    if not can_cast then return false end
+    -- FLUX FIX v1.8.9: Configurable min CP (default 5, but user can set 1-5)
+    local min_cp = menu.bite_min_cp and menu.bite_min_cp:get() or 5
+    if runtime.combo_points < min_cp then return false end
 
-    if target_hp_pct <= killshot_threshold then
-        -- Killshot mode: target is low enough to finish off - dump any CPs now
-        -- Skip the Rip check entirely; the mob is dying anyway
-    else
-        -- Normal mode: only spend CPs at max (5) as a finisher
-        if runtime.combo_points < 5 then return false end
+    local energy = utils.get_energy(me)
+    local ttd = ttd_tracker.get(target)
+
+    -- FLUX FIX v1.8.10: Execute mode - FB scales with CP: 1 CP = 1.5s TTD needed
+    local is_execute = false
+    if menu.use_bite_execute and menu.use_bite_execute:get() then
+        local bite_execute_ttd = runtime.combo_points * 1.5  -- 1 CP = 1.5s, 5 CP = 7.5s
+        if ttd > 0 and ttd <= bite_execute_ttd then
+            is_execute = true
+        elseif target_hp_pct <= (menu.bite_killshot_hp_pct:get() / 100) then
+            is_execute = true
+        end
+    end
+
+    -- Not in execute mode and target has enough HP - use normal logic
+    if not is_execute then
         -- If Rip is active but expiring, let try_rip refresh it first
         local rip_relevant = menu.use_rip:get_state() and not creature_utils.is_bleed_immune(target)
         if rip_relevant then
@@ -721,24 +729,26 @@ local function try_ferocious_bite(me, target, target_hp_pct, ctx)
         end
     end
 
-    -- Energy pooling: only cast bite if we have enough energy for the full cost.
-    -- Bite costs 35 energy per combo point.
-    local bite_cost = runtime.combo_points * 35
-    local energy = utils.get_energy(me)
-    if energy < bite_cost then
-        -- Not enough energy yet; pool energy by waiting.
+    -- FLUX FIX v1.8.9: Energy cap - don't FB if we'd waste too much excess energy
+    local fb_max_energy = menu.bite_max_energy and menu.bite_max_energy:get() or 39
+    if energy > fb_max_energy and not is_execute then
+        -- Skip FB to avoid wasting excess energy (pool for next cycle)
         return false
     end
-    -- Also avoid capping energy while waiting for bite: if energy is high enough
-    -- but we're still pooling for other finishers? Not needed.
+
+    -- Energy check: need at least bite cost (35 energy base)
+    local bite_cost = 35
+    if energy < bite_cost then
+        return false
+    end
 
     if is_pending_cast(runtime.ferocious_bite_id) then return false end
     if not utils.can_cast_hostile(runtime.ferocious_bite_id, me, target) then return false end
 
     if utils.cast_target(runtime.ferocious_bite_id, target) then
         mark_pending_cast(runtime.ferocious_bite_id, PENDING_CAST_TIMEOUT_S)
-        local mode = target_hp_pct <= killshot_threshold and "killshot" or "finisher"
-        utils.log_debug(menu, "Ferocious Bite (" .. mode .. " CP=" .. runtime.combo_points .. ")")
+        local mode = is_execute and "execute" or "finisher"
+        utils.log_debug(menu, "Ferocious Bite (" .. mode .. " CP=" .. runtime.combo_points .. ", Energy=" .. energy .. ")")
         note_cast()
         return true
     end
@@ -865,27 +875,93 @@ end
 local RAKE_TRICK_MIN = 35
 local RAKE_TRICK_MAX = 55
 
+-- ============================================================================
+-- ENERGY TICK TRACKING (Flux fix v1.8.x)
+-- Energy ticks every 2s in TBC (20 energy per tick). This system detects
+-- ticks by watching for energy increases in cat form, filtering out
+-- Furor energy (40+20 on form shift). Strategies can check
+-- should_delay_shift_for_tick() to delay powershifts and capture ticks.
+-- ============================================================================
+local ENERGY_TICK_INTERVAL = 2.0
+local SHIFT_ENERGY_IGNORE_WINDOW = 0.6  -- Ignore energy increases within 0.6s of a shift
+local TICK_WAIT_THRESHOLD = 0.4         -- Wait for tick if arriving within this window
 
+local energy_tick_last_shift = 0
+local energy_tick = {
+    last_energy = 0,
+    last_tick_time = 0,
+    confident = false,  -- True once we've detected at least one tick
+}
+
+--- Update tick tracker each frame
+local function update_energy_tick(current_energy, in_cat_form)
+    if not in_cat_form then
+        energy_tick.last_energy = 0
+        energy_tick.confident = false
+        return
+    end
+
+    local now = _core_time()
+    local delta = current_energy - energy_tick.last_energy
+
+    -- Detect energy tick: positive increase, not from a recent form shift
+    -- Ticks are 20 energy; filter out Furor (40) + Wolfshead (20) by checking shift window
+    if delta > 0 and delta <= 25 and
+       (now - energy_tick_last_shift) > SHIFT_ENERGY_IGNORE_WINDOW then
+        energy_tick.last_tick_time = now
+        energy_tick.confident = true
+    end
+
+    energy_tick.last_energy = current_energy
+end
+
+--- Get time until next energy tick (seconds)
+local function time_until_next_tick()
+    if not energy_tick.confident or energy_tick.last_tick_time == 0 then return 1.0 end
+    local elapsed = _core_time() - energy_tick.last_tick_time
+    local remaining = ENERGY_TICK_INTERVAL - (elapsed % ENERGY_TICK_INTERVAL)
+    return remaining
+end
+
+--- Check if powershifting should be delayed for an imminent energy tick
+local function should_delay_shift_for_tick()
+    if not energy_tick.confident then return false end
+    return time_until_next_tick() <= TICK_WAIT_THRESHOLD
+end
+
+-- ============================================================================
+-- WOLFSHEAD HELM AUTO-DETECTION WITH CACHING (Flux fix v1.8.x)
+-- Caches equipped status to avoid repeated inventory scans.
+-- ============================================================================
 local SHIFT_ENERGY_THRESHOLD = 30
 local SHIFT_MIN_INTERVAL_S   = 1.2
 local WOLFSHEAD_ITEM_ID      = 8345
+local INVENTORY_SLOT_HEAD    = 0  -- Head slot index
+
+local wolfshead_cache = { equipped = false, last_check = 0 }
+local EQUIPMENT_CHECK_INTERVAL = 2.0
 
 local function has_wolfshead(me)
-    local ok, slot = pcall(function() return me:get_item_at_inventory_slot(1) end)
+    local now = _core_time()
+    if now - wolfshead_cache.last_check < EQUIPMENT_CHECK_INTERVAL then
+        return wolfshead_cache.equipped
+    end
+
+    local ok, slot = pcall(function() return me:get_item_at_inventory_slot(INVENTORY_SLOT_HEAD) end)
     if ok and slot and slot.object then
         local ok2, id = pcall(function() return slot.object:get_item_id() end)
-        return ok2 and id == WOLFSHEAD_ITEM_ID
+        wolfshead_cache.equipped = (ok2 and id == WOLFSHEAD_ITEM_ID)
+    else
+        wolfshead_cache.equipped = false
     end
-    return false
+    wolfshead_cache.last_check = now
+    return wolfshead_cache.equipped
 end
 
--- --- Powershifting ------------------------------------------------------------
--- core.input.quick_cat replicates `/cast !Cat Form` behaviour:
--- casts Cat Form while already in Cat Form WITHOUT dropping the form first.
--- This is the classic TBC powershift trick - fires a zero-downtime shift that
--- triggers the energy regen from Wolfshead Helm / Natural Shapeshifter talent.
--- Only works on private/legacy servers (not retail).
--- Falls back to a normal form cast on servers that haven't patched this in.
+-- ============================================================================
+-- POWERSHIFTING WITH TICK OPTIMIZATION (Flux fix v1.8.x)
+-- Now delays powershifts when an energy tick is imminent to maximize energy.
+-- ============================================================================
 
 local function try_powershift(me)
     if not menu.use_powershift or not menu.use_powershift:get_state() then return false end
@@ -895,11 +971,22 @@ local function try_powershift(me)
     local energy = utils.get_energy and utils.get_energy(me) or 100
     -- Only powershift if we actually have energy to reset - firing at 0 gains nothing
     if energy <= 0 then return false end
-    local threshold = has_wolfshead(me) and SHIFT_ENERGY_THRESHOLD or 15
+
+    -- FLUX FIX v1.8.x: Delay powershift if energy tick is imminent
+    -- This prevents wasting a shift right before a 20-energy tick arrives
+    if should_delay_shift_for_tick() then
+        return false  -- Wait for the tick, then shift next frame
+    end
+
+    local has_wh = has_wolfshead(me)
+    local threshold = has_wh and SHIFT_ENERGY_THRESHOLD or 15
     if energy >= threshold then return false end
     local now = _core_time()
-    local min_i = has_wolfshead(me) and SHIFT_MIN_INTERVAL_S or 2.0
+    local min_i = has_wh and SHIFT_MIN_INTERVAL_S or 2.0
     if (now - runtime.last_shift_at) < min_i then return false end
+
+    -- Record shift time BEFORE attempting (for tick tracker filtering)
+    energy_tick_last_shift = now
 
     -- Use core.input.quick_cat if available - this is the PS implementation of
     -- `/cast !Cat Form`: casts Cat Form in-form without cancelling the buff first.
@@ -992,6 +1079,19 @@ local function try_shred_or_filler(me, target, ctx)
 
     if cp >= 4 and energy < builder_pool then
         return false
+    end
+
+    -- FLUX FIX v1.8.x: Tick optimization - prefer Mangle over Shred when energy
+    -- is in the "dead zone" and a tick is imminent. This prevents wasting energy
+    -- that would arrive from the tick before the GCD completes.
+    local tick_threshold = 1.0  -- seconds
+    local tick_dead_zone_low = 50   -- 2*mangle_cost - 20 (approx)
+    local tick_dead_zone_high = 62  -- mangle_cost + shred_cost - 21 (approx)
+    local tick_imminent = energy_tick.confident and time_until_next_tick() < tick_threshold
+    local in_tick_dead_zone = energy >= tick_dead_zone_low and energy <= tick_dead_zone_high
+    if likely_shred and tick_imminent and in_tick_dead_zone then
+        -- Skip Shred this frame - let Mangle fire instead to avoid energy waste
+        likely_shred = false
     end
 
     if menu.use_shred:get_state() and runtime.shred_id and cp < 5 then
@@ -1632,6 +1732,12 @@ end
 local function do_cat_rotation(me, target, ctx)
     local target_hp_pct = utils.get_health_pct(target)
     local in_stealth = utils.is_prowling(me, spells.BUFF_PROWL)
+    local in_cat = utils.is_in_cat_form(me, spells)
+    local current_energy = utils.get_energy(me)
+
+    -- FLUX FIX v1.8.x: Update energy tick tracker every frame while in cat form
+    -- This detects energy ticks (20 energy per 2s) for optimal powershifting
+    update_energy_tick(current_energy, in_cat)
 
     -- Defensive / self-cast (always safe, don't break stealth)
     if try_barkskin(me) then return true end

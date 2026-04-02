@@ -1539,6 +1539,12 @@ end
 local function try_demo_shout(me, target)
     if not menu.use_demo_shout:get_state() or not runtime.demoralizing_shout_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
+    
+    -- FLUX IMPROVEMENT: CC break prevention - don't break breakable CC on nearby enemies
+    if has_breakable_cc_nearby_flux(me, 10) then
+        return false
+    end
+    
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEMORALIZING_SHOUT)
     if remaining >= 5000 then return false end
     if utils.can_cast_self(runtime.demoralizing_shout_id, me) and utils.cast_self(runtime.demoralizing_shout_id, me) then
@@ -1573,6 +1579,11 @@ local function try_thunder_clap(me, target, rage)
     if not menu.use_thunder_clap:get_state() or not runtime.thunder_clap_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
     if rage < THUNDER_CLAP_COST then return false end
+
+    -- FLUX IMPROVEMENT: CC break prevention - don't break breakable CC on nearby enemies
+    if has_breakable_cc_nearby_flux(me, 10) then
+        return false
+    end
 
     local pull_opener_window = runtime.combat_entered_at > 0 and (_core_time() - runtime.combat_entered_at) < 3.0
     if not (pull_opener_window or is_tanking_target(me, target) or (is_elite_or_boss(target) and has_melee_pressure(me, target))) then
@@ -2458,6 +2469,13 @@ local function try_taunt(me, target, context_label)
     if not menu.use_taunt:get_state() or not runtime.taunt_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if is_pending_or_current(runtime.taunt_id) then return false end
+    
+    -- FLUX IMPROVEMENT: Use smart taunt logic with classification filtering
+    local should_taunt, targeting_healer = should_smart_taunt_flux(target, me)
+    if not should_taunt then
+        return false
+    end
+    
     local mode_policy = get_mode_policy()
     if mode_policy.name == "solo" then
         log_recovery_blocked(
@@ -2467,6 +2485,7 @@ local function try_taunt(me, target, context_label)
         return false
     end
 
+    -- FLUX IMPROVEMENT: Dungeon mode respects taunt_trash setting, but smart taunt already filters
     if mode_policy.name == "dungeon" and not menu.taunt_trash:get_state() and not is_elite_or_boss(target) then
         return false
     end
@@ -2503,20 +2522,27 @@ local function try_taunt(me, target, context_label)
         return false
     end
 
+    -- FLUX IMPROVEMENT: Enhanced TTD check with healer targeting priority
     local target_ttd_s = get_target_ttd_seconds(target)
     local _, victim_role = describe_victim_role(me, victim)
-    if target_ttd_s and target_ttd_s < 4.0 and victim_role ~= "healer" then
+    local targeting_healer = is_targettarget_healer_flux(target)
+    
+    -- Always taunt if targeting a healer, regardless of TTD
+    if not targeting_healer and target_ttd_s and target_ttd_s < 4.0 and victim_role ~= "healer" then
         return false
     end
 
     if utils.can_cast_hostile(runtime.taunt_id, me, target) and utils.cast_target(runtime.taunt_id, target) then
         mark_pending_cast(runtime.taunt_id, PENDING_CAST_TIMEOUT_S)
+        local reason = targeting_healer and "HEALER TARGETED" or "taunting"
         utils.log_debug(
             menu,
             (context_label or "Recovery")
                 .. ": Taunt -> "
                 .. describe_unit(target)
-                .. " (victim="
+                .. " (reason="
+                .. reason
+                .. ", victim="
                 .. describe_unit(victim)
                 .. ", threat="
                 .. tostring(threat_pct)
@@ -3229,6 +3255,9 @@ local function on_update()
 
     local primary_target = utils.find_best_target(me)
 
+    -- FLUX IMPROVEMENT: Update manual target detection for smart tab targeting
+    update_manual_target_detection_flux(primary_target)
+
     -- Focus Target Priority
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target and focus_target:is_valid() and me:can_attack(focus_target) then
@@ -3492,5 +3521,122 @@ core.register_on_render_control_panel_callback(on_control_panel)
 -- Public interface
 local function cleanup()
 end
+
+-- ============================================================================
+-- FLUX THREAT SYSTEM IMPROVEMENTS (v1.8.x) - File-level functions
+-- 4-tier threat system + smart taunt + CC break prevention
+-- ============================================================================
+
+-- 4-tier threat system (ported from Flux Druid Bear / Warrior Prot)
+-- 0 = not on threat table, 1 = have threat but not tanking,
+-- 2 = insecurely tanking, 3 = securely tanking (highest threat)
+function get_flux_threat_level(target, me)
+    if not target or not me then return 0 end
+    local threat = safe_get_threat_situation(target, me)
+    if not threat then
+        local victim = target:get_target()
+        if victim and victim:is_valid() and same_unit(victim, me) then
+            return 2
+        end
+        return 0
+    end
+    return threat.status or threat.threat_status or 0
+end
+
+-- Check if target's target is a healer
+function is_targettarget_healer_flux(target)
+    if not target or not target:is_valid() then return false end
+    local victim = target:get_target()
+    if not victim or not victim:is_valid() then return false end
+    local ok, role = pcall(function() return victim:get_role() end)
+    if ok and role == "healer" then return true end
+    local ok2, class_id = pcall(function() return victim:get_class_id() end)
+    if ok2 then
+        if class_id == 5 or class_id == 11 or class_id == 7 or class_id == 2 then
+            return true
+        end
+    end
+    return false
+end
+
+-- Check if CC'd above threshold
+function is_target_cc_locked_flux(target, threshold_ms)
+    if not target or not target:is_valid() then return false end
+    threshold_ms = threshold_ms or 2000
+    local ok, cc_remaining = pcall(function() return target:in_cc() end)
+    return ok and cc_remaining and cc_remaining > threshold_ms
+end
+
+-- CC break prevention check
+function has_breakable_cc_nearby_flux(me, radius)
+    radius = radius or 10
+    local cc_debuffs = {
+        spells.DEBUFF_POLYMORPH, spells.DEBUFF_FREEZING_TRAP,
+        spells.DEBUFF_BLIND, spells.DEBUFF_SAP, spells.DEBUFF_GOUGE,
+        spells.DEBUFF_HIBERNATE, spells.DEBUFF_WYVERN_STING,
+        spells.DEBUFF_SHACKLE_UNDEAD,
+    }
+    local objects = core.object_manager.get_objects_in_radius(me:get_position(), radius)
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
+            for _, debuff_id in ipairs(cc_debuffs) do
+                if debuff_id then
+                    local ok, has_debuff = pcall(function() return utils.has_debuff(obj, debuff_id) end)
+                    if ok and has_debuff then return true end
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- Manual target detection state
+flux_tab_state = {
+    last_guid = nil,
+    manual_time = 0,
+}
+
+function update_manual_target_detection_flux(target)
+    if not target or not target:is_valid() then return end
+    local current_guid = safe_get_guid(target)
+    if current_guid ~= flux_tab_state.last_guid then
+        if flux_tab_state.last_guid then
+            flux_tab_state.manual_time = _core_time()
+        end
+        flux_tab_state.last_guid = current_guid
+    end
+end
+
+-- Smart taunt check with Flux improvements
+function should_smart_taunt_flux(target, me)
+    if not target or not me then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if target.is_player and target:is_player() then return false end
+    if is_target_cc_locked_flux(target, 2000) then return false end
+    
+    local threat_level = get_flux_threat_level(target, me)
+    if threat_level >= 2 then
+        local victim = target:get_target()
+        if victim and victim:is_valid() and same_unit(victim, me) then
+            return false
+        end
+    end
+    
+    local is_elite = is_elite_or_boss(target)
+    local targeting_healer = is_targettarget_healer_flux(target)
+    if not is_elite and not targeting_healer then return false end
+    
+    if not targeting_healer then
+        local ttd = get_target_ttd_seconds(target)
+        if ttd and ttd < 6.0 then return false end
+    end
+    
+    return true, targeting_healer
+end
+
+-- ============================================================================
+-- END FLUX THREAT SYSTEM IMPROVEMENTS
+-- ============================================================================
 
 return { cleanup = cleanup, state = runtime }

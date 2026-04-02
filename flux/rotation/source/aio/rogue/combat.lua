@@ -63,21 +63,6 @@ local function get_combat_state(context)
     return combat_state
 end
 
-local function should_pool_for_finisher(context, state)
-    if context.cp < 4 then
-        return false
-    end
-
-    local snd_refresh = context.settings.combat_snd_refresh or Constants.ROGUE.SND_MIN_DURATION
-    local snd_safe = state.snd_active and state.snd_duration >= snd_refresh
-
-    if context.cp >= 5 then
-        return not snd_safe
-    end
-
-    return (not snd_safe) or (state.rupture_active and state.rupture_duration < (context.settings.combat_rupture_refresh or 2))
-end
-
 -- ============================================================================
 -- STRATEGIES
 -- ============================================================================
@@ -124,10 +109,7 @@ local Combat_MaintainSnD = {
     matches = function(context, state)
         if context.cp < 1 then return false end
         local refresh = context.settings.combat_snd_refresh or Constants.ROGUE.SND_MIN_DURATION
-        if not state.snd_active or state.snd_duration < refresh then
-            return true
-        end
-        return context.cp >= 4 and context.energy < Constants.ENERGY.SLICE_AND_DICE
+        return not state.snd_active or state.snd_duration < refresh
     end,
 
     execute = function(icon, context, state)
@@ -135,7 +117,7 @@ local Combat_MaintainSnD = {
             return A.SliceAndDice:Show(icon),
                 format("[COMBAT] Slice and Dice - Duration: %.1fs, CP: %d", state.snd_duration, context.cp)
         end
-        state.pooling = context.cp >= 4
+        state.pooling = true
         return nil
     end,
 }
@@ -227,7 +209,7 @@ local Combat_ExposeArmor = {
         if context.energy >= Constants.ENERGY.EXPOSE_ARMOR and A.ExposeArmor:IsReady(TARGET_UNIT) then
             return A.ExposeArmor:Show(icon), format("[COMBAT] Expose Armor - CP: %d", context.cp)
         end
-        state.pooling = should_pool_for_finisher(context, state)
+        state.pooling = true
         return nil
     end,
 }
@@ -258,7 +240,7 @@ local Combat_Rupture = {
             return A.Rupture:Show(icon),
                 format("[COMBAT] Rupture - CP: %d, Duration: %.1fs", context.cp, state.rupture_duration)
         end
-        state.pooling = should_pool_for_finisher(context, state)
+        state.pooling = true
         return nil
     end,
 }
@@ -270,11 +252,9 @@ local Combat_Eviscerate = {
     requires_stealth = false,
 
     matches = function(context, state)
-        if state.pooling and not should_pool_for_finisher(context, state) then return false end
+        if state.pooling then return false end
         local min_cp = context.settings.combat_min_cp_finisher or 5
         if context.cp < min_cp then return false end
-        local refresh = context.settings.combat_snd_refresh or Constants.ROGUE.SND_MIN_DURATION
-        if not state.snd_active or state.snd_duration < refresh then return false end
         return true
     end,
 
@@ -282,7 +262,6 @@ local Combat_Eviscerate = {
         if context.energy >= Constants.ENERGY.EVISCERATE and A.Eviscerate:IsReady(TARGET_UNIT) then
             return A.Eviscerate:Show(icon), format("[COMBAT] Eviscerate - CP: %d", context.cp)
         end
-        state.pooling = should_pool_for_finisher(context, state)
         return nil
     end,
 }
@@ -320,16 +299,6 @@ local Combat_SinisterStrike = {
     matches = function(context, state)
         if state.pooling then return false end
         if context.cp >= 5 then return false end
-        if context.cp >= 4 then
-            local snd_refresh = context.settings.combat_snd_refresh or Constants.ROGUE.SND_MIN_DURATION
-            local snd_remaining = state.snd_duration or 0
-            if not state.snd_active or snd_remaining < snd_refresh then
-                return false
-            end
-            if should_pool_for_finisher(context, state) then
-                return false
-            end
-        end
         return context.energy >= Constants.ENERGY.SINISTER_STRIKE
     end,
 
