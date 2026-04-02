@@ -71,6 +71,7 @@ menu.use_polymorph                       = core.menu.checkbox(true, "eaxmagearca
 menu.use_blink                           = core.menu.checkbox(true, "eaxmagearcane_use_blink")
 menu.use_counterspell                    = core.menu.checkbox(true, "eaxmagearcane_use_counterspell")
 menu.use_remove_curse                    = core.menu.checkbox(true, "eaxmagearcane_remove_curse")
+menu.use_interrupt                       = core.menu.checkbox(true, "eaxmagearcane_use_interrupt")
 
 mana_conservator.register_menu_items(menu, "eax_mage_arcane")
 
@@ -114,6 +115,7 @@ function menu.render()
             menu.use_blink:render("Blink", "Escape")
             menu.use_counterspell:render("Counterspell", "Interrupt")
             menu.use_remove_curse:render("Remove Curse", "Dispel")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
         end)
 
         -- Cooldowns

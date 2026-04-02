@@ -230,6 +230,51 @@ local SLAM_NOW_WINDOW_MS = 350
 local SLAM_HOLD_REGION_MS = 250
 local SLAM_SAFE_BUFFER_MS = 100
 
+-- ============================================================================
+-- FLUX CC BREAK PREVENTION (v1.8.x) - PvP/group utility
+-- Check for breakable CC on nearby enemies before using AoE abilities
+-- ============================================================================
+local CC_BREAKABLE_DEBUFFS = {
+    spells.DEBUFF_POLYMORPH,
+    spells.DEBUFF_FREEZING_TRAP,
+    spells.DEBUFF_BLIND,
+    spells.DEBUFF_SAP,
+    spells.DEBUFF_GOUGE,
+    spells.DEBUFF_HIBERNATE,
+    spells.DEBUFF_WYVERN_STING,
+    spells.DEBUFF_SHACKLE_UNDEAD,
+    spells.DEBUFF_SEDUCTION,
+}
+
+local function has_breakable_cc_nearby(me, radius)
+    radius = radius or 10
+    if not me or not me:is_valid() then return false end
+    
+    local me_pos = me:get_position()
+    if not me_pos then return false end
+    
+    local objects = core.object_manager.get_objects_in_radius(me_pos, radius)
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
+            for _, debuff_id in ipairs(CC_BREAKABLE_DEBUFFS) do
+                if debuff_id then
+                    local ok, has_debuff = pcall(function()
+                        return utils.has_debuff(obj, debuff_id)
+                    end)
+                    if ok and has_debuff then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+-- ============================================================================
+-- END FLUX CC BREAK PREVENTION
+-- ============================================================================
+
 local should_hold_for_slam
 
 local runtime = {
@@ -293,8 +338,10 @@ local RUNTIME_SPELL_SPECS = {
     { field = "hamstring_id", ranks = spells.HAMSTRING },
     { field = "battle_stance_id", ranks = spells.BATTLE_STANCE },
     { field = "berserker_stance_id",  ranks = spells.BERSERKER_STANCE },
+    { field = "defensive_stance_id",  ranks = spells.DEFENSIVE_STANCE },
     { field = "berserker_rage_id", ranks = spells.BERSERKER_RAGE },
     { field = "charge_id",            ranks = spells.CHARGE },
+    { field = "intercept_id",         ranks = spells.INTERCEPT },
     { field = "death_wish_id",        ranks = spells.DEATH_WISH },
     { field = "recklessness_id",      ranks = spells.RECKLESSNESS },
     { field = "sweeping_strikes_id",  ranks = spells.SWEEPING_STRIKES },
@@ -480,8 +527,61 @@ local function try_battle_shout(me)
     return false
 end
 
+-- ============================================================================
+-- CANCELAURA (Auto-cancel PW:S / BoP to prevent rage blocking)
+-- PW:S blocks rage generation from damage taken.
+-- BoP prevents attacking entirely.
+-- ============================================================================
+local PWS_BUFF_ID = 17
+local BOP_BUFF_ID = 1022
+
+local function try_cancelaura_buffs(me)
+    if not me:is_in_combat() then return false end
+
+    local hp_pct = me:get_health_percentage()
+    local threshold = menu.cancelaura_hp_threshold:get()
+
+    -- Cancel Power Word: Shield when rage is low (blocks rage from damage taken)
+    if menu.cancel_pws:get_state() then
+        if me:has_buff(PWS_BUFF_ID) then
+            local rage = utils.get_rage(me)
+            if rage < 30 and hp_pct > threshold then
+                local ok = pcall(function()
+                    core.input.cancel_aura("Power Word: Shield")
+                end)
+                if ok then
+                    utils.log_debug(menu, "Cancelaura: PW:S (rage=" .. tostring(rage) .. ")")
+                    return true
+                end
+            end
+        end
+    end
+
+    -- Cancel Blessing of Protection when HP is safe (prevents all attacks)
+    if menu.cancel_bop:get_state() then
+        if me:has_buff(BOP_BUFF_ID) then
+            if hp_pct > threshold then
+                local ok = pcall(function()
+                    core.input.cancel_aura("Blessing of Protection")
+                end)
+                if ok then
+                    utils.log_debug(menu, "Cancelaura: BoP (hp=" .. string.format("%.0f%%", hp_pct) .. ")")
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
 local function try_demo_shout(me, target)
     if not menu.use_demo_shout:get_state() or not target or not runtime.demoralizing_shout_id then
+        return false
+    end
+
+    -- FLUX IMPROVEMENT: CC break prevention - don't break breakable CC on nearby enemies
+    if has_breakable_cc_nearby(me, 10) then
         return false
     end
 
@@ -572,22 +672,108 @@ local function check_overpower_availability(me, target)
     return runtime.overpower_available
 end
 
+-- ============================================================================
+-- FLUX IMPROVEMENT: Smarter Overpower (v1.8.6)
+-- Evaluates rage economy and available abilities instead of simple rage threshold
+-- ============================================================================
+local RAGE_COST_OVERPOWER = 5
+local RAGE_COST_MORTAL_STRIKE = 30
+local RAGE_COST_WHIRLWIND = 25
+local RAGE_COST_EXECUTE = 15
+
+local function should_use_overpower_smart(me, target, ctx, rage)
+    -- Get Tactical Mastery talent rank for rage retention after stance swap
+    local tm_rank = 0
+    local ok, rank = pcall(function()
+        local tm_spell = core.spell_book.get_spell_by_name("Tactical Mastery")
+        return tm_spell and core.spell_book.get_talent_rank(tm_spell:get_id())
+    end)
+    if ok and rank then tm_rank = rank end
+    
+    local tm_cap = tm_rank * 5
+    local current_stance = utils.get_current_stance(me)
+    local rage_after_swap = (current_stance == "battle") and rage or math.min(rage, tm_cap)
+    
+    -- Basic affordability: can't cast if we can't pay for it after swap
+    if rage_after_swap < RAGE_COST_OVERPOWER then return false end
+    
+    -- FLUX: High rage protection - at very high rage, stay for MS/WW to avoid capping
+    if rage > 50 then return false end
+    
+    -- FLUX: MS starvation check - if MS ready/nearly ready and in melee, reserve rage
+    if runtime.mortal_strike_id then
+        local ms_cd = _get_spell_cd(runtime.mortal_strike_id) or math.huge
+        if ms_cd <= 1.5 and utils.is_melee_target(me, target) then
+            if rage_after_swap < (RAGE_COST_OVERPOWER + RAGE_COST_MORTAL_STRIKE) then
+                return false
+            end
+        end
+    end
+    
+    -- FLUX: WW starvation check - if WW ready/nearly ready, reserve rage
+    if menu.use_whirlwind and menu.use_whirlwind:get_state() and runtime.whirlwind_id then
+        local ww_cd = _get_spell_cd(runtime.whirlwind_id) or math.huge
+        if ww_cd <= 1.5 and utils.is_melee_target(me, target) then
+            if rage_after_swap < (RAGE_COST_OVERPOWER + RAGE_COST_WHIRLWIND) then
+                return false
+            end
+        end
+    end
+    
+    -- FLUX: Execute starvation check - if target <20%, reserve for Execute
+    if target and target:is_valid() then
+        local ok_hp, target_hp_pct = pcall(function() return target:get_health_percentage() end)
+        if ok_hp and target_hp_pct and target_hp_pct < 20 then
+            if rage_after_swap < (RAGE_COST_OVERPOWER + RAGE_COST_EXECUTE) then
+                return false
+            end
+        end
+    end
+    
+    return true
+end
+
+-- FLUX: Check if Overpower proc is expiring soon (urgent)
+local function is_overpower_urgent()
+    if not runtime.overpower_id then return false end
+    -- Check if the ability has limited window remaining
+    -- Note: This depends on the API available; if GetCooldown doesn't work for procs,
+    -- we fall back to the basic availability check
+    local ok, cd_remaining = pcall(function()
+        return _get_spell_cd(runtime.overpower_id)
+    end)
+    if ok and cd_remaining and cd_remaining > 0 and cd_remaining <= 1.5 then
+        return true
+    end
+    return false
+end
+-- ============================================================================
+-- END FLUX SMART OVERPOWER
+-- ============================================================================
+
 local function try_overpower(me, target, ctx)
     if not menu.use_overpower:get_state() or not target or not runtime.overpower_id then
         return false
     end
 
+    -- FLUX IMPROVEMENT: Smart rage protection evaluates all abilities
+    -- Urgent proc: if OP proc expires very soon, use it or lose it (bypass smart checks)
+    local urgent = is_overpower_urgent()
+    local can_use_smart = should_use_overpower_smart(me, target, ctx, ctx.rage)
+    
     -- Prioritize Overpower when it just becomes available
     if check_overpower_availability(me, target) then
-        -- Use immediately, don't wait for Slam window
-        if utils.cast_target(runtime.overpower_id, target) then
-            utils.log_debug(menu, "Overpower (proc)")
-            return true
+        -- FLUX: Use immediately if urgent or smart checks pass
+        if urgent or can_use_smart then
+            if utils.cast_target(runtime.overpower_id, target) then
+                utils.log_debug(menu, urgent and "Overpower (urgent proc)" or "Overpower (proc)")
+                return true
+            end
         end
     end
 
-    local can_cast = resource_gate.warrior.has_rage(ctx, 5)
-    if not can_cast then
+    -- FLUX: Skip basic rage check if we already did smart evaluation
+    if not can_use_smart and not urgent then
         return false
     end
 
@@ -733,6 +919,12 @@ local function try_thunder_clap(me, target, ctx)
     if not runtime.thunder_clap_id or not target then
         return false
     end
+    
+    -- FLUX IMPROVEMENT: CC break prevention - don't break breakable CC on nearby enemies
+    if has_breakable_cc_nearby(me, 10) then
+        return false
+    end
+
     local can_cast = resource_gate.warrior.has_rage(ctx, THUNDER_CLAP_COST)
     if not can_cast then
         return false
@@ -818,6 +1010,11 @@ local function try_whirlwind(me, target, rage, ctx)
         or not runtime.whirlwind_id
         or not runtime.berserker_stance_id
     then
+        return false
+    end
+
+    -- FLUX IMPROVEMENT: CC break prevention - don't break breakable CC on nearby enemies
+    if has_breakable_cc_nearby(me, 10) then
         return false
     end
 
@@ -1027,11 +1224,74 @@ local function try_enraged_regen(me)
     return false
 end
 
+-- ============================================================================
+-- PVP DEFENSIVE STANCE AT RANGE
+-- In PvP, when out of melee and Intercept is on CD, switch to Defensive Stance
+-- for the 10% damage reduction. Re-entering melee triggers a return to Battle.
+-- ============================================================================
+local function try_pvp_defensive_stance(me, target)
+    if not menu.use_pvp_defensive_stance:get_state() then
+        return false
+    end
+    if not runtime.defensive_stance_id then return false end
+    if not target or not target:is_valid() or target:is_dead() then return false end
+
+    -- PvP check: in bg/arena or target is a player
+    local in_pvp_instance = pvp_manager.is_in_pvp_instance()
+    local target_is_player = target:is_player()
+    if not in_pvp_instance and not target_is_player then return false end
+
+    local current_stance = utils.get_current_stance(me)
+
+    -- If in Defensive Stance, check if we should return to Battle/Berserker
+    if current_stance == "defensive" then
+        -- Return when target is back in melee range OR Intercept is available
+        local intercept_cd = runtime.intercept_id and (_get_spell_cd(runtime.intercept_id) or math.huge) or math.huge
+        local target_in_melee = utils.is_melee_target(me, target)
+        if target_in_melee or intercept_cd <= 0 then
+            -- Return to Battle Stance for damage
+            if runtime.battle_stance_id
+                and utils.can_cast_self(runtime.battle_stance_id, me)
+                and utils.cast_self(runtime.battle_stance_id, me)
+            then
+                utils.set_tracked_stance("battle")
+                utils.log_debug(menu, "Stance -> battle (PvP Defensive return)")
+                return true
+            end
+        end
+        return false
+    end
+
+    -- Don't switch if already in Battle/Berserker
+    if current_stance ~= "battle" and current_stance ~= "berserker" then
+        return false
+    end
+
+    -- Only when out of melee range
+    if utils.is_melee_target(me, target) then return false end
+
+    -- Intercept must be on cooldown (we want to close gap via Berserker)
+    local intercept_cd = runtime.intercept_id and (_get_spell_cd(runtime.intercept_id) or 0) or 0
+    if intercept_cd <= 0 then return false end
+
+    -- Cast Defensive Stance for 10% damage reduction
+    if utils.can_cast_self(runtime.defensive_stance_id, me)
+        and utils.cast_self(runtime.defensive_stance_id, me)
+    then
+        utils.set_tracked_stance("defensive")
+        utils.log_debug(menu, "Stance -> defensive (PvP at range)")
+        return true
+    end
+    return false
+end
+-- ============================================================================
+-- END PVP DEFENSIVE STANCE
+-- ============================================================================
 
 local function do_utility_lane(me, target, mode, target_hp_pct)
     -- Interrupt (Pummel)
     if target and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "warrior", utils) then
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, target, "warrior", utils) then
             return true
         end
     end
@@ -1217,6 +1477,16 @@ local function on_update()
         return
     end
 
+    -- Cancelaura: auto-cancel PW:S/BoP to prevent rage blocking
+    if try_cancelaura_buffs(me) then
+        return
+    end
+
+    -- PvP Defensive Stance at range
+    if try_pvp_defensive_stance(me, target) then
+        return
+    end
+
     if do_utility_lane(me, target, mode, target_hp_pct) then
         return
     end
@@ -1267,7 +1537,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },

@@ -562,6 +562,34 @@ local function get_haste_breakpoint(me)
     end
 end
 
+-- Warces Haste Mode helpers
+-- Calculates haste-adjusted cast times for Steady Shot (1.5s base) and Multi-Shot (0.5s base)
+local function warces_get_cast_times(me)
+    local effective_speed = swing_timer.get_mh_speed(me)
+    if not effective_speed or effective_speed <= 0 then
+        effective_speed = 2.8
+    end
+    local base_speed = 2.8
+    local haste = base_speed / effective_speed
+    return 1.5 / haste, 0.5 / haste  -- SteadyAfterHaste, MultiAfterHaste
+end
+
+-- Returns: available_time, SteadyAfterHaste, MultiAfterHaste, gcd_duration, is_gcd_slow
+-- available_time = swing_remaining - gcd - latency
+local function warces_calc_window(me)
+    if not menu.use_warces_mode or not menu.use_warces_mode:get_state() then
+        return nil, 0, 0, 0, false
+    end
+    local swing_remaining = swing_timer.get_time_to_swing(me)
+    local latency_ms = menu.warces_latency and menu.warces_latency:get() or 100
+    local latency_s = latency_ms / 1000
+    local gcd_dur = _get_gcd() or 0
+    local available = swing_remaining - gcd_dur - latency_s
+    local steady_after, multi_after = warces_get_cast_times(me)
+    local is_gcd_slow = gcd_dur > swing_timer.get_mh_speed(me)
+    return available, steady_after, multi_after, gcd_dur, is_gcd_slow
+end
+
 local function mana_pct(me)
     local ok,mp = pcall(function() return me:get_power(0) end)
     local ok2,mm = pcall(function() return me:get_max_power(0) end)
@@ -1184,6 +1212,14 @@ end
 local function try_hunters_mark(me, t)
     if not menu.use_hunters_mark or not menu.use_hunters_mark:get_state() then return false end
     if not rt.hunters_mark_id then return false end
+    -- Mode 3 = Off
+    local mode = menu.hunters_mark_mode and menu.hunters_mark_mode:get() or 1
+    if mode == 3 then return false end
+    -- Mode 2 = Bosses Only
+    if mode == 2 then
+        if not t or not t:is_valid() then return false end
+        if not t:is_boss() then return false end
+    end
     if has_debuff(t, spells.DEBUFF_HUNTERS_MARK) then return false end
     if rt.last_hunters_mark_cast_count == core.spell_book.get_spell_cast_count(rt.hunters_mark_id) then return false end
     if not utils.can_cast_hostile(rt.hunters_mark_id, me, t) then return false end
@@ -1239,6 +1275,15 @@ local function try_viper_sting(me, t)
     if not menu.use_viper_sting or not menu.use_viper_sting:get_state() then return false end
     if not rt.viper_sting_id then return false end
     if has_debuff(t, spells.DEBUFF_VIPER_STING) then return false end
+    -- Per-class Viper Sting toggle check
+    local class_id = get_unit_class_id(t)
+    if class_id == 5 and menu.viper_sting_priest and not menu.viper_sting_priest:get_state() then return false end
+    if class_id == 2 and menu.viper_sting_paladin and not menu.viper_sting_paladin:get_state() then return false end
+    if class_id == 7 and menu.viper_sting_shaman and not menu.viper_sting_shaman:get_state() then return false end
+    if class_id == 8 and menu.viper_sting_mage and not menu.viper_sting_mage:get_state() then return false end
+    if class_id == 9 and menu.viper_sting_warlock and not menu.viper_sting_warlock:get_state() then return false end
+    if class_id == 6 and menu.viper_sting_druid and not menu.viper_sting_druid:get_state() then return false end
+    if class_id == 3 and menu.viper_sting_hunter and not menu.viper_sting_hunter:get_state() then return false end
     if rt.last_viper_sting_cast_count == core.spell_book.get_spell_cast_count(rt.viper_sting_id) then return false end
     if not allow_instant(me) then return false end
     if swing_timer.is_swing_imminent(me, 0.20) then return false end
@@ -1342,6 +1387,8 @@ local function try_kill_command(me, t, ctx, bm_state, now)
 end
 
 local function try_arcane_shot(me, t, ctx)
+    -- Warces mode handles arcane shot internally via unified weave block
+    if menu.use_warces_mode and menu.use_warces_mode:get_state() then return false end
     if not menu.use_arcane_shot or not menu.use_arcane_shot:get_state() then return false end
     if not rt.arcane_shot_id then return false end
     if not resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.15, 1.15)) then return false end
@@ -1362,6 +1409,8 @@ local function try_arcane_shot(me, t, ctx)
 end
 
 local function try_multi_shot(me, t, ctx)
+    -- Warces mode handles multi shot internally via unified weave block
+    if menu.use_warces_mode and menu.use_warces_mode:get_state() then return false end
     if enc and not enc.aoe_safe then return false end
     if not menu.use_multi_shot or not menu.use_multi_shot:get_state() then return false end
     if not rt.multi_shot_id then return false end
@@ -1413,6 +1462,132 @@ local function try_steady_shot(me, t)
     return false
 end
 
+-- Warces Haste Mode: unified weave block for Arcane/Steady/Multi shot
+-- Replaces the standard individual shot functions when warces mode is enabled
+local function try_warces_shots(me, t, ctx)
+    if not menu.use_warces_mode or not menu.use_warces_mode:get_state() then return false end
+    if not rt.steady_shot_id then return false end
+
+    local available, steady_after, multi_after, gcd_dur, is_gcd_slow = warces_calc_window(me)
+    if available == nil then return false end
+
+    local use_arcane = menu.use_arcane_shot and menu.use_arcane_shot:get_state()
+    local use_multi = menu.use_multi_shot and menu.use_multi_shot:get_state()
+    local arcane_mana_ok = rt.arcane_shot_id and resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.15, 1.15))
+    local multi_mana_ok = rt.multi_shot_id and resource_gate.hunter.has_mana_pct(ctx, set_adjusted_mana_pct(0.20, 1.10))
+    local aoe_count = utils.get_aoe_count(me, t)
+    local swing_remaining = swing_timer.get_time_to_swing(me)
+
+    -- Detect if arcane was just fired this frame (post-arcane Steady prioritization)
+    local just_fired_arcane = false
+    if rt.last_arcane_shot_cast_count and rt.last_arcane_shot_cast_count > 0 then
+        local arc_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
+        just_fired_arcane = (arc_count ~= rt.last_arcane_shot_cast_count)
+    end
+
+    if not is_gcd_slow then
+        -- Fast path: GCD <= weapon speed
+        -- Priority 1: Multi-Shot (AoE weave window)
+        if use_multi and multi_mana_ok and aoe_count >= 2
+           and available >= multi_after and available < steady_after
+           and rt.multi_shot_id
+           and rt.last_multi_shot_cast_count ~= core.spell_book.get_spell_cast_count(rt.multi_shot_id)
+           and utils.can_cast_hostile(rt.multi_shot_id, me, t)
+           and not is_moving() and allow_instant(me) then
+            if utils.cast_target(rt.multi_shot_id, t) then
+                rt.last_multi_shot_cast_count = core.spell_book.get_spell_cast_count(rt.multi_shot_id)
+                utils.log_debug(menu, "Multi-Shot (warces)")
+                return true
+            end
+        end
+        -- Priority 2: Arcane Shot (clip prevention)
+        if use_arcane and arcane_mana_ok
+           and swing_remaining > 0 and available < multi_after
+           and rt.arcane_shot_id
+           and rt.last_arcane_shot_cast_count ~= core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
+           and utils.can_cast_hostile(rt.arcane_shot_id, me, t)
+           and allow_instant(me)
+           and not serpent_sting_refresh_due(t) then
+            if utils.cast_target(rt.arcane_shot_id, t) then
+                rt.last_arcane_shot_cast_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
+                utils.log_debug(menu, "Arcane Shot (warces)")
+                return true
+            end
+        end
+        -- Priority 3: Steady Shot post-arcane (only if arcane was just fired)
+        if just_fired_arcane
+           and available >= steady_after
+           and rt.steady_shot_id
+           and rt.last_steady_shot_cast_count ~= core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+           and utils.can_cast_hostile(rt.steady_shot_id, me, t)
+           and can_cast_casted_spell(me, steady_after)
+           and not is_moving() then
+            if utils.cast_target(rt.steady_shot_id, t) then
+                rt.last_steady_shot_cast_count = core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+                utils.log_debug(menu, "Steady Shot (warces post-arcane)")
+                return true
+            end
+        end
+        -- Priority 4: Steady Shot (general)
+        if available >= steady_after
+           and rt.steady_shot_id
+           and rt.last_steady_shot_cast_count ~= core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+           and utils.can_cast_hostile(rt.steady_shot_id, me, t)
+           and can_cast_casted_spell(me, steady_after)
+           and not is_moving() then
+            if utils.cast_target(rt.steady_shot_id, t) then
+                rt.last_steady_shot_cast_count = core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+                utils.log_debug(menu, "Steady Shot (warces)")
+                return true
+            end
+        end
+    else
+        -- Slow path: GCD > weapon speed
+        -- Priority 1: Multi-Shot (AoE weave window)
+        if use_multi and multi_mana_ok and aoe_count >= 2
+           and available >= multi_after and available < steady_after
+           and rt.multi_shot_id
+           and rt.last_multi_shot_cast_count ~= core.spell_book.get_spell_cast_count(rt.multi_shot_id)
+           and utils.can_cast_hostile(rt.multi_shot_id, me, t)
+           and not is_moving() and allow_instant(me) then
+            if utils.cast_target(rt.multi_shot_id, t) then
+                rt.last_multi_shot_cast_count = core.spell_book.get_spell_cast_count(rt.multi_shot_id)
+                utils.log_debug(menu, "Multi-Shot (warces slow)")
+                return true
+            end
+        end
+        -- Priority 2: Arcane Shot (clip prevention)
+        if use_arcane and arcane_mana_ok
+           and swing_remaining > 0 and available < multi_after
+           and rt.arcane_shot_id
+           and rt.last_arcane_shot_cast_count ~= core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
+           and utils.can_cast_hostile(rt.arcane_shot_id, me, t)
+           and allow_instant(me)
+           and not serpent_sting_refresh_due(t) then
+            if utils.cast_target(rt.arcane_shot_id, t) then
+                rt.last_arcane_shot_cast_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
+                utils.log_debug(menu, "Arcane Shot (warces slow)")
+                return true
+            end
+        end
+        -- Priority 3: Steady Shot
+        if available >= steady_after
+           and rt.steady_shot_id
+           and rt.last_steady_shot_cast_count ~= core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+           and utils.can_cast_hostile(rt.steady_shot_id, me, t)
+           and can_cast_casted_spell(me, steady_after)
+           and not is_moving() then
+            if utils.cast_target(rt.steady_shot_id, t) then
+                rt.last_steady_shot_cast_count = core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+                utils.log_debug(menu, "Steady Shot (warces slow)")
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 local function try_raptor_strike(me, t)
     if not menu.use_raptor_strike or not menu.use_raptor_strike:get_state() then return false end
     if not rt.raptor_strike_id or dist(t) > 5 then return false end
@@ -1433,6 +1608,10 @@ local function try_wing_clip(me, t)
     if has_debuff(t, spells.DEBUFF_WING_CLIP) then return false end
     -- Throttle: max once every 8 sec regardless of debuff detection
     if rt.last_wing_clip_cast_count == core.spell_book.get_spell_cast_count(rt.wing_clip_id) then return false end
+    -- HP threshold check: only cast Wing Clip when target is low enough
+    local target_hp = t.get_health_percentage and t:get_health_percentage() or 100
+    local threshold = t:is_player() and (menu.wing_clip_pvp_hp:get() or 25) or (menu.wing_clip_pve_hp:get() or 35)
+    if target_hp > threshold then return false end
     if not utils.can_cast_hostile(rt.wing_clip_id, me, t) then return false end
     if utils.cast_target(rt.wing_clip_id, t) then
         rt.last_wing_clip_cast_count = core.spell_book.get_spell_cast_count(rt.wing_clip_id)
@@ -1520,7 +1699,7 @@ local function do_rotation(me, t)
     -- Update haste breakpoint detection
     rt.haste_breakpoint = get_haste_breakpoint(me)
 
-    if interrupt_manager.should_interrupt(t) and interrupt_manager.try_interrupt(me, t, "hunter", utils) then
+    if menu.use_interrupt:get_state() and interrupt_manager.should_interrupt(t) and interrupt_manager.try_interrupt(me, t, "hunter", utils) then
         return
     end
 
@@ -1596,6 +1775,11 @@ local function do_rotation(me, t)
     if try_intimidation(me, t) then return end
 
     if try_aimed_shot(me, t, ctx) then
+        invalidate_ctx()
+        return
+    end
+    -- Warces Haste Mode: unified weave block (replaces multi/arcane/steady when enabled)
+    if try_warces_shots(me, t, ctx) then
         invalidate_ctx()
         return
     end
@@ -1700,6 +1884,18 @@ local function on_update()
         end
         return
     end
+
+    -- [R-6] Protect frozen target: auto-switch if current target is frozen (Freezing Trap) and 2+ enemies present
+    if menu.protect_frozen_target and menu.protect_frozen_target:get_state() then
+        local FREEZING_TRAP_IDS = { 3355, 14308, 14309 }
+        if has_debuff(t, FREEZING_TRAP_IDS) and utils.get_aoe_count(me, t) >= 2 then
+            local new_target = utils.find_best_target(me)
+            if new_target and new_target ~= t then
+                t = new_target
+            end
+        end
+    end
+
     -- Reset pet attack when target changes to a different enemy
     if _last_pet_attack_guid then
         local ok, guid = pcall(function()
@@ -1759,7 +1955,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "hunter", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "hunter", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },

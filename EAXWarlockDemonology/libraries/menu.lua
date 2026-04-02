@@ -86,6 +86,7 @@ menu.use_hellfire                        = core.menu.checkbox(true, "eaxwarlockd
 menu.use_conflagrate                     = core.menu.checkbox(true, "eaxwarlockdemonology_use_conflagrate")
 menu.use_incinerate                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_incinerate")
 menu.use_shadowfury                      = core.menu.checkbox(true, "eaxwarlockdemonology_use_shadowfury")
+menu.use_interrupt                        = core.menu.checkbox(true, "eaxwarlockdemonology_use_interrupt")
 
 mana_conservator.register_menu_items(menu, "eax_warlock_demonology")
 
@@ -130,6 +131,7 @@ function menu.render()
             menu.use_shadowfury:render("Shadowfury", "AoE stun")
             menu.use_death_coil:render("Death Coil", "Heal/fear")
             menu.use_howl_of_terror:render("Howl of Terror", "AoE fear")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
         end)
 
         -- Pet

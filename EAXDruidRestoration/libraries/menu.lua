@@ -36,6 +36,9 @@ menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxd
 menu.use_racial                          = core.menu.checkbox(true, "eaxdruidrestoration_use_racial")
 menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxdruidrestoration_racial_hp")
 
+-- Interrupt
+menu.use_interrupt                       = core.menu.checkbox(true, "eaxdruidrestoration_use_interrupt")
+
 -- OOC
 menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
 menu.ooc_eat                             = core.menu.checkbox(true,  "eax_ooc_eat")
@@ -160,6 +163,7 @@ function menu.render()
 
         -- Utility
         rotation_tree:render("Utility", function()
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_remove_curse:render("Remove Curse", "Dispel")
             menu.use_abolish_poison:render("Abolish Poison", "Dispel")
             menu.use_cyclone:render("Cyclone", "CC")

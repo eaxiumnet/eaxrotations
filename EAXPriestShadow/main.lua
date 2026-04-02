@@ -627,7 +627,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "priest", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "priest", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },
@@ -752,7 +752,7 @@ core.register_on_update_callback(function()
             if try_silence(me, target) then
                 return
             end
-            if interrupt_manager.try_interrupt(me, target, "priest", utils) then
+            if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, target, "priest", utils) then
                 return
             end
         end

@@ -1001,7 +1001,7 @@ core.register_on_update_callback(function()
 
     -- Interrupt (PVP)
     if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "priest", utils) then
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, target, "priest", utils) then
             return
         end
     end

@@ -33,6 +33,7 @@ menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxr
 -- Racial
 menu.use_racial                          = core.menu.checkbox(true, "eaxroguecombat_use_racial")
 menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxroguecombat_racial_hp")
+menu.use_interrupt                        = core.menu.checkbox(true, "eaxroguecombat_use_interrupt")
 
 -- OOC
 menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
@@ -140,6 +141,7 @@ function menu.render()
 
         -- Utility
         auto_tree:render("Utility", function()
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_stealth:render("Stealth", "Stealth")
             menu.use_cheap_shot:render("Cheap Shot", "Stun")
             menu.use_kidney_shot:render("Kidney Shot", "Stun")

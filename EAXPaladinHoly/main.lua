@@ -1375,7 +1375,7 @@ local function on_update()
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
     if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "paladin", utils) then
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, target, "paladin", utils) then
             return
         end
     end

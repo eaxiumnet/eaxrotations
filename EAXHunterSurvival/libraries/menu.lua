@@ -26,6 +26,9 @@ menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, "eaxhuntersv_combat_
 menu.use_racial = core.menu.checkbox(true, "eaxhuntersv_use_racial")
 menu.racial_hp  = core.menu.slider_int(10, 80, 40, "eaxhuntersv_racial_hp")
 
+-- Interrupt
+menu.use_interrupt = core.menu.checkbox(true, "eaxhuntersv_use_interrupt")
+
 menu.ooc_drink       = core.menu.checkbox(true,  "eax_ooc_drink")
 menu.ooc_eat         = core.menu.checkbox(true,  "eax_ooc_eat")
 menu.ooc_rez         = core.menu.checkbox(true,  "eax_ooc_rez")
@@ -105,6 +108,7 @@ function menu.render()
         end)
 
         kite_tree:render("Defensive", function()
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_concussive:render("Concussive Shot", "Slow")
             menu.use_disengage:render("Disengage", "Escape")
             menu.use_deterrence:render("Deterrence", "Self-def")

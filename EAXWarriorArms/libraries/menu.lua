@@ -17,6 +17,7 @@ local auto_tree    = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
+local cancelaura_tree = ps.tree_node()
 local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local esp_tree     = ps.tree_node()
@@ -34,6 +35,7 @@ menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxw
 -- Racial
 menu.use_racial                          = core.menu.checkbox(true, "eaxwarriorarms_use_racial")
 menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxwarriorarms_racial_hp")
+menu.use_interrupt                        = core.menu.checkbox(true, "eaxwarriorarms_use_interrupt")
 
 -- OOC
 menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
@@ -69,6 +71,11 @@ menu.use_sunder_armor                     = core.menu.checkbox(true, "eaxwarrior
 menu.sunder_max_stacks                    = core.menu.slider_int(1, 5, 5, "eaxwarriorarms_sunder_max_stacks")
 menu.use_hamstring                        = core.menu.checkbox(true, "eaxwarriorarms_use_hamstring")
 
+-- Cancelaura
+menu.cancel_pws                        = core.menu.checkbox(true, "eaxwarriorarms_cancel_pws")
+menu.cancel_bop                        = core.menu.checkbox(true, "eaxwarriorarms_cancel_bop")
+menu.cancelaura_hp_threshold           = core.menu.slider_int(10, 50, 25, "eaxwarriorarms_cancelaura_hp_threshold")
+
 -- Cooldowns
 menu.use_cooldowns                        = core.menu.checkbox(true, "eaxwarriorarms_use_cooldowns")
 menu.use_berserker_rage                   = core.menu.checkbox(true, "eaxwarriorarms_use_berserker_rage")
@@ -76,6 +83,9 @@ menu.use_death_wish                       = core.menu.checkbox(true, "eaxwarrior
 menu.use_recklessness                     = core.menu.checkbox(true, "eaxwarriorarms_use_recklessness")
 menu.use_sweeping_strikes                 = core.menu.checkbox(true, "eaxwarriorarms_use_sweeping_strikes")
 menu.use_enraged_regen                    = core.menu.checkbox(true, "eaxwarriorarms_use_enraged_regen")
+
+-- PvP
+menu.use_pvp_defensive_stance             = core.menu.checkbox(true, "eaxwarriorarms_use_pvp_defensive_stance")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_mortal_strike", label = "Mortal Strike" },
@@ -131,6 +141,7 @@ function menu.render()
         -- Cooldowns
         cd_tree:render("Cooldowns", function()
             menu.use_cooldowns:render("Use Cooldowns", "Enable burst CDs")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_berserker_rage:render("Berserker Rage", "Rage generation")
             menu.use_death_wish:render("Death Wish", "DPS boost")
             menu.use_recklessness:render("Recklessness", "Armor penetration")
@@ -140,7 +151,14 @@ function menu.render()
 
         -- Defensive
         def_tree:render("Defensive", function()
-            -- (none configured for Arms)
+            menu.use_pvp_defensive_stance:render("PvP Defensive Stance", "Defensive stance at range when Intercept on CD")
+        end)
+
+        -- Cancelaura
+        cancelaura_tree:render("Cancelaura", function()
+            menu.cancel_pws:render("Cancel PW:S", "Remove when rage low")
+            menu.cancel_bop:render("Cancel BoP", "Remove when HP safe")
+            menu.cancelaura_hp_threshold:render("HP Threshold", "Min HP% to cancel")
         end)
 
         -- Automation

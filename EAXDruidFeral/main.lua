@@ -2348,7 +2348,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "druid", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "druid", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },
@@ -2584,7 +2584,7 @@ core.register_on_update_callback(function()
 
     -- Interrupt
     if target and target:is_valid() and me:can_attack(target) and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "druid", utils) then
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, target, "druid", utils) then
             return
         end
     end

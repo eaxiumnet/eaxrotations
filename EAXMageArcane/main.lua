@@ -862,7 +862,7 @@ local function do_rotation(me, target)
 
     -- Defensive abilities
     -- Interrupt
-    if interrupt_manager.should_interrupt(target) then
+    if menu.use_interrupt:get_state() and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "mage", utils) then return true end
     end
 
@@ -965,7 +965,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "mage", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "mage", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },

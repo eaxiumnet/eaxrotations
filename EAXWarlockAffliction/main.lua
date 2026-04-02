@@ -230,6 +230,7 @@ local runtime = {
     siphon_life_id = nil,
     curse_agony_id = nil,
     curse_doom_id = nil,
+    amplify_curse_id = nil,
     drain_soul_id = nil,
     shadow_bolt_id = nil,
     life_tap_id = nil,
@@ -521,12 +522,18 @@ local function try_refresh_dots(me, target)
         end
     end
     -- Siphon Life: only refresh if UA and Corruption are stable (not about to expire)
+    -- ISB-Gated: only cast SL when Improved Shadow Bolt debuff is active (+20% shadow damage)
     if menu.use_siphon_life:get_state() then
         local ua_stable = not runtime.unstable_affliction_id or utils.get_debuff_remaining_ms(target, spells.UNSTABLE_AFFLICTION) > 3000
         local corr_stable = not runtime.corruption_id or utils.get_debuff_remaining_ms(target, spells.CORRUPTION) > 3000
         if ua_stable and corr_stable and dot_manager.can_refresh_dot(target, spells.SIPHON_LIFE, runtime.siphon_life_id, utils.get_debuff_remaining_ms) then
-            if try_cast_spell(me, runtime.siphon_life_id, target, "Siphon Life") then
-                return true
+            -- ISB gate: only cast Siphon Life when ISB debuff is on target
+            local isb_gated = menu.use_isb_gated_siphon:get_state()
+            local has_isb = utils.has_debuff(target, spells.DEBUFF_ISB)
+            if not isb_gated or has_isb then
+                if try_cast_spell(me, runtime.siphon_life_id, target, "Siphon Life") then
+                    return true
+                end
             end
         end
     end
@@ -588,7 +595,13 @@ local function get_selected_curse(mode, target)
     end
 
     local ttd_s = visual_get_ttd_seconds(target)
-    if menu.prefer_doom:get_state() and runtime.curse_doom_id and type(ttd_s) == "number" and ttd_s >= 60 then
+    local threshold = menu.cod_fallback_ttd:get_value()
+
+    -- CoD→CoA Fallback: if enabled and TTD < threshold, skip CoD and use CoA instead
+    -- CoD takes 60s to tick - using it on short-lived targets wastes the GCD
+    if menu.use_cod_to_coa_fallback:get_state() and runtime.curse_doom_id and type(ttd_s) == "number" and ttd_s < threshold then
+        -- Target will die before CoD tick - fall back to CoA below
+    elseif menu.prefer_doom:get_state() and runtime.curse_doom_id and type(ttd_s) == "number" and ttd_s >= threshold then
         return runtime.curse_doom_id, spells.DEBUFF_CURSE_OF_DOOM, "Curse of Doom", false
     end
 
@@ -618,10 +631,20 @@ local function try_apply_curse(me, target, mode)
         return false
     end
     
-    -- Amplify Curse before casting for +doom/+agony duration (v1.3)
-    if not selected_is_utility and runtime.amplify_curse_id and utils.can_cast_self(runtime.amplify_curse_id, me) then
-        utils.cast_self_fast(runtime.amplify_curse_id, me)
-        utils.log_debug(menu, "Amplify Curse")
+    -- Amplify Curse before casting CoD or CoA (+50% curse damage)
+    if menu.use_amplify_curse:get_state()
+        and not selected_is_utility
+        and runtime.amplify_curse_id
+        and utils.can_cast_self(runtime.amplify_curse_id, me)
+    then
+        local is_cod = (label == "Curse of Doom")
+        local is_coa = (label == "Curse of Agony")
+        if (is_cod and menu.amplify_before_cod:get_state())
+            or (is_coa and menu.amplify_before_coa:get_state())
+        then
+            utils.cast_self_fast(runtime.amplify_curse_id, me)
+            utils.log_debug(menu, "Amplify Curse")
+        end
     end
     return try_cast_spell(me, curse_id, target, label or "Curse")
 end
@@ -892,7 +915,7 @@ local function do_rotation(me, target)
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
     -- Interrupt (Shadowfury - if available)
-    if target and interrupt_manager.should_interrupt(target) then
+    if target and menu.use_interrupt:get_state() and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "warlock", utils) then
             return
         end
@@ -1092,7 +1115,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warlock", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warlock", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },

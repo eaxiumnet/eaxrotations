@@ -34,6 +34,7 @@ menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxw
 -- Racial
 menu.use_racial                          = core.menu.checkbox(true, "eaxwarriorprotection_use_racial")
 menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxwarriorprotection_racial_hp")
+menu.use_interrupt                        = core.menu.checkbox(true, "eaxwarriorprotection_use_interrupt")
 
 -- OOC
 menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
@@ -83,7 +84,8 @@ menu.use_shield_bash                      = core.menu.checkbox(true, "simpleprot
 menu.use_concussion_blow                  = core.menu.checkbox(true, "simpleprot_use_concussion_blow")
 menu.use_concussion_blow_proactive        = core.menu.checkbox(false, "simpleprot_use_concussion_blow_proactive")
 menu.use_mocking_blow                     = core.menu.checkbox(true, "simpleprot_use_mocking_blow")
-menu.use_challenging_shout                = core.menu.checkbox(false, "simpleprot_use_challenging_shout")
+menu.use_mocking_blow_dance               = core.menu.checkbox(true, "eaxwarriorprotection_use_mocking_blow_dance")
+menu.use_challenging_shout                = core.menu.checkbox(true, "simpleprot_use_challenging_shout")
 menu.use_peel_intercept                   = core.menu.checkbox(false, "simpleprot_use_peel_intercept")
 menu.use_piercing_howl                    = core.menu.checkbox(false, "simpleprot_use_piercing_howl")
 menu.skip_sunder_with_expose              = core.menu.checkbox(true, "simpleprot_skip_sunder_with_expose")
@@ -120,6 +122,11 @@ menu.heroic_strike_rage                   = core.menu.slider_int(20, 100, 60, "s
 menu.cleave_rage                          = core.menu.slider_int(20, 100, 55, "simpleprot_cleave_rage")
 menu.aoe_enemy_count                      = core.menu.slider_int(2, 10, 3, "simpleprot_aoe_count")
 menu.shield_block_hp_pct                  = core.menu.slider_int(30, 80, 50, "simpleprot_shield_block_hp_pct")
+menu.challenging_boss_threshold           = core.menu.slider_int(1, 5, 1, "simpleprot_challenging_boss_threshold")
+menu.challenging_elite_threshold          = core.menu.slider_int(2, 8, 3, "simpleprot_challenging_elite_threshold")
+menu.challenging_trash_threshold           = core.menu.slider_int(3, 12, 5, "simpleprot_challenging_trash_threshold")
+menu.use_threat_equalization              = core.menu.checkbox(true, "simpleprot_use_threat_equalization")
+menu.threat_eq_threshold                  = core.menu.slider_int(5, 25, 10, "simpleprot_threat_eq_threshold")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_shield_slam", label = "Shield Slam" },
@@ -188,6 +195,7 @@ function menu.render()
         -- Cooldowns
         cd_tree:render("Cooldowns", function()
             menu.use_cooldowns:render("Use Cooldowns", "Enable burst")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_berserker_rage:render("Berserker Rage", "On CD")
             menu.use_blood_fury:render("Blood Fury", "Racial")
             menu.use_berserking:render("Berserking", "Racial")

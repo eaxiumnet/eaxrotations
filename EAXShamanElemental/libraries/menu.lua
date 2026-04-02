@@ -121,6 +121,7 @@ menu.use_stoneclaw_hp_pct                = core.menu.slider_int(0, 100, 40, "eax
 menu.use_earthbind_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_earthbind_totem")
 menu.use_spiritwalkers_grace             = core.menu.checkbox(true, "eaxshamanelemental_use_spiritwalkers_grace")
 menu.use_totemic_recall                  = core.menu.checkbox(true, "eaxshamanelemental_use_totemic_recall")
+menu.use_interrupt                        = core.menu.checkbox(true, "eaxshamanelemental_use_interrupt")
 
 mana_conservator.register_menu_items(menu, "eax_shaman_elemental")
 
@@ -157,6 +158,7 @@ function menu.render()
             menu.use_earth_shock:render("Earth Shock", "Instant")
             menu.use_lava_burst:render("Lava Burst", "Proc")
             menu.use_frost_shock:render("Frost Shock", "Slow")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
         end)
 
         -- Cooldowns

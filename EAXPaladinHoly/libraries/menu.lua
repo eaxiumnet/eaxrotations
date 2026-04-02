@@ -47,6 +47,9 @@ menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxp
 menu.use_racial                          = core.menu.checkbox(true, "eaxpaladinholy_use_racial")
 menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxpaladinholy_racial_hp")
 
+-- Interrupt
+menu.use_interrupt                       = core.menu.checkbox(true, "eaxpaladinholy_use_interrupt")
+
 -- OOC
 menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
 menu.ooc_eat                             = core.menu.checkbox(true,  "eax_ooc_eat")
@@ -155,6 +158,7 @@ function menu.render()
 
         -- DPS Fallback
         rotation_tree:render("DPS Fallback", function()
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_seal_of_light:render("Seal of Light", "Heal on hit")
             menu.use_seal_of_wisdom:render("Seal of Wisdom", "Mana on hit")
             menu.use_seal_of_righteousness:render("Seal of Righteousness", "DPS")

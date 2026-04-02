@@ -31,6 +31,9 @@ menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, "eaxhunterbm_combat_
 menu.use_racial = core.menu.checkbox(true, "eaxhunterbm_use_racial")
 menu.racial_hp  = core.menu.slider_int(10, 80, 40, "eaxhunterbm_racial_hp")
 
+-- Interrupt
+menu.use_interrupt = core.menu.checkbox(true, "eaxhunterbm_use_interrupt")
+
 -- OOC Sustain
 menu.ooc_drink       = core.menu.checkbox(true,  "eax_ooc_drink")
 menu.ooc_eat         = core.menu.checkbox(true,  "eax_ooc_eat")
@@ -47,15 +50,30 @@ menu.leveling_mana_floor    = core.menu.slider_int(5, 50, 20, "eaxhunterbm_lev_m
 
 -- Rotation - Shots
 menu.use_hunters_mark   = core.menu.checkbox(true, "eaxhunterbm_use_hunters_mark")
+menu.hunters_mark_mode  = core.menu.combobox(1, "eaxhunterbm_hunters_mark_mode")
 menu.use_serpent_sting  = core.menu.checkbox(true, "eaxhunterbm_use_serpent_sting")
 menu.use_scorpid_sting  = core.menu.checkbox(false,"eaxhunterbm_use_scorpid_sting")
 menu.use_viper_sting    = core.menu.checkbox(false,"eaxhunterbm_use_viper_sting")
+-- Per-class Viper Sting toggles (PvP mana drain control)
+menu.viper_sting_priest   = core.menu.checkbox(true,  "eaxhunterbm_viper_sting_priest")
+menu.viper_sting_paladin   = core.menu.checkbox(true,  "eaxhunterbm_viper_sting_paladin")
+menu.viper_sting_shaman    = core.menu.checkbox(true,  "eaxhunterbm_viper_sting_shaman")
+menu.viper_sting_mage      = core.menu.checkbox(true,  "eaxhunterbm_viper_sting_mage")
+menu.viper_sting_warlock  = core.menu.checkbox(true,  "eaxhunterbm_viper_sting_warlock")
+menu.viper_sting_druid    = core.menu.checkbox(true,  "eaxhunterbm_viper_sting_druid")
+menu.viper_sting_hunter   = core.menu.checkbox(false, "eaxhunterbm_viper_sting_hunter")
 menu.use_arcane_shot    = core.menu.checkbox(true, "eaxhunterbm_use_arcane_shot")
 menu.use_aimed_shot     = core.menu.checkbox(false, "eaxhunterbm_use_aimed_shot")
 menu.use_steady_shot    = core.menu.checkbox(true, "eaxhunterbm_use_steady_shot")
 menu.use_multi_shot     = core.menu.checkbox(true, "eaxhunterbm_use_multi_shot")
 menu.use_raptor_strike  = core.menu.checkbox(true, "eaxhunterbm_use_raptor_strike")
 menu.use_wing_clip      = core.menu.checkbox(true, "eaxhunterbm_use_wing_clip")
+
+-- Warces Haste Mode
+menu.use_warces_mode    = core.menu.checkbox(false, "eaxhunterbm_use_warces_mode")
+menu.warces_latency     = core.menu.slider_int(50, 300, 100, "eaxhunterbm_warces_latency")
+menu.wing_clip_pvp_hp  = core.menu.slider_int(10, 50, 25, "eaxhunterbm_wing_clip_pvp_hp")
+menu.wing_clip_pve_hp  = core.menu.slider_int(10, 50, 35, "eaxhunterbm_wing_clip_pve_hp")
 
 -- Rotation - Pet
 menu.use_kill_command   = core.menu.checkbox(true, "eaxhunterbm_use_kill_command")
@@ -86,6 +104,7 @@ menu.feign_death_hp     = core.menu.slider_int(5, 40, 20, "eaxhunterbm_feign_hp"
 menu.use_traps       = core.menu.checkbox(true, "eaxhunterbm_use_traps")
 menu.trap_selection  = core.menu.combobox(1,    "eaxhunterbm_trap_selection")
 menu.trap_interval   = core.menu.slider_float(1.0, 60.0, 30.0, "eaxhunterbm_trap_interval")
+menu.protect_frozen_target = core.menu.checkbox(true, "eaxhunterbm_protect_frozen_target")
 
 -- Anti-Stealth
 menu.use_scare_beast    = core.menu.checkbox(false, "eaxhunterbm_use_scare_beast")
@@ -129,16 +148,31 @@ function menu.render()
         rotation_tree:render("Rotation", function()
             ps.header("Shots")
             menu.use_hunters_mark:render("Hunter's Mark", "+AP buff")
+            menu.hunters_mark_mode:render("HM Mode", {"All Targets", "Bosses Only", "Off"})
             menu.use_serpent_sting:render("Serpent Sting", "DoT maintenance")
             menu.use_arcane_shot:render("Arcane Shot", "Instant filler")
             menu.use_steady_shot:render("Steady Shot", "Filler ability")
             menu.use_multi_shot:render("Multi-Shot", "AoE shot")
             menu.use_raptor_strike:render("Raptor Strike", "Melee fallback")
             menu.use_wing_clip:render("Wing Clip", "Slow target")
+            menu.wing_clip_pvp_hp:render("WC PvP HP %", "Use Wing Clip in PvP below this HP")
+            menu.wing_clip_pve_hp:render("WC PvE HP %", "Use Wing Clip in PvE below this HP")
+
+            ps.header("Warces Haste Mode")
+            menu.use_warces_mode:render("Warces Mode", "Haste-adjusted shot weaving")
+            menu.warces_latency:render("Latency ms", "Network latency for warces calc")
 
             ps.header("Stings (Group)")
             menu.use_scorpid_sting:render("Scorpid Sting", "-5% hit in raids")
             menu.use_viper_sting:render("Viper Sting", "Drain mana from casters")
+            ps.subheader("Viper Sting Targets")
+            menu.viper_sting_priest:render("vs Priest", "Drain mana from Priests")
+            menu.viper_sting_paladin:render("vs Paladin", "Drain mana from Paladins")
+            menu.viper_sting_shaman:render("vs Shaman", "Drain mana from Shamans")
+            menu.viper_sting_mage:render("vs Mage", "Drain mana from Mages")
+            menu.viper_sting_warlock:render("vs Warlock", "Drain mana from Warlocks")
+            menu.viper_sting_druid:render("vs Druid", "Drain mana from Druids")
+            menu.viper_sting_hunter:render("vs Hunter", "Drain mana from Hunters")
 
             ps.header("Cooldowns")
             menu.use_rapid_fire:render("Rapid Fire", "3-min burst CD")
@@ -152,6 +186,7 @@ function menu.render()
             menu.use_traps:render("Use Traps", "Drop trap in melee")
             menu.trap_selection:render("Trap Type", {"Immolation", "Frost"})
             menu.trap_interval:render("Trap Interval", "Seconds between traps")
+            menu.protect_frozen_target:render("Protect Frozen Target", "Auto-switch when target is frozen")
         end)
 
         -- Pet
@@ -168,6 +203,7 @@ function menu.render()
 
         -- Kiting
         kite_tree:render("Kiting & Utility", function()
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             ps.header("Kiting")
             menu.use_concussive:render("Concussive Shot", "Slow target")
             menu.use_disengage:render("Disengage", "Escape melee")

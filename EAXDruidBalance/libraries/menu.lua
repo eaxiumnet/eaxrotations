@@ -80,6 +80,7 @@ menu.hurricane_mana_floor                 = core.menu.slider_int(10, 80, 40, "ea
 -- -- Utility -------------------------------------------------------------------
 menu.use_root_escape                     = core.menu.checkbox(true, "eaxdruidbalance_root_escape")
 menu.use_remove_curse                    = core.menu.checkbox(true, "eaxdruidbalance_remove_curse")
+menu.use_interrupt                       = core.menu.checkbox(true, "eaxdruidbalance_use_interrupt")
 
 -- -- Defensive -----------------------------------------------------------------
 menu.use_barkskin                         = core.menu.checkbox(true, "eaxdruidbalance_use_barkskin")
@@ -140,6 +141,7 @@ function menu.render()
             menu.hurricane_min_targets:render("Min Targets", "Use above this count")
             menu.hurricane_mana_floor:render("Mana Floor %", "Don't use below this %")
             menu.use_remove_curse:render("Remove Curse", "Dispel curses")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
         end)
 
         -- -- Automation --------------------------------------------------------

@@ -2648,6 +2648,71 @@ local function try_mocking_blow(me, target, context_label)
     return false
 end
 
+-- Stance-dancing Mocking Blow: cast from Battle Stance when Taunt is on CD
+-- (Mocking Blow requires Battle Stance but is a tank utility)
+local function try_mocking_blow_dance(me, target, rage, context_label)
+    if not menu.use_mocking_blow_dance:get_state() or not runtime.mocking_blow_id then return false end
+    if not is_valid_hostile_target(me, target) then return false end
+    if not me:is_in_combat() then return false end
+
+    -- Only fire when Taunt is on CD (this is the taunt backup)
+    local taunt_cd = runtime.taunt_id and _get_spell_cd(runtime.taunt_id) or -1
+    if taunt_cd <= 0 then return false end
+
+    -- Skip if already have aggro
+    local victim = target:get_target()
+    local victim_valid = victim and victim:is_valid() or false
+    local on_me = victim_valid and same_unit(victim, me) or false
+    if on_me then return false end
+
+    -- Only for elite/boss targets
+    if not is_elite_or_boss(target) then return false end
+
+    -- Healer targeting or minimum TTD check
+    local targeting_healer = is_targettarget_healer_flux(target)
+    if not targeting_healer then
+        local ttd = get_target_ttd_seconds(target)
+        if ttd and ttd < 4.0 then return false end
+    end
+
+    -- Check if we need to stance dance to Battle
+    local current_stance = utils.get_current_stance(me)
+    if current_stance ~= "battle" then
+        if not utils.can_stance_dance_for_cost(rage, 0, 0, runtime.stance_swap_retention) then
+            return false
+        end
+
+        -- Stage the stance swap + Mocking Blow cast
+        return stage_stance_action(me, {
+            key = "mocking_blow_dance",
+            action_id = runtime.mocking_blow_id,
+            action_label = "Mocking Blow",
+            required_stance = "battle",
+            required_stance_id = runtime.battle_stance_id,
+            cast_mode = "target",
+            target = target,
+            notify_id = "simpleprot:cast:mocking_blow_dance",
+            notify_message = "Mocking Blow (Stance Dance)",
+            notify_color = color.orange(220),
+            notify_duration_s = 0.9,
+            log_message = (context_label or "Recovery") .. ": Mocking Blow (Stance Dance)",
+        }, rage, 0)
+    end
+
+    -- Already in Battle Stance - cast directly
+    if utils.can_cast_hostile(runtime.mocking_blow_id, me, target)
+        and utils.cast_target(runtime.mocking_blow_id, target)
+    then
+        mark_pending_cast(runtime.mocking_blow_id, PENDING_CAST_TIMEOUT_S)
+        utils.log_debug(menu, (context_label or "Recovery") .. ": Mocking Blow (Stance Dance) -> " .. describe_unit(target))
+        notify_cast("simpleprot:cast:mocking_blow_dance", "Mocking Blow (Stance Dance)", color.orange(220), 0.9)
+        note_cast()
+        return true
+    end
+
+    return false
+end
+
 local function try_challenging_shout(me, active_candidates, off_me_count)
     if not menu.use_challenging_shout:get_state() or not runtime.challenging_shout_id then return false end
     if is_pending_or_current(runtime.challenging_shout_id) then return false end
@@ -2710,6 +2775,7 @@ end
 local function try_threat_recovery_action_on_target(me, target, context_label)
     if try_taunt(me, target, context_label) then return true end
     if try_mocking_blow(me, target, context_label) then return true end
+    if try_mocking_blow_dance(me, target, utils.get_rage(me), context_label) then return true end
     return false
 end
 
@@ -2787,7 +2853,7 @@ reactive_adapter = {
                 end
 
                 if interrupt_manager.should_interrupt(interrupt_target)
-                    and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
+                    and menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
                 then
                     return true
                 end
@@ -3273,7 +3339,7 @@ local function on_update()
     local is_aoe = aoe_count >= menu.aoe_enemy_count:get()
 
     if primary_target and primary_target:is_valid() and me:can_attack(primary_target) and interrupt_manager.should_interrupt(primary_target) then
-        if interrupt_manager.try_interrupt(me, primary_target, "warrior", utils) then
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, primary_target, "warrior", utils) then
             return
         end
     end

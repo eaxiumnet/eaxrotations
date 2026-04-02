@@ -1045,7 +1045,7 @@ local function do_rotation(me, target)
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
 
-    if target and interrupt_manager.should_interrupt(target) then
+    if target and menu.use_interrupt:get_state() and interrupt_manager.should_interrupt(target) then
         if interrupt_manager.try_interrupt(me, target, "warlock", utils) then
             return
         end
@@ -1137,7 +1137,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warlock", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warlock", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },

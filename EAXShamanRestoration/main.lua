@@ -1322,7 +1322,7 @@ local function do_rotation(me)
 
     -- -- Interrupt (PVP) -------------------------------------------------------
     if target and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, target, "shaman", utils) then
             return
         end
     end

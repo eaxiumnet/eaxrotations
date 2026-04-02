@@ -907,7 +907,7 @@ local function do_rotation(me, t)
     rt.haste_breakpoint = get_haste_breakpoint(me)
 
     if interrupt_manager.should_interrupt(t) then
-        if interrupt_manager.try_interrupt(me, t, "hunter", utils) then return true end
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, t, "hunter", utils) then return true end
     end
 
     enc = encounter_manager.get_policy(me)
@@ -1062,7 +1062,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "hunter", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "hunter", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },

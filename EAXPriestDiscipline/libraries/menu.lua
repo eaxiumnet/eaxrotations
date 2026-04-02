@@ -74,6 +74,7 @@ menu.use_smite                           = core.menu.checkbox(true, "eaxpriestdi
 menu.use_holy_fire                       = core.menu.checkbox(true, "eaxpriestdiscipline_use_holy_fire")
 menu.use_shadow_word_pain                = core.menu.checkbox(true, "eaxpriestdiscipline_use_shadow_word_pain")
 menu.use_mind_blast                      = core.menu.checkbox(true, "eaxpriestdiscipline_use_mind_blast")
+menu.use_interrupt                        = core.menu.checkbox(true, "eaxpriestdiscipline_use_interrupt")
 
 mana_conservator.register_menu_items(menu, "eax_priest_discipline")
 
@@ -125,6 +126,7 @@ function menu.render()
             menu.use_abolish_disease:render("Abolish Disease", "Dispel")
             menu.use_psychic_scream:render("Psychic Scream", "Fear")
             menu.use_shackle_undead:render("Shackle Undead", "CC")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
         end)
 
         -- DPS Fallback

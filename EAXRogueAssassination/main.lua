@@ -1037,7 +1037,7 @@ local function do_rotation(me, target)
     -- Interrupt
     enc = encounter_manager.get_policy(me)
     if target and interrupt_manager.should_interrupt(target) and not enc.hold_cooldowns then
-        if interrupt_manager.try_interrupt(me, target, "rogue", utils) then
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, target, "rogue", utils) then
             return true
         end
     end
@@ -1149,7 +1149,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "rogue", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "rogue", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },

@@ -1056,7 +1056,7 @@ local function do_rotation(me, target)
     })
     -- Interrupt (Earth Shock / Wind Shear)
     if target and interrupt_manager.should_interrupt(target) then
-        if interrupt_manager.try_interrupt(me, target, "shaman", utils) then
+        if menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(me, target, "shaman", utils) then
             return true
         end
     end
@@ -1176,7 +1176,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "shaman", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "shaman", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },

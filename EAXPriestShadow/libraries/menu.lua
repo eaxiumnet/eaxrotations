@@ -33,6 +33,7 @@ menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxp
 -- Racial
 menu.use_racial                          = core.menu.checkbox(true, "eaxpriestshadow_use_racial")
 menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxpriestshadow_racial_hp")
+menu.use_interrupt                        = core.menu.checkbox(true, "eaxpriestshadow_use_interrupt")
 
 -- OOC
 menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
@@ -135,6 +136,7 @@ function menu.render()
 
         -- Utility
         cd_tree:render("Utility", function()
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_dispel_magic:render("Dispel Magic", "Dispel")
             menu.use_cure_disease:render("Cure Disease", "Dispel")
             menu.use_psychic_scream:render("Psychic Scream", "Fear")

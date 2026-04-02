@@ -327,207 +327,62 @@ local DRUMS_OF_BATTLE_ITEM_ID = 29529
 local DRUMS_OF_WAR_ITEM_ID = 29528
 local SLAM_CANCEL_WINDOW_MS = 100
 local NOTIFICATION_BURST_ID = "simplefury_burst_active"
-local NOTIFICATION_OVERPOWER_ID = "simplefury_overpower_proc"
-local NOTIFICATION_SLAM_ID = "simplefury_slam_weave"
-local NOTIFICATION_RETURN_ID = "simplefury_return_berserker"
-local PROC_DEBUG_INTERVAL_MS = 10000
-local PROC_HUD_X = 20
-local PROC_HUD_Y = 20
-local PROC_HUD_WIDTH = 148
-local PROC_HUD_HEIGHT = 54
-local PROC_HUD_LINE_HEIGHT = 20
-local CHARGE_STANCE_RETRY_DELAY = 0.75
-local ON_NEXT_ATTACK_QUEUE_INTERVAL = 0.30
-local PENDING_CAST_TIMEOUT_S = 2.5
-local FAST_PENDING_CAST_TIMEOUT_S = 0.75
-local EXECUTE_SWING_SAFETY_BUFFER_S = 0.10
-local SHAMAN_CLASS_ID = 7
-local MODE_OPTIONS = { "Auto", "Solo", "Dungeon", "Raid" }
-local MODE_DEBUG_INTERVAL_MS = 10000
 
-local function resolve_spells()
-    runtime.bloodthirst_id = utils.resolve_spell_id(spells.BLOODTHIRST)
-    runtime.whirlwind_id = utils.resolve_spell_id(spells.WHIRLWIND)
-    runtime.execute_id = utils.resolve_spell_id(spells.EXECUTE)
-    runtime.heroic_strike_id = utils.resolve_spell_id(spells.HEROIC_STRIKE)
-    runtime.cleave_id = utils.resolve_spell_id(spells.CLEAVE)
-    runtime.sunder_armor_id = utils.resolve_spell_id(spells.SUNDER_ARMOR)
-    runtime.hamstring_id = utils.resolve_spell_id(spells.HAMSTRING)
-    runtime.intercept_id = utils.resolve_spell_id(spells.INTERCEPT)
-    runtime.charge_id = utils.resolve_spell_id(spells.CHARGE)
-    runtime.battle_shout_id = utils.resolve_spell_id(spells.BATTLE_SHOUT)
-    runtime.bloodrage_id = utils.resolve_spell_id(spells.BLOODRAGE)
-    runtime.berserker_rage_id = utils.resolve_spell_id(spells.BERSERKER_RAGE)
-    runtime.rampage_id = utils.resolve_spell_id(spells.RAMPAGE)
-    runtime.pummel_id = utils.resolve_spell_id(spells.PUMMEL)
-    runtime.demoralizing_shout_id = utils.resolve_spell_id(spells.DEMORALIZING_SHOUT)
-    runtime.sweeping_strikes_id = utils.resolve_spell_id(spells.SWEEPING_STRIKES)
-    runtime.piercing_howl_id = utils.resolve_spell_id(spells.PIERCING_HOWL)
-    runtime.thunder_clap_id = utils.resolve_spell_id(spells.THUNDER_CLAP)
-    runtime.rend_id = utils.resolve_spell_id(spells.REND)
-    runtime.battle_stance_id = utils.resolve_spell_id(spells.BATTLE_STANCE)
-    runtime.berserker_stance_id = utils.resolve_spell_id(spells.BERSERKER_STANCE)
-    runtime.death_wish_id = utils.resolve_spell_id(spells.DEATH_WISH)
-    runtime.recklessness_id = utils.resolve_spell_id(spells.RECKLESSNESS)
-    runtime.blood_fury_id = utils.resolve_spell_id(spells.BLOOD_FURY)
-    runtime.berserking_id = utils.resolve_spell_id(spells.BERSERKING)
-    runtime.slam_id = utils.resolve_spell_id(spells.SLAM)
-    runtime.overpower_id = utils.resolve_spell_id(spells.OVERPOWER)
-    runtime.commanding_shout_id = utils.resolve_spell_id(spells.COMMANDING_SHOUT)
-    runtime.intimidating_shout_id = utils.resolve_spell_id(spells.INTIMIDATING_SHOUT)
-    runtime.stoneform_id = utils.resolve_spell_id(spells.STONEFORM)
-    runtime.war_stomp_id = utils.resolve_spell_id(spells.WAR_STOMP)
-    runtime.stance_swap_retention = utils.get_stance_swap_retention()
-end
+-- ============================================================================
+-- FLUX CC BREAK PREVENTION (v1.8.x) - PvP/group utility
+-- Check for breakable CC on nearby enemies before using AoE abilities
+-- ============================================================================
+local CC_BREAKABLE_DEBUFFS = {
+    spells.DEBUFF_POLYMORPH,
+    spells.DEBUFF_FREEZING_TRAP,
+    spells.DEBUFF_BLIND,
+    spells.DEBUFF_SAP,
+    spells.DEBUFF_GOUGE,
+    spells.DEBUFF_HIBERNATE,
+    spells.DEBUFF_WYVERN_STING,
+    spells.DEBUFF_SHACKLE_UNDEAD,
+    spells.DEBUFF_SEDUCTION,
+}
 
-local function log_resolved_spells()
-    core.log("[Eax Warrior Fury] Resolved: BT=" .. tostring(runtime.bloodthirst_id)
-        .. " WW=" .. tostring(runtime.whirlwind_id)
-        .. " EX=" .. tostring(runtime.execute_id)
-        .. " HS=" .. tostring(runtime.heroic_strike_id)
-        .. " stance_ret=" .. tostring(runtime.stance_swap_retention))
-end
-
-local function validate_fury_spec()
-    if runtime.bloodthirst_id then
-        return true
-    end
-
-    if menu and menu.enabled and menu.enabled:get_state() then
-        menu.enabled:set(false)
-    end
-
-    core.log("[Eax Warrior Fury] Bloodthirst not found; disabling addon to avoid interfering with non-Fury warrior specs.")
-    return false
-end
-
-resolve_spells()
-log_resolved_spells()
-validate_fury_spec()
-
--- -- mode detection ----------------------------------------------------------
-
-local function has_shaman_in_party()
-    local me = _get_local_player()
-    if not me then return false end
-
-    local members = core.object_manager.get_party_members and core.object_manager.get_party_members() or nil
-    if type(members) ~= "table" then
-        return false
-    end
-
-    for _, unit in ipairs(members) do
-        if unit and unit.is_valid and unit:is_valid() and not unit:is_dead() then
-            local class_id = type(unit.get_class) == "function" and unit:get_class() or nil
-            if class_id == 7 then
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
-local function refresh_mode_cache()
-    local me = _get_local_player()
-    runtime.cached_mode = utils.detect_mode(me)
-    runtime.cached_has_shaman = has_shaman_in_party()
-end
-
-local function update_set_bonus(me)
-    if not me then return end
-    local best_multiplier = 1.0
-    local set_names = { "WarbringerBattlegear", "DestroyerArmor", "OnslaughtArmor", "Ymirjar" }
-    for _, set_name in ipairs(set_names) do
-        local set_mult = set_bonus.get_multiplier(me, set_name)
-        if set_mult and set_mult > best_multiplier then
-            best_multiplier = set_mult
-        end
-    end
-    runtime.set_multiplier = best_multiplier
-end
-
-local function get_set_rage_discount()
-    if runtime.set_multiplier <= 1.0 then
-        return 0
-    end
-    if runtime.set_multiplier >= 1.10 then
-        return 2
-    end
-    return 1
-end
-
-local function get_effective_mode()
-    local idx = menu.mode:get()
-    if idx == 2 then return "solo" end
-    if idx == 3 then return "dungeon" end
-    if idx == 4 then return "raid" end
-    return runtime.cached_mode -- Auto
-end
-
-local function should_sync_burst_with_lust()
-    return get_effective_mode() == "raid" and runtime.cached_has_shaman
-end
-
-local function should_sync_consumables_with_burst()
-    return get_effective_mode() == "raid"
-end
-
-local function is_valid_hostile_target(me, target)
-    return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
-end
-
-local function get_battlefield_snapshot(me)
-    local now_ms = _core_time()
-    local snapshot = runtime.battlefield_snapshot
-    if snapshot and snapshot.tick_ms == now_ms and snapshot.me == me then
-        return snapshot
-    end
-
-    local my_pos = me and me:get_position() or nil
-    local objects = core.object_manager.get_visible_objects()
-    local hostiles = {}
-    local nearest_attacker = nil
-    local nearest_attacker_dist = math.huge
-
+local function has_breakable_cc_nearby(me, radius)
+    radius = radius or 10
+    if not me or not me:is_valid() then return false end
+    
+    local me_pos = me:get_position()
+    if not me_pos then return false end
+    
+    local objects = core.object_manager.get_objects_in_radius(me_pos, radius)
     for i = 1, #objects do
         local obj = objects[i]
-        if obj
-            and obj:is_valid()
-            and obj:is_unit()
-            and not obj:is_dead()
-            and me:can_attack(obj)
-        then
-            hostiles[#hostiles + 1] = obj
-            if my_pos and obj:is_in_combat() then
-                local obj_target = obj:get_target()
-                if obj_target and obj_target:is_valid() and obj_target == me then
-                    local sq_dist = my_pos:squared_dist_to_ignore_z(obj:get_position())
-                    if sq_dist < nearest_attacker_dist then
-                        nearest_attacker = obj
-                        nearest_attacker_dist = sq_dist
+        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
+            for _, debuff_id in ipairs(CC_BREAKABLE_DEBUFFS) do
+                if debuff_id then
+                    local ok, has_debuff = pcall(function()
+                        return utils.has_debuff(obj, debuff_id)
+                    end)
+                    if ok and has_debuff then
+                        return true
                     end
                 end
             end
         end
     end
-
-    snapshot = {
-        tick_ms = now_ms,
-        me = me,
-        hostiles = hostiles,
-        nearest_attacker = nearest_attacker,
-    }
-    runtime.battlefield_snapshot = snapshot
-    return snapshot
+    return false
 end
+-- ============================================================================
+-- END FLUX CC BREAK PREVENTION
+-- ============================================================================
 
---- Find the closest hostile unit that is targeting (attacking) us.
----@param me game_object
----@return game_object|nil
-local function find_nearest_attacker(me)
-    return get_battlefield_snapshot(me).nearest_attacker
-end
+-- FLUX SLAM DESYNC CONSTANTS (v1.8.x)
+-- Swing desync: offset MH/OH timers when weapons have matching speeds
+local DESYNC_SPEED_TOLERANCE = 0.2   -- weapon speeds must be within 0.2s
+local DESYNC_SYNC_THRESHOLD  = 0.3   -- MH/OH remaining within 0.3s = "synced"
+local DESYNC_COOLDOWN        = 10    -- seconds between desync attempts
+local DESYNC_SLAM_WINDOW     = 1.6   -- base Slam 1.5s + 0.1s latency
+local desync_last_attempt    = 0     -- time of last desync Slam
+
+-- FLUX SMART RAGE HOLD FOR INTERRUPTS
+local RAGE_COST_PUMMEL = 10
 
 local function note_cast()
     runtime.last_cast_time = _core_time()
@@ -809,6 +664,57 @@ local function is_execute_swing_safe(me)
     return swing_timer.can_cast_before_swing(me, 0.25, EXECUTE_SWING_SAFETY_BUFFER_S)
 end
 
+-- Swing Desync: Offset MH/OH timers by casting Slam when both weapons are synced.
+-- This lets Flurry/WF procs benefit both hands and smooths rage generation.
+local function try_swing_desync(me, target, bt_cd, ww_cd)
+    if not menu.use_swing_desync:get_state() then return false end
+    if not target or not utils.is_melee_target(me, target) then return false end
+    if utils.is_casting_or_channeling(me) then return false end
+
+    -- Cooldown between desync attempts
+    local now = _core_time()
+    if (now - desync_last_attempt) < DESYNC_COOLDOWN then return false end
+
+    -- Must be dual-wielding
+    local mh_speed = get_weapon_speed_seconds(me, "mainhand")
+    local oh_speed = get_weapon_speed_seconds(me, "offhand")
+    if not mh_speed or not oh_speed then return false end
+
+    -- Weapon speeds must be within tolerance (matching speeds = synced)
+    if math.abs(mh_speed - oh_speed) > DESYNC_SPEED_TOLERANCE then return false end
+
+    -- Get remaining swing times
+    local mh_remaining = swing_timer.get_time_to_swing(me)
+    local oh_remaining = swing_timer.get_offhand_time_to_swing(me)
+
+    -- Both hands must be actively swinging
+    if mh_remaining <= 0 or oh_remaining <= 0 then return false end
+
+    -- Swings must be synced (within threshold of each other)
+    if math.abs(mh_remaining - oh_remaining) > DESYNC_SYNC_THRESHOLD then return false end
+
+    -- Need enough time for Slam cast (1.5s base + latency buffer)
+    if mh_remaining < DESYNC_SLAM_WINDOW then return false end
+
+    -- Don't starve BT/WW if they're coming off CD soon
+    if is_bt_ww_window_open(bt_cd, ww_cd) then return false end
+
+    -- Slam must be ready
+    if not runtime.slam_id or not utils.can_cast_melee(runtime.slam_id, me) then return false end
+
+    -- Execute the desync Slam
+    desync_last_attempt = now
+    if utils.cast_target(runtime.slam_id, target) then
+        runtime.last_slam_cast_game_time = core.game_time()
+        utils.log_debug(menu, "Slam (swing desync)")
+        note_cast()
+        esp_renderer.on_cast(runtime.slam_id, "Slam (desync)", color.orange(220))
+        return true
+    end
+
+    return false
+end
+
 local function handle_toggle()
     local current = menu.toggle_key:get_state()
     if current and not runtime.prev_toggle_state then
@@ -874,6 +780,11 @@ local try_battle_shout = try_shout
 local function try_demo_shout(me, target)
     if not menu.use_demo_shout:get_state() or not runtime.demoralizing_shout_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
+
+    -- FLUX IMPROVEMENT: CC break prevention - don't break breakable CC on nearby enemies
+    if has_breakable_cc_nearby(me, 10) then
+        return false
+    end
 
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_DEMORALIZING_SHOUT)
     if remaining >= DEMO_SHOUT_REFRESH_MS then
@@ -1175,7 +1086,7 @@ reactive_adapter = {
                     return false
                 end
 
-                return interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
+                return menu.use_interrupt:get_state() and interrupt_manager.try_interrupt(action_deps.me, interrupt_target, "warrior", utils)
             end,
         },
         anti_overheal = { noop = "unsupported" },
@@ -1630,6 +1541,16 @@ local function try_slam_or_hamstring_filler(me, target, ctx, rage, target_hp_pct
 
     local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
     local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
+
+    -- Swing desync: tries to offset MH/OH timers when weapons are synced
+    -- Runs when BT/WW are on CD but not imminent (is_bt_ww_window_open returns true)
+    -- and swings are within DESYNC_SYNC_THRESHOLD of each other
+    if target_hp_pct >= EXECUTE_HP_THRESHOLD then
+        if try_swing_desync(me, target, bt_cd, ww_cd) then
+            return true
+        end
+    end
+
     if not is_bt_ww_window_open(bt_cd, ww_cd) then
         return false
     end
@@ -1650,14 +1571,14 @@ local function try_slam_or_hamstring_filler(me, target, ctx, rage, target_hp_pct
         return true
     end
 
-    if menu.use_hamstring_filler:get_state()
+    if menu.use_hamstring_weave:get_state()
         and runtime.hamstring_id
-        and rage >= (HAMSTRING_MIN_RAGE + 10)
+        and rage >= menu.hamstring_weave_rage:get()
         and target_hp_pct >= EXECUTE_HP_THRESHOLD
         and utils.can_cast_melee(runtime.hamstring_id, me)
         and utils.cast_target(runtime.hamstring_id, target)
     then
-        utils.log_debug(menu, label .. ": Hamstring filler")
+        utils.log_debug(menu, label .. ": Hamstring weave (rage " .. rage .. ")")
         note_cast()
         return true
     end
@@ -1777,9 +1698,25 @@ local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
         end
     end
 
+    -- WW Priority Count: when enough enemies are nearby, prioritize WW over BT (WW hits multiple targets)
+    local ww_priority_count = menu.ww_priority_count:get()
+    local enemy_count = utils.enemy_count_in_radius(me, AOE_RADIUS)
+    local ww_priority_active = ww_priority_count > 0 and enemy_count >= ww_priority_count and rage >= 25
+
+    -- WW takes priority over BT when ww_priority conditions are met
+    if ww_can_cast and ww_priority_active and not is_pending_or_current(runtime.whirlwind_id) then
+        if utils.cast_target(runtime.whirlwind_id, target) then
+            mark_pending_cast(runtime.whirlwind_id, PENDING_CAST_TIMEOUT_S)
+            utils.log_debug(menu, "ST: Whirlwind (WW priority)")
+            note_cast()
+            invalidate_ctx()
+            return true
+        end
+    end
+
     if bt_can_cast and not is_pending_or_current(runtime.bloodthirst_id) then
-        -- If Flurry is about to expire, prioritize BT to refresh it
-        if flurry_about_to_expire or not ww_can_cast then
+        -- If Flurry is about to expire, prioritize BT to refresh it; also skip if WW should take priority
+        if (flurry_about_to_expire or not ww_can_cast) and not ww_priority_active then
             if utils.cast_target(runtime.bloodthirst_id, target) then
                 mark_pending_cast(runtime.bloodthirst_id, PENDING_CAST_TIMEOUT_S)
                 utils.log_debug(menu, "ST: Bloodthirst (Flurry priority)")
@@ -1790,7 +1727,8 @@ local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
         end
     end
 
-    if ww_can_cast and not is_pending_or_current(runtime.whirlwind_id) then
+    -- Standard WW cast (when not in WW priority mode)
+    if ww_can_cast and not ww_priority_active and not is_pending_or_current(runtime.whirlwind_id) then
         if utils.cast_target(runtime.whirlwind_id, target) then
             mark_pending_cast(runtime.whirlwind_id, PENDING_CAST_TIMEOUT_S)
             utils.log_debug(menu, "ST: Whirlwind")
@@ -1811,6 +1749,50 @@ local function do_single_target_core_lane(me, target, ctx, rage, target_hp_pct)
             note_cast()
             invalidate_ctx()
             return true
+        end
+    end
+
+    -- FLUX SLAM DESYNC (v1.8.x): Offset MH/OH timers when weapons have matching speeds
+    -- This smooths rage generation and lets Flurry/WF procs benefit both hands
+    if menu.use_slam_weave:get_state() and runtime.slam_id and target_hp_pct >= EXECUTE_HP_THRESHOLD then
+        local now = _core_time()
+        if (now - desync_last_attempt) >= DESYNC_COOLDOWN then
+            -- Check if we're dual-wielding with matching weapon speeds
+            local mh_speed = utils.get_mainhand_weapon_speed and utils.get_mainhand_weapon_speed(me) or 0
+            local oh_speed = utils.get_offhand_weapon_speed and utils.get_offhand_weapon_speed(me) or 0
+            
+            if mh_speed > 0 and oh_speed > 0 and math.abs(mh_speed - oh_speed) <= DESYNC_SPEED_TOLERANCE then
+                -- Get remaining swing times
+                local mh_remaining = utils.get_next_swing_ms and (utils.get_next_swing_ms(me, 1) / 1000) or 0
+                local oh_remaining = utils.get_next_swing_ms and (utils.get_next_swing_ms(me, 2) / 1000) or 0
+                
+                -- Check if swings are synced (remaining times close together)
+                if mh_remaining > 0 and oh_remaining > 0 
+                   and math.abs(mh_remaining - oh_remaining) <= DESYNC_SYNC_THRESHOLD then
+                    -- Need enough swing time left for Slam to land before next auto
+                    if mh_remaining >= DESYNC_SLAM_WINDOW then
+                        -- Don't starve BT/WW if they're coming off CD soon
+                        local bt_cd = get_spell_cooldown_or_large(runtime.bloodthirst_id)
+                        local ww_cd = get_spell_cooldown_or_large(runtime.whirlwind_id)
+                        local bt_ww_imminent = (bt_cd <= 2.0 or ww_cd <= 2.0)
+                        
+                        if not bt_ww_imminent 
+                           and resource_gate.warrior.has_rage(ctx, 25)
+                           and utils.can_cast_melee(runtime.slam_id, me)
+                           and utils.can_slam_without_clipping(me, runtime.slam_id, menu.slam_safety_buffer_ms:get())
+                        then
+                            desync_last_attempt = now
+                            if utils.cast_target(runtime.slam_id, target) then
+                                runtime.last_slam_cast_game_time = core.game_time()
+                                utils.log_debug(menu, "ST: Slam (swing desync)")
+                                note_cast()
+                                esp_renderer.on_cast(runtime.slam_id, "Slam (desync)", color.cyan(220))
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
 
@@ -1881,7 +1863,11 @@ local function try_thunder_clap_dance(me, target, rage)
     if not menu.use_thunder_clap_aoe:get_state() then return false end
     if not runtime.thunder_clap_id then return false end
     if not target or not utils.is_melee_target(me, target) then return false end
-    if utils.has_debuff(target, spells.DEBUFF_THUNDER_CLAP) then return false end
+    
+    -- FLUX IMPROVEMENT: CC break prevention - don't break breakable CC on nearby enemies
+    if has_breakable_cc_nearby(me, 10) then
+        return false
+    end
 
     local mode = get_effective_mode()
     if mode == "solo" then return false end  -- not worth the GCD loss in solo
@@ -1961,6 +1947,7 @@ local function do_aoe_core_lane(me, target, ctx, rage)
         and utils.is_melee_target(me, primary_target)
         and rage >= THUNDER_CLAP_COST
         and not utils.has_debuff(primary_target, spells.DEBUFF_THUNDER_CLAP)
+        and not has_breakable_cc_nearby(me, 10)  -- FLUX: CC break prevention
         and utils.can_cast_melee(runtime.thunder_clap_id, me)
         and utils.cast_target(runtime.thunder_clap_id, primary_target)
     then
@@ -1970,23 +1957,28 @@ local function do_aoe_core_lane(me, target, ctx, rage)
     end
 
     if runtime.whirlwind_id and runtime.berserker_stance_id then
-        if utils.get_current_stance(me) ~= "berserker" then
-            if try_switch_to_stance(me, runtime.berserker_stance_id, "berserker", rage, WHIRLWIND_COST) then
-                return true
-            end
-        elseif primary_target and utils.is_melee_target(me, primary_target)
-            and resource_gate.warrior.has_rage(ctx, math.max(20, WHIRLWIND_COST - rage_discount))
-            and ((not execute_phase_active) or rage >= ww_reserve)
-            and _get_spell_cd(runtime.whirlwind_id) <= 0
-        then
-            if not is_pending_or_current(runtime.whirlwind_id)
-                and utils.cast_target(runtime.whirlwind_id, primary_target)
+        -- FLUX IMPROVEMENT: CC break prevention - don't break breakable CC on nearby enemies
+        local cc_safe = not has_breakable_cc_nearby(me, 10)
+        
+        if cc_safe then
+            if utils.get_current_stance(me) ~= "berserker" then
+                if try_switch_to_stance(me, runtime.berserker_stance_id, "berserker", rage, WHIRLWIND_COST) then
+                    return true
+                end
+            elseif primary_target and utils.is_melee_target(me, primary_target)
+                and resource_gate.warrior.has_rage(ctx, math.max(20, WHIRLWIND_COST - rage_discount))
+                and ((not execute_phase_active) or rage >= ww_reserve)
+                and _get_spell_cd(runtime.whirlwind_id) <= 0
             then
-                mark_pending_cast(runtime.whirlwind_id, PENDING_CAST_TIMEOUT_S)
-                utils.log_debug(menu, "AoE: Whirlwind")
-                note_cast()
-                invalidate_ctx()
-                return true
+                if not is_pending_or_current(runtime.whirlwind_id)
+                    and utils.cast_target(runtime.whirlwind_id, primary_target)
+                then
+                    mark_pending_cast(runtime.whirlwind_id, PENDING_CAST_TIMEOUT_S)
+                    utils.log_debug(menu, "AoE: Whirlwind")
+                    note_cast()
+                    invalidate_ctx()
+                    return true
+                end
             end
         end
     end
@@ -2491,7 +2483,7 @@ local function on_update()
     enc = d.encounter_manager.get_policy(me)
 
     if target and target:is_valid() and me:can_attack(target) and d.interrupt_manager.should_interrupt(target) then
-        if d.interrupt_manager.try_interrupt(me, target, "warrior", d.utils) then
+        if menu.use_interrupt:get_state() and d.interrupt_manager.try_interrupt(me, target, "warrior", d.utils) then
             return
         end
     end
