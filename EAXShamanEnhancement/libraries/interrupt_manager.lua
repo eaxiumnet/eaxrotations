@@ -1,5 +1,5 @@
 -- interrupt_manager.lua
--- ../eax_shared/interrupt_manager.lua
+-- interrupt_manager.lua
 -- Priority-based interrupt system for all TBC Classic classes.
 -- Consolidated from per-spec implementations.
 

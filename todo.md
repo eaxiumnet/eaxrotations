@@ -13,7 +13,7 @@ Last updated: 2026-03-29
 
 ## Writable Scope
 
-- `scripts/eax_shared/**`
+- `scripts/libraries/**`
 - `scripts/EAXDruidRestoration/main.lua`
 - `scripts/EAXShamanRestoration/main.lua`
 - `scripts/EAXPaladinHoly/main.lua`
@@ -24,7 +24,7 @@ Last updated: 2026-03-29
 
 - `scripts/ni-main/docs/api/**`
 - `scripts/NAG/**`
-- existing EAX healer/tank modules under `scripts/eax_shared/**`
+- existing EAX healer/tank modules under `scripts/libraries/**`
 
 ## Phase 0 - Planning and Mapping
 
@@ -36,17 +36,17 @@ Last updated: 2026-03-29
 ## Phase 1 - Shared Healer Core
 
 ### 1.1 Shared healing engine
-- [x] Decide whether to generalize from `EAXShamanRestoration/heal_engine.lua` into `eax_shared/heal_engine.lua`
+- [x] Decide whether to generalize from `EAXShamanRestoration/heal_engine.lua` into `libraries/heal_engine.lua`
 - [x] Build a Sylvanas-native effective HP model using only supported APIs
 - [x] Keep incoming-heal-aware friend sorting cached and reusable
 - [x] Preserve TBC-safe tank priority rules
 - [x] Route `EAXShamanRestoration/heal_engine.lua` to the shared module
 
 ### 1.2 Shared triage improvements
-- [x] Update `eax_shared/healer_triage.lua` to use effective HP / incoming-heal-aware decisions
+- [x] Update `libraries/healer_triage.lua` to use effective HP / incoming-heal-aware decisions
 - [x] Improve tank-save vs triage-save vs group-stabilize branching
 - [x] Centralize conservative covered-target hold logic
-- [x] Route the 5 healer specs to shared `eax_shared/healer_triage.lua`
+- [x] Route the 5 healer specs to shared `libraries/healer_triage.lua`
 
 ### 1.3 Shared mana and overheal rules
 - [x] Define shared mana-floor rules for healers
@@ -54,7 +54,7 @@ Last updated: 2026-03-29
 - [x] Define shared stopcast / overheal-cancel rules using Sylvanas data only
 
 ### 1.4 Shared context validation
-- [x] Confirm `eax_shared/combat_context.lua` already exposes everything needed
+- [x] Confirm `libraries/combat_context.lua` already exposes everything needed
 - [x] Extend shared context only if required by healer logic
 - [x] Avoid adding non-Sylvanas abstractions copied from NAG
 
@@ -90,7 +90,7 @@ Last updated: 2026-03-29
 
 ## Phase 3 - Tank/Healer Coordination
 
-- [x] Review `eax_shared/tank_recovery.lua` interaction with healer triage decisions
+- [x] Review `libraries/tank_recovery.lua` interaction with healer triage decisions
 - [x] Ensure tank-collapse windows are respected in dungeon and raid automation
 - [x] Confirm healer automation does not over-prioritize raid padding over tank survival
 
@@ -104,12 +104,12 @@ Last updated: 2026-03-29
 
 ## Progress Notes
 
-- 2026-03-29: Created shared `eax_shared/heal_engine.lua`
-- 2026-03-29: Routed the five healer specs to shared `eax_shared/healer_triage.lua`
-- 2026-03-29: Routed `EAXShamanRestoration/heal_engine.lua` to shared `eax_shared/heal_engine.lua`
+- 2026-03-29: Created shared `libraries/heal_engine.lua`
+- 2026-03-29: Routed the five healer specs to shared `libraries/healer_triage.lua`
+- 2026-03-29: Routed `EAXShamanRestoration/heal_engine.lua` to shared `libraries/heal_engine.lua`
 - 2026-03-29: Updated shared triage to understand raw HP, effective HP, priority HP, and incoming-heal-aware cancel rules
 - 2026-03-29: Added shared `heal_engine.make_member()` / `make_snapshot()` helpers and wired Druid / Holy Paladin / Holy Priest / Discipline Priest to them
-- 2026-03-29: Added shared mana-floor hooks to `eax_shared/spell_downrank.lua` and applied them to Restoration Shaman downranking
+- 2026-03-29: Added shared mana-floor hooks to `libraries/spell_downrank.lua` and applied them to Restoration Shaman downranking
 - 2026-03-29: Switched Paladin / Holy Priest / Discipline Priest target-selection, dispel priority, and direct-heal decisions further toward effective HP instead of raw HP
 - 2026-03-29: Switched Druid healing-activation, dispel priority, and reactive self-save checks toward effective HP where safe
 - 2026-03-29: Removed the remaining Priest Holy / Discipline `utils.find_low_health_ally(...)` fallbacks in main healing paths in favor of effective-HP ally selection

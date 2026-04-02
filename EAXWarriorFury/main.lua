@@ -27,7 +27,7 @@ local ooc_manager = require("libraries/ooc_manager")
 local consumables_manager = require("libraries/consumables_manager")
 ---@type leveling_manager
 local leveling_manager = require("libraries/leveling_manager")
-local pvp_manager = require("eax_shared/pvp_manager")
+local pvp_manager = require("libraries/pvp_manager")
 ---@type encounter_manager
 local encounter_manager = require("libraries/encounter_manager")
 -- Module-level encounter policy cache (updated each tick)

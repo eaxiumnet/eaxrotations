@@ -33,8 +33,8 @@ local consumables_manager = require("libraries/consumables_manager")
 
 ---@type leveling_manager
 local leveling_manager = require("libraries/leveling_manager")
-local pull_optimizer = require("eax_shared/pull_optimizer")
-local pvp_manager = require("eax_shared/pvp_manager")
+local pull_optimizer = require("libraries/pull_optimizer")
+local pvp_manager = require("libraries/pvp_manager")
 ---@type creature_utils
 local creature_utils = require("libraries/creature_utils")
 

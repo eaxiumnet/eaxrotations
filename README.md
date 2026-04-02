@@ -16,7 +16,7 @@ Internal documentation for the EAX 27-spec rotation pack for WoW TBC 2.4.3 on Pr
 | Edit spell tables | `EAX<Class><Spec>/libraries/spells.lua` |
 | Edit utilities | `EAX<Class><Spec>/libraries/utils.lua` |
 | Edit menu toggles | `EAX<Class><Spec>/libraries/menu.lua` |
-| Shared runtime | `eax_shared/` |
+| Shared runtime | `libraries/` |
 | Build/package | `tools/export_eax_plugins.py` |
 | Validate specs | `lua tools/rotation_validation.lua` |
 | Check API compliance | `lua tools/api_hard_gate.lua` |
@@ -1169,7 +1169,7 @@ luac -p EAXWarriorFury/main.lua          # Syntax check
 ### What Ships
 - `.lua` files
 - `.md` files
-- `eax_shared/` modules
+- `libraries/` modules
 
 ### What Does Not Ship
 - `.toc` files

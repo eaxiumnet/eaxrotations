@@ -31,7 +31,7 @@ local creature_utils = require("libraries/creature_utils")
 
 ---@type encounter_manager
 local encounter_manager = require("libraries/encounter_manager")
-local pvp_manager = require("eax_shared/pvp_manager")
+local pvp_manager = require("libraries/pvp_manager")
 local dispel_engine = require("libraries/dispel_engine")
 
 -- BigWigs integration: check for upcoming boss abilities

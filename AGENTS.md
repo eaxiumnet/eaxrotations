@@ -35,7 +35,7 @@ For Sylvanas runtime debugging, check the runtime issue/artifact tools before pr
 | Edit spell tables | `EAX<Class><Spec>/libraries/spells.lua` |
 | Edit utilities | `EAX<Class><Spec>/libraries/utils.lua` |
 | Edit menu toggles | `EAX<Class><Spec>/libraries/menu.lua` |
-| Shared runtime | `eax_shared/` (pull_optimizer.lua, pvp_manager.lua) |
+| Shared runtime | `libraries/` (pull_optimizer.lua, pvp_manager.lua) |
 | Build/package | `tools/export_eax_plugins.py` → `dist/eax_ship/` |
 | Validate specs | `lua tools/rotation_validation.lua` |
 | Check API compliance | `lua tools/api_hard_gate.lua` |
@@ -65,8 +65,8 @@ At the start of every new OpenCode session in this repo:
 ### ✅ Completed This Session (2026-03-21) — First Pass
 
 1. **Git Recovery** - Restored 174 uncommitted commits, cleaned up git state
-2. **Critical Bug Fix** - Fixed broken `require` paths: `common/eax_shared/` → `eax_shared/` across all 27 specs (all stubs were referencing non-existent paths)
-3. **Performance: Spell Resolution Cache** - Created `eax_shared/spell_resolver.lua` with persistent caching
+2. **Critical Bug Fix** - Fixed broken `require` paths: `common/libraries/` → `libraries/` across all 27 specs (all stubs were referencing non-existent paths)
+3. **Performance: Spell Resolution Cache** - Created `libraries/spell_resolver.lua` with persistent caching
    - Previously: ~810+ `is_spell_learned()` API calls/sec across 27 specs
    - Now: cached after first resolve, invalidated on talent change
 4. **Performance: Combat Context Throttle** - Throttled `combat_context.build()` to 2-second refresh
@@ -88,7 +88,7 @@ At the start of every new OpenCode session in this repo:
 
 ### ✅ Completed This Session (2026-03-21) — Second Pass (Runtime Fixes)
 
-1. **Critical Runtime Fix: spell_resolver.lua require** - All 27 specs had `require("eax_shared/spell_resolver")` in `utils.lua` that failed at runtime because there was no per-spec `eax_shared/` subfolder. Created 27 identical per-spec `spell_resolver.lua` stub files (4 lines each) that mirror the `defensive_manager.lua` pattern: `return require("eax_shared/spell_resolver")`. This bridges the relative require to the root `eax_shared/` module.
+1. **Critical Runtime Fix: spell_resolver.lua require** - All 27 specs had `require("libraries/spell_resolver")` in `utils.lua` that failed at runtime because there was no per-spec `libraries/` subfolder. Created 27 identical per-spec `spell_resolver.lua` stub files (4 lines each) that mirror the `defensive_manager.lua` pattern: `return require("libraries/spell_resolver")`. This bridges the relative require to the root `libraries/` module.
 
 2. **Critical Runtime Fix: EAXWarriorFury >60 upvalues** - `on_update()` captured 65 chunk-local identifiers (exceeding Lua's 60 upvalue limit). Root cause: debug block + control panel callback registration + conflict detection were ALL running inside `on_update()` every frame. Fix: (a) moved conflict detection `do` block to module scope (runs once at load, not every tick), (b) simplified debug block to just log output, (c) moved control panel callback registration to module scope alongside other callback registrations. Net result: ~6 upvalues eliminated from `on_update()`.
 
@@ -121,16 +121,16 @@ At the start of every new OpenCode session in this repo:
 
 ### ✅ Already Implemented (from previous work)
 
-- **Set Bonus Detection** - `eax_shared/set_bonus.lua` (443 lines, 60+ T4/T5/T6 sets)
+- **Set Bonus Detection** - `libraries/set_bonus.lua` (443 lines, 60+ T4/T5/T6 sets)
 - **ESP/HUD** - Per-spec `esp_renderer.lua` with spec isolation (state_by_spec)
-- **Interrupt Manager** - `eax_shared/interrupt_manager.lua` (262 lines, priority-based)
-- **Defensive Manager** - `eax_shared/defensive_manager.lua` (73 lines, HP-threshold tiers)
-- **Racial Manager** - `eax_shared/racial_manager.lua` (129 lines, all TBC races)
+- **Interrupt Manager** - `libraries/interrupt_manager.lua` (262 lines, priority-based)
+- **Defensive Manager** - `libraries/defensive_manager.lua` (73 lines, HP-threshold tiers)
+- **Racial Manager** - `libraries/racial_manager.lua` (129 lines, all TBC races)
 - **Pet AI** - `EAXHunterBeastMastery/pet_manager.lua` (342 lines, state machine)
-- **Shaman Totems** - `eax_shared/totem_manager.lua` (111 lines, bag scanning)
-- **Spell Resolution** - `eax_shared/spell_resolver.lua` (85 lines, persistent cache)
-- **Combat Context** - `eax_shared/combat_context.lua` (431 lines, throttled to 2s)
-- **Reactive Runtime** - `eax_shared/reactive_runtime.lua` (350 lines, cached context)
+- **Shaman Totems** - `libraries/totem_manager.lua` (111 lines, bag scanning)
+- **Spell Resolution** - `libraries/spell_resolver.lua` (85 lines, persistent cache)
+- **Combat Context** - `libraries/combat_context.lua` (431 lines, throttled to 2s)
+- **Reactive Runtime** - `libraries/reactive_runtime.lua` (350 lines, cached context)
 
 ---
 
@@ -295,7 +295,7 @@ core.register_on_spell_cast_callback(on_spell_cast) -- Spell tracking
 local spells = require("libraries/spells")
 
 -- Shared runtime (minimal - only pull_optimizer, pvp_manager)
-local pvp_manager = require("eax_shared/pvp_manager")
+local pvp_manager = require("libraries/pvp_manager")
 
 -- Sylvanas common modules (from .api workspace)
 local buff_manager = require("common/modules/buff_manager")
@@ -334,8 +334,8 @@ local buff_manager = require("common/modules/buff_manager")
 - `sqrt()` for distance — use squared comparisons
 
 ### Require Path Errors
-- **NEVER** `require("common/eax_shared/...")` — doesn't exist
-- **ALWAYS** `require("eax_shared/...")` — correct path
+- **NEVER** `require("common/libraries/...")` — doesn't exist
+- **ALWAYS** `require("libraries/...")` — correct path
 
 ## Repository Map
 

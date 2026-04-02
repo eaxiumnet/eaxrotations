@@ -1,5 +1,5 @@
 -- encounter_manager.lua
--- ../eax_shared/encounter_manager.lua
+-- encounter_manager.lua
 -- TBC dungeon and raid encounter awareness for all Eax specs.
 
 local encounter_manager = {}

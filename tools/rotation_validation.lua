@@ -35,10 +35,10 @@ local ROLE_FAMILIES = {
         },
         required = {
             {
-                label = "shared healer_triage import",
+                label = "libraries healer_triage import",
                 kind = "any_substring",
                 values = {
-                    'local healer_triage = require("eax_shared/healer_triage")',
+                    'local healer_triage = require("libraries/healer_triage")',
                     'local healer_triage = require("healer_triage")',
                 },
             },
@@ -57,10 +57,10 @@ local ROLE_FAMILIES = {
         },
         required = {
             {
-                label = "shared tank_recovery import",
+                label = "libraries tank_recovery import",
                 kind = "any_substring",
                 values = {
-                    'local tank_recovery = require("eax_shared/tank_recovery")',
+                    'local tank_recovery = require("libraries/tank_recovery")',
                     'local tank_recovery = require("tank_recovery")',
                 },
             },
@@ -74,10 +74,10 @@ local ROLE_FAMILIES = {
     dps = {
         required = {
             {
-                label = "shared dps_risk import",
+                label = "libraries dps_risk import",
                 kind = "any_substring",
                 values = {
-                    'local dps_risk = require("eax_shared/dps_risk")',
+                    'local dps_risk = require("libraries/dps_risk")',
                     'local dps_risk = require("dps_risk")',
                 },
             },

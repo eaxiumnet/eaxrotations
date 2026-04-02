@@ -1,5 +1,5 @@
 -- dot_manager.lua
--- ../eax_shared/dot_manager.lua
+-- dot_manager.lua
 -- Shared DoT clip prevention module for all TBC Classic caster specs.
 -- Prevents refreshing DoTs too early (clipping the final tick).
 --

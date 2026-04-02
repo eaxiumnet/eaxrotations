@@ -1,5 +1,5 @@
 -- threat_manager.lua
--- ../eax_shared/threat_manager.lua
+-- threat_manager.lua
 -- Threat estimation and tank tracking for all TBC Classic specs.
 -- Prevents aggro pulls by fading when threat exceeds tank's.
 --

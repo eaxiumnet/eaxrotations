@@ -11,9 +11,9 @@ Holds offline validation and maintenance scripts for enforcing Sylvanas API boun
 ## Flow
 1. Developers run tooling scripts outside the live combat loop.
 2. Scripts inspect repo files or benchmark behavior against expected thresholds.
-3. Results guide refactors, API cleanups, and regression fixes in live `EAX*/` or `eax_shared/` code.
+3. Results guide refactors, API cleanups, and regression fixes in live `EAX*/` or `libraries/` code.
 
 ## Integration
 - Consumed by: developers maintaining the repo.
-- Targets: `EAX*/`, `eax_shared/`, and API policy definitions.
+- Targets: `EAX*/`, `libraries/`, and API policy definitions.
 - Adjacent docs: `AGENTS.md`, `README.md`.

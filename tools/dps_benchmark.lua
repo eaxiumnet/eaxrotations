@@ -1,6 +1,6 @@
 local benchmark_matrix = require("tools/benchmark_matrix")
 local benchmark_thresholds = require("tools/benchmark_thresholds")
-local dps_meter = require("eax_shared/dps_meter")
+local dps_meter = require("dps_meter")
 
 local M = {}
 

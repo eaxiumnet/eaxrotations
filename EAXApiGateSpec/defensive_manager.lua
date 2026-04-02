@@ -1,5 +1,5 @@
 -- defensive_manager.lua
--- eax_shared/defensive_manager.lua
+-- defensive_manager.lua
 -- Layered HP threshold defensive system for all TBC Classic classes.
 
 local defensive_manager = {}

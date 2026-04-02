@@ -1,5 +1,5 @@
 -- mana_manager.lua
--- ../eax_shared/mana_manager.lua
+-- mana_manager.lua
 -- Proactive mana management for all TBC Classic caster specs.
 --
 -- Handles: mana potion usage, Evocation timing (Mage), Innervate timing (Druid),

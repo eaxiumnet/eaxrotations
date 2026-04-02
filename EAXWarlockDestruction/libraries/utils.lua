@@ -10,7 +10,7 @@ local spells = require("libraries/spells")
 
 local utils = {}
 
--- Spell resolver with persistent caching (see ../eax_shared/spell_resolver.lua)
+-- Spell resolver with persistent caching (see spell_resolver.lua)
 local spell_resolver = require("libraries/spell_resolver")
 local throttle_timestamps = {}
 local queue_timestamps = {}

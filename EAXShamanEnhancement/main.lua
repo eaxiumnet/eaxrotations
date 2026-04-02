@@ -29,7 +29,7 @@ local leveling_manager = require("libraries/leveling_manager")
 local encounter_manager = require("libraries/encounter_manager")
 ---@type totem_manager
 local totem_manager = require("libraries/totem_manager")
-local pvp_manager = require("eax_shared/pvp_manager")
+local pvp_manager = require("libraries/pvp_manager")
 ---@type swing_timer
 local swing_timer = require("libraries/swing_timer")
 -- Module-level encounter policy cache (updated each tick)

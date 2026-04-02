@@ -567,9 +567,15 @@ function core.read_dir(directory)
 end
 
 ---@param id number
----@r
+---@return nil
 function core.play_sound_by_id(id)
     return nil
+end
+
+--- Return if the player is typing something in any textbox like chat, aka is_chat_open, but scalable to other stuff of the game interface and including all addons hopefully
+---@return boolean
+function core.is_textbox_focused()
+    return false
 end
 
 ---@class inventory
@@ -1345,6 +1351,7 @@ end
 function core.spell_book.get_spell_cooldown(spell_id)
     return 0
 end
+
 --- Indicates if the spell can be usable based on many requirements.
 ---@param spell_id integer The ID of the spell.
 ---@return boolean to indicate if the spell is usable.
@@ -2270,6 +2277,34 @@ function core.http_get(url, headers_or_callback, callback_opt)
   return nil
 end
 
+--- Performs an asynchronous HTTP POST request.
+---
+--- Overloads:
+--- 1) core.http_post(url, body, callback)
+--- 2) core.http_post(url, headers, body, callback)
+---
+--- Headers:
+--- - `headers` is a table<string, string>
+--- - Each pair is sent as: "Key: Value"
+---
+--- Body:
+--- - `body` is a raw string (can contain binary data).
+---
+--- Callback parameters:
+--- - `http_code` integer, HTTP status code (200, 404, etc). Transport failure may be 0 (native-defined).
+--- - `content_type` string, server content type (native-defined on failure).
+--- - `response_data` string, raw response body, binary safe.
+--- - `response_headers` string, response headers dump, format is native-defined.
+---
+---@param url string
+---@param headers_or_body table<string, string>|string
+---@param body_or_callback string|fun(http_code: integer, content_type: string, response_data: string, response_headers: string)
+---@param callback_opt fun(http_code: integer, content_type: string, response_data: string, response_headers: string)|nil
+---@return nil
+function core.http_post(url, headers_or_body, body_or_callback, callback_opt)
+    return nil
+end
+
 --------------------------------------------------------------------------------
 -- GRAPHICS, TEXTURES
 --------------------------------------------------------------------------------
@@ -2489,6 +2524,7 @@ end
 -- core.register_callback("render", on_render_remote)
 
 ------------------------------------------------------------------------------]]
+
 --[[----------------------------------------------------------------------------
 Example C, HTTP GET with headers (data request, not texture)
 
@@ -2828,10 +2864,6 @@ function core.quests.get_reward_money() return 0 end
 ---@return string link The item link string.
 function core.quests.get_quest_item_link(type, index) return "" end
 
---------------------------------------------------------------------------------
--- Auction House
---------------------------------------------------------------------------------
-
 ---@class replicate_item_info
 ---@field name string The name of the auction item.
 ---@field texture integer The texture/icon ID of the item.
@@ -3115,6 +3147,12 @@ end
 ---@return nil
 function core.auction_house.close_auction_house() end
 
+--- Returns whether the auction house frame is currently shown.
+---@return boolean is_shown True if the auction house is open.
+function core.auction_house.is_auction_house_shown()
+    return false
+end
+
 --- Returns the remaining duration (in seconds) for the current commodity price quote.
 --- A quote locks in the price for a commodity purchase for a limited time.
 ---@return number seconds The remaining quote duration in seconds.
@@ -3187,14 +3225,6 @@ end
 function core.auction_house.get_cursor_item_name()
     return ""
 end
-
---- Returns whether the auction house frame is currently shown.
----@return boolean is_shown True if the auction house is open.
-function core.auction_house.is_auction_house_shown()
-    return false
-end
-
--- Pet Battle API
 
 ---@class pet_battle_name_info
 ---@field custom_name string The player-assigned name (empty if none).
@@ -3320,6 +3350,12 @@ end
 ---@return boolean is_wild True if fighting a wild pet.
 function core.pet_battle.is_wild_battle()
     return false
+end
+
+--- Returns the current pet battle state as an integer.
+---@return number state The battle state value.
+function core.pet_battle.get_battle_state()
+    return 0
 end
 
 --- Returns the active pet index (1-3) for the given side.
@@ -3589,10 +3625,48 @@ function core.pet_battle.set_ability(slot_index, spell_index, pet_spell_id) end
 ---@param pet_id string The pet GUID to summon or dismiss.
 function core.pet_battle.summon_pet_by_guid(pet_id) end
 
---- Returns the current pet battle state as an integer.
----@return number state The battle state value.
-function core.pet_battle.get_battle_state()
-    return 0
+--- Returns whether the player has learned a specific toy.
+---@param item_id integer The item ID of the toy.
+---@return boolean has_toy True if the player has the toy.
+function core.pet_battle.player_has_toy(item_id)
+    return false
+end
+
+--- Uses a toy by item ID.
+---@param item_id integer The item ID of the toy to use.
+function core.pet_battle.use_toy(item_id) end
+
+---@class delves
+core.delves = {}
+
+--- Returns whether a delve is currently in progress.
+---@return boolean in_delve True if currently in a delve.
+function core.delves.is_in_delve()
+    return false
+end
+
+--- Returns whether the current delve has been completed.
+---@return boolean is_complete True if the delve is complete.
+function core.delves.is_delve_complete()
+    return false
+end
+
+--- Clicks the enter delve button on the difficulty picker frame.
+---@return boolean success True if the action was performed.
+function core.delves.enter_delve()
+    return false
+end
+
+--- Teleports the player out of the current delve.
+---@return boolean success True if the action was performed.
+function core.delves.teleport_out()
+    return false
+end
+
+--- Smart leave: teleports out if in a delve, otherwise leaves the party.
+---@return boolean success True if the action was performed.
+function core.delves.leave_delve()
+    return false
 end
 
 ---@class addons
@@ -3714,5 +3788,72 @@ end
 ---@return integer[] npc_ids An array of quest-related NPC IDs.
 function core.addons.questie.get_quest_npc_ids()
     return {}
+end
+
+---@class tsm_item_prices
+---@field market_value number The current market value in copper.
+---@field min_buyout number The minimum buyout price in copper.
+---@field historical number The historical price in copper.
+---@field region_market_avg number The region market average in copper.
+---@field region_historical number The region historical price in copper.
+---@field region_sale_avg number The region sale average in copper.
+---@field region_sale_rate number The region sale rate (0.0-1.0).
+---@field region_sold_per_day number The average number sold per day.
+---@field vendor_sell number The vendor sell price in copper.
+
+---@class tsm_auctioning_prices
+---@field min_price number The minimum posting price in copper.
+---@field normal_price number The normal posting price in copper.
+---@field max_price number The maximum posting price in copper.
+
+---@class addons_tsm
+core.addons.tsm = {}
+
+--- Returns whether the TSM API is available.
+---@return boolean is_loaded True if TSM is loaded.
+function core.addons.tsm.is_loaded()
+    return false
+end
+
+--- Returns all price sources for an item.
+---@param item_id integer The item ID.
+---@return tsm_item_prices prices A table containing all price source values.
+function core.addons.tsm.get_item_prices(item_id)
+    return {}
+end
+
+--- Returns batch prices for multiple items, keyed by item ID.
+---@param item_ids integer[] An array of item IDs to query.
+---@return table<integer, tsm_item_prices> prices A table of prices keyed by item ID.
+function core.addons.tsm.get_market_data(item_ids)
+    return {}
+end
+
+--- Returns the sniper deal threshold for an item (buy if buyout <= this value).
+---@param item_id integer The item ID.
+---@return number max_price The sniper max price in copper.
+function core.addons.tsm.get_sniper_max_price(item_id)
+    return 0
+end
+
+--- Returns the shopping operation max price for an item.
+---@param item_id integer The item ID.
+---@return number max_price The shopping max price in copper.
+function core.addons.tsm.get_shopping_max_price(item_id)
+    return 0
+end
+
+--- Returns the auctioning posting price guidance for an item.
+---@param item_id integer The item ID.
+---@return tsm_auctioning_prices prices A table with min_price, normal_price, and max_price.
+function core.addons.tsm.get_auctioning_prices(item_id)
+    return {}
+end
+
+--- Returns how many more of an item to buy for restock.
+---@param item_id integer The item ID.
+---@return integer quantity The restock quantity needed.
+function core.addons.tsm.get_shopping_restock_quantity(item_id)
+    return 0
 end
 

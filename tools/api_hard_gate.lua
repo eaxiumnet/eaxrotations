@@ -121,20 +121,6 @@ local function list_runtime_paths()
         end
     end
 
-    local shared_files
-    if sep == "\\" then
-        shared_files = command_lines('cmd /c dir /b /s "eax_shared\\*.lua" 2>nul')
-    else
-        shared_files = command_lines('find "eax_shared" -maxdepth 1 -type f -name "*.lua" 2>/dev/null')
-    end
-
-    for _, path in ipairs(shared_files) do
-        if not seen[path] then
-            seen[path] = true
-            paths[#paths + 1] = path
-        end
-    end
-
     table.sort(paths)
     return paths
 end

@@ -1,4 +1,4 @@
-# eax_shared
+# Shared Runtime (eax_shared/)
 
 **Purpose:** Cross-spec shared runtime (minimal)  
 **Current State:** Only 2 files at root level
@@ -39,8 +39,8 @@ Each `EAX<Class><Spec>/libraries/` contains copies of:
 
 ## Conventions
 
-- Specs require via: `require("eax_shared/pull_optimizer")`
-- Per-spec stubs bridge: `return require("eax_shared/spell_resolver")`
+- Specs require via: `require("libraries/pull_optimizer")`
+- Per-spec stubs bridge: `return require("libraries/spell_resolver")`
 - Never put spec-specific logic here
 
 ---
