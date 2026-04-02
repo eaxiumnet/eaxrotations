@@ -23,9 +23,23 @@ Prefer these `sylvanas` MCP tools when relevant:
 
 For Sylvanas runtime debugging, check the runtime issue/artifact tools before proposing fixes.
 
-**Last Updated**: 2026-03-21 (third pass)
+**Last Updated**: 2026-04-02 (optimization pass)
 **Repo**: https://github.com/eaxiumnet/eax-tbc-classic-rotations
 **Local Path**: `C:\newbot\scripts`
+
+## Quick Reference
+
+| Task | Where to Look |
+|------|---------------|
+| Edit rotation logic | `EAX<Class><Spec>/main.lua` |
+| Edit spell tables | `EAX<Class><Spec>/libraries/spells.lua` |
+| Edit utilities | `EAX<Class><Spec>/libraries/utils.lua` |
+| Edit menu toggles | `EAX<Class><Spec>/libraries/menu.lua` |
+| Shared runtime | `eax_shared/` (pull_optimizer.lua, pvp_manager.lua) |
+| Build/package | `tools/export_eax_plugins.py` → `dist/eax_ship/` |
+| Validate specs | `lua tools/rotation_validation.lua` |
+| Check API compliance | `lua tools/api_hard_gate.lua` |
+| Sylvanas API docs | `sylvanas-dev-docs-llm/pages/dev/api/core.md` |
 
 ## Session Start Git Protocol
 
@@ -120,6 +134,26 @@ At the start of every new OpenCode session in this repo:
 
 ---
 
+### ✅ Completed This Session (2026-04-02) — Optimization Pass
+
+1. **Code Bloat Removal** — Systematic cleanup across 4 specs:
+   - **EAXWarriorFury**: Removed duplicate `ooc_manager` require (-2 lines)
+   - **EAXHunterMarksmanship**: Removed 380 lines of non-TBC PvP stealth detection code (flare prediction, anti-stealth overlay) — 42% pcall reduction
+   - **EAXWarriorProtection**: Refactored stance and burst systems (-528 lines, -14% file size, table-driven approach)
+   - **EAXRogueCombat**: Removed unused stealth constants (STEALTH, VANISH, BUFF_STEALTH)
+   - **Net result**: -591 lines of code bloat eliminated, improved maintainability
+
+2. **TBC Accuracy Improvement** — Hunter Marksmanship promoted to "closest to clean TBC" tier after removing non-TBC stealth code
+
+3. **Documentation Updated** — README.md reflects all optimization wins and updated spec status
+
+#### Verification
+- `luac -p` passes on all 4 modified files
+- `lsp_diagnostics` reports **0 errors** in all modified directories
+- 5 atomic git commits created with descriptive messages
+
+---
+
 ## What Remains
 
 ### Immediate / Manual Verification
@@ -196,12 +230,112 @@ The following Sylvanas API features are now available and could be integrated:
 git clone https://github.com/eaxiumnet/eax-tbc-classic-rotations.git
 cd eax-tbc-classic-rotations
 
+# Build/package for release
+python tools/export_eax_plugins.py --output dist/eax_ship
+
+# Validate all specs
+lua tools/rotation_validation.lua
+
+# Check API compliance (banned patterns)
+lua tools/api_hard_gate.lua
+
+# Audit shared module drift
+python tools/audit_shared_duplicates.py
+
+# Syntax check single file
+luac -p EAXWarriorFury/main.lua
+
 # Pull latest
 git pull
 
 # Push changes
 git add -A && git commit -m "feat: description" && git push
 ```
+
+## Entry Points
+
+Each of 27 specs follows the same 3-file entry pattern:
+
+| File | Purpose | Called By |
+|------|---------|-----------|
+| `header.lua` | Class validation, plugin metadata | Sylvanas (first) |
+| `main.lua` | On-update loop, priority engine, callbacks | Sylvanas (if header passes) |
+| `plugin_info.lua` | Plugin metadata (name, version, spec_id) | Sylvanas |
+
+**Sylvanas callback registration in main.lua:**
+```lua
+core.register_on_update_callback(on_update)        -- Main rotation loop
+core.register_on_render_callback(on_render)        -- ESP/visuals
+core.register_on_render_menu_callback(menu.render) -- Menu UI
+core.register_on_spell_cast_callback(on_spell_cast) -- Spell tracking
+```
+
+**Class IDs for header.lua validation:**
+- 1 = Warrior, 2 = Paladin, 3 = Hunter, 4 = Rogue
+- 5 = Priest, 6 = Druid, 7 = Shaman, 8 = Mage, 9 = Warlock
+
+## Conventions
+
+### Naming
+- **Spec directories:** `EAX<Class><Spec>` (e.g., `EAXWarriorFury`)
+- **Files:** lowercase with underscores (`main.lua`, `utils.lua`)
+- **Constants:** UPPER_SNAKE_CASE (`BLOODTHIRST`, `BUFF_BATTLE_SHOUT`)
+- **Private vars:** `_` prefix (`_core_time`, `_tracked_stance`)
+
+### Performance (MANDATORY)
+- **Cache hot-path APIs at load:** `local _core_time = core.time`
+- **Throttle expensive calls:** `combat_context.build()` → 2s, `detect_mode()` → 5s
+- **Use squared distance:** Never `sqrt()` for comparisons
+- **Reuse tables:** Static `_visual_tracked_auras = { n = 0 }`, don't allocate `{}` per frame
+- **Limit target scan:** Max 50 objects, early exit on current target
+
+### Require Patterns
+```lua
+-- Local spec libraries
+local spells = require("libraries/spells")
+
+-- Shared runtime (minimal - only pull_optimizer, pvp_manager)
+local pvp_manager = require("eax_shared/pvp_manager")
+
+-- Sylvanas common modules (from .api workspace)
+local buff_manager = require("common/modules/buff_manager")
+```
+
+## Anti-Patterns (NEVER DO)
+
+### Banned APIs (enforced by api_hard_gate.lua)
+- `ffi.C` — never use FFI
+- `io.popen` — never shell out
+- `os.execute` — never execute commands
+- `debug.*` — never use debug namespace
+
+### Shipping Violations
+- **NEVER ship `.toc` files** — delete before commit
+- **NEVER ship `.zip` artifacts** (except plugins-listing)
+- **NEVER ship vendor automation / mount manager** — removed from all specs
+
+### TBC Accuracy Violations
+**Never add these WotLK/Cata spells:**
+- Druid: `Starfall`, `Typhoon`, `Eclipse`, `Savage Roar`, `Berserk`, `Wild Growth`, `Nourish`
+- Hunter: `Chimera Shot`, `Explosive Shot`, `Black Arrow`
+- Mage: `Arcane Barrage`, `Mirror Image`, `Living Bomb`, `Hot Streak`, `Deep Freeze`, `Fingers of Frost`, `Brain Freeze`
+- Paladin: `Beacon of Light`, `Divine Plea`, `Word of Glory`, `Hammer of the Righteous`, `Shield of the Righteous`, `Divine Storm`, `Templar's Verdict`, `Holy Power`
+- Priest: `Mind Sear`, `Dispersion`
+- Rogue: `Fan of Knives`, `Shadow Dance`
+- Shaman: `Lava Burst`, `Thunderstorm`, `Wind Shear`, `Lava Lash`, `Feral Spirit`, `Riptide`, `Earthliving Weapon`
+- Warlock: `Haunt`, `Metamorphosis`, `Immolation Aura`, `Chaos Bolt`
+- Warrior: `Bladestorm`, `Heroic Throw`, `Shockwave`, `Sword and Board`
+
+### Performance Anti-Patterns
+- `is_spell_learned()` per-frame — cache with spell_resolver.lua
+- `combat_context.build()` per-frame — throttle to 2s
+- `detect_mode()` inline per-spec — use shared utils.detect_mode(me) with 5s throttle
+- >60 upvalues in `on_update()` — move to module scope
+- `sqrt()` for distance — use squared comparisons
+
+### Require Path Errors
+- **NEVER** `require("common/eax_shared/...")` — doesn't exist
+- **ALWAYS** `require("eax_shared/...")` — correct path
 
 ## Repository Map
 
