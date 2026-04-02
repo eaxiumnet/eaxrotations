@@ -60,6 +60,7 @@ menu.use_rejuvenation                    = core.menu.checkbox(true, "eaxdruidres
 menu.use_regrowth                        = core.menu.checkbox(true, "eaxdruidrestoration_use_regrowth")
 menu.use_healing_touch                   = core.menu.checkbox(true, "eaxdruidrestoration_use_healing_touch")
 menu.use_swiftmend                       = core.menu.checkbox(true, "eaxdruidrestoration_use_swiftmend")
+menu.use_lifebloom                       = core.menu.checkbox(true, "eaxdruidrestoration_use_lifebloom")
 menu.use_natures_swiftness               = core.menu.checkbox(true, "eaxdruidrestoration_use_natures_swiftness")
 menu.use_tranquility                     = core.menu.checkbox(true, "eaxdruidrestoration_use_tranquility")
 menu.use_tree_of_life                    = core.menu.checkbox(true, "eaxdruidrestoration_use_tree_of_life")
@@ -91,6 +92,7 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_regrowth", label = "Regrowth" },
     { toggle = "use_healing_touch", label = "Healing Touch" },
     { toggle = "use_swiftmend", label = "Swiftmend" },
+    { toggle = "use_lifebloom", label = "Lifebloom" },
     { toggle = "use_innervate", label = "Innervate" },
 }, {
     namespace = "eaxdruidrestoration",
