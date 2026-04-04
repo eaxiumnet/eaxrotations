@@ -425,7 +425,7 @@ local function try_pain_suppression(me, mode)
     end
 
     if candidate and not utils.has_buff(candidate, spells.PAIN_SUPPRESSION) then
-        if utils.cast_target(resolved.pain_suppression, candidate, nil) then note_cast() return true end
+        if utils.cast_target(resolved.pain_suppression, me, candidate) then note_cast() return true end
     return false
     end
 
@@ -518,7 +518,7 @@ local function try_shield(me)
             local is_tank = true
             if is_tank and heal_engine.get_effective_hp_pct(tank) > 0.90 then
                 -- Tank is healthy but might take damage soon
-                if utils.cast_target(runtime.pw_shield_id, tank, "PW:Shield (proactive)") then note_cast() return true end
+                if utils.cast_target(runtime.pw_shield_id, me, tank) then note_cast() return true end
             end
         end
     end
@@ -537,7 +537,7 @@ local function try_shield(me)
     end
 
     if candidate and not utils.has_buff(candidate, spells.POWER_WORD_SHIELD) and not utils.has_debuff(candidate, spells.BUFF_WEAKENED_SOUL) then
-        if utils.cast_target(resolved.shield, candidate, nil) then note_cast() return true end
+        if utils.cast_target(resolved.shield, me, candidate) then note_cast() return true end
     return false
     end
 
@@ -574,7 +574,7 @@ local function try_renew(me)
     end
 
     if candidate and not utils.has_buff(candidate, spells.RENEW) then
-        if utils.cast_target(resolved.renew, candidate, nil) then note_cast() return true end
+        if utils.cast_target(resolved.renew, me, candidate) then note_cast() return true end
     return false
     end
 
@@ -590,7 +590,7 @@ local function try_prayer_of_mending(me)
     local candidate = find_lowest_effective_ally(me, threshold, true)
 
     if candidate and not utils.has_buff(candidate, spells.PRAYER_OF_MENDING) then
-        if utils.cast_target(resolved.prayer_of_mending, candidate, nil) then note_cast() return true end
+        if utils.cast_target(resolved.prayer_of_mending, me, candidate) then note_cast() return true end
     return false
     end
 
@@ -833,7 +833,7 @@ local function try_dispel_magic(me)
     local target = get_dispel_target(me)
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not dispel_engine.unit_has_type(target, { numeric = MAGIC_DISPEL_TYPE, name = "magic" }, nil) then return false end
-    return utils.cast_target(resolved.dispel_magic, target, nil) and true or false
+    return utils.cast_target(resolved.dispel_magic, me, target) and true or false
 end
 
 local function try_cure_disease(me)
@@ -858,7 +858,7 @@ local function try_pw_shield(me, target)
     local hp = heal_engine.get_effective_hp_pct(target)
     if hp > 0.80 then return false end  -- only shield when taking damage
     esp_renderer.on_cast(nil, "PW:Shield", color.white(220))
-    if utils.cast_target(runtime.pw_shield_id, target, "PW:Shield") then note_cast() return true end
+    if utils.cast_target(runtime.pw_shield_id, me, target) then note_cast() return true end
     return false
 end
 
@@ -877,7 +877,7 @@ try_cast_spell = function(me, target, spell_id, action_key)
         end
     else
         if utils.can_cast_target(spell_id, me, target) then
-            if utils.cast_target(spell_id, target, nil) then
+            if utils.cast_target(spell_id, me, target) then
                 mark_pending_cast(spell_id, 0, { action_key = action_key or "priest_spell" })
                 note_cast()
                 return true
