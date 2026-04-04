@@ -423,7 +423,7 @@ local function try_renew(me)
 
     if candidate and not utils.has_buff(candidate, spells.RENEW) then
         esp_renderer.on_cast(nil, "Renew", color.green(220))
-    if utils.cast_target(resolved.renew, candidate, nil) then note_cast() return true end
+    if utils.cast_target(resolved.renew, me, candidate) then note_cast() return true end
     return false
     end
 
@@ -580,7 +580,7 @@ local function try_dispel_magic(me)
     local target = get_dispel_target(me)
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not dispel_engine.unit_has_type(target, { numeric = MAGIC_DISPEL_TYPE, name = "magic" }, nil) then return false end
-    return utils.cast_target(resolved.dispel_magic, target, nil) and true or false
+    return utils.cast_target(resolved.dispel_magic, me, target) and true or false
 end
 
 local function try_cure_disease(me)
@@ -593,7 +593,7 @@ local function try_cure_disease(me)
 
     local spell_id = resolved.abolish_disease or resolved.cure_disease
     if not spell_id then return false end
-    return utils.cast_target(spell_id, target, nil) and true or false
+    return utils.cast_target(spell_id, me, target) and true or false
 end
 
 local function try_greater_heal(me)
@@ -616,7 +616,7 @@ local function try_greater_heal(me)
             efficient_rank_index = 4,
         }) or resolved.greater_heal
         esp_renderer.on_cast(nil, "Greater Heal", color.gold(220))
-    if utils.cast_target(spell_id, candidate, nil) then 
+    if utils.cast_target(spell_id, me, candidate) then 
         note_cast() 
         return true 
     end
@@ -663,7 +663,7 @@ local function try_prayer_of_mending(me)
     local candidate = find_lowest_effective_ally(me, threshold, true)
 
     if candidate and not utils.has_buff(candidate, spells.BUFF_PRAYER_OF_MENDING) then
-        if utils.cast_target(resolved.prayer_of_mending, candidate, nil) then note_cast() return true end
+        if utils.cast_target(resolved.prayer_of_mending, me, candidate) then note_cast() return true end
     end
 
     return false
@@ -701,7 +701,7 @@ local function try_circle_of_healing(me)
     if wounded < min_count or missing < 0.10 then return false end
     if not best_target then return false end
 
-    if utils.cast_target(resolved.circle_of_healing, best_target, nil) then
+    if utils.cast_target(resolved.circle_of_healing, me, best_target) then
         note_cast()
         esp_renderer.on_cast(resolved.circle_of_healing, "Circle of Healing", color.green(220))
         return true
@@ -831,7 +831,7 @@ local function try_flash_heal(me, target)
         if utils.cast_self(spell_id, me) then note_cast() return true end
         return false
     end
-    local success, reason = utils.cast_target(spell_id, candidate, nil)
+    local success, reason = utils.cast_target(spell_id, me, candidate)
     if success then 
         note_cast() 
         return true 
@@ -880,7 +880,7 @@ local function try_binding_heal(me, target)
         efficient_rank_index = 2,
     }) or resolved.binding_heal
     esp_renderer.on_cast(spell_id, "Binding Heal", color.cyan(220))
-    if utils.cast_target(spell_id, candidate, nil) then note_cast() return true end
+    if utils.cast_target(spell_id, me, candidate) then note_cast() return true end
     return false
 end
 
@@ -958,7 +958,7 @@ local function try_cast_spell(me, target, spell_id)
         end
     else
         if utils.can_cast_target(spell_id, me, target) then
-            if utils.cast_target(spell_id, target, nil) then note_cast() return true end
+            if utils.cast_target(spell_id, me, target) then note_cast() return true end
     return false
         end
     end
