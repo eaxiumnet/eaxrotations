@@ -4,6 +4,7 @@
 local spell_queue = require("common/modules/spell_queue")
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
+local spells = require("libraries/spells")
 
 
 local utils = {}
@@ -37,6 +38,14 @@ function utils.get_health_pct(unit)
     return unit:get_health() / max_hp
 end
 
+function utils.get_mana_pct(unit)
+    if not unit or not unit:is_valid() then return 0 end
+    local max_mana = unit.get_max_power and unit:get_max_power(0) or 0
+    if max_mana <= 0 then return 0 end
+    local current_mana = unit.get_power and unit:get_power(0) or 0
+    return current_mana / max_mana
+end
+
 function utils.get_buff_remaining_ms(unit, ids)
     if not unit or not unit:is_valid() or not ids then
         return 0
@@ -61,6 +70,21 @@ function utils.has_debuff(unit, ids)
 
     local data = buff_manager:get_debuff_data(unit, ids)
     return data ~= nil and data.is_active == true
+end
+
+function utils.get_debuff_remaining_ms(unit, ids)
+    if not unit or not unit:is_valid() or not ids then return 0 end
+    local data = buff_manager:get_debuff_data(unit, ids)
+    if data and data.is_active then return data.remaining or 0 end
+    return 0
+end
+
+--- Check if the player is pacified (cannot cast spells).
+---@param me game_object
+---@return boolean
+function utils.is_pacified(me)
+    if not me or not me:is_valid() then return false end
+    return utils.has_debuff(me, spells.PACIFY_BUFFS)
 end
 
 -- Find the best hostile target using priority logic:
@@ -228,12 +252,37 @@ end
 function utils.get_party_units(me)
     local pool = {}
     local objects = core.object_manager.get_all_objects()
+    local HEAL_RANGE = 40.0
+    
+    -- Get player position for range check
+    local pos_me = nil
+    if me and me:is_valid() then
+        local ok, pos = pcall(function() return me:get_position() end)
+        if ok then pos_me = pos end
+    end
 
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
             if obj == me or obj:is_party_member() then
-                pool[#pool + 1] = obj
+                -- Range check: only include units within 40 yards
+                if pos_me then
+                    local ok_pos, pos_obj = pcall(function() return obj:get_position() end)
+                    if ok_pos and pos_obj then
+                        local dx = pos_me.x - pos_obj.x
+                        local dy = pos_me.y - pos_obj.y
+                        local dz = pos_me.z - pos_obj.z
+                        local dist_sq = dx*dx + dy*dy + dz*dz
+                        if dist_sq <= (HEAL_RANGE * HEAL_RANGE) then
+                            pool[#pool + 1] = obj
+                        end
+                    else
+                        -- If we can't get position, include anyway (fallback)
+                        pool[#pool + 1] = obj
+                    end
+                else
+                    pool[#pool + 1] = obj
+                end
             end
         end
     end
@@ -283,7 +332,7 @@ end
 
 
 function utils.get_effective_mode(menu, runtime)
-    local choice = menu.mode:get()
+    local choice = (menu and menu.mode and menu.mode.get) and menu.mode:get() or 1
     if choice == 2 then
         return "solo"
     end
@@ -322,7 +371,10 @@ local function is_spell_castable(spell_id)
 end
 
 function utils.can_cast_target(spell_id, me, target)
-    if not me or not target then
+    if not me or type(me.is_valid) ~= "function" or not me:is_valid() then
+        return false
+    end
+    if not target or type(target.is_valid) ~= "function" or not target:is_valid() then
         return false
     end
 
@@ -330,7 +382,7 @@ function utils.can_cast_target(spell_id, me, target)
         return false
     end
 
-    if target:is_dead() or not target:is_valid() then
+    if target:is_dead() then
         return false
     end
 

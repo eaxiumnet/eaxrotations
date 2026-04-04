@@ -1055,11 +1055,10 @@ core.register_on_update_callback(function()
         consumables_manager.try_use_ooc_food_drink(me, menu, utils)
     end
 
-    if not me:is_in_combat() then
-        return
-    end
+    -- Healing now works both in and out of combat
+    local in_combat = me:is_in_combat()
 
-    if me:is_in_combat() then
+    if in_combat then
         if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
             consumables_manager.try_use_combat_consumable(me, menu, utils)
         end
