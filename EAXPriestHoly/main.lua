@@ -616,8 +616,14 @@ local function try_greater_heal(me)
             efficient_rank_index = 4,
         }) or resolved.greater_heal
         esp_renderer.on_cast(nil, "Greater Heal", color.gold(220))
-        if utils.cast_target(spell_id, candidate, nil) then note_cast() return true end
-        return false
+    if utils.cast_target(spell_id, candidate, nil) then 
+        note_cast() 
+        return true 
+    end
+    if menu.debug and menu.debug:get_state() then
+        utils.log_debug(menu, "Flash Heal: cast_target failed")
+    end
+    return false
     end
 
     return false
@@ -804,7 +810,9 @@ local function try_flash_heal(me, target)
     end
     if not candidate or not candidate:is_valid() or candidate:is_dead() then
         if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Flash Heal: no valid candidate (target=" .. tostring(target) .. ", candidate=" .. tostring(candidate) .. ")")
+            local valid = candidate and candidate:is_valid()
+            local dead = candidate and candidate:is_dead()
+            utils.log_debug(menu, string.format("Flash Heal: candidate invalid (valid=%s, dead=%s)", tostring(valid), tostring(dead)))
         end
         return false
     end
