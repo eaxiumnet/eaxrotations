@@ -713,11 +713,18 @@ end
 local function find_lowest_effective_ally(me, threshold, skip_self)
     local units = utils.get_party_units(me)
     local candidate = nil
-    local lowest_pct = threshold or 1.0
+    local lowest_pct = 1.0  -- Start at 100%, find lowest regardless of threshold
+
+    if menu.debug and menu.debug:get_state() then
+        utils.log_debug(menu, string.format("find_lowest: units=%d, skip_self=%s", #units, tostring(skip_self)))
+    end
 
     if not skip_self and me and me:is_valid() and not me:is_dead() then
         local self_pct = heal_engine.get_effective_hp_pct(me)
-        if self_pct <= lowest_pct then
+        if menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, string.format("find_lowest: self HP=%.1f%%", self_pct * 100))
+        end
+        if self_pct < lowest_pct then
             candidate = me
             lowest_pct = self_pct
         end
@@ -727,11 +734,18 @@ local function find_lowest_effective_ally(me, threshold, skip_self)
         local unit = units[i]
         if unit and unit:is_valid() and not unit:is_dead() and unit ~= me then
             local pct = heal_engine.get_effective_hp_pct(unit)
-            if pct <= lowest_pct then
+            if menu.debug and menu.debug:get_state() then
+                utils.log_debug(menu, string.format("find_lowest: unit[%d] HP=%.1f%%", i, pct * 100))
+            end
+            if pct < lowest_pct then
                 candidate = unit
                 lowest_pct = pct
             end
         end
+    end
+
+    if menu.debug and menu.debug:get_state() then
+        utils.log_debug(menu, string.format("find_lowest: winner HP=%.1f%%", lowest_pct * 100))
     end
 
     return candidate
