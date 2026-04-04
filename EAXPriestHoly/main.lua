@@ -831,7 +831,14 @@ local function try_flash_heal(me, target)
         if utils.cast_self(spell_id, me) then note_cast() return true end
         return false
     end
-    if utils.cast_target(spell_id, candidate, nil) then note_cast() return true end
+    local success, reason = utils.cast_target(spell_id, candidate, nil)
+    if success then 
+        note_cast() 
+        return true 
+    end
+    if menu.debug and menu.debug:get_state() then
+        utils.log_debug(menu, "Flash Heal: cast_target failed - " .. tostring(reason))
+    end
     return false
 end
 

@@ -348,23 +348,23 @@ end
 
 local function is_spell_castable(spell_id)
     if not spell_id then
-        return false
+        return false, "no_spell_id"
     end
 
     if not core.spell_book.is_spell_learned(spell_id) then
-        return false
+        return false, "not_learned"
     end
 
     if core.spell_book.get_spell_cooldown(spell_id) > 0 then
-        return false
+        return false, "on_cooldown"
     end
 
     if core.spell_book.get_global_cooldown() > 0 then
-        return false
+        return false, "gcd"
     end
 
     if core.spell_book.is_current_spell(spell_id) then
-        return false
+        return false, "already_casting"
     end
 
     return true
@@ -372,26 +372,27 @@ end
 
 function utils.can_cast_target(spell_id, me, target)
     if not me or type(me.is_valid) ~= "function" or not me:is_valid() then
-        return false
+        return false, "me_invalid"
     end
     if not target or type(target.is_valid) ~= "function" or not target:is_valid() then
-        return false
+        return false, "target_invalid"
     end
 
-    if not is_spell_castable(spell_id) then
-        return false
+    local castable, castable_reason = is_spell_castable(spell_id)
+    if not castable then
+        return false, castable_reason or "not_castable"
     end
 
     if target:is_dead() then
-        return false
+        return false, "target_dead"
     end
 
     if not core.spell_book.is_usable_spell(spell_id) then
-        return false
+        return false, "not_usable"
     end
 
     if not core.spell_book.is_spell_in_range(spell_id, target, me) then
-        return false
+        return false, "out_of_range"
     end
 
     return true
@@ -416,8 +417,9 @@ end
 
 
 function utils.cast_target(spell_id, me, target)
-    if not utils.can_cast_target(spell_id, me, target) then
-        return false
+    local can_cast, reason = utils.can_cast_target(spell_id, me, target)
+    if not can_cast then
+        return false, reason
     end
 
     spell_queue:queue_spell_target(spell_id, target, 1)
