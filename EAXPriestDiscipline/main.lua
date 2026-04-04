@@ -357,7 +357,7 @@ local function try_power_infusion(me)
         return false
     end
 
-    local threshold = (menu.power_infusion_threshold and menu.power_infusion_threshold:get() or 0) / 100
+    local threshold = (menu.power_infusion_threshold and menu.power_infusion_threshold:get() or 50) / 100
     local candidate = find_lowest_effective_ally(me, threshold, true)
 
     if candidate and utils.cast_self(resolved.power_infusion, me) then
@@ -412,7 +412,7 @@ local function try_pain_suppression(me, mode)
         return false
     end
 
-    local threshold = (menu.pain_suppression_threshold and menu.pain_suppression_threshold:get() or 0) / 100
+    local threshold = (menu.pain_suppression_threshold and menu.pain_suppression_threshold:get() or 40) / 100
     local tank = get_tank_unit(me)
     local candidate = nil
 
@@ -477,11 +477,11 @@ local function try_binding_heal(me)
     
     -- Check self HP threshold
     local self_hp = utils.get_health_pct(me)
-    local self_threshold = (menu.binding_heal_self_threshold and menu.binding_heal_self_threshold:get() or 0) / 100
+    local self_threshold = (menu.binding_heal_self_threshold and menu.binding_heal_self_threshold:get() or 50) / 100
     if self_hp > self_threshold then return false end
     
     -- Find a target (not self) that needs healing
-    local target_threshold = (menu.binding_heal_target_threshold and menu.binding_heal_target_threshold:get() or 0) / 100
+    local target_threshold = (menu.binding_heal_target_threshold and menu.binding_heal_target_threshold:get() or 60) / 100
     local candidate = find_lowest_effective_ally(me, target_threshold, true)
     
     if not candidate or not candidate:is_valid() or candidate:is_dead() then return false end
@@ -507,7 +507,7 @@ local function try_shield(me)
     end
 
     local enc = encounter_manager.get_policy(me)
-    local threshold = (menu.shield_threshold and menu.shield_threshold:get() or 0) / 100
+    local threshold = (menu.shield_threshold and menu.shield_threshold:get() or 85) / 100
     local candidate = nil
     
     -- Proactive: shield tank before pull if not on CD
@@ -548,7 +548,7 @@ local function try_renew(me)
         return false
     end
 
-    local threshold = (menu.renew_threshold and menu.renew_threshold:get() or 0) / 100
+    local threshold = (menu.renew_threshold and menu.renew_threshold:get() or 80) / 100
     local window_ms = (menu.renew_refresh_seconds and menu.renew_refresh_seconds:get() or 0) * 1000
     local units = utils.get_party_units(me)
     local candidate = nil
@@ -585,7 +585,7 @@ local function try_prayer_of_mending(me)
         return false
     end
 
-    local threshold = (menu.prayer_of_mending_threshold and menu.prayer_of_mending_threshold:get() or 0) / 100
+    local threshold = (menu.prayer_of_mending_threshold and menu.prayer_of_mending_threshold:get() or 80) / 100
     local candidate = find_lowest_effective_ally(me, threshold, true)
 
     if candidate and not utils.has_buff(candidate, spells.PRAYER_OF_MENDING) then
@@ -1206,7 +1206,7 @@ core.register_on_update_callback(function()
     local focus_target = eax_utils.get_focus_target(menu)
     if focus_target then
         local focus_hp = heal_engine.get_effective_hp_pct(focus_target) * 100
-        if focus_hp < (menu.shield_threshold and menu.shield_threshold:get() or 0) then
+        if focus_hp < (menu.shield_threshold and menu.shield_threshold:get() or 85) then
             if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_cast_spell(me, focus_target, resolved.shield) then
                 return
             end
