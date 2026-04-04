@@ -449,6 +449,7 @@ local function try_inner_focus(me)
 end
 
 -- Find ally with lowest effective HP (uses heal_engine for effective HP calculation)
+-- Find ally with lowest effective HP (uses heal_engine for effective HP calculation)
 local function find_lowest_effective_ally(me, max_pct, include_self)
     local threshold = max_pct or 1
     local winner = nil

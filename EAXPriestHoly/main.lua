@@ -363,15 +363,15 @@ local function has_urgent_direct_heal_target(me)
     return false
 end
 
--- Helper: find ally with lowest effective HP (uses heal_engine for effective HP calculation)
+-- Helper: find ally with lowest effective HP (ignores threshold, just finds lowest)
 local function find_lowest_effective_ally(me, threshold, skip_self)
     local units = utils.get_party_units(me)
     local candidate = nil
-    local lowest_pct = threshold or 1.0
+    local lowest_pct = 1.0  -- Start at 100%, find anyone below this
 
     if not skip_self and me and me:is_valid() and not me:is_dead() then
         local self_pct = heal_engine.get_effective_hp_pct(me)
-        if self_pct <= lowest_pct then
+        if self_pct < lowest_pct then
             candidate = me
             lowest_pct = self_pct
         end
@@ -381,7 +381,7 @@ local function find_lowest_effective_ally(me, threshold, skip_self)
         local unit = units[i]
         if unit and unit:is_valid() and not unit:is_dead() and unit ~= me then
             local pct = heal_engine.get_effective_hp_pct(unit)
-            if pct <= lowest_pct then
+            if pct < lowest_pct then
                 candidate = unit
                 lowest_pct = pct
             end
@@ -777,6 +777,9 @@ end
 
 local function try_flash_heal(me, target)
     if not resolved.flash_heal then
+        if menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, "Flash Heal: resolved.flash_heal is nil!")
+        end
         return false
     end
 
@@ -786,11 +789,17 @@ local function try_flash_heal(me, target)
         candidate = find_lowest_effective_ally(me, threshold, true)
     end
     if not candidate or not candidate:is_valid() or candidate:is_dead() then
+        if menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, "Flash Heal: no valid candidate (target=" .. tostring(target) .. ", candidate=" .. tostring(candidate) .. ")")
+        end
         return false
     end
 
     local hp_pct = get_normalized_hp(candidate)
     if hp_pct > threshold then
+        if menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, string.format("Flash Heal: candidate HP %.1f%% > threshold %.1f%%", hp_pct * 100, threshold * 100))
+        end
         return false
     end
 
