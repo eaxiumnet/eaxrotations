@@ -1134,6 +1134,23 @@ core.register_on_update_callback(function()
 
     local deps = { now_s = _core_time, get_gcd = _get_gcd }
     local ctx = rotation_context.get(ctx_cache, me, target, deps)
+    
+    -- Debug: Log party status
+    if menu.debug and menu.debug:get_state() then
+        local units = utils.get_party_units(me)
+        local wounded_count = 0
+        for i = 1, #units do
+            local unit = units[i]
+            if unit and unit:is_valid() and not unit:is_dead() then
+                local hp = heal_engine.get_effective_hp_pct(unit) * 100
+                if hp < 100 then
+                    wounded_count = wounded_count + 1
+                    utils.log_debug(menu, string.format("Party member %d: %.1f%% HP", i, hp))
+                end
+            end
+        end
+        utils.log_debug(menu, string.format("Party size: %d, Wounded: %d, ctx: %s", #units, wounded_count, tostring(ctx ~= nil)))
+    end
 
     -- Focus Target Priority - heal focus target first
     local focus_target = eax_utils.get_focus_target(menu)
@@ -1172,13 +1189,28 @@ core.register_on_update_callback(function()
     if not me:is_in_combat() and try_prepull_pom(me) then return end
 
     -- Pair PoM + CoH for maximum group heal
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_prayer_of_mending(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) then
+        if try_prayer_of_mending(me) then return end
+    else
+        if menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, "PoM skipped: ctx=" .. tostring(ctx) .. ", mana check failed")
+        end
+    end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_circle_of_healing(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_binding_heal(me) then return end
-    if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_flash_heal(me) then return end
+    if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) then
+        if menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, "Attempting Flash Heal...")
+        end
+        if try_flash_heal(me) then return end
+    end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.15) and try_greater_heal(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.18) and try_prayer_of_healing(me) then return end
     if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_renew(me) then return end
+    
+    if menu.debug and menu.debug:get_state() then
+        utils.log_debug(menu, "No healing action taken - all checks returned false")
+    end
 end)
 
 
