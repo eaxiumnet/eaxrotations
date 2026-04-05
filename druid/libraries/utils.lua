@@ -7,6 +7,9 @@ local core = _G.core
 local izi = require("common/izi_sdk")
 local Constants = require("libraries/constants")
 
+-- Hot-path API caching (EAX pattern)
+local _core_time = core.time
+
 local Utils = {}
 
 -- ============================================================================
@@ -44,7 +47,7 @@ local wolfshead_cache = {
 
 --- Check if Wolfshead Helm is equipped
 function Utils.has_wolfshead_helm()
-    local now = core.time()
+    local now = _core_time()
     if now - wolfshead_cache.last_check < wolfshead_cache.CHECK_INTERVAL then
         return wolfshead_cache.equipped
     end
@@ -82,7 +85,7 @@ function Utils.energy_tick:update(current_energy, stance)
         return
     end
     
-    local now = core.time()
+    local now = _core_time()
     local energy_diff = current_energy - self.last_energy
     
     if energy_diff > 0 then
@@ -120,7 +123,7 @@ end
 --- Get time until next expected energy tick
 function Utils.energy_tick:time_until_next()
     if not self.confident then return 1.0 end
-    local now = core.time()
+    local now = _core_time()
     local elapsed = now - self.last_tick_time
     local remaining = Constants.ENERGY.TICK_INTERVAL - (elapsed % Constants.ENERGY.TICK_INTERVAL)
     return remaining
@@ -134,7 +137,7 @@ end
 
 --- Record a form shift time
 function Utils.energy_tick:record_shift()
-    self.last_shift_time = core.time()
+    self.last_shift_time = _core_time()
     self.tick_count = 0
     self.confident = false
 end
@@ -156,7 +159,7 @@ local FORM_COST_CACHE_TTL = 5.0
 --- Get mana cost of a form spell
 function Utils.get_form_cost(spell_id)
     local cached = form_cost_cache[spell_id]
-    local now = core.time()
+    local now = _core_time()
     
     if cached and now < cached.expires then
         return cached.cost

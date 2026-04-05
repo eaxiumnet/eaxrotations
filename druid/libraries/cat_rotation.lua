@@ -10,6 +10,9 @@ local Spells = require("libraries/spells")
 local Utils = require("libraries/utils")
 local RotationEngine = require("libraries/rotation_engine")
 
+-- Hot-path API caching (EAX pattern)
+local _core_time = core.time
+
 local CatRotation = {}
 
 -- ============================================================================
@@ -139,7 +142,7 @@ local function build_cat_context(ctx, state)
     if state.tf_queued then
         if ctx.me:buff_up(Constants.BUFF_ID.TIGERS_FURY) then
             state.tf_queued = false
-        elseif core.time() - state.tf_queued_at > 5.0 then
+        elseif _core_time() - state.tf_queued_at > 5.0 then
             state.tf_queued = false  -- Safety timeout
         end
     end

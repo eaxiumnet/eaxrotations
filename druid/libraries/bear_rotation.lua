@@ -10,6 +10,9 @@ local Spells = require("libraries/spells")
 local Utils = require("libraries/utils")
 local RotationEngine = require("libraries/rotation_engine")
 
+-- Hot-path API caching (EAX pattern)
+local _core_time = core.time
+
 local BearRotation = {}
 
 -- ============================================================================
@@ -61,7 +64,7 @@ local function build_bear_context(ctx, state)
         
         if current_guid ~= state.last_target_guid then
             if state.last_target_guid and not state.tab_target_desired then
-                state.manual_target_time = core.time()
+                state.manual_target_time = _core_time()
             end
             state.last_target_guid = current_guid
         end
@@ -293,7 +296,7 @@ local FaerieFire = {
     requires_phys_immune = false,
 }
 function FaerieFire.matches(ctx, state)
-    local time_since_ff = core.time() - state.last_ff_cast
+        local time_since_ff = _core_time() - state.last_ff_cast
     if time_since_ff < Constants.BEAR.FF_THROTTLE then return false end
     
     local ff_duration = Utils.has_faerie_fire(ctx.target)
@@ -302,7 +305,7 @@ end
 function FaerieFire.execute(ctx, state)
     local spell = Spells.Cat.FaerieFire  -- Same spell ID for both
     if spell:is_learned() and spell:is_castable_to_unit(ctx.target) then
-        state.last_ff_cast = core.time()
+        state.last_ff_cast = _core_time()
         if spell:cast_safe(ctx.target, "[P7] Faerie Fire") then
             Utils.log_cast("Faerie Fire", {spec = "Bear"})
             return true
@@ -364,7 +367,7 @@ end
 function SwipeAoE.execute(ctx, state)
     local spell = Spells.Bear.Swipe
     if spell:is_learned() and spell:is_castable_to_unit(ctx.target) then
-        state.last_swipe_aoe_cast = core.time()
+        state.last_swipe_aoe_cast = _core_time()
         if spell:cast_safe(ctx.target, "[P8] Swipe AoE") then
             Utils.log_cast("Swipe (AoE)", {spec = "Bear"})
             return true
@@ -383,7 +386,7 @@ local DemoRoar = {
     spell = Spells.Bear.DemoralizingRoar,
 }
 function DemoRoar.matches(ctx, state)
-    local time_since_demo = core.time() - state.last_demo_roar_cast
+        local time_since_demo = _core_time() - state.last_demo_roar_cast
     if time_since_demo < Constants.BEAR.DEMO_ROAR_THROTTLE then return false end
     
     -- Rage reservation
@@ -410,7 +413,7 @@ end
 function DemoRoar.execute(ctx, state)
     local spell = Spells.Bear.DemoralizingRoar
     if spell:is_learned() and spell:is_usable() then
-        state.last_demo_roar_cast = core.time()
+        state.last_demo_roar_cast = _core_time()
         if spell:cast_safe(ctx.me, "[P7] Demoralizing Roar") then
             Utils.log_cast("Demoralizing Roar", {spec = "Bear"})
             return true

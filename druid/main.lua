@@ -10,6 +10,14 @@ local core = _G.core
 local izi = require("common/izi_sdk")
 local color = require("common/color")
 
+-- ============================================================================
+-- HOT-PATH API CACHING (EAX Pattern - cache at module load)
+-- ============================================================================
+local _core_time = core.time
+local _core_game_time = core.game_time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+
 -- Load modules
 local Constants = require("libraries/constants")
 local Spells = require("libraries/spells")
