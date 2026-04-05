@@ -7,6 +7,9 @@
 local izi = require("common/izi_sdk")
 local core = _G.core
 
+-- Hot-path API caching (EAX pattern)
+local _core_game_time = core.game_time
+
 -- =============================================================================
 -- HEALING ENGINE
 -- =============================================================================
@@ -61,7 +64,7 @@ end
 -- =============================================================================
 function HealingEngine:scan_targets(class_specific_checker)
     -- Throttle scans to avoid excessive API calls
-    local now = core.game_time()
+    local now = _core_game_time()
     if now - self.last_scan_time < self.scan_interval and self.cached_count > 0 then
         return self.cached_targets, self.cached_count
     end

@@ -10,6 +10,9 @@ local Constants = require("libraries/constants")
 local Spells = require("libraries/spells")
 local Utils = require("libraries/utils")
 
+-- Hot-path API caching (EAX pattern)
+local _core_time = core.time
+
 local Middleware = {}
 
 -- ============================================================================
@@ -24,7 +27,7 @@ local pending_reshift = {
 function Middleware.schedule_reshift(spell)
     if spell then
         pending_reshift.spell = spell
-        pending_reshift.expire = core.time() + 3.0
+        pending_reshift.expire = _core_time() + 3.0
     end
 end
 
@@ -32,7 +35,7 @@ end
 function Middleware.check_reshift(ctx)
     if not pending_reshift.spell then return nil end
     
-    local now = core.time()
+    local now = _core_time()
     if now > pending_reshift.expire then
         pending_reshift.spell = nil
         return nil

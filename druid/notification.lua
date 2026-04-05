@@ -7,6 +7,9 @@ local core = _G.core
 local CreateFrame = _G.CreateFrame
 local UIParent = _G.UIParent
 
+-- Hot-path API caching (EAX pattern)
+local _core_game_time = core.game_time
+
 -- =============================================================================
 -- NOTIFICATION FRAME
 -- =============================================================================
@@ -25,7 +28,7 @@ local notif_fade_duration = 0.4
 local notif_visible_until = 0
 
 notif_frame:SetScript("OnUpdate", function(self, elapsed)
-    local now = core.game_time()
+    local now = _core_game_time()
     if now < notif_visible_until then
         notif_text:SetAlpha(1)
     elseif now < notif_visible_until + notif_fade_duration then
@@ -50,7 +53,7 @@ local function show_notification(text, duration, color)
     color = color or { 1, 1, 1 }
     notif_text:SetText(text)
     notif_text:SetTextColor(color[1], color[2], color[3], 1)
-    notif_visible_until = core.game_time() + duration
+    notif_visible_until = _core_game_time() + duration
     notif_frame:Show()
 end
 

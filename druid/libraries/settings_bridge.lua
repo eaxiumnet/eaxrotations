@@ -6,6 +6,9 @@
 local core = _G.core
 local settings_manager = require("common/modules/settings_manager")
 
+-- Hot-path API caching (EAX pattern)
+local _core_time = core.time
+
 -- =============================================================================
 -- SETTINGS BRIDGE MODULE
 -- =============================================================================
@@ -90,7 +93,7 @@ function SettingsBridge:get(key, default)
     end
     
     -- Check cache first
-    local now = core.time()
+    local now = _core_time()
     if now - self._cache_last_update < self._cache_ttl then
         if self._cache[key] ~= nil then
             return self._cache[key]
@@ -138,7 +141,7 @@ end
 ---Refresh the entire settings cache
 function SettingsBridge:refresh_cache()
     self._cache = {}
-    self._cache_last_update = core.time()
+        self._cache_last_update = _core_time()
     
     -- Collect all attached settings
     local settings = self._manager:collect_attached_settings()

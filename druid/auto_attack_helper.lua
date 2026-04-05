@@ -5,6 +5,10 @@
 
 local core = _G.core
 
+-- Hot-path API caching (EAX pattern)
+local _core_time = core.time
+local _core_game_time = core.game_time
+
 local AutoAttackHelper = {
     attacks_logs = {},
     last_global_cooldown_value = 0,
@@ -69,7 +73,7 @@ function AutoAttackHelper:get_next_attack_core_time(unit, weapon_count)
     -- Default implementation - return current time + 2s as estimate
     -- In a real implementation, this would calculate based on weapon speed
     if not core.time then return 0 end
-    return core.time() + 2.0
+    return _core_time() + 2.0
 end
 
 ---Get next attack time (game time)
@@ -79,7 +83,7 @@ end
 function AutoAttackHelper:get_next_attack_game_time(unit, weapon_count)
     -- Default implementation - return current game time + 2s as estimate
     if not core.game_time then return 0 end
-    return core.game_time() + 2000 -- game time is in milliseconds
+    return _core_game_time() + 2000 -- game time is in milliseconds
 end
 
 -- ============================================================================
@@ -115,14 +119,14 @@ end
 ---@return number
 function AutoAttackHelper:get_next_global_core_time()
     if not core.time then return 0 end
-    return core.time() + self:get_remaining_gcd()
+    return _core_time() + self:get_remaining_gcd()
 end
 
 ---Get time when next GCD will be available (game time)
 ---@return number
 function AutoAttackHelper:get_next_global_game_time()
     if not core.game_time then return 0 end
-    return core.game_time() + (self:get_remaining_gcd() * 1000)
+    return _core_game_time() + (self:get_remaining_gcd() * 1000)
 end
 
 ---Get remaining GCD
@@ -155,7 +159,7 @@ end
 function AutoAttackHelper:get_current_combat_core_time()
     if not core.time then return 0 end
     if self.combat_start_core_time == 0 then return 0 end
-    return core.time() - self.combat_start_core_time
+    return _core_time() - self.combat_start_core_time
 end
 
 ---Get current combat duration (game time)
@@ -163,7 +167,7 @@ end
 function AutoAttackHelper:get_current_combat_game_time()
     if not core.game_time then return 0 end
     if self.combat_start_game_time == 0 then return 0 end
-    return core.game_time() - self.combat_start_game_time
+    return _core_game_time() - self.combat_start_game_time
 end
 
 -- ============================================================================
@@ -239,15 +243,15 @@ function AutoAttackHelper:record_swing(unit)
     local guid = tostring(guid_obj)
     
     self.attacks_logs[guid] = {
-        last_swing_core_time = core.time and core.time() or 0,
-        last_swing_game_time = core.game_time and core.game_time() or 0
+        last_swing_core_time = _core_time and _core_time() or 0,
+        last_swing_game_time = _core_game_time and _core_game_time() or 0
     }
 end
 
 ---Record combat start
 function AutoAttackHelper:record_combat_start()
-    self.combat_start_core_time = core.time and core.time() or 0
-    self.combat_start_game_time = core.game_time and core.game_time() or 0
+    self.combat_start_core_time = _core_time and _core_time() or 0
+    self.combat_start_game_time = _core_game_time and _core_game_time() or 0
 end
 
 ---Record combat end

@@ -601,7 +601,7 @@ function TigersFury.execute(ctx, state)
     if spell:is_learned() and spell:is_usable() then
         if spell:cast_safe(ctx.me, "[CD] Tiger's Fury") then
             state.tf_queued = true
-            state.tf_queued_at = core.time()
+            state.tf_queued_at = _core_time()
             Utils.log_cast("Tiger's Fury", {spec = "Cat"})
             return true
         end

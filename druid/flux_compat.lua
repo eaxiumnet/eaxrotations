@@ -6,6 +6,9 @@ local izi = require("common/izi_sdk")
 local enums = require("common/enums")
 local buff_db = require("common/buff_db")
 
+-- Hot-path API caching (EAX pattern)
+local _core_game_time = core.game_time
+
 -- ============================================================================
 -- NAMESPACE SETUP (Replaces _G.FluxAIO)
 -- ============================================================================
@@ -391,7 +394,7 @@ function FluxCompat.predict_incoming_damage(unit, seconds)
     if not unit or not unit:is_valid() then
         return 0
     end
-    return unit:get_incoming_damage(core.game_time() + seconds * 1000)
+    return unit:get_incoming_damage(_core_game_time() + seconds * 1000)
 end
 
 -- ============================================================================
@@ -462,7 +465,7 @@ function FluxCompat.set_force_flag(flag_name, duration)
     duration = duration or FORCE_DURATION
     FluxCompat.force_commands[flag_name] = { 
         active = true, 
-        expires = core.game_time() + duration 
+            expires = _core_game_time() + duration
     }
     
     -- Show notification
@@ -481,7 +484,7 @@ function FluxCompat.is_force_active(flag_name)
     if not cmd then return false end
     if not cmd.active then return false end
     
-    if core.game_time() > cmd.expires then
+        if _core_game_time() > cmd.expires then
         cmd.active = false
         return false
     end
@@ -795,7 +798,7 @@ function FluxCompat.debug_print(...)
     end
     local key = table.concat(debug_string_args, "|")
     
-    local now = core.game_time()
+    local now = _core_game_time()
     local last_print = debug_print_cache[key]
     
     if not last_print or (now - last_print) >= 1.5 then
@@ -870,7 +873,7 @@ local function update_setting(key, value, changed_list, debug_mode)
 end
 
 function FluxCompat.refresh_settings()
-    local now = core.game_time()
+    local now = _core_game_time()
     if now - last_settings_update < SETTINGS_CACHE_DURATION then return end
     
     local debug_mode = FluxCompat.cached_settings["debug_mode"] or false
@@ -985,7 +988,7 @@ function FluxCompat.is_swing_landing_soon(threshold)
     
     local aa_helper = require("auto_attack_helper")
     local next_swing = aa_helper:get_next_attack_game_time(me, 1)
-    local now = core.game_time()
+    local now = _core_game_time()
     local time_until = next_swing - now
     
     return time_until > 0 and time_until <= threshold
@@ -997,7 +1000,7 @@ function FluxCompat.get_time_until_swing()
     
     local aa_helper = require("auto_attack_helper")
     local next_swing = aa_helper:get_next_attack_game_time(me, 1)
-    local remaining = next_swing - core.game_time()
+        local remaining = next_swing - _core_game_time()
     
     return remaining > 0 and remaining or 0
 end
@@ -1316,7 +1319,7 @@ FluxCompat.frame_rate = {
 }
 
 function FluxCompat.update_frame_rate()
-    local now = core.game_time()
+    local now = _core_game_time()
     if now - FluxCompat.frame_rate.last_update < FluxCompat.frame_rate.update_interval then
         return FluxCompat.frame_rate.current_fps
     end
