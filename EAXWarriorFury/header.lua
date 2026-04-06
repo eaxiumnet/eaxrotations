@@ -1,22 +1,22 @@
-print("Eax Warrior Fury header loading...")
+-- Eax Warrior Fury  header.lua
+-- Plugin metadata and load validation.
 
-local plugin       = {}
-plugin["name"]     = "Eax Warrior Fury"
-plugin["version"]  = "1.0.3"
-plugin["author"]   = "Eax"
-plugin["load"]     = true
+local plugin = {
+    name = "EAX",
+    version = "1.0.0",
+    author = "EAX",
+    load = true,
+}
 
 local local_player = core.object_manager.get_local_player()
+if not local_player then
+    plugin.load = false
+    return plugin
+end
 
-if local_player then
-    local player_class = local_player:get_class()
-    if player_class ~= 1 then
-        print("[Eax Warrior Fury] Not a warrior, disabling load.")
-        plugin["load"] = false
-    end
-else
-    -- If no player yet, assume loading is fine and we will check again in main.lua
-    print("[Eax Warrior Fury] No player yet, allowing load.")
+if local_player:get_class() ~= 1 then
+    plugin.load = false
+    return plugin
 end
 
 return plugin

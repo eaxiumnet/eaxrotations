@@ -1,57 +1,63 @@
--- Eax Mage Frost | spells.lua
+-- Eax Mage Frost  spells.lua
+-- Ported from  - TBC Frost Mage spell definitions
 
 local spells = {}
 
-spells.FROSTBOLT = { 27071, 25304, 10181, 10180, 10179, 8408, 8407, 8406, 7322, 837, 205, 116 }
+-- Core Frost Spells
+spells.FROSTBOLT = { 27071, 27070, 25304, 10181, 10180, 10179, 7322, 837, 205, 116 }
 spells.ICE_LANCE = { 30455 }
-spells.ICY_VEINS = { 12472 }
-spells.WATER_ELEMENTAL = { 31687 }
+spells.CONE_OF_COLD = { 27087, 10161, 10160, 10159, 8492, 120 }
+spells.BLIZZARD = { 27085, 10199, 10198, 10197, 10196, 10195, 10194, 10193, 10192, 10191, 10 }
+
+-- Frost AoE
 spells.ARCANE_EXPLOSION = { 27080, 10263, 10262, 10261, 10260, 10259, 8439, 8438, 8437, 1449 }
-spells.REMOVE_CURSE = { 30449, 475 }
-
-spells.EVOCATION = { 12051 }
-spells.MAGE_ARMOR = { 27125, 22783, 22782, 6117 }
-spells.MANA_SHIELD = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
-spells.POLYMORPH = { 12826, 12825, 12824, 118 }
-spells.ARCANE_BRILLIANCE = { 27127, 23028 }
-spells.COUNTERSPELL = { 2139 }
-spells.FIRE_WARD = { 543 }
-spells.FROST_WARD = { 11426, 8461, 8462, 6143 }
-spells.SLOW_FALL = { 130 }
-spells.AMPLIFY_MAGIC = { 1008 }
-spells.DAMPEN_MAGIC = { 604 }
-
 spells.FROST_NOVA = { 27088, 10230, 6131, 865, 122 }
-spells.CONE_OF_COLD = { 27071, 10161, 10160, 10159, 8408, 8407, 8406 }
-spells.ICE_BARRIER = { 11436, 11435, 11434, 11433, 10031, 10030 }
+
+-- Utility Spells
+spells.FIRE_BLAST = { 27079, 10199, 10198, 10197, 8413, 8412, 2138, 2137, 2136 }
+spells.COUNTERSPELL = { 2139 }
+spells.REMOVE_CURSE = { 30449, 475 }
+spells.EVOCATION = { 12051 }
+spells.POLYMORPH = { 12826, 12825, 12824, 118 }
+
+-- Defensive Spells
+spells.ICE_BLOCK = { 45438 }
+spells.ICE_BARRIER = { 33405, 13033, 13032, 13031, 11426 }
+spells.MANA_SHIELD = { 10193, 10192, 10191, 8495, 8494, 1463 }
+spells.BLINK = { 1953 }
+
+-- Cooldowns
+spells.ICY_VEINS = { 12472 }
+spells.COLD_SNAP = { 11958 }
 spells.SUMMON_WATER_ELEMENTAL = { 31687 }
 
+-- Armor Spells
+spells.MAGE_ARMOR = { 27125, 22783, 22782, 6117 }
+spells.ICE_ARMOR = { 27124, 10220, 10219, 7320, 7302, 7300, 168 }
+spells.MOLTEN_ARMOR = { 30482 }
+
+-- Buff IDs
 spells.BUFF_ICY_VEINS = { 12472 }
-spells.DEBUFF_FROZEN = { 122, 33395 }
-spells.DEBUFF_WINTERS_CHILL = { 12579 }
-spells.BUFF_ICE_BARRIER = { 11436, 11435, 11434, 11433, 10031, 10030 }
+spells.BUFF_ICE_BLOCK = { 45438 }
+spells.BUFF_CLEARCASTING = { 12536 }
+spells.BUFF_ICE_BARRIER = { 33405, 13033, 13032, 13031, 11426 }
 
+-- Debuff IDs
+spells.DEBUFF_WINTERS_CHILL = { 12579 }  -- Winter's Chill, stacks to 5
+
+-- Racials
 spells.BERSERKING = { 26297 }
-spells.ARCANE_TORRENT = { 28730, 25046, 23160, 15533 }
-
+spells.ARCANE_TORRENT = { 28730, 25046 }
 spells.BUFF_BERSERKING = { 26297 }
 
-spells.HASTE_POTION = { 28508, 22832 }
-spells.SUPER_MANA_POTION = { 28499, 22828 }
-spells.SCROLL_OF_INTELLECT = { 22732, 10291 }
-spells.SCROLL_OF_STAMINA = { 22733, 10292 }
+-- Consumables
+spells.MANA_GEM_ITEMS = { 22044, 8008, 8007, 5514, 5513 }
+spells.HASTE_POTION = { 28508 }
+spells.SUPER_MANA_POTION = { 28499, 22832 }
+spells.DARK_RUNE = { 20520 }
+spells.DEMONIC_RUNE = { 12662 }
 
-
-spells.PRESENCE_OF_MIND = { 12043 }
-spells.BLINK            = { 1953 }
-spells.COLD_SNAP        = { 11958 }
-
-spells.BUFF_PRESENCE_OF_MIND = { 12043 }
-
-spells.ARCANE_INTELLECT      = { 27126, 10157, 10156, 1460, 1461, 1459 }
-spells.BUFF_ARCANE_INTELLECT = { 27126, 10157, 10156, 1460, 1461, 1459 }
-
-spells.ICE_BLOCK      = { 45438, 32612, 11466, 11465, 11464, 11463, 6136 }
-spells.BUFF_ICE_BLOCK = { 45438 }
+-- Pacify debuffs
+spells.PACIFY_BUFFS = { 32904, 6465 }
 
 return spells

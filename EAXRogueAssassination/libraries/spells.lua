@@ -1,81 +1,72 @@
--- Eax Rogue Assassination | spells.lua
+-- Eax Rogue Assassination  spells.lua
+-- TBC spell IDs for Assassination Rogue (poisons, Mutilate)
 
 local spells = {}
 
-spells.MUTILATE = { 34413, 34412, 34411, 1329 }
-spells.ENVENOM = { 32684, 32645 }
-spells.EVISCERATE = { 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }
-spells.SLICE_AND_DICE = { 6774, 5171 }
-spells.RUPTURE = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
-spells.KIDNEY_SHOT = { 8643, 408 }
-spells.KICK = { 38768, 1769, 1768, 1767, 1766 }
-spells.COLD_BLOOD = { 14177 }
-spells.VANISH = { 26889, 1857, 1856 }
-spells.SINISTER_STRIKE = { 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }
-spells.BACKSTAB = { 26863, 25300, 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }
-spells.HEMORRHAGE = { 26864, 17348, 17347, 16511 }
-spells.EXPOSE_ARMOR = { 26866, 11198, 11197, 8650, 8649, 8647 }
-spells.GOUGE = { 38764, 11286, 11285, 8629, 1777, 1776 }
-spells.SAP = { 11297, 2070, 6770 }
-spells.SHIV = { 5938 }
-spells.AMBUSH = { 27441, 11269, 11268, 11267, 8725, 8724, 8676 }
-spells.GARROTE = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
-spells.SHADOWSTEP = { 36554 }
-spells.DEADLY_THROW = { 26679 }
-spells.BLADE_FLURRY = { 13877 }
-spells.ADRENALINE_RUSH = { 13750 }
-spells.SPRINT = { 11305, 8696, 2983 }
-spells.PREPARATION = { 14185 }
-spells.RIPOSTE = { 14251 }
-spells.STEALTH = { 1787, 1786, 1785, 1784 }
+-- Combo Point Builders
+spells.MUTILATE = { 34411, 34410, 34409, 34408, 1329 } -- Main Assassination builder
+spells.SINISTER_STRIKE = { 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 } -- Fallback
+spells.BACKSTAB = { 26863, 25300, 11281, 11280, 8721, 8620, 2591, 2590, 2589, 53 } -- Position-dependent
+spells.SHADOWSTRIKE = { 36554 } -- Shadowstep + strike
 
+-- Finishers
+spells.SLICE_AND_DICE = { 6774, 5171 } -- Primary buff, maintain at all times
+spells.RUPTURE = { 26867, 26864, 11275, 11274, 11273, 8643, 8639, 1943 } -- DoT finisher
+spells.EVISCERATE = { 26865, 26864, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 } -- Direct damage
+spells.EXPOSE_ARMOR = { 26866, 11198, 11197, 8647, 7408, 7407, 6082, 2108, 1786 } -- Raid debuff
+spells.KIDNEY_SHOT = { 8643, 408 } -- Stun finisher
+spells.DEADLY_THROW = { 36677, 26679 } -- Ranged finisher
+
+-- Poisons (Assassination core)
+spells.INSTANT_POISON = { 26890, 11341, 11340, 11339, 11338, 11337, 11336, 8681, 8679 } -- Weapon buff
+spells.DEADLY_POISON = { 27282, 26967, 25347, 11357, 11356, 11355, 11354, 11353, 2818 } -- DoT poison
+spells.WOUND_POISON = { 22055, 22054, 13224, 13223, 13222, 13220, 13218 } -- Healing reduction
+spells.CRIPPLING_POISON = { 3421, 3408 } -- Slow poison
+spells.MIND_NUMBING_POISON = { 5761, 8694, 8693, 8692, 8691, 8689, 8688, 8687, 8686, 8685, 8684, 5760 } -- Cast slow
+spells.ANESTHETIC_POISON = { 26786 } -- WotLK only, not TBC
+
+-- Buffs
 spells.BUFF_SLICE_AND_DICE = { 6774, 5171 }
-spells.BUFF_COLD_BLOOD = { 14177 }
-spells.BUFF_VANISH = { 1857, 1856 }
-spells.BUFF_BLADE_FLURRY = { 13877, 13878, 13879 }
-spells.BUFF_ADRENALINE_RUSH = { 13750, 13751, 13752 }
-spells.BUFF_SPRINT = spells.SPRINT
-spells.BUFF_STEALTH = { 1784, 1785, 5215 }
+spells.BUFF_INSTANT_POISON = { 11336, 11337, 11338, 11339, 11340, 11341, 26890, 8681, 8679 }
+spells.BUFF_DEADLY_POISON = { 2818, 11353, 11354, 11355, 11356, 11357, 25347, 26967, 27282 }
+spells.BUFF_WOUND_POISON = { 13218, 13220, 13222, 13223, 13224, 22054, 22055 }
+spells.BUFF_HUNGER_FOR_BLOOD = { 51662 } -- WotLK talent, not TBC
 
-spells.DEBUFF_RUPTURE = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
-spells.DEBUFF_DEADLY_POISON = { 27186, 26967, 25347, 11356, 11355, 2837, 2835 }
-spells.POISON_DEADLY = { 27186, 26967, 25347, 11356, 11355, 2837, 2835 }
-spells.POISON_INSTANT = { 26890, 11343, 11342, 11341, 8691, 8687, 8681 }
-spells.POISON_WOUND = { 27189, 13229, 13228, 13220, 2823 }
-spells.POISON_MIND_NUMBING = { 11399, 8693, 5761 }
-spells.POISON_CRIPPLING = { 11202, 3408 }
-spells.DEBUFF_EXPOSE_ARMOR = { 26866, 11198, 11197, 8650, 8649, 8647 }
-spells.DEBUFF_GARROTE = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
-spells.DEBUFF_HEMORRHAGE = { 26864, 17348, 17347, 16511 }
-spells.DEBUFF_SUNDER_ARMOR = { 25225, 11597, 11596, 8380, 7405, 7386 }
+-- Debuffs
+spells.DEBUFF_RUPTURE = { 1943, 8639, 8643, 11273, 11274, 11275, 26864, 26867 }
+spells.DEBUFF_EXPOSE_ARMOR = { 8647, 7407, 7408, 11197, 11198, 26866 }
+spells.DEBUFF_INSTANT_POISON = { 13218, 13220, 13222, 13223, 13224, 22054, 22055 }
+spells.DEBUFF_DEADLY_POISON = { 2818, 11353, 11354, 11355, 11356, 11357, 25347, 26967, 27282 }
+spells.DEBUFF_CHEAP_SHOT = { 1833 }
+spells.DEBUFF_KIDNEY_SHOT = { 408, 8643 }
+spells.DEBUFF_GOUGE = { 1776, 1777, 8629, 11285, 11286, 38764 }
 
-spells.POISON_ITEMS_DEADLY = { 22054, 20844, 8985, 8984, 2893, 2892 }
-spells.POISON_ITEMS_INSTANT = { 22053, 8928, 8927, 8926, 6950, 6949, 6947 }
-spells.POISON_ITEMS_WOUND = { 10922, 10921, 10920, 10918 }
-spells.POISON_ITEMS_MIND_NUMBING = { 22055, 9189, 9187, 9186, 6953, 6952, 6951 }
-spells.POISON_ITEMS_CRIPPLING = { 3776, 3775 }
+-- Utility / CC
+spells.CHEAP_SHOT = { 1833 } -- Stealth opener stun
+spells.GOUGE = { 38764, 11286, 11285, 8629, 1777, 1776 } -- Incapacitate
+spells.KICK = { 38768, 1769, 1768, 1767, 1766 } -- Interrupt
+spells.SPRINT = { 11305, 2983, 8696, 11304 } -- Speed boost
+spells.VANISH = { 26889, 1857, 1856 } -- Stealth reset
+spells.EVASION = { 26669, 5277 } -- Dodge buff
+spells.CLOAK_OF_SHADOWS = { 31224 } -- Spell immunity (TBC)
+spells.BLIND = { 2094, 21060 } -- CC
+spells.SHADOWSTEP = { 36554 } -- Teleport behind target
+spells.PREPARATION = { 14185 } -- Reset cooldowns
+spells.COLD_BLOOD = { 14177 } -- Guaranteed crit
 
-spells.BERSERKING = { 26297 }
-spells.BLOOD_FURY = { 33697, 20572 }
-spells.WAR_STOMP = { 20549 }
-spells.SHADOWMELD = { }
-spells.PERCEPTION = { 20600, 1130 }
+-- Stealth
+spells.STEALTH = { 1787, 1786, 1785, 1784 } -- Stealth ability
+spells.BUFF_STEALTH = { 1787, 1786, 1785, 1784 }
 
-spells.BUFF_SHADOWMELD = { }
-spells.BUFF_BERSERKING = { 26297 }
-spells.BUFF_BLOOD_FURY = { 33697, 20572 }
+-- Defensive
+spells.FEINT = { 25302, 11303, 11302, 11301, 1966 } -- AoE damage reduction
 
-spells.HASTE_POTION = { 28508, 22832 }
-spells.SUPER_MANA_POTION = { 28499, 22828 }
-spells.DRAGON_SLAYER = { 34775, 34774, 34773, 34772, 34771, 34770, 34769, 34768, 34767, 34766, 34765, 34764, 34763, 34762, 34761, 34760 }
-spells.SCROLL_OF_AGILITY = { 22730, 10290 }
-spells.SCROLL_OF_STAMINA = { 22733, 10292 }
-
-spells.GOBLIN_ROCKET_BOOTS = { 8896 }
-spells.GNOMISH_ROKET_HELMET = { 13028 }
-
-spells.FEINT = { 27448, 25302, 11303, 8637, 6768, 1966 }
-spells.EVASION = { 5277 }
-spells.BUFF_EVASION = { 5277 }
+-- Racial abilities (may be available)
+spells.BLOOD_FURY = { 20572 } -- Orc racial
+spells.BERSERKING = { 26297 } -- Troll racial
+spells.STONEFORM = { 20594 } -- Dwarf racial
+spells.ESCAPE_ARTIST = { 20589 } -- Gnome racial
+spells.WILL_OF_THE_FORSAKEN = { 7744 } -- Undead racial
+spells.ARCANE_TORRENT = { 28730 } -- Blood Elf racial
 
 return spells

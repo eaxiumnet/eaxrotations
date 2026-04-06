@@ -1,0 +1,60 @@
+-- Eax Mage Frost | spells.lua
+
+local spells = {}
+
+spells.FROSTBOLT = { 27087, 25304, 10181, 10180, 10179, 8408, 8407, 8406, 7322, 837, 205, 116 }
+spells.ICE_LANCE = { 30455 }
+spells.ICY_VEINS = { 12472 }
+spells.WATER_ELEMENTAL = { 31687 }
+spells.ARCANE_EXPLOSION = { 27080, 10263, 10262, 10261, 10260, 10259, 8439, 8438, 8437, 1449 }
+spells.REMOVE_CURSE = { 30449, 475 }
+
+spells.EVOCATION = { 12051 }
+spells.MAGE_ARMOR = { 27125, 22783, 22782, 6117 }
+spells.MANA_SHIELD = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
+spells.POLYMORPH = { 12826, 12825, 12824, 118 }
+spells.ARCANE_BRILLIANCE = { 27127, 23028 }
+spells.COUNTERSPELL = { 2139 }
+spells.FIRE_WARD = { 543 }
+spells.FROST_WARD = { 11426, 8461, 8462, 6143 }
+spells.SLOW_FALL = { 130 }
+spells.AMPLIFY_MAGIC = { 1008 }
+spells.DAMPEN_MAGIC = { 604 }
+
+spells.FROST_NOVA = { 27088, 10230, 6131, 865, 122 }
+spells.CONE_OF_COLD = { 27087, 10161, 10160, 10159, 8492, 120 }
+spells.ICE_BARRIER = { 33405, 27134, 13033, 13032, 13031, 11426 }
+spells.SUMMON_WATER_ELEMENTAL = { 31687 }
+
+spells.BUFF_ICY_VEINS = { 12472 }
+spells.DEBUFF_FROZEN = { 122, 33395 }
+spells.DEBUFF_WINTERS_CHILL = { 12579 }
+spells.BUFF_ICE_BARRIER = { 33405, 27134, 13033, 13032, 13031, 11426 }
+
+spells.BERSERKING = { 26297 }
+spells.ARCANE_TORRENT = { 28730, 25046, 23160, 15533 }
+
+spells.BUFF_BERSERKING = { 26297 }
+
+spells.HASTE_POTION = { 28508, 22832 }
+spells.SUPER_MANA_POTION = { 28499, 22828 }
+spells.SCROLL_OF_INTELLECT = { 22732, 10291 }
+spells.SCROLL_OF_STAMINA = { 22733, 10292 }
+
+
+spells.PRESENCE_OF_MIND = { 12043 }
+spells.BLINK            = { 1953 }
+spells.COLD_SNAP        = { 11958 }
+
+spells.BUFF_PRESENCE_OF_MIND = { 12043 }
+
+spells.ARCANE_INTELLECT      = { 27126, 10157, 10156, 1460, 1461, 1459 }
+spells.BUFF_ARCANE_INTELLECT = { 27126, 10157, 10156, 1460, 1461, 1459 }
+
+spells.ICE_BLOCK = { 45438 }
+spells.BUFF_ICE_BLOCK = { 45438 }
+
+-- Pacify debuffs that prevent casting (e.g., Mechanar's Pacifying Dust)
+spells.PACIFY_BUFFS = { 32904, 6465 }
+
+return spells

@@ -1,9 +1,10 @@
--- Eax Warrior Arms | spells.lua
--- Rank tables and buff/debuff ID tables only.
--- Ranks are ordered highest-to-lowest for resolve_spell_id().
+-- Eax Warrior Arms  spells.lua
+-- TBC-only spell rank tables and buff/debuff ID tables.
+-- Ranks ordered highest-to-lowest for resolve_spell_id().
 
 local spells = {}
 
+-- Core Damage Abilities (TBC only)
 spells.MORTAL_STRIKE     = { 30330, 25248, 21553, 21552, 21551, 12294 }
 spells.SLAM              = { 25242, 25241, 11605, 11604, 8820, 1464 }
 spells.WHIRLWIND         = { 1680 }
@@ -19,41 +20,59 @@ spells.INTERCEPT         = { 25275, 25272, 20617, 20616, 20252 }
 spells.CHARGE            = { 11578, 6178, 100 }
 spells.PIERCING_HOWL     = { 12323 }
 spells.INTIMIDATING_SHOUT = { 5246 }
-spells.BLOODTHIRST       = { 30335, 23894, 23893, 23892, 23881 }
+
+-- Defensive/Utility
+spells.PUMMEL            = { 6554, 6552 }
+spells.SHIELD_BASH       = { 29704, 1672, 1671, 72 }
+spells.SHIELD_BLOCK      = { 2565 }
+spells.SHIELD_SLAM       = { 30356, 25258, 23925, 23924, 23923, 23922 }
+spells.SPELL_REFLECTION  = { 23920, 23919 }
+spells.DISARM            = { 676 }
+spells.TAUNT             = { 355 }
+spells.MOCKING_BLOW      = { 25266, 20560, 20559, 7402, 7400, 694 }
+spells.CHALLENGING_SHOUT = { 1161 }
 spells.REVENGE           = { 30357, 25269, 25288, 20647, 11601, 11600, 7379, 6572 }
 spells.DEVASTATE         = { 30022, 30020, 30016, 20243 }
 spells.DEEP_WOUNDS       = { 12867, 12850, 12849, 12834 }
-spells.SHIELD_SLAM       = { 30356, 25258, 23925, 23924, 23923, 23922 }
-spells.SHIELD_BLOCK      = { 2565, 10716, 10717 }
-spells.SPELL_REFLECTION  = { 23920, 23919 }
-spells.DISARM            = { 676, 6870, 6871 }
 
+-- Shouts and Buffs
 spells.BATTLE_SHOUT      = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
 spells.COMMANDING_SHOUT  = { 469 }
 spells.BLOODRAGE         = { 2687 }
 spells.BERSERKER_RAGE    = { 18499 }
 spells.DEMORALIZING_SHOUT = { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
 spells.SWEEPING_STRIKES  = { 12292 }
-spells.STONEFORM         = { 20594 }
-spells.WAR_STOMP         = { 20549 }
 
+-- Stances
 spells.BATTLE_STANCE     = { 2457 }
 spells.BERSERKER_STANCE  = { 2458 }
 spells.DEFENSIVE_STANCE  = { 71 }
+
+-- Cooldowns
 spells.DEATH_WISH        = { 12328 }
 spells.RECKLESSNESS      = { 1719 }
+spells.LAST_STAND        = { 12975 }
+spells.SHIELD_WALL      = { 871 }
+spells.RETALIATION       = { 20230 }
+
+-- Racials
 spells.BLOOD_FURY        = { 20572 }
 spells.BERSERKING        = { 26297 }
-spells.PUMMEL            = { 6554, 6552 }
+spells.STONEFORM         = { 20594 }
+spells.WAR_STOMP         = { 20549 }
+spells.WILL_OF_THE_FORSAKEN = { 7744 }
+spells.ESCAPE_ARTIST     = { 20589 }
+
+-- Talents (for detection)
 spells.TACTICAL_MASTERY  = { 12677, 12676, 12295 }
-spells.SHIELD_BASH       = { 29704, 1672, 1671, 72 }
-spells.CONCUSSION_BLOW   = { 12809 }
-spells.MOCKING_BLOW      = { 25266, 20560, 20559, 7402, 7400, 694 }
-spells.TAUNT             = { 355 }
+spells.IMPROVED_SLAM     = { 12820, 12819 }
+spells.BLOOD_FRENZY      = { 29859, 29836 }
 
-spells.HEALTHSTONE_ITEMS      = { 22105, 22104, 22103, 19013, 19012, 9421, 19011, 19010, 5510, 19009, 19008, 5509, 19007, 19006, 5511, 19005, 19004, 5512 }
-spells.HEALING_POTION_ITEMS   = { 22829, 13446, 3928, 1710, 929, 858, 118 }
+-- Consumables
+spells.HEALTHSTONE_ITEMS = { 22105, 22104, 22103, 19013, 19012, 9421, 19011, 19010, 5510, 19009, 19008, 5509, 19007, 19006, 5511, 19005, 19004, 5512 }
+spells.HEALING_POTION_ITEMS = { 22829, 13446, 3928, 1710, 929, 858, 118 }
 
+-- Buffs
 spells.BUFF_BATTLE_SHOUT       = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
 spells.BUFF_COMMANDING_SHOUT   = { 469 }
 spells.BUFF_BLOODRAGE          = { 2687 }
@@ -72,6 +91,11 @@ spells.BUFF_HASTE_POTION       = { 28507 }
 spells.BUFF_DESTRUCTION_POTION = { 28508 }
 spells.BUFF_DRUMS_OF_BATTLE    = { 35476 }
 spells.BUFF_DRUMS_OF_WAR       = { 35475 }
+spells.BUFF_SHIELD_BLOCK       = { 2565 }
+spells.BUFF_LAST_STAND        = { 12975 }
+spells.BUFF_SPELL_REFLECTION   = { 23920 }
+
+-- Debuffs
 spells.DEBUFF_REND             = { 25208, 11574, 11573, 11572, 6548, 6547, 6546, 772 }
 spells.DEBUFF_DEMORALIZING_SHOUT = { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
 spells.DEBUFF_SUNDER_ARMOR     = { 25225, 11597, 11596, 8380, 7405, 7386 }
@@ -79,19 +103,21 @@ spells.DEBUFF_THUNDER_CLAP     = { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
 spells.DEBUFF_HAMSTRING        = { 25212, 7373, 7372, 1715 }
 spells.DEBUFF_PIERCING_HOWL    = { 12323 }
 spells.DEBUFF_DEEP_WOUNDS      = { 12867, 12850, 12849, 12834 }
-spells.DEBUFF_SHIELD_SLAM      = { 30356, 23922, 23923 }
-spells.DEBUFF_SPELL_REFLECTION = { 23920, 23919 }
-spells.BUFF_BLOODTHIRST        = { 30335, 23894, 23893, 23892, 23881 }
-spells.BUFF_REVENGE            = { 30357, 12712, 12711, 12710 }
-spells.BUFF_DEVASTATE          = { 30022, 20243 }
-spells.BUFF_SHIELD_SLAM        = { 30356 }
-spells.BUFF_SHIELD_BLOCK       = { 2565, 10716, 10717 }
+spells.DEBUFF_DISARM           = { 676 }
+spells.DEBUFF_TAUNT            = { 355 }
 
-spells.HASTE_POTION = { 28508, 22832 }
-spells.SUPER_MANA_POTION = { 28499, 22828 }
-spells.DRAGON_SLAYER = { 34775, 34774, 34773, 34772, 34771, 34770, 34769, 34768, 34767, 34766, 34765, 34764, 34763, 34762, 34761, 34760 }
-spells.SCROLL_OF_MIGHT = { 22734, 10310 }
-spells.SCROLL_OF_STAMINA = { 22733, 10292 }
+-- CC break prevention debuffs
+spells.DEBUFF_POLYMORPH       = { 118 }
+spells.DEBUFF_FREEZING_TRAP   = { 3355 }
+spells.DEBUFF_BLIND           = { 2094 }
+spells.DEBUFF_SAP             = { 6770 }
+spells.DEBUFF_GOUGE           = { 1776 }
+spells.DEBUFF_HIBERNATE       = { 18657 }
+spells.DEBUFF_WYVERN_STING     = { 19386 }
+spells.DEBUFF_SHACKLE_UNDEAD  = { 9484 }
+spells.DEBUFF_SEDUCTION       = { 1513 }
 
+-- Pacify debuffs
+spells.PACIFY_BUFFS = { 32904, 6465 }
 
 return spells

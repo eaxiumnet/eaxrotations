@@ -1,6 +1,5 @@
--- header.lua
--- Eax Shaman Enhancement | Load guard
--- Validates class/spec before running the melee logic
+-- Eax Shaman Enhancement | header.lua
+-- Plugin metadata and load validation.
 
 local plugin_info = require("plugin_info")
 local plugin = {}
@@ -16,8 +15,7 @@ if not local_player then
     return plugin
 end
 
-local player_class = local_player:get_class()
-if player_class ~= 7 then
+if local_player:get_class() ~= 7 then
     plugin["load"] = false
     return plugin
 end

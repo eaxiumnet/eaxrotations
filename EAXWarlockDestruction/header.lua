@@ -1,8 +1,9 @@
 -- header.lua
--- Eax Warlock Destruction | Header
+-- Eax Warlock Destruction  Header
+-- Validate class/spec before loading the plugin.
 
 local plugin = {
-    ["name"] = "Eax Warlock Destruction",
+    ["name"] = "EAX",
     ["version"] = "1.0.0",
     ["author"] = "Eax",
     ["load"] = true,

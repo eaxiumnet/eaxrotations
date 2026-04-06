@@ -1,8 +1,9 @@
 -- header.lua
--- Eax Warlock Demonology | Header
+-- Eax Warlock Demonology  Header
+-- Validate class/spec before loading the plugin.
 
 local plugin = {
-    ["name"] = "Eax Warlock Demonology",
+    ["name"] = "EAX",
     ["version"] = "1.0.0",
     ["author"] = "Eax",
     ["load"] = true,

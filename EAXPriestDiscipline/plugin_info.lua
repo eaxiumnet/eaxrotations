@@ -1,8 +1,10 @@
-local plugin_info = {}
-
-plugin_info.plugin_load_name = "Eax Priest Discipline"
-plugin_info.plugin_version = "2.0.2"
-plugin_info.author = "Eax Team"
-plugin_info.spec_id = 13
-
-return plugin_info
+-- EAX Port) | plugin_info.lua
+return {
+    name = "EAX Port)",
+    version = "1.0.0",
+    class = "Priest",
+    spec = "Discipline",
+    author = "EAX",
+    description = "Discipline healing with PW:S spam, Penance burst, Weakened Soul management. Ported from .",
+    requires = { "common/modules/buff_manager", "common/modules/spell_queue" },
+}

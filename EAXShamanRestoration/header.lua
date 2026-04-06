@@ -1,6 +1,5 @@
--- header.lua
--- Eax Shaman Restoration | Load guard
--- Ensures only Restoration Shamans load this plugin
+-- Eax Shaman Restoration | header.lua
+-- Plugin metadata and load validation.
 
 local plugin_info = require("plugin_info")
 local plugin = {}

@@ -1,8 +1,8 @@
 local plugin_info = {}
 
-plugin_info.plugin_load_name = "Eax Rogue Assassination"
-plugin_info.plugin_version = "2.0.2"
+plugin_info.plugin_load_name = "EAX"
+plugin_info.plugin_version = "1.0.0"
 plugin_info.author = "Eax Team"
-plugin_info.spec_id = 16
+plugin_info.spec_id = 1 -- Assassination Rogue
 
 return plugin_info

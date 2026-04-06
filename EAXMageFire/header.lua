@@ -1,20 +1,30 @@
--- Eax Mage Fire | header.lua
-
 local plugin = {}
 
-plugin["name"] = "Eax Mage Fire"
+plugin["name"]    = " Mage Fire"
 plugin["version"] = "1.0.0"
-plugin["author"] = "Eax"
-plugin["load"] = true
+plugin["author"]  = " Port"
+plugin["load"]    = true
 
-local me = core.object_manager.get_local_player()
-
-if not me then
+-- Check if local player exists
+local local_player = core.object_manager.get_local_player()
+if not local_player then
     plugin["load"] = false
     return plugin
 end
 
-if me:get_class() ~= 8 then
+---@type enums
+local enums = require("common/enums")
+local player_class = local_player:get_class()
+
+-- Mage class check
+if player_class ~= enums.class_id.MAGE then
+    plugin["load"] = false
+    return plugin
+end
+
+-- Spec check (Fire = 2)
+local player_spec_id = core.spell_book.get_specialization_id()
+if player_spec_id ~= 2 then
     plugin["load"] = false
     return plugin
 end

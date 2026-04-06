@@ -1,10 +1,10 @@
--- Eax Warrior Arms | header.lua
+-- Eax Warrior Arms  header.lua
 -- Plugin metadata and load validation.
 
 local plugin = {
-    name = "Eax Warrior Arms",
+    name = "EAX",
     version = "1.0.0",
-    author = "Eax",
+    author = "EAX",
     load = true,
 }
 
