@@ -68,6 +68,10 @@
 --- 7 = Red "X" Cross  
 --- 8 = White Skull  
 ---@field get_target_marker_index fun(self: game_object): number
+---Sets the target marker (raid icon) on the game object.
+---@field set_target_marker_index fun(self: game_object, index: integer)
+---Returns the race id of the game object.
+---@field get_race_id fun(self: game_object): integer
 ---Returns the creature_type id of the game object.  
 -- 1 -> Beast
 -- 2 -> Dragonkin

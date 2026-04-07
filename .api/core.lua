@@ -816,6 +816,65 @@ function core.game_ui.add_tooltip_double_line(left_text, right_text, lr, lg, lb,
     return nil
 end
 
+--- Starts a countdown timer in the party/raid.
+---@param seconds integer The countdown duration in seconds.
+---@return boolean success Whether the countdown was started successfully.
+function core.game_ui.do_countdown(seconds)
+    return false
+end
+
+--- Returns talent information for a given talent position.
+--- Classic: pass tab_index, talent_index, and optionally is_inspect.
+--- Retail: pass tier, column, and optionally spec_group_index.
+---@class talent_info_classic
+---@field name string The talent name.
+---@field texture integer The icon texture ID.
+---@field tier integer The talent tier.
+---@field column integer The talent column.
+---@field rank integer The current rank.
+---@field max_rank integer The maximum rank.
+---@field is_exceptional boolean Whether the talent is exceptional.
+---@field available boolean Whether the talent is available.
+
+---@class talent_info_retail
+---@field talent_id integer The talent ID.
+---@field name string The talent name.
+---@field texture integer The icon texture ID.
+---@field selected boolean Whether the talent is selected.
+---@field available boolean Whether the talent is available.
+---@field spell_id integer The spell ID associated with the talent.
+---@field row integer The talent row.
+---@field column integer The talent column.
+---@field known boolean Whether the talent is known.
+
+---@param arg1 integer Tab index (classic) or tier (retail).
+---@param arg2 integer Talent index (classic) or column (retail).
+---@param arg3? integer Is inspect (classic) or spec group index (retail).
+---@return talent_info_classic|talent_info_retail info The talent information table.
+function core.game_ui.get_talent_info(arg1, arg2, arg3)
+    return {}
+end
+
+--- Shows a context menu at the cursor with simple text buttons.
+--- Use get_context_menu_result() to poll for the clicked option.
+---@class context_menu_entry
+---@field text string The button label.
+---@field id integer The button identifier.
+
+---@param items context_menu_entry[] Array of menu entries.
+---@return nil
+function core.game_ui.show_context_menu(items)
+    return nil
+end
+
+--- Polls the result of the last context menu shown with show_context_menu.
+--- Returns the id of the clicked button, or 0 if nothing was clicked.
+--- Reading the result consumes it (one-shot).
+---@return integer id The clicked button id, or 0 if none.
+function core.game_ui.get_context_menu_result()
+    return 0
+end
+
 ---@class character
 core.character = {}
 
@@ -4136,5 +4195,180 @@ end
 ---@return integer quantity The restock quantity needed.
 function core.addons.tsm.get_shopping_restock_quantity(item_id)
     return 0
+end
+
+-- ========================================
+-- core.addons.details
+-- ========================================
+
+---@class addons_details
+core.addons.details = {}
+
+--- Returns whether the Details addon is loaded.
+---@return boolean is_loaded Whether Details is loaded.
+function core.addons.details.is_loaded()
+    return false
+end
+
+--- Returns combat information for a given segment.
+---@class details_combat_info
+---@field combat_time number The combat duration in seconds.
+---@field combat_name string The combat/encounter name.
+---@field total_damage number Total damage dealt in the segment.
+---@field total_healing number Total healing done in the segment.
+
+---@param segment_id? integer The segment ID (0=current, -1=overall, 1-25=specific). Default 0.
+---@return details_combat_info info The combat information table.
+function core.addons.details.get_combat_info(segment_id)
+    return {}
+end
+
+--- Returns damage done data for a given segment.
+---@class details_actor
+---@field name string The actor name.
+---@field class_id integer The class ID.
+---@field total number The total amount.
+---@field per_second number The per-second rate (DPS/HPS).
+---@field is_player boolean Whether the actor is a player.
+---@field is_group_member boolean Whether the actor is in the group.
+---@field unit game_object|nil The game object if found in the world.
+
+---@param segment_id? integer The segment ID (0=current, -1=overall, 1-25=specific). Default 0.
+---@return details_actor[] actors Array of actor entries.
+function core.addons.details.get_damage_done(segment_id)
+    return {}
+end
+
+--- Returns healing done data for a given segment.
+---@param segment_id? integer The segment ID (0=current, -1=overall, 1-25=specific). Default 0.
+---@return details_actor[] actors Array of actor entries.
+function core.addons.details.get_healing_done(segment_id)
+    return {}
+end
+
+--- Returns damage taken data for a given segment.
+---@param segment_id? integer The segment ID (0=current, -1=overall, 1-25=specific). Default 0.
+---@return details_actor[] actors Array of actor entries.
+function core.addons.details.get_damage_taken(segment_id)
+    return {}
+end
+
+--- Returns all available combat segments.
+---@class details_segment
+---@field index integer The segment index.
+---@field name string The segment name.
+---@field duration number The segment duration in seconds.
+
+---@return details_segment[] segments Array of segment entries.
+function core.addons.details.get_segments()
+    return {}
+end
+
+-- ========================================
+-- core.addons.timeline_reminders
+-- ========================================
+
+---@class addons_timeline_reminders
+core.addons.timeline_reminders = {}
+
+--- Returns whether the Timeline Reminders addon is loaded.
+---@return boolean is_loaded Whether Timeline Reminders is loaded.
+function core.addons.timeline_reminders.is_loaded()
+    return false
+end
+
+--- Returns reminders for a given encounter and difficulty.
+---@class timeline_reminder
+---@field trigger_time number The time in seconds when the reminder triggers.
+---@field duration number The duration of the reminder in seconds.
+---@field linger number The linger time after the reminder fires.
+---@field hide_on_use boolean Whether to hide the reminder after it triggers.
+---@field region string The display region.
+---@field display_type string The display type.
+---@field spell_id integer The associated spell ID.
+---@field text string The reminder text.
+---@field load_type string The load condition type.
+---@field load_class string The class load condition.
+---@field load_spec integer The specialization load condition.
+---@field load_role string The role load condition.
+---@field load_name string The name load condition.
+---@field countdown_enabled boolean Whether the countdown is enabled.
+---@field countdown_start integer The countdown start time in seconds.
+
+---@param encounter_id integer The encounter ID.
+---@param difficulty_id integer The difficulty ID.
+---@return timeline_reminder[] reminders Array of reminder entries.
+function core.addons.timeline_reminders.get_reminders(encounter_id, difficulty_id)
+    return {}
+end
+
+-- ========================================
+-- core.damage_meter
+-- ========================================
+
+---@class damage_meter
+core.damage_meter = {}
+
+--- Checks if the damage meter API is available.
+---@return boolean is_available Whether the damage meter is available.
+---@return string failure_reason The reason it is unavailable (empty string if available).
+function core.damage_meter.is_available()
+    return false, ""
+end
+
+--- Returns all available combat sessions.
+---@class damage_meter_session_entry
+---@field session_id integer The session identifier.
+---@field name string The session name.
+---@field duration number The session duration in seconds.
+
+---@return damage_meter_session_entry[] sessions Array of available sessions.
+function core.damage_meter.get_available_sessions()
+    return {}
+end
+
+--- Returns a combat session by its ID and meter type.
+---@class damage_meter_source
+---@field name string The combatant name.
+---@field class string The class filename.
+---@field total_amount number The total amount dealt/healed.
+---@field per_second number The amount per second.
+---@field is_local_player boolean Whether this source is the local player.
+---@field spec_icon integer The specialization icon ID.
+---@field unit game_object|nil The game object if found, nil otherwise.
+
+---@class damage_meter_session
+---@field max_amount number The highest amount from a single source.
+---@field total_amount number The total combined amount.
+---@field duration number The session duration in seconds.
+---@field sources damage_meter_source[] Array of combatant entries.
+
+---@param session_id integer The session ID.
+---@param meter_type integer The meter type (e.g. damage, healing).
+---@return damage_meter_session session The session data.
+function core.damage_meter.get_session_from_id(session_id, meter_type)
+    return {}
+end
+
+--- Returns a combat session by session type and meter type.
+--- Session types: 0 = Overall, 1 = Current, 2 = Expired.
+---@param session_type integer The session type (0=Overall, 1=Current, 2=Expired).
+---@param meter_type integer The meter type (e.g. damage, healing).
+---@return damage_meter_session session The session data.
+function core.damage_meter.get_session_from_type(session_type, meter_type)
+    return {}
+end
+
+--- Returns the duration of a combat session by type.
+---@param session_type integer The session type.
+---@return number duration The session duration in seconds.
+function core.damage_meter.get_session_duration(session_type)
+    return 0
+end
+
+--- Resets all combat sessions.
+---@return nil
+function core.damage_meter.reset_all()
+    return nil
 end
 
