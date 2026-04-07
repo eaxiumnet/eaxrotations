@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- main.lua | EAX Mage Arcane | Project Sylvanas
 -- Arcane Mage rotation with burn/conserve phase management
 

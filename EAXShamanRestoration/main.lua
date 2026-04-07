@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- Eax Shaman Restoration | main.lua
 -- Restoration Shaman rotation: Chain Heal bouncing, Earth Shield, emergency healing
 

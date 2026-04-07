@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- Eax Warrior Protection  main.lua
 --  Protection rotation with Shield Slam priority, Revenge procs, Sunder maintenance.
 

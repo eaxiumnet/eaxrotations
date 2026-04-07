@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- Eax Shaman Elemental | main.lua
 -- Elemental Shaman rotation: Lightning Bolt/Chain Lightning spam, Flame Shock, Totems
 

@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- EAX Port) | main.lua
 -- Shadow DPS rotation with DoT maintenance (VT, SW:P, DP), Mind Blast CD, SW:Death execute.
 -- Source: /rotation/source/aio/priest/shadow.lua

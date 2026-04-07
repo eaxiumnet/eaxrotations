@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- EAX Warlock Destruction | main.lua | Project Sylvanas
 -- Burst spell rotation: Immolate, Conflagrate, Shadowbolt, Incinerate
 

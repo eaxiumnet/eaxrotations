@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- EAX Paladin Retribution  main.lua
 -- Retribution DPS rotation ported from  with seal twisting
 

@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- EAX Druid Restoration | Project Sylvanas
 -- Priority: Lifebloom -> Rejuvenation -> Regrowth -> Swiftmend
 

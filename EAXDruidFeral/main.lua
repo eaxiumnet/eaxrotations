@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- EAX Druid Feral | Project Sylvanas
 -- Priority: Prowl -> Ravage -> DoTs -> Finishers -> Builders
 

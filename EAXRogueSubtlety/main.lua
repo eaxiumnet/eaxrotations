@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- EAX Rogue Subtlety | main.lua | Project Sylvanas
 -- Subtlety rotation: Backstab/Hemorrhage builder, maintain Slice and Dice, Shadowstep burst
 

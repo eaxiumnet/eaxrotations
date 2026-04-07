@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- EAX Warlock Demonology | main.lua | Project Sylvanas
 -- Pet-focused rotation: Felguard/Succubus, Demonology talents, buff pet
 

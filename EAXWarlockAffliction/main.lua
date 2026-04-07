@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- EAX Warlock Affliction | main.lua | Project Sylvanas
 -- DoT-focused rotation: Corruption, UA, Siphon Life, CoA, Drain Soul execute
 

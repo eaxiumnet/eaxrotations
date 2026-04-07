@@ -1,3 +1,4 @@
+require("libraries/path_bootstrap")
 -- main.lua | EAX Hunter MM | Project Sylvanas
 -- Priority: Aimed Shot → Serpent Sting → Arcane/Steady weave
 
