@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Mage Fire | main.lua | Project Sylvanas
 
 local menu = require("libraries/menu")

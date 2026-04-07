@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- Eax Shaman Enhancement | main.lua
 -- Enhancement Shaman rotation: Stormstrike, shocks, totem twisting, melee weaving
 

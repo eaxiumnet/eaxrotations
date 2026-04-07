@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Druid Bear | Project Sylvanas
 -- Priority: Mangle -> Lacerate -> Swipe -> Maul
 

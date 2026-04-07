@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Druid Balance | Project Sylvanas
 -- Priority: Faerie Fire -> DoTs -> Nukes -> AoE
 

@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Port) | main.lua
 -- Holy healing rotation with Circle of Healing raid healing, Prayer of Mending bouncing.
 -- Source: /rotation/source/aio/priest/holy.lua

@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- main.lua | EAX Hunter Survival | Project Sylvanas
 -- Priority: Hunter's Mark → Serpent Sting → Aimed → Mongoose/Counterattack melee → Arcane/Steady
 

@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- Eax Warrior Fury  main.lua
 --  Fury rotation with Bloodthirst spam, Rampage maintenance, Flurry tracking.
 

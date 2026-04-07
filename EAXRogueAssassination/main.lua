@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Rogue Assassination | main.lua | Project Sylvanas
 -- Assassination rotation: Mutilate builder, maintain Slice and Dice, Rupture at 5 CP
 

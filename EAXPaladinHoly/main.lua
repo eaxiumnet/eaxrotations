@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Paladin Holy  main.lua
 -- Holy healing rotation ported from 
 

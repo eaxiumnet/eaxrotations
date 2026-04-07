@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- Eax Warrior Arms  main.lua
 --  Arms rotation with Slam weaving, Overpower on dodge, stance dancing.
 

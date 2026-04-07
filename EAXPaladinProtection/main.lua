@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Paladin Protection  main.lua
 -- Protection tank rotation ported from 
 

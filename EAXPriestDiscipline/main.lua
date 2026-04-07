@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Port) | main.lua
 -- Discipline healing rotation with PW:S spam, Penance burst, Weakened Soul management.
 -- Source: /rotation/source/aio/priest/discipline.lua

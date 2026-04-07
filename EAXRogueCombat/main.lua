@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- EAX Rogue Combat | main.lua | Project Sylvanas
 -- Combat rotation: Sinister Strike builder, maintain Slice and Dice, Blade Flurry cleave
 

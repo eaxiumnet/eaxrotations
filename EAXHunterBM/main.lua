@@ -1,4 +1,3 @@
-require("libraries/path_bootstrap")
 -- main.lua | EAX Hunter BM | TBC
 -- Priority: Kill Command -> Bestial Wrath -> Intimidation -> Serpent/arcane weaving -> Steady Shot
 
