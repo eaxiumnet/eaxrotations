@@ -610,30 +610,6 @@ core.register_on_update_callback(function()
     if try_holy_wrath(me) then return end
 end)
 
--- ============================================================================
--- RENDER CALLBACKS - Menu Registration
--- ============================================================================
-
--- Register render callbacks for menu system
-core.register_on_render_callback(function()
-    if menu and menu.on_render then
-        local ok, err = pcall(menu.on_render)
-        if not ok then
-            core.log_error(string.format("[EAX Prot] Render error: %s", tostring(err)))
-        end
-    end
-end)
-
-core.register_on_render_menu_callback(function()
-    if menu and menu.on_menu_render then
-        local ok, err = pcall(menu.on_menu_menu_render)
-        if not ok then
-            core.log_error(string.format("[EAX Prot] Menu render error: %s", tostring(err)))
-        end
-    end
-end)
-
-
 -- Export toggle settings for external access
 local NS = _G.EAXPaladinProtection and _G.EAXPaladinProtection.NS or {}
 _G.EAXPaladinProtection = _G.EAXPaladinProtection or {}

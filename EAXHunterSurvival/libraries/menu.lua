@@ -1,141 +1,118 @@
--- EAX Hunter Survival | libraries/menu.lua | Project Sylvanas
+-- EAX Hunter Survival | menu.lua | Project Sylvanas
+-- Uses unified EAX menu system with core.menu API
+
 local unified = require("EAX_Unified/menu")
-if not unified then error("[EAX Hunter Survival] EAX_Unified/menu not found!") end
+if not unified then
+    error("[EAX Hunter Survival] EAX_Unified menu system not available!")
+end
 
-local ROTATION_KEY = "hunter_survival"
 local menu = {}
+local ROTATION_KEY = "hunter_survival" -- lowercase with underscore
 
+-- ============================================================================
+-- MENU DEFINITION
+-- ============================================================================
 local MENU_DEF = {
     categories = {
         {
             name = "Rotation",
             settings = {
-                { key = "use_explosive_shot",    type = "checkbox", label = "Explosive Shot",    default = true,  tooltip = "Primary spender — Black Arrow proc" },
-                { key = "use_black_arrow",       type = "checkbox", label = "Black Arrow",       default = true,  tooltip = "DoT + Lock and Load proc" },
-                { key = "use_serpent_sting",     type = "checkbox", label = "Serpent Sting",     default = true,  tooltip = "Maintain Serpent Sting" },
-                { key = "use_arcane_shot",       type = "checkbox", label = "Arcane Shot",       default = true,  tooltip = "Focus dump" },
-                { key = "use_steady_shot",       type = "checkbox", label = "Steady Shot",       default = true,  tooltip = "Focus builder" },
-                { key = "use_multi_shot",        type = "checkbox", label = "Multi-Shot",        default = true },
-                { key = "use_trap_launcher",     type = "checkbox", label = "Trap Launcher",     default = true,  tooltip = "Auto-launch Immolation Trap for AoE" },
-                { key = "aoe_threshold",         type = "slider",   label = "AoE Min Targets",   default = 3, min = 2, max = 8 },
-                { key = "use_silencing_shot",    type = "checkbox", label = "Silencing Shot",    default = true },
-            },
-        },
-        {
-            name = "Pet",
-            settings = {
-                { key = "use_mend_pet",    type = "checkbox", label = "Mend Pet",      default = true },
-                { key = "mend_pet_hp",     type = "slider",   label = "Mend Pet HP %", default = 50, min = 20, max = 80, suffix = "%" },
-            },
+                { key = "use_explosive_shot", type = "checkbox", label = "Use Explosive Shot", default = true, tooltip = "Main ability" },
+                { key = "use_black_arrow", type = "checkbox", label = "Use Black Arrow", default = true, tooltip = "DoT ability" },
+                { key = "use_serpent_sting", type = "checkbox", label = "Use Serpent Sting", default = true, tooltip = "DoT maintenance" },
+                { key = "use_steady_shot", type = "checkbox", label = "Use Steady Shot", default = true, tooltip = "Filler ability" },
+                { key = "use_arcane_shot", type = "checkbox", label = "Use Arcane Shot", default = true, tooltip = "Instant filler" },
+                { key = "use_multi_shot", type = "checkbox", label = "Use Multi-Shot", default = true, tooltip = "AoE shot" },
+            }
         },
         {
             name = "Cooldowns",
             settings = {
-                { key = "use_rapid_fire",  type = "checkbox", label = "Rapid Fire",     default = true },
-                { key = "use_readiness",   type = "checkbox", label = "Readiness",      default = true },
-                { key = "use_racial",      type = "checkbox", label = "Racial Ability", default = true },
-                { key = "cd_min_ttd",      type = "slider",   label = "Min TTD for CDs (s)", default = 10, min = 5, max = 30 },
-            },
+                { key = "use_rapid_fire", type = "checkbox", label = "Use Rapid Fire", default = true, tooltip = "Burst CD" },
+                { key = "use_misdirection", type = "checkbox", label = "Use Misdirection", default = true, tooltip = "Threat transfer" },
+            }
         },
         {
             name = "Defensive",
             settings = {
-                { key = "use_feign_death",  type = "checkbox", label = "Feign Death",  default = true },
-                { key = "feign_hp",         type = "slider",   label = "Feign HP %",   default = 25, min = 5, max = 50, suffix = "%" },
-                { key = "use_disengage",    type = "checkbox", label = "Disengage",    default = true },
-                { key = "use_deterrence",   type = "checkbox", label = "Deterrence",   default = true },
-            },
+                { key = "use_deterrence", type = "checkbox", label = "Use Deterrence", default = true, tooltip = "Self-defense" },
+                { key = "deterrence_hp", type = "slider", label = "Deterrence HP %", default = 12, min = 5, max = 40, tooltip = "Use below this %" },
+                { key = "use_feign_death", type = "checkbox", label = "Use Feign Death", default = true, tooltip = "Emergency fade" },
+                { key = "feign_death_hp", type = "slider", label = "Feign Death HP %", default = 20, min = 5, max = 40, tooltip = "Use below this %" },
+            }
         },
-        {
-            name = "System",
-            settings = {
-                { key = "debug", type = "checkbox", label = "Debug Mode", default = false },
-            },
-        },
-    },
+    }
 }
 
-local callbacks = {
-    on_enabled  = function() print("|cFFE6BB33[EAX Survival]|r Rotation ENABLED") end,
-    on_disabled = function() print("|cFFE6BB33[EAX Survival]|r Rotation disabled") end,
-}
-
-unified.register_rotation("Hunter", "Survival", MENU_DEF, callbacks)
-
-function menu.is_enabled()       return unified.is_rotation_active(ROTATION_KEY) end
-function menu.get_setting(k, d)  return unified.get_setting(ROTATION_KEY, k, d) end
-function menu.set_setting(k, v)  unified.set_setting(ROTATION_KEY, k, v) end
-function menu.toggle_menu()      if unified.toggle_menu then unified.toggle_menu() end end
-
-local function proxy(key, default)
-    return { is_checked = function() return menu.get_setting(key, default) end,
-             get_state  = function() return menu.get_setting(key, default) end,
-             get        = function() return menu.get_setting(key, default) end }
+-- ============================================================================
+-- SETTING ACCESS API
+-- ============================================================================
+function menu.is_enabled()
+    return unified.is_rotation_active(ROTATION_KEY)
 end
 
-menu.enabled              = { is_checked = menu.is_enabled, get_state = menu.is_enabled }
-menu.use_explosive_shot   = proxy("use_explosive_shot",  true)
-menu.use_black_arrow      = proxy("use_black_arrow",     true)
-menu.use_serpent_sting    = proxy("use_serpent_sting",   true)
-menu.use_arcane_shot      = proxy("use_arcane_shot",     true)
-menu.use_steady_shot      = proxy("use_steady_shot",     true)
-menu.use_multi_shot       = proxy("use_multi_shot",      true)
-menu.use_trap_launcher    = proxy("use_trap_launcher",   true)
-menu.aoe_threshold        = proxy("aoe_threshold",       3)
-menu.use_silencing_shot   = proxy("use_silencing_shot",  true)
-menu.use_mend_pet         = proxy("use_mend_pet",        true)
-menu.mend_pet_hp          = proxy("mend_pet_hp",         50)
-menu.use_rapid_fire       = proxy("use_rapid_fire",      true)
-menu.use_readiness        = proxy("use_readiness",       true)
-menu.use_racial           = proxy("use_racial",          true)
-menu.cd_min_ttd           = proxy("cd_min_ttd",          10)
-menu.use_feign_death      = proxy("use_feign_death",     true)
-menu.feign_hp             = proxy("feign_hp",            25)
-menu.use_disengage        = proxy("use_disengage",       true)
-menu.use_deterrence       = proxy("use_deterrence",      true)
-menu.debug                = proxy("debug",               false)
-
--- ============================================================================
--- NATIVE ELEMENTS & RENDER HOOKS  (added by EAX v4 patch)
--- These are required by main.lua:
---   core.register_on_render_callback(menu.on_render)
---   core.register_on_render_menu_callback(menu.on_menu_render)
--- ============================================================================
-
--- Native keybind for enable toggle (persisted by PS, shown in control panel)
--- Value 7 = "Unbound". main.lua uses get_state() / set() on this.
-local _enabled_keybind  = core.menu.keybind(7, false, "eax_hunter_survival_enabled_kb")
-local _toggle_key_elem  = core.menu.keybind(107, false, "eax_hunter_survival_toggle_key")
-
--- Wrap keybind as menu.enabled so existing proxy is overridden with the real element
-menu.enabled   = _enabled_keybind
-menu.toggle_key = _toggle_key_elem
-
--- Native tree_node for the PS main menu entry
-local _menu_tree = core.menu.tree_node()
-
--- on_menu_render: called by core.register_on_render_menu_callback
--- Renders a collapsible node in the PS main menu.
-function menu.on_menu_render()
-    _menu_tree:render("EAX Hunter SV", function()
-        _enabled_keybind:render("Enable EAX Hunter SV", "Toggle rotation on/off")
-        _toggle_key_elem:render("Toggle Menu Key", "Hotkey to show/hide the settings window")
-    end)
+function menu.get_setting(key, default)
+    return unified.get_setting(ROTATION_KEY, key, default)
 end
 
--- on_render: called by core.register_on_render_callback
--- Drives the AstroUI floating window via EAX_Unified/menu NS.on_render()
-function menu.on_render()
-    -- The unified system owns the window; just forward the render tick.
-    -- Numpad+ toggle is also handled there.
-    local unified_ok, unified_mod = pcall(require, "EAX_Unified/menu")
-    if unified_ok and unified_mod and unified_mod._on_render_tick then
-        unified_mod._on_render_tick()
+function menu.set_setting(key, value)
+    return unified.set_setting(ROTATION_KEY, key, value)
+end
+
+-- Backward compatible checkbox proxy
+local function create_proxy(key, default)
+    return {
+        is_checked = function() return menu.get_setting(key, default) end,
+        get_value = function() return menu.get_setting(key, default) end,
+        get = function() return menu.get_setting(key, default) end,
+    }
+end
+
+-- Expose specific settings (create proxies for each key in MENU_DEF)
+menu.use_explosive_shot = create_proxy("use_explosive_shot", true)
+menu.use_black_arrow = create_proxy("use_black_arrow", true)
+menu.use_serpent_sting = create_proxy("use_serpent_sting", true)
+menu.use_steady_shot = create_proxy("use_steady_shot", true)
+menu.use_arcane_shot = create_proxy("use_arcane_shot", true)
+menu.use_multi_shot = create_proxy("use_multi_shot", true)
+menu.use_rapid_fire = create_proxy("use_rapid_fire", true)
+menu.use_misdirection = create_proxy("use_misdirection", true)
+menu.use_deterrence = create_proxy("use_deterrence", true)
+menu.deterrence_hp = create_proxy("deterrence_hp", 12)
+menu.use_feign_death = create_proxy("use_feign_death", true)
+menu.feign_death_hp = create_proxy("feign_death_hp", 20)
+menu.debug = create_proxy("debug", false)
+menu.enabled = { is_checked = menu.is_enabled }
+
+function menu.toggle_menu()
+    if unified and unified.toggle_menu then
+        unified.toggle_menu()
     end
 end
 
--- Register render callbacks
-core.register_on_render_callback(menu.on_render)
-core.register_on_render_menu_callback(menu.on_menu_render)
+-- ============================================================================
+-- CALLBACKS
+-- ============================================================================
+local callbacks = {
+    on_enabled = function()
+        print("|cFF00FF00[EAX Survival]|r Rotation enabled")
+    end,
+    on_disabled = function()
+        print("|cFF00FF00[EAX Survival]|r Rotation disabled")
+    end,
+    is_valid = function()
+        local me = core.object_manager and core.object_manager.get_local_player()
+        if not me then return false end
+        return me:get_class() == 3
+    end
+}
+
+-- ============================================================================
+-- REGISTRATION
+-- ============================================================================
+local me = core.object_manager and core.object_manager.get_local_player()
+if me and me:get_class() == 3 then
+    unified.register_rotation("Hunter", "Survival", MENU_DEF, callbacks)
+end
 
 return menu

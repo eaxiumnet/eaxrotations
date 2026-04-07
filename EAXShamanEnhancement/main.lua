@@ -469,28 +469,6 @@ end
 if core and core.register_on_update_callback then
     core.register_on_update_callback(on_update)
 end
--- ============================================================================
--- RENDER CALLBACKS - Menu Registration
--- ============================================================================
-
--- Register render callbacks for menu system
-core.register_on_render_callback(function()
-    if menu and menu.on_render then
-        local ok, err = pcall(menu.on_render)
-        if not ok then
-            core.log_error(string.format("[EAX Enhance] Render error: %s", tostring(err)))
-        end
-    end
-end)
-
-core.register_on_render_menu_callback(function()
-    if menu and menu.on_menu_render then
-        local ok, err = pcall(menu.on_menu_menu_render)
-        if not ok then
-            core.log_error(string.format("[EAX Enhance] Menu render error: %s", tostring(err)))
-        end
-    end
-end)
 
 if core and core.register_on_render_callback then
     core.register_on_render_callback(function()

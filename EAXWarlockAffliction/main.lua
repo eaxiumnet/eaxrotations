@@ -553,30 +553,6 @@ core.register_on_update_callback(function()
     do_rotation(me, target)
 end)
 
--- ============================================================================
--- RENDER CALLBACKS - Menu Registration
--- ============================================================================
-
--- Register render callbacks for menu system
-core.register_on_render_callback(function()
-    if menu and menu.on_render then
-        local ok, err = pcall(menu.on_render)
-        if not ok then
-            core.log_error(string.format("[EAX Affliction] Render error: %s", tostring(err)))
-        end
-    end
-end)
-
-core.register_on_render_menu_callback(function()
-    if menu and menu.on_menu_render then
-        local ok, err = pcall(menu.on_menu_render)
-        if not ok then
-            core.log_error(string.format("[EAX Affliction] Menu render error: %s", tostring(err)))
-        end
-    end
-end)
-
-
 -- Toggle function for unified menu
 local NS = _G.EAXWarlockAffliction and _G.EAXWarlockAffliction.NS or {}
 NS.toggle_menu = menu.toggle_menu
