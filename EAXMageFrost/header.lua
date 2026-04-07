@@ -12,12 +12,10 @@ if not local_player then
     return plugin
 end
 
----@type enums
-local enums = require("common/enums")
 local player_class = local_player:get_class()
 
--- Mage class check
-if player_class ~= enums.class_id.MAGE then
+-- Mage class check (class ID 8)
+if player_class ~= 8 then
     plugin["load"] = false
     return plugin
 end
