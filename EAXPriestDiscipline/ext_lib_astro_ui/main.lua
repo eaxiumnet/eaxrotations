@@ -1,6 +1,6 @@
 -- ext_lib_astro_ui entry point
 -- DEPRECATED: This module is retained for backward compatibility.
--- New code should use simple_ui directly via: local simple_ui = require("common/simple_ui")
+-- New code should use simple_ui directly via: local simple_ui = require("api/common/simple_ui")
 --
 -- Migration guide:
 -- - Replace RotationSettingsUI.new() with simple_ui.menu:new(title, width, height, save_key)
@@ -8,7 +8,7 @@
 -- - Use menu:add_keybind() for hotkey toggles (keycode 106 for NUMPAD MULTIPLY)
 -- - See libraries/menu.lua for the migration example
 
-local simple_ui = require("common/simple_ui")
+local simple_ui = require("api/common/simple_ui")
 
 -- Return simple_ui as the primary interface
 -- The old RotationSettingsUI API is no longer exported; use simple_ui directly
@@ -39,3 +39,4 @@ return {
     -- Export simple_ui for direct access
     simple_ui = simple_ui,
 }
+

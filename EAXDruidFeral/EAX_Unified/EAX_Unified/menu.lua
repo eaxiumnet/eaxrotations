@@ -256,7 +256,7 @@ function NS.init()
 
         local is_down = core.input and core.input.is_key_pressed and core.input.is_key_pressed(DEFAULT_TOGGLE_KEY)
         if not is_down then
-            local ok, sui = pcall(function() return require("common/simple_ui") end)
+            local ok, sui = pcall(function() return require("api/common/simple_ui") end)
             if ok and sui and sui.input and sui.input.is_key_pressed then
                 is_down = sui.input.is_key_pressed(DEFAULT_TOGGLE_KEY)
             end
@@ -290,3 +290,4 @@ end
 NS.init()
 
 return NS
+

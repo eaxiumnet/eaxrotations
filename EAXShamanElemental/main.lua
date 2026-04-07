@@ -4,8 +4,8 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
-local buff_manager = require("common/modules/buff_manager")
-local spell_queue = require("common/modules/spell_queue")
+local buff_manager = require("api/common/modules/buff_manager")
+local spell_queue = require("api/common/modules/spell_queue")
 
 -- Runtime spell cache
 local runtime = {
@@ -531,3 +531,4 @@ local NS = _G.EAXShamanElemental and _G.EAXShamanElemental.NS or {}
 _G.EAXShamanElemental = _G.EAXShamanElemental or {}
 _G.EAXShamanElemental.NS = NS
 NS.toggle_menu = menu.toggle_menu
+

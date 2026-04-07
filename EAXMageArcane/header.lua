@@ -13,7 +13,7 @@ if not local_player then
 end
 
 ---@type enums
-local enums = require("common/enums")
+local enums = require("api/common/enums")
 local player_class = local_player:get_class()
 
 -- Mage class check
@@ -30,3 +30,4 @@ if player_spec_id ~= 1 then
 end
 
 return plugin
+

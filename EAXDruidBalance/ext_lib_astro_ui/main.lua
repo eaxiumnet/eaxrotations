@@ -9,7 +9,7 @@ local tab_builder = require("ext_lib_astro_ui/builder/tab_builder")
 
 -- Try to import simple_ui (AstroUI v2)
 local simple_ui_available, simple_ui = pcall(function()
-    return require("common/simple_ui")
+    return require("api/common/simple_ui")
 end)
 
 -- Attach TabBuilder to class for consumers
@@ -57,3 +57,4 @@ else
 end
 
 return api
+

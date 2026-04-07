@@ -6,11 +6,11 @@ local helpers = require("ext_lib_astro_ui/core/helpers")
 local RotationSettingsUI = require("ext_lib_astro_ui/core/class")
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 ---@type vec2
-local vec2 = require("common/geometry/vector_2")
+local vec2 = require("api/common/geometry/vector_2")
 ---@type enums
-local enums = require("common/enums")
+local enums = require("api/common/enums")
 
 local LAYOUT = constants.LAYOUT
 
@@ -405,3 +405,4 @@ function RotationSettingsUI.render_launcher()
         end
     )
 end
+

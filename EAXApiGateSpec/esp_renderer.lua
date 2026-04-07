@@ -28,8 +28,8 @@ local esp_renderer = {}
 local _color, _vec2, _icons, _color_api, _theme, _identity
 local function load_deps()
     if _color_api then return end
-    _color_api = require("common/color")
-    _vec2      = require("common/geometry/vector_2")
+    _color_api = require("api/common/color")
+    _vec2      = require("api/common/geometry/vector_2")
     _color     = require("color")
     local ok_t, t = pcall(require, "class_theme")
     if ok_t then _theme = t end
@@ -40,11 +40,11 @@ local function load_deps()
 end
 
 local function rgba(r, g, b, a)
-    if not _color_api then _color_api = require("common/color") end
+    if not _color_api then _color_api = require("api/common/color") end
     return _color_api.new(r, g, b, a)
 end
 local function v2(x, y)
-    if not _vec2 then _vec2 = require("common/geometry/vector_2") end
+    if not _vec2 then _vec2 = require("api/common/geometry/vector_2") end
     return _vec2.new(x, y)
 end
 local function to_api(c)
@@ -660,7 +660,7 @@ local function resolve_player_state()
         if _rt then cp = _rt.combo_points or 0 end
         if cp == 0 and me then
             local ok_cp, v_cp = pcall(function()
-                local enu = require("common/enums")
+                local enu = require("api/common/enums")
                 return me:get_power(enu.power_type.COMBOPOINTS_TBC)
             end)
             if ok_cp and v_cp then cp = v_cp end
@@ -668,7 +668,7 @@ local function resolve_player_state()
     elseif _class_id == 4 and me then
         show_cp = true
         local ok_cp, v_cp = pcall(function()
-            local enu = require("common/enums")
+            local enu = require("api/common/enums")
             return me:get_power(enu.power_type.COMBOPOINTS_TBC)
         end)
         if ok_cp and v_cp then cp = v_cp end
@@ -918,3 +918,4 @@ function esp_renderer.on_render(menu)
 end
 
 return esp_renderer
+

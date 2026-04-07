@@ -13,7 +13,7 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
 ---@type buff_manager
-local buff_manager = require("common/modules/buff_manager")
+local buff_manager = require("api/common/modules/buff_manager")
 ---@type racial_manager
 local racial_manager = require("libraries/racial_manager")
 ---@type defensive_manager
@@ -618,3 +618,4 @@ NS.toggle_menu = menu.toggle_menu
 
 -- Menu rendering is now handled by simple_ui in menu.lua
 -- The old window-based menu system has been replaced with AstroUI
+

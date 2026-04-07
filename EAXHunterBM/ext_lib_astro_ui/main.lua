@@ -25,7 +25,7 @@ require("ext_lib_astro_ui/features/lifecycle")
 local simple_ui = nil
 local function get_simple_ui()
     if simple_ui == nil then
-        local ok, mod = pcall(function() return require("common/simple_ui") end)
+        local ok, mod = pcall(function() return require("api/common/simple_ui") end)
         simple_ui = ok and mod or false
     end
     return simple_ui
@@ -42,3 +42,4 @@ return {
     -- Export simple_ui integration helpers
     _get_simple_ui = get_simple_ui,
 }
+

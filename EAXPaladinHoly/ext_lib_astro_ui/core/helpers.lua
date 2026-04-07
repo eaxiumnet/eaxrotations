@@ -3,7 +3,7 @@
 -- Note: Menu API helpers removed - now using simple_ui directly
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 
 -- ============================================================================
 -- COLOR HELPER
@@ -93,3 +93,4 @@ return {
     get_wheel_delta = get_wheel_delta,
     clamp_255 = clamp_255,
 }
+

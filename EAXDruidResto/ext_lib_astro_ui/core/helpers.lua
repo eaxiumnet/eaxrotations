@@ -2,14 +2,14 @@
 -- Shared utility functions used across all modules
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 
 -- ============================================================================
 -- SIMPLE_UI MENU API COMPATIBILITY HELPERS
 -- ============================================================================
 
 -- simple_ui is the primary menu API - this module is now a compatibility layer
-local simple_ui = require("common/simple_ui")
+local simple_ui = require("api/common/simple_ui")
 
 -- These functions maintain compatibility with old code but use simple_ui internally
 local function menu_slider_int(min_value, max_value, default_value, id)
@@ -145,3 +145,4 @@ return {
     get_wheel_delta = get_wheel_delta,
     clamp_255 = clamp_255,
 }
+

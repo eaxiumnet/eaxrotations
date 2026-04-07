@@ -3,14 +3,14 @@
 -- NOTE: This module now uses simple_ui patterns - core.menu API is deprecated
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 
 -- ============================================================================
 -- SIMPLE_UI INTEGRATION
 -- ============================================================================
 
 -- Check if simple_ui is available (preferred API)
-local simple_ui = require("common/simple_ui")
+local simple_ui = require("api/common/simple_ui")
 
 -- ============================================================================
 -- LEGACY MENU API COMPATIBILITY HELPERS (Deprecated - use simple_ui directly)
@@ -166,3 +166,4 @@ return {
     get_wheel_delta = get_wheel_delta,
     clamp_255 = clamp_255,
 }
+

@@ -6,7 +6,7 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
 ---@type buff_manager
-local buff_manager = require("common/modules/buff_manager")
+local buff_manager = require("api/common/modules/buff_manager")
 
 -- Runtime spell cache
 local runtime = {
@@ -355,3 +355,4 @@ _G.EAXRogueSubtlety.NS = NS
 
 -- Register update callback
 core.register_on_update_callback(on_update)
+

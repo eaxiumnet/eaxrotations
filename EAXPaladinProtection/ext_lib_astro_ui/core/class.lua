@@ -6,7 +6,7 @@ local constants = require("ext_lib_astro_ui/core/constants")
 local helpers = require("ext_lib_astro_ui/core/helpers")
 
 ---@type vec2
-local vec2 = require("common/geometry/vector_2")
+local vec2 = require("api/common/geometry/vector_2")
 
 local LAYOUT = constants.LAYOUT
 local THEMES = constants.THEMES
@@ -17,7 +17,7 @@ local lighten_color = helpers.lighten_color
 -- ============================================================================
 -- SIMPLE_UI CHECK
 -- ============================================================================
-local simple_ui = require("common/simple_ui")
+local simple_ui = require("api/common/simple_ui")
 local HAS_SIMPLE_UI = simple_ui ~= nil
 
 -- ============================================================================
@@ -262,3 +262,4 @@ function RotationSettingsUI:_ensure_extension_tabs()
 end
 
 return RotationSettingsUI
+

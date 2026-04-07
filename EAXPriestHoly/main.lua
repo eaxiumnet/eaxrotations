@@ -6,8 +6,8 @@ local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
-local buff_manager = require("common/modules/buff_manager")
-local spell_queue = require("common/modules/spell_queue")
+local buff_manager = require("api/common/modules/buff_manager")
+local spell_queue = require("api/common/modules/spell_queue")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -678,8 +678,8 @@ core.register_on_update_callback(on_update)
 -- Menu toggle key is configured as NUMPAD MULTIPLY (keycode 106) in menu.lua
 
 -- Control panel
-local control_panel_utility = require("common/utility/control_panel_helper")
-local key_helper = require("common/utility/key_helper")
+local control_panel_utility = require("api/common/utility/control_panel_helper")
+local key_helper = require("api/common/utility/key_helper")
 
 local function on_control_panel()
     local elements = {}
@@ -716,3 +716,4 @@ local NS = _G.EAXPriestHoly and _G.EAXPriestHoly.NS or {}
 _G.EAXPriestHoly = _G.EAXPriestHoly or {}
 _G.EAXPriestHoly.NS = NS
 NS.toggle_menu = menu.toggle_menu
+

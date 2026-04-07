@@ -5,7 +5,7 @@ local constants = require("AstroUI/core/constants")
 local helpers = require("AstroUI/core/helpers")
 
 ---@type vec2
-local vec2 = require("common/geometry/vector_2")
+local vec2 = require("api/common/geometry/vector_2")
 
 local LAYOUT = constants.LAYOUT
 local THEMES = constants.THEMES
@@ -255,3 +255,4 @@ function RotationSettingsUI:_ensure_extension_tabs()
 end
 
 return RotationSettingsUI
+

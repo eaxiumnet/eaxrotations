@@ -6,7 +6,7 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
 ---@type buff_manager
-local buff_manager = require("common/modules/buff_manager")
+local buff_manager = require("api/common/modules/buff_manager")
 ---@type racial_manager
 local racial_manager = require("libraries/racial_manager")
 ---@type defensive_manager
@@ -666,7 +666,7 @@ core.register_on_update_callback(function()
 end)
 
 -- Menu rendering
-local _vec2 = require("common/geometry/vector_2")
+local _vec2 = require("api/common/geometry/vector_2")
 local _space_win = core.menu.window("eaxpaladinretributionspace_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
@@ -686,3 +686,4 @@ local NS = _G.EAXPaladinRetribution and _G.EAXPaladinRetribution.NS or {}
 _G.EAXPaladinRetribution = _G.EAXPaladinRetribution or {}
 _G.EAXPaladinRetribution.NS = NS
 NS.toggle_menu = menu.toggle_menu
+

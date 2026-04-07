@@ -3,7 +3,7 @@
 -- Updated to use simple_ui when available, with fallback to core.menu
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 
 -- ============================================================================
 -- SIMPLE_UI INTEGRATION (primary) with core.menu fallback
@@ -12,7 +12,7 @@ local color = require("common/color")
 local simple_ui = nil
 local function get_simple_ui()
     if simple_ui == nil then
-        local ok, mod = pcall(function() return require("common/simple_ui") end)
+        local ok, mod = pcall(function() return require("api/common/simple_ui") end)
         simple_ui = ok and mod or false
     end
     return simple_ui
@@ -171,3 +171,4 @@ return {
     get_wheel_delta = get_wheel_delta,
     clamp_255 = clamp_255,
 }
+

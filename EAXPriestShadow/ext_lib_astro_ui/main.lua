@@ -1,7 +1,7 @@
 -- ext_lib_astro_ui entry point
 -- Loads all modules and exports public API
 -- NOTE: This library wraps core.menu. For new code, consider using simple_ui directly
--- via require("common/simple_ui") which provides a modern AstroUI-compatible API.
+-- via require("api/common/simple_ui") which provides a modern AstroUI-compatible API.
 -- See /rotation/source/aio/settings.lua for the simple_ui pattern.
 
 local constants = require("ext_lib_astro_ui/core/constants")
@@ -32,3 +32,4 @@ return {
     render_launcher = RotationSettingsUI.render_launcher,
     TabBuilder = tab_builder.TabBuilder,
 }
+

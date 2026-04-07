@@ -19,12 +19,12 @@ local ps = {}
 -- Lazy deps
 local _vec2_mod
 local function v_raw(x, y)
-    if not _vec2_mod then _vec2_mod = require("common/geometry/vector_2") end
+    if not _vec2_mod then _vec2_mod = require("api/common/geometry/vector_2") end
     return _vec2_mod.new(x, y)
 end
 local _color_api
 local function c(r, g, b, a)
-    if not _color_api then _color_api = require("common/color") end
+    if not _color_api then _color_api = require("api/common/color") end
     return _color_api.new(r, g, b, a or 255)
 end
 
@@ -141,7 +141,7 @@ function ps.draw_space(win, id)
     local W = 460
     if W < 10 then return end
 
-    if not _vec2_mod then _vec2_mod = require("common/geometry/vector_2") end
+    if not _vec2_mod then _vec2_mod = require("api/common/geometry/vector_2") end
 
     local oy = 0
     local ok_off, off = pcall(function() return win:get_current_context_dynamic_drawing_offset() end)
@@ -354,3 +354,4 @@ function ps.render_defensive(m,def_tree,defenses)
 end
 
 return ps
+

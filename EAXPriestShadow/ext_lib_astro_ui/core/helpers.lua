@@ -1,16 +1,16 @@
 -- ext_lib_astro_ui/helpers.lua
 -- Shared utility functions used across all modules
 -- NOTE: This module provides compatibility helpers for core.menu API.
--- For new code, consider using simple_ui directly: require("common/simple_ui")
+-- For new code, consider using simple_ui directly: require("api/common/simple_ui")
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 
 -- ============================================================================
 -- MENU API COMPATIBILITY HELPERS (legacy - consider using simple_ui instead)
 -- ============================================================================
 -- These helpers wrap the core.menu API. For new AstroUI patterns,
--- use: local simple_ui = require("common/simple_ui")
+-- use: local simple_ui = require("api/common/simple_ui")
 --      local menu = simple_ui.menu:new("Title", width, height, save_key)
 --      menu:add_checkbox(...), menu:add_slider(...), etc.
 
@@ -140,3 +140,4 @@ return {
     get_wheel_delta = get_wheel_delta,
     clamp_255 = clamp_255,
 }
+

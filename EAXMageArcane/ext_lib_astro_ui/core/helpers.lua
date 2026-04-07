@@ -2,13 +2,13 @@
 -- Shared utility functions used across all modules
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 
 -- ============================================================================
 -- SIMPLE_UI BACKEND INTEGRATION
 -- ============================================================================
 
-local simple_ui = require("common/simple_ui")
+local simple_ui = require("api/common/simple_ui")
 
 -- ============================================================================
 -- MENU API COMPATIBILITY HELPERS
@@ -172,3 +172,4 @@ return {
     get_wheel_delta = get_wheel_delta,
     clamp_255 = clamp_255,
 }
+

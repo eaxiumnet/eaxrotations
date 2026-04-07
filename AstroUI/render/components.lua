@@ -7,11 +7,11 @@ local helpers = require("AstroUI/core/helpers")
 local RotationSettingsUI = require("AstroUI/core/class")
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 ---@type vec2
-local vec2 = require("common/geometry/vector_2")
+local vec2 = require("api/common/geometry/vector_2")
 ---@type enums
-local enums = require("common/enums")
+local enums = require("api/common/enums")
 
 local LAYOUT = constants.LAYOUT
 local lighten_color = helpers.lighten_color
@@ -1143,3 +1143,4 @@ function RotationSettingsUI:_render_hstack(section, y_offset)
 
     return y_offset + max_h
 end
+

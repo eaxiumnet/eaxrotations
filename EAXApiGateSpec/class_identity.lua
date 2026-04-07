@@ -8,7 +8,7 @@ local identity = {}
 
 local _color_api
 local function c(r, g, b, a)
-    if not _color_api then _color_api = require("common/color") end
+    if not _color_api then _color_api = require("api/common/color") end
     return _color_api.new(r, g, b, a or 255)
 end
 
@@ -593,3 +593,4 @@ identity.MOOD_LABELS = {
 }
 
 return identity
+

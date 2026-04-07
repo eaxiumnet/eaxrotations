@@ -1,9 +1,9 @@
 -- ext_lib_astro_ui entry point
 -- DELEGATES TO simple_ui - This is now a compatibility wrapper
 -- The actual implementation has moved to common/simple_ui
--- Use require("common/simple_ui") directly for new code
+-- Use require("api/common/simple_ui") directly for new code
 
-local simple_ui = require("common/simple_ui")
+local simple_ui = require("api/common/simple_ui")
 
 if not simple_ui then
     -- Fallback: return a minimal stub that won't crash
@@ -109,3 +109,4 @@ if core and core.log then
 end
 
 return AstroUICompat
+

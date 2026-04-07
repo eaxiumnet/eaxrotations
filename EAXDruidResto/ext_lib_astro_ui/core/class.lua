@@ -5,7 +5,7 @@ local constants = require("ext_lib_astro_ui/core/constants")
 local helpers = require("ext_lib_astro_ui/core/helpers")
 
 ---@type vec2
-local vec2 = require("common/geometry/vector_2")
+local vec2 = require("api/common/geometry/vector_2")
 
 local LAYOUT = constants.LAYOUT
 local THEMES = constants.THEMES
@@ -177,7 +177,7 @@ function RotationSettingsUI.new(config)
     self._context_menu = nil
 
     -- simple_ui reference (new API)
-    self._simple_ui = require("common/simple_ui")
+    self._simple_ui = require("api/common/simple_ui")
     if not self._simple_ui then
         print("|cFFFF0000[ext_lib_astro_ui]|r simple_ui library not available!")
     end
@@ -261,3 +261,4 @@ function RotationSettingsUI:_ensure_extension_tabs()
 end
 
 return RotationSettingsUI
+

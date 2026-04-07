@@ -1,14 +1,14 @@
 -- ext_lib_astro_ui/class.lua
 -- RotationSettingsUI class definition, constructor, and basic methods
 -- NOTE: This is a legacy wrapper around core.menu. For new code,
--- use simple_ui directly: require("common/simple_ui")
+-- use simple_ui directly: require("api/common/simple_ui")
 -- See /rotation/source/aio/settings.lua for the recommended pattern.
 
 local constants = require("ext_lib_astro_ui/core/constants")
 local helpers = require("ext_lib_astro_ui/core/helpers")
 
 ---@type vec2
-local vec2 = require("common/geometry/vector_2")
+local vec2 = require("api/common/geometry/vector_2")
 
 local LAYOUT = constants.LAYOUT
 local THEMES = constants.THEMES
@@ -258,3 +258,4 @@ function RotationSettingsUI:_ensure_extension_tabs()
 end
 
 return RotationSettingsUI
+

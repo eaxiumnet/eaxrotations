@@ -7,11 +7,11 @@ local RotationSettingsUI = require("ext_lib_astro_ui/core/class")
 local tab_builder_module = require("ext_lib_astro_ui/builder/tab_builder")
 
 ---@type color
-local color = require("common/color")
+local color = require("api/common/color")
 ---@type vec2
-local vec2 = require("common/geometry/vector_2")
+local vec2 = require("api/common/geometry/vector_2")
 ---@type enums
-local enums = require("common/enums")
+local enums = require("api/common/enums")
 
 local LAYOUT = constants.LAYOUT
 local KEY_NAMES = constants.KEY_NAMES
@@ -364,3 +364,4 @@ function RotationSettingsUI:_render_section_header(section, y_offset)
     self.window:render_text(enums.window_enums.font_id.FONT_SMALL, vec2.new(text_x, text_y),
         self.colors.secondary_accent, section.label)
 end
+
