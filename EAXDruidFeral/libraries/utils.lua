@@ -105,9 +105,9 @@ end
 
 function utils.has_buff(unit, buff_table)
     if not unit or not unit:is_valid() or not buff_table then return false end
-    local entry = unit:get_buff_data(buff_table)
+    local entry = buff_manager:get_buff_data(unit, buff_table)
     if entry and entry.is_active then return true end
-    entry = unit:get_aura_data(buff_table)
+    entry = buff_manager:get_aura_data(unit, buff_table)
     return entry ~= nil and entry.is_active == true
 end
 
