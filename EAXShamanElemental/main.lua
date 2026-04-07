@@ -509,23 +509,28 @@ if core and core.register_on_update_callback then
     core.register_on_update_callback(on_update)
 end
 
--- Menu render callbacks (legacy, simple_ui handles its own rendering)
--- These are no-op since simple_ui.menu handles rendering internally
-if core and core.register_on_render_callback then
-    core.register_on_render_callback(function()
-        -- simple_ui handles rendering - no-op for compatibility
-        menu.render()
-    end)
-end
+-- ============================================================================
+-- RENDER CALLBACKS - Menu Registration
+-- ============================================================================
 
-if core and core.register_on_render_menu_callback then
-    core.register_on_render_menu_callback(function(win)
-        -- simple_ui handles window management - no-op for compatibility
-        menu.set_window(win)
-        menu.render()
-    end)
-end
+-- Register render callbacks for menu system
+core.register_on_render_callback(function()
+    if menu and menu.on_render then
+        local ok, err = pcall(menu.on_render)
+        if not ok then
+            core.log_error(string.format("[EAX Ele] Render error: %s", tostring(err)))
+        end
+    end
+end)
 
+core.register_on_render_menu_callback(function()
+    if menu and menu.on_menu_render then
+        local ok, err = pcall(menu.on_menu_menu_render)
+        if not ok then
+            core.log_error(string.format("[EAX Ele] Menu render error: %s", tostring(err)))
+        end
+    end
+end)
 -- Export toggle settings for external access
 local NS = _G.EAXShamanElemental and _G.EAXShamanElemental.NS or {}
 _G.EAXShamanElemental = _G.EAXShamanElemental or {}
