@@ -3,7 +3,7 @@
 -- Updated to use simple_ui library with core.menu fallback
 
 ---@type color
-local color = require("api/common/color")
+local color = require("common/color")
 
 -- ============================================================================
 -- SIMPLE_UI API COMPATIBILITY HELPERS
@@ -12,7 +12,7 @@ local color = require("api/common/color")
 -- Try to load simple_ui library
 local simple_ui = nil
 local ok_simple_ui, result = pcall(function()
-    return require("api/common/simple_ui")
+    return require("common/simple_ui")
 end)
 if ok_simple_ui and result then
     simple_ui = result
@@ -255,4 +255,5 @@ return {
     set_simple_ui_menu_instance = set_simple_ui_menu_instance,
     get_simple_ui_menu_instance = get_simple_ui_menu_instance,
 }
+
 

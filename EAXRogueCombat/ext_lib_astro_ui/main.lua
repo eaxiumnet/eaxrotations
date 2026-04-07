@@ -5,7 +5,7 @@
 -- Try to load simple_ui library for modern menu patterns
 local simple_ui = nil
 local simple_ui_ok, simple_ui_result = pcall(function()
-    return require("api/common/simple_ui")
+    return require("common/simple_ui")
 end)
 if simple_ui_ok then
     simple_ui = simple_ui_result
@@ -107,4 +107,5 @@ else
         _is_simple_ui = true,
     }
 end
+
 

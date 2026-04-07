@@ -1,5 +1,5 @@
 ---@type buff_manager
-local buff_manager = require("api/common/modules/buff_manager")
+local buff_manager = require("common/modules/buff_manager")
 
 local utils = {}
 
@@ -7,7 +7,7 @@ local utils = {}
 local spell_resolver = require("libraries/spell_resolver")
 
 ---@type izi_sdk
-local izi = require("api/common/izi_sdk")
+local izi = require("common/izi_sdk")
 
 local throttle_data = {}
 local queue_request_timestamps = {}
@@ -222,4 +222,5 @@ function utils.dist_squared(me, target)
 end
 
 return utils
+
 

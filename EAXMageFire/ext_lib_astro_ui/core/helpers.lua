@@ -3,13 +3,13 @@
 -- NOTE: For new code, use simple_ui directly instead of these compatibility helpers.
 
 ---@type color
-local color = require("api/common/color")
+local color = require("common/color")
 
 -- ============================================================================
 -- MENU API COMPATIBILITY HELPERS (DEPRECATED - use simple_ui instead)
 -- ============================================================================
 -- These helpers provide fallbacks for various menu API versions.
--- For new code, use: local simple_ui = require("api/common/simple_ui")
+-- For new code, use: local simple_ui = require("common/simple_ui")
 
 local function menu_slider_int(min_value, max_value, default_value, id)
     if core.menu.slider_int then
@@ -141,4 +141,5 @@ return {
     get_wheel_delta = get_wheel_delta,
     clamp_255 = clamp_255,
 }
+
 

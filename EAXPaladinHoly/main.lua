@@ -6,9 +6,9 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
 ---@type buff_manager
-local buff_manager = require("api/common/modules/buff_manager")
+local buff_manager = require("common/modules/buff_manager")
 ---@type health_prediction
-local health_prediction = require("api/common/modules/health_prediction")
+local health_prediction = require("common/modules/health_prediction")
 ---@type heal_engine
 local heal_engine = require("libraries/heal_engine")
 ---@type healer_triage
@@ -526,7 +526,7 @@ core.register_on_update_callback(function()
 end)
 
 -- Menu rendering
-local _vec2 = require("api/common/geometry/vector_2")
+local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxpaladinholyspace_win")
 _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
@@ -546,4 +546,5 @@ local NS = _G.EAXPaladinHoly and _G.EAXPaladinHoly.NS or {}
 _G.EAXPaladinHoly = _G.EAXPaladinHoly or {}
 _G.EAXPaladinHoly.NS = NS
 NS.toggle_menu = menu.toggle_menu
+
 

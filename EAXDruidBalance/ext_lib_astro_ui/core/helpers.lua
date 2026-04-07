@@ -2,12 +2,12 @@
 -- Shared utility functions used across all modules
 
 ---@type color
-local color = require("api/common/color")
+local color = require("common/color")
 
 -- ============================================================================
 -- SIMPLE_UI IMPORT (AstroUI v2)
 -- ============================================================================
-local simple_ui = require("api/common/simple_ui")
+local simple_ui = require("common/simple_ui")
 
 -- ============================================================================
 -- MENU API COMPATIBILITY HELPERS
@@ -243,4 +243,5 @@ return {
     get_wheel_delta = get_wheel_delta,
     clamp_255 = clamp_255,
 }
+
 

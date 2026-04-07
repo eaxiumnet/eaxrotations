@@ -1,6 +1,6 @@
 -- ext_lib_astro_ui entry point
 -- NOTE: This module is deprecated for new code. Use simple_ui directly instead.
--- Example: local simple_ui = require("api/common/simple_ui")
+-- Example: local simple_ui = require("common/simple_ui")
 --          local menu = simple_ui.menu:new("Title", 550, 500, "save_key")
 
 local constants = require("ext_lib_astro_ui/core/constants")
@@ -26,7 +26,7 @@ require("ext_lib_astro_ui/features/lifecycle")
 -- DEPRECATION NOTICE
 -- ============================================================================
 -- For new code, use simple_ui directly:
---   local simple_ui = require("api/common/simple_ui")
+--   local simple_ui = require("common/simple_ui")
 --   local menu = simple_ui.menu:new("Title", width, height, "save_key")
 --   menu:add_checkbox("Label", nil, nil, default, callback, opts)
 --   menu:add_slider("Label", nil, nil, min, max, default, callback, opts)
@@ -47,4 +47,5 @@ return {
     -- Simple UI reference for migration
     _simple_ui_hint = "Use local simple_ui = require('common/simple_ui') instead",
 }
+
 

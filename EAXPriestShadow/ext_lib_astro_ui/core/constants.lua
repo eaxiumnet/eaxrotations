@@ -2,7 +2,7 @@
 -- Layout, theme and key-name data tables
 
 ---@type color
-local color = require("api/common/color")
+local color = require("common/color")
 
 -- ============================================================================
 -- LAYOUT CONSTANTS
@@ -373,4 +373,5 @@ return {
     THEME_INDEX = THEME_INDEX,
     KEY_NAMES = KEY_NAMES,
 }
+
 

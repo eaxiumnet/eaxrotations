@@ -10,8 +10,8 @@ local utils = require("libraries/utils")
 local _G = _G
 local NS = _G.EAX
 
-local buff_manager = require("api/common/modules/buff_manager")
-local spell_queue = require("api/common/modules/spell_queue")
+local buff_manager = require("common/modules/buff_manager")
+local spell_queue = require("common/modules/spell_queue")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -616,4 +616,5 @@ local NS = _G.EAXPriestDiscipline and _G.EAXPriestDiscipline.NS or {}
 _G.EAXPriestDiscipline = _G.EAXPriestDiscipline or {}
 _G.EAXPriestDiscipline.NS = NS
 NS.toggle_menu = menu.toggle_menu
+
 

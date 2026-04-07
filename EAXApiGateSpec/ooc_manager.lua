@@ -2,7 +2,7 @@
 -- ooc_manager.lua
 -- Out-of-combat utility system for all Eax specs.
 
-local buff_manager = require("api/common/modules/buff_manager")
+local buff_manager = require("common/modules/buff_manager")
 local enchant_checker
 local enchant_checker_error
 do
@@ -313,4 +313,5 @@ function ooc_manager.on_update(me, menu, utils, opts)
 end
 
 return ooc_manager
+
 

@@ -3,7 +3,7 @@
 --
 -- MIGRATION GUIDE:
 -- Old: local AstroUI = require("ext_lib_astro_ui/main")
--- New: local simple_ui = require("api/common/simple_ui")
+-- New: local simple_ui = require("common/simple_ui")
 --
 -- API CHANGES:
 -- Old: AstroUI.new({ id = "...", title = "...", ... })
@@ -22,7 +22,7 @@
 -- See libraries/menu.lua in EAXPriestHoly for a complete working example.
 
 -- For backward compatibility during transition, redirect to simple_ui
-local simple_ui = require("api/common/simple_ui")
+local simple_ui = require("common/simple_ui")
 
 if not simple_ui then
     print("|cFFFF0000[ext_lib_astro_ui]|r simple_ui library not available!")
@@ -34,4 +34,5 @@ print("|cFFFFFF00[ext_lib_astro_ui]|r DEPRECATED: Use local simple_ui = require(
 
 -- Return simple_ui as the new API
 return simple_ui
+
 

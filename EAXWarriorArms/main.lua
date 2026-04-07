@@ -6,9 +6,9 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
 ---@type buff_manager
-local buff_manager = require("api/common/modules/buff_manager")
+local buff_manager = require("common/modules/buff_manager")
 ---@type auto_attack_helper
-local auto_attack = require("api/common/utility/auto_attack_helper")
+local auto_attack = require("common/utility/auto_attack_helper")
 ---@type interrupt_manager
 local interrupt_manager = require("libraries/interrupt_manager")
 ---@type racial_manager
@@ -503,3 +503,4 @@ local NS = _G.EAXWarriorArms and _G.EAXWarriorArms.NS or {}
 _G.EAXWarriorArms = _G.EAXWarriorArms or {}
 _G.EAXWarriorArms.NS = NS
 NS.toggle_menu = menu.toggle_menu
+

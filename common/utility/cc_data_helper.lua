@@ -1,0 +1,128 @@
+
+-- ============================================================================
+-- cc_data_helper - NPC CC Susceptibility Database
+-- ============================================================================
+--
+-- Static database of NPC crowd-control susceptibilities sourced from
+-- DungeonTools (MDT fork) crowdsourced combat log data.
+--
+-- Coverage: Battle for Azeroth, Shadowlands, Dragonflight, The War Within, Midnight
+-- Last update: 12.0.1 (15/03/2026)
+--
+-- IMPORTANT: This database is static. New NPCs added in future patches or
+-- expansions will NOT appear here until the database is updated manually.
+-- If you encounter a missing NPC, report it to @blue_silvi on Discord.
+--
+-- ============================================================================
+-- USAGE
+-- ============================================================================
+--
+-- Setup (require once at the top of your file):
+--
+--   ---@type cc_data_helper
+--   local cc_data_helper = require("common/utility/cc_data_helper")
+--
+-- ============================================================================
+-- EXAMPLES
+-- ============================================================================
+--
+-- Check if a specific NPC is stunnable:
+--
+--   local npc_id = target:get_npc_id()
+--   local can_stun = cc_data_helper:is_stunnable(npc_id)
+--   if can_stun then
+--       -- NPC is stunnable (true by default if not in exception list)
+--   else
+--       -- NPC is in the exception list and immune to stun
+--   end
+--
+-- Check against a specific CC type using the bitmask:
+--
+--   local can_poly = cc_data_helper:is_susceptible(npc_id, cc_data_helper.CC.Polymorph)
+--
+-- Check if the NPC exists in the database at all:
+--
+--   if cc_data_helper:has_data(npc_id) then
+--       -- we have data for this NPC
+--   end
+--
+-- Get the raw bitmask to check multiple CC types at once:
+--
+--   local mask = cc_data_helper:get_bitmask(npc_id)
+--   if mask then
+--       local bit = require("bit")
+--       local can_stun_or_root = bit.band(mask, cc_data_helper.CC.Stun + cc_data_helper.CC.Root) > 0
+--   end
+--
+-- ============================================================================
+-- RETURN VALUES
+-- ============================================================================
+--
+-- All is_*() convenience functions return:
+--   true  -> NPC is susceptible to that CC (default if NPC not in exception list)
+--   false -> NPC is immune to that CC (found in exception list)
+--
+-- For creature-type-dependent CCs (polymorph, sap, banish), pass the target
+-- game_object as the second argument. When the NPC is not in the exception list,
+-- the creature type is checked:
+--   Polymorph: Humanoid, Beast, Critter
+--   Sap:       Humanoid, Beast, Demon, Dragonkin
+--   Banish:    Demon, Elemental
+--
+-- ============================================================================
+-- AVAILABLE CC TYPES (cc_data_helper.CC)
+-- ============================================================================
+--
+--   Stun, Root, Fear, Polymorph, Silence, Slow, Disorient, Incapacitate,
+--   Sap, Banish, Imprison, MindControl, Repentance, ShackleUndead,
+--   ControlUndead, Taunt, Knock, Grip
+--
+-- ============================================================================
+
+---@class CCType
+---@field Stun number
+---@field Root number
+---@field Fear number
+---@field Polymorph number
+---@field Silence number
+---@field Slow number
+---@field Disorient number
+---@field Incapacitate number
+---@field Sap number
+---@field Banish number
+---@field Imprison number
+---@field MindControl number
+---@field Repentance number
+---@field ShackleUndead number
+---@field ControlUndead number
+---@field Taunt number
+---@field Knock number
+---@field Grip number
+
+---@class cc_data_helper
+---@field CC CCType
+---@field npcs table<number, number> NPC susceptibility table: [npc_id] = cc_bitmask
+
+---@class cc_data_helper
+---@field is_susceptible fun(self: cc_data_helper, npc_id: number, cc_type: CCType): boolean Check if NPC is susceptible to a CC type (defaults true if not in exception list)
+---@field has_data fun(self: cc_data_helper, npc_id: number): boolean Check if NPC exists in the database
+---@field get_bitmask fun(self: cc_data_helper, npc_id: number): number|nil Get raw CC bitmask for an NPC
+
+---@class cc_data_helper
+---@field is_stunnable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_rootable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_fearable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_polymorphable fun(self: cc_data_helper, npc_id: number, target?: game_object): boolean
+---@field is_silenceable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_slowable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_disorientable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_incapacitateable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_sappable fun(self: cc_data_helper, npc_id: number, target?: game_object): boolean
+---@field is_banishable fun(self: cc_data_helper, npc_id: number, target?: game_object): boolean
+---@field is_tauntable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_knockable fun(self: cc_data_helper, npc_id: number): boolean
+---@field is_grippable fun(self: cc_data_helper, npc_id: number): boolean
+
+---@type cc_data_helper
+local tbl
+return tbl

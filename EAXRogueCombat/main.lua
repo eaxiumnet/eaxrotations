@@ -6,7 +6,7 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
 ---@type buff_manager
-local buff_manager = require("api/common/modules/buff_manager")
+local buff_manager = require("common/modules/buff_manager")
 
 -- Runtime spell cache
 local runtime = {
@@ -332,4 +332,5 @@ local NS = _G.EAXRogueCombat and _G.EAXRogueCombat.NS or {}
 NS.toggle_menu = menu.toggle_menu
 _G.EAXRogueCombat = _G.EAXRogueCombat or {}
 _G.EAXRogueCombat.NS = NS
+
 
