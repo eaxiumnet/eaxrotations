@@ -6,6 +6,14 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 local buff_manager = require("common/modules/buff_manager")
 local spell_queue = require("common/modules/spell_queue")
+local ooc_manager = require("../libraries/ooc_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+
+-- Flux Feature Integration
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
+local swing_manager = require("libraries/swing_manager")
 
 -- Runtime spell cache
 local runtime = {
@@ -42,6 +50,7 @@ local runtime = {
     wf_twist = { phase = "windfury", last_wf_time = 0, last_default_time = 0, initialized = false },
     fnt_twist = { phase = "idle", last_drop_time = 0 },
     last_combat_state = false,
+    combat_start_time = nil,
 }
 
 -- Resolve spells on load
@@ -82,6 +91,9 @@ end
 
 resolve_spells()
 
+-- Initialize Flux force_commands
+force_commands:init()
+
 -- Hot-path caching
 local _core_time = core.time
 
@@ -109,6 +121,7 @@ local function check_combat_reset(in_combat)
         runtime.wf_twist.initialized = false
         runtime.wf_twist.phase = "windfury"
         runtime.fnt_twist.phase = "idle"
+        runtime.combat_start_time = nil
     end
     runtime.last_combat_state = in_combat
 end
@@ -175,19 +188,32 @@ local function try_cast_target(spell_id, me, target, label)
 end
 
 -- Rotation functions
-local function try_shamanistic_rage(me)
-    if not (menu.enh_use_shamanistic_rage and menu.enh_use_shamanistic_rage:get_state()) then return false end
+local function should_use_cds(target)
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+    if min_ttd <= 0 or not target then return true end
+    local forecast = require("common/modules/combat_forecast")
+    return forecast:is_valid_forecast_logic(min_ttd, target, false)
+end
+
+local function try_shamanistic_rage(me, target, is_burst_window)
+    if not (menu.use_shamanistic_rage and menu.use_shamanistic_rage:get_state()) then return false end
     if not runtime.shamanistic_rage_id then return false end
-    
-    local threshold = (menu.enh_shamanistic_rage_pct and menu.enh_shamanistic_rage_pct:get()) or 30
+    if not should_use_cds(target) then return false end
+
+    -- If auto-burst is enabled, only use during burst window
+    local auto_burst = (menu.auto_burst_enabled and menu.auto_burst_enabled:get()) or false
+    if auto_burst and not is_burst_window then return false end
+
+    local threshold = (menu.shamanistic_rage_pct and menu.shamanistic_rage_pct:get()) or 30
     local mana_pct = utils.get_mana_pct(me) * 100
     if mana_pct > threshold then return false end
-    
+
     return try_cast_self(runtime.shamanistic_rage_id, me, "Shamanistic Rage")
 end
 
-local function try_racial(me)
+local function try_racial(me, target)
     if not (menu.use_racial and menu.use_racial:get_state()) then return false end
+    if not should_use_cds(target) then return false end
     
     if runtime.blood_fury_ap_id then
         local cd = core.spell_book.get_spell_cooldown(runtime.blood_fury_ap_id)
@@ -383,9 +409,15 @@ local function try_shock(me, target)
     return false
 end
 
-local function try_fire_elemental(me)
-    if not (menu.enh_use_fire_elemental and menu.enh_use_fire_elemental:get_state()) then return false end
+local function try_fire_elemental(me, target, is_burst_window)
+    if not (menu.use_fire_elemental and menu.use_fire_elemental:get_state()) then return false end
     if not runtime.fire_elemental_totem_id then return false end
+    if not should_use_cds(target) then return false end
+
+    -- If auto-burst is enabled, only use during burst window
+    local auto_burst = (menu.auto_burst_enabled and menu.auto_burst_enabled:get()) or false
+    if auto_burst and not is_burst_window then return false end
+
     return try_cast_self(runtime.fire_elemental_totem_id, me, "Fire Elemental Totem")
 end
 
@@ -443,6 +475,22 @@ local function on_update()
     check_combat_reset(me:is_in_combat())
     
     if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = runtime.lightning_shield_id,
+                    buff_ids = spells.BUFF_LIGHTNING_SHIELD,
+                    name = "Lightning Shield",
+                    toggle = menu.use_lightning_shield
+                },
+                {
+                    spell_id = runtime.water_shield_id,
+                    buff_ids = spells.BUFF_WATER_SHIELD,
+                    name = "Water Shield",
+                    toggle = menu.use_water_shield
+                },
+            }
+        })
         if try_ghost_wolf(me) then return end
         return
     end
@@ -452,15 +500,43 @@ local function on_update()
         target = utils.find_best_target(me)
         if not target then return end
     end
+
+    -- Track combat start time for burst detection
+    if not runtime.combat_start_time then
+        runtime.combat_start_time = _core_time()
+    end
+
+    -- Flux: Update swing manager
+    swing_manager:update_swing(me)
     
+    -- Flux: Sample combat forecast
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
+    
+    -- Flux: Check swing delay (don't clip auto attacks)
+    if swing_manager:is_swing_landing_soon(0.15) then return end
+
+    -- Burst detection and trinkets
+    local combat_time = 0
+    local start_time = runtime.combat_start_time
+    if start_time then
+        combat_time = _core_time() - start_time
+    end
+    local should_burst, burst_reason = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    local is_burst_window = should_burst or false
+
+    -- Flux: Trinkets V2
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
+
     -- Rotation priority
-    if try_shamanistic_rage(me) then return end
-    if try_racial(me) then return end
+    if try_shamanistic_rage(me, target, is_burst_window) then return end
+    if try_racial(me, target) then return end
     if try_shield(me) then return end
     if try_totem_management(me) then return end
     if try_windfury_twist(me) then return end
     if try_fire_nova_twist(me) then return end
-    if try_fire_elemental(me) then return end
+    if try_fire_elemental(me, target, is_burst_window) then return end
     if try_aoe_rotation(me, target) then return end
     if try_stormstrike(me, target) then return end
     if try_shock(me, target) then return end

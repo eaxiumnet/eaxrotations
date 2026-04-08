@@ -6,6 +6,11 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 local buff_manager = require("common/modules/buff_manager")
 local spell_queue = require("common/modules/spell_queue")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local ooc_manager = require("../libraries/ooc_manager")
+local heal_context = require("libraries/heal_context")
+local mana_manager = require("libraries/mana_manager")
 
 -- Runtime spell cache
 local runtime = {
@@ -35,6 +40,7 @@ local runtime = {
     cure_poison_id = nil,
     cure_disease_id = nil,
     purge_id = nil,
+    ancestral_spirit_id = nil,
     -- Damage (for solo)
     lightning_bolt_id = nil,
     earth_shock_id = nil,
@@ -74,6 +80,7 @@ local function resolve_spells()
     runtime.cure_poison_id = utils.resolve_spell_id(spells.CURE_POISON)
     runtime.cure_disease_id = utils.resolve_spell_id(spells.CURE_DISEASE)
     runtime.purge_id = utils.resolve_spell_id(spells.PURGE)
+    runtime.ancestral_spirit_id = utils.resolve_spell_id(spells.ANCESTRAL_SPIRIT)
     
     runtime.lightning_bolt_id = utils.resolve_spell_id(spells.LIGHTNING_BOLT)
     runtime.earth_shock_id = utils.resolve_spell_id(spells.EARTH_SHOCK)
@@ -298,8 +305,19 @@ local function try_chain_heal(me)
     if primary ~= 1 then return false end -- not chain_heal
     
     local threshold = (menu.resto_chain_heal_threshold and menu.resto_chain_heal_threshold:get()) or 80
-    local target, hp = utils.find_lowest_hp_party_member(me)
     
+    -- Use heal_context for AoE targeting (Chain Heal bounces to 2 additional targets)
+    local chain_heal_target = heal_context.get_aoe_heal_target(runtime.chain_heal_id, 3)
+    
+    if chain_heal_target and chain_heal_target:is_valid() then
+        local hp_pct = utils.get_health_pct(chain_heal_target) * 100
+        if hp_pct < threshold then
+            return try_cast_friendly(runtime.chain_heal_id, me, chain_heal_target, "Chain Heal (AoE)")
+        end
+    end
+    
+    -- Fallback: use lowest HP party member if no good AoE target
+    local target, hp = utils.find_lowest_hp_party_member(me)
     if not target or hp >= threshold then return false end
     
     return try_cast_friendly(runtime.chain_heal_id, me, target, "Chain Heal")
@@ -416,10 +434,46 @@ local function on_update()
     local me = core.object_manager.get_local_player()
     if not me or not me:is_valid() then return end
     
-    if not menu.is_enabled() then return end
+    -- Build healing context (throttled internally)
+    heal_context.get_context(me)
+    
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+    
+    if not (menu.enabled and menu.enabled:get_state()) then return end
     
     if menu.toggle_key and menu.toggle_key:get_key_code() ~= 7 then
         if not menu.toggle_key:get_state() then return end
+    end
+    
+    -- Sync dashboard settings (safe pcall for uninitialized menu items)
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
     end
     
     -- Update state
@@ -427,6 +481,30 @@ local function on_update()
     
     -- Out of combat
     if not me:is_in_combat() then
+        -- OOC Manager: rez, shields, buffs
+        local resolved = {
+            ancestral_spirit = runtime.ancestral_spirit_id,
+            earth_shield = runtime.earth_shield_id,
+            water_shield = runtime.water_shield_id,
+        }
+        ooc_manager.on_update(me, menu, utils, {
+            rez_spell_id = resolved.ancestral_spirit,
+            group_buffs = {
+                {
+                    spell_id = resolved.earth_shield,
+                    buff_ids = spells.BUFF_EARTH_SHIELD,
+                    name = "Earth Shield",
+                    toggle = menu.ooc_use_earth_shield
+                },
+                {
+                    spell_id = resolved.water_shield,
+                    buff_ids = spells.BUFF_WATER_SHIELD,
+                    name = "Water Shield",
+                    toggle = menu.ooc_use_water_shield
+                },
+            }
+        })
+        
         if try_dispel(me) then return end
         if try_ghost_wolf(me) then return end
         return
@@ -438,6 +516,14 @@ local function on_update()
     if try_shield(me) then return end
     if try_totem_management(me) then return end
     if try_mana_tide(me) then return end
+    
+    -- Mana recovery check
+    local use_mana_mgr = (menu.use_mana_manager and menu.use_mana_manager:get()) or false
+    if use_mana_mgr then
+        local recovered = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.SHAMAN)
+        if recovered then return end
+    end
+    
     if try_earth_shield(me) then return end
     if try_chain_heal(me) then return end
     if try_lesser_healing_wave(me) then return end
@@ -465,6 +551,12 @@ if core and core.register_on_render_menu_callback then
         menu.set_window(win)
         menu.render()
     end)
+end
+
+-- Initialize dashboard
+if dashboard and dashboard.init then
+    dashboard.init(dashboard_config)
+    dashboard.register_render_callback()
 end
 
 -- Export toggle settings for external access

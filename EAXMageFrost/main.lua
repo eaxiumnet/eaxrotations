@@ -4,6 +4,16 @@ local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
+local mana_manager = require("libraries/mana_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
+
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard_config = require("libraries/dashboard_config")
+local dashboard = require("libraries/dashboard")
+
 -- Hot-path local caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
@@ -14,7 +24,7 @@ local _get_spell_cd = core.spell_book.get_spell_cooldown
 ---@type interrupt_manager
 local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("libraries/ooc_manager")
+local ooc_manager = require("../libraries/ooc_manager")
 ---@type ttd_tracker
 local ttd_tracker = require("libraries/ttd_tracker")
 ---@type consumables_manager
@@ -23,6 +33,8 @@ local consumables_manager = require("libraries/consumables_manager")
 local pvp_manager = require("libraries/pvp_manager")
 ---@type encounter_manager
 local encounter_manager = require("libraries/encounter_manager")
+---@type anti_fake_manager
+local anti_fake_manager = require("libraries/anti_fake_manager")
 
 -- Module-level encounter policy cache
 local enc = nil
@@ -41,7 +53,8 @@ local runtime = {
     fire_blast_id = nil,
     evocation_id = nil,
     remove_curse_id = nil,
-    mage_armor_id = nil,
+    ice_armor_id = nil,
+    arcane_intellect_id = nil,
     ice_block_id = nil,
     counterspell_id = nil,
     prev_toggle_state = false,
@@ -68,11 +81,26 @@ local function resolve_spells()
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
     runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
     runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
-    runtime.mage_armor_id = utils.resolve_spell_id(spells.MAGE_ARMOR)
+    runtime.ice_armor_id = utils.resolve_spell_id(spells.ICE_ARMOR)
+    runtime.arcane_intellect_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
     runtime.counterspell_id = utils.resolve_spell_id(spells.COUNTERSPELL)
 end
 
 resolve_spells()
+
+
+middleware_manager.init(menu)
+force_commands:init()
+local dash_config = dashboard_config.init()
+dashboard.init(dash_config)
+
+-- Sync dashboard settings (safe pcall for uninitialized menu items)
+local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+if ok_show then
+    dashboard.set_enabled(show_dashboard)
+end
+
+dashboard.register_render_callback()
 
 -- Helper functions
 local function is_valid_hostile_target(me, target)
@@ -98,7 +126,7 @@ end
 -- Try cast functions
 local function try_icy_veins(me, target)
     if not runtime.icy_veins_id then return false end
-    if not (menu.frost_use_icy_veins and menu.frost_use_icy_veins:get()) then return false end
+    if not (menu.use_icy_veins and menu.use_icy_veins:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_ICY_VEINS) then return false end
@@ -117,7 +145,7 @@ end
 
 local function try_water_elemental(me, target)
     if not runtime.water_elemental_id then return false end
-    if not (menu.frost_use_water_elemental and menu.frost_use_water_elemental:get()) then return false end
+    if not (menu.use_water_elemental and menu.use_water_elemental:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_in_combat() then return false end
 
@@ -135,7 +163,7 @@ end
 
 local function try_cold_snap(me)
     if not runtime.cold_snap_id then return false end
-    if not (menu.frost_use_cold_snap and menu.frost_use_cold_snap:get()) then return false end
+    if not (menu.use_cold_snap and menu.use_cold_snap:get()) then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_ICY_VEINS) then return false end
 
@@ -371,13 +399,13 @@ local function try_frost_nova(me)
     return false
 end
 
-local function try_mage_armor(me)
-    if not runtime.mage_armor_id then return false end
+local function try_ice_armor(me)
+    if not runtime.ice_armor_id then return false end
     if me:is_in_combat() then return false end
-    if not (menu.use_mage_armor and menu.use_mage_armor:get()) then return false end
-    if not utils.can_cast_self(runtime.mage_armor_id, me) then return false end
+    if not (menu.use_ice_armor and menu.use_ice_armor:get()) then return false end
+    if not utils.can_cast_self(runtime.ice_armor_id, me) then return false end
 
-    if utils.cast_self(runtime.mage_armor_id, me, "Mage Armor") then
+    if utils.cast_self(runtime.ice_armor_id, me, "Ice Armor") then
         return true
     end
     return false
@@ -420,10 +448,44 @@ end
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
+    
+    local ctx = middleware_manager.build_context(me, target, menu)
+    local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
+    if mw_result then return true end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    -- Mage special: Try Blink for stun before stopping
+    if should_stop and cc_reason == "STUN" then
+        if utils.try_blink_stun_break(me, menu) then
+            return  -- Successfully broke stun
+        end
+    end
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
     if try_ice_block(me) then return true end
     if try_frost_nova(me) then return true end
 
     if (menu.use_interrupt and menu.use_interrupt:get()) and interrupt_manager.should_interrupt(target) then
+        -- PvP anti-fake interrupt delay
+        if target:is_player() then
+            local delay = anti_fake_manager.get_interrupt_delay(target, true)
+            if delay > 0 then
+                local cast_rem = target:get_cast_remaining_time() or 0
+                if cast_rem > delay then
+                    -- Wait for delay before interrupting
+                    return false
+                end
+            end
+        end
         if interrupt_manager.try_interrupt(me, target, "mage", utils) then return true end
     end
 
@@ -437,6 +499,16 @@ local function do_rotation(me, target)
     if try_evocation(me) then return true end
 
     if not enc or not enc.hold_cooldowns then
+        -- Burst & Trinket Automation
+        local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
+        local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
+        if is_burst_window then
+            if try_icy_veins(me, target) then return true end
+            if try_cold_snap(me) then return true end
+            if try_water_elemental(me, target) then return true end
+        end
+        trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
+
         if try_cold_snap(me) then return true end
         if try_water_elemental(me, target) then return true end
         if try_icy_veins(me, target) then return true end
@@ -453,16 +525,45 @@ end
 
 -- On update callback
 local function on_update()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
 
     local me = _get_local_player()
     if not me then return end
     if me:is_dead() then return end
 
-    if try_mage_armor(me) then return end
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+
+    -- Mana recovery check
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.MAGE)
+    end
+
+    if try_ice_armor(me) then return end
 
     local target = me:get_target()
-    if not is_valid_hostile_target(me, target) then return end
+    if not is_valid_hostile_target(me, target) then
+        -- OOC buffing when no valid target
+        if not me:is_in_combat() then
+            ooc_manager.on_update(me, menu, utils, {
+                group_buffs = {
+                    {
+                        spell_id = runtime.ice_armor_id,
+                        buff_ids = spells.BUFF_ICE_ARMOR,
+                        name = "Ice Armor",
+                        toggle = menu.use_ice_armor
+                    },
+                    {
+                        spell_id = runtime.arcane_intellect_id,
+                        buff_ids = spells.BUFF_ARCANE_INTELLECT,
+                        name = "Arcane Intellect",
+                        toggle = menu.use_arcane_intellect
+                    },
+                }
+            })
+        end
+        return
+    end
 
     if utils.is_pacified(me) then return end
 

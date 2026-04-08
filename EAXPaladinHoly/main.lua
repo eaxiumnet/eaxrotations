@@ -4,15 +4,17 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
 
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 ---@type health_prediction
 local health_prediction = require("common/modules/health_prediction")
----@type heal_engine
-local heal_engine = require("libraries/heal_engine")
----@type healer_triage
-local healer_triage = require("libraries/healer_triage")
+---@type heal_context
+local heal_context = require("libraries/heal_context")
+---@type heal_utils
+local heal_utils = require("libraries/heal_utils")
 
 ---@type racial_manager
 local racial_manager = require("libraries/racial_manager")
@@ -20,6 +22,12 @@ local racial_manager = require("libraries/racial_manager")
 local defensive_manager = require("libraries/defensive_manager")
 ---@type consumables_manager
 local consumables_manager = require("libraries/consumables_manager")
+---@type trinket_manager
+local trinket_manager = require("libraries/trinket_manager")
+
+
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard_config = require("libraries/dashboard_config")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -48,10 +56,11 @@ local runtime = {
     blessing_of_kings_id = nil,
     devotion_aura_id = nil,
     concentration_aura_id = nil,
+    redemption_id = nil,
+    righteous_fury_id = nil,
     last_cast_time = 0,
     last_heal_target = nil,
     last_aura_cast_at = 0,
-    last_ooc_buff_at = 0,
 }
 
 local AURA_RETRY_WINDOW = 12.0
@@ -80,6 +89,8 @@ local function resolve_spells()
     runtime.blessing_of_kings_id = utils.resolve_spell_id(spells.BLESSING_OF_KINGS)
     runtime.devotion_aura_id = utils.resolve_spell_id(spells.DEVOTION_AURA)
     runtime.concentration_aura_id = utils.resolve_spell_id(spells.CONCENTRATION_AURA)
+    runtime.redemption_id = utils.resolve_spell_id(spells.REDEMPTION)
+    runtime.righteous_fury_id = utils.resolve_spell_id(spells.RIGHTEOUS_FURY)
 end
 
 local function note_cast()
@@ -209,8 +220,8 @@ local function try_divine_favor(me)
     if not me:is_in_combat() then return false end
     if not utils.can_cast_self(runtime.divine_favor_id, me) then return false end
     -- Only use if someone needs healing
-    heal_engine.update(me, { scan_range = 40 })
-    local lowest = heal_engine.lowest_friend()
+    local ctx = heal_context.get_context(me)
+    local lowest = ctx.lowest_ally
     if not lowest then return false end
     local hp_pct = utils.get_effective_hp_pct(lowest)
     if hp_pct > 0.8 then return false end
@@ -251,8 +262,7 @@ local function try_avenging_wrath(me)
     if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then return false end
     if not utils.can_cast_self(runtime.avenging_wrath_id, me) then return false end
     -- Only use during heavy healing
-    heal_engine.update(me, { scan_range = 40 })
-    local count = heal_engine.count_below(0.7)
+    local count = utils.count_below_hp(me, 70)
     if count < 2 then return false end
     
     if utils.cast_self_fast(runtime.avenging_wrath_id, me) then
@@ -378,51 +388,15 @@ local function try_judgement(me, target)
     return false
 end
 
--- OOC buffs
-local function try_ooc_buffs(me)
-    if me:is_in_combat() then return false end
-    if (_core_time() - runtime.last_ooc_buff_at) < BUFF_RETRY_WINDOW then return false end
-    if not (menu.ooc_buff and menu.ooc_buff:get_state()) then return false end
-    
-    -- Check for any blessing
-    local has_blessing = utils.has_buff(me, spells.BUFF_BLESSING_OF_WISDOM) or
-                         utils.has_buff(me, spells.BUFF_BLESSING_OF_MIGHT) or
-                         utils.has_buff(me, spells.BUFF_BLESSING_OF_KINGS)
-    if has_blessing then return false end
-    
-    local buff_id = nil
-    if menu.use_blessing_of_wisdom and menu.use_blessing_of_wisdom:get_state() then
-        buff_id = runtime.blessing_of_wisdom_id
-    elseif menu.use_blessing_of_kings and menu.use_blessing_of_kings:get_state() then
-        buff_id = runtime.blessing_of_kings_id
-    elseif menu.use_blessing_of_might and menu.use_blessing_of_might:get_state() then
-        buff_id = runtime.blessing_of_might_id
-    end
-    
-    if buff_id and utils.can_cast_self(buff_id, me) then
-        if utils.cast_self(buff_id, me) then
-            runtime.last_ooc_buff_at = _core_time()
-            note_cast()
-            return true
-        end
-    end
-    return false
-end
-
 -- Main healing logic
 local function do_healing(me)
-    heal_engine.update(me, { scan_range = 40 })
+    -- Use shared heal_context for party/raid scanning
+    local ctx = heal_context.get_context(me)
     
-    local triage = healer_triage.select_target(nil, heal_engine.friends, {
-        tank_hp_threshold = 0.55,
-        triage_hp_threshold = 0.35,
-        group_hp_threshold = 0.55,
-    })
+    if not ctx or not ctx.lowest_ally then return false end
     
-    if not triage.target then return false end
-    
-    local target = triage.target
-    local hp_pct = triage.hp_pct or utils.get_effective_hp_pct(target)
+    local target = ctx.lowest_ally
+    local hp_pct = utils.get_effective_hp_pct(target)
     
     -- Emergency: Lay on Hands
     if hp_pct < ((menu.lay_on_hands_hp and menu.lay_on_hands_hp:get()) or 15) / 100 then
@@ -454,17 +428,121 @@ resolve_spells()
 
 -- Main update loop
 core.register_on_update_callback(function()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
+    
+    -- Initialize middleware on first run
+    if not middleware_manager.is_initialized() then
+        middleware_manager.initialize(menu)
+    end
     
     local me = _get_local_player()
     if not me or me:is_dead() then return end
     
-    -- OOC: drink and buff
+    -- Sync dashboard settings
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
+    
+    -- Build middleware context
+    local target = me:get_target()
+    local ctx = middleware_manager.build_context(me, target, {
+        use_healthstone = (menu.use_healthstone and menu.use_healthstone:get_state()) or false,
+        use_healing_potion = (menu.use_health_potion and menu.use_health_potion:get_state()) or false,
+        use_mana_potion = (menu.use_mana_potion and menu.use_mana_potion:get_state()) or false,
+        use_divine_protection = (menu.use_divine_protection and menu.use_divine_protection:get_state()) or false,
+        use_divine_shield = (menu.use_divine_shield and menu.use_divine_shield:get_state()) or false,
+        use_lay_on_hands = (menu.use_lay_on_hands and menu.use_lay_on_hands:get_state()) or false,
+        use_divine_illumination = (menu.use_divine_illumination and menu.use_divine_illumination:get_state()) or false,
+        use_berserking = (menu.use_berserking and menu.use_berserking:get_state()) or false,
+        use_stoneform = (menu.use_stoneform and menu.use_stoneform:get_state()) or false,
+    })
+    
+    -- Execute middleware (healthstones, potions, defensives)
+    local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
+    if mw_result then
+        if menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, mw_msg or "Middleware executed")
+        end
+        -- Don't return here - let healing continue after middleware
+    end
+    
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    -- Paladin special: Try Divine Shield for any CC before stopping
+    if should_stop then
+        if utils.try_divine_shield_cc_break(me, menu) then
+            return  -- Successfully broke CC
+        end
+    end
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+    
+    -- OOC: drink, buff, and rez
     if not me:is_in_combat() then
         if menu.ooc_drink and menu.ooc_drink:get_state() then
             consumables_manager.try_use_ooc_food_drink(me, menu, utils)
         end
-        if try_ooc_buffs(me) then return end
+        
+        -- OOC Manager for buffs and rez
+        ooc_manager.on_update(me, menu, utils, {
+            rez_spell_id = runtime.redemption_id,
+            group_buffs = {
+                {
+                    spell_id = runtime.blessing_of_might_id,
+                    buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
+                    name = "Blessing of Might",
+                    toggle = menu.use_blessing_of_might
+                },
+                {
+                    spell_id = runtime.blessing_of_wisdom_id,
+                    buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
+                    name = "Blessing of Wisdom",
+                    toggle = menu.use_blessing_of_wisdom
+                },
+                {
+                    spell_id = runtime.blessing_of_kings_id,
+                    buff_ids = spells.BUFF_BLESSING_OF_KINGS,
+                    name = "Blessing of Kings",
+                    toggle = menu.use_blessing_of_kings
+                },
+                {
+                    spell_id = runtime.righteous_fury_id,
+                    buff_ids = spells.BUFF_RIGHTEOUS_FURY,
+                    name = "Righteous Fury",
+                    toggle = menu.use_righteous_fury
+                },
+                {
+                    spell_id = runtime.devotion_aura_id,
+                    buff_ids = spells.BUFF_DEVOTION_AURA,
+                    name = "Devotion Aura",
+                    toggle = menu.use_devotion_aura
+                },
+            }
+        })
     end
     
     -- Don't cast while eating/drinking
@@ -503,6 +581,9 @@ core.register_on_update_callback(function()
     -- Racial
     racial_manager.try_defensive(me)
     
+    -- Trinkets (offensive during burst, defensive when low HP)
+    trinket_manager.check_trinkets(me, false, menu)
+    
     -- Avenging Wrath during heavy damage
     if try_avenging_wrath(me) then return end
     
@@ -540,6 +621,10 @@ end)
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
+
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.register_render_callback()
 
 -- Export toggle settings for external access
 local NS = _G.EAXPaladinHoly and _G.EAXPaladinHoly.NS or {}

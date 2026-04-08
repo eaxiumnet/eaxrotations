@@ -221,6 +221,64 @@ function utils.dist_squared(me, target)
     return (dx * dx + dy * dy + dz * dz)
 end
 
+-- Crowd Control Detection
+-- Uses get_loss_of_control_info() to detect if player cannot cast spells
+
+-- Loss of Control Type Enum Values (from Sylvanas API)
+local LOC_NONE = 0
+local LOC_POSSESS = 1
+local LOC_CONFUSE = 2
+local LOC_CHARM = 3
+local LOC_FEAR = 4
+local LOC_STUN = 5
+local LOC_PACIFY = 6
+local LOC_ROOT = 7
+local LOC_SILENCE = 8
+local LOC_PACIFY_SILENCE = 9
+local LOC_DISARM = 10
+local LOC_SCHOOL_INTERRUPT = 11
+local LOC_STUN_MECHANIC = 12
+local LOC_FEAR_MECHANIC = 13
+
+-- CC types that prevent spell casting
+local CAST_PREVENTING_CC_TYPES = {
+    [LOC_STUN] = true,
+    [LOC_PACIFY] = true,
+    [LOC_SILENCE] = true,
+    [LOC_PACIFY_SILENCE] = true,
+    [LOC_SCHOOL_INTERRUPT] = true,
+    [LOC_STUN_MECHANIC] = true,
+    [LOC_CONFUSE] = true,
+    [LOC_CHARM] = true,
+    [LOC_FEAR] = true,
+    [LOC_FEAR_MECHANIC] = true,
+    [LOC_DISARM] = true,
+}
+
+--[[
+    Checks if the unit has a loss of control effect that prevents casting
+    
+    @param unit: game_object - The player or unit to check
+    @return boolean: true if unit cannot cast spells, false otherwise
+--]]
+function utils.is_cced(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return false
+    end
+    
+    -- Check if method exists (API compatibility)
+    if not unit.get_loss_of_control_info then
+        return false
+    end
+    
+    local loc_info = unit:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then
+        return false
+    end
+    
+    return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
+end
+
 return utils
 
 

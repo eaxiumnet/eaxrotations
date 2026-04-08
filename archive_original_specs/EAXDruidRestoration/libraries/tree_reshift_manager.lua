@@ -1,5 +1,5 @@
 -- tree_reshift_manager.lua
--- Flux Adaptation: Tree of Life form reshift after emergency NS+HT cast
+-- Tree of Life form reshift after emergency NS+HT cast
 -- When casting NS+Healing Touch (leaves Tree form), auto-return to Tree next frame
 
 local tree_reshift_manager = {}

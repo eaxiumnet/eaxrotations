@@ -4,6 +4,17 @@ local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 
+
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard_config = require("libraries/dashboard_config")
+local dashboard = require("libraries/dashboard")
+
+-- Burst & Trinket Automation (ported from Flux)
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
+
 -- Hot-path local caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
@@ -14,7 +25,7 @@ local _get_spell_cd = core.spell_book.get_spell_cooldown
 ---@type interrupt_manager
 local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("libraries/ooc_manager")
+local ooc_manager = require("../libraries/ooc_manager")
 ---@type ttd_tracker
 local ttd_tracker = require("libraries/ttd_tracker")
 ---@type consumables_manager
@@ -23,6 +34,8 @@ local consumables_manager = require("libraries/consumables_manager")
 local pvp_manager = require("libraries/pvp_manager")
 ---@type encounter_manager
 local encounter_manager = require("libraries/encounter_manager")
+---@type anti_fake_manager
+local anti_fake_manager = require("libraries/anti_fake_manager")
 
 -- Module-level encounter policy cache
 local enc = nil
@@ -70,6 +83,7 @@ local function resolve_spells()
     runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
     runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
     runtime.mage_armor_id = utils.resolve_spell_id(spells.MAGE_ARMOR)
+    runtime.arcane_intellect_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
     runtime.counterspell_id = utils.resolve_spell_id(spells.COUNTERSPELL)
     runtime.frost_nova_id = utils.resolve_spell_id(spells.FROST_NOVA)
     runtime.cone_of_cold_id = utils.resolve_spell_id(spells.CONE_OF_COLD)
@@ -77,6 +91,14 @@ local function resolve_spells()
 end
 
 resolve_spells()
+
+
+middleware_manager.init(menu)
+force_commands:init()
+local dash_config = dashboard_config.init()
+dashboard.init(dash_config)
+dashboard.set_enabled(true)
+dashboard.register_render_callback()
 
 -- Helper functions
 local function is_valid_hostile_target(me, target)
@@ -130,7 +152,7 @@ end
 
 local function try_combustion(me, target)
     if not runtime.combustion_id then return false end
-    if not (menu.fire_use_combustion and menu.fire_use_combustion:get()) then return false end
+    if not (menu.use_combustion and menu.use_combustion:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_COMBUSTION) then return false end
@@ -201,7 +223,7 @@ end
 
 local function try_blast_wave(me, target)
     if not runtime.blast_wave_id then return false end
-    if not (menu.fire_use_blast_wave and menu.fire_use_blast_wave:get()) then return false end
+    if not (menu.use_blast_wave and menu.use_blast_wave:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_in_combat() then return false end
 
@@ -232,7 +254,7 @@ end
 
 local function try_dragons_breath(me, target)
     if not runtime.dragons_breath_id then return false end
-    if not (menu.fire_use_dragons_breath and menu.fire_use_dragons_breath:get()) then return false end
+    if not (menu.use_dragons_breath and menu.use_dragons_breath:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
     if not me:is_in_combat() then return false end
 
@@ -305,7 +327,7 @@ local function try_movement_spell(me, target)
     if not me:is_moving() then return false end
     if not is_valid_hostile_target(me, target) then return false end
 
-    if (menu.use_fire_blast and menu.use_fire_blast:get()) and runtime.fire_blast_id then
+    if (menu.use_fire_blast_move and menu.use_fire_blast_move:get()) and runtime.fire_blast_id then
         if utils.can_cast_hostile(runtime.fire_blast_id, me, target) then
             if utils.cast_target_fast(runtime.fire_blast_id, target, "Fire Blast (moving)") then
                 note_cast()
@@ -384,7 +406,7 @@ local function try_ice_block(me)
 end
 
 local function try_frost_nova(me)
-    if not (menu.frost_use_frost_nova and menu.frost_use_frost_nova:get()) then return false end
+    if not (menu.use_frost_nova and menu.use_frost_nova:get()) then return false end
     if not runtime.frost_nova_id then
         runtime.frost_nova_id = utils.resolve_spell_id(spells.FROST_NOVA)
     end
@@ -404,18 +426,6 @@ local function try_frost_nova(me)
 
     if not utils.can_cast_self(runtime.frost_nova_id, me) then return false end
     if utils.cast_self(runtime.frost_nova_id, me, "Frost Nova") then
-        return true
-    end
-    return false
-end
-
-local function try_mage_armor(me)
-    if not runtime.mage_armor_id then return false end
-    if me:is_in_combat() then return false end
-    if not (menu.use_mage_armor and menu.use_mage_armor:get()) then return false end
-    if not utils.can_cast_self(runtime.mage_armor_id, me) then return false end
-
-    if utils.cast_self(runtime.mage_armor_id, me, "Mage Armor") then
         return true
     end
     return false
@@ -458,10 +468,44 @@ end
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
+    
+    local ctx = middleware_manager.build_context(me, target, menu)
+    local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
+    if mw_result then return true end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    -- Mage special: Try Blink for stun before stopping
+    if should_stop and cc_reason == "STUN" then
+        if utils.try_blink_stun_break(me, menu) then
+            return  -- Successfully broke stun
+        end
+    end
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
     if try_ice_block(me) then return true end
     if try_frost_nova(me) then return true end
 
     if (menu.use_interrupt and menu.use_interrupt:get()) and interrupt_manager.should_interrupt(target) then
+        -- PvP anti-fake interrupt delay
+        if target:is_player() then
+            local delay = anti_fake_manager.get_interrupt_delay(target, true)
+            if delay > 0 then
+                local cast_rem = target:get_cast_remaining_time() or 0
+                if cast_rem > delay then
+                    -- Wait for delay before interrupting
+                    return false
+                end
+            end
+        end
         if interrupt_manager.try_interrupt(me, target, "mage", utils) then return true end
     end
 
@@ -495,26 +539,70 @@ end
 
 -- On update callback
 local function on_update()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
 
     local me = _get_local_player()
     if not me then return end
     if me:is_dead() then return end
 
-    if try_mage_armor(me) then return end
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+
+    -- OOC handling via shared ooc_manager
+    if not me:is_in_combat() then
+        local resolved = {
+            mage_armor = runtime.mage_armor_id,
+            arcane_intellect = runtime.arcane_intellect_id
+        }
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = resolved.mage_armor,
+                    buff_ids = spells.BUFF_MAGE_ARMOR,
+                    name = "Mage Armor",
+                    toggle = menu.use_mage_armor
+                },
+                {
+                    spell_id = resolved.arcane_intellect,
+                    buff_ids = spells.BUFF_ARCANE_INTELLECT,
+                    name = "Arcane Intellect",
+                    toggle = menu.use_arcane_intellect
+                },
+            }
+        })
+    end
 
     local target = me:get_target()
-    if not is_valid_hostile_target(me, target) then return end
-
-    if utils.is_pacified(me) then return end
-
-    local pvp_instance = pvp_manager.is_in_pvp_instance()
-    if pvp_instance or pvp_manager.is_world_pvp(me) then
-        local enemy_players = pvp_manager.find_enemy_players(me, 40)
-        if #enemy_players > 0 then
-            local priority = pvp_manager.priority_target(me, enemy_players)
-            if priority then target = priority end
+    if not is_valid_hostile_target(me, target) then
+        -- OOC handling via shared ooc_manager
+        if not me:is_in_combat() then
+            local resolved = {
+                mage_armor = runtime.mage_armor_id,
+                arcane_intellect = runtime.arcane_intellect_id
+            }
+            ooc_manager.on_update(me, menu, utils, {
+                group_buffs = {
+                    {
+                        spell_id = resolved.mage_armor,
+                        buff_ids = spells.BUFF_MAGE_ARMOR,
+                        name = "Mage Armor",
+                        toggle = menu.use_mage_armor
+                    },
+                    {
+                        spell_id = resolved.arcane_intellect,
+                        buff_ids = spells.BUFF_ARCANE_INTELLECT,
+                        name = "Arcane Intellect",
+                        toggle = menu.use_arcane_intellect
+                    },
+                }
+            })
         end
+        return
+    end
+
+    -- Sample combat forecast for TTD calculations
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
     end
 
     local self_threshold = 0.30
@@ -522,6 +610,11 @@ local function on_update()
     if my_hp < self_threshold then
         try_ice_block(me)
     end
+    
+    -- Burst & Trinket Automation (ported from Flux)
+    -- Note: combat_time estimation - we don't have direct combat_start_time in this spec
+    local is_burst_window = burst_manager.should_auto_burst(me, target, 0, menu)
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
 
     do_rotation(me, target)
 end

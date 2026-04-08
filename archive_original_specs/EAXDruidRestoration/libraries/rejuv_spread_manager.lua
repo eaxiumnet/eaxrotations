@@ -1,5 +1,5 @@
 -- rejuv_spread_manager.lua
--- Flux Adaptation: Proactive Rejuvenation blanketing for raid healing
+-- Proactive Rejuvenation blanketing for raid healing
 -- Spreads HoTs across injured party members before they need direct heals
 
 ---@type buff_manager

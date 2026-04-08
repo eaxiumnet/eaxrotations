@@ -4,9 +4,26 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local ooc_manager = require("../libraries/ooc_manager")
+local anti_fake_manager = require("libraries/anti_fake_manager")
 
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
+
+---@type combat_forecast
+local forecast = require("common/modules/combat_forecast")
+
+-- Burst & Trinket Automation
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+
+-- Flux libraries integration
+local energy_tick = require("libraries/energy_tick")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
+local swing_manager = require("libraries/swing_manager")
 
 -- Runtime spell cache
 local runtime = {
@@ -31,6 +48,7 @@ local runtime = {
     stealth_id = nil,
     combo_points = 0,
     energy = 0,
+    combat_start_time = nil,
 }
 
 -- Resolve spell IDs on load
@@ -57,6 +75,13 @@ local function resolve_spells()
 end
 
 resolve_spells()
+
+-- Initialize Flux libraries
+force_commands:init()
+
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.register_render_callback()
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -121,6 +146,19 @@ end
 local function try_kick(me, target)
     if not (menu.use_interrupt and menu.use_interrupt:get_state()) then return false end
     if not target:is_casting_spell() and not target:is_channelling_spell() then return false end
+    
+    -- PvP anti-fake interrupt delay
+    if target:is_player() then
+        local delay = anti_fake_manager.get_interrupt_delay(target, true)
+        if delay > 0 then
+            local cast_rem = target:get_cast_remaining_time() or 0
+            if cast_rem > delay then
+                -- Wait for delay before interrupting
+                return false
+            end
+        end
+    end
+    
     return try_cast_target(runtime.kick_id, me, target, "Kick")
 end
 
@@ -214,11 +252,18 @@ local function try_backstab(me, target)
     return try_cast_target(runtime.backstab_id, me, target, "Backstab")
 end
 
-local function try_cold_blood(me)
+local function try_cold_blood(me, target)
     if not (menu.use_cold_blood and menu.use_cold_blood:get_state()) then return false end
     if not runtime.cold_blood_id then return false end
     -- Only use if we have 5 CP and about to finisher
     if runtime.combo_points < 5 then return false end
+    -- TTD check - don't waste on dying targets
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+    if min_ttd > 0 and target then
+        if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
+            return false
+        end
+    end
     return try_cast_self(runtime.cold_blood_id, me, "Cold Blood")
 end
 
@@ -254,10 +299,29 @@ end
 -- Main rotation function
 local function on_update()
     -- Check if enabled
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
+
+    -- Sync dashboard settings
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
 
     local me = core.object_manager.get_local_player()
     if not me or not me:is_valid() then return end
+
+    -- Flux library updates
+    energy_tick:update(me:get_power(3))
+    swing_manager:update_swing(me)
+
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+
+    -- OOC handling (drink/eat only for rogues - poisons are item-based)
+    if not me:is_in_combat() then
+        runtime.combat_start_time = nil
+        ooc_manager.on_update(me, menu, utils, {})
+    end
 
     -- Update resources
     runtime.combo_points = utils.get_combo_points(me)
@@ -270,8 +334,61 @@ local function on_update()
         if not target then return end
     end
 
+    -- Flux combat forecast sampling
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
+
+    -- Energy tick delay check before expensive abilities
+    if (menu.use_energy_tick and menu.use_energy_tick:get()) then
+        if energy_tick:should_delay_action() then return end
+    end
+
+    -- Swing delay check
+    if (menu.use_swing_delay and menu.use_swing_delay:get()) then
+        if swing_manager:is_swing_landing_soon(0.15) then return end
+    end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    -- Rogue special: Try Cloak of Shadows for magic CC before stopping
+    if should_stop then
+        -- Cloak only breaks magic-based CC (not physical stuns)
+        if cc_reason ~= "STUN" and cc_reason ~= "SAP" and 
+           cc_reason ~= "GOUGE" and cc_reason ~= "DISARM" then
+            if utils.try_cloak_of_shadows_cc_break(me, menu) then
+                return  -- Successfully broke CC
+            end
+        end
+    end
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
     -- Must be in melee range
     if not utils.is_melee_target(me, target) then return end
+
+    -- Track combat start time for burst detection
+    if not runtime.combat_start_time then
+        runtime.combat_start_time = _core_time()
+    end
+
+    -- Burst detection and trinkets
+    local combat_time = 0
+    if runtime.combat_start_time then
+        combat_time = _core_time() - runtime.combat_start_time
+    end
+    local should_burst, burst_reason = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    local is_burst_window = should_burst or false
+
+    -- Trinkets V2 (check before CDs so they sync with burst)
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
 
     -- Defensive cooldowns
     if try_evasion(me) then return end
@@ -285,9 +402,11 @@ local function on_update()
         if try_cheap_shot(me, target) then return end
     end
 
-    -- Cold Blood before finisher
+    -- Cold Blood before finisher (use in burst window or manual)
     if runtime.combo_points >= 5 then
-        try_cold_blood(me)
+        if is_burst_window or (menu.use_cold_blood and menu.use_cold_blood:get_state()) then
+            try_cold_blood(me, target)
+        end
     end
 
     -- Priority 1: Maintain Slice and Dice

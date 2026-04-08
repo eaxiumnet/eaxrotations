@@ -4,6 +4,19 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local ooc_manager = require("../libraries/ooc_manager")
+local mana_manager = require("libraries/mana_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
+
+
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard_config = require("libraries/dashboard_config")
+local dashboard = require("libraries/dashboard")
+local interrupt_manager = require("libraries/interrupt_manager")
+local anti_fake_manager = require("libraries/anti_fake_manager")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -20,6 +33,7 @@ local runtime = {
     evocation_id = nil,
     remove_curse_id = nil,
     mage_armor_id = nil,
+    arcane_intellect_id = nil,
     fire_blast_id = nil,
     ice_block_id = nil,
     counterspell_id = nil,
@@ -52,6 +66,7 @@ local function resolve_spells()
     runtime.evocation_id = utils.resolve_spell_id(spells.EVOCATION)
     runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
     runtime.mage_armor_id = utils.resolve_spell_id(spells.MAGE_ARMOR)
+    runtime.arcane_intellect_id = utils.resolve_spell_id(spells.ARCANE_INTELLECT)
     runtime.fire_blast_id = utils.resolve_spell_id(spells.FIRE_BLAST)
     runtime.counterspell_id = utils.resolve_spell_id(spells.COUNTERSPELL)
     runtime.presence_of_mind_id = utils.resolve_spell_id(spells.PRESENCE_OF_MIND)
@@ -66,6 +81,14 @@ local function resolve_spells()
 end
 
 resolve_spells()
+
+
+middleware_manager.init(menu)
+force_commands:init()
+local dash_config = dashboard_config.init()
+dashboard.init(dash_config)
+dashboard.set_enabled(true)
+dashboard.register_render_callback()
 
 -- Helper functions
 local function is_valid_hostile_target(me, target)
@@ -124,9 +147,15 @@ local function try_icy_veins(me, target)
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_ICY_VEINS) then return false end
 
+    -- TTD gating using combat_forecast
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
-    local ttd = get_target_ttd_seconds(target)
-    if min_ttd > 0 and ttd and ttd > 0 and ttd < min_ttd then return false end
+    if min_ttd > 0 and target then
+        ---@type combat_forecast
+        local forecast = require("common/modules/combat_forecast")
+        if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
+            return false
+        end
+    end
 
     if not utils.can_cast_self(runtime.icy_veins_id, me) then return false end
     if utils.cast_self_fast(runtime.icy_veins_id, me, "Icy Veins") then
@@ -165,9 +194,15 @@ local function try_arcane_power(me, target)
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_ARCANE_POWER) then return false end
 
+    -- TTD gating using combat_forecast
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
-    local ttd = get_target_ttd_seconds(target)
-    if min_ttd > 0 and ttd and ttd > 0 and ttd < min_ttd then return false end
+    if min_ttd > 0 and target then
+        ---@type combat_forecast
+        local forecast = require("common/modules/combat_forecast")
+        if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
+            return false
+        end
+    end
 
     local phase = update_arcane_phase(me, target)
     if phase ~= "burn" then return false end
@@ -189,10 +224,16 @@ local function try_presence_of_mind(me)
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_PRESENCE_OF_MIND) then return false end
 
+    -- TTD gating using combat_forecast
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     local target = me:get_target()
-    local ttd = get_target_ttd_seconds(target)
-    if min_ttd > 0 and ttd and ttd > 0 and ttd < min_ttd then return false end
+    if min_ttd > 0 and target then
+        ---@type combat_forecast
+        local forecast = require("common/modules/combat_forecast")
+        if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
+            return false
+        end
+    end
 
     local phase = update_arcane_phase(me, target)
     if phase ~= "burn" then return false end
@@ -537,13 +578,63 @@ end
 local function do_rotation(me, target)
     if not is_gcd_ready() then return false end
 
+    
+    local ctx = middleware_manager.build_context(me, target, menu)
+    local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
+    if mw_result then return true end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    -- Mage special: Try Blink for stun before stopping
+    if should_stop and cc_reason == "STUN" then
+        if utils.try_blink_stun_break(me, menu) then
+            return  -- Successfully broke stun
+        end
+    end
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
     if try_ice_block(me) then return true end
     if try_frost_nova(me) then return true end
+
+    if (menu.use_interrupt and menu.use_interrupt:get_state()) and interrupt_manager.should_interrupt(target) then
+        -- PvP anti-fake interrupt delay
+        if target:is_player() then
+            local delay = anti_fake_manager.get_interrupt_delay(target, true)
+            if delay > 0 then
+                local cast_rem = target:get_cast_remaining_time() or 0
+                if cast_rem > delay then
+                    -- Wait for delay before interrupting
+                    return false
+                end
+            end
+        end
+        if interrupt_manager.try_interrupt(me, target, "mage", utils) then return true end
+    end
 
     if try_aoe(me, target) then return true end
 
     if try_mana_gem(me) then return true end
     if try_evocation(me) then return true end
+
+    -- Burst & Trinket Automation
+    local ctx = utils.get_cached_combat_context(me)
+    local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
+    local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    if is_burst_window then
+        -- Try Arcane Power, Icy Veins, Presence of Mind
+        if try_arcane_power(me, target) then return true end
+        if try_icy_veins(me, target) then return true end
+        if try_presence_of_mind(me) then return true end
+    end
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
 
     if try_cold_snap(me) then return true end
     if try_presence_of_mind(me) then return true end
@@ -575,16 +666,50 @@ core.register_on_update_callback(function()
     if not me then return end
     if me:is_dead() then return end
 
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
     end
 
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
 
-    if try_mage_armor(me) then return end
+    -- OOC self-buffing via ooc_manager
+    if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = runtime.mage_armor_id,
+                    buff_ids = spells.BUFF_MAGE_ARMOR,
+                    name = "Mage Armor",
+                    toggle = menu.use_mage_armor
+                },
+                {
+                    spell_id = runtime.arcane_intellect_id,
+                    buff_ids = spells.BUFF_ARCANE_INTELLECT,
+                    name = "Arcane Intellect",
+                    toggle = menu.use_arcane_intellect
+                },
+            }
+        })
+    end
 
     local target = me:get_target()
     if not is_valid_hostile_target(me, target) then return end
+
+    -- Sample combat forecast for TTD calculations
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
+
+    -- Mana recovery check (high priority for Arcane burn phases)
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.MAGE)
+        if used_mana then
+            -- Mana recovery triggered, continue rotation
+        end
+    end
 
     do_rotation(me, target)
 end)

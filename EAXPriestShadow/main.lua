@@ -5,6 +5,17 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local ooc_manager = require("../libraries/ooc_manager")
+
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+
+local mana_manager = require("../libraries/mana_manager")
+local burst_manager = require("../libraries/burst_manager")
+local trinket_manager = require("../libraries/trinket_manager")
+local combat_forecast = require("../libraries/combat_forecast")
+local force_commands = require("../libraries/force_commands")
 
 local buff_manager = require("common/modules/buff_manager")
 local spell_queue = require("common/modules/spell_queue")
@@ -22,7 +33,46 @@ local runtime = {
     mode_cache = "solo",
     last_mode_check = 0,
     last_mode_log = nil,
+    _initialized = false,
+    -- Channel protection state
+    channel_state = {
+        is_channeling = false,
+        channel_spell = nil,
+        channel_start_time = 0,
+        channel_duration = 0,
+    },
 }
+
+-- ============================================================================
+
+-- ============================================================================
+
+local function init_()
+    if runtime._initialized then return end
+    
+    -- Setup middleware (healthstones, potions, racials)
+    middleware_manager.setup(menu, spells)
+    
+    -- Initialize force commands
+    force_commands:init()
+    
+    -- Initialize dashboard
+    dashboard.init(dashboard_config)
+    local dashboard_enabled = true
+    if menu.dashboard_enabled and menu.dashboard_enabled.get_state then
+        dashboard_enabled = menu.dashboard_enabled:get_state()
+    end
+    dashboard.set_enabled(dashboard_enabled)
+    dashboard.set_position(
+        (menu.dashboard_x and menu.dashboard_x:get()) or 20,
+        (menu.dashboard_y and menu.dashboard_y:get()) or 200
+    )
+    dashboard.set_scale((menu.dashboard_scale and menu.dashboard_scale:get()) or 1.0)
+    dashboard.register_render_callback()
+    
+    runtime._initialized = true
+    print("[EAX Shadow] integration initialized")
+end
 
 -- Resolved spell IDs
 local resolved = {
@@ -39,6 +89,7 @@ local resolved = {
     inner_fire = utils.resolve_spell_id(spells.INNER_FIRE),
     fortitude = utils.resolve_spell_id(spells.POWER_WORD_FORTITUDE),
     divine_spirit = utils.resolve_spell_id(spells.DIVINE_SPIRIT),
+    shadow_protection = utils.resolve_spell_id(spells.SHADOW_PROTECTION),
     fear_ward = utils.resolve_spell_id(spells.FEAR_WARD),
     fade = utils.resolve_spell_id(spells.FADE),
     dispel_magic = utils.resolve_spell_id(spells.DISPEL_MAGIC),
@@ -46,6 +97,8 @@ local resolved = {
     starshards = utils.resolve_spell_id(spells.STARSHARDS),
     desperate_prayer = utils.resolve_spell_id(spells.DESPERATE_PRAYER),
     berserking = utils.resolve_spell_id(spells.BERSERKING),
+    resurrection = utils.resolve_spell_id(spells.RESURRECTION),
+    power_infusion = utils.resolve_spell_id(spells.POWER_INFUSION),
 }
 
 -- Helper functions
@@ -76,6 +129,74 @@ end
 local function is_inner_focus_ready()
     if not resolved.inner_focus then return false end
     return _get_spell_cd(resolved.inner_focus) == 0
+end
+
+-- ============================================================================
+-- CHANNEL PROTECTION (Mind Flay anti-clipping)
+-- ============================================================================
+
+-- Start tracking a channel spell
+local function start_channel(spell_name, duration)
+    runtime.channel_state.is_channeling = true
+    runtime.channel_state.channel_spell = spell_name
+    runtime.channel_state.channel_start_time = _core_time()
+    runtime.channel_state.channel_duration = duration or 3.0 -- Mind Flay = 3s
+end
+
+-- Stop tracking channel (called when channel ends or is interrupted)
+local function stop_channel()
+    runtime.channel_state.is_channeling = false
+    runtime.channel_state.channel_spell = nil
+    runtime.channel_state.channel_start_time = 0
+    runtime.channel_state.channel_duration = 0
+end
+
+-- Get remaining channel time
+local function get_channel_remaining()
+    if not runtime.channel_state.is_channeling then return 0 end
+    local elapsed = _core_time() - runtime.channel_state.channel_start_time
+    return math.max(0, runtime.channel_state.channel_duration - elapsed)
+end
+
+-- Check if we should allow a new cast (don't clip channels)
+-- emergency_only = true: only allow if target dying or emergency situation
+local function should_allow_cast(emergency_only)
+    if not runtime.channel_state.is_channeling then return true end
+    
+    local remaining = get_channel_remaining()
+    if remaining <= 0 then
+        stop_channel()
+        return true
+    end
+    
+    -- If not emergency, never clip a channel
+    if not emergency_only then
+        if menu.debug and menu.debug:get_state() then
+            print(string.format("[Shadow] Channel active (%.1fs remaining), waiting...", remaining))
+        end
+        return false
+    end
+    
+    -- Emergency mode: only clip if significant time remains (>0.5s left)
+    -- This saves at least some ticks
+    if remaining > 0.5 then
+        if menu.debug and menu.debug:get_state() then
+            print(string.format("[Shadow] Emergency clip (%.1fs remaining)", remaining))
+        end
+        return true
+    end
+    
+    return false
+end
+
+-- Check if Mind Flay channel should continue (don't restart if already channeling)
+local function should_cast_mind_flay()
+    if not runtime.channel_state.is_channeling then return true end
+    -- Already channeling Mind Flay - don't restart, let it complete
+    if runtime.channel_state.channel_spell == "mind_flay" then
+        return false
+    end
+    return true
 end
 
 -- Ensure Shadowform
@@ -277,7 +398,14 @@ local function try_mind_blast(me, target)
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not me:can_attack(target) then return false end
     
+    -- CHANNEL PROTECTION: Check if we should clip current channel
+    -- Mind Blast is high priority, so allow emergency clip
+    if not should_allow_cast(true) then return false end
+    
     if not is_mind_blast_ready() then return false end
+    
+    -- Stop any active channel before casting
+    stop_channel()
     
     if utils.cast_target(resolved.mind_blast, me, target) then
         note_cast()
@@ -295,12 +423,18 @@ local function try_shadow_word_death(me, target)
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not me:can_attack(target) then return false end
     
+    -- CHANNEL PROTECTION: SW:Death is execute priority, allow emergency clip
+    if not should_allow_cast(true) then return false end
+    
     -- HP safety check
     local swd_hp_threshold = (menu.shadow_swd_hp and menu.shadow_swd_hp:get() or 40) / 100
     local my_hp = utils.get_health_pct(me)
     if my_hp < swd_hp_threshold then return false end
     
     if not is_sw_death_ready() then return false end
+    
+    -- Stop any active channel before casting
+    stop_channel()
     
     if utils.cast_target(resolved.shadow_word_death, me, target) then
         note_cast()
@@ -315,6 +449,11 @@ local function try_racial(me)
     if not me:is_in_combat() then return false end
     if not (menu.use_racial and menu.use_racial:get_state()) then return false end
     
+    -- TTD gating for major CDs
+    local ttd = utils.get_time_to_die and utils.get_time_to_die(target)
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+    if ttd and ttd < min_ttd then return false end
+    
     if resolved.berserking and _get_spell_cd(resolved.berserking) == 0 then
         if utils.cast_self(resolved.berserking, me) then
             note_cast()
@@ -323,6 +462,22 @@ local function try_racial(me)
         end
     end
     
+    return false
+end
+
+-- Try Power Infusion (burst CD)
+local function try_power_infusion(me)
+    if not resolved.power_infusion then return false end
+    if not me:is_in_combat() then return false end
+    if utils.has_buff(me, spells.BUFF_POWER_INFUSION) then return false end
+    
+    if _get_spell_cd(resolved.power_infusion) == 0 then
+        if utils.cast_self(resolved.power_infusion, me) then
+            note_cast()
+            utils.log_debug(menu, "Power Infusion")
+            return true
+        end
+    end
     return false
 end
 
@@ -380,6 +535,11 @@ local function try_mind_flay(me, target)
     if not target or not target:is_valid() or target:is_dead() then return false end
     if not me:can_attack(target) then return false end
     
+    -- CHANNEL PROTECTION: Don't cast if already channeling Mind Flay
+    if not should_cast_mind_flay() then
+        return false
+    end
+    
     -- Yield to LowManaMode: don't waste mana on MF when conserving
     local low_mana_threshold = (menu.shadow_low_mana_pct and menu.shadow_low_mana_pct:get() or 50) / 100
     local mana_pct = utils.get_mana_pct(me)
@@ -393,6 +553,8 @@ local function try_mind_flay(me, target)
     
     if utils.cast_target(resolved.mind_flay, me, target) then
         note_cast()
+        -- Start tracking the channel
+        start_channel("mind_flay", 3.0)
         utils.log_debug(menu, "Mind Flay")
         return true
     end
@@ -446,10 +608,15 @@ local function try_fade(me)
 end
 
 -- Try Shadowfiend (mana recovery)
-local function try_shadowfiend(me)
+local function try_shadowfiend(me, target)
     if not resolved.shadowfiend then return false end
     if not (menu.use_shadowfiend and menu.use_shadowfiend:get_state()) then return false end
     if not me:is_in_combat() then return false end
+    
+    -- TTD gating for major CDs
+    local ttd = utils.get_time_to_die and utils.get_time_to_die(target)
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+    if ttd and ttd < min_ttd then return false end
     
     local threshold = (menu.shadowfiend_pct and menu.shadowfiend_pct:get() or 50) / 100
     local mana_pct = utils.get_mana_pct(me)
@@ -487,67 +654,6 @@ local function try_desperate_prayer(me)
     return false
 end
 
--- Try Inner Fire (self-buff)
-local function try_inner_fire(me)
-    if not resolved.inner_fire then return false end
-    if not (menu.use_inner_fire and menu.use_inner_fire:get_state()) then return false end
-    if me:is_in_combat() then return false end
-    if utils.has_buff(me, spells.BUFF_INNER_FIRE) then return false end
-    
-    if utils.cast_self(resolved.inner_fire, me) then
-        note_cast()
-        utils.log_debug(menu, "Inner Fire")
-        return true
-    end
-    return false
-end
-
--- Try Fear Ward (pre-pull buff)
-local function try_fear_ward(me)
-    if not resolved.fear_ward then return false end
-    if not (menu.use_fear_ward and menu.use_fear_ward:get_state()) then return false end
-    if me:is_in_combat() then return false end
-    if utils.has_buff(me, spells.BUFF_FEAR_WARD) then return false end
-    
-    if utils.cast_self(resolved.fear_ward, me) then
-        note_cast()
-        utils.log_debug(menu, "Fear Ward (self)")
-        return true
-    end
-    return false
-end
-
--- Try Fortitude buff
-local function try_fortitude(me)
-    if not resolved.fortitude then return false end
-    if not (menu.use_fortitude and menu.use_fortitude:get_state()) then return false end
-    if me:is_in_combat() then return false end
-    -- Skip if already has fortitude buff
-    if utils.has_buff(me, spells.BUFF_POWER_WORD_FORT) then return false end
-    
-    if utils.cast_self(resolved.fortitude, me) then
-        note_cast()
-        utils.log_debug(menu, "Power Word: Fortitude")
-        return true
-    end
-    return false
-end
-
--- Try Divine Spirit buff
-local function try_divine_spirit(me)
-    if not resolved.divine_spirit then return false end
-    if not (menu.use_divine_spirit and menu.use_divine_spirit:get_state()) then return false end
-    if me:is_in_combat() then return false end
-    if utils.has_buff(me, spells.BUFF_DIVINE_SPIRIT) then return false end
-    
-    if utils.cast_self(resolved.divine_spirit, me) then
-        note_cast()
-        utils.log_debug(menu, "Divine Spirit")
-        return true
-    end
-    return false
-end
-
 -- Main rotation logic
 local function on_update()
     -- Menu nil guard
@@ -556,15 +662,79 @@ local function on_update()
     local me = _get_local_player()
     if not me or not me:is_valid() or me:is_dead() then return end
     
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+    
+    
+    if not runtime._initialized then
+        init_()
+    end
+    
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
     
-    -- OOC buffs
+    -- Execute middleware (healthstones, potions, racials)
+    local target = me:get_target()
+    local mw_result, mw_msg = middleware_manager.execute_middleware(nil, me, target)
+    if mw_result then
+        note_cast()
+        utils.log_debug(menu, mw_msg or "Middleware executed")
+        return
+    end
+    
+    -- Mana recovery check
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.PRIEST)
+    end
+    
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+    
+    -- OOC handling via shared ooc_manager
     if not me:is_in_combat() then
-        if try_inner_fire(me) then return end
-        if try_fear_ward(me) then return end
-        if try_fortitude(me) then return end
-        if try_divine_spirit(me) then return end
+        ooc_manager.on_update(me, menu, utils, {
+            rez_spell_id = resolved.resurrection,
+            group_buffs = {
+                {
+                    spell_id = resolved.inner_fire,
+                    buff_ids = spells.BUFF_INNER_FIRE,
+                    name = "Inner Fire",
+                    toggle = menu.use_inner_fire
+                },
+                {
+                    spell_id = resolved.fortitude,
+                    buff_ids = spells.BUFF_FORTITUDE,
+                    name = "Fortitude",
+                    toggle = menu.use_power_word_fortitude
+                },
+                {
+                    spell_id = resolved.divine_spirit,
+                    buff_ids = spells.BUFF_DIVINE_SPIRIT,
+                    name = "Divine Spirit",
+                    toggle = menu.use_divine_spirit
+                },
+                {
+                    spell_id = resolved.shadow_protection,
+                    buff_ids = spells.BUFF_SHADOW_PROTECTION,
+                    name = "Shadow Protection",
+                    toggle = menu.use_shadow_protection
+                },
+                {
+                    spell_id = resolved.fear_ward,
+                    buff_ids = spells.BUFF_FEAR_WARD,
+                    name = "Fear Ward",
+                    toggle = menu.pvp_use_fear_ward
+                },
+            }
+        })
     end
     
     -- Ensure Shadowform
@@ -572,6 +742,11 @@ local function on_update()
     
     -- Get target
     local target = me:get_target()
+    
+    -- Sample combat forecast for TTD tracking
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
     
     -- Pre-combat pull
     if try_precombat_pull(me, target) then return end
@@ -587,11 +762,21 @@ local function on_update()
     -- Cooldowns
     if try_racial(me) then return end
     
+    -- Burst & Trinket Automation
+    local ctx = utils.get_cached_combat_context and utils.get_cached_combat_context(me) or { combat_start_time = runtime.last_cast_time }
+    local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
+    local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    if is_burst_window then
+        -- Shadow Priest burst: Power Infusion (if available), Trinkets
+        if try_power_infusion(me) then return end
+    end
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
+    
     -- Threat management
     if try_fade(me) then return end
     
     -- Mana recovery
-    if try_shadowfiend(me) then return end
+    if try_shadowfiend(me, target) then return end
     
     if not target or not target:is_valid() or target:is_dead() then return end
     if not me:can_attack(target) then return end

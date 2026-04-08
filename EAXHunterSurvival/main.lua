@@ -4,6 +4,15 @@
 local menu    = require("libraries/menu")
 local spells  = require("libraries/spells")
 local utils   = require("libraries/utils")
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local _compat = require("libraries/rotation_compat")
+local ooc_manager = require("../libraries/ooc_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -79,6 +88,8 @@ local rt = {
     last_disengage_time = 0,
     cached_mode        = "solo",
     prev_toggle_state  = false,
+    combat_start_time  = 0,
+    in_combat          = false,
 }
 
 local SPELL_REFRESH     = 1.0
@@ -352,12 +363,19 @@ local function try_serpent_sting(me, t)
     return false
 end
 
-local function try_rapid_fire(me)
+local function try_rapid_fire(me, t)
     if not (menu.use_rapid_fire and menu.use_rapid_fire:get_state()) then return false end
     if not rt.rapid_fire_id then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_RAPID_FIRE) then return false end
     if rt.last_rapid_fire_cast_count == core.spell_book.get_spell_cast_count(rt.rapid_fire_id) then return false end
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+    if min_ttd > 0 and t then
+        local forecast = require("common/modules/combat_forecast")
+        if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
+            return false
+        end
+    end
     if utils.can_cast_self(rt.rapid_fire_id, me) then
         rt.last_rapid_fire_cast_count = core.spell_book.get_spell_cast_count(rt.rapid_fire_id)
         utils.cast_self(rt.rapid_fire_id, me)
@@ -370,11 +388,50 @@ local function try_kill_command(me, t)
     if not (menu.use_kill_command and menu.use_kill_command:get_state()) then return false end
     if not rt.kill_command_id or not pet_alive() then return false end
     if rt.last_kill_command_cast_count == core.spell_book.get_spell_cast_count(rt.kill_command_id) then return false end
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+    if min_ttd > 0 and t then
+        local forecast = require("common/modules/combat_forecast")
+        if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
+            return false
+        end
+    end
     if not utils.can_cast_hostile(rt.kill_command_id, me, t) then return false end
     if utils.cast_target(rt.kill_command_id, me, t) then
         rt.last_kill_command_cast_count = core.spell_book.get_spell_cast_count(rt.kill_command_id)
         return true
     end
+    return false
+end
+
+local function try_burst_cds(me, t)
+    if not (menu.auto_burst_enabled and menu.auto_burst_enabled:get_state()) then return false end
+    
+    local combat_time = 0
+    if rt.in_combat and rt.combat_start_time > 0 then
+        combat_time = _core_time() - rt.combat_start_time
+    end
+    
+    local should_burst, reason = burst_manager.should_auto_burst(me, t, combat_time, menu)
+    if not should_burst then return false end
+    
+    -- Try Rapid Fire first
+    if (menu.use_rapid_fire and menu.use_rapid_fire:get_state()) and rt.rapid_fire_id then
+        if not utils.has_buff(me, spells.BUFF_RAPID_FIRE) then
+            if rt.last_rapid_fire_cast_count ~= core.spell_book.get_spell_cast_count(rt.rapid_fire_id) then
+                if utils.can_cast_self(rt.rapid_fire_id, me) then
+                    rt.last_rapid_fire_cast_count = core.spell_book.get_spell_cast_count(rt.rapid_fire_id)
+                    utils.cast_self(rt.rapid_fire_id, me)
+                    return true
+                end
+            end
+        end
+    end
+    
+    -- Try Kill Command second (if pet alive)
+    if pet_alive() then
+        if try_kill_command(me, t) then return true end
+    end
+    
     return false
 end
 
@@ -524,11 +581,36 @@ local function do_rotation(me, t)
     if try_aspect_viper(me) then return end
     if try_aspect(me) then return end
 
+    -- Check trinkets during burst window
+    local combat_time = 0
+    if rt.in_combat and rt.combat_start_time > 0 then
+        combat_time = _core_time() - rt.combat_start_time
+    end
+    local is_burst_window = burst_manager.should_auto_burst(me, t, combat_time, menu)
+    
+    -- Sample combat forecast
+    if combat_forecast and t and t:is_valid() then
+        combat_forecast:sample(t)
+    end
+    
+    -- Update trinket check to V2
+    trinket_manager.check_trinkets_v2(me, t, is_burst_window, force_commands, combat_forecast, menu)
+
+    -- Burst CDs (Rapid Fire, Kill Command)
+    if try_burst_cds(me, t) then return end
+
     if pet_alive() then
-        if try_kill_command(me, t) then return end
+        -- Kill Command handled in try_burst_cds, but try normal usage if not bursting
+        if not (menu.auto_burst_enabled and menu.auto_burst_enabled:get_state()) then
+            if try_kill_command(me, t) then return end
+        end
     end
 
-    if try_rapid_fire(me) then return end
+    -- Individual Rapid Fire (if not using burst manager)
+    if not (menu.auto_burst_enabled and menu.auto_burst_enabled:get_state()) then
+        if try_rapid_fire(me, t) then return end
+    end
+
     if try_mend(me) then return end
     if try_hunters_mark(me, t) then return end
 
@@ -563,19 +645,78 @@ local function on_update()
     local me = get_me()
     if utils.throttle("survivalmode", MODE_REFRESH) then rt.cached_mode = detect_mode() end
 
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
     if not me or me:is_dead() then return end
 
+    -- Track combat state for burst manager
+    local currently_in_combat = me:is_in_combat()
+    if currently_in_combat and not rt.in_combat then
+        rt.combat_start_time = _core_time()
+    end
+    rt.in_combat = currently_in_combat
+
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+
+    -- Initialize middleware on first run
+    if not middleware_manager.is_initialized() then
+        middleware_manager.initialize(menu)
+    end
+
     if try_revive(me) then return end
+
+    -- OOC Manager: buffs, drink, eat, etc.
+    if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = rt.aspect_hawk_id,
+                    buff_ids = spells.BUFF_ASPECT_OF_THE_HAWK,
+                    name = "Aspect of the Hawk",
+                    toggle = menu.use_aspect_hawk
+                },
+            }
+        })
+    end
 
     local t = me:get_target()
     if not t or not t:is_valid() or t:is_dead() then return end
     if not me:can_attack(t) then return end
 
+    -- Build middleware context and execute
+    local ctx = middleware_manager.build_context(me, t, {})
+    local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
+    if mw_result then
+        return
+    end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
     do_rotation(me, t)
 end
 
 core.register_on_update_callback(on_update)
+
+-- Initialize dashboard
+if dashboard and dashboard.init then
+    dashboard.init(dashboard_config)
+    dashboard.set_enabled(true)
+    dashboard.register_render_callback()
+end
+
+-- Initialize force_commands
+if force_commands and force_commands.init then
+    force_commands:init()
+end
 
 -- Export toggle settings for external access
 local NS = _G.EAXHunterSurvival and _G.EAXHunterSurvival.NS or {}

@@ -1,5 +1,5 @@
 -- lifebloom_bloom_manager.lua
--- Flux Adaptation: Lifebloom bloom state tracking and mana optimization
+-- Lifebloom bloom state tracking and mana optimization
 -- TBC 2.4.3: Lifebloom blooms on natural expiry, returning mana + burst heal
 
 ---@type buff_manager

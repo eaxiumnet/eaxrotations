@@ -96,7 +96,7 @@ end
 
 function resource_gate.warrior.can_queue_dump(ctx, min_rage, cap_rage)
     -- For abilities like Heroic Strike that queue on next attack
-    -- Flux-style: high rage should trigger dumps, not prevent them
+    -- high rage should trigger dumps, not prevent them
     -- cap_rage parameter kept for backward compatibility but no longer blocks
     if not ctx or not ctx.self then
         return false, "no context"
@@ -108,7 +108,7 @@ function resource_gate.warrior.can_queue_dump(ctx, min_rage, cap_rage)
         return false, "not enough rage"
     end
 
-    -- REMOVED: cap_rage blocking logic - Flux never blocks dumps at high rage
+    -- REMOVED: cap_rage blocking logic - never blocks dumps at high rage
     -- Previously: if cap_rage and rage >= cap_rage then return false end
     -- Now: Let the rotation decide when to dump based on priority, not artificially block
 

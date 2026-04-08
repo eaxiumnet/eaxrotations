@@ -4,6 +4,14 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local ooc_manager = require("../libraries/ooc_manager")
+local mana_manager = require("libraries/mana_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -84,6 +92,7 @@ local function resolve_spells()
 end
 
 resolve_spells()
+force_commands:init()
 
 -- Utility functions
 local function note_cast()
@@ -507,6 +516,27 @@ end
 local function do_rotation(me, target)
     if not is_gcd_ready() then return end
     
+    -- Sample combat forecast for TTD tracking
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
+    
+    -- Mana recovery check
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.WARLOCK)
+        if used_mana then return end
+    end
+    
+    -- Burst & Trinket Automation
+    local ctx = utils.get_cached_combat_context(me)
+    local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
+    local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    if is_burst_window then
+        -- Demo burst: prioritize big cooldowns
+        if try_shadowburn(me, target) then return end
+    end
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
+    
     -- Pet healing priority
     if try_health_funnel(me) then return end
     
@@ -518,11 +548,17 @@ local function do_rotation(me, target)
     if try_immolate(me, target) then return end
     if try_curse(me, target) then return end
     
-    -- Execute phase
-    if try_shadowburn(me, target) then return end
+    -- Execute phase (with TTD gating)
+    local ttd = utils.get_ttd(target)
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+    if ttd >= min_ttd then
+        if try_shadowburn(me, target) then return end
+    end
     
-    -- Burst
-    if try_soul_fire(me, target) then return end
+    -- Burst (with TTD gating)
+    if ttd >= min_ttd then
+        if try_soul_fire(me, target) then return end
+    end
     
     -- Filler
     if try_shadow_bolt(me, target) then return end
@@ -530,7 +566,7 @@ end
 
 -- Update callback
 core.register_on_update_callback(function()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
 
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
@@ -539,16 +575,64 @@ core.register_on_update_callback(function()
     local me = _get_local_player()
     if not me or me:is_dead() then return end
 
-    -- OOC utilities
-    if try_fel_armor(me) then return end
-    if try_demon_armor(me) then return end
-    if try_soul_link(me) then return end
-    if try_life_tap(me) then return end
-    if try_create_healthstone(me) then return end
-    if try_self_soulstone(me) then return end
-    if try_summon_pet(me) then return end
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
-    if not me:is_in_combat() then return end
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
+    -- Sync dashboard settings
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
+
+    -- OOC utilities via ooc_manager
+    if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = runtime.fel_armor_id,
+                    buff_ids = spells.BUFF_FEL_ARMOR,
+                    name = "Fel Armor",
+                    toggle = menu.use_fel_armor
+                },
+                {
+                    spell_id = runtime.demon_armor_id,
+                    buff_ids = spells.BUFF_DEMON_ARMOR,
+                    name = "Demon Armor",
+                    toggle = menu.use_demon_armor
+                },
+            }
+        })
+        if try_soul_link(me) then return end
+        if try_life_tap(me) then return end
+        if try_create_healthstone(me) then return end
+        if try_self_soulstone(me) then return end
+        if try_summon_pet(me) then return end
+        return
+    end
 
     -- Combat utilities
     if try_use_healthstone(me) then return end
@@ -567,3 +651,7 @@ local NS = _G.EAXWarlockDemonology and _G.EAXWarlockDemonology.NS or {}
 NS.toggle_menu = menu.toggle_menu
 _G.EAXWarlockDemonology = _G.EAXWarlockDemonology or {}
 _G.EAXWarlockDemonology.NS = NS
+
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.register_render_callback()

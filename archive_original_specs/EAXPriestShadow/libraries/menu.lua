@@ -82,7 +82,7 @@ menu.use_resurrection                    = core.menu.checkbox(true, "eaxpriestsh
 menu.use_shadow_weaving                  = core.menu.checkbox(true, "eaxpriestshadow_use_shadow_weaving")
 menu.shadow_weaving_refresh_window       = core.menu.slider_int(1, 10, 3, "eaxpriestshadow_sw_refresh_window")
 
--- Flux-ported features
+-- Additional features
 menu.use_starshards                      = core.menu.checkbox(false, "eaxpriestshadow_use_starshards")
 menu.use_inner_focus                     = core.menu.checkbox(true, "eaxpriestshadow_use_inner_focus")
 menu.low_mana_pws_pct                    = core.menu.slider_int(10, 80, 50, "eaxpriestshadow_low_mana_pws_pct")

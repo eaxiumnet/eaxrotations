@@ -6,6 +6,15 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 local buff_manager = require("common/modules/buff_manager")
 local spell_queue = require("common/modules/spell_queue")
+local ooc_manager = require("../libraries/ooc_manager")
+local mana_manager = require("libraries/mana_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+
+-- Flux Feature Integration
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
+local swing_manager = require("libraries/swing_manager")
 
 -- Runtime spell cache
 local runtime = {
@@ -39,6 +48,7 @@ local runtime = {
     -- State
     lb_casts_since_cl = 99,
     last_combat_state = false,
+    combat_start_time = 0,
 }
 
 -- Resolve spells on load
@@ -77,6 +87,9 @@ local function resolve_spells()
 end
 
 resolve_spells()
+
+-- Initialize Flux force_commands
+force_commands:init()
 
 -- Hot-path caching
 local _core_time = core.time
@@ -461,13 +474,36 @@ local function try_ghost_wolf(me)
     return try_cast_self(runtime.ghost_wolf_id, me, "Ghost Wolf")
 end
 
+-- Combat state tracking for burst timing
+local function check_combat_reset(in_combat)
+    if in_combat and not runtime.last_combat_state then
+        -- Combat started
+        runtime.combat_start_time = _core_time()
+    elseif not in_combat and runtime.last_combat_state then
+        -- Combat ended - reset
+        runtime.combat_start_time = 0
+    end
+    runtime.last_combat_state = in_combat
+end
+
 -- Main on_update callback
 local function on_update()
     local me = core.object_manager.get_local_player()
     if not me or not me:is_valid() then return end
     
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+    
     -- Check enabled
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
     
     -- Rotation is always enabled when menu.enabled is true
     -- The toggle_key legacy feature is deprecated - use NUMPAD* to toggle menu instead
@@ -479,6 +515,22 @@ local function on_update()
     
     -- Out of combat utilities
     if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = runtime.lightning_shield_id,
+                    buff_ids = spells.BUFF_LIGHTNING_SHIELD,
+                    name = "Lightning Shield",
+                    toggle = menu.use_lightning_shield
+                },
+                {
+                    spell_id = runtime.water_shield_id,
+                    buff_ids = spells.BUFF_WATER_SHIELD,
+                    name = "Water Shield",
+                    toggle = menu.use_water_shield
+                },
+            }
+        })
         if try_ghost_wolf(me) then return end
         return
     end
@@ -489,6 +541,33 @@ local function on_update()
         target = utils.find_best_target(me)
         if not target then return end
     end
+    
+    -- Mana recovery check (Shaman uses potions/runes only)
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.SHAMAN)
+    end
+    
+    -- Flux: Update swing manager (for melee weaving if applicable)
+    swing_manager:update_swing(me)
+    
+    -- Flux: Sample combat forecast
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
+    
+    -- Flux: Check swing delay (don't clip auto attacks if melee weaving)
+    if swing_manager:is_swing_landing_soon(0.15) then return end
+    
+    -- Burst & Trinket Automation
+    local combat_time = _core_time() - (runtime.combat_start_time or _core_time())
+    local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    if is_burst_window then
+        -- Elemental burst: Bloodlust (if available), Elemental Mastery
+        if try_elemental_mastery(me) then return end
+    end
+    
+    -- Flux: Trinkets V2
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
     
     -- Rotation priority
     if try_elemental_mastery(me) then return end

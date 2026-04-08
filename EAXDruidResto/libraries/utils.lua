@@ -221,6 +221,227 @@ function utils.dist_squared(me, target)
     return (dx * dx + dy * dy + dz * dz)
 end
 
+-- ============================================================================
+
+-- ============================================================================
+
+--- Check if target is a player (for PvP)
+-- @param target GameObject
+-- @return boolean
+function utils.is_player(target)
+    if not target or not target:is_valid() then return false end
+    if target.is_player then
+        local ok, is_player = pcall(function() return target:is_player() end)
+        if ok then return is_player end
+    end
+    return false
+end
+
+--- Check if target is an enemy player
+-- @param me GameObject: Local player
+-- @param target GameObject
+-- @return boolean
+function utils.is_enemy_player(me, target)
+    if not me or not target then return false end
+    if not utils.is_player(target) then return false end
+    return me:can_attack(target)
+end
+
+--- Detect PvP mode based on menu settings and context
+-- @param menu table: Menu module
+-- @param me GameObject: Local player
+-- @param target GameObject: Current target
+-- @return string: "pvp", "pve", or "auto"
+function utils.detect_pvp_mode(menu, me, target)
+    if not menu then return "pve" end
+    
+    -- Check if PvP is enabled
+    local pvp_enabled = (menu.pvp_enabled and menu.pvp_enabled:get_state()) or false
+    if not pvp_enabled then return "pve" end
+    
+    -- Check PvP mode setting
+    local pvp_mode = (menu.pvp_mode and menu.pvp_mode:get()) or 1
+    
+    -- Mode 2 = PVE Only
+    if pvp_mode == 2 then return "pve" end
+    
+    -- Mode 3 = PVP Only
+    if pvp_mode == 3 then return "pvp" end
+    
+    -- Mode 1 = Auto (detect based on target)
+    if target and utils.is_enemy_player(me, target) then
+        return "pvp"
+    end
+    
+    -- Check if player is in a PvP zone/flagged
+    if me and me.is_pvp_flagged then
+        local ok, flagged = pcall(function() return me:is_pvp_flagged() end)
+        if ok and flagged then return "pvp" end
+    end
+    
+    return "pve"
+end
+
+--- Check if in PvP combat (targeting or being targeted by enemy player)
+-- @param me GameObject: Local player
+-- @return boolean
+function utils.is_in_pvp_combat(me)
+    if not me or not me:is_valid() then return false end
+    
+    -- Check if targeting an enemy player
+    local target = core.object_manager.get_target()
+    if target and utils.is_enemy_player(me, target) then
+        return true
+    end
+    
+    -- Check if being targeted by an enemy player
+    if me.is_target_of then
+        local ok, is_targeted = pcall(function() return me:is_target_of() end)
+        if ok and is_targeted then
+            -- Check if the targeter is a player
+            for _, o in ipairs(core.object_manager.get_all_objects()) do
+                if o and o:is_valid() and o:is_unit() and not o:is_dead() then
+                    if utils.is_enemy_player(me, o) then
+                        -- Check if this player is targeting us
+                        if o.get_target then
+                            local ok_target, their_target = pcall(function() return o:get_target() end)
+                            if ok_target and their_target and utils.same_unit(their_target, me) then
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return false
+end
+
+-- ============================================================================
+
+-- ============================================================================
+
+--- Count active HoTs on party/raid members
+-- @return number: Count of active HoTs
+function utils.get_active_hot_count()
+    local me = core.object_manager.get_local_player()
+    if not me then return 0 end
+    
+    local hot_count = 0
+    local spells = require("libraries/spells")
+    
+    for _, o in ipairs(core.object_manager.get_all_objects()) do
+        if o and o:is_valid() and o:is_unit() and not o:is_dead() then
+            if o:is_party_member() or utils.same_unit(o, me) then
+                -- Check for Rejuvenation
+                if utils.has_buff(o, spells.BUFF_REJUVENATION) then
+                    hot_count = hot_count + 1
+                end
+                -- Check for Regrowth
+                if utils.has_buff(o, spells.BUFF_REGROWTH) then
+                    hot_count = hot_count + 1
+                end
+                -- Check for Lifebloom
+                if utils.has_buff(o, spells.BUFF_LIFEBLOOM) then
+                    hot_count = hot_count + 1
+                end
+            end
+        end
+    end
+    
+    return hot_count
+end
+
+-- Crowd Control Detection
+-- Uses get_loss_of_control_info() to detect if player cannot cast spells
+
+-- Loss of Control Type Enum Values (from Sylvanas API)
+local LOC_NONE = 0
+local LOC_POSSESS = 1
+local LOC_CONFUSE = 2
+local LOC_CHARM = 3
+local LOC_FEAR = 4
+local LOC_STUN = 5
+local LOC_PACIFY = 6
+local LOC_ROOT = 7
+local LOC_SILENCE = 8
+local LOC_PACIFY_SILENCE = 9
+local LOC_DISARM = 10
+local LOC_SCHOOL_INTERRUPT = 11
+local LOC_STUN_MECHANIC = 12
+local LOC_FEAR_MECHANIC = 13
+
+-- CC types that prevent spell casting
+local CAST_PREVENTING_CC_TYPES = {
+    [LOC_STUN] = true,
+    [LOC_PACIFY] = true,
+    [LOC_SILENCE] = true,
+    [LOC_PACIFY_SILENCE] = true,
+    [LOC_SCHOOL_INTERRUPT] = true,
+    [LOC_STUN_MECHANIC] = true,
+    [LOC_CONFUSE] = true,
+    [LOC_CHARM] = true,
+    [LOC_FEAR] = true,
+    [LOC_FEAR_MECHANIC] = true,
+    [LOC_DISARM] = true,
+}
+
+--[[
+    Checks if the unit has a loss of control effect that prevents casting
+    
+    @param unit: game_object - The player or unit to check
+    @return boolean: true if unit cannot cast spells, false otherwise
+--]]
+function utils.is_cced(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return false
+    end
+    
+    -- Check if method exists (API compatibility)
+    if not unit.get_loss_of_control_info then
+        return false
+    end
+    
+    local loc_info = unit:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then
+        return false
+    end
+    
+    return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
+end
+
+-- ============================================================================
+-- Shared Healing Module Wrappers
+-- ============================================================================
+
+---Find the ally with the lowest effective HP (considering incoming heals/damage)
+---@param me game_object The player unit
+---@param threshold number|nil HP threshold (0-100), only return targets below this
+---@param skip_self boolean|nil If true, exclude the player from results
+---@return game_object|nil The lowest HP ally, or nil if none found
+function utils.find_lowest_effective_ally(me, threshold, skip_self)
+    local heal_utils = require("libraries/heal_utils")
+    return heal_utils.find_lowest_effective_ally(me, threshold, skip_self)
+end
+
+---Get the tank unit via aggro/role detection
+---@param me game_object The player unit
+---@return game_object|nil The tank unit, or nil if none found
+function utils.get_tank_unit(me)
+    local heal_utils = require("libraries/heal_utils")
+    return heal_utils.get_tank_unit(me)
+end
+
+---Count allies below a specific HP threshold (for AoE heal decisions)
+---@param me game_object The player unit
+---@param threshold number HP threshold (0-100)
+---@return number Count of allies below threshold
+function utils.count_below_hp(me, threshold)
+    local heal_utils = require("libraries/heal_utils")
+    return heal_utils.count_below_hp(me, threshold)
+end
+
 return utils
 
 

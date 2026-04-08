@@ -4,6 +4,15 @@
 local menu    = require("libraries/menu")
 local spells  = require("libraries/spells")
 local utils   = require("libraries/utils")
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local _compat = require("libraries/rotation_compat")
+local ooc_manager = require("../libraries/ooc_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -77,6 +86,8 @@ local rt = {
     last_disengage_time = 0,
     cached_mode        = "solo",
     prev_toggle_state  = false,
+    combat_start_time  = 0,
+    in_combat          = false,
 }
 
 local SPELL_REFRESH     = 1.0
@@ -347,12 +358,32 @@ local function try_serpent_sting(me, t)
     return false
 end
 
-local function try_rapid_fire(me)
+local function try_rapid_fire(me, t)
     if not (menu.use_rapid_fire and menu.use_rapid_fire:get_state()) then return false end
     if not rt.rapid_fire_id then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_RAPID_FIRE) then return false end
     if rt.last_rapid_fire_cast_count == core.spell_book.get_spell_cast_count(rt.rapid_fire_id) then return false end
+    
+    -- Check burst manager for auto-burst conditions
+    local auto_burst = (menu.auto_burst_enabled and menu.auto_burst_enabled:get()) or false
+    if auto_burst then
+        local combat_time = rt.in_combat and (_core_time() - rt.combat_start_time) or 0
+        local should_burst, reason = burst_manager.should_auto_burst(me, t, combat_time, menu)
+        if not should_burst then
+            return false
+        end
+    else
+        -- Legacy TTD check when auto-burst is disabled
+        local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+        if min_ttd > 0 and t then
+            local forecast = require("common/modules/combat_forecast")
+            if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
+                return false
+            end
+        end
+    end
+    
     if utils.can_cast_self(rt.rapid_fire_id, me) then
         rt.last_rapid_fire_cast_count = core.spell_book.get_spell_cast_count(rt.rapid_fire_id)
         utils.cast_self(rt.rapid_fire_id, me)
@@ -361,12 +392,30 @@ local function try_rapid_fire(me)
     return false
 end
 
-local function try_readiness(me)
+local function try_readiness(me, t)
     if not (menu.use_readiness and menu.use_readiness:get_state()) then return false end
     if not rt.readiness_id then return false end
     if rt.last_readiness_cast_count == core.spell_book.get_spell_cast_count(rt.readiness_id) then return false end
     local use_for_rf = (menu.readiness_rapid_fire and menu.readiness_rapid_fire:get_state()) or false
     if use_for_rf and _get_spell_cd(rt.rapid_fire_id) > 60 then
+        -- Check burst manager for auto-burst conditions
+        local auto_burst = (menu.auto_burst_enabled and menu.auto_burst_enabled:get()) or false
+        if auto_burst then
+            local combat_time = rt.in_combat and (_core_time() - rt.combat_start_time) or 0
+            local should_burst, reason = burst_manager.should_auto_burst(me, t, combat_time, menu)
+            if not should_burst then
+                return false
+            end
+        else
+            -- Legacy TTD check when auto-burst is disabled
+            local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+            if min_ttd > 0 and t then
+                local forecast = require("common/modules/combat_forecast")
+                if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
+                    return false
+                end
+            end
+        end
         if utils.can_cast_self(rt.readiness_id, me) then
             rt.last_readiness_cast_count = core.spell_book.get_spell_cast_count(rt.readiness_id)
             utils.cast_self(rt.readiness_id, me)
@@ -507,8 +556,8 @@ local function do_rotation(me, t)
         if try_kill_command(me, t) then return end
     end
 
-    if try_rapid_fire(me) then return end
-    if try_readiness(me) then return end
+    if try_rapid_fire(me, t) then return end
+    if try_readiness(me, t) then return end
     if try_trueshot_aura(me) then return end
     if try_mend(me) then return end
     if try_hunters_mark(me, t) then return end
@@ -540,8 +589,43 @@ local function on_update()
     resolve()
     local me = get_me()
     if utils.throttle("mmmode", MODE_REFRESH) then rt.cached_mode = detect_mode() end
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
     if not me or me:is_dead() then return end
+
+    -- Track combat state for burst manager
+    local in_combat_now = me:is_in_combat()
+    if in_combat_now and not rt.in_combat then
+        rt.combat_start_time = _core_time()
+    end
+    rt.in_combat = in_combat_now
+
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+
+    -- OOC handling: Aspect of the Hawk self-buff
+    if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = rt.aspect_hawk_id,
+                    buff_ids = spells.BUFF_ASPECT_OF_THE_HAWK,
+                    name = "Aspect of the Hawk",
+                    toggle = menu.use_aspect_hawk
+                },
+                {
+                    spell_id = rt.trueshot_aura_id,
+                    buff_ids = spells.BUFF_TRUESHOT_AURA,
+                    name = "Trueshot Aura",
+                    toggle = menu.use_trueshot_aura
+                },
+            }
+        })
+    end
+
+    -- Initialize middleware on first run
+    if not middleware_manager.is_initialized() then
+        middleware_manager.initialize(menu)
+    end
 
     if try_revive(me) then return end
 
@@ -549,10 +633,53 @@ local function on_update()
     if not t or not t:is_valid() or t:is_dead() then return end
     if not me:can_attack(t) then return end
 
+    -- Build middleware context and execute
+    local ctx = middleware_manager.build_context(me, t, {})
+    local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
+    if mw_result then
+        return
+    end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
+    -- Check trinkets before rotation
+    local combat_time = rt.in_combat and (_core_time() - rt.combat_start_time) or 0
+    local is_burst, _ = burst_manager.should_auto_burst(me, t, combat_time, menu)
+    
+    -- Sample combat forecast
+    if combat_forecast and t and t:is_valid() then
+        combat_forecast:sample(t)
+    end
+    
+    -- Update trinket check to V2
+    trinket_manager.check_trinkets_v2(me, t, is_burst, force_commands, combat_forecast, menu)
+
     do_rotation(me, t)
 end
 
 core.register_on_update_callback(on_update)
+
+-- Initialize dashboard
+if dashboard and dashboard.init then
+    dashboard.init(dashboard_config)
+    local ok_show, show_dashboard = pcall(function() return menu.dashboard_enabled:get_state() end)
+    dashboard.set_enabled(ok_show and show_dashboard or false)
+    dashboard.register_render_callback()
+end
+
+-- Initialize force_commands
+if force_commands and force_commands.init then
+    force_commands:init()
+end
 
 -- Export toggle settings for external access
 local NS = _G.EAXHunterMM and _G.EAXHunterMM.NS or {}

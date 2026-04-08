@@ -191,7 +191,7 @@ local _core_time = core.time
 -- Module-level encounter policy cache (updated each tick)
 local enc = nil
 
--- FLUX CONSTANTS (v1.9.x) - Ported from flux cat.lua
+-- ENERGY CONSTANTS (v1.9.x) - Adapted from legacy cat.lua
 local Constants = {
     ENERGY = {
         CRITICAL = 10,              -- Critical energy threshold for emergency shift
@@ -1160,9 +1160,9 @@ local function try_rake_trick(me, target)
     return false
 end
 
-local function try_rake_trick_flux(me, target, ctx)
-    -- Flux Rake Trick - Advanced timing optimization
-    if not (menu.use_rake_trick_flux and menu.use_rake_trick_flux:get_state()) then return false end
+local function try_rake_trick_advanced(me, target, ctx)
+    -- Advanced Rake Trick - timing optimization
+    if not (menu.use_rake_trick_advanced and menu.use_rake_trick_advanced:get_state()) then return false end
     if not runtime.rake_id then return false end
     if not target or not target:is_valid() then return false end
     if not utils.is_in_cat_form(me, spells) then return false end
@@ -1190,7 +1190,7 @@ local function try_rake_trick_flux(me, target, ctx)
     
     if utils.cast_target(runtime.rake_id, target) then
         mark_pending_cast(runtime.rake_id, Constants.TIMING.PENDING_CAST_TIMEOUT)
-        utils.log_debug(menu, "Rake [Flux Trick]")
+        utils.log_debug(menu, "Rake [Advanced Trick]")
         note_cast()
         return true
     end
@@ -1812,8 +1812,8 @@ local function do_cat_rotation(me, target, ctx)
     -- Builder priority: Mangle (debuff) -> Rake (bleed) -> Shred/Claw
     if try_mangle_cat(me, target, ctx) then return true end
     if try_rake(me, target) then return true end
-    -- Rake Trick: Flux version first, fallback to original
-    if try_rake_trick_flux(me, target, ctx) then return true end
+    -- Rake Trick: advanced version first, fallback to original
+    if try_rake_trick_advanced(me, target, ctx) then return true end
     if try_rake_trick(me, target) then return true end
     
     -- Shred with tick optimization: prefer Mangle over Shred when tick imminent

@@ -221,6 +221,126 @@ function utils.dist_squared(me, target)
     return (dx * dx + dy * dy + dz * dz)
 end
 
+-- Crowd Control Detection
+-- Uses get_loss_of_control_info() to detect if player cannot cast spells
+
+-- Loss of Control Type Enum Values (from Sylvanas API)
+local LOC_NONE = 0
+local LOC_POSSESS = 1
+local LOC_CONFUSE = 2
+local LOC_CHARM = 3
+local LOC_FEAR = 4
+local LOC_STUN = 5
+local LOC_PACIFY = 6
+local LOC_ROOT = 7
+local LOC_SILENCE = 8
+local LOC_PACIFY_SILENCE = 9
+local LOC_DISARM = 10
+local LOC_SCHOOL_INTERRUPT = 11
+local LOC_STUN_MECHANIC = 12
+local LOC_FEAR_MECHANIC = 13
+
+-- CC types that prevent spell casting
+local CAST_PREVENTING_CC_TYPES = {
+    [LOC_STUN] = true,
+    [LOC_PACIFY] = true,
+    [LOC_SILENCE] = true,
+    [LOC_PACIFY_SILENCE] = true,
+    [LOC_SCHOOL_INTERRUPT] = true,
+    [LOC_STUN_MECHANIC] = true,
+    [LOC_CONFUSE] = true,
+    [LOC_CHARM] = true,
+    [LOC_FEAR] = true,
+    [LOC_FEAR_MECHANIC] = true,
+    [LOC_DISARM] = true,
+}
+
+--[[
+    Checks if the unit has a loss of control effect that prevents casting
+    
+    @param unit: game_object - The player or unit to check
+    @return boolean: true if unit cannot cast spells, false otherwise
+--]]
+function utils.is_cced(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return false
+    end
+    
+    -- Check if method exists (API compatibility)
+    if not unit.get_loss_of_control_info then
+        return false
+    end
+    
+    local loc_info = unit:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then
+        return false
+    end
+    
+    return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
+end
+
+--[[
+    Shared heal_utils wrappers for healing module integration
+    These delegate to the shared libraries/heal_utils module
+--]]
+
+---Find the ally with the lowest effective HP
+---@param me game_object The player unit
+---@param threshold number|nil HP threshold (0-1), only return targets below this
+---@param skip_self boolean|nil If true, exclude the player from results
+---@return game_object|nil, number|nil The lowest HP ally and their HP pct, or nil if none found
+function utils.find_lowest_effective_ally(me, threshold, skip_self)
+    local heal_utils = require("libraries/heal_utils")
+    local ally = heal_utils.find_lowest_effective_ally(me, threshold and threshold * 100 or 100, skip_self)
+    if ally then
+        local hp_pct = utils.get_health_pct(ally)
+        return ally, hp_pct
+    end
+    return nil, nil
+end
+
+---Get the tank unit
+---@param me game_object The player unit
+---@return game_object|nil The tank unit, or nil if none found
+function utils.get_tank_unit(me)
+    local heal_utils = require("libraries/heal_utils")
+    return heal_utils.get_tank_unit(me)
+end
+
+---Count allies below a specific HP threshold
+---@param me game_object The player unit
+---@param threshold number HP threshold (0-1)
+---@return number Count of allies below threshold
+function utils.count_below_hp(me, threshold)
+    local heal_utils = require("libraries/heal_utils")
+    return heal_utils.count_below_hp(me, threshold and threshold * 100 or 80)
+end
+
+---Get mana percentage (wrapper for heal_utils)
+---@param me game_object The player unit
+---@return number Mana percentage (0-1)
+function utils.get_mana_pct(me)
+    local heal_utils = require("libraries/heal_utils")
+    local pct = heal_utils.get_mana_pct(me)
+    return pct / 100  -- Convert from 0-100 to 0-1
+end
+
+---Check if unit is a tank (wrapper for heal_utils)
+---@param unit game_object The unit to check
+---@return boolean True if unit is a tank
+function utils.is_tank_unit(unit)
+    if not unit or not unit:is_valid() then return false end
+    local heal_utils = require("libraries/heal_utils")
+    -- Use get_tank_unit and compare
+    local me = core.object_manager.get_local_player()
+    if not me then return false end
+    local tank = heal_utils.get_tank_unit(me)
+    if tank and utils.same_unit(tank, unit) then
+        return true
+    end
+    return false
+end
+
 return utils
 
 

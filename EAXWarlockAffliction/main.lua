@@ -4,6 +4,14 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local ooc_manager = require("../libraries/ooc_manager")
+local mana_manager = require("libraries/mana_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -84,6 +92,9 @@ local function resolve_spells()
 end
 
 resolve_spells()
+
+-- Initialize force commands for /eax burst support
+force_commands:init()
 
 -- Utility functions
 local function note_cast()
@@ -168,6 +179,15 @@ local function try_unstable_affliction(me, target)
     if not (menu.use_unstable_affliction and menu.use_unstable_affliction:get_state()) then return false end
     if not runtime.unstable_affliction_id then return false end
     if not is_valid_target(me, target) then return false end
+    -- TTD gating - don't apply DoTs if target dies too soon
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 10
+    if min_ttd > 0 and target then
+        ---@type combat_forecast
+        local forecast = require("common/modules/combat_forecast")
+        if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
+            return false  -- Target dies too soon, don't waste DoT
+        end
+    end
     if is_pending_cast(runtime.unstable_affliction_id) then return false end
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_UNSTABLE_AFFLICTION)
     if remaining > DOT_REFRESH_MS then return false end
@@ -186,6 +206,15 @@ local function try_corruption(me, target)
     if not (menu.use_corruption and menu.use_corruption:get_state()) then return false end
     if not runtime.corruption_id then return false end
     if not is_valid_target(me, target) then return false end
+    -- TTD gating - don't apply DoTs if target dies too soon
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 10
+    if min_ttd > 0 and target then
+        ---@type combat_forecast
+        local forecast = require("common/modules/combat_forecast")
+        if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
+            return false  -- Target dies too soon, don't waste DoT
+        end
+    end
     if is_pending_cast(runtime.corruption_id) then return false end
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_CORRUPTION)
     if remaining > DOT_REFRESH_MS then return false end
@@ -204,6 +233,15 @@ local function try_siphon_life(me, target)
     if not (menu.use_siphon_life and menu.use_siphon_life:get_state()) then return false end
     if not runtime.siphon_life_id then return false end
     if not is_valid_target(me, target) then return false end
+    -- TTD gating - don't apply DoTs if target dies too soon
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 10
+    if min_ttd > 0 and target then
+        ---@type combat_forecast
+        local forecast = require("common/modules/combat_forecast")
+        if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
+            return false  -- Target dies too soon, don't waste DoT
+        end
+    end
     if is_pending_cast(runtime.siphon_life_id) then return false end
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_SIPHON_LIFE)
     if remaining > DOT_REFRESH_MS then return false end
@@ -522,7 +560,7 @@ end
 
 -- Update callback
 core.register_on_update_callback(function()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
 
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
@@ -531,9 +569,60 @@ core.register_on_update_callback(function()
     local me = _get_local_player()
     if not me or me:is_dead() then return end
     
-    -- OOC utilities
-    if try_fel_armor(me) then return end
-    if try_demon_armor(me) then return end
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+    
+    -- Sync dashboard settings
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
+    
+    -- OOC utilities (armor buffs via ooc_manager)
+    if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = runtime.fel_armor_id,
+                    buff_ids = spells.BUFF_FEL_ARMOR,
+                    name = "Fel Armor",
+                    toggle = menu.use_fel_armor
+                },
+                {
+                    spell_id = runtime.demon_armor_id,
+                    buff_ids = spells.BUFF_DEMON_ARMOR,
+                    name = "Demon Armor",
+                    toggle = menu.use_demon_armor
+                },
+            }
+        })
+    end
+    
+    -- Warlock-specific OOC utilities
     if try_life_tap(me) then return end
     if try_create_healthstone(me) then return end
     if try_self_soulstone(me) then return end
@@ -544,11 +633,32 @@ core.register_on_update_callback(function()
     -- Combat utilities
     if try_use_healthstone(me) then return end
     
+    -- Mana recovery check (Warlock uses Life Tap)
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.WARLOCK)
+    end
+    
     local target = me:get_target()
     if not is_valid_target(me, target) then
         target = utils.find_best_target(me)
     end
     if not target then return end
+    
+    -- Sample TTD every ~1 second for combat_forecast
+    if combat_forecast and target and target:is_valid() then
+        if utils.throttle("ttd_sample", 1.0) then
+            combat_forecast:sample(target)
+        end
+    end
+    
+    -- Burst & Trinket Automation (V2 with TTD gating and force commands)
+    local ctx = utils.get_cached_combat_context(me)
+    local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
+    local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    trinket_manager:check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu, {
+        trinket1_mode = (menu.trinket1_mode and menu.trinket1_mode:get()) or trinket_manager.OFF,
+        trinket2_mode = (menu.trinket2_mode and menu.trinket2_mode:get()) or trinket_manager.OFF,
+    })
     
     do_rotation(me, target)
 end)
@@ -558,3 +668,7 @@ local NS = _G.EAXWarlockAffliction and _G.EAXWarlockAffliction.NS or {}
 NS.toggle_menu = menu.toggle_menu
 _G.EAXWarlockAffliction = _G.EAXWarlockAffliction or {}
 _G.EAXWarlockAffliction.NS = NS
+
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.register_render_callback()

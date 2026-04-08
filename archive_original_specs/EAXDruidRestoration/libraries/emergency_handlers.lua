@@ -1,5 +1,5 @@
 -- emergency_handlers.lua
--- Flux Adaptation: Granular emergency healing strategies
+-- Granular emergency healing strategies
 -- Split from monolithic emergency handler into focused, testable functions
 
 local emergency_handlers = {}

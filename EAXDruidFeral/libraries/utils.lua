@@ -1,8 +1,16 @@
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
 local energy_tick = require("libraries/energy_tick")
+local enums = require("common/enums")
 
 local utils = {}
+
+-- Determine correct combo points power type for game version
+local COMBOPOINTS_PT = enums.power_type.COMBOPOINTS
+local game_version = core.get_game_version and core.get_game_version() or "Retail"
+if game_version == "TBC" and enums.power_type.COMBOPOINTS_TBC then
+    COMBOPOINTS_PT = enums.power_type.COMBOPOINTS_TBC
+end
 
 -- Spell resolver with persistent caching
 local spell_resolver = require("libraries/spell_resolver")
@@ -195,10 +203,21 @@ function utils.get_max_energy(me)
 end
 
 function utils.get_combo_points(me)
-    if me and me.get_combo_points then
+    if not me then return 0 end
+    
+    -- In TBC Classic, combo points are a player resource associated with current target
+    -- Get CP from player using correct power type for game version
+    if me.get_power then
+        local ok, cp = pcall(function() return me:get_power(COMBOPOINTS_PT) end)
+        if ok and type(cp) == "number" and cp >= 0 then return cp end
+    end
+    
+    -- Legacy fallback
+    if me.get_combo_points then
         local ok, cp = pcall(function() return me:get_combo_points() end)
         if ok and type(cp) == "number" then return cp end
     end
+    
     return 0
 end
 
@@ -222,7 +241,196 @@ function utils.dist_squared(me, target)
     return (dx * dx + dy * dy + dz * dz)
 end
 
-function utils.get_energy_tick_tracker() return energy_tick end
+-- Get current druid form name
+function utils.get_form_name()
+    local me = core.object_manager.get_local_player()
+    if not me or not me:is_valid() then return "None" end
+    
+    local spells = require("libraries/spells")
+    if utils.has_buff(me, spells.BUFF_CAT_FORM) then
+        return "Cat"
+    elseif utils.has_buff(me, spells.BUFF_DIRE_BEAR_FORM) then
+        return "Dire Bear"
+    elseif utils.has_buff(me, spells.BUFF_BEAR_FORM) then
+        return "Bear"
+    end
+    
+    -- Check for other forms using spell IDs
+    -- Travel Form: 783
+    -- Aquatic Form: 1066
+    -- Moonkin Form: 24858, 33943
+    if me.has_buff then
+        if me:has_buff(783) then return "Travel" end
+        if me:has_buff(1066) then return "Aqua" end
+        if me:has_buff(24858) or me:has_buff(33943) then return "Moonkin" end
+    end
+    
+    return "Caster"
+end
+
+-- Cached API references for PvP detection
+-- Note: PvP detection uses heuristics since core.game_state is not available
+local _get_unit_type = core.object_manager.get_unit_type
+local _get_local_player = core.object_manager.get_local_player
+
+-- PvP context detection
+-- Returns table with: is_pvp, is_arena, is_battleground, target_is_player
+function utils.detect_pvp_context(me, target)
+    me = me or _get_local_player()
+    if not me then
+        return {is_pvp = false, is_arena = false, is_battleground = false, target_is_player = false}
+    end
+
+    local is_battleground = false
+    local is_arena = false
+    local is_pvp = false
+    local target_is_player = false
+
+    -- Check target type (heuristic for PvP)
+    if target and _get_unit_type then
+        local ok, unit_type = pcall(function() return _get_unit_type(target) end)
+        if ok then
+            target_is_player = (unit_type == "player")
+        end
+    end
+
+    -- Combined PvP detection
+    is_pvp = is_pvp or is_battleground or is_arena
+
+    return {
+        is_pvp = is_pvp,
+        is_arena = is_arena,
+        is_battleground = is_battleground,
+        target_is_player = target_is_player
+    }
+end
+
+-- Check if PvP mode is active based on menu settings and context
+-- Usage: if utils.is_pvp_active(menu, pvp_context) then ... end
+function utils.is_pvp_active(menu, context)
+    if not menu then return false end
+
+    -- Check if PvP is enabled at all (safe pcall for uninitialized menu)
+    local ok_enabled, enabled = pcall(function() return menu.pvp_enabled:get() end)
+    if not ok_enabled or enabled == false then
+        return false
+    end
+
+    -- Check mode selection (1=Auto, 2=PvE Only, 3=PvP Only)
+    local ok_mode, mode = pcall(function() return menu.pvp_mode:get() end)
+    if not ok_mode then mode = 1 end
+    if mode == 2 then return false end  -- PvE only
+    if mode == 3 then return true end   -- PvP only
+
+    -- Auto mode - use context
+    return context and context.is_pvp or false
+end
+
+-- Check if a specific PvP setting is enabled
+-- Usage: if utils.is_pvp_setting_enabled(menu, "pvp_entangling_roots") then ... end
+function utils.is_pvp_setting_enabled(menu, setting_key)
+    if not menu then return false end
+    local setting = menu[setting_key]
+    if not setting then return false end
+    local ok, value = pcall(function() return setting:get() end)
+    if not ok then return false end
+    return value == true or value == 1
+end
+
+-- Get PvP slider value with default
+-- Usage: local threshold = utils.get_pvp_value(menu, "pvp_burst_threshold", 60)
+function utils.get_pvp_value(menu, setting_key, default_value)
+    if not menu then return default_value end
+    local setting = menu[setting_key]
+    if not setting then return default_value end
+    local ok, value = pcall(function() return setting:get() end)
+    if not ok or value == nil then return default_value end
+    return value
+end
+
+-- Predefined class detection for anti-stealth logic
+utils.PVP_STEALTH_CLASSES = {
+    ["ROGUE"] = true,
+    ["DRUID"] = true,
+}
+
+-- Predefined healer specs for focus targeting
+utils.PVP_HEALER_SPECS = {
+    ["PRIEST_HOLY"] = true,
+    ["PRIEST_DISCIPLINE"] = true,
+    ["PALADIN_HOLY"] = true,
+    ["SHAMAN_RESTORATION"] = true,
+    ["DRUID_RESTORATION"] = true,
+}
+
+-- Check if target class can stealth
+function utils.can_stealth(class_name)
+    return utils.PVP_STEALTH_CLASSES[class_name] or false
+end
+
+-- Check if target spec is a healer
+function utils.is_healer_spec(spec_name)
+    return utils.PVP_HEALER_SPECS[spec_name] or false
+end
+
+-- ============================================================================
+-- Crowd Control Detection
+-- ============================================================================
+
+-- Loss of Control Type Enum Values (from Sylvanas API)
+local LOC_NONE = 0
+local LOC_POSSESS = 1
+local LOC_CONFUSE = 2
+local LOC_CHARM = 3
+local LOC_FEAR = 4
+local LOC_STUN = 5
+local LOC_PACIFY = 6
+local LOC_ROOT = 7
+local LOC_SILENCE = 8
+local LOC_PACIFY_SILENCE = 9
+local LOC_DISARM = 10
+local LOC_SCHOOL_INTERRUPT = 11
+local LOC_STUN_MECHANIC = 12
+local LOC_FEAR_MECHANIC = 13
+
+-- CC types that prevent spell casting
+local CAST_PREVENTING_CC_TYPES = {
+    [LOC_STUN] = true,
+    [LOC_PACIFY] = true,
+    [LOC_SILENCE] = true,
+    [LOC_PACIFY_SILENCE] = true,
+    [LOC_SCHOOL_INTERRUPT] = true,
+    [LOC_STUN_MECHANIC] = true,
+    [LOC_CONFUSE] = true,
+    [LOC_CHARM] = true,
+    [LOC_FEAR] = true,
+    [LOC_FEAR_MECHANIC] = true,
+    [LOC_DISARM] = true,
+}
+
+--[[
+    Checks if the unit has a loss of control effect that prevents casting
+    
+    @param unit: game_object - The player or unit to check
+    @return boolean: true if unit cannot cast spells, false otherwise
+--]]
+function utils.is_cced(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return false
+    end
+    
+    -- Check if method exists (API compatibility)
+    if not unit.get_loss_of_control_info then
+        return false
+    end
+    
+    local loc_info = unit:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then
+        return false
+    end
+    
+    return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
+end
 
 return utils
 

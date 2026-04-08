@@ -221,6 +221,122 @@ function utils.dist_squared(me, target)
     return (dx * dx + dy * dy + dz * dz)
 end
 
+-- Crowd Control Detection
+-- Uses get_loss_of_control_info() to detect if player cannot cast spells
+
+-- Loss of Control Type Enum Values (from Sylvanas API)
+local LOC_NONE = 0
+local LOC_POSSESS = 1
+local LOC_CONFUSE = 2
+local LOC_CHARM = 3
+local LOC_FEAR = 4
+local LOC_STUN = 5
+local LOC_PACIFY = 6
+local LOC_ROOT = 7
+local LOC_SILENCE = 8
+local LOC_PACIFY_SILENCE = 9
+local LOC_DISARM = 10
+local LOC_SCHOOL_INTERRUPT = 11
+local LOC_STUN_MECHANIC = 12
+local LOC_FEAR_MECHANIC = 13
+
+-- CC types that prevent spell casting
+local CAST_PREVENTING_CC_TYPES = {
+    [LOC_STUN] = true,
+    [LOC_PACIFY] = true,
+    [LOC_SILENCE] = true,
+    [LOC_PACIFY_SILENCE] = true,
+    [LOC_SCHOOL_INTERRUPT] = true,
+    [LOC_STUN_MECHANIC] = true,
+    [LOC_CONFUSE] = true,
+    [LOC_CHARM] = true,
+    [LOC_FEAR] = true,
+    [LOC_FEAR_MECHANIC] = true,
+    [LOC_DISARM] = true,
+}
+
+--[[
+    Checks if the unit has a loss of control effect that prevents casting
+    
+    @param unit: game_object - The player or unit to check
+    @return boolean: true if unit cannot cast spells, false otherwise
+--]]
+function utils.is_cced(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return false
+    end
+    
+    -- Check if method exists (API compatibility)
+    if not unit.get_loss_of_control_info then
+        return false
+    end
+    
+    local loc_info = unit:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then
+        return false
+    end
+    
+    return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
+end
+
+-- ============================================================================
+-- SHARED HEALING MODULE DELEGATES
+-- These functions delegate to the shared heal_utils module for consistency
+-- across all EAX healing specs
+-- ============================================================================
+
+---Find the ally with the lowest effective HP (considering incoming heals/damage)
+---@param me game_object The player unit
+---@param threshold number|nil HP threshold (0-1), only return targets below this
+---@param skip_self boolean|nil If true, exclude the player from results
+---@return game_object|nil The lowest HP ally, or nil if none found
+---@return number|nil The lowest HP percentage (0-1)
+function utils.find_lowest_effective_ally(me, threshold, skip_self)
+    local heal_utils = require("libraries/heal_utils")
+    -- heal_utils returns percentage 0-100, convert to 0-1 for compatibility
+    local ally = heal_utils.find_lowest_effective_ally(me, (threshold or 1.0) * 100, skip_self)
+    if ally then
+        local hp = utils.get_health_pct(ally)
+        return ally, hp
+    end
+    return nil, nil
+end
+
+---Identify the tank unit via aggro/role detection
+---@param me game_object The player unit
+---@return game_object|nil The tank unit, or nil if none found
+function utils.get_tank_unit(me)
+    local heal_utils = require("libraries/heal_utils")
+    return heal_utils.get_tank_unit(me)
+end
+
+---Count allies below a specific HP threshold (for AoE heal decisions)
+---@param me game_object The player unit
+---@param threshold number HP threshold (0-1)
+---@return number Count of allies below threshold
+function utils.count_below_hp(me, threshold)
+    local heal_utils = require("libraries/heal_utils")
+    -- heal_utils expects 0-100, convert from 0-1
+    return heal_utils.count_below_hp(me, (threshold or 1.0) * 100)
+end
+
+---Get mana percentage for a unit (wrapper for consistency)
+---@param me game_object The player unit
+---@return number Mana percentage (0-1)
+function utils.get_mana_pct(me)
+    local heal_utils = require("libraries/heal_utils")
+    -- heal_utils returns 0-100, convert to 0-1
+    return heal_utils.get_mana_pct(me) / 100
+end
+
+---Check if a target can receive heals (not Cycloned, Banished, etc.)
+---@param unit game_object The target unit
+---@return boolean True if target can be healed
+function utils.is_healable_target(unit)
+    local heal_utils = require("libraries/heal_utils")
+    return heal_utils.is_healable_target(unit)
+end
+
 return utils
 
 

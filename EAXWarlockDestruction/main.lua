@@ -4,6 +4,14 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local ooc_manager = require("../libraries/ooc_manager")
+local mana_manager = require("libraries/mana_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -87,6 +95,13 @@ local function resolve_spells()
 end
 
 resolve_spells()
+force_commands:init()
+
+-- Resolved spell IDs for OOC manager
+local resolved = {
+    fel_armor = runtime.fel_armor_id,
+    demon_armor = runtime.demon_armor_id,
+}
 
 -- Utility functions
 local function note_cast()
@@ -135,6 +150,14 @@ local function is_valid_target(me, target)
     return me:can_attack(target)
 end
 
+-- TTD check for DoT spells
+local function should_dot_target(target, min_ttd)
+    if not target then return false end
+    local ttd = utils.get_time_to_die(target)
+    min_ttd = min_ttd or 5
+    return ttd <= 0 or ttd >= min_ttd
+end
+
 -- Try functions (9-step pattern)
 
 -- 1. Try Fel Armor (self buff)
@@ -171,6 +194,7 @@ local function try_immolate(me, target)
     if not (menu.use_immolate and menu.use_immolate:get_state()) then return false end
     if not runtime.immolate_id then return false end
     if not is_valid_target(me, target) then return false end
+    if not should_dot_target(target, (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 5) then return false end
     if is_pending_cast(runtime.immolate_id) then return false end
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_IMMOLATE)
     if remaining > DOT_REFRESH_MS then return false end
@@ -209,9 +233,11 @@ end
 local function try_curse(me, target)
     local mode = get_effective_mode()
     local in_group = mode == "dungeon" or mode == "raid"
+    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 5
     
     -- Try Curse of Elements in group content
     if in_group and (menu.use_curse_of_elements and menu.use_curse_of_elements:get_state()) and runtime.curse_elements_id then
+        if not should_dot_target(target, min_ttd) then return false end
         if not utils.has_debuff(target, spells.DEBUFF_CURSE_OF_ELEMENTS) then
             if not is_pending_cast(runtime.curse_elements_id) and utils.can_cast_hostile(runtime.curse_elements_id, me, target) then
                 if utils.cast_target(runtime.curse_elements_id, me, target) then
@@ -228,6 +254,7 @@ local function try_curse(me, target)
     if not (menu.use_curse_of_agony and menu.use_curse_of_agony:get_state()) then return false end
     if not runtime.curse_agony_id then return false end
     if not is_valid_target(me, target) then return false end
+    if not should_dot_target(target, min_ttd) then return false end
     if is_pending_cast(runtime.curse_agony_id) then return false end
     local remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_CURSE_OF_AGONY)
     if remaining > DOT_REFRESH_MS then return false end
@@ -238,6 +265,13 @@ local function try_curse(me, target)
         utils.log_debug(menu, "Curse of Agony")
         return true
     end
+    return false
+end
+
+-- Try Curse of Doom (burst spell)
+local function try_curse_of_doom(me, target)
+    -- Stub for burst window - Curse of Doom is a TBC spell for long TTD targets
+    -- Returns false for now as it requires specific TBC spell data
     return false
 end
 
@@ -495,7 +529,28 @@ end
 -- Main rotation
 local function do_rotation(me, target)
     if not is_gcd_ready() then return end
-    
+
+    -- Sample combat forecast for TTD tracking
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
+
+    -- Mana recovery check
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.WARLOCK)
+        if used_mana then return end
+    end
+
+    -- Burst & Trinket Automation
+    local ctx = utils.get_cached_combat_context(me)
+    local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
+    local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    if is_burst_window then
+        -- Destro burst: Curse of Doom, Chaos Bolt prep
+        if try_curse_of_doom(me, target) then return end
+    end
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
+
     -- Defensive priority
     if try_death_coil(me, target) then return end
     
@@ -519,7 +574,7 @@ end
 
 -- Update callback
 core.register_on_update_callback(function()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
 
     if utils.throttle("mode_refresh", 5.0) then
         refresh_mode_cache()
@@ -528,15 +583,63 @@ core.register_on_update_callback(function()
     local me = _get_local_player()
     if not me or me:is_dead() then return end
 
-    -- OOC utilities
-    if try_fel_armor(me) then return end
-    if try_demon_armor(me) then return end
-    if try_life_tap(me) then return end
-    if try_create_healthstone(me) then return end
-    if try_self_soulstone(me) then return end
-    if try_summon_pet(me) then return end
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
-    if not me:is_in_combat() then return end
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
+    -- Sync dashboard settings
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
+
+    -- OOC utilities (using ooc_manager for buffs)
+    if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = resolved.fel_armor,
+                    buff_ids = spells.BUFF_FEL_ARMOR,
+                    name = "Fel Armor",
+                    toggle = menu.use_fel_armor
+                },
+                {
+                    spell_id = resolved.demon_armor,
+                    buff_ids = spells.BUFF_DEMON_ARMOR,
+                    name = "Demon Armor",
+                    toggle = menu.use_demon_armor
+                },
+            }
+        })
+        if try_life_tap(me) then return end
+        if try_create_healthstone(me) then return end
+        if try_self_soulstone(me) then return end
+        if try_summon_pet(me) then return end
+        return
+    end
 
     -- Combat utilities
     if try_use_healthstone(me) then return end
@@ -555,3 +658,7 @@ local NS = _G.EAXWarlockDestruction and _G.EAXWarlockDestruction.NS or {}
 NS.toggle_menu = menu.toggle_menu
 _G.EAXWarlockDestruction = _G.EAXWarlockDestruction or {}
 _G.EAXWarlockDestruction.NS = NS
+
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.register_render_callback()

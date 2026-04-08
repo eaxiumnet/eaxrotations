@@ -6,6 +6,9 @@ local utils = {}
 -- Spell resolver with persistent caching
 local spell_resolver = require("libraries/spell_resolver")
 
+---@type heal_utils
+local heal_utils = require("libraries/heal_utils")
+
 ---@type izi_sdk
 local izi = require("common/izi_sdk")
 
@@ -219,6 +222,175 @@ function utils.dist_squared(me, target)
     if not p1 or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)
+end
+
+-- Crowd Control Detection
+-- Uses get_loss_of_control_info() to detect if player cannot cast spells
+
+-- Loss of Control Type Enum Values (from Sylvanas API)
+local LOC_NONE = 0
+local LOC_POSSESS = 1
+local LOC_CONFUSE = 2
+local LOC_CHARM = 3
+local LOC_FEAR = 4
+local LOC_STUN = 5
+local LOC_PACIFY = 6
+local LOC_ROOT = 7
+local LOC_SILENCE = 8
+local LOC_PACIFY_SILENCE = 9
+local LOC_DISARM = 10
+local LOC_SCHOOL_INTERRUPT = 11
+local LOC_STUN_MECHANIC = 12
+local LOC_FEAR_MECHANIC = 13
+
+-- CC types that prevent spell casting
+local CAST_PREVENTING_CC_TYPES = {
+    [LOC_STUN] = true,
+    [LOC_PACIFY] = true,
+    [LOC_SILENCE] = true,
+    [LOC_PACIFY_SILENCE] = true,
+    [LOC_SCHOOL_INTERRUPT] = true,
+    [LOC_STUN_MECHANIC] = true,
+    [LOC_CONFUSE] = true,
+    [LOC_CHARM] = true,
+    [LOC_FEAR] = true,
+    [LOC_FEAR_MECHANIC] = true,
+    -- Note: DISARM is handled separately for melee classes
+    [LOC_DISARM] = true,
+}
+
+--[[
+    Checks if the unit has a loss of control effect that prevents casting
+    
+    @param unit: game_object - The player or unit to check
+    @return boolean: true if unit cannot cast spells, false otherwise
+--]]
+function utils.is_cced(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return false
+    end
+    
+    -- Check if method exists (API compatibility)
+    if not unit.get_loss_of_control_info then
+        return false
+    end
+    
+    local loc_info = unit:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then
+        return false
+    end
+    
+    return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
+end
+
+-- ============================================================================
+-- MISSING HEALING UTILITY FUNCTIONS (Added for Restoration Shaman)
+-- ============================================================================
+
+---Check if the player is moving
+---@param me game_object The player unit
+---@return boolean True if moving
+function utils.is_moving(me)
+    if not me or not me:is_valid() then return false end
+    local ok, moving = pcall(function()
+        return me:is_moving()
+    end)
+    return ok and moving
+end
+
+---Check if target is a valid friendly target for healing
+---@param me game_object The player unit
+---@param target game_object The target to check
+---@return boolean True if valid friendly target
+function utils.is_valid_friendly_target(me, target)
+    if not me or not target then return false end
+    if not target:is_valid() or target:is_dead() then return false end
+    -- Check if can assist (friendly)
+    local ok, can_assist = pcall(function()
+        return me:can_attack(target) == false  -- Can't attack = friendly
+    end)
+    return ok and can_assist
+end
+
+---Check if can cast a friendly spell on target
+---@param spell_id number Spell ID
+---@param me game_object The player unit
+---@param target game_object The target
+---@return boolean True if can cast
+function utils.can_cast_friendly(spell_id, me, target)
+    if not spell_id or not me or not target then return false end
+    if not core.spell_book.is_spell_learned(spell_id) then return false end
+    if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
+    if not core.spell_book.is_usable_spell(spell_id) then return false end
+    if not core.spell_book.is_spell_in_range(spell_id, target, me) then return false end
+    return true
+end
+
+---Find the lowest HP party member
+---Wrapper around heal_utils.find_lowest_effective_ally
+---@param me game_object The player unit
+---@return game_object|nil The lowest HP ally
+---@return number Health percentage (0-100)
+function utils.find_lowest_hp_party_member(me)
+    local target = heal_utils.find_lowest_effective_ally(me, 100, false)
+    if target and target:is_valid() then
+        local hp_pct = utils.get_health_pct(target) * 100
+        return target, hp_pct
+    end
+    return nil, 100
+end
+
+---Find focus target or tank unit
+---Wrapper around heal_utils.get_tank_unit
+---@param me game_object The player unit
+---@return game_object|nil The tank unit or nil
+function utils.find_focus_target(me)
+    return heal_utils.get_tank_unit(me)
+end
+
+---Get buff stack count on a unit
+---@param unit game_object The unit to check
+---@param buff_table table|number Buff ID(s) to check
+---@return number Stack count (0 if not found)
+function utils.get_buff_stacks(unit, buff_table)
+    if not unit or not unit:is_valid() or not buff_table then return 0 end
+    local entry = buff_manager:get_buff_data(unit, buff_table)
+    if entry and entry.is_active then
+        return entry.stacks or 1
+    end
+    return 0
+end
+
+---Get mana percentage for the player
+---Wrapper around heal_utils.get_mana_pct
+---@param me game_object The player unit
+---@return number Mana percentage (0-100)
+function utils.get_mana_pct(me)
+    return heal_utils.get_mana_pct(me)
+end
+
+---Find lowest effective ally (wrapper for heal_utils)
+---@param me game_object The player unit
+---@param threshold number|nil HP threshold (0-100)
+---@param skip_self boolean|nil If true, exclude player
+---@return game_object|nil The lowest HP ally
+function utils.find_lowest_effective_ally(me, threshold, skip_self)
+    return heal_utils.find_lowest_effective_ally(me, threshold, skip_self)
+end
+
+---Get tank unit (wrapper for heal_utils)
+---@param me game_object The player unit
+---@return game_object|nil The tank unit
+function utils.get_tank_unit(me)
+    return heal_utils.get_tank_unit(me)
+end
+
+---Count allies below HP threshold (wrapper for heal_utils)
+---@param me game_object The player unit
+---@param threshold number HP threshold (0-100)
+---@return number Count of allies below threshold
+function utils.count_below_hp(me, threshold)
+    return heal_utils.count_below_hp(me, threshold)
 end
 
 return utils

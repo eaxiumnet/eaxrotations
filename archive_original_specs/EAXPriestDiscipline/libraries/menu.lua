@@ -53,21 +53,21 @@ menu.wand_mana_floor                     = core.menu.slider_int(5, 80, 25, "eaxp
 menu.wand_at_hp                          = core.menu.slider_int(5, 60, 20, "eaxpriestdiscipline_wand_at_hp")
 menu.use_spirit_tap_wand                 = core.menu.checkbox(true,  "eaxpriestdiscipline_spirit_tap_wand")
 
--- Healing (Flux-inspired thresholds)
+-- Healing (thresholds)
 menu.use_greater_heal                    = core.menu.checkbox(true, "eaxpriestdiscipline_use_greater_heal")
 menu.greater_heal_hp_pct                = core.menu.slider_int(10, 100, 60, "eaxpriestdiscipline_greater_heal_hp_pct")
 menu.use_flash_heal                      = core.menu.checkbox(true, "eaxpriestdiscipline_use_flash_heal")
-menu.flash_heal_hp_pct                  = core.menu.slider_int(10, 100, 50, "eaxpriestdiscipline_flash_heal_hp_pct")  -- Flux: <50% emergency
-menu.disc_emergency_hp                   = core.menu.slider_int(5, 50, 30, "eaxpriestdiscipline_emergency_hp")  -- Flux: <30% emergency heals
+menu.flash_heal_hp_pct                  = core.menu.slider_int(10, 100, 50, "eaxpriestdiscipline_flash_heal_hp_pct")  -- <50% emergency
+menu.disc_emergency_hp                   = core.menu.slider_int(5, 50, 30, "eaxpriestdiscipline_emergency_hp")  -- <30% emergency heals
 menu.use_power_word_shield               = core.menu.checkbox(true, "eaxpriestdiscipline_use_power_word_shield")
 menu.shield_threshold                    = core.menu.slider_int(10, 100, 85, "eaxpriestdiscipline_shield_threshold")
-menu.disc_shield_emergency_hp            = core.menu.slider_int(5, 50, 30, "eaxpriestdiscipline_shield_emergency_hp")  -- Flux: emergency PW:S
+menu.disc_shield_emergency_hp            = core.menu.slider_int(5, 50, 30, "eaxpriestdiscipline_shield_emergency_hp")  -- emergency PW:S
 menu.use_weakened_soul                   = core.menu.checkbox(true, "eaxpriestdiscipline_use_weakened_soul")
 -- NOTE: Penance is WotLK spell (3.0.2), not TBC - removed
 menu.use_renew                           = core.menu.checkbox(true, "eaxpriestdiscipline_use_renew")
-menu.renew_threshold                     = core.menu.slider_int(0, 100, 90, "eaxpriestdiscipline_renew_threshold")  -- Flux: 90%
+menu.renew_threshold                     = core.menu.slider_int(0, 100, 90, "eaxpriestdiscipline_renew_threshold")  -- 90%
 menu.renew_refresh_seconds               = core.menu.slider_int(0, 10, 3, "eaxpriestdiscipline_renew_refresh")
-menu.disc_prepull_renew                  = core.menu.checkbox(true, "eaxpriestdiscipline_prepull_renew")  -- Flux: pre-pull Renew on tank
+menu.disc_prepull_renew                  = core.menu.checkbox(true, "eaxpriestdiscipline_prepull_renew")  -- pre-pull Renew on tank
 -- NOTE: Aegis/Divine Aegis are WotLK talents, not TBC - removed
 menu.use_power_infusion                  = core.menu.checkbox(true, "eaxpriestdiscipline_use_power_infusion")
 menu.power_infusion_enabled              = core.menu.checkbox(true, "eaxpriestdiscipline_power_infusion_enabled")
@@ -75,12 +75,12 @@ menu.power_infusion_threshold            = core.menu.slider_int(10, 100, 50, "ea
 menu.use_pain_suppression                = core.menu.checkbox(true, "eaxpriestdiscipline_use_pain_suppression")
 menu.pain_suppression_threshold          = core.menu.slider_int(10, 80, 40, "eaxpriestdiscipline_pain_suppression_threshold")
 menu.use_binding_heal                    = core.menu.checkbox(true, "eaxpriestdiscipline_use_binding_heal")
-menu.binding_heal_self_threshold         = core.menu.slider_int(0, 100, 80, "eaxpriestdiscipline_binding_heal_self_threshold")  -- Flux: 80%
-menu.binding_heal_target_threshold       = core.menu.slider_int(0, 100, 80, "eaxpriestdiscipline_binding_heal_target_threshold")  -- Flux: 80%
+menu.binding_heal_self_threshold         = core.menu.slider_int(0, 100, 80, "eaxpriestdiscipline_binding_heal_self_threshold")  -- 80%
+menu.binding_heal_target_threshold       = core.menu.slider_int(0, 100, 80, "eaxpriestdiscipline_binding_heal_target_threshold")  -- 80%
 menu.use_prayer_of_mending               = core.menu.checkbox(true, "eaxpriestdiscipline_use_prayer_of_mending")
 menu.prayer_of_mending_threshold         = core.menu.slider_int(10, 100, 85, "eaxpriestdiscipline_prayer_of_mending_threshold")
-menu.prepull_pom                         = core.menu.checkbox(true, "eaxpriestdiscipline_prepull_pom")  -- Flux: pre-pull PoM
-menu.disc_aoe_hp                         = core.menu.slider_int(50, 100, 80, "eaxpriestdiscipline_aoe_hp")  -- Flux: group damage
+menu.prepull_pom                         = core.menu.checkbox(true, "eaxpriestdiscipline_prepull_pom")  -- pre-pull PoM
+menu.disc_aoe_hp                         = core.menu.slider_int(50, 100, 80, "eaxpriestdiscipline_aoe_hp")  -- group damage
 menu.disc_aoe_count                      = core.menu.slider_int(2, 5, 3, "eaxpriestdiscipline_aoe_count")
 menu.use_inner_fire                      = core.menu.checkbox(true, "eaxpriestdiscipline_use_inner_fire")
 menu.use_power_word_fortitude            = core.menu.checkbox(true, "eaxpriestdiscipline_use_power_word_fortitude")

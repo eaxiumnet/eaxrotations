@@ -82,10 +82,10 @@ local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 local _get_spell_cd = core.spell_book.get_spell_cooldown
 
--- Flux-inspired: Static PARTY_UNITS for precise scanning (no object_manager iteration)
+-- Static PARTY_UNITS for precise scanning (no object_manager iteration)
 local PARTY_UNITS = {"player", "party1", "party2", "party3", "party4"}
 
--- Flux-inspired: Per-frame state cache for performance
+-- Per-frame state cache for performance
 local disc_state = {
     lowest = nil,
     lowest_hp = 100,
@@ -100,7 +100,7 @@ local disc_state = {
     last_cache_time = 0,
 }
 
--- Flux-inspired: Predict effective HP after cast time (accounts for incoming heals, HoTs, absorbs)
+-- Predict effective HP after cast time (accounts for incoming heals, HoTs, absorbs)
 -- Uses Sylvanas game_object methods
 local function predict_effective_deficit(unit_obj, cast_time_seconds)
     if not unit_obj or not unit_obj:is_valid() or unit_obj:is_dead() then return nil, 100 end
@@ -142,7 +142,7 @@ local function predict_effective_deficit(unit_obj, cast_time_seconds)
     return unit_obj, effective_pct
 end
 
--- Flux-inspired: Get party units with range check using IsSpellInRange
+-- Get party units with range check using IsSpellInRange
 local function get_party_units_with_range(me)
     local units = {}
     local lowest_pct = 100
@@ -207,7 +207,7 @@ local function get_party_units_with_range(me)
                     tank_unit = unit
                 end
                 
-                -- Count injured members (Flux: 90% threshold for group damage)
+                -- Count injured members (90% threshold for group damage)
                 if pct < 90 then
                     damaged_count = damaged_count + 1
                 end
@@ -601,7 +601,7 @@ local function find_lowest_effective_ally(me, max_pct, include_self)
     local winner = nil
     local winner_pct = threshold
     
-    -- Use Flux-inspired get_party_units_with_range for better range checking
+    -- Use get_party_units_with_range for better range checking
     local units, lowest_unit, lowest_pct, tank_unit, damaged_count = get_party_units_with_range(me)
     
     -- Update disc_state cache
@@ -721,16 +721,16 @@ local function try_renew(me)
     end
 
     -- FIXED: Proper nil guard
-    local threshold = (menu.renew_threshold and menu.renew_threshold:get() or 90) / 100  -- Flux: 90%
+    local threshold = (menu.renew_threshold and menu.renew_threshold:get() or 90) / 100
     -- FIXED: Proper nil guard
     local window_ms = (menu.renew_refresh_seconds and menu.renew_refresh_seconds:get() or 0) * 1000
     
-    -- Use Flux-inspired party scanning
+    -- Use party scanning
     local units, _, _, tank_unit = get_party_units_with_range(me)
     local candidate = nil
     local lowest_pct = threshold
 
-    -- Priority 1: Tank with Renew at 90% (Flux pattern)
+    -- Priority 1: Tank with Renew at 90%
     if tank_unit then
         local tank_hp = utils.get_health_pct(tank_unit)
         local remaining = utils.get_buff_remaining_ms(tank_unit, spells.RENEW)

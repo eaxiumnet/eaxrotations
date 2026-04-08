@@ -4,6 +4,21 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local ooc_manager = require("../libraries/ooc_manager")
+local form_consumables = require("../libraries/form_consumables")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+
+-- NEW: Trinket manager for defensive trinket mode
+local trinket_manager = require("../libraries/trinket_manager")
+
+-- NEW: Advanced tanking libraries from Flux port
+---@type context_builder
+local context_builder = require("../libraries/context_builder")
+---@type threat_tab_manager
+local threat_tab_manager = require("../libraries/threat_tab_manager")
+---@type smart_defensive
+local smart_defensive = require("../libraries/smart_defensive")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -14,6 +29,7 @@ local rt = {
     last_spell_refresh = 0,
     cached_mode = "solo",
     prev_toggle_state = false,
+    saved_form = nil,  -- For form_consumables restoration
     -- Spell IDs
     maul_id = nil,
     swipe_id = nil,
@@ -27,6 +43,8 @@ local rt = {
     enrage_id = nil,
     barkskin_id = nil,
     bear_form_id = nil,
+    dire_bear_form_id = nil,
+    mark_of_the_wild_id = nil,
     -- State
     lacerate_stacks = 0,
 }
@@ -52,7 +70,10 @@ local function resolve()
     rt.bash_id = utils.resolve_spell_id(spells.BASH)
     rt.enrage_id = utils.resolve_spell_id(spells.ENRAGE)
     rt.barkskin_id = utils.resolve_spell_id(spells.BARKSKIN)
-    rt.bear_form_id = utils.resolve_spell_id(spells.BEAR_FORM) or utils.resolve_spell_id(spells.DIRE_BEAR_FORM)
+    rt.bear_form_id = utils.resolve_spell_id(spells.BEAR_FORM)
+    rt.dire_bear_form_id = utils.resolve_spell_id(spells.DIRE_BEAR_FORM)
+    rt.mark_of_the_wild_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD)
+    rt.thorns_id = utils.resolve_spell_id(spells.THORNS)
 end
 
 local function rage(me)
@@ -99,35 +120,48 @@ local function try_bear_form(me)
     return false
 end
 
-local function try_frenzied_regeneration(me)
-    if not (menu.use_frenzied_regen and menu.use_frenzied_regen:is_checked()) then return false end
+local function try_frenzied_regeneration(me, ctx)
+    if not (menu.use_frenzied_regen and menu.use_frenzied_regen.get and menu.use_frenzied_regen:get()) then return false end
     if not rt.frenzied_regen_id then return false end
-    local threshold = ((menu.frenzied_regen_hp and menu.frenzied_regen_hp:get_value()) or 30) / 100
-    if utils.get_health_pct(me) > threshold then return false end
+    
+    -- Use smart_defensive for predictive mitigation
+    local settings = {
+        frenzied_regen_hp = ((menu.frenzied_regen_hp and menu.frenzied_regen_hp:get_value()) or 30),
+    }
+    local should_use, reason = smart_defensive.should_use(me, "frenzied_regen", ctx or {}, settings)
+    
+    if not should_use then return false end
     if rage(me) < 10 then return false end
     if not utils.can_cast_self(rt.frenzied_regen_id, me) then return false end
     if utils.cast_self(rt.frenzied_regen_id, me) then
-        utils.log_debug(menu, "Frenzied Regeneration")
+        utils.log_debug(menu, "Frenzied Regeneration (" .. (reason or "hp_threshold") .. ")")
         return true
     end
     return false
 end
 
-local function try_barkskin(me)
-    if not (menu.use_barkskin and menu.use_barkskin:is_checked()) then return false end
+local function try_barkskin(me, ctx)
+    local use_barkskin = (menu.use_barkskin and menu.use_barkskin.is_checked and menu.use_barkskin:is_checked()) or false
+    if not use_barkskin then return false end
     if not rt.barkskin_id then return false end
-    local threshold = ((menu.barkskin_hp and menu.barkskin_hp:get_value()) or 40) / 100
-    if utils.get_health_pct(me) > threshold then return false end
+    
+    -- Use smart_defensive for predictive mitigation
+    local settings = {
+        barkskin_hp = ((menu.barkskin_hp and menu.barkskin_hp:get_value()) or 40),
+    }
+    local should_use, reason = smart_defensive.should_use(me, "barkskin", ctx or {}, settings)
+    
+    if not should_use then return false end
     if not utils.can_cast_self(rt.barkskin_id, me) then return false end
     if utils.cast_self(rt.barkskin_id, me) then
-        utils.log_debug(menu, "Barkskin")
+        utils.log_debug(menu, "Barkskin (" .. (reason or "hp_threshold") .. ")")
         return true
     end
     return false
 end
 
 local function try_growl(me, t)
-    if not (menu.use_growl and menu.use_growl:is_checked()) then return false end
+    if not (menu.use_growl and menu.use_growl.get and menu.use_growl:get()) then return false end
     if not rt.growl_id then return false end
     if not utils.can_cast_hostile(rt.growl_id, me, t) then return false end
     if utils.cast_target(rt.growl_id, me, t) then
@@ -138,7 +172,7 @@ local function try_growl(me, t)
 end
 
 local function try_challenging_roar(me)
-    if not (menu.use_challenging_roar and menu.use_challenging_roar:is_checked()) then return false end
+    if not (menu.use_challenging_roar and menu.use_challenging_roar.get and menu.use_challenging_roar:get()) then return false end
     if not rt.challenging_roar_id then return false end
     if not utils.can_cast_self(rt.challenging_roar_id, me) then return false end
     if utils.cast_self(rt.challenging_roar_id, me) then
@@ -149,7 +183,7 @@ local function try_challenging_roar(me)
 end
 
 local function try_mangle(me, t)
-    if not (menu.use_mangle and menu.use_mangle:is_checked()) then return false end
+    if not (menu.use_mangle and menu.use_mangle.get and menu.use_mangle:get()) then return false end
     if not rt.mangle_bear_id then return false end
     if rage(me) < 20 then return false end
     if not utils.can_cast_hostile(rt.mangle_bear_id, me, t) then return false end
@@ -161,7 +195,7 @@ local function try_mangle(me, t)
 end
 
 local function try_lacerate(me, t)
-    if not (menu.use_lacerate and menu.use_lacerate:is_checked()) then return false end
+    if not (menu.use_lacerate and menu.use_lacerate.get and menu.use_lacerate:get()) then return false end
     if not rt.lacerate_id then return false end
     local stacks = debuff_stacks(t, rt.lacerate_id)
     if stacks >= 5 then return false end
@@ -175,7 +209,7 @@ local function try_lacerate(me, t)
 end
 
 local function try_swipe(me, t)
-    if not (menu.use_swipe and menu.use_swipe:is_checked()) then return false end
+    if not (menu.use_swipe and menu.use_swipe.get and menu.use_swipe:get()) then return false end
     if not rt.swipe_id then return false end
     local min_targets = (menu.swipe_min_targets and menu.swipe_min_targets:get()) or 2
     local count = 1
@@ -204,7 +238,7 @@ local function try_swipe(me, t)
 end
 
 local function try_demo_roar(me, t)
-    if not (menu.use_demo_roar and menu.use_demo_roar:is_checked()) then return false end
+    if not (menu.use_demo_roar and menu.use_demo_roar.get and menu.use_demo_roar:get()) then return false end
     if not rt.demo_roar_id then return false end
     if has_debuff(t, spells.DEBUFF_DEMORALIZING_ROAR) then return false end
     if rage(me) < 10 then return false end
@@ -217,7 +251,7 @@ local function try_demo_roar(me, t)
 end
 
 local function try_maul(me, t)
-    if not (menu.use_maul and menu.use_maul:is_checked()) then return false end
+    if not (menu.use_maul and menu.use_maul.get and menu.use_maul:get()) then return false end
     if not rt.maul_id then return false end
     if rage(me) < 15 then return false end
     if not utils.can_cast_hostile(rt.maul_id, me, t) then return false end
@@ -229,7 +263,7 @@ local function try_maul(me, t)
 end
 
 local function try_enrage(me)
-    if not (menu.use_enrage and menu.use_enrage:is_checked()) then return false end
+    if not (menu.use_enrage and menu.use_enrage.get and menu.use_enrage:get()) then return false end
     if not rt.enrage_id then return false end
     if rage(me) > 30 then return false end
     if not utils.can_cast_self(rt.enrage_id, me) then return false end
@@ -241,15 +275,15 @@ local function try_enrage(me)
 end
 
 -- Main rotation
-local function do_rotation(me, t)
+local function do_rotation(me, t, ctx)
     -- Ensure in bear form
     if not utils.has_buff(me, spells.BUFF_BEAR_FORM) then
         if try_bear_form(me) then return end
     end
 
-    -- Defensive
-    if try_frenzied_regeneration(me) then return end
-    if try_barkskin(me) then return end
+    -- Defensive (with smart_defensive prediction)
+    if try_frenzied_regeneration(me, ctx) then return end
+    if try_barkskin(me, ctx) then return end
 
     -- Taunts
     if try_growl(me, t) then return end
@@ -272,17 +306,115 @@ local function on_update()
     if utils.throttle("bearmode", MODE_REFRESH) then
         rt.cached_mode = detect_mode()
     end
-    if not menu or not menu.is_enabled() then return end
+    if not menu or not (menu.enabled and menu.enabled:get_state()) then
+        dashboard.set_enabled(false)  -- Disable dashboard when rotation is off
+        return
+    end
+
+    -- Enable dashboard when rotation is active (respect menu setting)
+    local show_dashboard = (menu.show_dashboard and menu.show_dashboard.get and menu.show_dashboard:get()) or false
+    dashboard.set_enabled(show_dashboard)
     if not me or me:is_dead() then return end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    -- Druid special: Try shapeshift for roots before stopping
+    if should_stop and cc_reason == "ROOTS" then
+        if utils.try_shapeshift_root_break(me, menu) then
+            return  -- Successfully broke root
+        end
+    end
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+
+    -- OOC handling
+    if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = rt.mark_of_the_wild_id,
+                    buff_ids = spells.BUFF_MARK_OF_THE_WILD,
+                    name = "Mark of the Wild",
+                    toggle = menu.use_motw
+                },
+                {
+                    spell_id = rt.bear_form_id,
+                    buff_ids = spells.BUFF_BEAR_FORM,
+                    name = "Bear Form",
+                    toggle = menu.use_bear_form
+                },
+                {
+                    spell_id = rt.thorns_id,
+                    buff_ids = spells.BUFF_THORNS,
+                    name = "Thorns",
+                    toggle = menu.use_thorns
+                },
+            }
+        })
+    end
 
     local t = me:get_target()
     if not t or not t:is_valid() or t:is_dead() then return end
     if not me:can_attack(t) then return end
+    
+    -- NEW: Build rotation context once per frame
+    local ctx = context_builder.build(me, t, menu)
+    
+    -- NEW: Update manual target detection for threat_tab_manager
+    threat_tab_manager.update_manual_target(t)
+    
+    -- NEW: Threat-aware tab targeting
+    local should_tab, tab_reason, new_target = threat_tab_manager.should_tab(me, t, menu)
+    if should_tab and new_target then
+        if threat_tab_manager.execute_tab(me) then
+            utils.log_debug(menu, "Tab target: " .. tab_reason)
+            -- Update target to new one
+            t = new_target
+            ctx = context_builder.build(me, t, menu)
+        end
+    end
 
-    do_rotation(me, t)
+    -- Form-aware consumables
+    local use_form_consumables = (menu.use_form_consumables and menu.use_form_consumables.get and menu.use_form_consumables:get()) or false
+    if use_form_consumables then
+        local form_spells = {
+            BEAR = rt.bear_form_id,
+            DIRE_BEAR = rt.dire_bear_form_id,
+        }
+        local used, saved_form, reason = form_consumables.check_and_use(me, menu, form_spells, rt.saved_form)
+        if used then
+            rt.saved_form = saved_form
+            if reason then utils.log_debug(menu, "Form consumable: " .. reason) end
+        elseif saved_form == nil and rt.saved_form then
+            rt.saved_form = nil
+        end
+    end
+
+    -- NEW: Pass context to rotation
+    do_rotation(me, t, ctx)
+
+    -- Defensive trinket check (tank mode - not burst)
+    trinket_manager.check_trinkets(me, false, menu)
 end
 
 core.register_on_update_callback(on_update)
+
+-- Register menu render callback
+core.register_on_render_menu_callback(function()
+    menu.render()
+end)
+
+-- Initialize dashboard
+local config = require("libraries/dashboard_config")
+dashboard.init(config)
+dashboard.register_render_callback()
 
 -- Export toggle settings for external access
 local NS = _G.EAXDruidBear and _G.EAXDruidBear.NS or {}

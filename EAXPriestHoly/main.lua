@@ -5,6 +5,13 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local ooc_manager = require("../libraries/ooc_manager")
+
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local mana_manager = require("libraries/mana_manager")
+local trinket_manager = require("libraries/trinket_manager")
 
 local buff_manager = require("common/modules/buff_manager")
 local spell_queue = require("common/modules/spell_queue")
@@ -22,7 +29,36 @@ local runtime = {
     mode_cache = "solo",
     last_mode_check = 0,
     last_mode_log = nil,
+    _initialized = false,
 }
+
+-- ============================================================================
+
+-- ============================================================================
+
+local function init_()
+    if runtime._initialized then return end
+    
+    -- Setup middleware (healthstones, potions, racials)
+    middleware_manager.setup(menu, spells)
+    
+    -- Initialize dashboard
+    dashboard.init(dashboard_config)
+    local dashboard_enabled = true
+    if menu.dashboard_enabled and menu.dashboard_enabled.get_state then
+        dashboard_enabled = menu.dashboard_enabled:get_state()
+    end
+    dashboard.set_enabled(dashboard_enabled)
+    dashboard.set_position(
+        (menu.dashboard_x and menu.dashboard_x:get()) or 20,
+        (menu.dashboard_y and menu.dashboard_y:get()) or 200
+    )
+    dashboard.set_scale((menu.dashboard_scale and menu.dashboard_scale:get()) or 1.0)
+    dashboard.register_render_callback()
+    
+    runtime._initialized = true
+    print("[EAX Holy] integration initialized")
+end
 
 -- Resolved spell IDs
 local resolved = {
@@ -49,6 +85,7 @@ local resolved = {
     shadow_word_pain = utils.resolve_spell_id(spells.DEBUFF_SHADOW_WORD_PAIN),
     desperate_prayer = utils.resolve_spell_id(spells.DESPERATE_PRAYER),
     berserking = utils.resolve_spell_id(spells.BERSERKING),
+    resurrection = utils.resolve_spell_id(spells.RESURRECTION),
 }
 
 -- Helper functions
@@ -84,9 +121,11 @@ end
 -- Try Emergency PW:S (instant shield on critically low target)
 local function try_emergency_pws(me)
     if not resolved.power_word_shield then return false end
-    if not (menu.holy_use_pws and menu.holy_use_pws:get_state()) then return false end
+    if not ((menu.use_power_word_shield and menu.use_power_word_shield:get_state()) or 
+            (menu.holy_use_pws and menu.holy_use_pws:get_state())) then return false end
     
-    local threshold = (menu.holy_pws_hp and menu.holy_pws_hp:get() or 30) / 100
+    local threshold = ((menu.power_word_shield_hp_pct and menu.power_word_shield_hp_pct:get()) or 
+                      (menu.holy_pws_hp and menu.holy_pws_hp:get()) or 30) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
     if not lowest or lowest_hp >= threshold then return false end
     
@@ -132,11 +171,13 @@ end
 -- Try Prayer of Mending (instant, on CD, tank priority - PRE-PULL capable)
 local function try_prayer_of_mending(me)
     if not resolved.prayer_of_mending then return false end
-    if not (menu.holy_use_pom and menu.holy_use_pom:get_state()) then return false end
+    if not ((menu.use_prayer_of_mending and menu.use_prayer_of_mending:get_state()) or
+            (menu.holy_use_pom and menu.holy_use_pom:get_state())) then return false end
     if not is_pom_ready() then return false end
     
     -- Pre-pull: gate OOC usage on setting
-    if not me:is_in_combat() and not (menu.holy_prepull_pom and menu.holy_prepull_pom:get_state()) then
+    if not me:is_in_combat() and not ((menu.prepull_pom and menu.prepull_pom:get_state()) or
+                                       (menu.holy_prepull_pom and menu.holy_prepull_pom:get_state())) then
         return false
     end
     
@@ -162,12 +203,15 @@ end
 -- Try Circle of Healing (instant AoE, group damage)
 local function try_circle_of_healing(me)
     if not resolved.circle_of_healing then return false end
-    if not (menu.holy_use_coh and menu.holy_use_coh:get_state()) then return false end
+    if not ((menu.use_circle_of_healing and menu.use_circle_of_healing:get_state()) or
+            (menu.holy_use_coh and menu.holy_use_coh:get_state())) then return false end
     if not is_coh_ready() then return false end
     if not me:is_in_combat() then return false end
     
-    local threshold = (menu.holy_aoe_hp and menu.holy_aoe_hp:get() or 80) / 100
-    local min_count = (menu.holy_aoe_count and menu.holy_aoe_count:get() or 3)
+    local threshold = ((menu.circle_of_healing_threshold and menu.circle_of_healing_threshold:get()) or
+                      (menu.holy_aoe_hp and menu.holy_aoe_hp:get()) or 80) / 100
+    local min_count = ((menu.circle_of_healing_count and menu.circle_of_healing_count:get()) or
+                       (menu.holy_aoe_count and menu.holy_aoe_count:get()) or 3)
     
     local damaged_count = utils.count_below_hp(me, threshold)
     if damaged_count < min_count then return false end
@@ -187,14 +231,17 @@ end
 -- Try Binding Heal (self + target both damaged)
 local function try_binding_heal(me)
     if not resolved.binding_heal then return false end
-    if not (menu.holy_use_binding_heal and menu.holy_use_binding_heal:get_state()) then return false end
+    if not ((menu.use_binding_heal and menu.use_binding_heal:get_state()) or
+            (menu.holy_use_binding_heal and menu.holy_use_binding_heal:get_state())) then return false end
     if not me:is_in_combat() then return false end
     
-    local self_threshold = (menu.holy_binding_self_hp and menu.holy_binding_self_hp:get() or 80) / 100
+    local self_threshold = ((menu.binding_heal_self_threshold and menu.binding_heal_self_threshold:get()) or
+                            (menu.holy_binding_self_hp and menu.holy_binding_self_hp:get()) or 80) / 100
     local self_hp = utils.get_health_pct(me)
     if self_hp > self_threshold then return false end
     
-    local target_threshold = (menu.holy_flash_heal_hp and menu.holy_flash_heal_hp:get() or 50) / 100
+    local target_threshold = ((menu.binding_heal_target_threshold and menu.binding_heal_target_threshold:get()) or
+                              (menu.holy_flash_heal_hp and menu.holy_flash_heal_hp:get()) or 50) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, target_threshold, true) -- skip self
     if not lowest or lowest_hp >= target_threshold then return false end
     
@@ -365,10 +412,12 @@ end
 -- Try Prayer of Healing (channeled AoE heal)
 local function try_prayer_of_healing(me)
     if not resolved.prayer_of_healing then return false end
-    if not (menu.holy_use_poh and menu.holy_use_poh:get_state()) then return false end
+    if not ((menu.use_prayer_of_healing and menu.use_prayer_of_healing:get_state()) or
+            (menu.holy_use_poh and menu.holy_use_poh:get_state())) then return false end
     if not me:is_in_combat() then return false end
     
-    local min_count = (menu.holy_aoe_count and menu.holy_aoe_count:get() or 3)
+    local min_count = ((menu.prayer_of_healing_count and menu.prayer_of_healing_count:get()) or
+                       (menu.holy_aoe_count and menu.holy_aoe_count:get()) or 3)
     local damaged_count = utils.count_below_hp(me, 0.80)
     
     if damaged_count < min_count then return false end
@@ -395,6 +444,72 @@ local function try_racial(me)
     end
     
     return false
+end
+
+-- Try Trinkets (mana/spellpower/defensive)
+local function try_trinkets(me)
+    if not me:is_in_combat() then return false end
+    
+    local trinket1_mode = (menu.trinket1_mode and menu.trinket1_mode:get()) or 1
+    local trinket2_mode = (menu.trinket2_mode and menu.trinket2_mode:get()) or 1
+    
+    -- Skip if both trinkets are off
+    if trinket1_mode == 1 and trinket2_mode == 1 then return false end
+    
+    local used = false
+    local self_hp = utils.get_health_pct(me)
+    
+    -- Check for urgent healing needed (don't use offensive trinkets if critical)
+    local emergency_threshold = (menu.holy_emergency_hp and menu.holy_emergency_hp:get() or 30) / 100
+    local has_emergency = false
+    local lowest_hp = utils.find_lowest_effective_ally(me, emergency_threshold, false)
+    if lowest_hp and lowest_hp < emergency_threshold then
+        has_emergency = true
+    end
+    
+    -- Trinket slot 13 (trinket 1)
+    if trinket1_mode == 2 then  -- Offensive
+        -- Only use offensive if no emergency and we have a valid target
+        if not has_emergency then
+            local target = me:get_target()
+            if target and target:is_valid() and not target:is_dead() and me:can_attack(target) then
+                if trinket_manager.use_trinket_if_ready(13) then
+                    utils.log_debug(menu, "Trinket 1 (Offensive)")
+                    used = true
+                end
+            end
+        end
+    elseif trinket1_mode == 3 then  -- Defensive
+        -- Use defensive trinket when HP is low
+        if self_hp < 0.50 then
+            if trinket_manager.use_trinket_if_ready(13) then
+                utils.log_debug(menu, "Trinket 1 (Defensive)")
+                used = true
+            end
+        end
+    end
+    
+    -- Trinket slot 14 (trinket 2)
+    if trinket2_mode == 2 then  -- Offensive
+        if not has_emergency then
+            local target = me:get_target()
+            if target and target:is_valid() and not target:is_dead() and me:can_attack(target) then
+                if trinket_manager.use_trinket_if_ready(14) then
+                    utils.log_debug(menu, "Trinket 2 (Offensive)")
+                    used = true
+                end
+            end
+        end
+    elseif trinket2_mode == 3 then  -- Defensive
+        if self_hp < 0.50 then
+            if trinket_manager.use_trinket_if_ready(14) then
+                utils.log_debug(menu, "Trinket 2 (Defensive)")
+                used = true
+            end
+        end
+    end
+    
+    return used
 end
 
 -- Try Surge of Light Smite (free instant Smite proc)
@@ -467,6 +582,154 @@ local function try_idle_dps(me)
             note_cast()
             utils.log_debug(menu, "Idle Smite")
             return true
+        end
+    end
+    
+    return false
+end
+
+-- Try Holy Nova (AoE heal when enemies close)
+local function try_holy_nova(me)
+    if not resolved.holy_nova then return false end
+    if not ((menu.use_holy_nova and menu.use_holy_nova:get_state()) or
+            (menu.holy_use_nova and menu.holy_use_nova:get_state())) then return false end
+    if not me:is_in_combat() then return false end
+    
+    -- Check if enemies are in close range (10 yards for Holy Nova)
+    local target = me:get_target()
+    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    
+    -- Check distance (squared distance for performance)
+    local dist_sq = utils.dist_squared(me, target)
+    if dist_sq > 100 then return false end -- 10 yards squared
+    
+    -- Check if we need healing (self or nearby allies)
+    local self_hp = utils.get_health_pct(me)
+    local threshold = ((menu.holy_aoe_hp and menu.holy_aoe_hp:get()) or 80) / 100
+    
+    -- Only use if self is injured or there are injured allies
+    if self_hp > threshold then
+        local injured_count = utils.count_below_hp(me, threshold)
+        if injured_count < 2 then return false end
+    end
+    
+    if utils.cast_self(resolved.holy_nova, me) then
+        note_cast()
+        utils.log_debug(menu, "Holy Nova (enemies close)")
+        return true
+    end
+    return false
+end
+
+-- Try Dispel Magic (remove harmful magic debuffs)
+local function try_dispel_magic(me)
+    if not resolved.dispel_magic then return false end
+    if not ((menu.use_dispel_magic and menu.use_dispel_magic:get_state()) or
+            (menu.use_dispels and menu.use_dispels:get_state())) then return false end
+    if not me:is_in_combat() then return false end
+    
+    -- Use heal_context to get injured allies with debuffs
+    local heal_context = require("libraries/heal_context")
+    local ctx = heal_context.get_context(me)
+    
+    -- Check self first
+    local self_has_magic_debuff = false
+    local ok, has_debuff = pcall(function()
+        return me:has_debuff_type("Magic")
+    end)
+    if ok and has_debuff then
+        self_has_magic_debuff = true
+    end
+    
+    if self_has_magic_debuff then
+        if utils.cast_self(resolved.dispel_magic, me) then
+            note_cast()
+            utils.log_debug(menu, "Dispel Magic (self)")
+            return true
+        end
+    end
+    
+    -- Check injured allies
+    if ctx and ctx.injured and ctx.injured.n > 0 then
+        for i = 1, ctx.injured.n do
+            local ally = ctx.injured[i]
+            if ally and ally:is_valid() and not ally:is_dead() then
+                local ally_ok, ally_has_magic = pcall(function()
+                    return ally:has_debuff_type("Magic")
+                end)
+                if ally_ok and ally_has_magic then
+                    if utils.cast_target(resolved.dispel_magic, me, ally) then
+                        note_cast()
+                        utils.log_debug(menu, "Dispel Magic (ally)")
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    
+    return false
+end
+
+-- Try Cure Disease / Abolish Disease
+local function try_cure_disease(me)
+    if not me:is_in_combat() then return false end
+    
+    local use_dispels = (menu.use_dispels and menu.use_dispels:get_state()) or
+                        (menu.use_cure_disease and menu.use_cure_disease:get_state())
+    if not use_dispels then return false end
+    
+    -- Prefer Abolish Disease if available (it's a HoT that prevents disease)
+    local abolish_first = resolved.abolish_disease and 
+                          ((menu.use_abolish_disease and menu.use_abolish_disease:get_state()) or true)
+    
+    local spell_to_use = nil
+    if abolish_first and resolved.abolish_disease then
+        spell_to_use = resolved.abolish_disease
+    elseif resolved.cure_disease then
+        spell_to_use = resolved.cure_disease
+    end
+    
+    if not spell_to_use then return false end
+    
+    -- Use heal_context to get injured allies
+    local heal_context = require("libraries/heal_context")
+    local ctx = heal_context.get_context(me)
+    
+    -- Check self first
+    local self_has_disease = false
+    local ok, has_debuff = pcall(function()
+        return me:has_debuff_type("Disease")
+    end)
+    if ok and has_debuff then
+        self_has_disease = true
+    end
+    
+    if self_has_disease then
+        if utils.cast_self(spell_to_use, me) then
+            note_cast()
+            utils.log_debug(menu, "Cure Disease (self)")
+            return true
+        end
+    end
+    
+    -- Check injured allies
+    if ctx and ctx.injured and ctx.injured.n > 0 then
+        for i = 1, ctx.injured.n do
+            local ally = ctx.injured[i]
+            if ally and ally:is_valid() and not ally:is_dead() then
+                local ally_ok, ally_has_disease = pcall(function()
+                    return ally:has_debuff_type("Disease")
+                end)
+                if ally_ok and ally_has_disease then
+                    if utils.cast_target(spell_to_use, me, ally) then
+                        note_cast()
+                        utils.log_debug(menu, "Cure Disease (ally)")
+                        return true
+                    end
+                end
+            end
         end
     end
     
@@ -595,20 +858,87 @@ end
 
 -- Main rotation logic
 local function on_update()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
     
     local me = _get_local_player()
     if not me or not me:is_valid() or me:is_dead() then return end
     
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+    
+    
+    if not runtime._initialized then
+        init_()
+    end
+    
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
     
-    -- OOC buffs
+    -- Mana recovery check (healers need reliable mana)
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.PRIEST)
+        if used_mana then
+            -- Mana recovery triggered
+        end
+    end
+    
+    -- Execute middleware (healthstones, potions, racials)
+    local target = me:get_target()
+    local mw_result, mw_msg = middleware_manager.execute_middleware(nil, me, target)
+    if mw_result then
+        note_cast()
+        utils.log_debug(menu, mw_msg or "Middleware executed")
+        return
+    end
+    
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+    
+    -- OOC buffs and resurrection via ooc_manager
     if not me:is_in_combat() then
-        if try_inner_fire(me) then return end
-        if try_fear_ward(me) then return end
-        if try_fortitude(me) then return end
-        if try_divine_spirit(me) then return end
+        ooc_manager.on_update(me, menu, utils, {
+            rez_spell_id = resolved.resurrection,
+            group_buffs = {
+                {
+                    spell_id = resolved.inner_fire,
+                    buff_ids = spells.BUFF_INNER_FIRE,
+                    name = "Inner Fire",
+                    toggle = menu.use_inner_fire
+                },
+                {
+                    spell_id = resolved.fortitude,
+                    buff_ids = spells.BUFF_POWER_WORD_FORTITUDE,
+                    name = "Fortitude",
+                    toggle = menu.use_power_word_fortitude
+                },
+                {
+                    spell_id = resolved.divine_spirit,
+                    buff_ids = spells.BUFF_DIVINE_SPIRIT,
+                    name = "Divine Spirit",
+                    toggle = menu.use_divine_spirit
+                },
+                {
+                    spell_id = resolved.shadow_protection,
+                    buff_ids = spells.BUFF_SHADOW_PROTECTION,
+                    name = "Shadow Protection",
+                    toggle = menu.use_shadow_protection
+                },
+                {
+                    spell_id = resolved.fear_ward,
+                    buff_ids = spells.BUFF_FEAR_WARD,
+                    name = "Fear Ward",
+                    toggle = menu.use_fear_ward
+                },
+            }
+        })
     end
     
     -- Pre-pull PoM and Renew
@@ -628,6 +958,9 @@ local function on_update()
     -- Cooldowns
     if try_racial(me) then return end
     
+    -- Trinkets (mana/spellpower/defensive)
+    try_trinkets(me)
+    
     -- Threat management
     if try_fade(me) then return end
     
@@ -638,6 +971,10 @@ local function on_update()
     if try_emergency_pws(me) then return end
     if try_emergency_flash_heal(me) then return end
     
+    -- Dispels (high priority)
+    if try_dispel_magic(me) then return end
+    if try_cure_disease(me) then return end
+    
     -- Clearcasting proc
     if try_clearcasting_greater_heal(me) then return end
     
@@ -646,6 +983,9 @@ local function on_update()
     
     -- Circle of Healing (instant AoE - Holy specialty)
     if try_circle_of_healing(me) then return end
+    
+    -- Holy Nova (when enemies close)
+    if try_holy_nova(me) then return end
     
     -- Binding Heal
     if try_binding_heal(me) then return end
@@ -692,7 +1032,10 @@ local function on_control_panel()
         end
     end
 
-    local toggle_key_code = menu.toggle_key and menu.toggle_key:get_key_code and menu.toggle_key:get_key_code() or 106
+    local toggle_key_code = 106
+        if menu.toggle_key and menu.toggle_key.get_key_code then
+            toggle_key_code = menu.toggle_key:get_key_code()
+        end
     local display_name = "[EAX] Enabled"
     if toggle_key_code ~= 7 then
         display_name = "[EAX] Enabled (" .. key_helper:get_key_name(toggle_key_code) .. ")"
@@ -701,9 +1044,9 @@ local function on_control_panel()
     add_toggle(display_name, menu.enabled, "eax_priestholyenabled_cp")
 
     if menu and menu.enabled and menu.enabled:get_state() then
-        add_toggle("[EAX Holy] CoH", menu.holy_use_coh, "eax_holy_coh_cp")
-        add_toggle("[EAX Holy] PoM", menu.holy_use_pom, "eax_holy_pom_cp")
-        add_toggle("[EAX Holy] PoH", menu.holy_use_poh, "eax_holy_poh_cp")
+        add_toggle("[EAX Holy] CoH", (menu.use_circle_of_healing or menu.holy_use_coh), "eax_holy_coh_cp")
+        add_toggle("[EAX Holy] PoM", (menu.use_prayer_of_mending or menu.holy_use_pom), "eax_holy_pom_cp")
+        add_toggle("[EAX Holy] PoH", (menu.use_prayer_of_healing or menu.holy_use_poh), "eax_holy_poh_cp")
     end
 
     return elements

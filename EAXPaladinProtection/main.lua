@@ -11,6 +11,8 @@ end
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
 
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
@@ -20,6 +22,23 @@ local racial_manager = require("libraries/racial_manager")
 local defensive_manager = require("libraries/defensive_manager")
 ---@type consumables_manager
 local consumables_manager = require("libraries/consumables_manager")
+---@type ooc_manager
+local ooc_manager = require("../libraries/ooc_manager")
+
+
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard_config = require("libraries/dashboard_config")
+
+-- NEW: Trinket manager for defensive trinket mode
+local trinket_manager = require("../libraries/trinket_manager")
+
+-- NEW: Advanced tanking libraries from Flux port
+---@type context_builder
+local context_builder = require("libraries/context_builder")
+---@type threat_tab_manager
+local threat_tab_manager = require("libraries/threat_tab_manager")
+---@type smart_defensive
+local smart_defensive = require("../libraries/smart_defensive")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -48,6 +67,7 @@ local runtime = {
     devotion_aura_id = nil,
     blessing_of_kings_id = nil,
     blessing_of_sanctuary_id = nil,
+    redemption_id = nil,
     last_cast_time = 0,
     last_aura_cast_at = 0,
     last_ooc_buff_at = 0,
@@ -81,6 +101,7 @@ local function resolve_spells()
     runtime.devotion_aura_id = utils.resolve_spell_id(spells.DEVOTION_AURA)
     runtime.blessing_of_kings_id = utils.resolve_spell_id(spells.BLESSING_OF_KINGS)
     runtime.blessing_of_sanctuary_id = utils.resolve_spell_id(spells.BLESSING_OF_SANCTUARY)
+    runtime.redemption_id = utils.resolve_spell_id(spells.REDEMPTION)
 end
 
 local function note_cast()
@@ -364,36 +385,44 @@ local function try_avenging_wrath(me)
     return false
 end
 
-local function try_divine_shield(me)
+local function try_divine_shield(me, ctx)
     if not (menu.use_divine_shield and menu.use_divine_shield:get_state()) then return false end
     if not runtime.divine_shield_id then return false end
-    if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then return false end
-    local hp_pct = utils.get_health_pct(me)
-    local threshold = ((menu.divine_shield_hp and menu.divine_shield_hp:get()) or 15) / 100
-    if hp_pct > threshold then return false end
+    
+    -- Use smart_defensive for predictive mitigation
+    local settings = {
+        divine_shield_hp = ((menu.divine_shield_hp and menu.divine_shield_hp:get()) or 15),
+    }
+    local should_use, reason = smart_defensive.should_use(me, "divine_shield", ctx or {}, settings)
+    
+    if not should_use then return false end
     if not utils.can_cast_self(runtime.divine_shield_id, me) then return false end
     if utils.cast_self(runtime.divine_shield_id, me) then
         note_cast()
         if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Divine Shield (emergency)")
+            utils.log_debug(menu, "Divine Shield (" .. (reason or "emergency") .. ")")
         end
         return true
     end
     return false
 end
 
-local function try_lay_on_hands(me)
+local function try_lay_on_hands(me, ctx)
     if not (menu.use_lay_on_hands and menu.use_lay_on_hands:get_state()) then return false end
     if not runtime.lay_on_hands_id then return false end
-    if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then return false end
-    local hp_pct = utils.get_health_pct(me)
-    local threshold = ((menu.lay_on_hands_hp and menu.lay_on_hands_hp:get()) or 15) / 100
-    if hp_pct > threshold then return false end
+    
+    -- Use smart_defensive for predictive mitigation
+    local settings = {
+        lay_on_hands_hp = ((menu.lay_on_hands_hp and menu.lay_on_hands_hp:get()) or 15),
+    }
+    local should_use, reason = smart_defensive.should_use(me, "lay_on_hands", ctx or {}, settings)
+    
+    if not should_use then return false end
     if not utils.can_cast_self(runtime.lay_on_hands_id, me) then return false end
     if utils.cast_self(runtime.lay_on_hands_id, me) then
         note_cast()
         if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Lay on Hands (self)")
+            utils.log_debug(menu, "Lay on Hands (" .. (reason or "emergency") .. ")")
         end
         return true
     end
@@ -437,31 +466,59 @@ local function try_hammer_of_justice(me, target)
     return false
 end
 
--- OOC buffs
+-- OOC buffs (delegated to ooc_manager)
 local function try_ooc_buffs(me)
     if me:is_in_combat() then return false end
-    if (_core_time() - runtime.last_ooc_buff_at) < BUFF_RETRY_WINDOW then return false end
-    if not (menu.ooc_buff and menu.ooc_buff:get_state()) then return false end
     
-    -- Check for blessing
-    local has_blessing = utils.has_buff(me, spells.BUFF_BLESSING_OF_KINGS) or
-                         utils.has_buff(me, spells.BUFF_BLESSING_OF_SANCTUARY)
-    if not has_blessing then
-        local buff_id = nil
-        if menu.use_blessing_of_kings and menu.use_blessing_of_kings:get_state() then
-            buff_id = runtime.blessing_of_kings_id
-        elseif menu.use_blessing_of_sanctuary and menu.use_blessing_of_sanctuary:get_state() then
-            buff_id = runtime.blessing_of_sanctuary_id
-        end
-        if buff_id and utils.can_cast_self(buff_id, me) then
-            if utils.cast_self(buff_id, me) then
-                runtime.last_ooc_buff_at = _core_time()
-                note_cast()
-                return true
-            end
-        end
-    end
-    return false
+    local resolved = {
+        redemption = runtime.redemption_id,
+        blessing_of_kings = runtime.blessing_of_kings_id,
+        blessing_of_sanctuary = runtime.blessing_of_sanctuary_id,
+        righteous_fury = runtime.righteous_fury_id,
+        devotion_aura = runtime.devotion_aura_id,
+    }
+    
+    return ooc_manager.on_update(me, menu, utils, {
+        rez_spell_id = resolved.redemption,
+        group_buffs = {
+            {
+                spell_id = resolved.blessing_of_might,
+                buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
+                name = "Blessing of Might",
+                toggle = menu.use_blessing_of_might
+            },
+            {
+                spell_id = resolved.blessing_of_wisdom,
+                buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
+                name = "Blessing of Wisdom",
+                toggle = menu.use_blessing_of_wisdom
+            },
+            {
+                spell_id = resolved.blessing_of_kings,
+                buff_ids = spells.BUFF_BLESSING_OF_KINGS,
+                name = "Blessing of Kings",
+                toggle = menu.use_blessing_of_kings
+            },
+            {
+                spell_id = resolved.blessing_of_sanctuary,
+                buff_ids = spells.BUFF_BLESSING_OF_SANCTUARY,
+                name = "Blessing of Sanctuary",
+                toggle = menu.use_blessing_of_sanctuary
+            },
+            {
+                spell_id = resolved.righteous_fury,
+                buff_ids = spells.BUFF_RIGHTEOUS_FURY,
+                name = "Righteous Fury",
+                toggle = menu.use_righteous_fury
+            },
+            {
+                spell_id = resolved.devotion_aura,
+                buff_ids = spells.BUFF_DEVOTION_AURA,
+                name = "Devotion Aura",
+                toggle = menu.use_devotion_aura
+            },
+        }
+    })
 end
 
 -- Auto tab targeting for threat management
@@ -518,10 +575,77 @@ resolve_spells()
 
 -- Main update loop
 core.register_on_update_callback(function()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
+    
+    -- Initialize middleware on first run
+    if not middleware_manager.is_initialized() then
+        middleware_manager.initialize(menu)
+    end
     
     local me = _get_local_player()
     if not me or me:is_dead() then return end
+    
+    -- Sync dashboard settings
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
+    
+    -- Build middleware context
+    local target = me:get_target()
+    local ctx = middleware_manager.build_context(me, target, {
+        use_healthstone = (menu.use_healthstone and menu.use_healthstone:get_state()) or false,
+        use_healing_potion = (menu.use_health_potion and menu.use_health_potion:get_state()) or false,
+        use_mana_potion = (menu.use_mana_potion and menu.use_mana_potion:get_state()) or false,
+        use_divine_protection = (menu.use_divine_protection and menu.use_divine_protection:get_state()) or false,
+        use_divine_shield = (menu.use_divine_shield and menu.use_divine_shield:get_state()) or false,
+        use_lay_on_hands = (menu.use_lay_on_hands and menu.use_lay_on_hands:get_state()) or false,
+        use_avenging_wrath = (menu.use_avenging_wrath and menu.use_avenging_wrath:get_state()) or false,
+        use_berserking = (menu.use_berserking and menu.use_berserking:get_state()) or false,
+        use_stoneform = (menu.use_stoneform and menu.use_stoneform:get_state()) or false,
+    })
+    
+    -- Execute middleware (healthstones, potions, defensives)
+    local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
+    if mw_result then
+        if menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, mw_msg or "Middleware executed")
+        end
+    end
+    
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    -- Paladin special: Try Divine Shield for any CC before stopping
+    if should_stop then
+        if utils.try_divine_shield_cc_break(me, menu) then
+            return  -- Successfully broke CC
+        end
+    end
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
     
     -- Track combat start
     if me:is_in_combat() and runtime.combat_start_time == 0 then
@@ -545,15 +669,31 @@ core.register_on_update_callback(function()
     
     local target = me:get_target()
     
-    -- Defensive CDs
-    if try_divine_shield(me) then return end
-    if try_lay_on_hands(me) then return end
+    -- NEW: Build rotation context once per frame
+    local tank_ctx = context_builder.build(me, target, menu)
+    
+    -- NEW: Update manual target detection for threat_tab_manager
+    threat_tab_manager.update_manual_target(target)
+    
+    -- NEW: Threat-aware tab targeting (replaces basic try_auto_tab)
+    local should_tab, tab_reason, new_target = threat_tab_manager.should_tab(me, target, menu)
+    if should_tab and new_target then
+        if threat_tab_manager.execute_tab(me) then
+            if menu.debug and menu.debug:get_state() then
+                utils.log_debug(menu, "Tab target: " .. tab_reason)
+            end
+            -- Update target to new one
+            target = new_target
+            tank_ctx = context_builder.build(me, target, menu)
+        end
+    end
+    
+    -- Defensive CDs (with smart_defensive prediction)
+    if try_divine_shield(me, tank_ctx) then return end
+    if try_lay_on_hands(me, tank_ctx) then return end
     
     -- Only continue if in combat
     if not me:is_in_combat() then return end
-    
-    -- Auto tab targeting check
-    try_auto_tab(me)
     
     -- Consumables
     if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
@@ -608,15 +748,18 @@ core.register_on_update_callback(function()
     
     -- Holy Wrath (AoE undead/demon)
     if try_holy_wrath(me) then return end
+
+    -- Defensive trinket check (tank mode - not burst)
+    trinket_manager.check_trinkets(me, false, menu)
 end)
+
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.register_render_callback()
 
 -- Export toggle settings for external access
 local NS = _G.EAXPaladinProtection and _G.EAXPaladinProtection.NS or {}
 _G.EAXPaladinProtection = _G.EAXPaladinProtection or {}
 _G.EAXPaladinProtection.NS = NS
 NS.toggle_menu = menu.toggle_menu
-
--- Menu rendering is now handled by simple_ui in menu.lua
--- The old window-based menu system has been replaced with AstroUI
-
 

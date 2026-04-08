@@ -221,6 +221,187 @@ function utils.dist_squared(me, target)
     return (dx * dx + dy * dy + dz * dz)
 end
 
+-- ============================================================================
+-- PvP Detection Helpers
+-- ============================================================================
+
+---Check if target is a player or player pet
+--@param target game_object
+--@return boolean
+function utils.is_player_or_pet(target)
+    if not target or not target:is_valid() then return false end
+    -- Check if it's a player
+    if target.is_player and target:is_player() then return true end
+    -- Check if it's a player pet (has owner)
+    if target.get_owner then
+        local ok, owner = pcall(function() return target:get_owner() end)
+        if ok and owner and owner:is_valid() then
+            return owner.is_player and owner:is_player()
+        end
+    end
+    return false
+end
+
+---Check if target is in PvP combat (has PvP flag or is attacking)
+--@param target game_object
+--@return boolean
+function utils.is_pvp_target(target)
+    if not target or not target:is_valid() then return false end
+    -- Check PvP flag
+    if target.is_pvp and target:is_pvp() then return true end
+    -- Check if flagged for PvP
+    if target.has_aura then
+        local ok, has_pvp = pcall(function() return target:has_aura(2479) end) -- PvP flagged aura
+        if ok and has_pvp then return true end
+    end
+    return false
+end
+
+---Detect if current target is a valid PvP target
+--@param me game_object
+--@param target game_object
+--@return boolean
+function utils.is_valid_pvp_target(me, target)
+    if not me or not target then return false end
+    if not target:is_valid() or target:is_dead() then return false end
+    if not me:can_attack(target) then return false end
+    return utils.is_player_or_pet(target)
+end
+
+---Get PvP mode from menu setting
+--@param menu table
+--@return string: "auto", "bg", "arena", "world"
+function utils.get_pvp_mode(menu)
+    if not menu or not menu.pvp_mode then return "auto" end
+    local mode = menu.pvp_mode:get()
+    if mode == 2 then return "bg"
+    elseif mode == 3 then return "arena"
+    elseif mode == 4 then return "world"
+    end
+    return "auto"
+end
+
+---Check if PvP features should be active
+--@param menu table
+--@param me game_object
+--@param target game_object
+--@return boolean
+function utils.should_use_pvp_rotation(menu, me, target)
+    if not menu or not menu.pvp_enabled then return false end
+    if not menu.pvp_enabled:get_state() then return false end
+    if not me or not target then return false end
+    return utils.is_valid_pvp_target(me, target)
+end
+
+-- ============================================================================
+-- Moonkin Form Helpers
+-- ============================================================================
+
+---Check if player is in Moonkin Form
+--@param me game_object
+--@return boolean
+function utils.is_in_moonkin_form(me)
+    if not me or not me:is_valid() then return false end
+    -- Moonkin Form aura ID = 24880
+    if me.has_aura then
+        local ok, has_moonkin = pcall(function() return me:has_aura(24880) end)
+        if ok then return has_moonkin end
+    end
+    return false
+end
+
+---Get Moonkin status information
+--@param me game_object
+--@return table: {in_moonkin = boolean, has_clearcasting = boolean, has_natures_grace = boolean}
+function utils.get_moonkin_status(me)
+    local status = {
+        in_moonkin = false,
+        has_clearcasting = false,
+        has_natures_grace = false,
+    }
+    
+    if not me or not me:is_valid() then return status end
+    
+    -- Check Moonkin Form (24880)
+    if me.has_aura then
+        local ok, result = pcall(function() return me:has_aura(24880) end)
+        if ok then status.in_moonkin = result end
+    end
+    
+    -- Check Clearcasting/Omen of Clarity (16870)
+    if me.has_aura then
+        local ok, result = pcall(function() return me:has_aura(16870) end)
+        if ok then status.has_clearcasting = result end
+    end
+    
+    -- Check Nature's Grace (16886)
+    if me.has_aura then
+        local ok, result = pcall(function() return me:has_aura(16886) end)
+        if ok then status.has_natures_grace = result end
+    end
+    
+    return status
+end
+
+-- ============================================================================
+-- Crowd Control Detection
+-- ============================================================================
+
+-- Loss of Control Type Enum Values (from Sylvanas API)
+local LOC_NONE = 0
+local LOC_POSSESS = 1
+local LOC_CONFUSE = 2
+local LOC_CHARM = 3
+local LOC_FEAR = 4
+local LOC_STUN = 5
+local LOC_PACIFY = 6
+local LOC_ROOT = 7
+local LOC_SILENCE = 8
+local LOC_PACIFY_SILENCE = 9
+local LOC_DISARM = 10
+local LOC_SCHOOL_INTERRUPT = 11
+local LOC_STUN_MECHANIC = 12
+local LOC_FEAR_MECHANIC = 13
+
+-- CC types that prevent spell casting
+local CAST_PREVENTING_CC_TYPES = {
+    [LOC_STUN] = true,
+    [LOC_PACIFY] = true,
+    [LOC_SILENCE] = true,
+    [LOC_PACIFY_SILENCE] = true,
+    [LOC_SCHOOL_INTERRUPT] = true,
+    [LOC_STUN_MECHANIC] = true,
+    [LOC_CONFUSE] = true,
+    [LOC_CHARM] = true,
+    [LOC_FEAR] = true,
+    [LOC_FEAR_MECHANIC] = true,
+    [LOC_DISARM] = true,
+}
+
+--[[
+    Checks if the unit has a loss of control effect that prevents casting
+    
+    @param unit: game_object - The player or unit to check
+    @return boolean: true if unit cannot cast spells, false otherwise
+--]]
+function utils.is_cced(unit)
+    if not unit or not unit.is_valid or not unit:is_valid() then
+        return false
+    end
+    
+    -- Check if method exists (API compatibility)
+    if not unit.get_loss_of_control_info then
+        return false
+    end
+    
+    local loc_info = unit:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then
+        return false
+    end
+    
+    return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
+end
+
 return utils
 
 

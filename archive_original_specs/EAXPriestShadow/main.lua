@@ -265,7 +265,7 @@ local resolved = {
     silence = utils.resolve_spell_id(spells.SILENCE),
     dispel_magic = utils.resolve_spell_id(spells.DISPEL_MAGIC),
     shadow_weaving_buff = 25423,
-    -- Flux-ported features
+    -- Additional features
     starshards = utils.resolve_spell_id(spells.STARSHARDS),
     inner_focus = utils.resolve_spell_id(spells.INNER_FOCUS),
     power_word_shield = utils.resolve_spell_id(spells.POWER_WORD_SHIELD),
@@ -993,14 +993,14 @@ core.register_on_update_callback(function()
             and refresh_dot(me, target, resolved.shadow_word_pain, spells.DEBUFF_SHADOW_WORD_PAIN) then invalidate_ctx() return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.14) and try_devouring_plague(me, target) then return end
 
-        -- AoE multi-dotting (Flux-ported): AoE VT before AoE SW:P
+        -- AoE multi-dotting: AoE VT before AoE SW:P
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.20) and try_aoe_vt_spread(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_aoe_swp_spread(me, target) then return end
 
-        -- Starshards (Night Elf racial, Flux-ported): before MB/SWD
+        -- Starshards (Night Elf racial): before MB/SWD
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.10) and try_starshards(me, target) then return end
 
-        -- Inner Focus (off-GCD, Flux-ported): fire before MB when ready
+        -- Inner Focus (off-GCD): fire before MB when ready
         -- FIXED: try_inner_focus now properly called with target parameter and return value checked
         if try_inner_focus(me, target) then
             -- Inner Focus is off-GCD, continue with rotation
@@ -1016,7 +1016,7 @@ core.register_on_update_callback(function()
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.12) and try_mind_blast(me, target) then return end
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.08) and try_mind_flay(me, target) then return end
 
-        -- Low Mana PW:S (Flux-ported): defensive when conserving mana
+        -- Low Mana PW:S: defensive when conserving mana
         if ctx and resource_gate.common.has_mana_pct(ctx, 0.04) and try_low_mana_pws(me, target) then return end
     end
 

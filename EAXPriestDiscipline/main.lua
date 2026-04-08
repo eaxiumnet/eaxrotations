@@ -5,6 +5,13 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local mana_manager = require("libraries/mana_manager")
+local ooc_manager = require("../libraries/ooc_manager")
+
+
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
 
 -- Access the namespace for toggle_menu export
 local _G = _G
@@ -26,7 +33,49 @@ local runtime = {
     mode_cache = "solo",
     last_mode_check = 0,
     last_mode_log = nil,
+    _initialized = false,
 }
+
+-- ============================================================================
+
+-- ============================================================================
+
+local function init_()
+    if runtime._initialized then return end
+    
+    -- Setup middleware (healthstones, potions, racials)
+    middleware_manager.setup(menu, spells)
+    
+    -- Initialize dashboard
+    dashboard.init(dashboard_config)
+    
+    -- Sync dashboard settings (safe pcall for uninitialized menu items)
+    local ok_show, show_dashboard = pcall(function() return menu.dashboard_enabled:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
+    
+    dashboard.register_render_callback()
+    
+    runtime._initialized = true
+    print("[EAX Discipline] integration initialized")
+end
 
 -- Resolved spell IDs
 local resolved = {
@@ -51,6 +100,7 @@ local resolved = {
     cure_disease = utils.resolve_spell_id(spells.CURE_DISEASE),
     desperate_prayer = utils.resolve_spell_id(spells.DESPERATE_PRAYER),
     berserking = utils.resolve_spell_id(spells.BERSERKING),
+    resurrection = utils.resolve_spell_id(spells.RESURRECTION),
 }
 
 -- Helper functions
@@ -86,14 +136,14 @@ end
 -- Try Pain Suppression on critically low tank
 local function try_pain_suppression(me)
     if not resolved.pain_suppression then return false end
-    if not (menu.disc_use_pain_suppression and menu.disc_use_pain_suppression:get_state()) then return false end
+    if not (menu.use_pain_suppression and menu.use_pain_suppression:get_state()) then return false end
     if not is_pain_suppression_ready() then return false end
     if not me:is_in_combat() then return false end
     
     local tank = utils.get_tank_unit(me)
     if not tank or not tank:is_valid() or tank:is_dead() then return false end
     
-    local threshold = (menu.disc_pain_suppression_hp and menu.disc_pain_suppression_hp:get() or 20) / 100
+    local threshold = ((menu.pain_suppression_threshold and menu.pain_suppression_threshold:get()) or 40) / 100
     local hp = utils.get_health_pct(tank)
     if hp > threshold then return false end
     
@@ -108,7 +158,7 @@ end
 -- Try Power Infusion (off-GCD, self or ally)
 local function try_power_infusion(me)
     if not resolved.power_infusion then return false end
-    if not (menu.disc_use_power_infusion and menu.disc_use_power_infusion:get_state()) then return false end
+    if not (menu.use_power_infusion and menu.use_power_infusion:get_state()) then return false end
     if not is_power_infusion_ready() then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_POWER_INFUSION) then return false end
@@ -125,13 +175,13 @@ end
 -- Try Inner Focus (off-GCD, before Greater Heal)
 local function try_inner_focus(me)
     if not resolved.inner_focus then return false end
-    if not (menu.disc_use_inner_focus and menu.disc_use_inner_focus:get_state()) then return false end
+    if not (menu.use_inner_focus and menu.use_inner_focus:get_state()) then return false end
     if not is_inner_focus_ready() then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_INNER_FOCUS) then return false end
     
     -- Only use if we have a low HP target that needs Greater Heal
-    local threshold = (menu.disc_flash_heal_hp and menu.disc_flash_heal_hp:get() or 50) / 100
+    local threshold = ((menu.flash_heal_hp_pct and menu.flash_heal_hp_pct:get()) or 50) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
     if not lowest or lowest_hp >= threshold then return false end
     
@@ -148,7 +198,7 @@ local function try_emergency_flash_heal(me)
     if not resolved.flash_heal then return false end
     if not me:is_in_combat() then return false end
     
-    local threshold = (menu.disc_emergency_hp and menu.disc_emergency_hp:get() or 25) / 100
+    local threshold = ((menu.disc_emergency_hp and menu.disc_emergency_hp:get()) or 25) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
     if not lowest or lowest_hp >= threshold then return false end
     
@@ -176,7 +226,7 @@ local function try_binding_heal(me)
     local self_hp = utils.get_health_pct(me)
     if self_hp > 0.80 then return false end
     
-    local threshold = (menu.disc_flash_heal_hp and menu.disc_flash_heal_hp:get() or 50) / 100
+    local threshold = ((menu.flash_heal_hp_pct and menu.flash_heal_hp_pct:get()) or 50) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, true) -- skip self
     if not lowest or lowest_hp >= threshold then return false end
     
@@ -191,7 +241,7 @@ end
 -- Try Power Word: Shield on tank (pre-pull capable)
 local function try_shield_tank(me)
     if not resolved.power_word_shield then return false end
-    if not (menu.disc_use_shield and menu.disc_use_shield:get_state()) then return false end
+    if not (menu.use_power_word_shield and menu.use_power_word_shield:get_state()) then return false end
     
     local tank = utils.get_tank_unit(me)
     if not tank or not tank:is_valid() or tank:is_dead() then return false end
@@ -205,8 +255,8 @@ local function try_shield_tank(me)
     -- In combat: only shield if below threshold
     if me:is_in_combat() and hp > threshold then return false end
     
-    -- Out of combat: only if prepull setting enabled
-    if not me:is_in_combat() and not (menu.disc_prepull_shield and menu.disc_prepull_shield:get_state()) then return false end
+    -- Out of combat: only if prepull setting enabled (using prepull_pom as generic prepull toggle)
+    if not me:is_in_combat() and not ((menu.prepull_pom and menu.prepull_pom:get_state()) or false) then return false end
     
     -- Don't shield if already has PW:S
     if utils.has_buff(tank, spells.BUFF_POWER_WORD_SHIELD) then return false end
@@ -222,14 +272,14 @@ end
 -- Try Prayer of Mending (instant, on CD)
 local function try_prayer_of_mending(me)
     if not resolved.prayer_of_mending then return false end
-    if not (menu.disc_use_prayer_of_mending and menu.disc_use_prayer_of_mending:get_state()) then return false end
+    if not (menu.use_prayer_of_mending and menu.use_prayer_of_mending:get_state()) then return false end
     if _get_spell_cd(resolved.prayer_of_mending) > 0 then return false end
     
     local tank = utils.get_tank_unit(me)
     local target = tank
     
     if not target or not target:is_valid() or target:is_dead() then
-        local threshold = (menu.disc_shield_hp and menu.disc_shield_hp:get() or 90) / 100
+    local threshold = ((menu.shield_threshold and menu.shield_threshold:get()) or 85) / 100
         target = utils.find_lowest_effective_ally(me, threshold, false)
     end
     
@@ -247,11 +297,12 @@ end
 -- Try PW:S on non-tank (if not tank-only mode)
 local function try_shield_others(me)
     if not resolved.power_word_shield then return false end
-    if not (menu.disc_use_shield and menu.disc_use_shield:get_state()) then return false end
+    if not (menu.use_power_word_shield and menu.use_power_word_shield:get_state()) then return false end
     if not me:is_in_combat() then return false end
-    if menu.disc_shield_tank_only and menu.disc_shield_tank_only:get_state() then return false end
+    -- No tank-only mode in menu, skip this check
+    -- if menu.disc_shield_tank_only and menu.disc_shield_tank_only:get_state() then return false end
     
-    local threshold = (menu.disc_shield_hp and menu.disc_shield_hp:get() or 90) / 100
+    local threshold = ((menu.shield_threshold and menu.shield_threshold:get()) or 85) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
     if not lowest or lowest_hp >= threshold then return false end
     
@@ -275,19 +326,19 @@ end
 -- Try Renew on tank (pre-pull capable)
 local function try_renew_tank(me)
     if not resolved.renew then return false end
-    if not (menu.disc_use_renew and menu.disc_use_renew:get_state()) then return false end
+    if not (menu.use_renew and menu.use_renew:get_state()) then return false end
     
     local tank = utils.get_tank_unit(me)
     if not tank or not tank:is_valid() or tank:is_dead() then return false end
     
-    local threshold = (menu.disc_renew_hp and menu.disc_renew_hp:get() or 85) / 100
+    local threshold = ((menu.renew_threshold and menu.renew_threshold:get()) or 90) / 100
     local hp = utils.get_health_pct(tank)
     
     -- In combat: only renew if below threshold
     if me:is_in_combat() and hp > threshold then return false end
     
     -- Out of combat: only if prepull setting enabled
-    if not me:is_in_combat() and not (menu.disc_prepull_renew and menu.disc_prepull_renew:get_state()) then return false end
+    if not me:is_in_combat() and not ((menu.disc_prepull_renew and menu.disc_prepull_renew:get_state()) or false) then return false end
     
     -- Don't renew if already has Renew
     if utils.has_buff(tank, spells.BUFF_RENEW) then return false end
@@ -305,8 +356,8 @@ local function try_greater_heal(me)
     if not resolved.greater_heal then return false end
     if not me:is_in_combat() then return false end
     
-    local flash_threshold = (menu.disc_flash_heal_hp and menu.disc_flash_heal_hp:get() or 50) / 100
-    local renew_threshold = (menu.disc_renew_hp and menu.disc_renew_hp:get() or 85) / 100
+    local flash_threshold = ((menu.flash_heal_hp_pct and menu.flash_heal_hp_pct:get()) or 50) / 100
+    local renew_threshold = ((menu.renew_threshold and menu.renew_threshold:get()) or 90) / 100
     
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, renew_threshold, false)
     if not lowest then return false end
@@ -335,12 +386,12 @@ local function try_flash_heal(me)
     if not resolved.flash_heal then return false end
     if not me:is_in_combat() then return false end
     
-    local threshold = (menu.disc_flash_heal_hp and menu.disc_flash_heal_hp:get() or 50) / 100
+    local threshold = ((menu.flash_heal_hp_pct and menu.flash_heal_hp_pct:get()) or 50) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
     if not lowest or lowest_hp >= threshold then return false end
     
     -- Skip if below emergency threshold (emergency handler takes priority)
-    local emergency_threshold = (menu.disc_emergency_hp and menu.disc_emergency_hp:get() or 25) / 100
+    local emergency_threshold = ((menu.disc_emergency_hp and menu.disc_emergency_hp:get()) or 25) / 100
     if lowest_hp < emergency_threshold then return false end
     
     if lowest == me then
@@ -362,10 +413,10 @@ end
 -- Try Renew on injured (HoT spread)
 local function try_renew_spread(me)
     if not resolved.renew then return false end
-    if not (menu.disc_use_renew and menu.disc_use_renew:get_state()) then return false end
+    if not (menu.use_renew and menu.use_renew:get_state()) then return false end
     if not me:is_in_combat() then return false end
     
-    local threshold = (menu.disc_renew_hp and menu.disc_renew_hp:get() or 85) / 100
+    local threshold = ((menu.renew_threshold and menu.renew_threshold:get()) or 90) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
     if not lowest or lowest_hp >= threshold then return false end
     
@@ -383,10 +434,10 @@ end
 -- Try Prayer of Healing (group damage)
 local function try_prayer_of_healing(me)
     if not resolved.prayer_of_healing then return false end
-    if not (menu.disc_use_prayer_of_healing and menu.disc_use_prayer_of_healing:get_state()) then return false end
+    if not (menu.use_prayer_of_healing and menu.use_prayer_of_healing:get_state()) then return false end
     if not me:is_in_combat() then return false end
     
-    local min_count = (menu.disc_aoe_count and menu.disc_aoe_count:get() or 3)
+    local min_count = ((menu.disc_aoe_count and menu.disc_aoe_count:get()) or 3)
     local damaged_count = utils.count_below_hp(me, 0.90)
     
     if damaged_count < min_count then return false end
@@ -537,20 +588,84 @@ end
 
 -- Main rotation logic
 local function on_update()
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
     
     local me = _get_local_player()
     if not me or not me:is_valid() or me:is_dead() then return end
     
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+    
+    
+    if not runtime._initialized then
+        init_()
+    end
+    
     local mode = utils.get_effective_mode(menu, runtime)
     log_mode(mode)
     
-    -- OOC buffs
+    -- Mana recovery check
+    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+        local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.PRIEST)
+    end
+    
+    -- Execute middleware (healthstones, potions, racials)
+    local target = me:get_target()
+    local mw_result, mw_msg = middleware_manager.execute_middleware(nil, me, target)
+    if mw_result then
+        note_cast()
+        utils.log_debug(menu, mw_msg or "Middleware executed")
+        return
+    end
+    
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+    
+    -- OOC buffs and resurrection via ooc_manager
     if not me:is_in_combat() then
-        if try_inner_fire(me) then return end
-        if try_fear_ward(me) then return end
-        if try_fortitude(me) then return end
-        if try_divine_spirit(me) then return end
+        ooc_manager.on_update(me, menu, utils, {
+            rez_spell_id = resolved.resurrection,
+            group_buffs = {
+                {
+                    spell_id = resolved.inner_fire,
+                    buff_ids = spells.BUFF_INNER_FIRE,
+                    name = "Inner Fire",
+                    toggle = menu.use_inner_fire
+                },
+                {
+                    spell_id = resolved.fortitude,
+                    buff_ids = spells.BUFF_FORTITUDE,
+                    name = "Fortitude",
+                    toggle = menu.use_power_word_fortitude
+                },
+                {
+                    spell_id = resolved.divine_spirit,
+                    buff_ids = spells.BUFF_DIVINE_SPIRIT,
+                    name = "Divine Spirit",
+                    toggle = menu.use_divine_spirit
+                },
+                {
+                    spell_id = resolved.shadow_protection,
+                    buff_ids = spells.BUFF_SHADOW_PROTECTION,
+                    name = "Shadow Protection",
+                    toggle = menu.use_shadow_protection
+                },
+                {
+                    spell_id = resolved.fear_ward,
+                    buff_ids = spells.BUFF_FEAR_WARD,
+                    name = "Fear Ward",
+                    toggle = menu.use_fear_ward
+                },
+            }
+        })
     end
     
     -- Pre-pull shields/renews

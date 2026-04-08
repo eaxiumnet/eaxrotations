@@ -1,118 +1,238 @@
--- EAX Mage Frost | menu.lua | Project Sylvanas
--- Uses unified EAX menu system with core.menu API
+-- +------------------------------------------------------------------+
+-- |  Eax's Mage Frost
+-- |  Space Theme v4.0  -  Stars drawn inside the panel background
+-- +------------------------------------------------------------------+
+local mana_conservator = require("libraries/mana_conservator")
 
-local unified = require("EAX_Unified/menu")
-if not unified then
-    error("[EAX Mage Frost] EAX_Unified menu system not available!")
-end
-
+local ps   = require("libraries/ps_theme")
+local settings = require("libraries/settings_framework")
 local menu = {}
-local ROTATION_KEY = "mage_frost" -- lowercase with underscore
 
--- ============================================================================
--- MENU DEFINITION
--- ============================================================================
-local MENU_DEF = {
-    categories = {
-        {
-            name = "Rotation",
-            settings = {
-                { key = "use_frostbolt", type = "checkbox", label = "Use Frostbolt", default = true, tooltip = "Main filler" },
-                { key = "use_ice_lance", type = "checkbox", label = "Use Ice Lance", default = true, tooltip = "Instant" },
-                { key = "use_frostfire_bolt", type = "checkbox", label = "Use Frostfire Bolt", default = true, tooltip = "Dual school" },
-                { key = "use_blizzard", type = "checkbox", label = "Use Blizzard", default = true, tooltip = "AoE" },
-                { key = "use_deep_freeze", type = "checkbox", label = "Use Deep Freeze", default = true, tooltip = "On frozen" },
-            }
-        },
-        {
-            name = "Cooldowns",
-            settings = {
-                { key = "use_icy_veins", type = "checkbox", label = "Use Icy Veins", default = true, tooltip = "Haste buff" },
-                { key = "use_cold_snap", type = "checkbox", label = "Use Cold Snap", default = true, tooltip = "Reset CDs" },
-                { key = "use_evocation", type = "checkbox", label = "Use Evocation", default = true, tooltip = "Mana recovery" },
-            }
-        },
-        {
-            name = "Defensive",
-            settings = {
-                { key = "use_ice_barrier", type = "checkbox", label = "Use Ice Barrier", default = true, tooltip = "Shield" },
-                { key = "ice_barrier_hp", type = "slider", label = "Ice Barrier HP %", default = 40, min = 0, max = 100, tooltip = "Use below this %" },
-                { key = "use_ice_block", type = "checkbox", label = "Use Ice Block", default = true, tooltip = "Immunity" },
-                { key = "ice_block_hp", type = "slider", label = "Ice Block HP %", default = 20, min = 0, max = 100, tooltip = "Use below this %" },
-            }
-        },
-    }
-}
+-- Tree nodes
+local root_tree    = ps.tree_node()
+local rotation_tree = ps.tree_node()
+local cd_tree      = ps.tree_node()
+local auto_tree    = ps.tree_node()
+local ooc_tree     = ps.tree_node()
+local group_tree   = ps.tree_node()
+local def_tree     = ps.tree_node()
+local tgt_tree     = ps.tree_node()
+local racial_tree  = ps.tree_node()
+local esp_tree     = ps.tree_node()
+local pvp_tree     = ps.tree_node()
 
--- ============================================================================
--- SETTING ACCESS API
--- ============================================================================
-function menu.is_enabled()
-    return unified.is_rotation_active(ROTATION_KEY)
+-- Controls
+menu.enabled                             = core.menu.checkbox(true, "eaxmagefrost_enabled")
+menu.toggle_key                          = core.menu.keybind(7, false, "eaxmagefrost_toggle_key")
+menu.mode                                = core.menu.combobox(1, "eaxmagefrost_mode")
+menu.debug                               = core.menu.checkbox(false, "eaxmagefrost_debug")
+
+-- Targeting
+menu.focus_priority                      = core.menu.checkbox(false, "eaxmagefrost_focus_priority")
+menu.combat_self_hp_boost                = core.menu.slider_int(0, 30, 10, "eaxmagefrost_combat_self_hp_boost")
+
+-- Racial
+menu.use_racial                          = core.menu.checkbox(true, "eaxmagefrost_use_racial")
+menu.racial_hp                           = core.menu.slider_int(10, 80, 40, "eaxmagefrost_racial_hp")
+
+-- OOC
+menu.ooc_drink                           = core.menu.checkbox(true,  "eax_ooc_drink")
+menu.ooc_eat                             = core.menu.checkbox(true,  "eax_ooc_eat")
+menu.ooc_rez                             = core.menu.checkbox(true,  "eax_ooc_rez")
+menu.ooc_group_buff                      = core.menu.checkbox(true,  "eax_ooc_group_buff")
+menu.drink_threshold                     = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
+menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
+
+-- Automation
+menu.auto_combat_potions                = core.menu.checkbox(false, "eaxmagefrost_auto_combat_potions")
+menu.auto_ooc_food_drink                = core.menu.checkbox(true, "eaxmagefrost_auto_ooc_food_drink")
+menu.auto_flask                         = core.menu.checkbox(false, "eaxmagefrost_auto_flask")
+menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxmagefrost_lev_conserve")
+menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxmagefrost_lev_mana_floor")
+menu.use_wand                            = core.menu.checkbox(true,  "eaxmagefrost_use_wand")
+menu.wand_mana_floor                     = core.menu.slider_int(5, 80, 25, "eaxmagefrost_wand_mana_floor")
+menu.wand_at_hp                          = core.menu.slider_int(5, 60, 20, "eaxmagefrost_wand_at_hp")
+menu.use_spirit_tap_wand                 = core.menu.checkbox(true,  "eaxmagefrost_spirit_tap_wand")
+
+-- ESP
+menu.esp_show_hud                        = core.menu.checkbox(true,  "eax_esp_show_hud")
+menu.esp_show_target                     = core.menu.checkbox(true,  "eax_esp_show_target")
+menu.esp_hud_x                           = core.menu.slider_int(0, 3840, 20,  "eax_esp_hud_x")
+menu.esp_hud_y                           = core.menu.slider_int(0, 2160, 200, "eax_esp_hud_y")
+
+-- Dashboard
+menu.show_dashboard                      = core.menu.checkbox(true, "eaxmagefrost_show_dashboard")
+menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxmagefrost_dashboard_opacity")
+menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxmagefrost_dashboard_scale")
+menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxmagefrost_dashboard_x")
+menu.dashboard_y            = core.menu.slider_int(0, 2000, 200, "eaxmagefrost_dashboard_y")
+menu.show_timer_bars = core.menu.checkbox(true, "eaxmagefrost_show_timer_bars")
+menu.show_action_history = core.menu.checkbox(true, "eaxmagefrost_show_action_history")
+menu.show_energy_tick = core.menu.checkbox(false, "eaxmagefrost_show_energy_tick")
+menu.show_combo_points = core.menu.checkbox(false, "eaxmagefrost_show_combo_points")
+menu.show_threat_bar = core.menu.checkbox(false, "eaxmagefrost_show_threat_bar")
+menu.enable_smart_collapse = core.menu.checkbox(true, "eaxmagefrost_enable_smart_collapse")
+
+-- Rotation
+menu.use_frostbolt                       = core.menu.checkbox(true, "eaxmagefrost_use_frostbolt")
+menu.use_ice_lance                       = core.menu.checkbox(true, "eaxmagefrost_use_ice_lance")
+menu.use_frostfire_bolt                  = core.menu.checkbox(true, "eaxmagefrost_use_frostfire_bolt")
+menu.use_deep_freeze                     = core.menu.checkbox(true, "eaxmagefrost_use_deep_freeze")
+menu.use_blizzard                        = core.menu.checkbox(true, "eaxmagefrost_use_blizzard")
+menu.use_icy_veins                       = core.menu.checkbox(true, "eaxmagefrost_use_icy_veins")
+menu.use_cold_snap                       = core.menu.checkbox(true, "eaxmagefrost_use_cold_snap")
+menu.use_evocation                       = core.menu.checkbox(true, "eaxmagefrost_use_evocation")
+menu.cd_min_ttd                          = core.menu.slider_int(0, 60, 0, "eaxmagefrost_cd_min_ttd")
+menu.use_ice_armor                       = core.menu.checkbox(true, "eaxmagefrost_use_ice_armor")
+menu.use_arcane_intellect                = core.menu.checkbox(true, "eaxmagefrost_use_arcane_intellect")
+menu.use_conjure_food                    = core.menu.checkbox(true, "eaxmagefrost_use_conjure_food")
+menu.use_conjure_water                   = core.menu.checkbox(true, "eaxmagefrost_use_conjure_water")
+menu.use_polymorph                       = core.menu.checkbox(true, "eaxmagefrost_use_polymorph")
+menu.use_blink                           = core.menu.checkbox(true, "eaxmagefrost_use_blink")
+menu.use_counterspell                    = core.menu.checkbox(true, "eaxmagefrost_use_counterspell")
+menu.use_remove_curse                    = core.menu.checkbox(true, "eaxmagefrost_remove_curse")
+menu.use_interrupt                       = core.menu.checkbox(true, "eaxmagefrost_use_interrupt")
+menu.use_ice_barrier                     = core.menu.checkbox(true, "eaxmagefrost_use_ice_barrier")
+menu.ice_barrier_hp_pct                  = core.menu.slider_int(0, 100, 40, "eaxmagefrost_ice_barrier_hp_pct")
+menu.use_ice_block                       = core.menu.checkbox(true, "eaxmagefrost_use_ice_block")
+menu.ice_block_hp_pct                    = core.menu.slider_int(0, 100, 20, "eaxmagefrost_ice_block_hp_pct")
+menu.use_frost_nova                      = core.menu.checkbox(true, "eaxmagefrost_use_frost_nova")
+menu.use_cone_of_cold                    = core.menu.checkbox(true, "eaxmagefrost_use_cone_of_cold")
+menu.use_winters_chill                   = core.menu.checkbox(true, "eaxmagefrost_use_winters_chill")
+menu.winters_chill_refresh               = core.menu.slider_int(1, 5, 3, "eaxmagefrost_winters_chill_refresh")
+menu.use_water_elemental                  = core.menu.checkbox(true, "eaxmagefrost_use_water_elemental")
+menu.use_trinkets                        = core.menu.checkbox(true, "eaxmagefrost_use_trinkets")
+
+-- PvP Settings
+menu.pvp_enabled                         = core.menu.checkbox(true, "eaxmagefrost_pvp_enabled")
+menu.pvp_mode                            = core.menu.combobox(1, "eaxmagefrost_pvp_mode")
+menu.pvp_use_trinket                     = core.menu.checkbox(true, "eaxmagefrost_pvp_trinket")
+menu.pvp_defensive_threshold             = core.menu.slider_int(10, 80, 40, "eaxmagefrost_pvp_def_hp")
+
+mana_conservator.register_menu_items(menu, "eax_mage_frost")
+
+settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "use_frostbolt", label = "Frostbolt" },
+    { toggle = "use_ice_lance", label = "Ice Lance" },
+    { toggle = "use_blizzard", label = "Blizzard" },
+    { toggle = "use_evocation", label = "Evocation" },
+}, {
+    namespace = "eaxmagefrost",
+    log_prefix = "[Eax Mage Frost] ",
+})
+
+local _win
+
+function menu.set_window(win)
+    _win = win
 end
 
-function menu.get_setting(key, default)
-    return unified.get_setting(ROTATION_KEY, key, default)
-end
-
-function menu.set_setting(key, value)
-    return unified.set_setting(ROTATION_KEY, key, value)
-end
-
--- Backward compatible checkbox proxy
-local function create_proxy(key, default)
-    return {
-        is_checked = function() return menu.get_setting(key, default) end,
-        get_value = function() return menu.get_setting(key, default) end,
-        get = function() return menu.get_setting(key, default) end,
-    }
-end
-
--- Expose specific settings (create proxies for each key in MENU_DEF)
-menu.use_frostbolt = create_proxy("use_frostbolt", true)
-menu.use_ice_lance = create_proxy("use_ice_lance", true)
-menu.use_frostfire_bolt = create_proxy("use_frostfire_bolt", true)
-menu.use_blizzard = create_proxy("use_blizzard", true)
-menu.use_deep_freeze = create_proxy("use_deep_freeze", true)
-menu.use_icy_veins = create_proxy("use_icy_veins", true)
-menu.use_cold_snap = create_proxy("use_cold_snap", true)
-menu.use_evocation = create_proxy("use_evocation", true)
-menu.use_ice_barrier = create_proxy("use_ice_barrier", true)
-menu.ice_barrier_hp = create_proxy("ice_barrier_hp", 40)
-menu.use_ice_block = create_proxy("use_ice_block", true)
-menu.ice_block_hp = create_proxy("ice_block_hp", 20)
-menu.debug = create_proxy("debug", false)
-menu.enabled = { is_checked = menu.is_enabled }
-
-function menu.toggle_menu()
-    if unified and unified.toggle_menu then
-        unified.toggle_menu()
+function menu.render()
+    if _win and root_tree:is_open() then
+        ps.draw_space(_win, "eaxmagefrost")
     end
-end
 
--- ============================================================================
--- CALLBACKS
--- ============================================================================
-local callbacks = {
-    on_enabled = function()
-        print("|cFF00FF00[EAX Frost]|r Rotation enabled")
-    end,
-    on_disabled = function()
-        print("|cFF00FF00[EAX Frost]|r Rotation disabled")
-    end,
-    is_valid = function()
-        local me = core.object_manager and core.object_manager.get_local_player()
-        if not me then return false end
-        return me:get_class() == 8
-    end
-}
+    root_tree:render("Eax's Mage Frost", function()
+        ps.render_controls(menu, "Eax's Mage Frost")
 
--- ============================================================================
--- REGISTRATION
--- ============================================================================
-local me = core.object_manager and core.object_manager.get_local_player()
-if me and me:get_class() == 8 then
-    unified.register_rotation("Mage", "Frost", MENU_DEF, callbacks)
+        -- Rotation
+        rotation_tree:render("Rotation", function()
+            ps.header("Spells")
+            menu.use_frostbolt:render("Frostbolt", "Main filler")
+            menu.use_ice_lance:render("Ice Lance", "Instant")
+            menu.use_blizzard:render("Blizzard", "AoE")
+            menu.use_ice_armor:render("Ice Armor", "Armor buff")
+            menu.use_arcane_intellect:render("Arcane Intellect", "Int buff")
+            menu.use_conjure_food:render("Conjure Food", "Create food")
+            menu.use_conjure_water:render("Conjure Water", "Create water")
+            menu.use_polymorph:render("Polymorph", "CC")
+            menu.use_blink:render("Blink", "Escape")
+            menu.use_counterspell:render("Counterspell", "Interrupt")
+            menu.use_remove_curse:render("Remove Curse", "Dispel")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
+            menu.use_frost_nova:render("Frost Nova", "Root")
+            menu.use_cone_of_cold:render("Cone of Cold", "Slow")
+        end)
+
+        -- Cooldowns
+        cd_tree:render("Cooldowns", function()
+            menu.use_icy_veins:render("Icy Veins", "Haste")
+            menu.use_cold_snap:render("Cold Snap", "Reset CDs")
+            menu.use_evocation:render("Evocation", "Mana recovery")
+        end)
+
+        -- Defensive
+        def_tree:render("Defensive", function()
+            menu.use_ice_barrier:render("Ice Barrier", "Shield")
+            menu.ice_barrier_hp_pct:render("Ice Barrier HP %", "Below")
+            menu.use_ice_block:render("Ice Block", "Immunity")
+            menu.ice_block_hp_pct:render("Ice Block HP %", "Below")
+        end)
+
+        -- Automation
+        auto_tree:render("Automation", function()
+            menu.auto_combat_potions:render("Combat Potions", "In combat")
+            menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink")
+            menu.auto_flask:render("Auto Flask", "Flask")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
+            menu.leveling_mana_floor:render("Mana %", "Below")
+            menu.use_wand:render("Use Wand", "Low mana")
+            menu.wand_mana_floor:render("Wand Mana %", "Below")
+            menu.wand_at_hp:render("Wand Target HP %", "Below")
+            menu.use_spirit_tap_wand:render("Spirit Tap Wand", "If talented")
+        end)
+
+        -- OOC
+        ooc_tree:render("OOC Sustain", function()
+            menu.ooc_drink:render("Auto-Drink", "Drink")
+            menu.drink_threshold:render("Drink %", "Below")
+            menu.ooc_eat:render("Auto-Eat", "Eat")
+            menu.eat_threshold:render("Eat %", "Below")
+        end)
+
+        -- Group
+        group_tree:render("Group", function()
+            menu.ooc_rez:render("Auto-Rez", "Accept")
+            menu.ooc_group_buff:render("Buffs", "Party")
+        end)
+
+-- Mana Management
+menu.use_mana_manager = core.menu.checkbox(true, "eaxmagefrost_use_mana_manager")
+menu.mana_gem_pct = core.menu.slider_int(5, 100, 30, "eaxmagefrost_mana_gem_pct")
+menu.mana_potion_pct = core.menu.slider_int(5, 100, 20, "eaxmagefrost_mana_potion_pct")
+menu.dark_rune_pct = core.menu.slider_int(5, 100, 15, "eaxmagefrost_dark_rune_pct")
+menu.evocation_pct = core.menu.slider_int(5, 100, 25, "eaxmagefrost_evocation_pct")
+
+-- Burst & Trinket Automation
+menu.auto_burst_enabled = core.menu.checkbox(false, "eaxmagefrost_auto_burst")
+menu.burst_on_bloodlust = core.menu.checkbox(true, "eaxmagefrost_burst_bloodlust")
+menu.burst_on_pull = core.menu.checkbox(true, "eaxmagefrost_burst_pull")
+menu.burst_on_execute = core.menu.checkbox(true, "eaxmagefrost_burst_execute")
+menu.burst_in_combat = core.menu.checkbox(false, "eaxmagefrost_burst_always")
+menu.trinket1_mode = core.menu.combobox(1, "eaxmagefrost_trinket1_mode")
+menu.trinket2_mode = core.menu.combobox(1, "eaxmagefrost_trinket2_mode")
+
+-- PvP Settings
+        pvp_tree:render("PvP", function()
+            menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
+            menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Select PvP detection mode")
+            menu.pvp_use_trinket:render("Use PvP Trinket", "Auto-use PvP trinket when CC'd")
+            menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below this HP% in PvP")
+        end)
+
+        -- Dashboard
+        root_tree:render("Dashboard", function()
+            menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")            
+            ps.header("Features")
+            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
+            menu.show_action_history:render("Action History", "Show recent spell casts")
+            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+        end)
+
+        ps.render_targeting(menu, tgt_tree)
+        ps.render_racial(menu, racial_tree)
+    end)
 end
 
 return menu
+

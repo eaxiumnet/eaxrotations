@@ -1,6 +1,6 @@
 -- settings_framework.lua (simple_ui compatible)
 -- Eax TBC Rotation Framework - Unified Settings Framework
--- Updated for AstroUI/simple_ui API compatibility
+-- Updated for simple_ui API compatibility
 --
 -- Provides consistent control panel organization across all specs.
 -- Standardizes categories, defaults, and tooltips.

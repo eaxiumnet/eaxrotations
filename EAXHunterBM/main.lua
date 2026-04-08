@@ -4,6 +4,20 @@
 local menu    = require("libraries/menu")
 local spells  = require("libraries/spells")
 local utils   = require("libraries/utils")
+local middleware_manager = require("libraries/middleware_manager")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
+local _compat = require("libraries/rotation_compat")
+local ooc_manager = require("../libraries/ooc_manager")
+
+-- Burst & Trinket Automation (ported from Flux)
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
+
+-- Swing timer for shot rotation timing (prevents Auto Shot clipping)
+local swing_timer = require("libraries/swing_timer")
 
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
@@ -78,6 +92,9 @@ local rt = {
     last_disengage_time = 0,
     cached_mode        = "solo",
     prev_toggle_state  = false,
+    -- French rotation tracking (5:5:1:1 cycle)
+    french_rotation_step = 0,  -- 0-4 for 5-step French rotation
+    last_french_cast_time = 0,
 }
 
 local SPELL_REFRESH     = 1.0
@@ -119,6 +136,7 @@ local function resolve()
     rt.hunters_mark_id     = utils.resolve_spell_id(spells.HUNTERS_MARK)
     rt.serpent_sting_id    = utils.resolve_spell_id(spells.SERPENT_STING)
     rt.aspect_hawk_id      = utils.resolve_spell_id(spells.ASPECT_OF_THE_HAWK)
+    rt.aspect_hawk_resolved = utils.resolve_spell_id(spells.ASPECT_OF_THE_HAWK)
     rt.aspect_monkey_id    = utils.resolve_spell_id(spells.ASPECT_OF_THE_MONKEY)
     rt.aspect_cheetah_id   = utils.resolve_spell_id(spells.ASPECT_OF_THE_CHEETAH)
     rt.aspect_pack_id      = utils.resolve_spell_id(spells.ASPECT_OF_THE_PACK)
@@ -395,6 +413,20 @@ local function try_arcane_shot(me, t)
     if not rt.arcane_shot_id then return false end
     if serpent_sting_refresh_due(t) then return false end
     if rt.last_arcane_shot_cast_count == core.spell_book.get_spell_cast_count(rt.arcane_shot_id) then return false end
+    
+    -- Check swing timer - Arcane is instant but still needs GCD
+    -- Only cast if we won't clip an imminent Auto Shot
+    if not swing_timer.can_cast_before_swing(me, 0.0, 0.1) then
+        return false
+    end
+    
+    -- Try Kill Command first (off-GCD)
+    if pet_alive() and rt.kill_command_id then
+        if utils.can_cast_hostile(rt.kill_command_id, me, t) then
+            utils.cast_target(rt.kill_command_id, t, "Kill Command")
+        end
+    end
+    
     if not utils.can_cast_hostile(rt.arcane_shot_id, me, t) then return false end
     if utils.cast_target(rt.arcane_shot_id, me, t) then
         rt.last_arcane_shot_cast_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
@@ -409,6 +441,19 @@ local function try_multi_shot(me, t)
     if utils.get_aoe_count(me, t) < 2 then return false end
     if is_moving() then return false end
     if rt.last_multi_shot_cast_count == core.spell_book.get_spell_cast_count(rt.multi_shot_id) then return false end
+    
+    -- Check swing timer - Multi-Shot has 0.5s cast time
+    if not swing_timer.can_cast_before_swing(me, 0.5, 0.2) then
+        return false
+    end
+    
+    -- Try Kill Command first (off-GCD)
+    if pet_alive() and rt.kill_command_id then
+        if utils.can_cast_hostile(rt.kill_command_id, me, t) then
+            utils.cast_target(rt.kill_command_id, t, "Kill Command")
+        end
+    end
+    
     if not utils.can_cast_hostile(rt.multi_shot_id, me, t) then return false end
     if utils.cast_target(rt.multi_shot_id, me, t) then
         rt.last_multi_shot_cast_count = core.spell_book.get_spell_cast_count(rt.multi_shot_id)
@@ -422,10 +467,28 @@ local function try_steady_shot(me, t)
     if not rt.steady_shot_id then return false end
     if is_moving() then return false end
     if rt.last_steady_shot_cast_count == core.spell_book.get_spell_cast_count(rt.steady_shot_id) then return false end
-    if not utils.can_cast_hostile(rt.steady_shot_id, me, t) then return false end
-    if utils.cast_target(rt.steady_shot_id, me, t) then
-        rt.last_steady_shot_cast_count = core.spell_book.get_spell_cast_count(rt.steady_shot_id)
-        return true
+    
+    -- CRITICAL: Check swing timer to prevent clipping Auto Shot
+    -- Steady Shot has 1.5s cast time, need to ensure it completes before next Auto
+    if not swing_timer.can_cast_before_swing(me, 1.5, 0.2) then
+        if menu.debug and menu.debug:get_state() then
+            print("[Hunter] Steady Shot delayed - Auto Shot imminent")
+        end
+        return false
+    end
+    
+    -- Try Kill Command first (off-GCD, highest priority when available)
+    if pet_alive() and rt.kill_command_id then
+        if utils.can_cast_hostile(rt.kill_command_id, me, t) then
+            utils.cast_target(rt.kill_command_id, t, "Kill Command")
+        end
+    end
+    
+    if utils.can_cast_hostile(rt.steady_shot_id, me, t) then
+        if utils.cast_target(rt.steady_shot_id, me, t) then
+            rt.last_steady_shot_cast_count = core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+            return true
+        end
     end
     return false
 end
@@ -526,8 +589,30 @@ local function on_update()
     resolve()
     local me = get_me()
     if utils.throttle("bm_mode", MODE_REFRESH) then rt.cached_mode = detect_mode() end
-    if not menu.is_enabled() then return end
+    if not (menu.enabled and menu.enabled:get_state()) then return end
     if not me or me:is_dead() then return end
+
+    -- Crowd Control check - return early if stunned/silenced/feared etc.
+    if utils.is_cced and utils.is_cced(me) then return end
+
+    -- OOC Manager - handle out-of-combat buffs
+    if not me:is_in_combat() then
+        ooc_manager.on_update(me, menu, utils, {
+            group_buffs = {
+                {
+                    spell_id = rt.aspect_hawk_resolved,
+                    buff_ids = spells.BUFF_ASPECT_OF_THE_HAWK,
+                    name = "Aspect of the Hawk",
+                    toggle = menu.use_aspect_hawk
+                },
+            }
+        })
+    end
+
+    -- Initialize middleware on first run
+    if not middleware_manager.is_initialized() then
+        middleware_manager.initialize(menu)
+    end
 
     if try_revive(me) then return end
 
@@ -535,10 +620,57 @@ local function on_update()
     if not t or not t:is_valid() or t:is_dead() then return end
     if not me:can_attack(t) then return end
 
+    -- Build middleware context and execute
+    local ctx = middleware_manager.build_context(me, t, {})
+    local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
+    if mw_result then
+        return
+    end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return  -- Stop rotation while CC'd
+    end
+    
+    -- Burst & Trinket Automation (ported from Flux)
+    local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
+    local is_burst_window = burst_manager.should_auto_burst(me, t, combat_time, menu)
+    if is_burst_window then
+        if try_bestial_wrath(me) then return end
+        if try_rapid_fire(me) then return end
+    end
+    
+    -- Sample combat forecast
+    if combat_forecast and t and t:is_valid() then
+        combat_forecast:sample(t)
+    end
+    
+    -- Update trinket check to V2
+    trinket_manager.check_trinkets_v2(me, t, is_burst_window, force_commands, combat_forecast, menu)
+
     do_rotation(me, t)
 end
 
 core.register_on_update_callback(on_update)
+
+-- Initialize dashboard
+if dashboard and dashboard.init then
+    dashboard.init(dashboard_config)
+    local ok_show, show_dashboard = pcall(function() return menu.dashboard_enabled:get_state() end)
+    dashboard.set_enabled(ok_show and show_dashboard or false)
+    dashboard.register_render_callback()
+end
+
+-- Initialize force_commands
+if force_commands and force_commands.init then
+    force_commands:init()
+end
 
 -- Export toggle settings for external access
 local NS = _G.EAXHunterBM and _G.EAXHunterBM.NS or {}

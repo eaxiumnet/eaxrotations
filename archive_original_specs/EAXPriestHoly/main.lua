@@ -76,7 +76,7 @@ local healer_triage = require("libraries/healer_triage")
 local heal_engine = require("libraries/heal_engine")
 
 -- ============================================================================
--- FLUX-INSPIRED HEALING SYSTEM (ported from Flux AIO)
+-- HEALING SYSTEM
 -- ============================================================================
 
 -- Hot-path local caching (performance critical) - MUST be defined before use
@@ -90,7 +90,7 @@ local PARTY_UNITS = {"player", "party1", "party2", "party3", "party4"}
 local RAID_UNITS = {}
 for i = 1, 40 do RAID_UNITS[i] = "raid" .. i end
 
--- Per-frame state cache (Flux pattern)
+-- Per-frame state cache
 local holy_state = {
     lowest = nil,           -- lowest HP entry {unit, hp, effective_hp, is_player, is_tank}
     lowest_hp = 100,
@@ -165,7 +165,7 @@ local function predict_effective_deficit(unit_obj, cast_time_seconds)
     return math.max(0, effective_deficit)
 end
 
--- Get effective HP percentage (Flux pattern)
+-- Get effective HP percentage
 local function get_effective_hp_pct(unit_obj)
     if not unit_obj or not unit_obj:is_valid() then return 100 end
     
@@ -182,7 +182,7 @@ local function get_effective_hp_pct(unit_obj)
 end
 
 -- ============================================================================
--- PARTY HEALING TARGET SCANNER (Flux pattern)
+-- PARTY HEALING TARGET SCANNER
 -- ============================================================================
 
 local healing_targets = {}
@@ -288,7 +288,7 @@ local function scan_healing_targets()
                     entry.max_hp = max_hp
                     entry.hp = max_hp > 0 and (current_hp / max_hp) * 100 or 100
                     
-                    -- Calculate effective HP (Flux pattern)
+                    -- Calculate effective HP
                     -- FIX: predict_effective_deficit returns (unit_obj, effective_pct)
                     local _, effective_pct = predict_effective_deficit(obj, 1.5)
                     entry.effective_hp = effective_pct or entry.hp

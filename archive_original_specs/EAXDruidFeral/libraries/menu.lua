@@ -76,16 +76,16 @@ menu.use_rip                = core.menu.checkbox(true, "eaxdruidferal_use_rip")
 menu.rip_combo_points       = core.menu.slider_int(1, 5, 4, "eaxdruidferal_rip_combo_points")
 menu.rip_refresh_seconds    = core.menu.slider_int(1, 10, 3, "eaxdruidferal_rip_refresh_seconds")
 menu.use_ferocious_bite     = core.menu.checkbox(true, "eaxdruidferal_use_ferocious_bite")
-menu.bite_min_cp            = core.menu.slider_int(1, 5, 5, "eaxdruidferal_bite_min_cp")  -- Flux v1.8.9: configurable min CP
-menu.bite_max_energy        = core.menu.slider_int(20, 60, 39, "eaxdruidferal_bite_max_energy")  -- Flux v1.8.9: max energy for FB
-menu.use_bite_execute       = core.menu.checkbox(true, "eaxdruidferal_use_bite_execute")  -- Flux v1.8.10: enable FB as execute
-menu.use_bite_trick         = core.menu.checkbox(true, "eaxdruidferal_use_bite_trick")  -- Flux: low-energy FB dump
+menu.bite_min_cp            = core.menu.slider_int(1, 5, 5, "eaxdruidferal_bite_min_cp")  -- configurable min CP
+menu.bite_max_energy        = core.menu.slider_int(20, 60, 39, "eaxdruidferal_bite_max_energy")  -- max energy for FB
+menu.use_bite_execute       = core.menu.checkbox(true, "eaxdruidferal_use_bite_execute")  -- enable FB as execute
+menu.use_bite_trick         = core.menu.checkbox(true, "eaxdruidferal_use_bite_trick")  -- low-energy FB dump
 menu.bite_killshot_hp_pct   = core.menu.slider_int(5, 30, 15, "eaxdruidferal_bite_killshot_hp_pct")
 menu.use_maim               = core.menu.checkbox(true, "eaxdruidferal_use_maim")
 
--- -- Flux v1.9.x Advanced Features -----------------------------------------------
+-- -- v1.9.x Advanced Features -----------------------------------------------
 menu.cat_tick_optimization  = core.menu.checkbox(true, "eaxdruidferal_cat_tick_optimization")  -- Prefer Mangle over Shred when tick imminent
-menu.use_rake_trick_flux    = core.menu.checkbox(true, "eaxdruidferal_use_rake_trick_flux")  -- Flux Rake Trick conditions
+menu.use_rake_trick_advanced = core.menu.checkbox(true, "eaxdruidferal_use_rake_trick_advanced")  -- Advanced Rake Trick conditions
 menu.use_wolfshead_shred_shift = core.menu.checkbox(true, "eaxdruidferal_use_wolfshead_shred_shift")  -- Wolfshead Shred Shift
 menu.auto_powershift        = core.menu.checkbox(true, "eaxdruidferal_auto_powershift")  -- Auto powershift when energy low
 menu.powershift_min_mana    = core.menu.slider_int(10, 50, 20, "eaxdruidferal_powershift_min_mana")  -- Min mana % to powershift
@@ -200,10 +200,10 @@ function menu.render()
             menu.rip_combo_points:render("Rip Combo Points", "Minimum combo points for Rip")
             menu.rip_refresh_seconds:render("Rip Refresh (sec)", "Refresh Rip when remaining time is below this value")
             menu.use_ferocious_bite:render("Ferocious Bite", "Execute finisher")
-            menu.bite_min_cp:render("Bite Min CP", "Minimum CP for Ferocious Bite (Flux)")
+            menu.bite_min_cp:render("Bite Min CP", "Minimum CP for Ferocious Bite")
             menu.bite_max_energy:render("Bite Max Energy", "Don't FB above this energy to avoid waste")
             menu.use_bite_execute:render("Bite Execute Mode", "Use FB as execute on low HP/short TTD")
-            menu.use_bite_trick:render("Bite Trick", "Low-energy FB dump in dead zone (Flux)")
+            menu.use_bite_trick:render("Bite Trick", "Low-energy FB dump in dead zone")
             menu.bite_killshot_hp_pct:render("Killshot HP %", "Use Ferocious Bite below this target HP percent")
             menu.use_maim:render("Maim (interrupt)", "Use Maim as interrupt finisher")
 
@@ -212,9 +212,9 @@ function menu.render()
             menu.tigers_fury_energy:render("Tiger's Fury Energy", "Use Tiger's Fury below this energy")
             menu.use_powershift:render("Powershift (Wolfshead)", "Powershift for energy with Wolfshead Helm")
             
-            ps.header("Advanced (Flux v1.9)")
+            ps.header("Advanced (v1.9)")
             menu.cat_tick_optimization:render("Tick Optimization", "Prefer Mangle over Shred when tick imminent")
-            menu.use_rake_trick_flux:render("Flux Rake Trick", "Use flux Rake Trick conditions")
+            menu.use_rake_trick_advanced:render("Rake Trick", "Use advanced Rake Trick conditions")
             menu.use_wolfshead_shred_shift:render("Wolfshead Shred Shift", "Smart shift when Shred needed but energy low")
             menu.auto_powershift:render("Auto Powershift", "Automatically powershift when energy is critically low")
             menu.powershift_min_mana:render("Powershift Min Mana %", "Don't powershift below this mana percent")
