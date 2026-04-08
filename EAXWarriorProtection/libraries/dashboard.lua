@@ -111,7 +111,7 @@ local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 -- FIX: get_target is a method on game_object, not in object_manager
 local _get_gcd = core.spell_book.get_global_cooldown
-local _get_spell_cd = core.spell_book.get_spell_cooldown
+local _get_spell_cooldown = core.spell_book.get_spell_cooldown
 -- FIX: Graphics APIs use vec2 points and color tables, not individual values
 local _rect_2d_filled = core.graphics.rect_2d_filled
 local _rect_2d = core.graphics.rect_2d
@@ -120,6 +120,18 @@ local _text_2d = core.graphics.text_2d
 local vec2 = require("common/geometry/vector_2")
 local color = require("common/color")
 local buff_manager = require("common/modules/buff_manager")
+-- Class validation helper to prevent cross-spec rendering conflicts
+local function is_player_class_match()
+    if not dashboard.config or not dashboard.config.class_id then
+        return true  -- If no class_id set, allow (backward compatibility)
+    end
+    local player = _get_local_player()
+    if not player then
+        return false
+    end
+    local player_class = player:get_class()
+    return player_class == dashboard.config.class_id
+end
 
 -- IZI SDK integration (optional)
 local izi = nil
@@ -383,7 +395,7 @@ local function update_cooldowns()
     local has_visible = false
     for i, icon in ipairs(dashboard.cd_icons) do
         -- FIX: get_spell_cooldown returns NUMBER (remaining seconds), not a table
-        local remaining = _get_spell_cd(icon.spell_id)
+        local remaining = core.spell_book.get_spell_cooldown(icon.spell_id)
         if remaining then
             icon.remaining = tonumber(remaining) or 0
             icon.charges = 0  -- Sylvanas get_spell_cooldown doesn't return charges
@@ -1005,6 +1017,10 @@ end
 function dashboard.register_render_callback()
     if core and core.register_on_render_callback then
         core.register_on_render_callback(function()
+            -- Guard: Only render if player class matches this dashboard's config
+            if not is_player_class_match() then
+                return
+            end
             if dashboard.enabled then
                 dashboard.update()  -- 10Hz throttled
                 dashboard.render()

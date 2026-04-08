@@ -32,7 +32,7 @@ local force_commands = require("libraries/force_commands")
 -- Hot-path local caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
-local _get_spell_cd = core.spell_book.get_spell_cooldown
+local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Constants
 local BLOODTHIRST_COST = 30
@@ -182,7 +182,7 @@ local function try_bloodthirst(me, target, rage, target_hp_pct)
     -- : WW priority check
     local ww_prio_count = (menu.ww_prio_count and menu.ww_prio_count:get()) or 0
     if ww_prio_count > 0 and count_nearby_enemies(me) >= ww_prio_count then
-        local ww_cd = runtime.whirlwind_id and _get_spell_cd(runtime.whirlwind_id) or math.huge
+        local ww_cd = runtime.whirlwind_id and core.spell_book.get_spell_cooldown(runtime.whirlwind_id) or math.huge
         if ww_cd <= 0 and rage >= WHIRLWIND_COST then return false end
     end
     if utils.cast_target(runtime.bloodthirst_id, target) then
@@ -221,8 +221,8 @@ local function try_slam(me, target, rage, target_hp_pct)
     if not (menu.use_slam and menu.use_slam:get_state()) or not target or not runtime.slam_id then return false end
     if target_hp_pct <= EXECUTE_HP_THRESHOLD then return false end
     if not utils.is_melee_target(me, target) then return false end
-    local bt_cd = runtime.bloodthirst_id and _get_spell_cd(runtime.bloodthirst_id) or math.huge
-    local ww_cd = runtime.whirlwind_id and _get_spell_cd(runtime.whirlwind_id) or math.huge
+    local bt_cd = runtime.bloodthirst_id and core.spell_book.get_spell_cooldown(runtime.bloodthirst_id) or math.huge
+    local ww_cd = runtime.whirlwind_id and core.spell_book.get_spell_cooldown(runtime.whirlwind_id) or math.huge
     if should_pool_for_bloodthirst(rage, bt_cd, ww_cd) then return false end
     if not utils.can_slam_without_clipping(me, runtime.slam_id, 100) then return false end
     if utils.cast_target(runtime.slam_id, target) then
@@ -547,9 +547,6 @@ local function on_update()
     -- Execute middleware BEFORE rotation (handles healthstones, potions, racials)
     local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
     if mw_result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, mw_msg)
-        end
         return
     end
     
@@ -611,9 +608,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     
@@ -708,7 +702,9 @@ core.register_on_render_control_panel_callback(on_control_panel)
 local dashboard_config = require("libraries/dashboard_config")
 dashboard.init(dashboard_config)
 dashboard.set_enabled((menu.show_dashboard and menu.show_dashboard:get_state()) or true)
-dashboard.register_render_callback()
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end
 
 -- Export toggle settings for external access
 local NS = _G.EAXWarriorFury and _G.EAXWarriorFury.NS or {}

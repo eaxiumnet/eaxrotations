@@ -10,6 +10,7 @@
 
 local dashboard_config = {
     class_name = "Priest Holy",
+    class_id = 5,  -- Priest class ID for player validation
     resource_type = "mana",  -- Priests use mana
     
     -- Cooldowns to track (spell IDs from spells.lua)

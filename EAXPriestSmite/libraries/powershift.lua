@@ -25,7 +25,6 @@ local powershift = {
 -- API Caching (at module load)
 -- ============================================================================
 local _core_time = core.time
-local _get_item_cooldown = core.inventory and core.inventory.get_item_id
 
 -- ============================================================================
 -- Wolfshead Helm Detection
@@ -50,22 +49,6 @@ function powershift:has_wolfshead(me)
 
     if success and head_item then
         return head_item == self.WOLFSHEAD_HELM_ID
-    end
-
-    -- Fallback: Try core.inventory API
-    if _get_item_cooldown then
-        local ok, item_id = pcall(_get_item_cooldown, self.INVSLOT_HEAD)
-        if ok and item_id then
-            return item_id == self.WOLFSHEAD_HELM_ID
-        end
-    end
-
-    -- Fallback: Try WoW API if available
-    if _G.GetInventoryItemID then
-        local ok, item_id = pcall(_G.GetInventoryItemID, "player", self.INVSLOT_HEAD)
-        if ok and item_id then
-            return item_id == self.WOLFSHEAD_HELM_ID
-        end
     end
 
     return false
@@ -245,10 +228,8 @@ function powershift:execute(me, target, energy_tick_module, cat_form_id)
 
     -- Cast Cat Form (powershift)
     local success = pcall(function()
-        if core.input and core.input.cast_spell then
-            return core.input.cast_spell(cat_form_id, me)
-        elseif core.spell_book and core.spell_book.cast_spell then
-            return core.spell_book.cast_spell(cat_form_id, me)
+        if core.input and core.input.cast_target_spell then
+            return core.input.cast_target_spell(cat_form_id, me)
         end
         return false
     end)

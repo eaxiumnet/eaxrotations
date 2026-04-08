@@ -12,6 +12,11 @@ local ooc_manager = require("libraries/ooc_manager")
 local heal_context = require("libraries/heal_context")
 local mana_manager = require("libraries/mana_manager")
 
+-- Hot-path API caching
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+
 -- Runtime spell cache
 local runtime = {
     healing_wave_id = nil,
@@ -87,9 +92,6 @@ local function resolve_spells()
 end
 
 resolve_spells()
-
--- Hot-path caching
-local _core_time = core.time
 
 -- Pending cast tracking
 local _pending_casts = {}
@@ -431,7 +433,7 @@ end
 
 -- Main on_update
 local function on_update()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or not me:is_valid() then return end
     
     -- Build healing context (throttled internally)
@@ -442,9 +444,6 @@ local function on_update()
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     
@@ -554,8 +553,9 @@ if core and core.register_on_render_menu_callback then
 end
 
 -- Initialize dashboard
-if dashboard and dashboard.init then
-    dashboard.init(dashboard_config)
+dashboard.init(dashboard_config)
+dashboard.set_enabled(true)
+if dashboard.register_render_callback then
     dashboard.register_render_callback()
 end
 

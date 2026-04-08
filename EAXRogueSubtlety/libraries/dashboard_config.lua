@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Rogue Subtlety",
+    class_id = 4,  -- Rogue class ID for player validation
     resource_type = "energy",
     
     -- Cooldowns to track (spell IDs)

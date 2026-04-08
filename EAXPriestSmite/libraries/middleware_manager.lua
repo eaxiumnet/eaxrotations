@@ -100,10 +100,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PRIEST_SPELLS.SUPER_MANA_POTION, "mana_potion", 85)
-                    return true, "[MW] Mana potion queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PRIEST_SPELLS.SUPER_MANA_POTION)
                     return true, "[MW] Mana potion"
                 end
@@ -146,10 +143,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PRIEST_SPELLS.SHADOWFIEND, "shadowfiend", 80)
-                    return true, "[MW] Shadowfiend queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PRIEST_SPELLS.SHADOWFIEND)
                     return true, "[MW] Shadowfiend"
                 end
@@ -190,10 +184,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PRIEST_SPELLS.POWER_INFUSION, "power_infusion", 85)
-                    return true, "[MW] Power Infusion queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PRIEST_SPELLS.POWER_INFUSION)
                     return true, "[MW] Power Infusion"
                 end
@@ -244,10 +235,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PRIEST_SPELLS.DESPERATE_PRAYER, "desperate_prayer", 90)
-                    return true, "[MW] Desperate Prayer queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PRIEST_SPELLS.DESPERATE_PRAYER)
                     return true, "[MW] Desperate Prayer"
                 end

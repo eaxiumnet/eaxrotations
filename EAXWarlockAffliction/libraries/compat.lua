@@ -388,7 +388,7 @@ function _compat.cast_safe(spell_id, target)
     end
     
     -- Attempt cast
-    return core.spell_book.cast_spell(spell_id, cast_target)
+    return core.input.cast_target_spell(spell_id, cast_target)
 end
 
 --[[

@@ -14,6 +14,7 @@ local form_consumables = require("libraries/form_consumables")
 -- Hot-path local caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Runtime state
 local rt = {
@@ -552,9 +553,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 

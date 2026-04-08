@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Paladin Protection",
+    class_id = 2,  -- Paladin class ID for player validation
     
     -- Resource type
     resource_type = "mana",

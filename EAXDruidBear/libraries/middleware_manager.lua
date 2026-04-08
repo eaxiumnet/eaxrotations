@@ -153,11 +153,8 @@ function middleware_manager.initialize(menu)
                 if rage < frenzied_regen_rage_threshold then return false end
                 
                 -- Check if in bear form
-                local in_bear = false
-                if core.buff_manager and core.buff_manager.has_buff then
-                    in_bear = core.buff_manager.has_buff(ctx.me, spells.BUFF_BEAR_FORM) or
+                    local in_bear = core.buff_manager.has_buff(ctx.me, spells.BUFF_BEAR_FORM) or
                               core.buff_manager.has_buff(ctx.me, spells.BUFF_DIRE_BEAR_FORM)
-                end
                 if not in_bear then return false end
                 
                 -- Check cooldown

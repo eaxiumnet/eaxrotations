@@ -120,10 +120,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PALADIN_SPELLS.DIVINE_PROTECTION, "divine_protection", 90)
-                    return true, "[MW] Divine Protection queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PALADIN_SPELLS.DIVINE_PROTECTION)
                     return true, "[MW] Divine Protection"
                 end
@@ -161,10 +158,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PALADIN_SPELLS.DIVINE_SHIELD, "divine_shield", 95)
-                    return true, "[MW] Divine Shield queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PALADIN_SPELLS.DIVINE_SHIELD)
                     return true, "[MW] Divine Shield"
                 end
@@ -202,10 +196,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PALADIN_SPELLS.LAY_ON_HANDS, "lay_on_hands", 100)
-                    return true, "[MW] Lay on Hands queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PALADIN_SPELLS.LAY_ON_HANDS)
                     return true, "[MW] Lay on Hands"
                 end
@@ -237,10 +228,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PALADIN_SPELLS.DIVINE_ILLUMINATION, "divine_illumination", 85)
-                    return true, "[MW] Divine Illumination queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PALADIN_SPELLS.DIVINE_ILLUMINATION)
                     return true, "[MW] Divine Illumination"
                 end
@@ -272,10 +260,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PALADIN_SPELLS.BERSERKING, "berserking", 80)
-                    return true, "[MW] Berserking queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(PALADIN_SPELLS.BERSERKING)
                     return true, "[MW] Berserking"
                 end

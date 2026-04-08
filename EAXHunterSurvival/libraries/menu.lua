@@ -19,7 +19,6 @@ local advanced_tree   = ps.tree_node()  -- NEW: Targeting + Racial
 menu.enabled          = core.menu.checkbox(true,  "eaxhuntersv_enabled")
 menu.toggle_key       = core.menu.keybind(7, false, "eaxhuntersv_toggle_key")
 menu.mode             = core.menu.combobox(1, "eaxhuntersv_mode")
-menu.debug            = core.menu.checkbox(false, "eaxhuntersv_debug")
 
 menu.focus_priority      = core.menu.checkbox(false, "eaxhuntersv_focus_priority")
 menu.combat_self_hp_boost = core.menu.slider_int(0, 30, 10, "eaxhuntersv_combat_self_hp_boost")
@@ -157,7 +156,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable/disable rotation")
         menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
         menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
-        menu.debug:render("Debug", "Enable debug output")
 
         -- 2. Rotation
         rotation_tree:render("Rotation", function()

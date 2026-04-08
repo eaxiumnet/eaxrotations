@@ -91,10 +91,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(WARRIOR_SPELLS.BERSERKING, "berserking", 80)
-                    return true, "[MW] Berserking queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(WARRIOR_SPELLS.BERSERKING)
                     return true, "[MW] Berserking"
                 end

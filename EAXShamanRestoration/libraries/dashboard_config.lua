@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Shaman Restoration",
+    class_id = 7,  -- Shaman class ID for player validation
     
     -- Resource type
     resource_type = "mana",
@@ -73,7 +74,7 @@ return {
         
         -- Earth Shield stacks on target
         function(ctx)
-            local target = core.object_manager.get_target()
+            local target = (me and me:get_target())
             if not target or not target:is_valid() then return "Earth Shield", "--" end
             
             local spells = require("libraries/spells")

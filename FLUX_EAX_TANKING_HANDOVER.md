@@ -254,9 +254,10 @@ local state = {
 function threat_tab_manager.get_threat_level(target)
     if not target or not target:is_valid() then return 0 end
     
-    -- Use core.threat API if available
-    local threat_status = core.threat.get_threat_status(target)
-    if threat_status then return threat_status end
+    -- Use game_object threat API
+    local threat_data = target:get_threat_situation(me)
+    local threat_status = threat_data and threat_data.status or 0
+    if threat_status > 0 then return threat_status end
     
     -- Fallback: check target's target
     local target_target = target:get_target()

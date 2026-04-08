@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Druid Feral",
+    class_id = 11,  -- Druid class ID for player validation
     
     -- Dynamic resource type based on current form
     resource_type = "energy",  -- Will be overridden dynamically: energy (cat), rage (bear), mana (caster)

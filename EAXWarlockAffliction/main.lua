@@ -17,7 +17,6 @@ local force_commands = require("libraries/force_commands")
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
-local _get_spell_cd = core.spell_book.get_spell_cooldown
 
 -- Runtime state
 local runtime = {
@@ -397,10 +396,9 @@ local function try_create_healthstone(me)
     if not utils.can_cast_self(runtime.create_healthstone_id, me) then return false end
     -- Check if we already have a healthstone
     for _, item_id in ipairs(spells.HEALTHSTONE_ITEMS) do
-        if core.inventory and core.inventory.get_item_count then
-            local count = core.inventory.get_item_count(item_id)
-            if count and count > 0 then return false end
-        end
+        -- TODO: core.inventory.get_item_count API unavailable - hardcoded to 0
+        local count = 0
+        if count and count > 0 then return false end
     end
     if utils.cast_self(runtime.create_healthstone_id, me) then
         note_cast()
@@ -417,13 +415,12 @@ local function try_use_healthstone(me)
     local threshold = ((menu.healthstone_hp_pct and menu.healthstone_hp_pct:get()) or 30) / 100
     if hp > threshold then return false end
     for _, item_id in ipairs(spells.HEALTHSTONE_ITEMS) do
-        if core.inventory and core.inventory.get_item_count then
-            local count = core.inventory.get_item_count(item_id)
-            if count and count > 0 then
-                if core.input.use_item(item_id) then
-                    utils.log_debug(menu, "Use Healthstone")
-                    return true
-                end
+        -- TODO: core.inventory.get_item_count API unavailable - hardcoded to 0
+        local count = 0
+        if count and count > 0 then
+            if core.input.use_item(item_id) then
+                utils.log_debug(menu, "Use Healthstone")
+                return true
             end
         end
     end
@@ -445,25 +442,9 @@ local function try_self_soulstone(me)
 end
 
 -- Count soul shards
+-- TODO: core.inventory.get_items_in_bag API unavailable - returning 0
 local function count_soul_shards()
-    if not core or not core.inventory or not core.inventory.get_items_in_bag then
-        return 0
-    end
-    local total = 0
-    for bag = 0, 4 do
-        local ok, items = pcall(function() return core.inventory.get_items_in_bag(bag) end)
-        if ok and items then
-            for _, slot in ipairs(items) do
-                local item = slot and slot.object
-                if item and item.is_valid and item:is_valid() and item.get_item_id then
-                    if item:get_item_id() == 6265 then
-                        total = total + (item.get_item_stack_count and item:get_item_stack_count() or 1)
-                    end
-                end
-            end
-        end
-    end
-    return total
+    return 0
 end
 
 -- Pet management
@@ -574,9 +555,6 @@ core.register_on_update_callback(function()
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     
@@ -671,4 +649,7 @@ _G.EAXWarlockAffliction.NS = NS
 
 -- Initialize dashboard
 dashboard.init(dashboard_config)
-dashboard.register_render_callback()
+dashboard.set_enabled(true)
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end

@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Hunter Survival",
+    class_id = 3,  -- Hunter class ID for player validation
 
     -- Resource type
     resource_type = "mana",

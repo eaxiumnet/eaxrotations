@@ -15,14 +15,14 @@ local form_consumables = {}
 -- ============================================================================
 
 local _get_local_player = core.object_manager.get_local_player
-local _has_buff = core.object_manager.has_buff
+
 local _cancel_form = core.spell_book.cancel_form
-local _cast_spell = core.spell_book.cast_spell
+local _cast_spell = core.input.cast_target_spell
 -- STUB: core.inventory.* and core.item_manager.* APIs don't exist in Sylvanas
 local _use_item = function(item_id, target) return false end
 local _get_item_cooldown = function(item_id) return 0 end
 local _get_item_count = function(item_id) return 0 end
-local _is_in_combat = core.object_manager.is_in_combat
+
 
 -- ============================================================================
 -- Constants
@@ -78,7 +78,7 @@ local function has_any_buff(me, buff_ids)
     end
     
     for _, buff_id in ipairs(buff_ids) do
-        if _has_buff(me, buff_id) then
+        if me:has_aura(buff_id) then
             return true
         end
     end
@@ -245,7 +245,7 @@ function form_consumables.check_and_use(me, menu, form_spells, saved_form)
     end
     
     -- Only use consumables in combat
-    if not _is_in_combat(me) then
+    if not me:is_in_combat() then
         return false, nil, "not_in_combat"
     end
     

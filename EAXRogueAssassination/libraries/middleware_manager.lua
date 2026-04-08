@@ -108,10 +108,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(ROGUE_SPELLS.COLD_BLOOD, "cold_blood", 85)
-                    return true, "[MW] Cold Blood queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(ROGUE_SPELLS.COLD_BLOOD)
                     return true, "[MW] Cold Blood"
                 end
@@ -153,10 +150,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(ROGUE_SPELLS.VANISH, "vanish", 95)
-                    return true, "[MW] Vanish queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(ROGUE_SPELLS.VANISH)
                     return true, "[MW] Vanish"
                 end
@@ -198,10 +192,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(ROGUE_SPELLS.EVASION, "evasion", 85)
-                    return true, "[MW] Evasion queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(ROGUE_SPELLS.EVASION)
                     return true, "[MW] Evasion"
                 end
@@ -244,10 +235,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(ROGUE_SPELLS.CLOAK_OF_SHADOWS, "cloak_of_shadows", 88)
-                    return true, "[MW] Cloak of Shadows queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(ROGUE_SPELLS.CLOAK_OF_SHADOWS)
                     return true, "[MW] Cloak of Shadows"
                 end

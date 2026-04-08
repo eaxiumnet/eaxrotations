@@ -19,7 +19,6 @@ local force_commands = require("libraries/force_commands")
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
-local _get_spell_cd = core.spell_book.get_spell_cooldown
 
 -- Require common modules
 ---@type interrupt_manager
@@ -98,7 +97,9 @@ force_commands:init()
 local dash_config = dashboard_config.init()
 dashboard.init(dash_config)
 dashboard.set_enabled(true)
-dashboard.register_render_callback()
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end
 
 -- Helper functions
 local function is_valid_hostile_target(me, target)
@@ -485,9 +486,6 @@ local function do_rotation(me, target)
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 
@@ -544,6 +542,28 @@ local function on_update()
     local me = _get_local_player()
     if not me then return end
     if me:is_dead() then return end
+
+    -- Sync dashboard settings (safe pcall for uninitialized menu items)
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
 
     -- Crowd Control check - return early if stunned/silenced/feared etc.
     if utils.is_cced and utils.is_cced(me) then return end

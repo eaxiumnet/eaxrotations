@@ -270,10 +270,7 @@ function middleware.healthstone(spell_id, threshold_pct, priority)
         end,
         execute = function(icon, ctx)
             -- Use spell_queue if available, otherwise direct cast
-            if core.spell_queue and core.spell_queue.add then
-                core.spell_queue.add(spell_id, "healthstone", 100)
-                return true, "[MW] Healthstone queued"
-            elseif icon and icon.cast then
+            if icon and icon.cast then
                 icon:cast(spell_id)
                 return true, "[MW] Healthstone"
             end
@@ -305,11 +302,6 @@ function middleware.healing_potion(item_id, threshold_pct, priority)
             if not ctx.in_combat then return false end
             
             -- Check if potion is in bags and off cooldown
-            if core.item_manager and core.item_manager.get_item_count then
-                local count = core.item_manager.get_item_count(item_id)
-                if count <= 0 then return false end
-            end
-            
             -- Check potion cooldown (shared 1min CD)
             if core.spell_book and core.spell_book.get_spell_cooldown then
                 local cd = core.spell_book.get_spell_cooldown(6615)  -- Potion cooldown spell
@@ -319,10 +311,7 @@ function middleware.healing_potion(item_id, threshold_pct, priority)
             return true
         end,
         execute = function(icon, ctx)
-            if core.spell_queue and core.spell_queue.add then
-                core.spell_queue.add(item_id, "healing_potion", 95)
-                return true, "[MW] Healing Potion queued"
-            elseif icon and icon.use_item then
+            if icon and icon.use_item then
                 icon:use_item(item_id)
                 return true, "[MW] Healing Potion"
             end
@@ -354,11 +343,6 @@ function middleware.mana_potion(item_id, threshold_pct, priority)
             if not ctx.in_combat then return false end
             
             -- Check if potion is in bags
-            if core.item_manager and core.item_manager.get_item_count then
-                local count = core.item_manager.get_item_count(item_id)
-                if count <= 0 then return false end
-            end
-            
             -- Check potion cooldown
             if core.spell_book and core.spell_book.get_spell_cooldown then
                 local cd = core.spell_book.get_spell_cooldown(6615)
@@ -368,10 +352,7 @@ function middleware.mana_potion(item_id, threshold_pct, priority)
             return true
         end,
         execute = function(icon, ctx)
-            if core.spell_queue and core.spell_queue.add then
-                core.spell_queue.add(item_id, "mana_potion", 90)
-                return true, "[MW] Mana Potion queued"
-            elseif icon and icon.use_item then
+            if icon and icon.use_item then
                 icon:use_item(item_id)
                 return true, "[MW] Mana Potion"
             end
@@ -410,10 +391,7 @@ function middleware.defensive_racial(spell_id, threshold_pct, priority)
             return true
         end,
         execute = function(icon, ctx)
-            if core.spell_queue and core.spell_queue.add then
-                core.spell_queue.add(spell_id, "defensive_racial", 85)
-                return true, "[MW] Defensive Racial queued"
-            elseif icon and icon.cast then
+            if icon and icon.cast then
                 icon:cast(spell_id)
                 return true, "[MW] Defensive Racial"
             end
@@ -450,10 +428,7 @@ function middleware.offensive_racial(spell_id, priority)
             return true
         end,
         execute = function(icon, ctx)
-            if core.spell_queue and core.spell_queue.add then
-                core.spell_queue.add(spell_id, "offensive_racial", 80)
-                return true, "[MW] Offensive Racial queued"
-            elseif icon and icon.cast then
+            if icon and icon.cast then
                 icon:cast(spell_id)
                 return true, "[MW] Offensive Racial"
             end
@@ -503,10 +478,7 @@ function middleware.emergency_heal(spell_id, threshold_pct, priority, requires_c
             return true
         end,
         execute = function(icon, ctx)
-            if core.spell_queue and core.spell_queue.add then
-                core.spell_queue.add(spell_id, "emergency_heal", 95)
-                return true, "[MW] Emergency Heal queued"
-            elseif icon and icon.cast then
+            if icon and icon.cast then
                 icon:cast(spell_id)
                 return true, "[MW] Emergency Heal"
             end
@@ -539,9 +511,7 @@ function middleware.self_buff(spell_id, buff_id, priority, ooc_only)
             -- Check if buff is already active
             if buff_id and ctx.me then
                 local has_buff = false
-                if core.buff_manager and core.buff_manager.has_buff then
-                    has_buff = core.buff_manager.has_buff(ctx.me, buff_id)
-                elseif ctx.me.has_aura then
+                if ctx.me.has_aura then
                     has_buff = ctx.me:has_aura(buff_id)
                 end
                 if has_buff then return false end
@@ -556,10 +526,7 @@ function middleware.self_buff(spell_id, buff_id, priority, ooc_only)
             return true
         end,
         execute = function(icon, ctx)
-            if core.spell_queue and core.spell_queue.add then
-                core.spell_queue.add(spell_id, "self_buff", 70)
-                return true, "[MW] Self Buff queued"
-            elseif icon and icon.cast then
+            if icon and icon.cast then
                 icon:cast(spell_id)
                 return true, "[MW] Self Buff"
             end

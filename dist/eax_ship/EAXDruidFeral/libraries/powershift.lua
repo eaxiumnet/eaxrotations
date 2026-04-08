@@ -245,10 +245,10 @@ function powershift:execute(me, target, energy_tick_module, cat_form_id)
 
     -- Cast Cat Form (powershift)
     local success = pcall(function()
-        if core.input and core.input.cast_spell then
-            return core.input.cast_spell(cat_form_id, me)
-        elseif core.spell_book and core.spell_book.cast_spell then
-            return core.spell_book.cast_spell(cat_form_id, me)
+        if core.input and core.input.cast_target_spell then
+            return core.input.cast_target_spell(cat_form_id, me)
+        elseif core.spell_book and core.spell_book.cast_target_spell then
+            return core.spell_book.cast_target_spell(cat_form_id, me)
         end
         return false
     end)

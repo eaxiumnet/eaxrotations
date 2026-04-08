@@ -22,7 +22,6 @@ local advanced_tree = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxpriestshadow_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxpriestshadow_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxpriestshadow_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxpriestshadow_debug")
 
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxpriestshadow_focus_priority")
@@ -173,7 +172,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable rotation")
         menu.mode:render("Mode", "1=Auto 2=PVE 3=PVP")
         menu.toggle_key:render("Toggle Key", "Quick enable/disable")
-        menu.debug:render("Debug", "Show debug info")
 
         -- Rotation
         rotation_tree:render("Rotation", function()

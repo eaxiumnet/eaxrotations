@@ -109,11 +109,8 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(PALADIN_SPELLS.ARCANE_TORRENT, "arcane_torrent", 70)
-                    return true, "[MW] Arcane Torrent queued"
-                elseif icon and icon.cast then
-                    icon:cast(PALADIN_SPELLS.ARCANE_TORRENT)
+                if icon and icon.cast then
+                    icon:cast(PALADIN_SPELLS.ARCBE_TORRENT)
                     return true, "[MW] Arcane Torrent"
                 end
                 return false

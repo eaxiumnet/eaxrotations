@@ -35,7 +35,7 @@ end
 
 -- Get Lacerate stack count on target
 local function get_lacerate_stacks()
-    local target = core.object_manager.get_target()
+    local target = (me and me:get_target())
     if not target or not target:is_valid() then return 0 end
     
     local buff_manager = require("common/modules/buff_manager")
@@ -48,6 +48,7 @@ end
 
 return {
     class_name = "Druid Bear Tank",
+    class_id = 11,  -- Druid class ID for player validation
     resource_type = "rage",  -- Tank uses rage
     secondary_resource_type = "mana",  -- Track mana when not shifted
     
@@ -105,7 +106,7 @@ return {
         
         -- Threat status (simplified)
         function(ctx)
-            local target = core.object_manager.get_target()
+            local target = (me and me:get_target())
             if not target or not target:is_valid() then
                 return "Threat", "No Target"
             end

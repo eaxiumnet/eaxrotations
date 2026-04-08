@@ -111,7 +111,7 @@ local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 -- FIX: get_target is a method on game_object, not in object_manager
 local _get_gcd = core.spell_book.get_global_cooldown
-local _get_spell_cd = core.spell_book.get_spell_cooldown
+local _get_spell_cooldown = core.spell_book.get_spell_cooldown
 -- FIX: Graphics APIs use vec2 points and color tables, not individual values
 local _rect_2d_filled = core.graphics.rect_2d_filled
 local _rect_2d = core.graphics.rect_2d
@@ -383,7 +383,7 @@ local function update_cooldowns()
     local has_visible = false
     for i, icon in ipairs(dashboard.cd_icons) do
         -- FIX: get_spell_cooldown returns NUMBER (remaining seconds), not a table
-        local remaining = _get_spell_cd(icon.spell_id)
+        local remaining = _get_spell_cooldown(icon.spell_id)
         if remaining then
             icon.remaining = tonumber(remaining) or 0
             icon.charges = 0  -- Sylvanas get_spell_cooldown doesn't return charges

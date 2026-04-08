@@ -32,7 +32,6 @@ settings.init({
 menu.enabled         = core.menu.checkbox(true,  "eaxpaladinprotection_enabled")
 menu.toggle_key      = core.menu.keybind(7, false, "eaxpaladinprotection_toggle_key")
 menu.mode            = core.menu.combobox(1, "eaxpaladinprotection_mode")
-menu.debug           = core.menu.checkbox(false, "eaxpaladinprotection_debug")
 
 -- -- Targeting ------------------------------------------------------------------
 menu.focus_priority        = core.menu.checkbox(false, "eaxpaladinprotection_focus_priority")
@@ -127,17 +126,11 @@ menu.trinket1_mode = core.menu.combobox(3, "eaxpaladinprotection_trinket1_mode")
 menu.trinket2_mode = core.menu.combobox(3, "eaxpaladinprotection_trinket2_mode")
 
 -- -- Dashboard -----------------------------------------------------------------
-menu.show_dashboard         = core.menu.checkbox(true, "eaxpaladinprotection_show_dashboard")
-menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxpaladinprotection_dashboard_opacity")
-menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxpaladinprotection_dashboard_scale")
-menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxpaladinprotection_dashboard_x")
-menu.dashboard_y            = core.menu.slider_int(0, 2000, 200, "eaxpaladinprotection_dashboard_y")
-menu.show_timer_bars        = core.menu.checkbox(true, "eaxpaladinprotection_show_timer_bars")
-menu.show_action_history    = core.menu.checkbox(true, "eaxpaladinprotection_show_action_history")
-menu.show_energy_tick       = core.menu.checkbox(false, "eaxpaladinprotection_show_energy_tick")
-menu.show_combo_points      = core.menu.checkbox(false, "eaxpaladinprotection_show_combo_points")
-menu.show_threat_bar        = core.menu.checkbox(true, "eaxpaladinprotection_show_threat_bar")
-menu.enable_smart_collapse  = core.menu.checkbox(true, "eaxpaladinprotection_enable_smart_collapse")
+menu.dashboard_enabled      = core.menu.checkbox(true, "eaxpaladinprot_dashboard_enabled")
+menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxpaladinprot_dashboard_opacity")
+menu.dashboard_x            = core.menu.slider_int(0, 1000, 20, "eaxpaladinprot_dashboard_x")
+menu.dashboard_y            = core.menu.slider_int(0, 1000, 200, "eaxpaladinprot_dashboard_y")
+menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxpaladinprot_dashboard_scale")
 
 -- -- Window --------------------------------------------------------------------
 settings.setup_major_toggle_keybinds(menu, {
@@ -167,7 +160,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable/disable rotation")
         menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
         menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
-        menu.debug:render("Debug", "Enable debug output")
 
         -- 2. Rotation
         rotation_tree:render("Rotation", function()
@@ -288,20 +280,11 @@ function menu.render()
 
         -- 9. Dashboard
         dashboard_tree:render("Dashboard", function()
-            ps.header("Display")
-            menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
+            menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
-            menu.dashboard_scale:render("Scale", "Dashboard UI scale")
-            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")
-
-            ps.header("Features")
-            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
-            menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.show_threat_bar:render("Threat Bar", "Show threat percentage")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
-            menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")
-            menu.show_combo_points:render("Combo Points", "Show combo point pips")
+            menu.dashboard_x:render("Position X", "Horizontal position")
+            menu.dashboard_y:render("Position Y", "Vertical position")
+            menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
         end)
 
         -- 10. Advanced (Targeting + Racial)

@@ -19,6 +19,7 @@ local trinket_manager = require("libraries/trinket_manager")
 -- Hot-path local caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Runtime state
 local rt = {
@@ -53,6 +54,14 @@ local rt = {
         ravage = 60,
         tigers_fury = 30,
     },
+    -- DoT max durations for pandemic calculation
+    dot_durations = {
+        rake = 9,  -- Rake lasts 9 seconds
+        rip = 12,  -- Rip lasts 12 seconds
+    },
+    -- Enemy count for AoE decisions
+    enemy_count = 1,
+    is_boss = false,
 }
 
 local SPELL_REFRESH = 1.0
@@ -104,6 +113,9 @@ local function resolve()
     rt.spell_costs.ravage = get_spell_cost(rt.ravage_id, 60)
     rt.spell_costs.tigers_fury = get_spell_cost(rt.tigers_fury_id, 30)
 
+    -- Update energy tick module with current spell costs
+    energy_tick.update_spell_costs(rt.spell_costs.mangle, rt.spell_costs.shred)
+
     -- OOC buffs
     rt.thorns_id = utils.resolve_spell_id(spells.THORNS)
 end
@@ -151,6 +163,87 @@ local function active_mode()
     return rt.cached_mode
 end
 
+-- ============================================================================
+-- Dynamic DoT Refresh with Pandemic (Feature 4 from flux cat.lua)
+-- ============================================================================
+
+---Calculate dynamic DoT refresh threshold (accounts for GCD and pandemic)
+---From flux cat.lua lines 216-222
+---@param user_setting number User-configured refresh threshold (seconds)
+---@param max_duration number|nil Maximum DoT duration for pandemic window calculation
+---@return number Adjusted refresh threshold
+local function get_dot_refresh_threshold(user_setting, max_duration)
+    -- Get current GCD
+    local gcd_remains = 0
+    if core.spell_book and core.spell_book.get_global_cooldown then
+        local ok, gcd = pcall(core.spell_book.get_global_cooldown)
+        if ok and gcd then
+            gcd_remains = gcd
+        end
+    end
+    
+    local threshold = user_setting + gcd_remains
+    if max_duration then
+        threshold = math.max(threshold, max_duration * 0.3)  -- Pandemic: 30% of max duration
+    end
+    return threshold
+end
+
+-- ============================================================================
+-- Enemy Count and Boss Detection (for AoE and Sapper decisions)
+-- ============================================================================
+
+---Update enemy count and boss status for AoE/sapper decisions
+---@param me userdata Player unit
+---@param target userdata Current target
+local function update_combat_context(me, target)
+    -- Count enemies near target
+    local count = 1  -- Start with current target
+    local is_boss = false
+    
+    if target and target:is_valid() then
+        -- Check if target is boss/elite
+        local classification = nil
+        if target.get_classification then
+            local ok, cls = pcall(function() return target:get_classification() end)
+            if ok then classification = cls end
+        end
+        is_boss = classification == "worldboss" or classification == "elite" or classification == "rareelite"
+        
+        -- Count nearby enemies
+        local target_pos = nil
+        if target.get_position then
+            local ok, pos = pcall(function() return target:get_position() end)
+            if ok then target_pos = pos end
+        end
+        
+        if target_pos then
+            for _, obj in ipairs(core.object_manager.get_all_objects()) do
+                if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() 
+                   and obj ~= target and me:can_attack(obj) then
+                    local obj_pos = nil
+                    if obj.get_position then
+                        local ok, pos = pcall(function() return obj:get_position() end)
+                        if ok then obj_pos = pos end
+                    end
+                    if obj_pos then
+                        local dx = obj_pos.x - target_pos.x
+                        local dy = obj_pos.y - target_pos.y
+                        local dz = obj_pos.z - target_pos.z
+                        local dist_sq = dx*dx + dy*dy + dz*dz
+                        if dist_sq < 100 then  -- 10 yards squared
+                            count = count + 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    rt.enemy_count = count
+    rt.is_boss = is_boss
+end
+
 -- Rotation functions
 local function try_cat_form(me)
     if not rt.cat_form_id then return false end
@@ -192,11 +285,72 @@ end
 local function try_rake(me, t)
     if not (menu.use_rake and menu.use_rake:get_state()) then return false end
     if not rt.rake_id then return false end
-    if has_debuff(t, spells.DEBUFF_RAKE) then return false end
-    if energy(me) < 35 then return false end
+    
+    local e = energy(me)
+    if e < rt.spell_costs.rake then return false end
+    
+    -- Get TTD
+    local ttd = 999
+    if t and t:is_valid() then
+        local ok, val = pcall(function() return combat_forecast:get_ttd(t) end)
+        if ok and val then ttd = val end
+    end
+    
+    -- Minimum TTD for Rake to be worth it (from flux: 4 seconds)
+    if ttd < 4 then return false end
+    
+    -- Feature 4: Dynamic DoT Refresh with Pandemic
+    local rake_rem = debuff_rem(t, spells.DEBUFF_RAKE)
+    local should_rake = false
+    
+    -- Get user refresh setting
+    local user_refresh = 3  -- Default 3 seconds
+    if menu.rake_refresh_seconds then
+        local ok, val = pcall(function() return menu.rake_refresh_seconds:get() end)
+        if ok and val then user_refresh = val end
+    end
+    
+    -- Calculate dynamic threshold with pandemic (30% of max duration)
+    local refresh_threshold = get_dot_refresh_threshold(user_refresh, rt.dot_durations.rake)
+    
+    -- Check if Rake needs refresh
+    if rake_rem == 0 or rake_rem < refresh_threshold then
+        should_rake = true
+    end
+    
+    -- Feature 6: AoE Rake Spreading (from flux cat.lua lines 658-676)
+    local is_aoe_situation = false
+    if menu.enable_aoe and menu.enable_aoe:get_state() then
+        local aoe_threshold = 3  -- Default 3 enemies
+        if menu.aoe_enemy_count then
+            local ok, val = pcall(function() return menu.aoe_enemy_count:get() end)
+            if ok and val then aoe_threshold = val end
+        end
+        
+        if rt.enemy_count >= aoe_threshold then
+            is_aoe_situation = true
+        end
+    end
+    
+    -- AoE Rake spreading logic
+    if is_aoe_situation and menu.spread_rake and menu.spread_rake:get_state() then
+        -- In AoE, we want Rake on all targets
+        -- Primary target Rake maintenance (already checked above)
+        -- For nearby targets, we rely on the rotation to switch targets
+        -- The spread_rake setting enables this behavior
+        should_rake = true
+    elseif is_aoe_situation and not (menu.spread_rake and menu.spread_rake:get_state()) then
+        -- AoE enabled but spread_rake disabled - only Rake primary target if CP <= 4
+        local cp = combo_points(me)
+        if cp > 4 then
+            should_rake = false  -- Don't Rake at 5 CP in AoE without spread enabled
+        end
+    end
+    
+    if not should_rake then return false end
     if not utils.can_cast_hostile(rt.rake_id, me, t) then return false end
     if utils.cast_target(rt.rake_id, me, t) then
-        utils.log_debug(menu, "Rake")
+        utils.log_debug(menu, string.format("Rake (rem=%.1fs, TTD=%.1fs, enemies=%d)", rake_rem, ttd, rt.enemy_count))
         return true
     end
     return false
@@ -205,12 +359,79 @@ end
 local function try_rip(me, t)
     if not (menu.use_rip and menu.use_rip:get_state()) then return false end
     if not rt.rip_id then return false end
-    if combo_points(me) < 5 then return false end
-    if has_debuff(t, spells.DEBUFF_RIP) then return false end
-    if energy(me) < 30 then return false end
+    
+    local cp = combo_points(me)
+    local e = energy(me)
+    
+    -- Get minimum CP setting
+    local rip_min_cp = 5
+    if menu.rip_combo_points then
+        local ok, val = pcall(function() return menu.rip_combo_points:get() end)
+        if ok and val then rip_min_cp = val end
+    end
+    
+    if cp < rip_min_cp then return false end
+    if e < rt.spell_costs.rip then return false end
+    
+    -- Get TTD
+    local ttd = 999
+    if t and t:is_valid() then
+        local ok, val = pcall(function() return combat_forecast:get_ttd(t) end)
+        if ok and val then ttd = val end
+    end
+    
+    -- Minimum TTD for Rip (from flux: 8 seconds)
+    if ttd < 8 then return false end
+    
+    -- Feature 4: Dynamic DoT Refresh with Pandemic
+    local rip_rem = debuff_rem(t, spells.DEBUFF_RIP)
+    local should_rip = false
+    
+    -- Get user refresh setting
+    local user_refresh = 3  -- Default 3 seconds
+    if menu.rip_refresh_seconds then
+        local ok, val = pcall(function() return menu.rip_refresh_seconds:get() end)
+        if ok and val then user_refresh = val end
+    end
+    
+    -- Calculate dynamic threshold with pandemic (30% of max duration = 3.6s for Rip)
+    local refresh_threshold = get_dot_refresh_threshold(user_refresh, rt.dot_durations.rip)
+    
+    -- Check if Rip needs refresh
+    if rip_rem == 0 or rip_rem < refresh_threshold then
+        should_rip = true
+    end
+    
+    -- Check rip_only_elites setting
+    if should_rip and menu.rip_only_elites and menu.rip_only_elites:get_state() then
+        local classification = nil
+        if t.get_classification then
+            local ok, cls = pcall(function() return t:get_classification() end)
+            if ok then classification = cls end
+        end
+        local is_elite = classification == "worldboss" or classification == "elite" or classification == "rareelite"
+        if not is_elite then
+            should_rip = false
+        end
+    end
+    
+    -- Check Mangle debuff - defer Rip one GCD if Mangle is missing (from flux)
+    -- 30% bleed damage bonus on the FULL Rip duration is worth one GCD delay
+    if should_rip then
+        local mangle_rem = debuff_rem(t, spells.DEBUFF_MANGLE)
+        if mangle_rem == 0 and rt.mangle_cat_id and utils.can_cast_hostile(rt.mangle_cat_id, me, t) then
+            -- Only defer if we have energy for Mangle or clearcasting
+            local has_clearcasting = utils.has_buff(me, spells.BUFF_OMEN_OF_CLARITY)
+            if e >= rt.spell_costs.mangle or has_clearcasting then
+                should_rip = false  -- Defer to apply Mangle first
+            end
+        end
+    end
+    
+    if not should_rip then return false end
     if not utils.can_cast_hostile(rt.rip_id, me, t) then return false end
     if utils.cast_target(rt.rip_id, me, t) then
-        utils.log_debug(menu, "Rip")
+        utils.log_debug(menu, string.format("Rip (CP=%d, rem=%.1fs, TTD=%.1fs)", cp, rip_rem, ttd))
         return true
     end
     return false
@@ -219,11 +440,94 @@ end
 local function try_ferocious_bite(me, t)
     if not (menu.use_ferocious_bite and menu.use_ferocious_bite:get_state()) then return false end
     if not rt.ferocious_bite_id then return false end
-    if combo_points(me) < 4 then return false end
-    if energy(me) < 35 then return false end
+    
+    local cp = combo_points(me)
+    local e = energy(me)
+    
+    -- Get TTD for execute scaling
+    local ttd = 999
+    if t and t:is_valid() then
+        local ok, val = pcall(function() return combat_forecast:get_ttd(t) end)
+        if ok and val then ttd = val end
+    end
+    
+    -- Get target HP percent
+    local target_hp_pct = 100
+    if t and t:is_valid() and t.get_health_percentage then
+        local ok, hp = pcall(function() return t:get_health_percentage() end)
+        if ok and hp then target_hp_pct = hp end
+    end
+    
+    -- Feature 3: TTD-scaled Execute Bite (from flux cat.lua lines 487-509)
+    -- Bite scales with CP: 1 CP bite only if mob dies in 1 GCD, 5 CP bite with 7.5s left
+    local use_bite_execute = false
+    if menu.use_bite_execute and menu.use_bite_execute:get_state() then
+        -- Get execute settings
+        local bite_execute_ttd = 7.5  -- Default: 7.5s
+        local bite_execute_hp = 20     -- Default: 20%
+        
+        if menu.bite_execute_ttd then
+            local ok, val = pcall(function() return menu.bite_execute_ttd:get() end)
+            if ok and val then bite_execute_ttd = val end
+        end
+        if menu.bite_execute_hp then
+            local ok, val = pcall(function() return menu.bite_execute_hp:get() end)
+            if ok and val then bite_execute_hp = val end
+        end
+        
+        -- TTD-based execute: CP * 1.5 seconds (1 CP = 1.5s, 5 CP = 7.5s)
+        if ttd <= cp * 1.5 then
+            use_bite_execute = true
+        end
+        
+        -- HP-based execute
+        if target_hp_pct <= bite_execute_hp then
+            use_bite_execute = true
+        end
+    end
+    
+    -- Standard bite logic
+    local bite_min_cp = 4
+    if menu.bite_min_cp then
+        local ok, val = pcall(function() return menu.bite_min_cp:get() end)
+        if ok and val then bite_min_cp = val end
+    end
+    
+    -- Check if we should bite
+    local should_bite = false
+    
+    -- Execute bite (bypasses normal CP requirements)
+    if use_bite_execute and cp >= 1 and e >= rt.spell_costs.ferocious_bite then
+        should_bite = true
+    end
+    
+    -- Normal bite at sufficient CP
+    if not should_bite and cp >= bite_min_cp and e >= rt.spell_costs.ferocious_bite then
+        -- Check energy cap to avoid waste
+        local fb_max_energy = 39
+        if menu.bite_max_energy then
+            local ok, val = pcall(function() return menu.bite_max_energy:get() end)
+            if ok and val then fb_max_energy = val end
+        end
+        
+        if e <= fb_max_energy then
+            should_bite = true
+        end
+        
+        -- If we have excess energy above cap, bite anyway
+        if e > fb_max_energy then
+            -- Check if Rip is up with good duration
+            local rip_rem = debuff_rem(t, spells.DEBUFF_RIP)
+            if rip_rem > 3 then  -- Rip has 3+ seconds left
+                should_bite = true
+            end
+        end
+    end
+    
+    if not should_bite then return false end
     if not utils.can_cast_hostile(rt.ferocious_bite_id, me, t) then return false end
     if utils.cast_target(rt.ferocious_bite_id, me, t) then
-        utils.log_debug(menu, "Ferocious Bite")
+        utils.log_debug(menu, string.format("Ferocious Bite (CP=%d, TTD=%.1fs, HP=%.1f%%)", cp, ttd, target_hp_pct))
         return true
     end
     return false
@@ -309,12 +613,13 @@ local function try_powershift(me)
     
     -- Check if we should powershift using the library
     if powershift:should_powershift(me, current_energy, energy_tick, menu) then
-        if powershift:execute(me, me:get_target(), energy_tick, rt.cat_form_id) then
+        -- Pass enemy_count and is_boss for sapper integration
+        if powershift:execute(me, me:get_target(), energy_tick, menu, rt.cat_form_id, rt.enemy_count, rt.is_boss) then
             rt.last_powershift_time = _core_time()
             if utils.throttle("powershift_debug", 2.0) then
                 local debug_info = powershift:get_debug_info(me, current_energy, energy_tick)
-                utils.log_debug(menu, string.format("Powershift: %d -> %d energy (Wolfshead: %s)",
-                    debug_info.current_energy, debug_info.energy_after_shift, tostring(debug_info.has_wolfshead)))
+                utils.log_debug(menu, string.format("Powershift: %d -> %d energy (Wolfshead: %s, Enemies: %d)",
+                    debug_info.current_energy, debug_info.energy_after_shift, tostring(debug_info.has_wolfshead), rt.enemy_count))
             end
             return true
         end
@@ -391,16 +696,6 @@ end
 
 -- Main rotation
 local function do_rotation(me, t)
-    if utils.throttle("energy_tick_debug", 3.0) and menu.debug and menu.debug:get_state() then
-        local tick_info = energy_tick.get_debug_info()
-        core.log(string.format(
-            "|cFF00FF00[Tick Debug]|r confident=%s time_until=%.2fs delay=%s wolfshead=%s",
-            tostring(tick_info.confident),
-            tick_info.time_until_next,
-            tostring(tick_info.should_delay),
-            tostring(tick_info.wolfshead)
-        ))
-    end
 
     -- Debug: Log entry and state
     if utils.throttle("feral_debug", 2.0) then
@@ -444,14 +739,17 @@ local function on_update()
     resolve()
     local me = get_me()
 
-    -- Update energy tick tracker
+    -- Update energy tick tracker with new parameters (Feature 5)
     local current_energy = energy(me)
     local in_cat_form = utils.has_buff(me, spells.BUFF_CAT_FORM)
-    energy_tick.update(current_energy, in_cat_form)
+    energy_tick.update(current_energy, in_cat_form, rt.last_powershift_time)
+
+    -- Update combat context for enemy count and boss detection (Features 2 & 6)
+    local t = me:get_target()
+    update_combat_context(me, t)
 
     -- Sample TTD for combat forecast (~1 second throttle)
     if utils.throttle("combat_forecast_sample", 1.0) then
-        local t = me:get_target()
         if t and t:is_valid() then
             combat_forecast:sample(t)
         end
@@ -521,10 +819,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
-        return  -- Stop rotation while CC'd
     end
 
     -- Sync dashboard settings (safe pcall for uninitialized menu items)
@@ -552,6 +846,7 @@ local function on_update()
     if not me or me:is_dead() then return end
 
     -- Track combat start time for burst manager
+    local now = _core_time()
     if me:is_in_combat() then
         if not rt.combat_start_time then
             rt.combat_start_time = now
@@ -560,7 +855,7 @@ local function on_update()
         rt.combat_start_time = nil
     end
 
-    local t = me:get_target()
+    -- Target already retrieved above
     if not t or not t:is_valid() or t:is_dead() then return end
     if not me:can_attack(t) then return end
 
@@ -581,10 +876,6 @@ local function on_update()
     local context = middleware_manager.build_context(me, t, settings)
     local mw_result, mw_msg = middleware_manager.execute(nil, context)
     if mw_result then
-        if menu.debug and menu.debug:get_state() then
-            print("[Middleware] " .. (mw_msg or "executed"))
-        end
-        return
     end
 
     -- Try to break roots via shapeshift
@@ -594,10 +885,6 @@ local function on_update()
     local cc_detector = require("libraries/cc_detector")
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
-        return
     end
 
     -- Form-aware consumables
@@ -619,7 +906,6 @@ local function on_update()
     end
 
     -- PvP context detection
-    local now = _core_time()
     if not rt.last_pvp_check or (now - rt.last_pvp_check) > 1.0 then
         rt.pvp_context = utils.detect_pvp_context(me, t)
         rt.last_pvp_check = now

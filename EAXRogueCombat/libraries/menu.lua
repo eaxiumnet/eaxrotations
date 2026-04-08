@@ -23,7 +23,6 @@ local advanced_tree = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxroguecombat_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxroguecombat_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxroguecombat_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxroguecombat_debug")
 
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxroguecombat_focus_priority")

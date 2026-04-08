@@ -22,7 +22,6 @@ local advanced_tree = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxshamanenhancement_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxshamanenhancement_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxshamanenhancement_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxshamanenhancement_debug")
 menu.shield_mode                         = core.menu.combobox(3, "eaxshamanenhancement_shield_mode")
 menu.use_healing_wave                    = core.menu.checkbox(true, "eaxshamanenhancement_use_hw")
 menu.healing_wave_hp                     = core.menu.slider_int(10, 60, 40, "eaxshamanenhancement_hw_hp")
@@ -108,17 +107,11 @@ menu.use_healing_potion = core.menu.checkbox(true, "eaxshamanenhancement_use_hea
 menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxshamanenhancement_healing_potion_hp_pct")
 
 -- Dashboard
-menu.show_dashboard         = core.menu.checkbox(true, "eaxshamanenhancement_show_dashboard")
-menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxshamanenhancement_dashboard_opacity")
-menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxshamanenhancement_dashboard_scale")
-menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxshamanenhancement_dashboard_x")
-menu.dashboard_y            = core.menu.slider_int(0, 2000, 200, "eaxshamanenhancement_dashboard_y")
-menu.show_timer_bars = core.menu.checkbox(true, "eaxshamanenhancement_show_timer_bars")
-menu.show_action_history = core.menu.checkbox(true, "eaxshamanenhancement_show_action_history")
-menu.show_energy_tick = core.menu.checkbox(false, "eaxshamanenhancement_show_energy_tick")
-menu.show_combo_points = core.menu.checkbox(false, "eaxshamanenhancement_show_combo_points")
-menu.show_threat_bar = core.menu.checkbox(false, "eaxshamanenhancement_show_threat_bar")
-menu.enable_smart_collapse = core.menu.checkbox(true, "eaxshamanenhancement_enable_smart_collapse")
+menu.dashboard_enabled      = core.menu.checkbox(true, "eaxshamanenh_dashboard_enabled")
+menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxshamanenh_dashboard_opacity")
+menu.dashboard_x            = core.menu.slider_int(0, 1000, 20, "eaxshamanenh_dashboard_x")
+menu.dashboard_y            = core.menu.slider_int(0, 1000, 200, "eaxshamanenh_dashboard_y")
+menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxshamanenh_dashboard_scale")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_stormstrike", label = "Stormstrike" },
@@ -146,7 +139,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable rotation")
         menu.toggle_key:render("Toggle Key", "Quick enable/disable")
         menu.mode:render("Mode", "Auto / PvE / PvP")
-        menu.debug:render("Debug", "Show debug info")
 
         -- Rotation
         rotation_tree:render("Rotation", function()
@@ -261,16 +253,11 @@ function menu.render()
 
         -- Dashboard
         dashboard_tree:render("Dashboard", function()
-            ps.header("Display")
-            menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
+            menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
-            menu.dashboard_scale:render("Scale", "Dashboard UI scale")
-            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
-            ps.header("Features")
-            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
-            menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+            menu.dashboard_x:render("Position X", "Horizontal position")
+            menu.dashboard_y:render("Position Y", "Vertical position")
+            menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
         end)
 
         -- Advanced (Targeting, Racial, Leveling)

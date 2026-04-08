@@ -27,7 +27,7 @@ local _compat = require("libraries/compat")
 
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
-local _get_spell_cd = core.spell_book.get_spell_cooldown
+local _get_spell_cooldown = core.spell_book.get_spell_cooldown
 
 -- ============================================================================
 -- MIDDLEWARE PRIORITIES
@@ -309,7 +309,7 @@ local function cold_snap_middleware(menu)
             
             -- Only use if Icy Veins is on significant cooldown
             if spell_ids.icy_veins then
-                local iv_cd = _get_spell_cd(spell_ids.icy_veins)
+                local iv_cd = _get_spell_cooldown(spell_ids.icy_veins)
                 if iv_cd < 20 then return false end
             end
             

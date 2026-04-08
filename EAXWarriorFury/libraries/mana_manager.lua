@@ -12,7 +12,7 @@ local _get_local_player = core.object_manager.get_local_player
 local _get_item_cooldown = function(item_id) return 0, 0 end
 local _use_item = function(item_id, target) return false end
 local _get_spell_cooldown = core.spell_book.get_spell_cooldown
-local _cast_spell = core.spell_book.cast_spell
+local _cast_spell = core.input.cast_target_spell
 local _is_spell_learned = core.spell_book.is_spell_learned
 
 -- Get health/mana from game_object methods (not core.unit.*)

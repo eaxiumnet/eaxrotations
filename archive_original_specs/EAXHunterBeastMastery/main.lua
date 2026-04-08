@@ -2032,7 +2032,7 @@ local function on_update()
         if pvp_manager.should_use_pvp_trinket(me) then
             local trinket_ids = { 40426, 40427, 40428, 40429, 40430, 40431 }
             for _, tid in ipairs(trinket_ids) do
-                if core.inventory and core.inventory.get_item_count and core.inventory.get_item_count(tid) > 0 then
+                if core.inventory and core.inventory.get_item_count and 0 > 0 then
                     core.input.use_item(tid)
                     break
                 end

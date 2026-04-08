@@ -27,7 +27,6 @@ local advanced_tree  = ps.tree_node()
 menu.enabled         = core.menu.checkbox(true,  "eaxmagearcane_enabled")
 menu.toggle_key      = core.menu.keybind(7, false, "eaxmagearcane_toggle_key")
 menu.mode            = core.menu.combobox(1, "eaxmagearcane_mode")
-menu.debug           = core.menu.checkbox(false, "eaxmagearcane_debug")
 
 -- -- Targeting ------------------------------------------------------------------
 menu.focus_priority        = core.menu.checkbox(false, "eaxmagearcane_focus_priority")
@@ -142,11 +141,11 @@ menu.force_aoe              = core.menu.keybind(0, false, "eaxmagearcane_force_a
 menu.force_defensive        = core.menu.keybind(0, false, "eaxmagearcane_force_defensive")
 
 -- -- Dashboard -----------------------------------------------------------------
-menu.show_dashboard         = core.menu.checkbox(true, "eaxmagearcane_show_dashboard")
+menu.dashboard_enabled      = core.menu.checkbox(true, "eaxmagearcane_dashboard_enabled")
 menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxmagearcane_dashboard_opacity")
+menu.dashboard_x            = core.menu.slider_int(0, 1000, 20, "eaxmagearcane_dashboard_x")
+menu.dashboard_y            = core.menu.slider_int(0, 1000, 200, "eaxmagearcane_dashboard_y")
 menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxmagearcane_dashboard_scale")
-menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxmagearcane_dashboard_x")
-menu.dashboard_y            = core.menu.slider_int(0, 2000, 200, "eaxmagearcane_dashboard_y")
 menu.show_timer_bars        = core.menu.checkbox(true, "eaxmagearcane_show_timer_bars")
 menu.show_action_history    = core.menu.checkbox(true, "eaxmagearcane_show_action_history")
 menu.show_energy_tick       = core.menu.checkbox(false, "eaxmagearcane_show_energy_tick")
@@ -314,12 +313,11 @@ function menu.render()
 
         -- 9. Dashboard
         dashboard_tree:render("Dashboard", function()
-            ps.header("Display")
-            menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
-            menu.dashboard_opacity:render("Opacity", "Background opacity")
-            menu.dashboard_scale:render("Scale", "UI scale")
+            menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
+            menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_x:render("Position X", "Horizontal position")
             menu.dashboard_y:render("Position Y", "Vertical position")
+            menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
 
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and cast bars")

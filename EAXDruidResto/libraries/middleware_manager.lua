@@ -39,9 +39,6 @@ local _initialized = false
 local function has_buff_self(buff_id)
     local me = core.object_manager.get_local_player()
     if not me or not me:is_valid() then return false end
-    if core.buff_manager and core.buff_manager.has_buff then
-        return core.buff_manager.has_buff(me, buff_id)
-    end
     return false
 end
 

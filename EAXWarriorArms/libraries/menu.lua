@@ -27,7 +27,6 @@ local advanced_tree = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxwarriorarms_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxwarriorarms_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxwarriorarms_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxwarriorarms_debug")
 
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxwarriorarms_focus_priority")
@@ -182,7 +181,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable rotation")
         menu.toggle_key:render("Toggle Key", "Quick enable/disable")
         menu.mode:render("Mode", "Auto / PvE / PvP")
-        menu.debug:render("Debug", "Show debug info")
 
         -- Rotation
         rotation_tree:render("Rotation", function()

@@ -162,14 +162,11 @@ function utils.cast_self(spell_id, me)
     return false
 end
 
--- Debug logging with menu check
+-- Debug logging (disabled - menu.debug removed)
 ---@param menu table
 ---@param message string
 function utils.log_debug(menu, message)
-    local debug_enabled = (menu and menu.debug and menu.debug:get()) or false
-    if debug_enabled then
-        core.log("[EAX Priest Smite] " .. tostring(message))
-    end
+    -- Debug logging disabled - menu.debug removed from all specs
 end
 
 -- Squared distance for performance (no sqrt)

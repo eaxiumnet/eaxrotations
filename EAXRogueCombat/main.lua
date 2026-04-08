@@ -8,6 +8,8 @@ local ooc_manager = require("libraries/ooc_manager")
 local anti_fake_manager = require("libraries/anti_fake_manager")
 local burst_manager = require("libraries/burst_manager")
 local trinket_manager = require("libraries/trinket_manager")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
 
 -- Phase 1 Flux libraries
 local energy_tick = require("libraries/energy_tick")
@@ -17,6 +19,11 @@ local swing_manager = require("libraries/swing_manager")
 
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
+
+-- Hot-path API caching
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Runtime spell cache
 local runtime = {
@@ -76,8 +83,12 @@ resolve_spells()
 -- Initialize force commands for /eax burst support
 force_commands:init()
 
--- Hot-path local caching
-local _core_time = core.time
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.set_enabled(true)
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end
 
 -- Pending cast tracking
 local _pending_casts = {}
@@ -99,7 +110,7 @@ end
 
 -- GCD check
 local function is_gcd_ready()
-    local gcd = core.spell_book.get_global_cooldown()
+    local gcd = _get_gcd()
     return gcd <= 0
 end
 
@@ -344,6 +355,28 @@ local function on_update()
         ooc_manager.on_update(me, menu, utils, {})
     end
 
+    -- Sync dashboard settings (safe pcall for uninitialized menu items)
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
+
     -- Crowd Control check - return early if stunned/silenced/feared etc.
     if utils.is_cced and utils.is_cced(me) then return end
 
@@ -369,9 +402,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 

@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Warrior Protection",
+    class_id = 1,  -- Warrior class ID for player validation
     
     -- Resource type
     resource_type = "rage",
@@ -112,7 +113,7 @@ return {
         
         -- Sunder Armor stacks on target
         function(ctx)
-            local target = core.object_manager.get_target()
+            local target = (me and me:get_target())
             if not target or not target:is_valid() then return "Sunder", "--" end
             
             local spells = require("libraries/spells")

@@ -27,7 +27,6 @@ local advanced_tree  = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxshamanelemental_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxshamanelemental_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxshamanelemental_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxshamanelemental_debug")
 menu.shield_mode                         = core.menu.combobox(2, "eaxshamanelemental_shield_mode")
 menu.use_healing_wave                    = core.menu.checkbox(true, "eaxshamanelemental_use_hw")
 menu.healing_wave_hp                     = core.menu.slider_int(10, 60, 35, "eaxshamanelemental_hw_hp")
@@ -148,17 +147,11 @@ menu.mana_potion_pct = core.menu.slider_int(5, 100, 20, "eaxshamanelemental_mana
 menu.dark_rune_pct = core.menu.slider_int(5, 100, 15, "eaxshamanelemental_dark_rune_pct")
 
 -- Dashboard
-menu.show_dashboard         = core.menu.checkbox(true, "eaxshamanelemental_show_dashboard")
-menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxshamanelemental_dashboard_opacity")
-menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxshamanelemental_dashboard_scale")
-menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxshamanelemental_dashboard_x")
-menu.dashboard_y            = core.menu.slider_int(0, 2000, 200, "eaxshamanelemental_dashboard_y")
-menu.show_timer_bars = core.menu.checkbox(true, "eaxshamanelemental_show_timer_bars")
-menu.show_action_history = core.menu.checkbox(true, "eaxshamanelemental_show_action_history")
-menu.show_energy_tick = core.menu.checkbox(false, "eaxshamanelemental_show_energy_tick")
-menu.show_combo_points = core.menu.checkbox(false, "eaxshamanelemental_show_combo_points")
-menu.show_threat_bar = core.menu.checkbox(false, "eaxshamanelemental_show_threat_bar")
-menu.enable_smart_collapse = core.menu.checkbox(true, "eaxshamanelemental_enable_smart_collapse")
+menu.dashboard_enabled      = core.menu.checkbox(true, "eaxshamanelem_dashboard_enabled")
+menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxshamanelem_dashboard_opacity")
+menu.dashboard_x            = core.menu.slider_int(0, 1000, 20, "eaxshamanelem_dashboard_x")
+menu.dashboard_y            = core.menu.slider_int(0, 1000, 200, "eaxshamanelem_dashboard_y")
+menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxshamanelem_dashboard_scale")
 
 -- Settings Framework
 settings.setup_major_toggle_keybinds(menu, {
@@ -187,7 +180,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable/disable rotation")
         menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
         menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
-        menu.debug:render("Debug", "Enable debug output")
 
         -- 2. Rotation
         rotation_tree:render("Rotation", function()
@@ -343,20 +335,11 @@ function menu.render()
 
         -- 11. Dashboard
         dashboard_tree:render("Dashboard", function()
-            ps.header("Display")
-            menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
-            menu.dashboard_opacity:render("Opacity", "Background opacity")
-            menu.dashboard_scale:render("Scale", "UI scale")
+            menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
+            menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_x:render("Position X", "Horizontal position")
             menu.dashboard_y:render("Position Y", "Vertical position")
-
-            ps.header("Features")
-            menu.show_timer_bars:render("Timer Bars", "Show GCD and cast timers")
-            menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
-            menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")
-            menu.show_combo_points:render("Combo Points", "Show combo point pips")
-            menu.show_threat_bar:render("Threat Bar", "Show threat meter")
+            menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
         end)
 
         -- 12. Advanced (Targeting + Racial)

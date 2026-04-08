@@ -82,9 +82,6 @@ local function try_lay_on_hands(me, menu)
     end)
     
     if ok and result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Defensive: Lay on Hands (" .. (reason or "emergency") .. ")")
-        end
         return true
     end
     
@@ -128,9 +125,6 @@ local function try_divine_shield(me, menu)
     end)
     
     if ok and result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Defensive: Divine Shield (" .. (reason or "emergency") .. ")")
-        end
         return true
     end
     
@@ -174,9 +168,6 @@ local function try_divine_protection(me, menu)
     end)
     
     if ok and result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Defensive: Divine Protection (" .. (reason or "emergency") .. ")")
-        end
         return true
     end
     
@@ -256,9 +247,6 @@ function defensive_manager.try_divine_shield_cc_break(me, menu)
     end)
     
     if ok and result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Defensive: Divine Shield (CC break)")
-        end
         return true
     end
     

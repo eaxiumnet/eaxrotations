@@ -94,7 +94,7 @@ local function start_wand(me, target)
     end
     -- Fallback: direct cast via input
     local cast_ok = pcall(function()
-        core.input.cast_spell(WAND_SPELL_ID, target)
+        core.input.cast_target_spell(WAND_SPELL_ID, target)
     end)
     return cast_ok
 end
@@ -113,7 +113,7 @@ local function start_melee(me, target)
         return true
     end
     local cast_ok = pcall(function()
-        core.input.cast_spell(MELEE_SPELL_ID, target)
+        core.input.cast_target_spell(MELEE_SPELL_ID, target)
     end)
     return cast_ok
 end

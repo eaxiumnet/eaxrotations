@@ -24,7 +24,6 @@ local spell_queue = require("common/modules/spell_queue")
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
-local _get_spell_cd = core.spell_book.get_spell_cooldown
 
 -- Runtime state
 local runtime = {
@@ -58,17 +57,10 @@ local function init_()
     
     -- Initialize dashboard
     dashboard.init(dashboard_config)
-    local dashboard_enabled = true
-    if menu.dashboard_enabled and menu.dashboard_enabled.get_state then
-        dashboard_enabled = menu.dashboard_enabled:get_state()
+    dashboard.set_enabled(true)
+    if dashboard.register_render_callback then
+        dashboard.register_render_callback()
     end
-    dashboard.set_enabled(dashboard_enabled)
-    dashboard.set_position(
-        (menu.dashboard_x and menu.dashboard_x:get()) or 20,
-        (menu.dashboard_y and menu.dashboard_y:get()) or 200
-    )
-    dashboard.set_scale((menu.dashboard_scale and menu.dashboard_scale:get()) or 1.0)
-    dashboard.register_render_callback()
     
     runtime._initialized = true
     print("[EAX Shadow] integration initialized")
@@ -106,29 +98,23 @@ local function note_cast()
     runtime.last_cast_time = _core_time()
 end
 
-local function log_mode(mode)
-    if menu and menu.debug and menu.debug:get_state() and runtime.last_mode_log ~= mode then
-        utils.log_debug(menu, "Mode=" .. mode)
-        runtime.last_mode_log = mode
-    end
-end
 
 -- Check if Mind Blast is ready
 local function is_mind_blast_ready()
     if not resolved.mind_blast then return false end
-    return _get_spell_cd(resolved.mind_blast) == 0
+    return core.spell_book.get_spell_cooldown(resolved.mind_blast) == 0
 end
 
 -- Check if SW:Death is ready
 local function is_sw_death_ready()
     if not resolved.shadow_word_death then return false end
-    return _get_spell_cd(resolved.shadow_word_death) == 0
+    return core.spell_book.get_spell_cooldown(resolved.shadow_word_death) == 0
 end
 
 -- Check if Inner Focus is ready
 local function is_inner_focus_ready()
     if not resolved.inner_focus then return false end
-    return _get_spell_cd(resolved.inner_focus) == 0
+    return core.spell_book.get_spell_cooldown(resolved.inner_focus) == 0
 end
 
 -- ============================================================================
@@ -171,18 +157,12 @@ local function should_allow_cast(emergency_only)
     
     -- If not emergency, never clip a channel
     if not emergency_only then
-        if menu.debug and menu.debug:get_state() then
-            print(string.format("[Shadow] Channel active (%.1fs remaining), waiting...", remaining))
-        end
         return false
     end
     
     -- Emergency mode: only clip if significant time remains (>0.5s left)
     -- This saves at least some ticks
     if remaining > 0.5 then
-        if menu.debug and menu.debug:get_state() then
-            print(string.format("[Shadow] Emergency clip (%.1fs remaining)", remaining))
-        end
         return true
     end
     
@@ -454,7 +434,7 @@ local function try_racial(me)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if ttd and ttd < min_ttd then return false end
     
-    if resolved.berserking and _get_spell_cd(resolved.berserking) == 0 then
+    if resolved.berserking and core.spell_book.get_spell_cooldown(resolved.berserking) == 0 then
         if utils.cast_self(resolved.berserking, me) then
             note_cast()
             utils.log_debug(menu, "Berserking")
@@ -471,7 +451,7 @@ local function try_power_infusion(me)
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_POWER_INFUSION) then return false end
     
-    if _get_spell_cd(resolved.power_infusion) == 0 then
+    if core.spell_book.get_spell_cooldown(resolved.power_infusion) == 0 then
         if utils.cast_self(resolved.power_infusion, me) then
             note_cast()
             utils.log_debug(menu, "Power Infusion")
@@ -692,9 +672,6 @@ local function on_update()
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     

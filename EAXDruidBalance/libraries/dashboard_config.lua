@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Druid Balance",
+    class_id = 11,  -- Druid class ID for player validation
     resource_type = "mana",
     
     -- Cooldowns to track (spell IDs)

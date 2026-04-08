@@ -35,7 +35,6 @@ local advanced_tree  = ps.tree_node()  -- NEW: Targeting + Racial
 menu.enabled         = core.menu.checkbox(true,  "eaxdruidferal_enabled")
 menu.toggle_key      = core.menu.keybind(7, false, "eaxdruidferal_toggle_key")
 menu.mode            = core.menu.combobox(1, "eaxdruidferal_mode")
-menu.debug           = core.menu.checkbox(false, "eaxdruidferal_debug")
 
 -- -- Targeting ------------------------------------------------------------------
 menu.focus_priority        = core.menu.checkbox(false, "eaxdruidferal_focus_priority")
@@ -90,6 +89,8 @@ menu.use_ferocious_bite     = core.menu.checkbox(true, "eaxdruidferal_use_feroci
 menu.bite_min_cp            = core.menu.slider_int(1, 5, 5, "eaxdruidferal_bite_min_cp")  
 menu.bite_max_energy        = core.menu.slider_int(20, 60, 39, "eaxdruidferal_bite_max_energy")  
 menu.use_bite_execute       = core.menu.checkbox(true, "eaxdruidferal_use_bite_execute")  
+menu.bite_execute_ttd       = core.menu.slider_int(4, 12, 8, "eaxdruidferal_bite_execute_ttd")  -- TTD threshold for execute bite (4-12s)
+menu.bite_execute_hp        = core.menu.slider_int(10, 35, 20, "eaxdruidferal_bite_execute_hp")  -- HP threshold for execute bite (10-35%)
 menu.use_bite_trick         = core.menu.checkbox(true, "eaxdruidferal_use_bite_trick")  
 menu.bite_killshot_hp_pct   = core.menu.slider_int(5, 30, 15, "eaxdruidferal_bite_killshot_hp_pct")
 menu.use_maim               = core.menu.checkbox(true, "eaxdruidferal_use_maim")
@@ -104,6 +105,7 @@ menu.powershift_threshold   = core.menu.slider_int(15, 40, 25, "eaxdruidferal_po
 menu.rip_only_elites        = core.menu.checkbox(false, "eaxdruidferal_rip_only_elites")  -- Only Rip elite/boss targets
 menu.use_mangle_builder     = core.menu.checkbox(true, "eaxdruidferal_use_mangle_builder")  -- Use Mangle as CP builder
 menu.enable_aoe             = core.menu.checkbox(true, "eaxdruidferal_enable_aoe")  -- Enable AoE rotation
+menu.aoe_enemy_count        = core.menu.slider_int(2, 8, 3, "eaxdruidferal_aoe_enemy_count")  -- Enemy count threshold for AoE
 menu.spread_rake            = core.menu.checkbox(false, "eaxdruidferal_spread_rake")  -- Spread Rake to nearby targets
 menu.use_tigers_fury        = core.menu.checkbox(true, "eaxdruidferal_use_tigers_fury")
 menu.tigers_fury_energy     = core.menu.slider_int(20, 60, 30, "eaxdruidferal_tigers_fury_energy")
@@ -166,6 +168,10 @@ menu.use_form_healthstone = core.menu.checkbox(true, "eaxdruidferal_form_healths
 menu.form_healthstone_hp_pct = core.menu.slider_int(10, 50, 30, "eaxdruidferal_hs_hp_pct")
 menu.use_form_healing_potion = core.menu.checkbox(true, "eaxdruidferal_form_potion")
 menu.form_healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxdruidferal_potion_hp_pct")
+
+-- Sapper Charges (ported from Flux cat.lua)
+menu.use_super_sapper = core.menu.checkbox(false, "eaxdruidferal_use_super_sapper")  -- Use Super Sapper Charge when shifting vs 3+ enemies/boss
+menu.use_goblin_sapper = core.menu.checkbox(false, "eaxdruidferal_use_goblin_sapper")  -- Use Goblin Sapper Charge when shifting vs 3+ enemies/boss
 
 
 menu.show_dashboard         = core.menu.checkbox(false, "eaxdruidferal_show_dashboard")  -- Default OFF (Beta)
@@ -255,6 +261,8 @@ function menu.render()
             menu.bite_min_cp:render("Bite Min CP", "Minimum CP for Ferocious Bite")
             menu.bite_max_energy:render("Bite Max Energy", "Don't FB above this energy to avoid waste")
             menu.use_bite_execute:render("Bite Execute Mode", "Use FB as execute on low HP/short TTD")
+            menu.bite_execute_ttd:render("Execute TTD (sec)", "Use execute bite when TTD below this (scales with CP)")
+            menu.bite_execute_hp:render("Execute HP %", "Use execute bite when target HP below this")
             menu.use_bite_trick:render("Bite Trick", "Low-energy FB dump in dead zone")
             menu.bite_killshot_hp_pct:render("Killshot HP %", "Use Ferocious Bite below this target HP percent")
             menu.use_maim:render("Maim (interrupt)", "Use Maim as interrupt finisher")
@@ -272,6 +280,7 @@ function menu.render()
             menu.rip_only_elites:render("Rip Elites Only", "Only use Rip on elite or boss targets")
             menu.use_mangle_builder:render("Mangle Builder", "Use Mangle as combo point builder")
             menu.enable_aoe:render("Enable AoE", "Enable AoE rotation when multiple targets present")
+            menu.aoe_enemy_count:render("AoE Enemy Count", "Minimum enemies to trigger AoE rotation")
             menu.spread_rake:render("Spread Rake", "Spread Rake DoT to nearby targets")
 
             ps.header("Bear Form - Threat")
@@ -354,6 +363,10 @@ function menu.render()
             menu.form_healthstone_hp_pct:render("Healthstone HP%", "HP threshold")
             menu.use_form_healing_potion:render("Healing Potion (Form)", "Use potion when low HP")
             menu.form_healing_potion_hp_pct:render("Potion HP%", "HP threshold")
+            
+            ps.header("Sapper Charges")
+            menu.use_super_sapper:render("Super Sapper", "Use when shifting vs 3+ enemies/boss")
+            menu.use_goblin_sapper:render("Goblin Sapper", "Use when shifting vs 3+ enemies/boss")
             
             ps.header("Sustain (OOC)")
             menu.ooc_drink:render("Auto-Drink", "Drink to restore mana when out of combat")

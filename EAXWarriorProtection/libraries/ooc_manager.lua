@@ -23,7 +23,6 @@ local spell_helper = require("common/utility/spell_helper")
 
 local _core_time = core.time
 local _core_object_manager = core.object_manager
-local _core_inventory = core.inventory
 local _core_spell_book = core.spell_book
 
 -- ============================================================================
@@ -121,30 +120,9 @@ end
 ---@param want_food boolean
 ---@return number|nil
 local function find_consumable_of_type(me, want_drink, want_food)
-    if not _core_inventory then
-        return nil
-    end
-
-    local wanted = {}
-    local list = want_drink and FALLBACK_DRINKS or FALLBACK_FOODS
-    for _, id in ipairs(list) do
-        wanted[id] = true
-    end
-
-    for bag = 0, 4 do
-        local ok, items = pcall(function() return _core_inventory.get_items_in_bag(bag) end)
-        if ok and items then
-            for _, slot in ipairs(items) do
-                if slot and slot.object and slot.object:is_valid() then
-                    local ok2, id = pcall(function() return slot.object:get_item_id() end)
-                    if ok2 and id and id > 0 and wanted[id] then
-                        return id
-                    end
-                end
-            end
-        end
-    end
-
+    -- TODO: Bag scanning API (core.inventory.get_items_in_bag) not available in Sylvanas runtime
+    -- This function is stubbed out until an alternative implementation is found
+    -- Return nil to indicate "no consumables found"
     return nil
 end
 

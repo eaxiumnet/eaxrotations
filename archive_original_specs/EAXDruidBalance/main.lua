@@ -630,7 +630,7 @@ local function try_root_escape_balance(me)
         if CancelShapeshiftForm then CancelShapeshiftForm() end
     end)
     if not ok and runtime.moonkin_form_id then
-        core.spell_book.cast_spell(runtime.moonkin_form_id)
+        core.input.cast_target_spell(runtime.moonkin_form_id, me)
     end
     utils.log_debug(menu, "Balance root escape: shifted out of Moonkin")
     return true

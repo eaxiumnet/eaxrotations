@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Warrior Arms",
+    class_id = 1,  -- Warrior class ID for player validation
     resource_type = "rage",
     
     -- Cooldowns to track (spell IDs)

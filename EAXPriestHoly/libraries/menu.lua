@@ -23,7 +23,6 @@ local advanced_tree = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxpriestholy_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxpriestholy_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxpriestholy_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxpriestholy_debug")
 
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxpriestholy_focus_priority")
@@ -181,7 +180,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable rotation")
         menu.toggle_key:render("Toggle Key", "Quick enable/disable")
         menu.mode:render("Mode", "Auto/PvE/PvP")
-        menu.debug:render("Debug", "Show debug info")
 
         -- Healing
         rotation_tree:render("Healing", function()

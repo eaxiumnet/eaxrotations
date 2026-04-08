@@ -47,8 +47,8 @@ local function try_racial(me, name)
         _sq:queue_spell_target_fast(id, me, 1)
         return true
     end
-    if core.spell_book.cast_spell then
-        pcall(core.spell_book.cast_spell, id, me)
+    if core.input.cast_target_spell then
+        pcall(core.input.cast_target_spell, id, me)
     end
     return true
 end

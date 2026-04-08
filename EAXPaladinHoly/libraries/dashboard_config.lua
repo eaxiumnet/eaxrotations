@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Paladin Holy",
+    class_id = 2,  -- Paladin class ID for player validation
     resource_type = "mana",
     
     -- Cooldowns to track (spell IDs)

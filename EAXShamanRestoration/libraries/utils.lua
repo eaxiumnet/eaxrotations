@@ -121,10 +121,9 @@ function utils.has_debuff(unit, debuff_table)
     return data ~= nil and data.is_active
 end
 
+-- Debug logging (disabled - menu.debug removed from all specs)
 function utils.log_debug(menu_module, message)
-    if menu_module and menu_module.debug and menu_module.debug:get_state() then
-        core.log("[EAX] " .. tostring(message))
-    end
+    -- Debug logging disabled - menu.debug removed from all specs
 end
 
 local function can_issue_queue_request(kind, spell_id, target, interval_s)

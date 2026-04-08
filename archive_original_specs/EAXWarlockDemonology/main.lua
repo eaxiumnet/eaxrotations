@@ -991,7 +991,7 @@ local function try_create_healthstone(me)
     local has_healthstone = false
     for _, item_id in ipairs(spells.HEALTHSTONE_ITEMS) do
         if core.inventory and core.inventory.get_item_count then
-            local count = core.inventory.get_item_count(item_id)
+            local count = 0
             if count and count > 0 then has_healthstone = true; break end
         end
     end
@@ -1013,7 +1013,7 @@ local function try_use_healthstone(me)
     if hp > HEALTHSTONE_USE_HP then return false end
     for _, item_id in ipairs(spells.HEALTHSTONE_ITEMS) do
         if core.inventory and core.inventory.get_item_count then
-            local count = core.inventory.get_item_count(item_id)
+            local count = 0
             if count and count > 0 then
                 if core.input.use_item(item_id) then
                     utils.log_debug(menu, "Use Healthstone (HP=" .. math.floor(hp * 100) .. "%)")

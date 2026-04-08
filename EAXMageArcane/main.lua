@@ -22,7 +22,6 @@ local anti_fake_manager = require("libraries/anti_fake_manager")
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
-local _get_spell_cd = core.spell_book.get_spell_cooldown
 
 -- Runtime state
 local runtime = {
@@ -88,7 +87,9 @@ force_commands:init()
 local dash_config = dashboard_config.init()
 dashboard.init(dash_config)
 dashboard.set_enabled(true)
-dashboard.register_render_callback()
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end
 
 -- Helper functions
 local function is_valid_hostile_target(me, target)
@@ -176,7 +177,7 @@ local function try_cold_snap(me)
     local ttd = get_target_ttd_seconds(target)
     if min_ttd > 0 and ttd and ttd > 0 and ttd < min_ttd then return false end
 
-    local iv_cd = _get_spell_cd(runtime.icy_veins_id)
+    local iv_cd = core.spell_book.get_spell_cooldown(runtime.icy_veins_id)
     if iv_cd < 20 then return false end
 
     if not utils.can_cast_self(runtime.cold_snap_id, me) then return false end
@@ -595,9 +596,6 @@ local function do_rotation(me, target)
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 
@@ -674,6 +672,28 @@ core.register_on_update_callback(function()
     end
 
     if not (menu.enabled and menu.enabled:get_state()) then return end
+
+    -- Sync dashboard settings (safe pcall for uninitialized menu items)
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
 
     -- OOC self-buffing via ooc_manager
     if not me:is_in_combat() then

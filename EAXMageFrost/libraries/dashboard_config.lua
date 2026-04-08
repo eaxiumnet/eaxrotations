@@ -49,6 +49,7 @@ local TBC_SPELL_IDS = {
 
 local config = {
     class_name = "Frost Mage",
+    class_id = 8,  -- Mage class ID for player validation
     resource_type = "mana",
     
     -- Cooldowns to track (spell IDs)

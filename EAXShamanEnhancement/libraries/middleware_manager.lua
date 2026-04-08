@@ -95,10 +95,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(SHAMAN_SPELLS.MANA_POTION, "mana_potion", 80)
-                    return true, "[MW] Mana Potion queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(SHAMAN_SPELLS.MANA_POTION)
                     return true, "[MW] Mana Potion"
                 end
@@ -156,10 +153,7 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 local spell_id = SHAMAN_SPELLS.BLOODLUST
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(spell_id, "bloodlust", 95)
-                    return true, "[MW] Bloodlust queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(spell_id)
                     return true, "[MW] Bloodlust"
                 end
@@ -207,10 +201,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(SHAMAN_SPELLS.SHAMANISTIC_RAGE, "shamanistic_rage", 85)
-                    return true, "[MW] Shamanistic Rage queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(SHAMAN_SPELLS.SHAMANISTIC_RAGE)
                     return true, "[MW] Shamanistic Rage"
                 end

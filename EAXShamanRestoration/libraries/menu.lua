@@ -25,7 +25,6 @@ local advanced_tree = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxshamanrestoration_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxshamanrestoration_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxshamanrestoration_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxshamanrestoration_debug")
 
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxshamanrestoration_focus_priority")
@@ -180,17 +179,11 @@ menu.dark_rune_pct                       = core.menu.slider_int(5, 100, 15, "eax
 menu.water_shield_mana_pct               = core.menu.slider_int(30, 100, 60, "eaxshamanresto_water_shield_mana_pct")
 
 -- Dashboard
-menu.show_dashboard         = core.menu.checkbox(true, "eaxshamanrestoration_show_dashboard")
-menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxshamanrestoration_dashboard_opacity")
-menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxshamanrestoration_dashboard_scale")
-menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxshamanrestoration_dashboard_x")
-menu.dashboard_y            = core.menu.slider_int(0, 2000, 200, "eaxshamanrestoration_dashboard_y")
-menu.show_timer_bars = core.menu.checkbox(true, "eaxshamanrestoration_show_timer_bars")
-menu.show_action_history = core.menu.checkbox(true, "eaxshamanrestoration_show_action_history")
-menu.show_energy_tick = core.menu.checkbox(false, "eaxshamanrestoration_show_energy_tick")
-menu.show_combo_points = core.menu.checkbox(false, "eaxshamanrestoration_show_combo_points")
-menu.show_threat_bar = core.menu.checkbox(false, "eaxshamanrestoration_show_threat_bar")
-menu.enable_smart_collapse = core.menu.checkbox(true, "eaxshamanrestoration_enable_smart_collapse")
+menu.dashboard_enabled      = core.menu.checkbox(true, "eaxshamanresto_dashboard_enabled")
+menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxshamanresto_dashboard_opacity")
+menu.dashboard_x            = core.menu.slider_int(0, 1000, 20, "eaxshamanresto_dashboard_x")
+menu.dashboard_y            = core.menu.slider_int(0, 1000, 200, "eaxshamanresto_dashboard_y")
+menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxshamanresto_dashboard_scale")
 
 mana_conservator.register_menu_items(menu, "eax_shaman_restoration")
 
@@ -220,7 +213,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable rotation")
         menu.toggle_key:render("Toggle Key", "Quick enable/disable")
         menu.mode:render("Mode", "Auto/PVE/PVP")
-        menu.debug:render("Debug", "Show debug info")
 
         -- Healing
         rotation_tree:render("Healing", function()
@@ -367,16 +359,11 @@ function menu.render()
 
         -- Dashboard
         dashboard_tree:render("Dashboard", function()
-            ps.header("Display")
-            menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
+            menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
-            menu.dashboard_scale:render("Scale", "Dashboard UI scale")
-            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
-            ps.header("Features")
-            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
-            menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+            menu.dashboard_x:render("Position X", "Horizontal position")
+            menu.dashboard_y:render("Position Y", "Vertical position")
+            menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
         end)
 
         -- Advanced (Targeting, Racial, Leveling)

@@ -94,10 +94,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(WARLOCK_SPELLS.MANA_POTION, "mana_potion", 80)
-                    return true, "[MW] Mana Potion queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(WARLOCK_SPELLS.MANA_POTION)
                     return true, "[MW] Mana Potion"
                 end
@@ -149,10 +146,7 @@ function middleware_manager.initialize(menu)
                 return true
             end,
             execute = function(icon, ctx)
-                if core.spell_queue and core.spell_queue.add then
-                    core.spell_queue.add(WARLOCK_SPELLS.DEATH_COIL, "death_coil", 90)
-                    return true, "[MW] Death Coil queued"
-                elseif icon and icon.cast then
+                if icon and icon.cast then
                     icon:cast(WARLOCK_SPELLS.DEATH_COIL)
                     return true, "[MW] Death Coil"
                 end

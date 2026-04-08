@@ -21,7 +21,6 @@ local clip_tracker = require("libraries/hunter_clip_tracker")
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
-local _get_spell_cd = core.spell_book.get_spell_cooldown
 
 -- Runtime state -------------------------------------------------------------
 local rt = {
@@ -401,7 +400,7 @@ local function try_readiness(me, t)
     if not rt.readiness_id then return false end
     if rt.last_readiness_cast_count == core.spell_book.get_spell_cast_count(rt.readiness_id) then return false end
     local use_for_rf = (menu.readiness_rapid_fire and menu.readiness_rapid_fire:get_state()) or false
-    if use_for_rf and _get_spell_cd(rt.rapid_fire_id) > 60 then
+    if use_for_rf and core.spell_book.get_spell_cooldown(rt.rapid_fire_id) > 60 then
         -- Check burst manager for auto-burst conditions
         local auto_burst = (menu.auto_burst_enabled and menu.auto_burst_enabled:get()) or false
         if auto_burst then
@@ -601,6 +600,27 @@ local function on_update()
     if utils.throttle("mmmode", MODE_REFRESH) then rt.cached_mode = detect_mode() end
     if not (menu.enabled and menu.enabled:get_state()) then return end
     if not me or me:is_dead() then return end
+    -- Sync dashboard settings (safe pcall for uninitialized menu items)
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
 
     -- Track combat state for burst manager and clip tracker
     local in_combat_now = me:is_in_combat()
@@ -677,9 +697,6 @@ local function on_update()
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 

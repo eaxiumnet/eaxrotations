@@ -9,7 +9,7 @@ local swing_manager = {}
 local _core_time = core.time
 local _is_spell_ready = core.spell_book.is_spell_ready
 local _is_spell_already_queued = core.spell_book.is_spell_already_queued
-local _cast_spell = core.input.cast_spell
+local _cast_spell = core.input.cast_target_spell
 local _get_local_player = core.object_manager.get_local_player
 
 -- Constants

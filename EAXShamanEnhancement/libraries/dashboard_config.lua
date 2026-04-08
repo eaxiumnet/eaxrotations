@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Shaman Enhancement",
+    class_id = 7,  -- Shaman class ID for player validation
     
     -- Resource type
     resource_type = "mana",

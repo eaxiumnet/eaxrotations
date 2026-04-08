@@ -131,9 +131,6 @@ local function ensure_seal(me)
             if current_seal ~= "wisdom" and runtime.seal_of_wisdom_id then
                 if utils.can_cast_self(runtime.seal_of_wisdom_id, me) and utils.cast_self(runtime.seal_of_wisdom_id, me) then
                     note_cast()
-                    if menu.debug and menu.debug:get_state() then
-                        utils.log_debug(menu, "Seal: Wisdom (low mana)")
-                    end
                     return true
                 end
             end
@@ -156,9 +153,6 @@ local function ensure_seal(me)
     if seal_id and utils.can_cast_self(seal_id, me) then
         if utils.cast_self(seal_id, me) then
             note_cast()
-            if menu.debug and menu.debug:get_state() then
-                utils.log_debug(menu, "Seal: " .. desired_seal)
-            end
             return true
         end
     end
@@ -177,9 +171,6 @@ local function ensure_aura(me)
         if utils.cast_self(aura_id, me) then
             runtime.last_aura_cast_at = _core_time()
             note_cast()
-            if menu.debug and menu.debug:get_state() then
-                utils.log_debug(menu, "Devotion Aura")
-            end
             return true
         end
     end
@@ -192,9 +183,6 @@ local function ensure_righteous_fury(me)
     if not runtime.righteous_fury_id then return false end
     if utils.can_cast_self(runtime.righteous_fury_id, me) and utils.cast_self(runtime.righteous_fury_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Righteous Fury")
-        end
         return true
     end
     return false
@@ -212,9 +200,6 @@ local function try_holy_shield(me)
     if not utils.can_cast_self(runtime.holy_shield_id, me) then return false end
     if utils.cast_self(runtime.holy_shield_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Holy Shield")
-        end
         return true
     end
     return false
@@ -231,9 +216,6 @@ local function try_avengers_shield(me, target)
     if not utils.can_cast_target(runtime.avengers_shield_id, me, target) then return false end
     if utils.cast_target(runtime.avengers_shield_id, me, target) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Avenger's Shield")
-        end
         return true
     end
     return false
@@ -248,9 +230,6 @@ local function try_consecration(me)
     if not utils.can_cast_self(runtime.consecration_id, me) then return false end
     if utils.cast_self(runtime.consecration_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Consecration")
-        end
         return true
     end
     return false
@@ -268,9 +247,6 @@ local function try_judgement(me, target)
     if get_active_seal(me) == "none" then return false end
     if utils.cast_target(runtime.judgement_id, me, target) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Judgement")
-        end
         return true
     end
     return false
@@ -286,9 +262,6 @@ local function try_exorcism(me, target)
     if not utils.can_cast_target(runtime.exorcism_id, me, target) then return false end
     if utils.cast_target(runtime.exorcism_id, me, target) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Exorcism")
-        end
         return true
     end
     return false
@@ -303,9 +276,6 @@ local function try_hammer_of_wrath(me, target)
     if not utils.can_cast_target(runtime.hammer_of_wrath_id, me, target) then return false end
     if utils.cast_target(runtime.hammer_of_wrath_id, me, target) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Hammer of Wrath")
-        end
         return true
     end
     return false
@@ -331,9 +301,6 @@ local function try_holy_wrath(me)
     if not utils.can_cast_self(runtime.holy_wrath_id, me) then return false end
     if utils.cast_self(runtime.holy_wrath_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Holy Wrath")
-        end
         return true
     end
     return false
@@ -361,9 +328,6 @@ local function try_righteous_defense(me, target)
     if not utils.can_cast_target(runtime.righteous_defense_id, me, target) then return false end
     if utils.cast_target(runtime.righteous_defense_id, me, target) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Righteous Defense")
-        end
         return true
     end
     return false
@@ -379,9 +343,6 @@ local function try_avenging_wrath(me)
     if not utils.can_cast_self(runtime.avenging_wrath_id, me) then return false end
     if utils.cast_self_fast(runtime.avenging_wrath_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Avenging Wrath")
-        end
         return true
     end
     return false
@@ -401,9 +362,6 @@ local function try_divine_shield(me, ctx)
     if not utils.can_cast_self(runtime.divine_shield_id, me) then return false end
     if utils.cast_self(runtime.divine_shield_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Divine Shield (" .. (reason or "emergency") .. ")")
-        end
         return true
     end
     return false
@@ -423,9 +381,6 @@ local function try_lay_on_hands(me, ctx)
     if not utils.can_cast_self(runtime.lay_on_hands_id, me) then return false end
     if utils.cast_self(runtime.lay_on_hands_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Lay on Hands (" .. (reason or "emergency") .. ")")
-        end
         return true
     end
     return false
@@ -440,9 +395,6 @@ local function try_cleanse(me)
     if not utils.can_cast_self(cleanse_id, me) then return false end
     if utils.cast_self(cleanse_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Cleanse")
-        end
         return true
     end
     return false
@@ -460,9 +412,6 @@ local function try_hammer_of_justice(me, target)
     if not utils.can_cast_target(runtime.hammer_of_justice_id, me, target) then return false end
     if utils.cast_target(runtime.hammer_of_justice_id, me, target) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Hammer of Justice (interrupt)")
-        end
         return true
     end
     return false
@@ -628,9 +577,6 @@ core.register_on_update_callback(function()
     -- Execute middleware (healthstones, potions, defensives)
     local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
     if mw_result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, mw_msg or "Middleware executed")
-        end
     end
     
     -- CC Detection: Stop rotation if crowd controlled
@@ -645,9 +591,6 @@ core.register_on_update_callback(function()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     
@@ -682,9 +625,6 @@ core.register_on_update_callback(function()
     local should_tab, tab_reason, new_target = threat_tab_manager.should_tab(me, target, menu)
     if should_tab and new_target then
         if threat_tab_manager.execute_tab(me) then
-            if menu.debug and menu.debug:get_state() then
-                utils.log_debug(menu, "Tab target: " .. tab_reason)
-            end
             -- Update target to new one
             target = new_target
             tank_ctx = context_builder.build(me, target, menu)

@@ -10,11 +10,18 @@ local ooc_manager = require("libraries/ooc_manager")
 local mana_manager = require("libraries/mana_manager")
 local burst_manager = require("libraries/burst_manager")
 local trinket_manager = require("libraries/trinket_manager")
+local dashboard = require("libraries/dashboard")
+local dashboard_config = require("libraries/dashboard_config")
 
 -- Flux Feature Integration
 local combat_forecast = require("libraries/combat_forecast")
 local force_commands = require("libraries/force_commands")
 local swing_manager = require("libraries/swing_manager")
+
+-- Hot-path API caching
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Runtime spell cache
 local runtime = {
@@ -90,9 +97,6 @@ resolve_spells()
 
 -- Initialize Flux force_commands
 force_commands:init()
-
--- Hot-path caching
-local _core_time = core.time
 
 -- Pending cast tracking
 local _pending_casts = {}
@@ -488,7 +492,7 @@ end
 
 -- Main on_update callback
 local function on_update()
-    local me = core.object_manager.get_local_player()
+    local me = _get_local_player()
     if not me or not me:is_valid() then return end
     
     -- CC Detection: Stop rotation if crowd controlled
@@ -496,9 +500,6 @@ local function on_update()
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     
@@ -533,6 +534,28 @@ local function on_update()
         })
         if try_ghost_wolf(me) then return end
         return
+    end
+    
+    -- Sync dashboard settings (safe pcall for uninitialized menu items)
+    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    if ok_show then
+        dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
     end
     
     -- Get target
@@ -603,6 +626,13 @@ if core and core.register_on_render_menu_callback then
         menu.set_window(win)
         menu.render()
     end)
+end
+
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.set_enabled(true)
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
 end
 
 -- Export toggle settings for external access

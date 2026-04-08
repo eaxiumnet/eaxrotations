@@ -24,7 +24,6 @@ local advanced_tree   = ps.tree_node()
 menu.enabled         = core.menu.checkbox(true,  "eaxpriestsmite_enabled")
 menu.toggle_key      = core.menu.keybind(7, false, "eaxpriestsmite_toggle_key")
 menu.mode            = core.menu.combobox(1, "eaxpriestsmite_mode")
-menu.debug           = core.menu.checkbox(false, "eaxpriestsmite_debug")
 
 -- -- Targeting ------------------------------------------------------------------
 menu.focus_priority        = core.menu.checkbox(false, "eaxpriestsmite_focus_priority")
@@ -131,7 +130,6 @@ function menu.render()
         ps.header("General")
         menu.enabled:render("Enabled", "Enable rotation")
         menu.mode:render("Mode", "Auto / PvE / PvP")
-        menu.debug:render("Debug", "Show debug information")
 
         -- Smite Rotation
         smite_tree:render("Smite Rotation", function()

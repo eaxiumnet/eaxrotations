@@ -20,6 +20,14 @@ local combat_forecast = require("libraries/combat_forecast")
 local force_commands = require("libraries/force_commands")
 local swing_manager = require("libraries/swing_manager")
 
+---@type buff_manager
+local buff_manager = require("common/modules/buff_manager")
+
+-- Hot-path API caching
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+
 -- Runtime spell cache
 local runtime = {
     backstab_id = nil,
@@ -86,8 +94,12 @@ resolve_spells()
 -- Initialize Flux libraries
 force_commands:init()
 
--- Hot-path local caching
-local _core_time = core.time
+-- Initialize dashboard
+dashboard.init(dashboard_config)
+dashboard.set_enabled(true)
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end
 
 -- Pending cast tracking
 local _pending_casts = {}
@@ -407,9 +419,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 
@@ -507,10 +516,6 @@ local NS = _G.EAXRogueSubtlety and _G.EAXRogueSubtlety.NS or {}
 NS.toggle_menu = menu.toggle_menu
 _G.EAXRogueSubtlety = _G.EAXRogueSubtlety or {}
 _G.EAXRogueSubtlety.NS = NS
-
--- Initialize dashboard
-dashboard.init(dashboard_config)
-dashboard.register_render_callback()
 
 -- Register update callback
 core.register_on_update_callback(on_update)

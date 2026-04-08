@@ -26,7 +26,6 @@ local advanced_tree     = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxdruidrestoration_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxdruidrestoration_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxdruidrestoration_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxdruidrestoration_debug")
 
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxdruidrestoration_focus_priority")
@@ -211,7 +210,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable/disable rotation")
         menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
         menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
-        menu.debug:render("Debug", "Enable debug output")
 
         -- 2. Healing
         healing_tree:render("Healing", function()

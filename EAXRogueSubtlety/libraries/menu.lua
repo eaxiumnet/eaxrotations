@@ -23,7 +23,6 @@ local advanced_tree = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxroguesubtlety_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxroguesubtlety_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxroguesubtlety_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxroguesubtlety_debug")
 
 -- Targeting
 menu.focus_priority                      = core.menu.checkbox(false, "eaxroguesubtlety_focus_priority")
@@ -113,17 +112,17 @@ menu.use_healing_potion = core.menu.checkbox(true, "eaxroguesubtlety_use_healing
 menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxroguesubtlety_healing_potion_hp_pct")
 
 -- Dashboard menu items
-menu.show_dashboard         = core.menu.checkbox(true, "eaxroguesubtlety_show_dashboard")
-menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxroguesubtlety_dashboard_opacity")
-menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxroguesubtlety_dashboard_scale")
-menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxroguesubtlety_dashboard_x")
-menu.dashboard_y            = core.menu.slider_int(0, 2000, 200, "eaxroguesubtlety_dashboard_y")
-menu.show_timer_bars = core.menu.checkbox(true, "eaxroguesubtlety_show_timer_bars")
-menu.show_action_history = core.menu.checkbox(true, "eaxroguesubtlety_show_action_history")
-menu.show_energy_tick = core.menu.checkbox(true, "eaxroguesubtlety_show_energy_tick")
-menu.show_combo_points = core.menu.checkbox(true, "eaxroguesubtlety_show_combo_points")
-menu.show_threat_bar = core.menu.checkbox(false, "eaxroguesubtlety_show_threat_bar")
-menu.enable_smart_collapse = core.menu.checkbox(true, "eaxroguesubtlety_enable_smart_collapse")
+menu.show_dashboard         = core.menu.checkbox(true, "eaxroguesub_show_dashboard")
+menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxroguesub_dashboard_opacity")
+menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxroguesub_dashboard_scale")
+menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxroguesub_dashboard_x")
+menu.dashboard_y            = core.menu.slider_int(0, 2000, 200, "eaxroguesub_dashboard_y")
+menu.show_timer_bars = core.menu.checkbox(true, "eaxroguesub_show_timer_bars")
+menu.show_action_history = core.menu.checkbox(true, "eaxroguesub_show_action_history")
+menu.show_energy_tick = core.menu.checkbox(true, "eaxroguesub_show_energy_tick")
+menu.show_combo_points = core.menu.checkbox(true, "eaxroguesub_show_combo_points")
+menu.show_threat_bar = core.menu.checkbox(false, "eaxroguesub_show_threat_bar")
+menu.enable_smart_collapse = core.menu.checkbox(true, "eaxroguesub_enable_smart_collapse")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_backstab", label = "Backstab" },
@@ -151,7 +150,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable rotation")
         menu.toggle_key:render("Toggle Key", "Quick enable/disable")
         menu.mode:render("Mode", "Auto/PvE/PvP")
-        menu.debug:render("Debug", "Show debug info")
 
         -- Rotation
         rotation_tree:render("Rotation", function()

@@ -26,7 +26,6 @@ local advanced_tree = ps.tree_node()
 menu.enabled                             = core.menu.checkbox(true, "eaxdruidbalance_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxdruidbalance_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxdruidbalance_mode")
-menu.debug                               = core.menu.checkbox(false, "eaxdruidbalance_debug")
 
 -- -- Targeting ----------------------------------------------------------------
 menu.focus_priority                      = core.menu.checkbox(false, "eaxdruidbalance_focus_priority")

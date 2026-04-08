@@ -55,7 +55,7 @@ function utils.get_health_pct(unit)
     local hp = unit:get_health()
     local max = unit:get_max_health()
     if not max or max <= 0 then return 0 end
-    return hp / max
+    return (hp / max) * 100
 end
 
 function utils.get_distance_to_target(me, target)
@@ -118,10 +118,9 @@ function utils.has_debuff(unit, debuff_table)
     return data ~= nil and data.is_active
 end
 
+-- Debug logging (disabled - menu.debug removed from all specs)
 function utils.log_debug(menu_module, message)
-    if menu_module and menu_module.debug and menu_module.debug:get_state() then
-        core.log("[EAX] " .. tostring(message))
-    end
+    -- Debug logging disabled - menu.debug removed from all specs
 end
 
 local function can_issue_queue_request(kind, spell_id, target, interval_s)
@@ -206,7 +205,7 @@ function utils.mana_pct(me)
         local ok_mana, mana = pcall(function() return me:get_power(0) end)
         local ok_max, max_mana = pcall(function() return me:get_max_power(0) end)
         if ok_mana and ok_max and max_mana > 0 then
-            return mana / max_mana
+            return (mana / max_mana) * 100
         end
     end
     return 0
@@ -289,7 +288,7 @@ function utils.is_in_pvp_combat(me)
     if not me or not me:is_valid() then return false end
     
     -- Check if targeting an enemy player
-    local target = core.object_manager.get_target()
+    local target = (me and me:get_target())
     if target and utils.is_enemy_player(me, target) then
         return true
     end

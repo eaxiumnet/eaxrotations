@@ -33,7 +33,7 @@ local trinket_manager = require("libraries/trinket_manager")
 -- Hot-path local caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
-local _get_spell_cd = core.spell_book.get_spell_cooldown
+local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Constants
 local SHIELD_SLAM_COST = 20
@@ -631,9 +631,6 @@ local function on_update()
     -- Execute middleware BEFORE rotation (handles healthstones, potions, racials)
     local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
     if mw_result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, mw_msg)
-        end
         return
     end
     
@@ -649,9 +646,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     
@@ -753,7 +747,9 @@ core.register_on_render_control_panel_callback(on_control_panel)
 local dashboard_config = require("libraries/dashboard_config")
 dashboard.init(dashboard_config)
 dashboard.set_enabled((menu.show_dashboard and menu.show_dashboard:get_state()) or true)
-dashboard.register_render_callback()
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end
 
 -- Export toggle settings for external access
 local NS = _G.EAXWarriorProtection and _G.EAXWarriorProtection.NS or {}

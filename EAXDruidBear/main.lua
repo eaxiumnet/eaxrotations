@@ -23,6 +23,7 @@ local smart_defensive = require("libraries/smart_defensive")
 -- Hot-path local caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Runtime state
 local rt = {
@@ -72,7 +73,6 @@ local function resolve()
     rt.bash_id = utils.resolve_spell_id(spells.BASH)
     rt.enrage_id = utils.resolve_spell_id(spells.ENRAGE)
     rt.barkskin_id = utils.resolve_spell_id(spells.BARKSKIN)
-    rt.survival_instincts_id = utils.resolve_spell_id(spells.SURVIVAL_INSTINCTS)
     rt.bear_form_id = utils.resolve_spell_id(spells.BEAR_FORM)
     rt.dire_bear_form_id = utils.resolve_spell_id(spells.DIRE_BEAR_FORM)
     rt.mark_of_the_wild_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD)
@@ -160,26 +160,6 @@ local function try_barkskin(me, ctx)
     if not utils.can_cast_self(rt.barkskin_id, me) then return false end
     if utils.cast_self(rt.barkskin_id, me) then
         utils.log_debug(menu, "Barkskin (" .. (reason or "hp_threshold") .. ")")
-        return true
-    end
-    return false
-end
-
-local function try_survival_instincts(me, ctx)
-    local use_survival_instincts = (menu.use_survival_instincts and menu.use_survival_instincts.get and menu.use_survival_instincts:get()) or false
-    if not use_survival_instincts then return false end
-    if not rt.survival_instincts_id then return false end
-    
-    -- Use smart_defensive for predictive mitigation
-    local settings = {
-        survival_instincts_hp = 30,
-    }
-    local should_use, reason = smart_defensive.should_use(me, "survival_instincts", ctx or {}, settings)
-    
-    if not should_use then return false end
-    if not utils.can_cast_self(rt.survival_instincts_id, me) then return false end
-    if utils.cast_self(rt.survival_instincts_id, me) then
-        utils.log_debug(menu, "Survival Instincts (" .. (reason or "hp_threshold") .. ")")
         return true
     end
     return false
@@ -365,7 +345,6 @@ local function do_rotation(me, t, ctx)
     -- Defensive (with smart_defensive prediction)
     if try_frenzied_regeneration(me, ctx) then return end
     if try_barkskin(me, ctx) then return end
-    if try_survival_instincts(me, ctx) then return end
 
     -- Taunts
     if try_growl(me, t) then return end
@@ -403,6 +382,24 @@ local function on_update()
     -- Enable dashboard when rotation is active (respect menu setting)
     local show_dashboard = (menu.show_dashboard and menu.show_dashboard.get and menu.show_dashboard:get()) or false
     dashboard.set_enabled(show_dashboard)
+    
+    -- Sync dashboard settings (safe pcall for uninitialized menu items)
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
+    end
+    
     if not me or me:is_dead() then return end
 
     -- CC Detection: Stop rotation if crowd controlled
@@ -417,9 +414,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 

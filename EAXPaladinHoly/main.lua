@@ -122,9 +122,6 @@ local function ensure_seal(me)
     if seal_id and utils.can_cast_self(seal_id, me) then
         if utils.cast_self(seal_id, me) then
             note_cast()
-            if menu.debug and menu.debug:get_state() then
-                utils.log_debug(menu, "Seal: " .. desired_seal)
-            end
             return true
         end
     end
@@ -160,9 +157,6 @@ local function cast_flash_of_light(me, target)
     if utils.cast_target(runtime.flash_of_light_id, me, target) then
         note_cast()
         runtime.last_heal_target = target
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Flash of Light -> " .. (target.get_name and target:get_name() or "target"))
-        end
         return true
     end
     return false
@@ -174,9 +168,6 @@ local function cast_holy_light(me, target)
     if utils.cast_target(runtime.holy_light_id, me, target) then
         note_cast()
         runtime.last_heal_target = target
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Holy Light -> " .. (target.get_name and target:get_name() or "target"))
-        end
         return true
     end
     return false
@@ -189,9 +180,6 @@ local function cast_holy_shock(me, target)
     if utils.cast_target(runtime.holy_shock_id, me, target) then
         note_cast()
         runtime.last_heal_target = target
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Holy Shock -> " .. (target.get_name and target:get_name() or "target"))
-        end
         return true
     end
     return false
@@ -205,9 +193,6 @@ local function cast_lay_on_hands(me, target)
     if not utils.can_cast_target(runtime.lay_on_hands_id, me, target) then return false end
     if utils.cast_target(runtime.lay_on_hands_id, me, target) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Lay on Hands -> " .. (target.get_name and target:get_name() or "target"))
-        end
         return true
     end
     return false
@@ -228,9 +213,6 @@ local function try_divine_favor(me)
     
     if utils.cast_self_fast(runtime.divine_favor_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Divine Favor")
-        end
         return true
     end
     return false
@@ -246,9 +228,6 @@ local function try_divine_illumination(me)
     if not utils.can_cast_self(runtime.divine_illumination_id, me) then return false end
     if utils.cast_self_fast(runtime.divine_illumination_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Divine Illumination")
-        end
         return true
     end
     return false
@@ -267,9 +246,6 @@ local function try_avenging_wrath(me)
     
     if utils.cast_self_fast(runtime.avenging_wrath_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Avenging Wrath")
-        end
         return true
     end
     return false
@@ -286,9 +262,6 @@ local function try_divine_shield(me)
     if not utils.can_cast_self(runtime.divine_shield_id, me) then return false end
     if utils.cast_self(runtime.divine_shield_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Divine Shield (emergency)")
-        end
         return true
     end
     return false
@@ -304,9 +277,6 @@ local function try_divine_protection(me)
     if not utils.can_cast_self(runtime.divine_protection_id, me) then return false end
     if utils.cast_self(runtime.divine_protection_id, me) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Divine Protection")
-        end
         return true
     end
     return false
@@ -322,9 +292,6 @@ local function try_cleanse(me)
     if utils.needs_cleanse(me) and utils.can_cast_self(cleanse_id, me) then
         if utils.cast_self(cleanse_id, me) then
             note_cast()
-            if menu.debug and menu.debug:get_state() then
-                utils.log_debug(menu, "Cleanse (self)")
-            end
             return true
         end
     end
@@ -337,9 +304,6 @@ local function try_cleanse(me)
             if utils.can_cast_target(cleanse_id, me, unit) then
                 if utils.cast_target(cleanse_id, me, unit) then
                     note_cast()
-                    if menu.debug and menu.debug:get_state() then
-                        utils.log_debug(menu, "Cleanse -> " .. (unit.get_name and unit:get_name() or "party"))
-                    end
                     return true
                 end
             end
@@ -380,9 +344,6 @@ local function try_judgement(me, target)
     
     if utils.cast_target(runtime.judgement_id, me, target) then
         note_cast()
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, "Judgement")
-        end
         return true
     end
     return false
@@ -477,9 +438,6 @@ core.register_on_update_callback(function()
     -- Execute middleware (healthstones, potions, defensives)
     local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
     if mw_result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, mw_msg or "Middleware executed")
-        end
         -- Don't return here - let healing continue after middleware
     end
     
@@ -495,9 +453,6 @@ core.register_on_update_callback(function()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     

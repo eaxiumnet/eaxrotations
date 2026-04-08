@@ -309,8 +309,7 @@ function settings_framework.create_standard_menu(core_menu)
     menu.enabled = core_menu.checkbox(CONFIG.defaults.enabled, state.spec_name .. "_enabled")
     menu.toggle_key = core_menu.keybind(CONFIG.defaults.toggle_key, false, state.spec_name .. "_toggle_key")
     menu.mode = core_menu.combobox(CONFIG.defaults.mode, state.spec_name .. "_mode")
-    menu.debug = core_menu.checkbox(CONFIG.defaults.debug, state.spec_name .. "_debug")
-    
+
     -- Targeting
     menu.focus_priority = core_menu.checkbox(false, state.spec_name .. "_focus_priority")
     menu.combat_self_hp_boost = core_menu.slider_int(0, 30, 10, state.spec_name .. "_combat_self_hp_boost")
@@ -381,7 +380,6 @@ function settings_framework.render_controls(menu, title)
     menu.enabled:render("Enabled", CONFIG.tooltips.enabled)
     menu.toggle_key:render("Toggle Key", CONFIG.tooltips.toggle_key)
     menu.mode:render("Mode", settings_framework.get_mode_options(), CONFIG.tooltips.mode.auto)
-    menu.debug:render("Debug Logging", "Print rotation decisions to the console")
     if menu._major_toggle_bindings and #menu._major_toggle_bindings > 0 then
         core.menu.header("  Major Ability Hotkeys")
         for _, binding in ipairs(menu._major_toggle_bindings) do

@@ -816,6 +816,18 @@ function core.game_ui.add_tooltip_double_line(left_text, right_text, lr, lg, lb,
     return nil
 end
 
+--- Returns whether the ping system is currently enabled.
+---@return boolean enabled True if the ping system is enabled, false otherwise.
+function core.game_ui.is_ping_enabled()
+    return false
+end
+
+--- Sends a ping, optionally targeting a game object.
+---@param ping_type? integer The ping type ID. Pass -1 or omit for default contextual ping.
+---@param target? game_object The target game object to ping on. Omit for a contextual ping at the cursor.
+function core.game_ui.send_ping(ping_type, target)
+end
+
 --- Starts a countdown timer in the party/raid.
 ---@param seconds integer The countdown duration in seconds.
 ---@return boolean success Whether the countdown was started successfully.

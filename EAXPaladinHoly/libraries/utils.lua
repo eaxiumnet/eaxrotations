@@ -418,7 +418,7 @@ function utils.cast_self_fast(spell_id, me)
     if not spell_id or not me or not me:is_valid() then return false end
     if not utils.can_cast_self(spell_id, me) then return false end
     -- Direct cast without queue throttling for emergency spells
-    core.spell_book.cast_spell(spell_id, me)
+    core.input.cast_target_spell(spell_id, me)
     return true
 end
 

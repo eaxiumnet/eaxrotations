@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Warlock Affliction",
+    class_id = 9,  -- Warlock class ID for player validation
     
     -- Resource type
     resource_type = "mana",
@@ -49,7 +50,7 @@ return {
     custom_lines = {
         -- Active DoT count on target
         function(ctx)
-            local target = core.object_manager.get_target()
+            local target = (me and me:get_target())
             if not target or not target:is_valid() then return "DoTs", "0/6" end
             
             local spells = require("libraries/spells")
@@ -97,16 +98,9 @@ return {
         
         -- Soul Shard count
         function(ctx)
-            local count = 0
-            if core.inventory and core.inventory.get_item_count then
-                local spells = require("libraries/spells")
-                if spells.SOUL_SHARD_ITEMS then
-                    for _, id in ipairs(spells.SOUL_SHARD_ITEMS) do
-                        count = count + (core.inventory.get_item_count(id) or 0)
-                    end
-                end
-            end
-            return "Soul Shards", tostring(count)
+            -- TODO: Soul shard counting requires bag scanning API not available in Sylvanas
+            -- Return placeholder until alternative implementation found
+            return "Soul Shards", "N/A"
         end,
         
         -- Active pet

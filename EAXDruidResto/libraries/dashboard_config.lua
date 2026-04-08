@@ -84,6 +84,7 @@ end
 
 return {
     class_name = "Druid Restoration",
+    class_id = 11,  -- Druid class ID for player validation
     resource_type = "mana",  -- Healer priority: mana
     
     -- Cooldowns to track (spell IDs)

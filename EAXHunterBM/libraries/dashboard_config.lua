@@ -7,6 +7,7 @@ local utils = require("libraries/utils")
 
 return {
     class_name = "Hunter BM",
+    class_id = 3,  -- Hunter class ID for player validation
     resource_type = "mana",
     secondary_resource_type = nil,
 

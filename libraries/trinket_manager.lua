@@ -11,11 +11,9 @@ local DEFENSIVE = 2
 
 -- Cache hot-path APIs at load
 local _core_time = core.time
-local _get_item_id = core.inventory.get_item_id
-local _get_item_cooldown = core.inventory.get_item_cooldown
 local _is_item_ready = core.spell_book.is_item_ready
 local _use_item = core.input.use_item
-local _get_target = core.object_manager.get_target
+local _get_local_player = core.object_manager.get_local_player
 
 local TRINKET_SLOTS = {13, 14}  -- Top trinket, Bottom trinket
 local DEFAULT_OFFENSIVE_TTD = 10  -- Don't use offensive trinket if target dies in <10s
@@ -29,14 +27,21 @@ trinket_manager.DEFENSIVE = DEFENSIVE
 ---@param slot number Equipment slot (13 or 14)
 ---@return boolean success
 function trinket_manager.use_trinket_if_ready(slot)
+   -- Get local player
+   local me = _get_local_player()
+   if not me then
+      return false
+   end
+   
    -- Get item info
-   local item_id = _get_item_id(slot)
+   local item = me:get_equipped_item(slot)
+   local item_id = item and item.id or nil
    if not item_id or item_id == 0 then
       return false
    end
    
    -- Check cooldown
-   local start, duration = _get_item_cooldown(slot)
+   local start, duration = me:get_item_cooldown(slot)
    if start > 0 then
       local remaining = start + duration - _core_time()
       if remaining > 0 then
@@ -58,8 +63,8 @@ end
 ---@param is_burst_window boolean Whether we're in a burst window
 ---@param menu table Menu reference
 function trinket_manager.check_trinkets(me, is_burst_window, menu)
-   if not _get_target then return end
-   local target = _get_target()
+   if not me then return end
+   local target = (me and me:get_target())
     local combat_forecast = require("combat_forecast")
    
    for _, slot in ipairs(TRINKET_SLOTS) do
@@ -95,18 +100,20 @@ end
 ---@return table trinket_status Array of {slot, mode, ready}
 function trinket_manager.get_trinket_status(menu)
    local status = {}
+   local me = _get_local_player()
    
    for _, slot in ipairs(TRINKET_SLOTS) do
       local slot_num = slot - 12
       local mode_key = "trinket" .. slot_num .. "_mode"
       local mode = (menu[mode_key] and menu[mode_key]:get()) or 1
       
-      local item_id = _get_item_id(slot)
+      local item = me and me:get_equipped_item(slot) or nil
+      local item_id = item and item.id or nil
       local has_trinket = item_id and item_id > 0
       
       local ready = false
-      if has_trinket then
-         local start, duration = _get_item_cooldown(slot)
+      if has_trinket and me then
+         local start, duration = me:get_item_cooldown(slot)
          ready = start == 0 or (_core_time() >= start + duration)
       end
       
@@ -261,7 +268,13 @@ end
 ---@param slot number Equipment slot (13 or 14)
 ---@return boolean success
 function trinket_manager.use_trinket_izi(slot)
-   local item_id = _get_item_id(slot)
+   local me = _get_local_player()
+   if not me then
+      return false
+   end
+   
+   local item = me:get_equipped_item(slot)
+   local item_id = item and item.id or nil
    if not item_id or item_id == 0 then
       return false
    end
@@ -279,3 +292,4 @@ function trinket_manager.use_trinket_izi(slot)
 end
 
 return trinket_manager
+

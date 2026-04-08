@@ -218,7 +218,7 @@ function pvp_manager.try_rogue_pvp_cooldowns(me, target)
     if hp < 30 then
         local evasion_id = 5277
         if core.spell_book.is_usable_spell(evasion_id) then
-            core.input.cast_spell(evasion_id)
+            core.input.cast_target_spell(evasion_id, me)
             return true
         end
     end
@@ -227,7 +227,7 @@ function pvp_manager.try_rogue_pvp_cooldowns(me, target)
     if hp < 40 or pvp_manager.is_cced(me) then
         local cloak_id = 31224
         if core.spell_book.is_usable_spell(cloak_id) then
-            core.input.cast_spell(cloak_id)
+            core.input.cast_target_spell(cloak_id, me)
             return true
         end
     end
@@ -236,7 +236,7 @@ function pvp_manager.try_rogue_pvp_cooldowns(me, target)
     if hp < 20 then
         local vanish_id = 1856
         if core.spell_book.is_usable_spell(vanish_id) then
-            core.input.cast_spell(vanish_id)
+            core.input.cast_target_spell(vanish_id, me)
             return true
         end
     end
@@ -253,7 +253,7 @@ function pvp_manager.try_warrior_pvp_cooldowns(me, target)
     if pvp_manager.is_cced(me) then
         local berserker_rage_id = 18499
         if core.spell_book.is_usable_spell(berserker_rage_id) then
-            core.input.cast_spell(berserker_rage_id)
+            core.input.cast_target_spell(berserker_rage_id, me)
             return true
         end
     end
@@ -262,7 +262,7 @@ function pvp_manager.try_warrior_pvp_cooldowns(me, target)
     if hp < 30 then
         local shield_wall_id = 871
         if core.spell_book.is_usable_spell(shield_wall_id) then
-            core.input.cast_spell(shield_wall_id)
+            core.input.cast_target_spell(shield_wall_id, me)
             return true
         end
     end
@@ -271,7 +271,7 @@ function pvp_manager.try_warrior_pvp_cooldowns(me, target)
     if hp < 25 then
         local last_stand_id = 12975
         if core.spell_book.is_usable_spell(last_stand_id) then
-            core.input.cast_spell(last_stand_id)
+            core.input.cast_target_spell(last_stand_id, me)
             return true
         end
     end
@@ -288,7 +288,7 @@ function pvp_manager.try_mage_pvp_cooldowns(me, target)
     if hp < 20 or pvp_manager.is_cced(me) then
         local ice_block_id = 45438
         if core.spell_book.is_usable_spell(ice_block_id) then
-            core.input.cast_spell(ice_block_id)
+            core.input.cast_target_spell(ice_block_id, me)
             return true
         end
     end
@@ -297,7 +297,7 @@ function pvp_manager.try_mage_pvp_cooldowns(me, target)
     if hp < 30 then
         local blink_id = 1953
         if core.spell_book.is_usable_spell(blink_id) then
-            core.input.cast_spell(blink_id)
+            core.input.cast_target_spell(blink_id, me)
             return true
         end
     end
@@ -314,7 +314,7 @@ function pvp_manager.try_druid_pvp_cooldowns(me, target)
     if hp < 40 then
         local barkskin_id = 22812
         if core.spell_book.is_usable_spell(barkskin_id) then
-            core.input.cast_spell(barkskin_id)
+            core.input.cast_target_spell(barkskin_id, me)
             return true
         end
     end
@@ -323,7 +323,7 @@ function pvp_manager.try_druid_pvp_cooldowns(me, target)
     if hp < 30 then
         local ns_id = 17116
         if core.spell_book.is_usable_spell(ns_id) then
-            core.input.cast_spell(ns_id)
+            core.input.cast_target_spell(ns_id, me)
             return true
         end
     end
@@ -340,7 +340,7 @@ function pvp_manager.try_priest_pvp_cooldowns(me, target)
     if hp < 35 then
         local ps_id = 33206
         if core.spell_book.is_usable_spell(ps_id) then
-            core.input.cast_spell(ps_id)
+            core.input.cast_target_spell(ps_id, me)
             return true
         end
     end
@@ -349,7 +349,7 @@ function pvp_manager.try_priest_pvp_cooldowns(me, target)
     if hp < 25 then
         local dispersion_id = 47585
         if core.spell_book.is_usable_spell(dispersion_id) then
-            core.input.cast_spell(dispersion_id)
+            core.input.cast_target_spell(dispersion_id, me)
             return true
         end
     end
@@ -366,7 +366,7 @@ function pvp_manager.try_paladin_pvp_cooldowns(me, target)
     if hp < 20 then
         local ds_id = 642
         if core.spell_book.is_usable_spell(ds_id) then
-            core.input.cast_spell(ds_id)
+            core.input.cast_target_spell(ds_id, me)
             return true
         end
     end
@@ -375,7 +375,7 @@ function pvp_manager.try_paladin_pvp_cooldowns(me, target)
     if hp < 30 then
         local bop_id = 1022
         if core.spell_book.is_usable_spell(bop_id) then
-            core.input.cast_spell(bop_id)
+            core.input.cast_target_spell(bop_id, me)
             return true
         end
     end
@@ -392,7 +392,7 @@ function pvp_manager.try_shaman_pvp_cooldowns(me, target)
     if hp < 40 then
         local sr_id = 30823
         if core.spell_book.is_usable_spell(sr_id) then
-            core.input.cast_spell(sr_id)
+            core.input.cast_target_spell(sr_id, me)
             return true
         end
     end
@@ -403,7 +403,7 @@ function pvp_manager.try_shaman_pvp_cooldowns(me, target)
         if class and (class == "MAGE" or class == "WARLOCK" or class == "PRIEST") then
             local ws_id = 57994
             if core.spell_book.is_usable_spell(ws_id) then
-                core.input.cast_spell(ws_id)
+                core.input.cast_target_spell(ws_id, me)
                 return true
             end
         end
@@ -421,7 +421,7 @@ function pvp_manager.try_warlock_pvp_cooldowns(me, target)
     if hp < 35 then
         local dc_id = 6789
         if core.spell_book.is_usable_spell(dc_id) then
-            core.input.cast_spell(dc_id)
+            core.input.cast_target_spell(dc_id, me)
             return true
         end
     end
@@ -430,7 +430,7 @@ function pvp_manager.try_warlock_pvp_cooldowns(me, target)
     if hp < 50 then
         local fear_id = 5782
         if core.spell_book.is_usable_spell(fear_id) then
-            core.input.cast_spell(fear_id)
+            core.input.cast_target_spell(fear_id, me)
             return true
         end
     end
@@ -447,7 +447,7 @@ function pvp_manager.try_hunter_pvp_cooldowns(me, target)
     if hp < 30 then
         local det_id = 19263
         if core.spell_book.is_usable_spell(det_id) then
-            core.input.cast_spell(det_id)
+            core.input.cast_target_spell(det_id, me)
             return true
         end
     end
@@ -456,7 +456,7 @@ function pvp_manager.try_hunter_pvp_cooldowns(me, target)
     if hp < 40 then
         local disengage_id = 781
         if core.spell_book.is_usable_spell(disengage_id) then
-            core.input.cast_spell(disengage_id)
+            core.input.cast_target_spell(disengage_id, me)
             return true
         end
     end

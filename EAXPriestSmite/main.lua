@@ -17,7 +17,6 @@ local force_commands = require("libraries/force_commands")
 -- Hot-path API caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
-local _get_spell_cd = core.spell_book.get_spell_cooldown
 local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Constants
@@ -318,7 +317,7 @@ local function try_inner_focus(me, target)
     if utils.has_buff(me, spells.BUFF_INNER_FOCUS) then return false end
 
     -- Check cooldown
-    if _get_spell_cd(runtime.inner_focus_id) > 0 then return false end
+    if core.spell_book.get_spell_cooldown(runtime.inner_focus_id) > 0 then return false end
 
     -- Check auto-burst settings
     local auto_burst = (menu.auto_burst_enabled and menu.auto_burst_enabled:get_state()) or false
@@ -338,8 +337,8 @@ local function try_inner_focus(me, target)
     end
 
     -- Only use if we have a big spell coming up (Holy Fire or Mind Blast)
-    local hf_cd = runtime.holy_fire_id and _get_spell_cd(runtime.holy_fire_id) or math.huge
-    local mb_cd = runtime.mind_blast_id and _get_spell_cd(runtime.mind_blast_id) or math.huge
+    local hf_cd = runtime.holy_fire_id and core.spell_book.get_spell_cooldown(runtime.holy_fire_id) or math.huge
+    local mb_cd = runtime.mind_blast_id and core.spell_book.get_spell_cooldown(runtime.mind_blast_id) or math.huge
 
     if hf_cd > 2 and mb_cd > 2 then return false end  -- No big spell ready soon
 
@@ -363,7 +362,7 @@ local function try_power_infusion(me, target)
     if utils.has_buff(me, spells.BUFF_POWER_INFUSION) then return false end
 
     -- Check cooldown
-    if _get_spell_cd(runtime.power_infusion_id) > 0 then return false end
+    if core.spell_book.get_spell_cooldown(runtime.power_infusion_id) > 0 then return false end
 
     -- Check auto-burst settings
     local auto_burst = (menu.auto_burst_enabled and menu.auto_burst_enabled:get_state()) or false
@@ -403,7 +402,7 @@ local function try_shadowfiend(me, target)
     if mana_pct > 30 then return false end  -- Only use when mana is low
     
     -- Check cooldown
-    if _get_spell_cd(runtime.shadowfiend_id) > 0 then return false end
+    if core.spell_book.get_spell_cooldown(runtime.shadowfiend_id) > 0 then return false end
     
     if utils.can_cast_hostile(runtime.shadowfiend_id, me, target) then
         if try_cast_izi(runtime.shadowfiend_id, target, "[Smite] Shadowfiend") then
@@ -593,9 +592,6 @@ local function on_update()
     -- Execute middleware (healthstones, potions, racials)
     local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
     if mw_result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, mw_msg)
-        end
         return
     end
     
@@ -604,9 +600,6 @@ local function on_update()
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 

@@ -22,6 +22,11 @@ local combat_forecast = require("libraries/combat_forecast")
 local force_commands = require("libraries/force_commands")
 local swing_manager = require("libraries/swing_manager")
 
+-- Hot-path API caching
+local _core_time = core.time
+local _get_local_player = core.object_manager.get_local_player
+local _get_gcd = core.spell_book.get_global_cooldown
+
 -- Runtime spell cache
 local runtime = {
     mutilate_id = nil,
@@ -78,10 +83,10 @@ force_commands:init()
 
 -- Initialize dashboard
 dashboard.init(dashboard_config)
-dashboard.register_render_callback()
-
--- Hot-path local caching
-local _core_time = core.time
+dashboard.set_enabled(true)
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end
 
 -- Pending cast tracking
 local _pending_casts = {}
@@ -103,7 +108,7 @@ end
 
 -- GCD check
 local function is_gcd_ready()
-    local gcd = core.spell_book.get_global_cooldown()
+    local gcd = _get_gcd()
     return gcd <= 0
 end
 
@@ -282,8 +287,8 @@ local function try_feint(me)
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
-            local me_player = core.object_manager.get_local_player()
-            if me_player and me_player:can_attack(obj) and utils.is_melee_target(me_player, obj) then
+        local me_player = _get_local_player()
+        if me_player and me_player:can_attack(obj) and utils.is_melee_target(me_player, obj) then
                 enemy_count = enemy_count + 1
             end
         end
@@ -302,6 +307,22 @@ local function on_update()
     local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
     if ok_show then
         dashboard.set_enabled(show_dashboard)
+    end
+    
+    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
+    if ok_opacity then
+        dashboard.set_opacity(opacity)
+    end
+    
+    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
+    if ok_scale then
+        dashboard.set_scale(scale)
+    end
+    
+    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
+    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
+    if ok_x and ok_y then
+        dashboard.set_position(pos_x, pos_y)
     end
 
     local me = core.object_manager.get_local_player()
@@ -362,9 +383,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
 

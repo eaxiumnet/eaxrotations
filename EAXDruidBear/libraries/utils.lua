@@ -178,14 +178,11 @@ function utils.enemy_count_in_radius(me, radius)
     return count
 end
 
--- Debug logging with menu check
+-- Debug logging (disabled - menu.debug removed)
 ---@param menu table
 ---@param message string
 function utils.log_debug(menu, message)
-    local debug_enabled = (menu and menu.debug and menu.debug.get and menu.debug:get()) or false
-    if debug_enabled then
-        core.log("[EAX Druid Bear] " .. tostring(message))
-    end
+    -- Debug logging disabled - menu.debug removed from all specs
 end
 
 -- Check if in Bear/Dire Bear form

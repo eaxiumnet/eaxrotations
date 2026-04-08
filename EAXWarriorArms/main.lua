@@ -30,7 +30,7 @@ local force_commands = require("libraries/force_commands")
 -- Hot-path local caching
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
-local _get_spell_cd = core.spell_book.get_spell_cooldown
+local _get_gcd = core.spell_book.get_global_cooldown
 
 -- Constants
 local MORTAL_STRIKE_COST = 30
@@ -221,7 +221,7 @@ local function try_rend(me, target, rage, target_hp_pct)
     if not utils.is_melee_target(me, target) then return false end
     local rend_remaining = utils.get_debuff_remaining_ms(target, spells.DEBUFF_REND)
     if rend_remaining > REND_REFRESH_MS then return false end
-    local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or math.huge
+    local ms_cd = runtime.mortal_strike_id and core.spell_book.get_spell_cooldown(runtime.mortal_strike_id) or math.huge
     if ms_cd <= 1.5 and rage < (MORTAL_STRIKE_COST + REND_COST) then return false end
     if utils.can_cast_melee(runtime.rend_id, me) and utils.cast_target(runtime.rend_id, target) then
         utils.log_debug(menu, rend_remaining > 0 and "Rend refresh" or "Rend")
@@ -234,8 +234,8 @@ local function try_overpower(me, target, rage, target_hp_pct)
     if not menu.use_overpower:get_state() or not target or not runtime.overpower_id then return false end
     if not utils.is_melee_target(me, target) then return false end
     if not core.spell_book.is_usable_spell(runtime.overpower_id) then return false end
-    local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or math.huge
-    local ww_cd = runtime.whirlwind_id and _get_spell_cd(runtime.whirlwind_id) or math.huge
+    local ms_cd = runtime.mortal_strike_id and core.spell_book.get_spell_cooldown(runtime.mortal_strike_id) or math.huge
+    local ww_cd = runtime.whirlwind_id and core.spell_book.get_spell_cooldown(runtime.whirlwind_id) or math.huge
     if not should_use_overpower(me, target, rage, ms_cd, ww_cd, target_hp_pct) then return false end
     if utils.get_current_stance(me) ~= "battle" then
         if runtime.battle_stance_id and utils.can_cast_self(runtime.battle_stance_id, me) then
@@ -321,8 +321,8 @@ local function try_slam(me, target, rage, target_hp_pct)
     if not menu.use_slam:get_state() or not target or not runtime.slam_id then return false end
     if target_hp_pct <= EXECUTE_HP_THRESHOLD then return false end
     if not utils.is_melee_target(me, target) then return false end
-    local ms_cd = runtime.mortal_strike_id and _get_spell_cd(runtime.mortal_strike_id) or math.huge
-    local ww_cd = runtime.whirlwind_id and _get_spell_cd(runtime.whirlwind_id) or math.huge
+    local ms_cd = runtime.mortal_strike_id and core.spell_book.get_spell_cooldown(runtime.mortal_strike_id) or math.huge
+    local ww_cd = runtime.whirlwind_id and core.spell_book.get_spell_cooldown(runtime.whirlwind_id) or math.huge
     if should_pool_for_core(rage, ms_cd, ww_cd) then return false end
     local safety_buffer_ms = menu.slam_safety_buffer_ms:get() or SLAM_SAFE_BUFFER_MS
     if not utils.can_slam_without_clipping(me, runtime.slam_id, safety_buffer_ms) then return false end
@@ -740,9 +740,6 @@ local function on_update()
     -- Execute middleware BEFORE rotation (handles healthstones, potions, racials)
     local mw_result, mw_msg = middleware_manager.execute(nil, ctx)
     if mw_result then
-        if menu.debug and menu.debug:get_state() then
-            utils.log_debug(menu, mw_msg)
-        end
         return
     end
     
@@ -758,9 +755,6 @@ local function on_update()
     end
 
     if should_stop then
-        if (menu.debug and menu.debug:get_state()) then
-            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
-        end
         return  -- Stop rotation while CC'd
     end
     
@@ -858,7 +852,9 @@ core.register_on_render_control_panel_callback(on_control_panel)
 local dashboard_config = require("libraries/dashboard_config")
 dashboard.init(dashboard_config)
 dashboard.set_enabled((menu.show_dashboard and menu.show_dashboard:get_state()) or true)
-dashboard.register_render_callback()
+if dashboard.register_render_callback then
+    dashboard.register_render_callback()
+end
 
 -- Export toggle settings for external access
 local NS = _G.EAXWarriorArms and _G.EAXWarriorArms.NS or {}

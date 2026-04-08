@@ -24,7 +24,6 @@ local advanced_tree     = ps.tree_node()
 menu.enabled         = core.menu.checkbox(true,  "eaxdruidbear_enabled")
 menu.toggle_key      = core.menu.keybind(7, false, "eaxdruidbear_toggle_key")
 menu.mode            = core.menu.combobox(1, "eaxdruidbear_mode")
-menu.debug           = core.menu.checkbox(false, "eaxdruidbear_debug")
 
 -- -- Targeting ------------------------------------------------------------------
 menu.focus_priority        = core.menu.checkbox(false, "eaxdruidbear_focus_priority")
@@ -72,7 +71,6 @@ menu.use_enrage                = core.menu.checkbox(true, "eaxdruidbear_use_enra
 menu.enrage_rage_threshold     = core.menu.slider_int(0, 40, 10, "eaxdruidbear_enrage_rage_threshold")
 menu.use_challenging_roar      = core.menu.checkbox(true, "eaxdruidbear_use_challenging_roar")
 menu.challenging_roar_party_hp_pct = core.menu.slider_int(10, 50, 25, "eaxdruidbear_challenging_roar_party_hp_pct")
-menu.use_survival_instincts    = core.menu.checkbox(true, "eaxdruidbear_use_survival_instincts")
 
 -- -- Shared / Utility ----------------------------------------------------------
 menu.use_feral_charge       = core.menu.checkbox(true, "eaxdruidbear_use_feral_charge")
@@ -136,7 +134,6 @@ settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_mangle_bear", label = "Mangle (Bear)" },
     { toggle = "use_lacerate", label = "Lacerate" },
     { toggle = "use_frenzied_regeneration", label = "Frenzied Regen" },
-    { toggle = "use_survival_instincts", label = "Survival Instincts" },
 }, {
     namespace = "eaxdruidbear",
     log_prefix = "[Eax Bear] ",
@@ -158,7 +155,6 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable/disable rotation")
         menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
         menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
-        menu.debug:render("Debug", "Enable debug output")
 
         -- 2. Bear Form
         bear_tree:render("Bear Form", function()
@@ -184,7 +180,6 @@ function menu.render()
             menu.enrage_rage_threshold:render("Enrage Rage Threshold", "Use Enrage below this rage")
             menu.use_challenging_roar:render("Challenging Roar", "AoE taunt")
             menu.challenging_roar_party_hp_pct:render("Challenging Roar Party HP %", "Use when party members below this HP")
-            menu.use_survival_instincts:render("Survival Instincts", "Max health increase")
         end)
 
         -- 4. Defensive
