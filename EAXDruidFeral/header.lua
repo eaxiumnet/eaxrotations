@@ -1,7 +1,7 @@
 local plugin = {
-    name = "Eax Druid Feral ( Port)",
+    name = "EAX Druid Feral",
     version = "1.0.0",
-    author = "Eax Team ( Port)",
+    author = "Eax",
     load = true,
 }
 

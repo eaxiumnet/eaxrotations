@@ -1,8 +1,8 @@
 local plugin = {}
 
-plugin["name"]    = " Mage Frost"
+plugin["name"]    = "EAX Mage Frost"
 plugin["version"] = "1.0.0"
-plugin["author"]  = " Port"
+plugin["author"]  = "EAX"
 plugin["load"]    = true
 
 -- Check if local player exists

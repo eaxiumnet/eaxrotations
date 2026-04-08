@@ -1,8 +1,8 @@
--- EAX Port) | header.lua
+-- EAX Priest Holy | header.lua
 -- Plugin metadata and load validation.
 
 local plugin = {
-    name = "EAX)",
+    name = "EAX Priest Holy",
     version = "1.0.0",
     author = "Eax",
     load = true,

@@ -4,7 +4,7 @@
 local plugin = {
     name = "EAX",
     version = "1.0.0",
-    author = "EAX",
+    author = "Eax",
     load = true,
 }
 
