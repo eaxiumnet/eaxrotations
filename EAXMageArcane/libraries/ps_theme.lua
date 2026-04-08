@@ -298,38 +298,6 @@ ps.MODE = { "Auto", "Solo", "Dungeon", "Raid" }
 
 -- -- Common render helpers -----------------------------------------------------
 
-function ps.render_controls(m, title)
-    ps.header("Controls")
-    m.enabled:render("Enabled",
-        "Master on/off toggle for " .. title)
-    m.toggle_key:render("Toggle Key",
-        "Keybind to enable or disable the rotation")
-    m.mode:render("Mode", ps.MODE,
-        "Auto detects party context automatically")
-    m.debug:render("Debug Logging",
-        "Print rotation decisions to the console")
-end
-
-function ps.render_targeting(m, tgt_tree)
-    tgt_tree:render("  Eax's Targeting", function()
-        ps.header("Priority")
-        m.focus_priority:render("Focus Target Priority",
-            "Prioritise your focus target over the current target")
-        m.combat_self_hp_boost:render("Self-Heal Bonus %",
-            "Extra health threshold added to self-heal triggers")
-    end)
-end
-
-function ps.render_racial(m, racial_tree)
-    racial_tree:render("  Eax's Racial", function()
-        ps.header("Racial Ability")
-        m.use_racial:render("Use Racial",
-            "Automatically use your racial ability at the right moment")
-        m.racial_hp:render("Racial HP %",
-            "Use defensive racial below this health percent")
-    end)
-end
-
 function ps.render_ooc(m, ooc_tree, is_caster)
     ooc_tree:render("  Eax's Out-of-Combat", function()
         ps.header("Sustain")
