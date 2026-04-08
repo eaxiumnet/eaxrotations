@@ -1,27 +1,29 @@
--- +------------------------------------------------------------------+
--- |  Eax's Shaman Elemental
--- |  Space Theme v4.0  -  Stars drawn inside the panel background
--- +------------------------------------------------------------------+
-local mana_conservator = require("libraries/mana_conservator")
+-- +--------------------------------------------------------------------------+
+-- |  Eax Shaman Elemental  -  Menu  v2.0  -  menu.lua                        |
+-- |                                                                          |
+-- |  Using ps_theme for consistent EAX rotation UI                           |
+-- +--------------------------------------------------------------------------+
 
-local ps   = require("libraries/ps_theme")
+local ps       = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
+
 local menu = {}
 
--- Tree nodes
-local root_tree    = ps.tree_node()
-local rotation_tree = ps.tree_node()
-local cd_tree      = ps.tree_node()
-local auto_tree    = ps.tree_node()
-local ooc_tree     = ps.tree_node()
-local group_tree   = ps.tree_node()
-local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
+-- Tree nodes (Standard EAX Menu Structure)
+local root_tree      = ps.tree_node()
+local rotation_tree  = ps.tree_node()
+local cooldowns_tree = ps.tree_node()
+local totems_tree    = ps.tree_node()
+local defensive_tree = ps.tree_node()
+local buffs_tree     = ps.tree_node()
+local utility_tree   = ps.tree_node()
+local automation_tree = ps.tree_node()
 local dashboard_tree = ps.tree_node()
+local ooc_tree       = ps.tree_node()
+local group_tree     = ps.tree_node()
+local advanced_tree  = ps.tree_node()
 
--- Controls
+-- Controls ------------------------------------------------------------------
 menu.enabled                             = core.menu.checkbox(true, "eaxshamanelemental_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxshamanelemental_toggle_key")
 menu.mode                                = core.menu.combobox(1, "eaxshamanelemental_mode")
@@ -63,29 +65,64 @@ menu.use_chain_lightning                 = core.menu.checkbox(true, "eaxshamanel
 menu.use_flame_shock                     = core.menu.checkbox(true, "eaxshamanelemental_use_flame_shock")
 menu.use_earth_shock                     = core.menu.checkbox(true, "eaxshamanelemental_use_earth_shock")
 menu.use_lava_burst                      = core.menu.checkbox(true, "eaxshamanelemental_use_lava_burst")
+menu.use_frost_shock                     = core.menu.checkbox(true, "eaxshamanelemental_use_frost_shock")
+menu.use_interrupt                       = core.menu.checkbox(true, "eaxshamanelemental_use_interrupt")
+
+-- Cooldowns
 menu.use_elemental_mastery               = core.menu.checkbox(true, "eaxshamanelemental_use_elemental_mastery")
 menu.use_bloodlust                       = core.menu.checkbox(true, "eaxshamanelemental_use_bloodlust")
 menu.use_heroism                         = core.menu.checkbox(true, "eaxshamanelemental_use_heroism")
 menu.use_fire_elemental                  = core.menu.checkbox(true, "eaxshamanelemental_use_fire_elemental")
+menu.use_astral_shift                    = core.menu.checkbox(true, "eaxshamanelemental_use_astral_shift")
+menu.astral_shift_hp_pct                 = core.menu.slider_int(0, 100, 40, "eaxshamanelemental_astral_shift_hp_pct")
+
+-- Burst & Trinket Automation
+menu.auto_burst_enabled = core.menu.checkbox(false, "eaxshamanelemental_auto_burst")
+menu.burst_on_bloodlust = core.menu.checkbox(true, "eaxshamanelemental_burst_bloodlust")
+menu.burst_on_pull = core.menu.checkbox(true, "eaxshamanelemental_burst_pull")
+menu.burst_on_execute = core.menu.checkbox(true, "eaxshamanelemental_burst_execute")
+menu.burst_in_combat = core.menu.checkbox(false, "eaxshamanelemental_burst_always")
+menu.cd_min_ttd = core.menu.slider_int(0, 60, 0, "eaxshamanelemental_cd_min_ttd")
+menu.trinket1_mode = core.menu.combobox(1, "eaxshamanelemental_trinket1_mode")
+menu.trinket2_mode = core.menu.combobox(1, "eaxshamanelemental_trinket2_mode")
+
+-- Totems - Fire
 menu.use_searing_totem                   = core.menu.checkbox(true, "eaxshamanelemental_use_searing_totem")
 menu.use_magma_totem                     = core.menu.checkbox(true, "eaxshamanelemental_use_magma_totem")
 menu.use_fire_nova                       = core.menu.checkbox(true, "eaxshamanelemental_use_fire_nova")
 menu.use_totem_of_wrath                  = core.menu.checkbox(true, "eaxshamanelemental_use_totem_of_wrath")
 menu.auto_totem_wrath                   = core.menu.checkbox(true, "eaxshamanelemental_auto_totem_wrath")
 menu.use_flametongue_totem               = core.menu.checkbox(true, "eaxshamanelemental_use_flametongue_totem")
+
+-- Totems - Earth
 menu.use_strength_of_earth_totem         = core.menu.checkbox(true, "eaxshamanelemental_use_strength_of_earth_totem")
 menu.use_stoneskin_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_stoneskin_totem")
 menu.use_grounding_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_grounding_totem")
 menu.use_tremor_totem                    = core.menu.checkbox(true, "eaxshamanelemental_use_tremor_totem")
+menu.use_earthgrab_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_earthgrab_totem")
+menu.use_stoneclaw_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_stoneclaw_totem")
+menu.use_stoneclaw_hp_pct                = core.menu.slider_int(0, 100, 40, "eaxshamanelemental_stoneclaw_hp_pct")
+menu.use_earthbind_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_earthbind_totem")
+
+-- Totems - Water
 menu.use_mana_spring_totem               = core.menu.checkbox(true, "eaxshamanelemental_use_mana_spring_totem")
 menu.use_mana_tide_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_mana_tide_totem")
 menu.use_healing_stream_totem            = core.menu.checkbox(true, "eaxshamanelemental_use_healing_stream_totem")
+
+-- Totems - Air
 menu.use_windfury_totem                  = core.menu.checkbox(true, "eaxshamanelemental_use_windfury_totem")
 menu.use_grace_of_air_totem              = core.menu.checkbox(true, "eaxshamanelemental_use_grace_of_air_totem")
 menu.use_sentry_totem                    = core.menu.checkbox(true, "eaxshamanelemental_use_sentry_totem")
+
+-- Totems - Recall
+menu.use_totemic_recall                  = core.menu.checkbox(true, "eaxshamanelemental_use_totemic_recall")
+
+-- Buffs - Shields
 menu.use_water_shield                    = core.menu.checkbox(true, "eaxshamanelemental_use_water_shield")
 menu.use_lightning_shield                = core.menu.checkbox(true, "eaxshamanelemental_use_lightning_shield")
 menu.use_earth_shield                    = core.menu.checkbox(true, "eaxshamanelemental_use_earth_shield")
+
+-- Utility
 menu.use_water_breathing                 = core.menu.checkbox(true, "eaxshamanelemental_use_water_breathing")
 menu.use_water_walking                   = core.menu.checkbox(true, "eaxshamanelemental_use_water_walking")
 menu.use_ancestral_spirit                = core.menu.checkbox(true, "eaxshamanelemental_use_ancestral_spirit")
@@ -95,24 +132,20 @@ menu.use_cure_disease                    = core.menu.checkbox(true, "eaxshamanel
 menu.use_cleanse_spirit                  = core.menu.checkbox(true, "eaxshamanelemental_use_cleanse_spirit")
 menu.use_hex                             = core.menu.checkbox(true, "eaxshamanelemental_use_hex")
 menu.use_bind_elemental                  = core.menu.checkbox(true, "eaxshamanelemental_use_bind_elemental")
-menu.use_frost_shock                     = core.menu.checkbox(true, "eaxshamanelemental_use_frost_shock")
 menu.use_wind_shear                      = core.menu.checkbox(true, "eaxshamanelemental_use_wind_shear")
-menu.use_stormstrike                     = core.menu.checkbox(true, "eaxshamanelemental_use_stormstrike")
-menu.use_lava_lash                       = core.menu.checkbox(true, "eaxshamanelemental_use_lava_lash")
-menu.use_shamanistic_rage                = core.menu.checkbox(true, "eaxshamanelemental_use_shamanistic_rage")
-menu.use_feral_spirit                    = core.menu.checkbox(true, "eaxshamanelemental_use_feral_spirit")
-menu.use_maelstrom_weapon                = core.menu.checkbox(true, "eaxshamanelemental_use_maelstrom_weapon")
-menu.use_unleash_elements                = core.menu.checkbox(true, "eaxshamanelemental_use_unleash_elements")
 menu.use_thunderstorm                    = core.menu.checkbox(true, "eaxshamanelemental_use_thunderstorm")
-menu.use_astral_shift                    = core.menu.checkbox(true, "eaxshamanelemental_use_astral_shift")
-menu.astral_shift_hp_pct                 = core.menu.slider_int(0, 100, 40, "eaxshamanelemental_astral_shift_hp_pct")
-menu.use_earthgrab_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_earthgrab_totem")
-menu.use_stoneclaw_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_stoneclaw_totem")
-menu.use_stoneclaw_hp_pct                = core.menu.slider_int(0, 100, 40, "eaxshamanelemental_stoneclaw_hp_pct")
-menu.use_earthbind_totem                 = core.menu.checkbox(true, "eaxshamanelemental_use_earthbind_totem")
 menu.use_spiritwalkers_grace             = core.menu.checkbox(true, "eaxshamanelemental_use_spiritwalkers_grace")
-menu.use_totemic_recall                  = core.menu.checkbox(true, "eaxshamanelemental_use_totemic_recall")
-menu.use_interrupt                        = core.menu.checkbox(true, "eaxshamanelemental_use_interrupt")
+
+-- Defensive - Consumables
+menu.use_healthstone  = core.menu.checkbox(true, "eaxshamanelemental_use_healthstone")
+menu.healthstone_hp_pct = core.menu.slider_int(10, 50, 30, "eaxshamanelemental_healthstone_hp_pct")
+menu.use_healing_potion = core.menu.checkbox(true, "eaxshamanelemental_use_healing_potion")
+menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxshamanelemental_healing_potion_hp_pct")
+
+-- Mana Management
+menu.use_mana_manager = core.menu.checkbox(true, "eaxshamanelemental_use_mana_manager")
+menu.mana_potion_pct = core.menu.slider_int(5, 100, 20, "eaxshamanelemental_mana_potion_pct")
+menu.dark_rune_pct = core.menu.slider_int(5, 100, 15, "eaxshamanelemental_dark_rune_pct")
 
 -- Dashboard
 menu.show_dashboard         = core.menu.checkbox(true, "eaxshamanelemental_show_dashboard")
@@ -127,33 +160,7 @@ menu.show_combo_points = core.menu.checkbox(false, "eaxshamanelemental_show_comb
 menu.show_threat_bar = core.menu.checkbox(false, "eaxshamanelemental_show_threat_bar")
 menu.enable_smart_collapse = core.menu.checkbox(true, "eaxshamanelemental_enable_smart_collapse")
 
--- Mana Management (Shaman has no active recovery, just potions/runes)
-menu.use_mana_manager = core.menu.checkbox(true, "eaxshamanelemental_use_mana_manager")
-menu.mana_potion_pct = core.menu.slider_int(5, 100, 20, "eaxshamanelemental_mana_potion_pct")
-menu.dark_rune_pct = core.menu.slider_int(5, 100, 15, "eaxshamanelemental_dark_rune_pct")
-
--- Consumables
-menu.use_healthstone  = core.menu.checkbox(true, "eaxshamanelemental_use_healthstone")
-menu.healthstone_hp_pct = core.menu.slider_int(10, 50, 30, "eaxshamanelemental_healthstone_hp_pct")
-menu.use_healing_potion = core.menu.checkbox(true, "eaxshamanelemental_use_healing_potion")
-menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxshamanelemental_healing_potion_hp_pct")
-
--- Burst & Trinket Automation
-menu.auto_burst_enabled = core.menu.checkbox(false, "eaxshamanelemental_auto_burst")
-menu.burst_on_bloodlust = core.menu.checkbox(true, "eaxshamanelemental_burst_bloodlust")
-menu.burst_on_pull = core.menu.checkbox(true, "eaxshamanelemental_burst_pull")
-menu.burst_on_execute = core.menu.checkbox(true, "eaxshamanelemental_burst_execute")
-menu.burst_in_combat = core.menu.checkbox(false, "eaxshamanelemental_burst_always")
-menu.cd_min_ttd = core.menu.slider_int(0, 60, 0, "eaxshamanelemental_cd_min_ttd")
-menu.trinket1_mode = core.menu.combobox(1, "eaxshamanelemental_trinket1_mode")
-menu.trinket2_mode = core.menu.combobox(1, "eaxshamanelemental_trinket2_mode")
-
--- Flux Swing Manager (for melee weaving)
-menu.use_swing_manager = core.menu.checkbox(true, "eaxshamanelemental_use_swing_manager")
-menu.swing_queue_threshold = core.menu.slider_int(30, 100, 50, "eaxshamanelemental_swing_queue_threshold")
-
-mana_conservator.register_menu_items(menu, "eax_shaman_elemental")
-
+-- Settings Framework
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_lightning_bolt", label = "Lightning Bolt" },
     { toggle = "use_chain_lightning", label = "Chain Lightning" },
@@ -165,160 +172,205 @@ settings.setup_major_toggle_keybinds(menu, {
 })
 
 local _win
+function menu.set_window(win) _win = win end
 
-function menu.set_window(win)
-    _win = win
-end
-
+-- RENDER --------------------------------------------------------------------
 function menu.render()
     if _win and root_tree:is_open() then
         ps.draw_space(_win, "eaxshamanelemental")
     end
 
     root_tree:render("Eax's Shaman Elemental", function()
-        ps.render_controls(menu, "Eax's Shaman Ele")
 
-        -- Rotation
+        -- 1. General - Visible immediately at top level
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        menu.debug:render("Debug", "Enable debug output")
+
+        -- 2. Rotation
         rotation_tree:render("Rotation", function()
             ps.header("Spells")
-            menu.use_lightning_bolt:render("Lightning Bolt", "Main filler")
-            menu.use_chain_lightning:render("Chain Lightning", "AoE")
-            menu.use_flame_shock:render("Flame Shock", "DoT")
-            menu.use_earth_shock:render("Earth Shock", "Instant")
-            menu.use_lava_burst:render("Lava Burst", "Proc")
-            menu.use_frost_shock:render("Frost Shock", "Slow")
+            menu.use_lightning_bolt:render("Lightning Bolt", "Main filler spell")
+            menu.use_chain_lightning:render("Chain Lightning", "AoE spell")
+            menu.use_flame_shock:render("Flame Shock", "DoT maintenance")
+            menu.use_earth_shock:render("Earth Shock", "Instant damage")
+            menu.use_lava_burst:render("Lava Burst", "Proc-based burst")
+            menu.use_frost_shock:render("Frost Shock", "Slow effect")
             menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
         end)
 
-        -- Cooldowns
-        cd_tree:render("Cooldowns", function()
-            menu.use_elemental_mastery:render("Elemental Mastery", "Instant cast")
-            menu.use_bloodlust:render("Bloodlust", "Haste")
-            menu.use_heroism:render("Heroism", "Haste")
-            menu.use_fire_elemental:render("Fire Elemental", "Pet")
+        -- 3. Cooldowns
+        cooldowns_tree:render("Cooldowns", function()
+            ps.header("Major Cooldowns")
+            menu.use_elemental_mastery:render("Elemental Mastery", "Instant cast burst")
+            menu.use_bloodlust:render("Bloodlust", "Haste buff (Horde)")
+            menu.use_heroism:render("Heroism", "Haste buff (Alliance)")
+            menu.use_fire_elemental:render("Fire Elemental", "Summon pet")
             menu.use_astral_shift:render("Astral Shift", "Damage reduction")
-            
+            menu.astral_shift_hp_pct:render("Astral Shift HP %", "Use below this health")
+
             ps.header("Burst & Trinkets")
             menu.auto_burst_enabled:render("Auto Burst", "Enable automatic burst detection")
             menu.burst_on_bloodlust:render("On Bloodlust", "Burst when Bloodlust/Heroism active")
             menu.burst_on_pull:render("On Pull", "Burst in first 5 seconds")
             menu.burst_on_execute:render("On Execute", "Burst below 20% HP")
-            menu.trinket1_mode:render("Trinket 1", "Mode: Off/Offensive/Defensive")
-            menu.trinket2_mode:render("Trinket 2", "Mode: Off/Offensive/Defensive")
-            
-            ps.header("Swing Management")
-            menu.use_swing_manager:render("Use Swing Manager", "Queue abilities optimally")
-            menu.swing_queue_threshold:render("Queue Threshold", "Rage to queue next swing")
+            menu.burst_in_combat:render("Always in Combat", "Burst whenever available")
+            menu.cd_min_ttd:render("Min TTD for CDs", "Don't burst if target dies sooner (sec)")
+            menu.trinket1_mode:render("Trinket 1", {"Off", "Offensive", "Defensive"})
+            menu.trinket2_mode:render("Trinket 2", {"Off", "Offensive", "Defensive"})
         end)
 
-        -- Totems
-        def_tree:render("Totems", function()
-            ps.header("Fire")
-            menu.use_searing_totem:render("Searing Totem", "Single target")
-            menu.use_magma_totem:render("Magma Totem", "AoE")
-            menu.use_fire_nova:render("Fire Nova", "AoE")
-            menu.use_totem_of_wrath:render("Totem of Wrath", "Crit")
-            menu.auto_totem_wrath:render("Auto Totem of Wrath", "Auto cast")
-            menu.use_flametongue_totem:render("Flametongue Totem", "Spell damage")
+        -- 4. Totems
+        totems_tree:render("Totems", function()
+            ps.header("Fire Totems")
+            menu.use_searing_totem:render("Searing Totem", "Single target damage")
+            menu.use_magma_totem:render("Magma Totem", "AoE damage")
+            menu.use_fire_nova:render("Fire Nova", "AoE burst")
+            menu.use_totem_of_wrath:render("Totem of Wrath", "Spell crit buff")
+            menu.auto_totem_wrath:render("Auto Totem of Wrath", "Auto-cast when missing")
+            menu.use_flametongue_totem:render("Flametongue Totem", "Spell damage buff")
 
-            ps.header("Earth")
-            menu.use_strength_of_earth_totem:render("Strength of Earth", "Stats")
-            menu.use_stoneskin_totem:render("Stoneskin Totem", "Armor")
-            menu.use_earthgrab_totem:render("Earthgrab Totem", "Root")
-            menu.use_stoneclaw_totem:render("Stoneclaw Totem", "Absorb")
-            menu.use_stoneclaw_hp_pct:render("Stoneclaw HP %", "Below")
-            menu.use_earthbind_totem:render("Earthbind Totem", "Slow")
-
-            ps.header("Water")
-            menu.use_mana_spring_totem:render("Mana Spring", "Mana regen")
-            menu.use_mana_tide_totem:render("Mana Tide", "Mana regen")
-            menu.use_healing_stream_totem:render("Healing Stream", "Heal")
-
-            ps.header("Air")
-            menu.use_windfury_totem:render("Windfury Totem", "Melee haste")
-            menu.use_grace_of_air_totem:render("Grace of Air", "Agility")
+            ps.header("Earth Totems")
+            menu.use_strength_of_earth_totem:render("Strength of Earth", "Stats buff")
+            menu.use_stoneskin_totem:render("Stoneskin Totem", "Armor buff")
             menu.use_grounding_totem:render("Grounding Totem", "Spell absorb")
-            menu.use_tremor_totem:render("Tremor Totem", "Fear/sleep")
-            menu.use_sentry_totem:render("Sentry Totem", "Vision")
+            menu.use_tremor_totem:render("Tremor Totem", "Fear/sleep/charm break")
+            menu.use_earthgrab_totem:render("Earthgrab Totem", "Root enemies")
+            menu.use_stoneclaw_totem:render("Stoneclaw Totem", "Damage absorb")
+            menu.use_stoneclaw_hp_pct:render("Stoneclaw HP %", "Use below this health")
+            menu.use_earthbind_totem:render("Earthbind Totem", "Slow enemies")
 
-            ps.header("Recall")
-            menu.use_totemic_recall:render("Totemic Recall", "Recall totems")
-            menu.use_totemic_call:render("Totemic Call", "Recall totems")
+            ps.header("Water Totems")
+            menu.use_mana_spring_totem:render("Mana Spring", "Mana regeneration")
+            menu.use_mana_tide_totem:render("Mana Tide", "Mana restoration")
+            menu.use_healing_stream_totem:render("Healing Stream", "Passive healing")
+
+            ps.header("Air Totems")
+            menu.use_windfury_totem:render("Windfury Totem", "Melee haste")
+            menu.use_grace_of_air_totem:render("Grace of Air", "Agility buff")
+            menu.use_sentry_totem:render("Sentry Totem", "Vision/Scout")
+
+            ps.header("Totem Recall")
+            menu.use_totemic_recall:render("Totemic Recall", "Recall all totems")
+            menu.use_totemic_call:render("Totemic Call", "Alternative recall")
         end)
 
-        -- Shields
-        auto_tree:render("Shields", function()
-            menu.use_water_shield:render("Water Shield", "Mana")
-            menu.use_lightning_shield:render("Lightning Shield", "DPS")
-            menu.use_earth_shield:render("Earth Shield", "Heal")
+        -- 5. Defensive
+        defensive_tree:render("Defensive", function()
+            ps.header("Self-Healing")
+            menu.use_healing_wave:render("Healing Wave", "Self-heal when low")
+            menu.healing_wave_hp:render("Healing Wave HP %", "Use below this health")
+
+            ps.header("Defensive Abilities")
+            menu.use_thunderstorm:render("Thunderstorm", "Knockback + mana restore")
+            menu.use_earthbind_totem:render("Earthbind Totem", "Kiting tool")
+
+            ps.header("Emergency Consumables")
+            menu.use_healthstone:render("Healthstone", "Auto-use when HP low")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below this HP")
+            menu.use_healing_potion:render("Healing Potion", "Auto-use when HP low")
+            menu.healing_potion_hp_pct:render("Potion HP %", "Use below this HP")
         end)
 
-        -- Utility
-        auto_tree:render("Utility", function()
-            menu.use_water_breathing:render("Water Breathing", "Buff")
-            menu.use_water_walking:render("Water Walking", "Buff")
-            menu.use_ancestral_spirit:render("Ancestral Spirit", "Resurrect")
-            menu.use_reincarnation:render("Reincarnation", "Self-res")
-            menu.use_cure_poison:render("Cure Poison", "Dispel")
-            menu.use_cure_disease:render("Cure Disease", "Dispel")
-            menu.use_cleanse_spirit:render("Cleanse Spirit", "Dispel")
-            menu.use_ghost_wolf:render("Ghost Wolf", "Travel")
-            menu.use_purge:render("Purge", "Dispel buff")
-            menu.use_dispels:render("Dispels", "Dispel")
+        -- 6. Buffs
+        buffs_tree:render("Buffs", function()
+            ps.header("Shields")
+            menu.use_water_shield:render("Water Shield", "Mana regeneration")
+            menu.use_lightning_shield:render("Lightning Shield", "Damage reflection")
+            menu.use_earth_shield:render("Earth Shield", "Healing procs")
+            menu.shield_mode:render("Shield Mode", {"Auto", "Water", "Lightning", "Earth"}, "Preferred shield type")
         end)
 
-        -- Self-Healing
-        def_tree:render("Self-Healing", function()
-            menu.use_healing_wave:render("Healing Wave", "Self-heal")
-            menu.healing_wave_hp:render("Healing Wave HP %", "Below")
-            ps.header("Consumables")
-            menu.use_healthstone:render("Use Healthstone", "Auto use healthstone")
-            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
-            menu.use_healing_potion:render("Use Healing Potion", "Auto use healing potion")
-            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Below")
+        -- 7. Utility
+        utility_tree:render("Utility", function()
+            ps.header("Movement")
+            menu.use_ghost_wolf:render("Ghost Wolf", "Travel form")
+            menu.use_water_walking:render("Water Walking", "Water travel")
+            menu.use_spiritwalkers_grace:render("Spiritwalker's Grace", "Cast while moving")
+
+            ps.header("Dispels & Purge")
+            menu.use_dispels:render("Auto-Dispel", "Remove poisons/diseases")
+            menu.use_purge:render("Purge", "Remove enemy buffs")
+            menu.use_cure_poison:render("Cure Poison", "Poison dispel")
+            menu.use_cure_disease:render("Cure Disease", "Disease dispel")
+            menu.use_cleanse_spirit:render("Cleanse Spirit", "Curse dispel")
+
+            ps.header("Crowd Control")
+            menu.use_hex:render("Hex", "Transform enemy")
+            menu.use_bind_elemental:render("Bind Elemental", "CC elementals")
+            menu.use_wind_shear:render("Wind Shear", "Ranged interrupt")
+
+            ps.header("Other")
+            menu.use_water_breathing:render("Water Breathing", "Underwater breathing")
+            menu.use_ancestral_spirit:render("Ancestral Spirit", "Resurrect others")
+            menu.use_reincarnation:render("Reincarnation", "Self-resurrection")
         end)
 
-        -- Automation
-        auto_tree:render("Automation", function()
-            menu.auto_combat_potions:render("Combat Potions", "In combat")
-            menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink")
-            menu.auto_flask:render("Auto Flask", "Flask")
-            menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
-            menu.leveling_mana_floor:render("Mana %", "Below")
+        -- 8. Automation
+        automation_tree:render("Automation", function()
+            ps.header("Combat Automation")
+            menu.auto_combat_potions:render("Combat Potions", "Auto-use in combat")
+            menu.auto_flask:render("Auto Flask", "Maintain flask buff")
+
+            ps.header("Mana Management")
+            menu.use_mana_manager:render("Mana Manager", "Auto-use mana consumables")
+            menu.mana_potion_pct:render("Mana Potion %", "Use below this mana")
+            menu.dark_rune_pct:render("Dark Rune %", "Use below this mana")
+
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Efficient rotation")
+            menu.leveling_mana_floor:render("Mana Floor %", "Conservation threshold")
         end)
 
-        -- OOC
+        -- 9. OOC Sustain
         ooc_tree:render("OOC Sustain", function()
-            menu.ooc_drink:render("Auto-Drink", "Drink")
-            menu.drink_threshold:render("Drink %", "Below")
-            menu.ooc_eat:render("Auto-Eat", "Eat")
-            menu.eat_threshold:render("Eat %", "Below")
+            ps.header("Out of Combat")
+            menu.ooc_drink:render("Auto-Drink", "Drink to restore mana")
+            menu.drink_threshold:render("Drink Threshold %", "Start drinking below this mana")
+            menu.ooc_eat:render("Auto-Eat", "Eat to restore health")
+            menu.eat_threshold:render("Eat Threshold %", "Start eating below this HP")
+            menu.auto_ooc_food_drink:render("Auto Food/Drink", "Automatic consumption")
         end)
 
-        -- Group
+        -- 10. Group
         group_tree:render("Group", function()
-            menu.ooc_rez:render("Auto-Rez", "Accept")
-            menu.ooc_group_buff:render("Buffs", "Party")
+            ps.header("Group Support")
+            menu.ooc_rez:render("Auto-Rez", "Accept and cast resurrection")
+            menu.ooc_group_buff:render("Group Buffs", "Apply buffs to party")
         end)
 
-                -- Dashboard
+        -- 11. Dashboard
         dashboard_tree:render("Dashboard", function()
             ps.header("Display")
             menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
-            menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
-            menu.dashboard_scale:render("Scale", "Dashboard UI scale")
-            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")
-            
+            menu.dashboard_opacity:render("Opacity", "Background opacity")
+            menu.dashboard_scale:render("Scale", "UI scale")
+            menu.dashboard_x:render("Position X", "Horizontal position")
+            menu.dashboard_y:render("Position Y", "Vertical position")
+
             ps.header("Features")
-            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
+            menu.show_timer_bars:render("Timer Bars", "Show GCD and cast timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+            menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")
+            menu.show_combo_points:render("Combo Points", "Show combo point pips")
+            menu.show_threat_bar:render("Threat Bar", "Show threat meter")
         end)
-ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+
+        -- 12. Advanced (Targeting + Racial)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+        end)
+
     end)
 end
 
 return menu
-

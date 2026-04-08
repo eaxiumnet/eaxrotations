@@ -19,11 +19,9 @@ local ooc_tree     = ps.tree_node()
 local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
 local cancelaura_tree = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
 local dashboard_tree = ps.tree_node()
 local pvp_tree     = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxwarriorarms_enabled")
@@ -179,7 +177,12 @@ function menu.render()
     end
 
     root_tree:render("Eax's Warrior Arms", function()
-        ps.render_controls(menu, "Eax's Warrior Arms")
+        -- General
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable rotation")
+        menu.toggle_key:render("Toggle Key", "Quick enable/disable")
+        menu.mode:render("Mode", "Auto / PvE / PvP")
+        menu.debug:render("Debug", "Show debug info")
 
         -- Rotation
         rotation_tree:render("Rotation", function()
@@ -318,8 +321,20 @@ function menu.render()
             menu.ooc_group_buff:render("Buffs", "Party")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- Advanced (Targeting, Racial, Leveling)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP% threshold for self-heal priority")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Enable racial abilities")
+            menu.racial_hp:render("Racial HP %", "HP% to use defensive racials")
+
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Resources", "Save resources while leveling")
+            menu.leveling_mana_floor:render("Resource Floor %", "Minimum resource % to conserve")
+        end)
     end)
 end
 

@@ -16,9 +16,7 @@ local auto_tree    = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxpriestshadow_enabled")
@@ -170,7 +168,12 @@ function menu.render()
     end
 
     root_tree:render("Eax's Priest Shadow", function()
-        ps.render_controls(menu, "Eax's Priest Shadow")
+        -- General
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable rotation")
+        menu.mode:render("Mode", "1=Auto 2=PVE 3=PVP")
+        menu.toggle_key:render("Toggle Key", "Quick enable/disable")
+        menu.debug:render("Debug", "Show debug info")
 
         -- Rotation
         rotation_tree:render("Rotation", function()
@@ -289,8 +292,23 @@ function menu.render()
             menu.use_resurrection:render("Resurrection", "Resurrect")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- Advanced (Targeting + Racial + Leveling)
+        advanced_tree:render("Advanced", function()
+            -- Targeting
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP% to prioritize self")
+
+            -- Racial
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Enable racial abilities")
+            menu.racial_hp:render("Racial HP%", "Health threshold for racial")
+
+            -- Leveling
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Save mana while leveling")
+            menu.leveling_mana_floor:render("Mana Floor %", "Minimum mana %")
+        end)
     end)
 end
 

@@ -11,16 +11,14 @@ local menu = {}
 
 -- -- Tree nodes (declared outside render, as per API requirements) -------------
 local root_tree       = ps.tree_node()
-local rotation_tree   = ps.tree_node()
 local smite_tree      = ps.tree_node()
 local healing_tree    = ps.tree_node()
 local cooldowns_tree  = ps.tree_node()
 local buffs_tree      = ps.tree_node()
-local racial_tree     = ps.tree_node()
 local ooc_tree        = ps.tree_node()
-local tgt_tree        = ps.tree_node()
 local middleware_tree = ps.tree_node()
 local dashboard_tree  = ps.tree_node()
+local advanced_tree   = ps.tree_node()
 
 -- -- Controls ------------------------------------------------------------------
 menu.enabled         = core.menu.checkbox(true,  "eaxpriestsmite_enabled")
@@ -129,7 +127,11 @@ function menu.render()
 
     root_tree:render("EAX Priest Smite", function()
 
-        ps.render_controls(menu, "EAX Priest Smite")
+        -- General
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable rotation")
+        menu.mode:render("Mode", "Auto / PvE / PvP")
+        menu.debug:render("Debug", "Show debug information")
 
         -- Smite Rotation
         smite_tree:render("Smite Rotation", function()
@@ -211,11 +213,18 @@ function menu.render()
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
         end)
 
-        -- Targeting
-        ps.render_targeting(menu, tgt_tree)
+        -- Advanced (Targeting, Racial, Leveling)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target over current target")
+            
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Enable racial ability usage")
+            menu.racial_hp:render("Racial HP Threshold", "HP% to use defensive racials")
 
-        -- Racial
-        ps.render_racial(menu, racial_tree)
+            ps.header("Leveling")
+            ps.text("Leveling features managed by rotation automatically")
+        end)
 
         -- Out-of-combat
         ooc_tree:render("Out of Combat", function()

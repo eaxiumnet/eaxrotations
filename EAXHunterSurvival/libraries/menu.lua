@@ -3,21 +3,19 @@ local ps   = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
 local menu = {}
 
-local root_tree   = ps.tree_node()
-local rotation_tree = ps.tree_node()
-local cd_tree     = ps.tree_node()
-local kite_tree   = ps.tree_node()
-local auto_tree   = ps.tree_node()
-local ooc_tree    = ps.tree_node()
-local group_tree  = ps.tree_node()
-local def_tree    = ps.tree_node()
-local tgt_tree    = ps.tree_node()
-local racial_tree = ps.tree_node()
-local esp_tree    = ps.tree_node()
-local pvp_tree    = ps.tree_node()
+-- Tree nodes (Standard EAX Menu Structure)
+local root_tree       = ps.tree_node()
+local rotation_tree   = ps.tree_node()
+local kite_tree       = ps.tree_node()
+local auto_tree       = ps.tree_node()
+local ooc_tree        = ps.tree_node()
+local group_tree      = ps.tree_node()
+local pvp_tree        = ps.tree_node()
 local middleware_tree = ps.tree_node()
-local dashboard_tree = ps.tree_node()
+local dashboard_tree  = ps.tree_node()
+local advanced_tree   = ps.tree_node()  -- NEW: Targeting + Racial
 
+-- Menu field declarations (PRESERVED VERBATIM)
 menu.enabled          = core.menu.checkbox(true,  "eaxhuntersv_enabled")
 menu.toggle_key       = core.menu.keybind(7, false, "eaxhuntersv_toggle_key")
 menu.mode             = core.menu.combobox(1, "eaxhuntersv_mode")
@@ -98,6 +96,11 @@ menu.use_mongoose_bite = core.menu.checkbox(true, "eaxhuntersv_use_mongoose_bite
 menu.use_counterattack = core.menu.checkbox(true, "eaxhuntersv_use_counterattack")
 menu.pet_aggressive  = core.menu.checkbox(false, "eaxhuntersv_pet_aggressive")
 
+-- Pet Settings (ADDED - were referenced but not declared)
+menu.use_revive_pet  = core.menu.checkbox(true, "eaxhuntersv_use_revive_pet")
+menu.use_mend_pet    = core.menu.checkbox(true, "eaxhuntersv_use_mend_pet")
+menu.mend_pet_hp     = core.menu.slider_int(10, 80, 50, "eaxhuntersv_mend_pet_hp")
+
 -- PvP Settings
 menu.pvp_enabled = core.menu.checkbox(true, "eaxhuntersv_pvp_enabled")
 menu.pvp_mode = core.menu.combobox(1, "eaxhuntersv_pvp_mode")
@@ -149,8 +152,14 @@ function menu.render()
     end
 
     root_tree:render("Eax's Hunter Survival", function()
-        ps.render_controls(menu, "Eax's Hunter SV")
+        -- 1. General (inline)
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        menu.debug:render("Debug", "Enable debug output")
 
+        -- 2. Rotation
         rotation_tree:render("Rotation", function()
             ps.header("Shots")
             menu.use_hunters_mark:render("Hunter's Mark", "+AP")
@@ -188,12 +197,22 @@ function menu.render()
             menu.trinket_ttd:render("Trinket TTD", "Min target TTD to use offensive trinkets")
             menu.defensive_trinket_hp:render("Defensive Trinket HP%", "HP% threshold for defensive trinkets")
 
+            ps.header("Traps")
+            menu.use_traps:render("Use Traps", "Enable trap usage")
+            menu.trap_interval:render("Trap Interval", "Seconds between trap attempts")
+            menu.trap_selection:render("Trap Selection", {"Immolation", "Explosive", "Freezing", "Frost"}, "Which trap to use")
+            menu.use_immolation_trap:render("Immolation Trap", "Fire damage trap")
+            menu.use_explosive_trap:render("Explosive Trap", "AoE fire trap")
+            menu.use_wyvern_sting:render("Wyvern Sting", "Sleep effect (Survival talent)")
+
             ps.header("Survival Melee")
             menu.use_mongoose_bite:render("Mongoose Bite", "Melee")
             menu.use_counterattack:render("Counterattack", "Melee proc")
         end)
 
+        -- 3. Defensive (kite_tree)
         kite_tree:render("Defensive", function()
+            ps.header("Kiting & Escape")
             menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_concussive:render("Concussive Shot", "Slow")
             menu.use_disengage:render("Disengage", "Escape")
@@ -206,14 +225,18 @@ function menu.render()
             menu.feign_death_hp:render("Feign HP %", "Below")
         end)
 
+        -- 4. Automation
         auto_tree:render("Automation", function()
+            ps.header("Consumables")
             menu.auto_combat_potions:render("Combat Potions", "In combat")
             menu.auto_flask:render("Auto Flask", "Flask")
             menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
             menu.leveling_mana_floor:render("Mana %", "Below")
         end)
 
+        -- 5. OOC Sustain
         ooc_tree:render("OOC Sustain", function()
+            ps.header("Food & Drink")
             menu.ooc_drink:render("Auto-Drink", "Drink")
             menu.drink_threshold:render("Drink %", "Below")
             menu.ooc_eat:render("Auto-Eat", "Eat")
@@ -221,28 +244,33 @@ function menu.render()
             menu.use_aspect_hawk:render("Aspect of the Hawk", "Ranged AP buff")
         end)
 
+        -- 6. Group
         group_tree:render("Group", function()
+            ps.header("Group Support")
             menu.ooc_rez:render("Auto-Rez", "Accept")
             menu.ooc_group_buff:render("Buffs", "Party")
         end)
 
-        -- Pet Management
+        -- 7. Pet (inline tree)
         local pet_tree = ps.tree_node()
         pet_tree:render("Pet", function()
+            ps.header("Pet Management")
             menu.use_revive_pet:render("Revive Pet", "Auto-revive")
             menu.use_mend_pet:render("Mend Pet", "Heal pet")
             menu.mend_pet_hp:render("Mend Pet HP%", "Below")
+            menu.pet_aggressive:render("Aggressive Pet", "Pet attacks automatically")
         end)
 
-        -- PvP Settings
+        -- 8. PvP
         pvp_tree:render("PvP", function()
+            ps.header("General")
             menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
             menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Select PvP detection mode")
             menu.pvp_use_trinket:render("Use PvP Trinket", "Auto-use PvP trinket when CC'd")
             menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below this HP% in PvP")
         end)
 
-        -- Middleware Settings
+        -- 9. Middleware
         middleware_tree:render("Middleware", function()
             ps.header("Recovery Items")
             menu.use_healthstone:render("Healthstone", "Use healthstone when low")
@@ -257,7 +285,7 @@ function menu.render()
             menu.deterrence_mw_hp:render("Deterrence MW HP %", "Trigger below this %")
         end)
 
-        -- Dashboard Settings (Beta)
+        -- 10. Dashboard (with Targeting and Racial inline)
         dashboard_tree:render("Dashboard (Beta)", function()
             ps.header("Display (Beta)")
             menu.show_dashboard:render("Show Dashboard", "Enable dashboard (Beta feature)")
@@ -268,11 +296,8 @@ function menu.render()
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
-        end)
 
-        -- Clip Tracker Settings
-        local clip_tree = ps.tree_node()
-        clip_tree:render("Clip Tracker", function()
+            ps.header("Clip Tracker")
             menu.clip_tracker_enabled:render("Enable Clip Tracker", "Track auto-shot clipping")
             menu.clip_tracker_print_summary:render("Print Summary", "Show combat summary")
             ps.header("Severity Thresholds (ms)")
@@ -281,11 +306,17 @@ function menu.render()
             menu.clip_threshold_orange:render("Orange/Red", "Orange to red threshold")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- 11. Advanced (Targeting + Racial)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target over target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment for self-preservation")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities when beneficial")
+            menu.racial_hp:render("Racial HP %", "Use racial abilities below this HP%")
+        end)
     end)
 end
 
 return menu
-
-

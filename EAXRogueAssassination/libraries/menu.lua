@@ -16,10 +16,8 @@ local auto_tree    = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
 local dashboard_tree = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxrogueassassination_enabled")
@@ -145,7 +143,11 @@ function menu.render()
     end
 
     root_tree:render("Eax's Rogue Assassination", function()
-        ps.render_controls(menu, "Eax's Rogue Assass")
+        -- General (inline - was ps.render_controls)
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
 
         -- Rotation
         rotation_tree:render("Rotation", function()
@@ -248,11 +250,25 @@ function menu.render()
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")            menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")            menu.show_combo_points:render("Combo Points", "Show combo point pips")
+            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+            menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")
+            menu.show_combo_points:render("Combo Points", "Show combo point pips")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- Advanced (Targeting + Racial + Leveling)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment")
+            
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+            
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Mana-efficient rotation")
+            menu.leveling_mana_floor:render("Mana Floor %", "Conservation threshold")
+        end)
     end)
 end
 

@@ -3,21 +3,18 @@ local ps   = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
 local menu = {}
 
--- Tree nodes
-local root_tree   = ps.tree_node()
-local rotation_tree = ps.tree_node()
-local cd_tree     = ps.tree_node()
-local kite_tree   = ps.tree_node()
-local auto_tree   = ps.tree_node()
-local ooc_tree    = ps.tree_node()
-local group_tree  = ps.tree_node()
-local def_tree    = ps.tree_node()
-local tgt_tree    = ps.tree_node()
-local racial_tree = ps.tree_node()
-local esp_tree    = ps.tree_node()
-local pvp_tree    = ps.tree_node()
+-- Tree nodes (Standard EAX Menu Structure)
+local root_tree       = ps.tree_node()
+local rotation_tree   = ps.tree_node()
+local defensive_tree  = ps.tree_node()
+local auto_tree       = ps.tree_node()
+local ooc_tree        = ps.tree_node()
+local group_tree      = ps.tree_node()
+local pvp_tree        = ps.tree_node()
 local middleware_tree = ps.tree_node()
-local dashboard_tree = ps.tree_node()
+local dashboard_tree  = ps.tree_node()
+local clip_tree       = ps.tree_node()
+local advanced_tree   = ps.tree_node()
 
 -- Controls
 menu.enabled          = core.menu.checkbox(true,  "eaxhuntermm_enabled")
@@ -140,13 +137,10 @@ menu.dashboard_x      = core.menu.slider_int(0, 2000, 20, "eaxhuntermm_dashboard
 menu.dashboard_y      = core.menu.slider_int(0, 2000, 200, "eaxhuntermm_dashboard_y")
 menu.show_timer_bars  = core.menu.checkbox(true, "eaxhuntermm_show_timer_bars")
 menu.show_action_history = core.menu.checkbox(true, "eaxhuntermm_show_action_history")
-menu.show_timer_bars = core.menu.checkbox(true, "eaxhuntermm_show_timer_bars")
-menu.show_action_history = core.menu.checkbox(true, "eaxhuntermm_show_action_history")
 menu.show_energy_tick = core.menu.checkbox(false, "eaxhuntermm_show_energy_tick")
 menu.show_combo_points = core.menu.checkbox(false, "eaxhuntermm_show_combo_points")
 menu.show_threat_bar = core.menu.checkbox(false, "eaxhuntermm_show_threat_bar")
 menu.enable_smart_collapse = core.menu.checkbox(true, "eaxhuntermm_enable_smart_collapse")
-menu.dashboard_scale = core.menu.slider_float(0.5, 2.0, 1.0, "eaxhuntermm_dashboard_scale")
 
 -- Clip Tracker Settings
 menu.clip_tracker_enabled = core.menu.checkbox(false, "eaxhuntermm_clip_tracker_enabled")
@@ -175,9 +169,14 @@ function menu.render()
     end
 
     root_tree:render("Eax's Hunter Marksmanship", function()
-        ps.render_controls(menu, "Eax's Hunter MM")
+        -- 1. General - Visible immediately at top level
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        menu.debug:render("Debug", "Enable debug output")
 
-        -- Rotation
+        -- 2. Rotation
         rotation_tree:render("Rotation", function()
             ps.header("Shots")
             menu.use_hunters_mark:render("Hunter's Mark", "+AP")
@@ -204,14 +203,14 @@ function menu.render()
             menu.use_readiness:render("Readiness", "Reset cooldowns")
             menu.readiness_rapid_fire:render("Readiness for Rapid Fire", "Use Readiness to reset Rapid Fire")
             menu.cd_min_ttd:render("Min TTD for CDs", "Only use burst CDs if target TTD >= seconds (0 = disabled)")
-            
+
             ps.header("Burst Manager")
             menu.auto_burst_enabled:render("Auto Burst", "Enable automatic burst detection")
             menu.burst_on_bloodlust:render("Burst on Bloodlust", "Use CDs when Bloodlust/Heroism active")
             menu.burst_on_pull:render("Burst on Pull", "Use CDs within 5s of combat start")
             menu.burst_on_execute:render("Burst on Execute", "Use CDs when target < 20% HP")
             menu.burst_in_combat:render("Burst in Combat", "Use CDs whenever in combat")
-            
+
             ps.header("Trinket Manager")
             menu.trinket1_mode:render("Trinket 1 Mode", {"Off", "Offensive", "Defensive"}, "Top trinket slot behavior")
             menu.trinket2_mode:render("Trinket 2 Mode", {"Off", "Offensive", "Defensive"}, "Bottom trinket slot behavior")
@@ -222,10 +221,18 @@ function menu.render()
             menu.viper_mana_enter:render("Enter Viper %", "Below %")
             menu.viper_mana_exit:render("Exit Viper %", "Above %")
             menu.auto_travel_aspect:render("Travel Aspect", "OOC")
+
+            ps.header("Traps")
+            menu.use_traps:render("Use Traps", "Enable trap usage")
+            menu.trap_interval:render("Trap Interval", "Seconds between trap attempts")
+            menu.trap_selection:render("Trap Selection", {"Auto", "Immolation", "Explosive", "Freezing", "Frost"}, "Trap type to use")
+
+            ps.header("Buffs")
+            menu.use_trueshot_aura:render("Trueshot Aura", "Maintain Trueshot Aura")
         end)
 
-        -- Defensive
-        kite_tree:render("Defensive", function()
+        -- 3. Defensive
+        defensive_tree:render("Defensive", function()
             menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.use_concussive:render("Concussive Shot", "Slow")
             menu.use_disengage:render("Disengage", "Escape")
@@ -239,7 +246,7 @@ function menu.render()
             menu.mend_pet_hp:render("Mend Pet HP %", "Below %")
         end)
 
-        -- Automation
+        -- 4. Automation
         auto_tree:render("Automation", function()
             menu.auto_combat_potions:render("Combat Potions", "In combat")
             menu.auto_flask:render("Auto Flask", "Flask")
@@ -247,7 +254,7 @@ function menu.render()
             menu.leveling_mana_floor:render("Mana %", "Below")
         end)
 
-        -- OOC
+        -- 5. OOC
         ooc_tree:render("OOC Sustain", function()
             menu.ooc_drink:render("Auto-Drink", "Drink")
             menu.drink_threshold:render("Drink %", "Below")
@@ -256,13 +263,13 @@ function menu.render()
             menu.use_aspect_hawk:render("Aspect of the Hawk", "Ranged AP buff")
         end)
 
-        -- Group
+        -- 6. Group
         group_tree:render("Group", function()
             menu.ooc_rez:render("Auto-Rez", "Accept")
             menu.ooc_group_buff:render("Buffs", "Party")
         end)
 
-        -- PvP Settings
+        -- 7. PvP
         pvp_tree:render("PvP", function()
             menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
             menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Select PvP detection mode")
@@ -270,7 +277,7 @@ function menu.render()
             menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below this HP% in PvP")
         end)
 
-        -- Middleware Settings
+        -- 8. Middleware
         middleware_tree:render("Middleware", function()
             ps.header("Recovery Items")
             menu.use_healthstone:render("Healthstone", "Use healthstone when low")
@@ -279,13 +286,13 @@ function menu.render()
             menu.health_potion_hp_pct:render("Potion HP %", "Use below this %")
             menu.use_mana_potion:render("Mana Potion", "Use mana potion when low")
             menu.mana_potion_pct:render("Mana Potion %", "Use below this %")
-            
+
             ps.header("Defensive Middleware")
             menu.use_deterrence_mw:render("Deterrence (MW)", "Use via middleware system")
             menu.deterrence_mw_hp:render("Deterrence MW HP %", "Trigger below this %")
         end)
 
-        -- Dashboard Settings (Beta)
+        -- 9. Dashboard
         dashboard_tree:render("Dashboard (Beta)", function()
             ps.header("Display (Beta)")
             menu.show_dashboard:render("Show Dashboard", "Enable dashboard (Beta feature)")
@@ -296,10 +303,13 @@ function menu.render()
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
+            menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")
+            menu.show_combo_points:render("Combo Points", "Show combo point pips")
+            menu.show_threat_bar:render("Threat Bar", "Show threat meter")
+            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
         end)
 
-        -- Clip Tracker Settings
-        local clip_tree = ps.tree_node()
+        -- 10. Clip Tracker
         clip_tree:render("Clip Tracker", function()
             menu.clip_tracker_enabled:render("Enable Clip Tracker", "Track auto-shot clipping")
             menu.clip_tracker_print_summary:render("Print Summary", "Show combat summary")
@@ -309,11 +319,17 @@ function menu.render()
             menu.clip_threshold_orange:render("Orange/Red", "Orange to red threshold")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- 11. Advanced (Targeting & Racial)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target over target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment for self-preservation")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+        end)
     end)
 end
 
 return menu
-
-

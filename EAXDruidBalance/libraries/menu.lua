@@ -8,22 +8,20 @@ local ps   = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
 local menu = {}
 
--- -- Tree nodes ----------------------------------------------------------------
-local root_tree    = ps.tree_node()
+-- Tree nodes
+local root_tree = ps.tree_node()
 local rotation_tree = ps.tree_node()
 local healing_tree = ps.tree_node()
-local aoe_tree     = ps.tree_node()
-local auto_tree    = ps.tree_node()
-local ooc_tree     = ps.tree_node()
-local group_tree   = ps.tree_node()
-local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
-local middleware_tree = ps.tree_node()
-local dashboard_tree  = ps.tree_node()
-local pvp_tree        = ps.tree_node()
+local defensive_tree = ps.tree_node()
+local utility_tree = ps.tree_node()
+local buffs_tree = ps.tree_node()
+local consumables_tree = ps.tree_node()
+local pvp_tree = ps.tree_node()
+local automation_tree = ps.tree_node()
+local dashboard_tree = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
+-- ALL menu declarations preserved VERBATIM from original file
 -- -- Controls ------------------------------------------------------------------
 menu.enabled                             = core.menu.checkbox(true, "eaxdruidbalance_enabled")
 menu.toggle_key                          = core.menu.keybind(7, false, "eaxdruidbalance_toggle_key")
@@ -171,7 +169,6 @@ settings.setup_major_toggle_keybinds(menu, {
 })
 
 local _win
-
 function menu.set_window(win)
     _win = win
 end
@@ -180,162 +177,152 @@ function menu.render()
     if _win and root_tree:is_open() then
         ps.draw_space(_win, "eaxdruidbalance")
     end
-
+    
     root_tree:render("Eax's Druid Balance", function()
-
-        ps.render_controls(menu, "Eax's Druid Balance")
-
-        -- -- Rotation - DPS ----------------------------------------------------
-        rotation_tree:render("Rotation (DPS)", function()
+        -- GENERAL (inline - was ps.render_controls)
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        
+        -- Rotation
+        rotation_tree:render("Rotation", function()
             ps.header("Forms & Buffs")
-            menu.force_moonkin:render("Force Moonkin Form", "Keep Moonkin Form active whenever possible")
+            menu.force_moonkin:render("Force Moonkin Form", "Keep Moonkin Form active")
             menu.use_faerie_fire:render("Faerie Fire", "Maintain Faerie Fire on target")
-
             ps.header("Single Target")
-            menu.use_moonfire:render("Moonfire", "Maintain Moonfire on target")
-            menu.use_insect_swarm:render("Insect Swarm", "Maintain Insect Swarm on target")
-            menu.use_starfire:render("Starfire", "Use Starfire as primary nuke")
-            menu.use_wrath:render("Wrath", "Use Wrath when moving or conserving mana")
-            menu.dot_refresh_seconds:render("Refresh Window (sec)", "Refresh DoTs when below this time")
-            menu.bal_dot_refresh:render("DoT Refresh (sec)", "Refresh DoTs at <= this seconds remaining (0 = only when missing)")
+            menu.use_moonfire:render("Moonfire", "Maintain Moonfire")
+            menu.use_insect_swarm:render("Insect Swarm", "Maintain Insect Swarm")
+            menu.use_starfire:render("Starfire", "Use as primary nuke")
+            menu.use_wrath:render("Wrath", "Use when moving")
+            menu.dot_refresh_seconds:render("Refresh Window (sec)", "Refresh DoTs when below")
+            menu.bal_dot_refresh:render("DoT Refresh (sec)", "Refresh at <= seconds")
             menu.use_force_of_nature:render("Force of Nature", "Use treants during burst")
-            menu.force_of_nature_min_ttd:render("Treants Min TTD", "Only use treants if target lives this long (sec)")
-
+            menu.force_of_nature_min_ttd:render("Treants Min TTD", "Only if target lives this long")
             ps.header("Mana Tiers")
-            menu.bal_tier1_mana:render("Tier 1 Mana %", "Full rotation above this mana %")
-            menu.bal_tier2_mana:render("Tier 2 Mana %", "Partial conserve below this, emergency below Tier 3")
-
+            menu.bal_tier1_mana:render("Tier 1 Mana %", "Full rotation above this")
+            menu.bal_tier2_mana:render("Tier 2 Mana %", "Partial conserve below")
             ps.header("Nature's Grace")
-            menu.bal_ng_wrath:render("NG = Wrath Priority", "When Nature's Grace procs, cast Wrath instead of Starfire")
+            menu.bal_ng_wrath:render("NG = Wrath Priority", "When NG procs, cast Wrath")
+            ps.header("AoE")
+            menu.use_hurricane:render("Hurricane", "Channel on packs")
+            menu.hurricane_min_targets:render("Min Targets", "Use above this")
+            menu.hurricane_mana_floor:render("Mana Floor %", "Don't use below")
         end)
-
-        -- -- Rotation - Healing/Emergency ------------------------------------
+        
+        -- Healing & Emergency
         healing_tree:render("Healing & Emergency", function()
-            menu.use_innervate:render("Innervate", "Auto-use for mana recovery")
-            menu.innervate_mana_pct:render("Innervate Mana %", "Use below this mana %")
+            menu.use_innervate:render("Innervate", "Auto-use for mana")
+            menu.innervate_mana_pct:render("Innervate Mana %", "Use below")
             menu.use_tranquility:render("Tranquility", "Emergency self-heal")
-            menu.tranquility_hp_pct:render("Tranquility HP %", "Use below this HP %")
+            menu.tranquility_hp_pct:render("Tranquility HP %", "Use below")
         end)
-
-        -- -- Rotation - AoE ----------------------------------------------------
-        aoe_tree:render("AoE", function()
-            menu.use_hurricane:render("Hurricane", "Channel Hurricane on packs")
-            menu.hurricane_min_targets:render("Min Targets", "Use above this count")
-            menu.hurricane_mana_floor:render("Mana Floor %", "Don't use below this %")
+        
+        -- Defensive
+        defensive_tree:render("Defensive", function()
+            menu.use_barkskin:render("Barkskin", "Damage reduction")
+            menu.barkskin_hp_pct:render("Barkskin HP %", "Use below")
+            menu.use_thorns:render("Thorns", "Auto-apply when missing (OOC)")
+            menu.use_motw:render("Mark of the Wild", "Auto-apply when missing (OOC)")
+        end)
+        
+        -- Utility
+        utility_tree:render("Utility", function()
             menu.use_remove_curse:render("Remove Curse", "Dispel curses")
-            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt casts")
         end)
-
-        -- -- Automation --------------------------------------------------------
-        auto_tree:render("Automation", function()
-            menu.auto_combat_potions:render("Combat Potions", "Use in combat")
-            menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink OOC")
-            menu.auto_flask:render("Auto Flask", "Maintain flask buff")
-        end)
-
-        -- -- OOC Sustain -------------------------------------------------------
-        ooc_tree:render("OOC Sustain", function()
-            ps.header("Self Buffs")
+        
+        -- Buffs
+        buffs_tree:render("Buffs", function()
+            ps.header("Self Buffs (OOC)")
             menu.use_mark_of_the_wild:render("Mark of the Wild", "Stats buff")
             menu.use_moonkin_form:render("Moonkin Form", "Caster form")
-            menu.ooc_drink:render("Auto-Drink", "Drink when OOC")
-            menu.drink_threshold:render("Drink Threshold %", "Start below this %")
-            menu.ooc_eat:render("Auto-Eat", "Eat when OOC")
-            menu.eat_threshold:render("Eat Threshold %", "Start below this %")
-
-            ps.header("Leveling")
-            menu.leveling_conserve_mana:render("Conserve Mana", "Efficient rotation")
-            menu.leveling_mana_floor:render("Mana Floor %", "Conserve below this %")
-            menu.use_wand:render("Use Wand", "Wand when low mana")
-            menu.wand_mana_floor:render("Wand Mana %", "Use below this %")
-            menu.wand_at_hp:render("Wand Target HP %", "Only below this HP %")
+            ps.header("Group Support")
+            menu.ooc_rez:render("Auto-Resurrect", "Accept res OOC")
+            menu.ooc_group_buff:render("Group Buffs", "Buff party between pulls")
         end)
-
-        -- -- Group -------------------------------------------------------------
-        group_tree:render("Group", function()
-            menu.ooc_rez:render("Auto-Rez", "Accept resurrection")
-            menu.ooc_group_buff:render("Group Buffs", "Buff party members")
-        end)
-
-        -- -- Defensive ---------------------------------------------------------
-        def_tree:render("Defensive", function()
-            menu.use_barkskin:render("Barkskin", "Damage reduction")
-            menu.barkskin_hp_pct:render("Barkskin HP %", "Use below this HP %")
-            menu.use_thorns:render("Thorns", "Auto-apply Thorns when missing (OOC)")
-            menu.use_motw:render("Mark of the Wild", "Auto-apply MOTW when missing (OOC)")
-        end)
-
-        -- -- Middleware --------------------------------------------------------
-        middleware_tree:render("Middleware", function()
+        
+        -- Consumables
+        consumables_tree:render("Consumables", function()
             ps.header("Recovery Items")
-            menu.use_healthstone:render("Healthstone", "Use healthstone when HP is low")
-            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below this HP %")
-            menu.use_health_potion:render("Healing Potion", "Use healing potion when HP is low")
-            menu.health_potion_hp_pct:render("Healing Potion HP %", "Use below this HP %")
-            menu.use_mana_potion:render("Mana Potion", "Use mana potion when mana is low")
-            menu.mana_potion_pct:render("Mana Potion %", "Use below this mana %")
-            
-            ps.header("Mana Management")
-            menu.use_mana_manager:render("Use Mana Manager", "Auto-use innervate/potions/runes")
-            menu.innervate_pct:render("Innervate Mana %", "Use Innervate below this %")
-            menu.mana_potion_pct:render("Mana Potion %", "Use potion below this %")
-            menu.dark_rune_pct:render("Dark Rune %", "Use Dark Rune below this %")
-            
-            ps.header("Burst & Trinkets")
-            menu.auto_burst_enabled:render("Auto Burst", "Enable automatic burst cooldowns")
-            menu.burst_on_bloodlust:render("Burst on Bloodlust", "Use CDs during Bloodlust/Heroism")
-            menu.burst_on_pull:render("Burst on Pull", "Use CDs at combat start")
-            menu.burst_on_execute:render("Burst on Execute", "Use CDs during execute phase")
-            menu.burst_in_combat:render("Burst Always", "Use CDs whenever available")
-            menu.cd_min_ttd:render("Min TTD for CDs", "Don't burst if target dies sooner (sec)")
-            menu.trinket1_mode:render("Trinket 1 Mode", {"Auto", "Burst Only", "Off"}, "When to use trinket 1")
-            menu.trinket2_mode:render("Trinket 2 Mode", {"Auto", "Burst Only", "Off"}, "When to use trinket 2")
-            
-            ps.header("Flux Settings")
-            menu.use_energy_tick:render("Use Energy Tick", "Delay actions for energy tick optimization")
-            menu.use_swing_delay:render("Use Swing Delay", "Delay actions before swing lands")
-            menu.trinket_ttd:render("Trinket TTD", "Min target time-to-death for trinket use (sec)")
-            
-            ps.header("Racials")
-            menu.use_war_stomp:render("War Stomp", "Tauren racial - emergency stun")
+            menu.use_healthstone:render("Healthstone", "Use when HP low")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below")
+            menu.use_healing_potion:render("Healing Potion", "Use when HP low")
+            menu.health_potion_hp_pct:render("Healing Potion HP %", "Use below")
+            menu.use_mana_potion:render("Mana Potion", "Use when mana low")
+            menu.mana_potion_pct:render("Mana Potion %", "Use below")
+            ps.header("Sustain (OOC)")
+            menu.ooc_drink:render("Auto-Drink", "Drink to restore mana")
+            menu.drink_threshold:render("Drink Threshold %", "Start below")
+            menu.ooc_eat:render("Auto-Eat", "Eat to restore health")
+            menu.eat_threshold:render("Eat Threshold %", "Start below")
+            menu.auto_ooc_food_drink:render("Auto Food/Drink", "Use OOC when low")
+            menu.auto_flask:render("Auto Flask", "Maintain flask buff")
         end)
-
-        -- -- Dashboard -----------------------------------------------------------
-        dashboard_tree:render("Dashboard", function()
-            menu.show_dashboard:render("Enable Dashboard", "Show combat dashboard")
-            menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
-            menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
-            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
-            ps.header("Features")
-            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
-            menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
-        end)
-
-        -- -- PvP Settings --------------------------------------------------------
+        
+        -- PvP
         pvp_tree:render("PvP", function()
-            menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
-            menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Select PvP detection mode")
-            menu.pvp_use_trinket:render("Use PvP Trinket", "Auto-use PvP trinket when CC'd")
-            menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below this HP% in PvP")
-            
-            ps.header("PvP Crowd Control")
+            ps.header("General")
+            menu.pvp_enabled:render("Enable PvP", "Enable PvP features")
+            menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Mode")
+            menu.pvp_use_trinket:render("Use PvP Trinket", "Auto-use when CC'd")
+            menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below")
+            ps.header("Crowd Control")
             menu.pvp_entangling_roots:render("Entangling Roots", "Root enemy players")
-            menu.pvp_hibernate:render("Hibernate", "Sleep beasts and dragonkins")
+            menu.pvp_hibernate:render("Hibernate", "Sleep beasts")
             menu.pvp_cyclone:render("Cyclone", "Cyclone enemy players")
         end)
-
-        -- -- Targeting --------------------------------------------------------
-        ps.render_targeting(menu, tgt_tree)
-
-        -- -- Racial ------------------------------------------------------------
-        ps.render_racial(menu, racial_tree)
-
+        
+        -- Automation
+        automation_tree:render("Automation", function()
+            ps.header("Burst Cooldowns")
+            menu.auto_burst_enabled:render("Auto Burst", "Enable automatic burst")
+            menu.burst_on_bloodlust:render("Burst on Bloodlust", "Use CDs during lust")
+            menu.burst_on_pull:render("Burst on Pull", "Use at combat start")
+            menu.burst_on_execute:render("Burst on Execute", "Use during execute")
+            menu.burst_in_combat:render("Burst Always", "Use whenever available")
+            menu.cd_min_ttd:render("Min TTD for CDs", "Don't burst if target dies sooner")
+            ps.header("Trinkets")
+            menu.trinket1_mode:render("Trinket 1 Mode", {"Auto", "Burst Only", "Off"}, "When to use")
+            menu.trinket2_mode:render("Trinket 2 Mode", {"Auto", "Burst Only", "Off"}, "When to use")
+            menu.trinket_ttd:render("Trinket TTD", "Min target TTD for use")
+            ps.header("Mana Management")
+            menu.use_mana_manager:render("Use Mana Manager", "Auto-use innervate/potions")
+            menu.innervate_pct:render("Innervate Mana %", "Use below")
+            menu.dark_rune_pct:render("Dark Rune %", "Use below")
+        end)
+        
+        -- Dashboard
+        dashboard_tree:render("Dashboard (Beta)", function()
+            ps.header("Display")
+            menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
+            menu.dashboard_opacity:render("Opacity", "Background opacity")
+            menu.dashboard_scale:render("Scale", "UI scale")
+            menu.dashboard_x:render("Position X", "Horizontal position")
+            menu.dashboard_y:render("Position Y", "Vertical position")
+            ps.header("Features")
+            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
+            menu.show_action_history:render("Action History", "Show recent casts")
+            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+        end)
+        
+        -- Advanced (Targeting + Racial + Leveling)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment")
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Mana-efficient rotation")
+            menu.leveling_mana_floor:render("Mana Floor %", "Conservation threshold")
+            ps.header("Wand")
+            menu.use_wand:render("Use Wand", "Wand low-HP enemies")
+            menu.wand_mana_floor:render("Wand Mana %", "Use below")
+            menu.wand_at_hp:render("Wand Target HP %", "Only below")
+        end)
     end)
 end
 
-
 return menu
-
-

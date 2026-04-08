@@ -18,8 +18,8 @@ local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
 local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
 local dashboard_tree = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxshamanrestoration_enabled")
@@ -215,7 +215,12 @@ function menu.render()
     end
 
     root_tree:render("Eax's Shaman Restoration", function()
-        ps.render_controls(menu, "Eax's Shaman Resto")
+        -- General
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable rotation")
+        menu.toggle_key:render("Toggle Key", "Quick enable/disable")
+        menu.mode:render("Mode", "Auto/PVE/PVP")
+        menu.debug:render("Debug", "Show debug info")
 
         -- Healing
         rotation_tree:render("Healing", function()
@@ -261,10 +266,6 @@ function menu.render()
             ps.header("Earth")
             menu.use_strength_of_earth_totem:render("Strength of Earth", "Stats")
             menu.use_stoneskin_totem:render("Stoneskin Totem", "Armor")
-            menu.use_earthgrab_totem:render("Earthgrab Totem", "Root")
-            menu.use_stoneclaw_totem:render("Stoneclaw Totem", "Absorb")
-            menu.use_stoneclaw_hp_pct:render("Stoneclaw HP %", "Below")
-            menu.use_earthbind_totem:render("Earthbind Totem", "Slow")
 
             ps.header("Water")
             menu.use_mana_spring_totem:render("Mana Spring", "Mana regen")
@@ -378,8 +379,25 @@ function menu.render()
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- Advanced (Targeting, Racial, Leveling)
+        advanced_tree:render("Advanced", function()
+            -- Targeting
+            tgt_tree:render("Targeting", function()
+                menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+                menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold for self-heal priority")
+            end)
+
+            -- Racial
+            racial_tree:render("Racial", function()
+                menu.use_racial:render("Use Racial", "Use racial abilities")
+                menu.racial_hp:render("Racial HP %", "HP threshold for racial use")
+            end)
+
+            -- Leveling
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Save mana while leveling")
+            menu.leveling_mana_floor:render("Mana Floor %", "Minimum mana to conserve")
+        end)
     end)
 end
 

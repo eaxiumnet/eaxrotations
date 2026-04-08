@@ -10,7 +10,6 @@ local INNERVATE_TARGET_OPTIONS = { "Self only", "Lowest mana healer", "Focus tar
 
 -- Tree nodes
 local root_tree    = ps.tree_node()
-local rotation_tree = ps.tree_node()
 local healing_tree = ps.tree_node()
 local dps_tree     = ps.tree_node()
 local cd_tree      = ps.tree_node()
@@ -18,12 +17,10 @@ local auto_tree    = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
-local middleware_tree = ps.tree_node()  
-local dashboard_tree  = ps.tree_node()  
-local pvp_tree        = ps.tree_node()  
+local middleware_tree = ps.tree_node()
+local dashboard_tree  = ps.tree_node()
+local pvp_tree        = ps.tree_node()
+local advanced_tree     = ps.tree_node()
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxdruidrestoration_enabled")
@@ -86,8 +83,8 @@ menu.prioritize_tank                     = core.menu.checkbox(true, "eaxdruidres
 menu.use_cyclone                         = core.menu.checkbox(true, "eaxdruidrestoration_use_cyclone")
 menu.use_entangling_roots                = core.menu.checkbox(true, "eaxdruidrestoration_use_entangling_roots")
 menu.use_natures_grasp                   = core.menu.checkbox(true, "eaxdruidrestoration_use_natures_grasp")
-menu.use_travel_form                    = core.menu.checkbox(true, "eaxdruidrestoration_use_travel_form")
-menu.use_mount_form                     = core.menu.checkbox(true, "eaxdruidrestoration_use_mount_form")
+menu.use_travel_form                     = core.menu.checkbox(true, "eaxdruidrestoration_use_travel_form")
+menu.use_mount_form                      = core.menu.checkbox(true, "eaxdruidrestoration_use_mount_form")
 
 -- DPS Fallback
 menu.dps_fallback_enabled                = core.menu.checkbox(true, "eaxdruidrestoration_dps_fallback")
@@ -108,10 +105,6 @@ menu.use_thorns                          = core.menu.checkbox(true, "eaxdruidres
 menu.use_motw                            = core.menu.checkbox(true, "eaxdruidrestoration_use_motw")
 menu.use_rebirth                         = core.menu.checkbox(true, "eaxdruidrestoration_use_rebirth")
 
--- ============================================================================
-
--- ============================================================================
-
 -- Healthstone (higher threshold for healer survival)
 menu.use_healthstone                     = core.menu.checkbox(true, "eaxdruidresto_use_healthstone")
 menu.healthstone_hp_pct                  = core.menu.slider_int(10, 60, 35, "eaxdruidresto_healthstone_hp_pct")
@@ -127,7 +120,7 @@ menu.consumable_health_threshold           = core.menu.slider_int(10, 50, 35, "e
 menu.use_mana_potion                     = core.menu.checkbox(true, "eaxdruidresto_use_mana_potion")
 menu.mana_potion_pct                     = core.menu.slider_int(5, 30, 10, "eaxdruidresto_mana_potion_pct")
 
--- Consumables
+-- Consumables (duplicate declarations - keeping for compatibility)
 menu.use_healthstone                     = core.menu.checkbox(true, "eaxdruidresto_use_healthstone")
 menu.healthstone_hp_pct                  = core.menu.slider_int(10, 50, 30, "eaxdruidresto_healthstone_hp_pct")
 menu.use_healing_potion                  = core.menu.checkbox(true, "eaxdruidresto_use_healing_potion")
@@ -142,10 +135,7 @@ menu.innervate_pct                       = core.menu.slider_int(5, 100, 30, "eax
 -- War Stomp (Tauren racial)
 menu.use_war_stomp                       = core.menu.checkbox(true, "eaxdruidresto_use_war_stomp")
 
--- ============================================================================
-
--- ============================================================================
-
+-- Dashboard
 menu.show_dashboard                      = core.menu.checkbox(true, "eaxdruidresto_show_dashboard")
 menu.dashboard_opacity                     = core.menu.slider_int(50, 255, 190, "eaxdruidresto_dashboard_opacity")
 menu.dashboard_scale                     = core.menu.slider_float(0.5, 2.0, 1.0, "eaxdruidresto_dashboard_scale")
@@ -161,10 +151,7 @@ menu.show_combo_points = core.menu.checkbox(false, "eaxdruidrestoration_show_com
 menu.show_threat_bar = core.menu.checkbox(false, "eaxdruidrestoration_show_threat_bar")
 menu.enable_smart_collapse = core.menu.checkbox(true, "eaxdruidrestoration_enable_smart_collapse")
 
--- ============================================================================
-
--- ============================================================================
-
+-- PvP
 menu.pvp_enabled                         = core.menu.checkbox(true, "eaxdruidresto_pvp_enabled")
 menu.pvp_mode                            = core.menu.combobox(1, "eaxdruidresto_pvp_mode")
 menu.pvp_use_trinket                     = core.menu.checkbox(true, "eaxdruidresto_pvp_trinket")
@@ -172,10 +159,6 @@ menu.pvp_defensive_threshold             = core.menu.slider_int(10, 80, 40, "eax
 menu.pvp_entangling_roots                = core.menu.checkbox(true, "eaxdruidresto_pvp_entangling_roots")
 menu.pvp_hibernate                       = core.menu.checkbox(true, "eaxdruidresto_pvp_hibernate")
 menu.pvp_cyclone                         = core.menu.checkbox(true, "eaxdruidresto_pvp_cyclone")
-
--- ============================================================================
-
--- ============================================================================
 
 -- Lifebloom Bloom Optimization
 menu.lifebloom_allow_bloom               = core.menu.checkbox(false, "eaxdruidrestoration_lifebloom_allow_bloom")
@@ -222,148 +205,206 @@ function menu.render()
     end
 
     root_tree:render("Eax's Druid Restoration", function()
-        ps.render_controls(menu, "Eax's Druid Resto")
 
-        -- Healing
+        -- 1. General - Visible immediately at top level
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        menu.debug:render("Debug", "Enable debug output")
+
+        -- 2. Healing
         healing_tree:render("Healing", function()
             ps.header("HoTs")
             menu.use_rejuvenation:render("Rejuvenation", "Maintain on targets")
             menu.use_regrowth:render("Regrowth", "Direct heal + HoT")
             menu.use_lifebloom:render("Lifebloom", "Stack to 3 on tank")
             menu.lifebloom_stacks:render("Lifebloom Stacks", "Target stack count")
-            menu.use_swiftmend:render("Swiftmend", "Emergency heal")
-            menu.swiftmend_hp_pct:render("Swiftmend HP %", "Use below")
+            menu.lifebloom_allow_bloom:render("Allow Bloom", "Let Lifebloom bloom for burst heal")
+            menu.lifebloom_bloom_threshold:render("Bloom Threshold", "Seconds remaining to allow bloom")
+
+            ps.header("Direct Heals")
             menu.use_healing_touch:render("Healing Touch", "Big slow heal")
             menu.healing_touch_rank:render("Healing Touch Rank", "Max rank to use (1-12)")
             menu.healing_touch_tank_threshold:render("Healing Touch Tank Threshold", "HP% to use on tanks")
-            menu.use_natures_swiftness:render("Nature's Swiftness", "Instant cast")
-            menu.emergency_hp:render("Emergency HP %", "Nature's Swiftness below")
-            menu.use_tranquility:render("Tranquility", "AoE heal")
-            menu.use_tree_of_life:render("Tree of Life", "Form")
-            menu.use_innervate:render("Innervate", "Mana recovery")
-            menu.innervate_mana_pct:render("Innervate Mana %", "Below")
-            menu.innervate_target:render("Innervate Target", "Target mode")
-            menu.prioritize_tank:render("Prioritize Tank", "Heal tank first")
+            menu.use_swiftmend:render("Swiftmend", "Emergency heal consuming HoT")
+            menu.swiftmend_hp_pct:render("Swiftmend HP %", "Use below this HP")
+
+            ps.header("Emergency & Cooldowns")
+            menu.use_natures_swiftness:render("Nature's Swiftness", "Instant cast emergency heal")
+            menu.emergency_hp:render("Emergency HP %", "Use Nature's Swiftness below this HP")
+            menu.resto_ns_healing_touch:render("NS: Healing Touch", "Use NS with Healing Touch")
+            menu.resto_ns_regrowth:render("NS: Regrowth", "Use NS with Regrowth")
+            menu.use_tranquility:render("Tranquility", "AoE channel heal")
+            menu.use_tree_of_life:render("Tree of Life", "Maintain Tree of Life form")
+            menu.use_innervate:render("Innervate", "Mana recovery cooldown")
+            menu.innervate_mana_pct:render("Innervate Mana %", "Use below this mana")
+            menu.innervate_target:render("Innervate Target", INNERVATE_TARGET_OPTIONS, "Target selection mode")
+            menu.prioritize_tank:render("Prioritize Tank", "Heal tank first in emergencies")
+
+            ps.header("Advanced Healing")
+            menu.overheal_protection:render("Overheal Protection", "Cancel casts if target will be overhealed")
+            menu.overheal_threshold:render("Overheal Threshold", "Cancel if target HP% above this")
+            menu.resto_proactive_hp:render("Proactive Rejuv HP %", "Spread Rejuvenation above this HP")
+            menu.resto_max_rejuv_targets:render("Max Rejuv Targets", "Maximum targets for blanketing")
+            menu.tank_emergency_hp:render("Tank Emergency HP %", "Critical threshold for tank healing")
+            menu.triage_hp_threshold:render("Triage HP %", "Group heal threshold")
+            menu.group_collapse_count:render("Group Collapse Count", "Allies below threshold to trigger group heal mode")
         end)
 
-        -- DPS Fallback
+        -- 3. DPS Fallback
         dps_tree:render("DPS Fallback", function()
-            menu.dps_fallback_enabled:render("DPS Fallback", "Enable solo DPS")
+            ps.header("General")
+            menu.dps_fallback_enabled:render("DPS Fallback", "Enable solo DPS when no healing needed")
+
+            ps.header("DoTs")
             menu.dps_use_faerie_fire:render("Faerie Fire", "Armor debuff")
-            menu.dps_use_moonfire:render("Moonfire", "DoT")
-            menu.dps_use_insect_swarm:render("Insect Swarm", "DoT")
-            menu.dps_use_wrath:render("Wrath", "Filler")
-            menu.dps_use_starfire:render("Starfire", "Cast")
-            menu.dps_starfire_over_wrath:render("Prefer Starfire", "Starfire over Wrath")
-            menu.use_hurricane:render("Hurricane", "AoE")
-            menu.hurricane_min_targets:render("Min Targets", "Use above")
-            menu.hurricane_mana_floor:render("Mana Floor %", "Don't use below")
+            menu.dps_use_moonfire:render("Moonfire", "DoT + initial damage")
+            menu.dps_use_insect_swarm:render("Insect Swarm", "Miss chance debuff")
+
+            ps.header("Direct Damage")
+            menu.dps_use_wrath:render("Wrath", "Fast cast filler")
+            menu.dps_use_starfire:render("Starfire", "Slow cast nuke")
+            menu.dps_starfire_over_wrath:render("Prefer Starfire", "Use Starfire over Wrath")
+
+            ps.header("AoE")
+            menu.use_hurricane:render("Hurricane", "AoE channel damage")
+            menu.hurricane_min_targets:render("Min Targets", "Use Hurricane above this count")
+            menu.hurricane_mana_floor:render("Mana Floor %", "Don't use below this mana")
         end)
 
-        -- Utility
-        rotation_tree:render("Utility", function()
+        -- 4. Utility
+        cd_tree:render("Utility", function()
+            ps.header("Crowd Control")
+            menu.use_cyclone:render("Cyclone", "CC single target")
+            menu.use_entangling_roots:render("Entangling Roots", "Root target")
+            menu.use_natures_grasp:render("Nature's Grasp", "Root on melee hit")
             menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
-            menu.use_remove_curse:render("Remove Curse", "Dispel")
-            menu.use_abolish_poison:render("Abolish Poison", "Dispel")
-            menu.use_cyclone:render("Cyclone", "CC")
-            menu.use_entangling_roots:render("Entangling Roots", "Root")
-            menu.use_natures_grasp:render("Nature's Grasp", "Root on hit")
-            menu.use_travel_form:render("Travel Form", "OOC")
-            menu.use_mount_form:render("Mount Form", "OOC")
+
+            ps.header("Dispels")
+            menu.use_remove_curse:render("Remove Curse", "Dispel curse effects")
+            menu.use_abolish_poison:render("Abolish Poison", "Dispel poison effects")
+
+            ps.header("Movement")
+            menu.use_travel_form:render("Travel Form", "Use Travel Form out of combat")
+            menu.use_mount_form:render("Mount Form", "Use Mount when available")
+            menu.buff_friendlies:render("Buff Friendlies", "Apply buffs to allies out of combat")
         end)
 
-        -- Defensive
+        -- 5. Defensive
         def_tree:render("Defensive", function()
-            menu.use_barkskin:render("Barkskin", "Damage reduction")
-            menu.barkskin_hp_pct:render("Barkskin HP %", "Below")
-            menu.use_thorns:render("Thorns", "Auto-apply Thorns when missing (OOC)")
-            menu.use_motw:render("Mark of the Wild", "Auto-apply MOTW when missing (OOC)")
+            ps.header("Self Defense")
+            menu.use_barkskin:render("Barkskin", "Damage reduction cooldown")
+            menu.barkskin_hp_pct:render("Barkskin HP %", "Use below this HP")
+            menu.use_thorns:render("Thorns", "Auto-apply Thorns when missing")
+            menu.use_motw:render("Mark of the Wild", "Auto-apply MOTW when missing")
+            menu.use_rebirth:render("Rebirth", "Combat resurrection")
         end)
 
-        
+        -- 6. Middleware (Consumables + Racials)
         middleware_tree:render("Middleware", function()
-            ps.header("Consumables")
-            menu.use_healthstone:render("Healthstone", "Use healthstone")
-            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
-            menu.use_healing_potion:render("Healing Potion", "Use potion")
-            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Below")
-            ps.header("Recovery Items (Healer Thresholds)")
-            menu.use_healthstone:render("Healthstone", "Use healthstone")
-            menu.healthstone_hp_pct:render("Healthstone HP %", "Below (healer: 35%)")
-            menu.use_healing_potion:render("Healing Potion", "Use potion")
-            menu.health_potion_hp_pct:render("Healing Potion HP %", "Below (healer: 45%)")
+            ps.header("Health Consumables")
+            menu.use_healthstone:render("Healthstone", "Use healthstone when HP low")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below this HP (healer: 35%)")
+            menu.use_healing_potion:render("Healing Potion", "Use potion when HP low")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Use below this HP (healer: 45%)")
+            menu.consumable_health_threshold:render("Consumable HP Threshold", "Unified threshold for all consumables")
+
+            ps.header("Mana Consumables")
             menu.use_mana_potion:render("Mana Potion", "Use mana potion")
-            menu.mana_potion_pct:render("Mana Potion %", "Below (conserve for heals)")
-            
-            ps.header("Form Consumables")
-            menu.consumable_health_threshold:render("Consumable HP Threshold", "Use healthstone/potion below this % (all forms)")
-            
+            menu.mana_potion_pct:render("Mana Potion %", "Use below this mana (conserve for heals)")
+
+            ps.header("Mana Manager")
+            menu.use_mana_manager:render("Enable Mana Manager", "Unified mana recovery chain")
+            menu.dark_rune_pct:render("Dark Rune %", "Use Dark Rune below this mana")
+            menu.innervate_pct:render("Innervate Self %", "Use Innervate on self below this mana")
+
             ps.header("Racials")
-            menu.use_war_stomp:render("War Stomp", "Tauren stun defensive")
+            menu.use_war_stomp:render("War Stomp", "Tauren racial stun defensive")
         end)
 
-        
+        -- 7. Dashboard
         dashboard_tree:render("Dashboard", function()
+            ps.header("Display")
             menu.show_dashboard:render("Show Dashboard", "Toggle dashboard visibility")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_scale:render("Scale", "Dashboard UI scale")
+            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
+            menu.dashboard_y:render("Position Y", "Dashboard vertical position")
+
+            ps.header("Features")
             menu.dashboard_show_cooldowns:render("Show Cooldowns", "Track Innervate, Barkskin, etc.")
             menu.dashboard_show_buffs:render("Show Buffs", "Track HoTs and buffs")
             menu.dashboard_show_custom:render("Show Custom Lines", "Mana %, HoT count, Rebirth CD")
-            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
-            ps.header("Features")
-            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
+            menu.show_timer_bars:render("Timer Bars", "Show GCD and cast timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
+            menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")
+            menu.show_combo_points:render("Combo Points", "Show combo point display")
+            menu.show_threat_bar:render("Threat Bar", "Show threat meter")
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
         end)
 
-        
+        -- 8. PvP
         pvp_tree:render("PvP", function()
+            ps.header("General")
             menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
-            menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Select PvP detection mode")
-            menu.pvp_use_trinket:render("Use PvP Trinket", "Auto-use PvP trinket when CC'd")
+            menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "PvP detection mode")
+            menu.pvp_use_trinket:render("Use PvP Trinket", "Auto-use when CC'd")
             menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below this HP% in PvP")
+
+            ps.header("Crowd Control")
             menu.pvp_entangling_roots:render("Entangling Roots", "Root enemy players")
             menu.pvp_hibernate:render("Hibernate", "CC beasts/dragonkin")
             menu.pvp_cyclone:render("Cyclone", "CC enemy players")
         end)
 
-        -- Automation
+        -- 9. Automation
         auto_tree:render("Automation", function()
-            menu.auto_combat_potions:render("Combat Potions", "In combat")
-            menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink")
-            menu.auto_flask:render("Auto Flask", "Flask")
-            menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
-            menu.leveling_mana_floor:render("Mana %", "Below")
-            menu.use_wand:render("Use Wand", "Low mana")
-            menu.wand_mana_floor:render("Wand Mana %", "Below")
-            menu.wand_at_hp:render("Wand Target HP %", "Below")
-            menu.use_spirit_tap_wand:render("Spirit Tap Wand", "If talented")
+            ps.header("Combat")
+            menu.auto_combat_potions:render("Combat Potions", "Auto-use potions in combat")
+
+            ps.header("Out of Combat")
+            menu.auto_ooc_food_drink:render("OOC Food/Drink", "Auto eat/drink when low")
+            menu.auto_flask:render("Auto Flask", "Maintain flask buff")
+
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Mana-efficient rotation while leveling")
+            menu.leveling_mana_floor:render("Mana Floor %", "Enter conservation mode below this")
+            menu.use_wand:render("Use Wand", "Wand when low mana")
+            menu.wand_mana_floor:render("Wand Mana %", "Wand below this mana")
+            menu.wand_at_hp:render("Wand Target HP %", "Only wand when target HP% below this")
+            menu.use_spirit_tap_wand:render("Spirit Tap Wand", "Wand for Spirit Tap procs if talented")
         end)
 
-        -- OOC
+        -- 10. OOC Sustain
         ooc_tree:render("OOC Sustain", function()
-            menu.ooc_drink:render("Auto-Drink", "Drink")
-            menu.drink_threshold:render("Drink %", "Below")
-            menu.ooc_eat:render("Auto-Eat", "Eat")
-            menu.eat_threshold:render("Eat %", "Below")
-            menu.ooc_heal_hp_pct:render("OOC Heal HP %", "Heal allies below")
+            ps.header("Regeneration")
+            menu.ooc_drink:render("Auto-Drink", "Drink to restore mana")
+            menu.drink_threshold:render("Drink %", "Start drinking below this mana")
+            menu.ooc_eat:render("Auto-Eat", "Eat to restore health")
+            menu.eat_threshold:render("Eat %", "Start eating below this HP")
+            menu.ooc_heal_hp_pct:render("OOC Heal HP %", "Heal allies below this HP out of combat")
         end)
 
-        -- Group
+        -- 11. Group (without Targeting and Racial - moved to Advanced)
         group_tree:render("Group", function()
-            menu.ooc_rez:render("Auto-Rez", "Accept")
-            menu.ooc_group_buff:render("Buffs", "Party")
-            menu.buff_friendlies:render("Buff Friendlies", "OOC buff allies")
+            ps.header("Group Support")
+            menu.ooc_rez:render("Auto-Rez", "Accept and cast resurrection")
+            menu.ooc_group_buff:render("Group Buffs", "Buff party members between pulls")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- 12. Advanced (Targeting + Racial)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target for healing")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment for self")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+        end)
+
     end)
 end
 
-
 return menu
-
-

@@ -9,22 +9,16 @@ local settings = require("libraries/settings_framework")
 
 local menu = {}
 
--- -- Tree nodes (declared outside render, as per API requirements) -------------
-local root_tree     = ps.tree_node()
-local rotation_tree = ps.tree_node()
-local bear_tree     = ps.tree_node()
-local guardian_tree = ps.tree_node()
-local auto_tree     = ps.tree_node()
-local ooc_tree      = ps.tree_node()
-local group_tree    = ps.tree_node()
-local def_tree      = ps.tree_node()
-local tgt_tree      = ps.tree_node()
-local racial_tree   = ps.tree_node()
-local esp_tree      = ps.tree_node()
-local middleware_tree = ps.tree_node()
-local trinket_tree      = ps.tree_node()
+-- -- Tree nodes (Standard EAX Menu Structure) -----------------------------
+local root_tree         = ps.tree_node()
+local bear_tree         = ps.tree_node()
+local guardian_tree     = ps.tree_node()
+local defensive_tree    = ps.tree_node()
+local middleware_tree   = ps.tree_node()
 local dashboard_tree    = ps.tree_node()
-local pvp_tree        = ps.tree_node()
+local pvp_tree          = ps.tree_node()
+local ooc_tree          = ps.tree_node()
+local advanced_tree     = ps.tree_node()
 
 -- -- Controls ------------------------------------------------------------------
 menu.enabled         = core.menu.checkbox(true,  "eaxdruidbear_enabled")
@@ -159,9 +153,14 @@ function menu.render()
 
     root_tree:render("Eax's Druid Bear", function()
 
-        ps.render_controls(menu, "Eax's Druid Bear")
+        -- 1. General - Visible immediately at top level
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        menu.debug:render("Debug", "Enable debug output")
 
-        -- Bear Form
+        -- 2. Bear Form
         bear_tree:render("Bear Form", function()
             ps.header("Threat")
             menu.use_mangle_bear:render("Mangle (Bear)", "Main threat ability")
@@ -173,7 +172,7 @@ function menu.render()
             menu.maul_min_rage:render("Maul Min Rage", "Minimum rage to use Maul")
         end)
 
-        -- Guardian
+        -- 3. Guardian
         guardian_tree:render("Guardian", function()
             ps.header("Defensive")
             menu.use_frenzied_regeneration:render("Frenzied Regen", "Self-heal cooldown")
@@ -188,23 +187,9 @@ function menu.render()
             menu.use_survival_instincts:render("Survival Instincts", "Max health increase")
         end)
 
-        -- Shared / Utility
-        rotation_tree:render("Utility", function()
-            ps.header("Mobility")
-            menu.use_feral_charge:render("Feral Charge", "Gap closer")
-            menu.use_travel_form:render("Travel Form OOC", "Use Travel Form when out of combat")
-            menu.use_root_escape:render("Root Escape", "Shift to break roots")
-
-            ps.header("CC")
-            menu.use_bash:render("Bash", "Bear stun")
-            menu.use_war_stomp:render("War Stomp (Tauren)", "Racial stun")
-            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
-            menu.war_stomp_hp_pct:render("War Stomp HP %", "Use below this HP")
-            menu.war_stomp_attackers:render("War Stomp Attacker Count", "Use above this attacker count")
-        end)
-
-        -- Defensive
-        def_tree:render("Defensive", function()
+        -- 4. Defensive
+        defensive_tree:render("Defensive", function()
+            ps.header("Survival")
             menu.use_barkskin:render("Barkskin", "Damage reduction cooldown")
             menu.barkskin_hp_pct:render("Barkskin HP %", "Use below this health percent")
             menu.use_innervate:render("Innervate", "Mana recovery")
@@ -214,14 +199,15 @@ function menu.render()
             menu.use_natures_grasp:render("Nature's Grasp", "Root on melee hit")
             menu.use_thorns:render("Thorns", "Auto-apply Thorns when missing (OOC)")
             menu.use_motw:render("Mark of the Wild", "Auto-apply MOTW when missing (OOC)")
+            menu.use_bear_form:render("Bear Form", "Auto-shift to Bear Form")
         end)
 
-        -- Middleware
+        -- 5. Middleware / Consumables
         middleware_tree:render("Middleware / Consumables", function()
             ps.header("Healthstone")
             menu.use_healthstone:render("Use Healthstone", "Auto-use healthstone when HP low (off-GCD)")
             menu.healthstone_hp_pct:render("Healthstone HP %", "Use healthstone below this HP")
-            
+
             ps.header("Healing Potion")
             menu.use_healing_potion:render("Use Healing Potion", "Auto-use healing potion when HP low (off-GCD)")
             menu.healing_potion_hp_pct:render("Potion HP %", "Use potion below this HP")
@@ -232,44 +218,37 @@ function menu.render()
             menu.form_healthstone_hp_pct:render("Healthstone HP%", "HP threshold")
             menu.use_form_healing_potion:render("Use Healing Potion", "Use potion when low HP")
             menu.form_healing_potion_hp_pct:render("Potion HP%", "HP threshold")
-        end)
 
-        -- Trinkets
-        trinket_tree:render("Trinkets", function()
-            ps.header("Trinket Modes")
+            ps.header("Trinkets")
             menu.trinket1_mode:render("Trinket 1 Mode", {"Off", "Offensive", "Defensive"}, "Mode for top trinket slot")
             menu.trinket2_mode:render("Trinket 2 Mode", {"Off", "Offensive", "Defensive"}, "Mode for bottom trinket slot")
         end)
 
-        -- Dashboard
+        -- 6. Dashboard
         dashboard_tree:render("Dashboard", function()
             ps.header("Display")
             menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_scale:render("Scale", "Dashboard UI scale")
             menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
+            menu.dashboard_y:render("Position Y", "Dashboard vertical position")
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")            menu.show_threat_bar:render("Threat Bar", "Show threat percentage")
+            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+            menu.show_threat_bar:render("Threat Bar", "Show threat percentage")
         end)
 
-        -- PvP Settings
+        -- 7. PvP Settings
         pvp_tree:render("PvP", function()
+            ps.header("General")
             menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
             menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Select PvP detection mode")
             menu.pvp_use_trinket:render("Use PvP Trinket", "Auto-use PvP trinket when CC'd")
             menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below this HP% in PvP")
         end)
 
-        -- Targeting
-        ps.render_targeting(menu, tgt_tree)
-
-        -- Racial
-        ps.render_racial(menu, racial_tree)
-
-        -- Out-of-combat
+        -- 8. Out of Combat
         ooc_tree:render("Out of Combat", function()
             ps.header("Sustain")
             menu.ooc_drink:render("Auto-Drink", "Drink to restore mana when out of combat")
@@ -290,10 +269,19 @@ function menu.render()
             menu.leveling_mana_floor:render("Mana Floor %", "Switch to conservation mode below this mana percent")
         end)
 
+        -- 9. Advanced (Targeting and Racial)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+        end)
+
     end)
 end
 
 
 return menu
-
-

@@ -8,21 +8,19 @@ local settings = require("libraries/settings_framework")
 
 local menu = {}
 
--- Tree nodes
-local root_tree    = ps.tree_node()
-local rotation_tree = ps.tree_node()
-local shouts_tree  = ps.tree_node()
-local debuffs_tree = ps.tree_node()
-local cd_tree      = ps.tree_node()
-local auto_tree    = ps.tree_node()
-local ooc_tree     = ps.tree_node()
-local group_tree   = ps.tree_node()
-local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
-local dashboard_tree = ps.tree_node()
-local pvp_tree     = ps.tree_node()
+-- Tree nodes (Standard EAX Menu Structure)
+local root_tree        = ps.tree_node()
+local rotation_tree    = ps.tree_node()
+local cooldowns_tree   = ps.tree_node()
+local defensive_tree   = ps.tree_node()
+local utility_tree     = ps.tree_node()
+local buffs_tree       = ps.tree_node()
+local middleware_tree  = ps.tree_node()
+local pvp_tree         = ps.tree_node()
+local automation_tree  = ps.tree_node()
+local dashboard_tree   = ps.tree_node()
+local ooc_tree         = ps.tree_node()
+local advanced_tree    = ps.tree_node()  -- Targeting + Racial
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxwarriorfury_enabled")
@@ -101,10 +99,9 @@ menu.use_drums                            = core.menu.checkbox(false, "eaxwarrio
 menu.use_healthstone                      = core.menu.checkbox(false, "eaxwarriorfury_use_healthstone")
 menu.use_health_potion                    = core.menu.checkbox(true, "eaxwarriorfury_use_health_potion")
 menu.use_stoneform                        = core.menu.checkbox(true, "eaxwarriorfury_use_stoneform")
-menu.heroic_strike_rage                   = core.menu.slider_int(20, 100, 50, "eaxwarriorfury_hs_rage")  
 menu.cleave_rage                          = core.menu.slider_int(20, 100, 55, "eaxwarriorfury_cleave_rage")
-menu.use_hs_trick                         = core.menu.checkbox(true, "eaxwarriorfury_use_hs_trick")  
-menu.pool_for_interrupt                   = core.menu.checkbox(true, "eaxwarriorfury_pool_for_interrupt")  -- Hold rage for Pummel
+menu.use_hs_trick                         = core.menu.checkbox(true, "eaxwarriorfury_use_hs_trick")
+menu.pool_for_interrupt                   = core.menu.checkbox(true, "eaxwarriorfury_pool_for_interrupt")
 menu.aoe_enemy_count                      = core.menu.slider_int(2, 10, 3, "eaxwarriorfury_aoe_count")
 menu.ww_priority_count                    = core.menu.slider_int(2, 8, 4, "eaxwarriorfury_ww_priority_count")
 menu.sunder_max_stacks                    = core.menu.slider_int(1, 5, 5, "eaxwarriorfury_sunder_max_stacks")
@@ -121,7 +118,7 @@ menu.cancelaura_hp_threshold              = core.menu.slider_int(0, 100, 80, "ea
 menu.cancel_pws                           = core.menu.checkbox(true, "eaxwarriorfury_cancel_pws")
 menu.cancel_bop                           = core.menu.checkbox(true, "eaxwarriorfury_cancel_bop")
 
--- Swing Management (ported from Flux)
+-- Swing Management
 menu.use_swing_manager = core.menu.checkbox(true, "eaxwarriorfury_use_swing_manager")
 menu.swing_queue_threshold = core.menu.slider_int(30, 100, 50, "eaxwarriorfury_swing_queue_threshold")
 menu.swing_cleave_threshold = core.menu.slider_int(35, 100, 60, "eaxwarriorfury_swing_cleave_threshold")
@@ -181,96 +178,102 @@ settings.setup_major_toggle_keybinds(menu, {
 })
 
 local _win
+function menu.set_window(win) _win = win end
 
-function menu.set_window(win)
-    _win = win
-end
-
+-- RENDER
 function menu.render()
     if _win and root_tree:is_open() then
         ps.draw_space(_win, "eaxwarriorfury")
     end
 
     root_tree:render("Eax's Warrior Fury", function()
-        ps.render_controls(menu, "Eax's Warrior Fury")
 
-        -- Rotation
+        -- 1. General - Visible immediately at top level
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        menu.debug:render("Debug", "Show debug information")
+
+        -- 2. Rotation
         rotation_tree:render("Rotation", function()
-            ps.header("Abilities")
-            menu.use_bloodrage:render("Bloodrage", "Low rage, safe HP")
-            menu.use_rampage:render("Rampage", "Maintain buff")
-            menu.rampage_refresh_threshold:render("Rampage Refresh", "Seconds before expiry")
+            ps.header("Core Abilities")
             menu.use_bloodthirst:render("Bloodthirst", "Core Fury attack")
-            menu.execute_use_bt:render("BT During Execute", "Use Bloodthirst below 20%")
             menu.use_whirlwind:render("Whirlwind", "AoE/single target")
+            menu.use_execute:render("Execute", "Below 20% HP")
+            menu.execute_use_bt:render("BT During Execute", "Use Bloodthirst below 20%")
             menu.execute_use_ww:render("WW During Execute", "Use Whirlwind below 20%")
             menu.use_heroic_strike:render("Heroic Strike", "High rage dump")
             menu.use_cleave:render("Cleave", "AoE dump")
-            menu.use_execute:render("Execute", "Below 20% HP")
-            menu.use_pummel:render("Pummel", "Interrupt")
-            menu.use_hamstring_filler:render("Hamstring Filler", "GCD filler")
-            menu.use_hamstring:render("Hamstring", "Rage dump / PvP")
-            menu.use_slam_weave:render("Slam Weave", "Between autos")
-            menu.use_slam:render("Slam", "Slam weaving")
-            menu.use_overpower:render("Overpower", "Dodge proc")
-            menu.use_intercept:render("Intercept", "Gap closer")
-            menu.use_charge_opener:render("Charge Opener", "Pre-combat")
-            menu.use_prepull_bloodrage:render("Pre-pull Bloodrage", "Before combat")
-            menu.use_execute_sniping:render("Execute Sniping", "AoE low HP")
-            menu.show_notifications:render("Notifications", "On-screen")
-            menu.use_rend:render("Rend", "Battle Stance only")
-            menu.use_thunder_clap_aoe:render("Thunder Clap AoE", "Sweeping window")
-            menu.track_procs:render("Track Procs", "Flurry/Enrage")
-            menu.heroic_strike_rage:render("HS Min Rage", "Queue above ( default: 50)")
+            menu.heroic_strike_rage:render("HS Min Rage", "Queue above (default: 50)")
+            menu.cleave_rage:render("Cleave Min Rage", "Queue above")
             menu.execute_use_hs:render("HS During Execute", "Use Heroic Strike below 20%")
             menu.use_hs_trick:render("HS Trick", "Queue early on OH swing")
-            menu.pool_for_interrupt:render("Pool for Interrupt", "Hold rage for Pummel")
-            menu.cleave_rage:render("Cleave Min Rage", "Queue above")
 
-            ps.header("Swing Management")
-            menu.use_swing_manager:render("Use Swing Manager", "Queue Heroic Strike/Cleave optimally before swing")
-            menu.swing_aware_delay:render("Swing-Aware Delay", "Wait for swing landing before expensive abilities")
-            menu.swing_queue_threshold:render("HS Queue Threshold", "Rage threshold to queue Heroic Strike")
-            menu.swing_cleave_threshold:render("Cleave Queue Threshold", "Rage threshold to queue Cleave (2+ enemies)")
-
-            menu.aoe_enemy_count:render("AoE Threshold", "Enemy count")
-            menu.ww_priority_count:render("WW Priority Count", "Enemies needed for WW > BT")
-            menu.intercept_min_range:render("Intercept Min Range", "yd")
+            ps.header("Slam & Weaving")
+            menu.use_slam:render("Slam", "Slam weaving")
+            menu.use_slam_weave:render("Slam Weave", "Between autos")
             menu.slam_safety_buffer_ms:render("Slam Buffer", "ms")
-            menu.use_swing_desync:render("Swing Desync", "Offset MH/OH timers")
-            menu.swing_desync_threshold:render("Desync Threshold", "Rage %")
-            menu.use_hamstring_weave:render("Hamstring Weave", "Movement filler")
-            menu.hamstring_weave_rage:render("HS Weave Rage", "Above")
-        end)
 
-        -- Shouts
-        shouts_tree:render("Shouts", function()
+            ps.header("Rage Management")
+            menu.use_bloodrage:render("Bloodrage", "Low rage, safe HP")
+            menu.use_berserker_rage:render("Berserker Rage", "On CD")
+            menu.use_prepull_bloodrage:render("Pre-pull Bloodrage", "Before combat")
+            menu.pool_for_interrupt:render("Pool for Interrupt", "Hold rage for Pummel")
+
+            ps.header("Buffs & Maintenance")
+            menu.use_rampage:render("Rampage", "Maintain buff")
+            menu.rampage_refresh_threshold:render("Rampage Refresh", "Seconds before expiry")
             menu.use_battle_shout:render("Battle Shout", "AP buff")
             menu.use_commanding_shout:render("Commanding Shout", "HP buff")
             menu.use_demo_shout:render("Demo Shout", "Reduce AP")
-        end)
 
-        -- Debuffs
-        debuffs_tree:render("Debuffs", function()
+            ps.header("Utility & Movement")
+            menu.use_pummel:render("Pummel", "Interrupt")
+            menu.use_hamstring:render("Hamstring", "Rage dump / PvP")
+            menu.use_hamstring_filler:render("Hamstring Filler", "GCD filler")
+            menu.use_hamstring_weave:render("Hamstring Weave", "Movement filler")
+            menu.hamstring_weave_rage:render("HS Weave Rage", "Above")
+            menu.use_intercept:render("Intercept", "Gap closer")
+            menu.intercept_min_range:render("Intercept Min Range", "yd")
+            menu.use_charge_opener:render("Charge Opener", "Pre-combat")
+            menu.use_overpower:render("Overpower", "Dodge proc")
+            menu.use_rend:render("Rend", "Battle Stance only")
+            menu.use_thunder_clap_aoe:render("Thunder Clap AoE", "Sweeping window")
+            menu.use_piercing_howl:render("Piercing Howl", "Slow")
+
+            ps.header("Debuffs")
             menu.use_sunder_armor:render("Sunder Armor", "Stack")
             menu.sunder_max_stacks:render("Sunder Max", "Stacks")
-            menu.use_piercing_howl:render("Piercing Howl", "Slow")
+
+            ps.header("Advanced")
+            menu.use_execute_sniping:render("Execute Sniping", "AoE low HP")
+            menu.show_notifications:render("Notifications", "On-screen")
+            menu.track_procs:render("Track Procs", "Flurry/Enrage")
+            menu.aoe_enemy_count:render("AoE Threshold", "Enemy count")
+            menu.ww_priority_count:render("WW Priority Count", "Enemies needed for WW > BT")
+            menu.use_swing_desync:render("Swing Desync", "Offset MH/OH timers")
+            menu.swing_desync_threshold:render("Desync Threshold", "Rage %")
         end)
 
-        -- Cooldowns
-        cd_tree:render("Cooldowns", function()
+        -- 3. Cooldowns
+        cooldowns_tree:render("Cooldowns", function()
+            ps.header("Major Cooldowns")
             menu.use_cooldowns:render("Use Cooldowns", "Enable burst")
-            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
-            menu.use_berserker_rage:render("Berserker Rage", "On CD")
             menu.use_death_wish:render("Death Wish", "Burst")
             menu.use_recklessness:render("Recklessness", "Burst")
             menu.use_sweeping_strikes:render("Sweeping Strikes", "AoE")
-            menu.use_blood_fury:render("Blood Fury", "Racial")
-            menu.use_berserking:render("Berserking", "Racial")
+
+            ps.header("Racials")
+            menu.use_blood_fury:render("Blood Fury", "Orc racial")
+            menu.use_berserking:render("Berserking", "Troll racial")
+
+            ps.header("Consumables")
             menu.use_trinkets:render("Trinkets", "On-use")
             menu.use_haste_potion:render("Haste Potion", "Consumable")
             menu.use_destruction_potion:render("Destruction Potion", "Consumable")
             menu.use_drums:render("Drums", "Battle/War")
+
             ps.header("Burst Automation")
             menu.auto_burst_enabled:render("Auto Burst", "Enable automatic burst CD usage")
             menu.burst_on_bloodlust:render("On Bloodlust", "Use CDs during Bloodlust/Heroism")
@@ -278,43 +281,67 @@ function menu.render()
             menu.burst_on_execute:render("On Execute", "Use CDs below 20% target HP")
             menu.burst_in_combat:render("Always in Combat", "Use CDs whenever in combat")
             menu.cd_min_ttd:render("Min TTD (s)", "Don't use CDs if target dies sooner")
+
             ps.header("Trinket Automation")
             menu.trinket1_mode:render("Trinket 1", {"Off", "Offensive (Burst)", "Defensive"})
             menu.trinket2_mode:render("Trinket 2", {"Off", "Offensive (Burst)", "Defensive"})
         end)
 
-        -- Defensive
-        def_tree:render("Defensive", function()
+        -- 4. Defensive
+        defensive_tree:render("Defensive", function()
+            ps.header("Consumables")
             menu.use_healthstone:render("Healthstone", "Low HP")
             menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
             menu.use_health_potion:render("Health Potion", "Low HP")
             menu.health_potion_hp_pct:render("Health Potion HP %", "Below")
-            menu.use_stoneform:render("Stoneform", "Low HP")
+
+            ps.header("Racial Defensives")
+            menu.use_stoneform:render("Stoneform", "Low HP (Dwarf)")
             menu.stoneform_hp_pct:render("Stoneform HP %", "Below")
+
+            ps.header("Cancelaura")
             menu.cancelaura_hp_threshold:render("Cancelaura HP %", "Cancel buffs above HP%")
             menu.cancel_pws:render("Cancel PW:S", "Remove shield for rage")
             menu.cancel_bop:render("Cancel BoP", "Remove BoP for attacks")
+
+            ps.header("Emergency")
             menu.intimidating_shout_key:render("Intimidating Shout", "Panic key")
         end)
 
-        -- Dashboard
-        dashboard_tree:render("Dashboard", function()
-            menu.show_dashboard:render("Show Dashboard", "Enable in-game HUD")
-            menu.dashboard_opacity:render("Opacity", "Background transparency")
-            menu.dashboard_scale:render("Scale", "UI size multiplier")
-            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
-            ps.header("Features")
-            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
-            menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+        -- 5. Utility
+        utility_tree:render("Utility", function()
+            ps.header("Swing Management")
+            menu.use_swing_manager:render("Use Swing Manager", "Queue Heroic Strike/Cleave optimally before swing")
+            menu.swing_aware_delay:render("Swing-Aware Delay", "Wait for swing landing before expensive abilities")
+            menu.swing_queue_threshold:render("HS Queue Threshold", "Rage threshold to queue Heroic Strike")
+            menu.swing_cleave_threshold:render("Cleave Queue Threshold", "Rage threshold to queue Cleave (2+ enemies)")
+
+            ps.header("Interrupt")
+            menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
         end)
 
-        -- PvP
+        -- 6. Buffs
+        buffs_tree:render("Buffs", function()
+            ps.header("Shouts")
+            menu.use_battle_shout:render("Battle Shout", "AP buff")
+            menu.use_commanding_shout:render("Commanding Shout", "HP buff")
+            menu.use_demo_shout:render("Demo Shout", "Reduce AP")
+        end)
+
+        -- 7. Middleware (Consumables)
+        middleware_tree:render("Middleware", function()
+            ps.header("Emergency Items")
+            menu.use_healthstone:render("Healthstone", "Auto-use when HP low (off-GCD)")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below this HP")
+            menu.use_health_potion:render("Health Potion", "Auto-use when HP low (off-GCD)")
+            menu.health_potion_hp_pct:render("Potion HP %", "Use below this HP")
+        end)
+
+        -- 8. PvP
         pvp_tree:render("PvP", function()
             ps.header("General")
             menu.pvp_enabled:render("Enable PvP Mode", "PvP-specific logic")
-            menu.pvp_mode:render("PvP Mode", "Auto/PvE/PvP")
+            menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"})
 
             ps.header("Offensive")
             menu.pvp_hamstring:render("Maintain Hamstring", "Keep on enemy players")
@@ -324,7 +351,7 @@ function menu.render()
 
             ps.header("CC & Control")
             menu.pvp_disarm:render("Auto Disarm", "Disarm enemy melee")
-            menu.pvp_disarm_trigger:render("Disarm Trigger", "On CD or On Burst")
+            menu.pvp_disarm_trigger:render("Disarm Trigger", {"On CD", "On Burst"})
             menu.pvp_interrupt_cc_fallback:render("CC Interrupt Fallback", "Backup when kick on CD")
 
             ps.header("Defensive")
@@ -340,33 +367,63 @@ function menu.render()
             menu.pvp_cc_break_check:render("CC Break Check", "Avoid breaking CC with AoE")
         end)
 
-        -- Automation
-        auto_tree:render("Automation", function()
+        -- 9. Automation
+        automation_tree:render("Automation", function()
+            ps.header("Combat")
             menu.auto_combat_potions:render("Combat Potions", "In combat")
+
+            ps.header("Out of Combat")
             menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink")
             menu.auto_flask:render("Auto Flask", "Flask")
+
+            ps.header("Leveling")
             menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
             menu.leveling_mana_floor:render("Mana %", "Below")
         end)
 
-        -- OOC
+        -- 10. Dashboard
+        dashboard_tree:render("Dashboard", function()
+            ps.header("Display")
+            menu.show_dashboard:render("Show Dashboard", "Enable in-game HUD")
+            menu.dashboard_opacity:render("Opacity", "Background transparency")
+            menu.dashboard_scale:render("Scale", "UI size multiplier")
+            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
+            menu.dashboard_y:render("Position Y", "Dashboard vertical position")
+
+            ps.header("Features")
+            menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
+            menu.show_action_history:render("Action History", "Show recent spell casts")
+            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
+            menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")
+            menu.show_combo_points:render("Combo Points", "Show combo point pips")
+            menu.show_threat_bar:render("Threat Bar", "Show threat meter")
+        end)
+
+        -- 11. OOC Sustain
         ooc_tree:render("OOC Sustain", function()
+            ps.header("Sustain")
             menu.ooc_drink:render("Auto-Drink", "Drink")
             menu.drink_threshold:render("Drink %", "Below")
             menu.ooc_eat:render("Auto-Eat", "Eat")
             menu.eat_threshold:render("Eat %", "Below")
-        end)
 
-        -- Group
-        group_tree:render("Group", function()
+            ps.header("Group Support")
             menu.ooc_rez:render("Auto-Rez", "Accept")
             menu.ooc_group_buff:render("Buffs", "Party")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- 12. Advanced (Targeting + Racial)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+        end)
+
     end)
 end
-
 
 return menu

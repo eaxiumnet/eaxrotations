@@ -16,11 +16,9 @@ local auto_tree    = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
 local pvp_tree     = ps.tree_node()
 local dashboard_tree = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxmagefrost_enabled")
@@ -140,7 +138,11 @@ function menu.render()
     end
 
     root_tree:render("Eax's Mage Frost", function()
-        ps.render_controls(menu, "Eax's Mage Frost")
+        -- General
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode")
+        menu.debug:render("Debug", "Show debug info")
 
         -- Rotation
         rotation_tree:render("Rotation", function()
@@ -246,8 +248,16 @@ menu.force_defensive = core.menu.keybind(0, false, "eaxmagefrost_force_defensive
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- Advanced
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP% to prefer self")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Use racial abilities")
+            menu.racial_hp:render("Racial HP %", "HP% to use racial")
+        end)
     end)
 end
 

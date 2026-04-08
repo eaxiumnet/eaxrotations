@@ -7,31 +7,24 @@ local ps   = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
 local menu = {}
 
--- Tree nodes
-local root_tree    = ps.tree_node()
-local rotation_tree = ps.tree_node()
-local cd_tree      = ps.tree_node()
-local auto_tree    = ps.tree_node()
-local ooc_tree     = ps.tree_node()
-local group_tree   = ps.tree_node()
-local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
+-- Tree nodes (Standard EAX Menu Structure)
+local root_tree      = ps.tree_node()
+local rotation_tree  = ps.tree_node()
+local cd_tree        = ps.tree_node()
+local blessings_tree = ps.tree_node()
+local auras_tree     = ps.tree_node()
+local def_tree       = ps.tree_node()
+local utility_tree   = ps.tree_node()
+local pvp_tree       = ps.tree_node()
+local auto_tree      = ps.tree_node()
 local dashboard_tree = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
 settings.init({
     spec_name = "eaxpaladinretribution",
     class_name = "Paladin",
     role = "dps",
 })
-
-local settings_tree = {
-    targeting = tgt_tree,
-    racial = racial_tree,
-    ooc = ooc_tree,
-    display = esp_tree,
-}
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxpaladinretribution_enabled")
@@ -93,17 +86,15 @@ menu.use_righteous_fury                  = core.menu.checkbox(false, "eaxpaladin
 menu.use_devotion_aura                   = core.menu.checkbox(true, "eaxpaladinretribution_use_devotion_aura")
 menu.use_sanctity_aura                   = core.menu.checkbox(true, "eaxpaladinret_use_sanctity_aura")
 
--- Judgement and Aura (new)
+-- Judgement and Aura
 menu.judgement_choice                    = core.menu.combobox(1, "eaxpaladinret_judgement_choice")
 menu.use_aura                            = core.menu.checkbox(true, "eaxpaladinret_use_aura")
 menu.use_divine_illumination             = core.menu.checkbox(true, "eaxpaladinretribution_use_divine_illumination")
 menu.use_zealotry                        = core.menu.checkbox(true, "eaxpaladinretribution_use_zealotry")
 menu.use_crusader_aura                   = core.menu.checkbox(true, "eaxpaladinretribution_use_crusader_aura")
 menu.use_retribution_aura                = core.menu.checkbox(true, "eaxpaladinretribution_use_retribution_aura")
-menu.use_righteous_fury                  = core.menu.checkbox(false, "eaxpaladinretribution_use_righteous_fury")
-menu.use_devotion_aura                   = core.menu.checkbox(false, "eaxpaladinretribution_use_devotion_aura")
 
--- Cooldowns (new)
+-- Cooldowns
 menu.use_avenging_wrath                  = core.menu.checkbox(true, "eaxpaladinret_use_avenging_wrath")
 menu.use_divine_favor                    = core.menu.checkbox(true, "eaxpaladinret_use_divine_favor")
 menu.use_divine_shield                   = core.menu.checkbox(true, "eaxpaladinretribution_use_divine_shield")
@@ -118,22 +109,22 @@ menu.use_cleansing                       = core.menu.checkbox(true, "eaxpaladinr
 menu.use_turn_undead                     = core.menu.checkbox(true, "eaxpaladinretribution_use_turn_undead")
 menu.use_holy_wrath                      = core.menu.checkbox(true, "eaxpaladinretribution_use_holy_wrath")
 
--- Burst Manager (new)
+-- Burst Manager
 menu.auto_burst_enabled                  = core.menu.checkbox(true, "eaxpaladinret_auto_burst_enabled")
 menu.burst_on_bloodlust                  = core.menu.checkbox(true, "eaxpaladinret_burst_on_bloodlust")
 menu.burst_on_pull                       = core.menu.checkbox(true, "eaxpaladinret_burst_on_pull")
 menu.burst_on_execute                    = core.menu.checkbox(true, "eaxpaladinret_burst_on_execute")
 menu.burst_in_combat                     = core.menu.checkbox(false, "eaxpaladinret_burst_in_combat")
 
--- Trinket Manager (new)
+-- Trinket Manager
 menu.trinket1_mode                       = core.menu.combobox(1, "eaxpaladinret_trinket1_mode")
 menu.trinket2_mode                       = core.menu.combobox(1, "eaxpaladinret_trinket2_mode")
 
--- Flux Swing Manager (new)
+-- Flux Swing Manager
 menu.use_swing_manager                   = core.menu.checkbox(true, "eaxpaladinret_use_swing_manager")
 menu.swing_queue_threshold               = core.menu.slider_int(30, 100, 50, "eaxpaladinret_swing_queue_threshold")
 
--- Hand of Freedom (new)
+-- Hand of Freedom
 menu.use_hand_of_freedom                 = core.menu.checkbox(true, "eaxpaladinret_use_hand_of_freedom")
 menu.hof_include_slows                   = core.menu.checkbox(false, "eaxpaladinret_hof_include_slows")
 
@@ -173,10 +164,7 @@ settings.setup_major_toggle_keybinds(menu, {
 })
 
 local _win
-
-function menu.set_window(win)
-    _win = win
-end
+function menu.set_window(win) _win = win end
 
 function menu.render()
     if _win and root_tree:is_open() then
@@ -184,83 +172,109 @@ function menu.render()
     end
 
     root_tree:render("Eax's Paladin Retribution", function()
-        ps.render_controls(menu, "Eax's Paladin Ret")
+        -- 1. General - Visible immediately at top level
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        menu.debug:render("Debug", "Show debug information")
 
-        -- Rotation
+        -- 2. Rotation
         rotation_tree:render("Rotation", function()
+            ps.header("Core Abilities")
             menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
-            ps.header("Abilities")
             menu.use_crusader_strike:render("Crusader Strike", "On CD")
             menu.use_judgement:render("Judgement", "On CD")
-            menu.judgement_choice:render("Judgement Choice", "Seal to judge")
+            menu.judgement_choice:render("Judgement Choice", {"Wisdom", "Light", "Justice"}, "Seal to judge")
+            menu.use_hammer_of_wrath:render("Hammer of Wrath", "Execute")
+            menu.use_exorcism:render("Exorcism", "Undead/Demon")
+            menu.use_consecration:render("Consecration", "AoE")
+
+            ps.header("Seal Twisting")
             menu.use_seal_twist:render("Seal Twist", "Dual seal")
             menu.allow_twist_dungeon:render("Twist in Dungeon", "Allow")
             menu.allow_twist_raid:render("Twist in Raid", "Allow")
             menu.seal_twist_window:render("Twist Window (ms)", "Timing")
             menu.seal_twist_cooldown:render("Twist Cooldown (s)", "Seconds")
-            menu.use_hammer_of_wrath:render("Hammer of Wrath", "Execute")
-            menu.use_exorcism:render("Exorcism", "Undead/Demon")
-            menu.use_consecration:render("Consecration", "AoE")
+            menu.use_seal_twist_key:render("Seal Twist Key", "Keybind for manual twist")
+
+            ps.header("Seals")
             menu.use_seal_of_command:render("Seal of Command", "Proc")
             menu.use_seal_of_vengeance:render("Seal of Vengeance", "DoT")
             menu.use_seal_of_righteousness:render("Seal of Righteousness", "DPS")
+
+            ps.header("Utility")
             menu.use_aura:render("Auto Aura", "Maintain aura")
             menu.use_cleansing:render("Cleansing", "Dispel")
             menu.use_turn_undead:render("Turn Undead", "CC")
             menu.use_holy_wrath:render("Holy Wrath", "AoE undead")
         end)
 
-        -- Cooldowns
+        -- 3. Cooldowns
         cd_tree:render("Cooldowns", function()
+            ps.header("Major Cooldowns")
             menu.use_divine_illumination:render("Divine Illumination", "CD reduction")
             menu.use_avenging_wrath:render("Avenging Wrath", "Damage boost")
             menu.use_divine_favor:render("Divine Favor", "Guaranteed crit")
-            menu.use_retribution_aura:render("Retribution Aura", "Damage")
+            menu.use_zealotry:render("Zealotry", "Holy Power generation")
             menu.cd_min_ttd:render("Min TTD for CDs", "Don't burst if target dies sooner (sec)")
+
             ps.header("Auto Burst")
             menu.auto_burst_enabled:render("Auto Burst", "Enable automatic burst logic")
             menu.burst_on_bloodlust:render("On Bloodlust", "Burst when bloodlust active")
             menu.burst_on_pull:render("On Pull", "Burst in first 5 seconds")
             menu.burst_on_execute:render("On Execute", "Burst below 20% HP")
             menu.burst_in_combat:render("In Combat", "Burst whenever in combat")
+
             ps.header("Trinkets")
-            menu.trinket1_mode:render("Trinket 1", "Mode: Off/Offensive/Defensive")
-            menu.trinket2_mode:render("Trinket 2", "Mode: Off/Offensive/Defensive")
+            menu.trinket1_mode:render("Trinket 1", {"Off", "Offensive", "Defensive"})
+            menu.trinket2_mode:render("Trinket 2", {"Off", "Offensive", "Defensive"})
+
             ps.header("Swing Management")
             menu.use_swing_manager:render("Use Swing Manager", "Queue abilities optimally")
             menu.swing_queue_threshold:render("Queue Threshold", "Rage to queue next swing")
         end)
 
--- Blessings
-def_tree:render("Blessings", function()
-    menu.use_blessing_of_might:render("BoM", "AP buff")
-    menu.use_blessing_of_kings:render("BoK", "Stats buff")
-    menu.use_blessing_of_wisdom:render("BoW", "Mana regen")
-end)
+        -- 4. Blessings
+        blessings_tree:render("Blessings", function()
+            ps.header("Self Blessings")
+            menu.use_blessing_of_might:render("Blessing of Might", "AP buff")
+            menu.use_blessing_of_kings:render("Blessing of Kings", "Stats buff")
+            menu.use_blessing_of_wisdom:render("Blessing of Wisdom", "Mana regen")
+        end)
 
--- Auras
-def_tree:render("Auras", function()
-    menu.use_sanctity_aura:render("Sanctity Aura", "Holy damage buff")
-end)
+        -- 5. Auras
+        auras_tree:render("Auras", function()
+            ps.header("Combat Auras")
+            menu.use_sanctity_aura:render("Sanctity Aura", "Holy damage buff")
+            menu.use_retribution_aura:render("Retribution Aura", "Reflect damage")
+            menu.use_devotion_aura:render("Devotion Aura", "Armor buff")
+            menu.use_crusader_aura:render("Crusader Aura", "Mount speed")
+            menu.use_righteous_fury:render("Righteous Fury", "Threat buff")
+        end)
 
-        -- Defensive
+        -- 6. Defensive
         def_tree:render("Defensive", function()
+            ps.header("Emergency Cooldowns")
             menu.use_divine_shield:render("Divine Shield", "Immunity")
             menu.divine_shield_hp_pct:render("Divine Shield HP %", "Below")
-            menu.use_lay_on_hands:render("Lay on Hands", "Emergency")
+            menu.use_lay_on_hands:render("Lay on Hands", "Emergency heal")
             menu.lay_on_hands_hp_pct:render("LoH HP %", "Below")
             menu.use_divine_protection:render("Divine Protection", "Damage reduction")
             menu.divine_protection_hp_pct:render("Divine Protection HP %", "Below")
         end)
 
-        -- Utility (Hand of Freedom)
-        def_tree:render("Utility", function()
+        -- 7. Utility
+        utility_tree:render("Utility", function()
+            ps.header("Hand of Freedom")
             menu.use_hand_of_freedom:render("Hand of Freedom", "Remove roots/snares")
             menu.hof_include_slows:render("Include Slows", "Slow effects")
+
+            ps.header("Other")
+            menu.use_redemption:render("Redemption", "Resurrect")
         end)
 
-        -- PvP / Consumables
-        local pvp_tree = ps.tree_node()
+        -- 8. PvP / Consumables
         pvp_tree:render("PvP / Consumables", function()
             ps.header("Consumables")
             menu.use_healthstone:render("Healthstone", "Auto-use")
@@ -269,54 +283,61 @@ end)
             menu.health_potion_hp_pct:render("Heal Potion HP %", "Below")
             menu.use_mana_potion:render("Mana Potion", "Auto-use")
             menu.mana_potion_pct:render("Mana Potion %", "Below")
+
             ps.header("Racials")
             menu.use_berserking:render("Berserking", "Troll haste")
             menu.use_stoneform:render("Stoneform", "Dwarf cleanse")
             menu.stoneform_hp_pct:render("Stoneform HP %", "Below")
         end)
 
-        -- Automation
+        -- 9. Automation
         auto_tree:render("Automation", function()
+            ps.header("Auto Items")
             menu.auto_combat_potions:render("Combat Potions", "In combat")
             menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink")
             menu.auto_flask:render("Auto Flask", "Flask")
+
+            ps.header("Leveling")
             menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
             menu.leveling_mana_floor:render("Mana %", "Below")
-        end)
 
-        -- OOC
-        ooc_tree:render("OOC Sustain", function()
+            ps.header("OOC Sustain")
             menu.ooc_drink:render("Auto-Drink", "Drink")
             menu.drink_threshold:render("Drink %", "Below")
             menu.ooc_eat:render("Auto-Eat", "Eat")
             menu.eat_threshold:render("Eat %", "Below")
-        end)
 
-        -- Group
-        group_tree:render("Group", function()
+            ps.header("Group Support")
             menu.ooc_rez:render("Auto-Rez", "Accept")
             menu.ooc_group_buff:render("Buffs", "Party")
-            menu.use_redemption:render("Redemption", "Resurrect")
         end)
 
-        -- Dashboard
+        -- 10. Dashboard
         dashboard_tree:render("Dashboard", function()
             ps.header("Display")
             menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_scale:render("Scale", "Dashboard UI scale")
             menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
+            menu.dashboard_y:render("Position Y", "Dashboard vertical position")
+
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- 11. Advanced (Targeting and Racial)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+        end)
     end)
 end
-
 
 return menu

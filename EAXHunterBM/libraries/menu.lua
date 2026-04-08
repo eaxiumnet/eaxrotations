@@ -7,18 +7,15 @@ local menu = {}
 local root_tree   = ps.tree_node()
 local rotation_tree = ps.tree_node()
 local pet_tree    = ps.tree_node()
-local cd_tree     = ps.tree_node()
 local kite_tree   = ps.tree_node()
 local auto_tree   = ps.tree_node()
 local ooc_tree    = ps.tree_node()
 local group_tree  = ps.tree_node()
 local def_tree    = ps.tree_node()
-local tgt_tree    = ps.tree_node()
-local racial_tree = ps.tree_node()
-local esp_tree    = ps.tree_node()
 local pvp_tree    = ps.tree_node()
 local middleware_tree = ps.tree_node()
 local dashboard_tree = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
 -- Controls
 menu.enabled          = core.menu.checkbox(true,  "eaxhunterbm_enabled")
@@ -197,7 +194,12 @@ function menu.render()
     end
 
     root_tree:render("Eax's Hunter Beast Mastery", function()
-        ps.render_controls(menu, "Eax's Hunter BM")
+        -- GENERAL (inline, replacing ps.render_controls)
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        menu.debug:render("Debug", "Enable debug output")
 
         -- Rotation - Shots
         rotation_tree:render("Rotation", function()
@@ -220,7 +222,7 @@ function menu.render()
             ps.header("Stings (Group)")
             menu.use_scorpid_sting:render("Scorpid Sting", "-5% hit in raids")
             menu.use_viper_sting:render("Viper Sting", "Drain mana from casters")
-            ps.subheader("Viper Sting Targets")
+            ps.header("Viper Sting Targets")
             menu.viper_sting_priest:render("vs Priest", "Drain mana from Priests")
             menu.viper_sting_paladin:render("vs Paladin", "Drain mana from Paladins")
             menu.viper_sting_shaman:render("vs Shaman", "Drain mana from Shamans")
@@ -244,7 +246,7 @@ function menu.render()
             menu.burst_on_execute:render("On Execute", "Use CDs below 20% target HP")
             menu.burst_in_combat:render("Always in Combat", "Use CDs whenever in combat")
             menu.cd_min_ttd:render("Min TTD (s)", "Don't use CDs if target dies sooner")
-            
+
             ps.header("Trinket Automation")
             menu.trinket1_mode:render("Trinket 1", {"Off", "Offensive (Burst)", "Defensive"})
             menu.trinket2_mode:render("Trinket 2", {"Off", "Offensive (Burst)", "Defensive"})
@@ -336,7 +338,7 @@ function menu.render()
             menu.health_potion_hp_pct:render("Potion HP %", "Use below this %")
             menu.use_mana_potion:render("Mana Potion", "Use mana potion when low")
             menu.mana_potion_pct:render("Mana Potion %", "Use below this %")
-            
+
             ps.header("Defensive Middleware")
             menu.use_deterrence_mw:render("Deterrence (MW)", "Use via middleware system")
             menu.deterrence_mw_hp:render("Deterrence MW HP %", "Trigger below this %")
@@ -366,11 +368,21 @@ function menu.render()
             menu.clip_threshold_orange:render("Orange/Red", "Orange to red threshold")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- Advanced (Targeting + Racial + Leveling)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
+
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Mana-efficient rotation")
+            menu.leveling_mana_floor:render("Mana Floor %", "Conservation mode threshold")
+        end)
     end)
 end
 
 return menu
-
-

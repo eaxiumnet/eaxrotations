@@ -15,10 +15,8 @@ local auto_tree    = ps.tree_node()
 local ooc_tree     = ps.tree_node()
 local group_tree   = ps.tree_node()
 local def_tree     = ps.tree_node()
-local tgt_tree     = ps.tree_node()
-local racial_tree  = ps.tree_node()
-local esp_tree     = ps.tree_node()
 local dashboard_tree = ps.tree_node()
+local advanced_tree = ps.tree_node()
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxshamanenhancement_enabled")
@@ -143,7 +141,12 @@ function menu.render()
     end
 
     root_tree:render("Eax's Shaman Enhancement", function()
-        ps.render_controls(menu, "Eax's Shaman Enh")
+        -- General
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable rotation")
+        menu.toggle_key:render("Toggle Key", "Quick enable/disable")
+        menu.mode:render("Mode", "Auto / PvE / PvP")
+        menu.debug:render("Debug", "Show debug info")
 
         -- Rotation
         rotation_tree:render("Rotation", function()
@@ -188,7 +191,6 @@ function menu.render()
             menu.use_strength_of_earth_totem:render("Strength of Earth", "Stats")
             menu.use_stoneskin_totem:render("Stoneskin Totem", "Armor")
             menu.use_stoneclaw_totem:render("Stoneclaw Totem", "Absorb")
-            menu.use_earthbind_totem:render("Earthbind Totem", "Slow")
 
             ps.header("Water")
             menu.use_mana_spring_totem:render("Mana Spring", "Mana regen")
@@ -271,8 +273,20 @@ function menu.render()
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
         end)
 
-        ps.render_targeting(menu, tgt_tree)
-        ps.render_racial(menu, racial_tree)
+        -- Advanced (Targeting, Racial, Leveling)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP% to prioritize self")
+
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Enable racial abilities")
+            menu.racial_hp:render("Racial HP %", "HP% to use racial")
+
+            ps.header("Leveling")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Save mana while leveling")
+            menu.leveling_mana_floor:render("Mana Floor %", "Minimum mana %")
+        end)
     end)
 end
 
