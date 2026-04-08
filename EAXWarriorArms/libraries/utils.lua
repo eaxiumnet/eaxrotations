@@ -279,6 +279,308 @@ function utils.is_cced(unit)
     return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
 end
 
+
+-- Get rage amount (for dashboard)
+function utils.get_rage(me)
+    if not me or not me:is_valid() then return 0 end
+    local ok, rage = pcall(function() return me:get_power(1) end)  -- 1 = rage
+    if ok and type(rage) == "number" then return rage end
+    return 0
+end
+
+-- Get stance name
+function utils.get_stance_name()
+    local me = core.object_manager.get_local_player()
+    if not me or not me:is_valid() then return "Unknown" end
+    
+    local spells = require("libraries/spells")
+    if utils.has_buff(me, spells.BUFF_BERSERKER_STANCE) then
+        return "Berserker"
+    elseif utils.has_buff(me, spells.BUFF_BATTLE_STANCE) then
+        return "Battle"
+    elseif utils.has_buff(me, spells.BUFF_DEFENSIVE_STANCE) then
+        return "Defensive"
+    end
+    return "Unknown"
+end
+
+-- Get current stance
+function utils.get_current_stance(me)
+    return utils.get_stance_name()
+end
+
+-- Get stance swap retention time
+function utils.get_stance_swap_retention()
+    return 1.5
+end
+
+-- Set tracked stance
+function utils.set_tracked_stance(stance)
+    -- Stance is tracked via buffs in get_stance_name
+end
+
+-- Get debuff remaining time in ms
+function utils.get_debuff_remaining_ms(target, debuff_id)
+    if not target or not target:is_valid() then return 0 end
+    local ok, remaining = pcall(function() return target:get_remaining_time(debuff_id) end)
+    if ok and type(remaining) == "number" then return remaining end
+    return 0
+end
+
+-- Check if target is in melee range
+function utils.is_melee_target(me, target)
+    if not me or not me:is_valid() or not target or not target:is_valid() then return false end
+    local dist_sq = utils.dist_squared(me, target)
+    return dist_sq <= 36
+end
+
+-- Count enemies in radius
+function utils.enemy_count_in_radius(me, radius)
+    if not me or not me:is_valid() then return 0 end
+    radius = radius or 8
+    
+    local count = 0
+    local objects = core.object_manager.get_enemies_in_radius(me, radius)
+    if objects then
+        for _, obj in ipairs(objects) do
+            if obj and obj:is_valid() and obj:is_hostile() then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+-- Check if there is breakable CC nearby
+function utils.has_breakable_cc_nearby(me, radius)
+    if not me or not me:is_valid() then return false end
+    radius = radius or 10
+    
+    local objects = core.object_manager.get_enemies_in_radius(me, radius)
+    if objects then
+        for _, obj in ipairs(objects) do
+            if obj and obj:is_valid() and obj:is_hostile() then
+                if utils.is_cced(obj) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- Fast cast self spell
+function utils.cast_self_fast(spell_id, me)
+    if not spell_id or not me or not me:is_valid() then return false end
+    local izi_spell = get_izi_spell(spell_id)
+    if not izi_spell then return false end
+    
+    if izi_spell:is_learned() and izi_spell:is_castable_to_unit(me) then
+        local ok, result = pcall(function()
+            return izi_spell:cast_safe(me, "[Fast Self] Cast")
+        end)
+        if ok and result then
+            return true
+        end
+    end
+    return false
+end
+
+-- Fast cast target spell
+function utils.cast_target_fast(spell_id, target)
+    if not spell_id or not target then return false end
+    local izi_spell = get_izi_spell(spell_id)
+    if not izi_spell then return false end
+    
+    if izi_spell:is_learned() and izi_spell:is_castable_to_unit(target) then
+        local ok, result = pcall(function()
+            return izi_spell:cast_safe(target, "[Fast Target] Cast")
+        end)
+        if ok and result then
+            return true
+        end
+    end
+    return false
+end
+
+-- Ensure melee auto-attack
+function utils.ensure_melee_auto_attack(me)
+    if not me or not me:is_valid() then return false end
+    return me:is_in_combat()
+end
+
+-- Find best target
+function utils.find_best_target(me)
+    if not me or not me:is_valid() then return nil end
+    
+    local target = me:get_target()
+    if target and target:is_valid() and target:is_hostile() then
+        return target
+    end
+    
+    local enemies = core.object_manager.get_enemies_in_radius(me, 40)
+    if enemies and #enemies > 0 then
+        for _, enemy in ipairs(enemies) do
+            if enemy and enemy:is_valid() and enemy:is_hostile() then
+                return enemy
+            end
+        end
+    end
+    return nil
+end
+
+-- Check if spell is already queued
+function utils.is_spell_already_queued(spell_id)
+    if not spell_id then return false end
+    local now = core.time()
+    if queue_request_timestamps[spell_id] then
+        return (now - queue_request_timestamps[spell_id]) < SPELL_QUEUE_INTERVAL_S
+    end
+    return false
+end
+
+-- Check if we can cast a melee spell
+function utils.can_cast_melee(spell_id, me)
+    if not spell_id or not me or not me:is_valid() then return false end
+    local izi_spell = get_izi_spell(spell_id)
+    if not izi_spell then return false end
+    
+    if izi_spell:is_learned() and izi_spell:is_castable() then
+        return true
+    end
+    return false
+end
+
+-- Smart Overpower usage check
+function utils.should_use_overpower_smart(me, target, rage, ms_cd, ww_cd, target_hp_pct)
+    if not me or not me:is_valid() or not target or not target:is_valid() then return false end
+    
+    local spells = require("libraries/spells")
+    if utils.has_buff(me, spells.BUFF_OVERPOWER_AVAILABLE) then
+        return true
+    end
+    
+    if rage < 30 and (ms_cd > 1.5 or ww_cd > 1.5) then
+        return true
+    end
+    
+    return false
+end
+
+-- Check if we can stance dance for cost savings
+function utils.can_stance_dance_for_cost(me, target_rage)
+    if not me or not me:is_valid() then return false end
+    
+    local current_rage = utils.get_rage(me)
+    return current_rage <= 25
+end
+
+-- Check if we can stealth (for Night Elf warriors with Shadowmeld)
+function utils.can_stealth(me)
+    if not me or not me:is_valid() then return false end
+    local SHADOWMELD = 20580
+    local izi_spell = get_izi_spell(SHADOWMELD)
+    if izi_spell and izi_spell:is_learned() then
+        return izi_spell:is_castable()
+    end
+    return false
+end
+
+-- Try to break fear with Berserker Rage
+function utils.try_berserker_rage_fear_break(me)
+    if not me or not me:is_valid() then return false end
+    
+    local BERSERKER_RAGE = 18499
+    local izi_spell = get_izi_spell(BERSERKER_RAGE)
+    if not izi_spell then return false end
+    
+    if utils.is_cced(me) then
+        local loc_info = me:get_loss_of_control_info()
+        if loc_info and loc_info.type == "FEAR" then
+            if izi_spell:is_learned() and izi_spell:is_castable() then
+                local ok, result = pcall(function()
+                    return izi_spell:cast_safe(me, "Fear Break")
+                end)
+                return ok and result
+            end
+        end
+    end
+    return false
+end
+
+-- Detect PvP context
+function utils.detect_pvp_context(me, target)
+    me = me or core.object_manager.get_local_player()
+    if not me then
+        return {is_pvp = false, is_arena = false, is_battleground = false, target_is_player = false}
+    end
+
+    local is_battleground = false
+    local is_arena = false
+    local is_pvp = false
+    local target_is_player = false
+
+    if core.game_state.is_in_instance then
+        local ok, instance_type = pcall(core.game_state.is_in_instance)
+        if ok and instance_type then
+            is_battleground = (instance_type == "battleground")
+            is_arena = (instance_type == "arena")
+        end
+    end
+
+    if core.game_state.is_pvp_flagged then
+        local ok, flagged = pcall(core.game_state.is_pvp_flagged)
+        if ok then
+            is_pvp = flagged or false
+        end
+    end
+
+    if target and core.object_manager.get_unit_type then
+        local ok, unit_type = pcall(function() return core.object_manager.get_unit_type(target) end)
+        if ok then
+            target_is_player = (unit_type == "player")
+        end
+    end
+
+    return {
+        is_pvp = is_pvp,
+        is_arena = is_arena,
+        is_battleground = is_battleground,
+        target_is_player = target_is_player
+    }
+end
+
+-- Cached API references
+local _is_pvp_flagged = core.game_state.is_pvp_flagged
+
+-- Check if PvP is active
+function utils.is_pvp_active()
+    if _is_pvp_flagged then
+        local ok, flagged = pcall(_is_pvp_flagged)
+        if ok then return flagged or false end
+    end
+    return false
+end
+
+-- Check if PvP setting is enabled
+function utils.is_pvp_setting_enabled(menu)
+    if menu and menu.pvp_mode then
+        local mode = menu.pvp_mode:get()
+        return mode == 1 or mode == 3
+    end
+    return false
+end
+
+-- Check if we can Slam without clipping auto-attack
+function utils.can_slam_without_clipping(me, slam_id, swing_time_remaining)
+    if not me or not me:is_valid() then return false end
+    swing_time_remaining = swing_time_remaining or 100
+    
+    local izi_spell = get_izi_spell(slam_id)
+    if not izi_spell then return false end
+    
+    local slam_cast_time = 1500  -- 1.5 seconds in ms
+    return swing_time_remaining > slam_cast_time + 200
+end
+
 return utils
-
-
