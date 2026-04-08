@@ -258,6 +258,24 @@ function utils.is_valid_hostile_target(me, target)
     return me:can_attack(target)
 end
 
+-- Check if target is casting
+---@param target table
+---@return boolean
+function utils.is_target_casting(target)
+    if not target then return false end
+    local ok, result = pcall(function() return target:is_casting() end)
+    return ok and result or false
+end
+
+-- Check if target's cast is interruptible
+---@param target table
+---@return boolean
+function utils.is_casting_interruptible(target)
+    if not target then return false end
+    local ok, result = pcall(function() return target:is_casting_interruptible() end)
+    return ok and result or false
+end
+
 -- ============================================================================
 -- Crowd Control Detection
 -- ============================================================================

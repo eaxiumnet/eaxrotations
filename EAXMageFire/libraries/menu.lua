@@ -135,6 +135,12 @@ menu.force_defensive = core.menu.keybind(0, false, "eaxmagefire_force_defensive"
 -- AoE Threshold
 menu.fire_aoe_threshold                  = core.menu.slider_int(2, 10, 3, "eaxmagefire_fire_aoe_threshold")
 
+-- Consumables
+menu.use_healthstone                     = core.menu.checkbox(true, "eaxmagefire_use_healthstone")
+menu.healthstone_hp_pct                  = core.menu.slider_int(10, 50, 30, "eaxmagefire_healthstone_hp_pct")
+menu.use_healing_potion                  = core.menu.checkbox(true, "eaxmagefire_use_healing_potion")
+menu.healing_potion_hp_pct               = core.menu.slider_int(10, 50, 25, "eaxmagefire_healing_potion_hp_pct")
+
 -- Mana Gem
 menu.use_mana_gem                        = core.menu.checkbox(true, "eaxmagefire_use_mana_gem")
 menu.mana_gem_pct                        = core.menu.slider_int(5, 100, 30, "eaxmagefire_mana_gem_pct")
@@ -235,6 +241,11 @@ function menu.render()
             menu.ice_barrier_hp_pct:render("Ice Barrier HP %", "Below")
             menu.use_ice_block:render("Ice Block", "Emergency immunity")
             menu.ice_block_hp_pct:render("Ice Block HP %", "Below")
+            ps.header("Consumables")
+            menu.use_healthstone:render("Use Healthstone", "Auto-use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below this %")
+            menu.use_healing_potion:render("Use Healing Potion", "Auto-use healing potion")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Use below this %")
         end)
 
         -- AoE
@@ -299,6 +310,7 @@ ps.render_targeting(menu, tgt_tree)
         ps.render_racial(menu, racial_tree)
     end)
 end
+
 
 return menu
 

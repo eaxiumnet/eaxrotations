@@ -1,225 +1,174 @@
--- energy_tick.lua | Energy tick tracking for EAX* Feral Druid
--- Tracks 2-second energy ticks and filters out Furor/Wolfshead energy from shifts
+-- energy_tick.lua
+-- Server-side energy tick tracking for Feral Druid optimization
+-- Prevents clipping ticks with unnecessary powershifts
+--
+-- Usage:
+--   local tick = require("libraries/energy_tick")
+--   tick:update(me:get_power(3))  -- Call every frame
+--   if tick:should_delay_action() then return end  -- Wait for tick
 
-
--- Hot-path local caching
-local _core_time = core.time
-
--- ============================================================================
--- ENERGY COST CONSTANTS (TBC-accurate values)
--- ============================================================================
-local ENERGY_COST_RIP = 35
-local ENERGY_COST_RAKE = 40
-local ENERGY_COST_MANGLE = 40        -- 35 with 2pT6, default to 40
-local ENERGY_COST_SHRED = 42
-local ENERGY_COST_BITE = 35
-
--- ============================================================================
--- TICK OPTIMIZATION THRESHOLDS
--- Prefer Mangle over Shred in this energy range when tick is imminent
--- ============================================================================
-local TICK_OPT_MANGLE_LOW = 2 * ENERGY_COST_MANGLE - 20      -- 60
-local TICK_OPT_MANGLE_HIGH = ENERGY_COST_MANGLE + ENERGY_COST_SHRED - 21  -- 61
-local TICK_OPT_THRESHOLD = 1.0  -- seconds until tick to trigger optimization
-
--- ============================================================================
--- TIMING CONSTANTS
--- ============================================================================
-local ENERGY_TICK_INTERVAL = 2.0
-local SHIFT_ENERGY_IGNORE_WINDOW = 0.6
-local TICK_WAIT_THRESHOLD = 0.4
-local EQUIPMENT_CHECK_INTERVAL = 2.0
-
--- ============================================================================
--- WOLFSHEAD HELM CONSTANTS
--- ============================================================================
-local WOLFSHEAD_HELM_ID = 8345
-local INVSLOT_HEAD = 1
-local FUROR_ENERGY = 40
-local WOLFSHEAD_BONUS = 20
-
--- ============================================================================
--- STATE
--- ============================================================================
-local state = {
+local energy_tick = {
     last_energy = 0,
     last_tick_time = 0,
     confident = false,
-    last_shift_time = 0,
-    wolfshead_cache = { equipped = false, last_check = 0 }
+    TICK_INTERVAL = 2.0,
+    DELAY_THRESHOLD = 0.4,  -- Wait if tick < 0.4s away
 }
 
-local energy_tick = {}
+-- ============================================================================
+-- API Caching (at module load)
+-- ============================================================================
+local _core_time = core.time
 
 -- ============================================================================
--- SPELL ENERGY COST HELPER
+-- Energy Tick Tracking
 -- ============================================================================
 
---- Get the energy cost of a spell, with fallback for invalid spells
----@param spell table|nil Spell object (from core.spell_book or izi.spell)
----@param fallback number Fallback cost if spell is nil or invalid
----@return number Energy cost
-function energy_tick.get_spell_energy_cost(spell, fallback)
-    if not spell then return fallback end
-    -- Try Sylvanas API: spell:GetSpellPowerCost()
-    local cost, power_type = spell:GetSpellPowerCost()
-    if cost and cost > 0 and power_type == 3 then
-        return cost
-    end
-    return fallback
-end
-
--- ============================================================================
--- WOLFSHEAD DETECTION
--- ============================================================================
-
---- Check if Wolfshead Helm is equipped (cached)
----@return boolean True if Wolfshead Helm is equipped
-function energy_tick.is_wolfshead_equipped()
-    local now = _core_time()
-    if now - state.wolfshead_cache.last_check < EQUIPMENT_CHECK_INTERVAL then
-        return state.wolfshead_cache.equipped
-    end
-
-    -- Try Sylvanas API first, fall back to WoW API
-    local head_item = nil
-    if core.inventory and core.inventory.get_item_id then
-        head_item = core.inventory.get_item_id(INVSLOT_HEAD)
-    elseif _G.GetInventoryItemID then
-        head_item = _G.GetInventoryItemID("player", INVSLOT_HEAD)
-    end
-
-    state.wolfshead_cache.equipped = (head_item == WOLFSHEAD_HELM_ID)
-    state.wolfshead_cache.last_check = now
-    return state.wolfshead_cache.equipped
-end
-
--- ============================================================================
--- ENERGY AFTER SHIFT CALCULATION
--- ============================================================================
-
---- Calculate energy available after a powershift (Furor + Wolfshead)
----@return number Energy after shift (40 base, +20 with Wolfshead)
-function energy_tick.get_energy_after_shift()
-    local bonus = energy_tick.is_wolfshead_equipped() and WOLFSHEAD_BONUS or 0
-    return FUROR_ENERGY + bonus
-end
-
--- ============================================================================
--- SHIFT TRACKING
--- ============================================================================
-
---- Call this when shifting to cat form to ignore Furor/Wolfshead energy
-function energy_tick.on_shift()
-    state.last_shift_time = _core_time()
-end
-
--- ============================================================================
--- TICK TRACKING
--- ============================================================================
-
---- Update tick tracking with current energy and form state
----@param current_energy number Current energy value
----@param in_cat_form boolean True if in cat form
-function energy_tick.update(current_energy, in_cat_form)
-    if not in_cat_form then
-        state.last_energy = 0
-        state.confident = false
+---Update tick tracker with current energy
+---Call this every frame with the player's current energy value
+---@param current_energy number Current player energy (0-100)
+function energy_tick:update(current_energy)
+    -- Validate input
+    if not current_energy or type(current_energy) ~= "number" then
         return
     end
 
-    local now = _core_time()
-    local delta = current_energy - state.last_energy
+    local delta = current_energy - self.last_energy
 
-    -- Detect tick: delta > 0 and delta <= 25, outside shift window
-    if delta > 0 and delta <= 25 and (now - state.last_shift_time) > SHIFT_ENERGY_IGNORE_WINDOW then
-        state.last_tick_time = now
-        state.confident = true
+    -- Detect energy tick: increase of 1-25 energy
+    -- Energy ticks are 20 energy every 2.0s in TBC
+    -- We allow 1-25 range to account for:
+    -- - Normal 20 energy ticks
+    -- - Wolfshead Helm procs (+20 on shift, but filtered by caller timing)
+    -- - Furor talent energy (+40 on shift, filtered by caller)
+    -- - Small rounding variations
+    if delta > 0 and delta <= 25 then
+        local now = _core_time()
+        self.last_tick_time = now
+        self.confident = true
     end
 
-    state.last_energy = current_energy
+    self.last_energy = current_energy
 end
 
---- Get time until next energy tick
----@return number Seconds until next tick (1.0 if not confident)
-function energy_tick.time_until_next_tick()
-    if not state.confident or state.last_tick_time == 0 then
+---Get time until next predicted energy tick
+---@return number Seconds until next tick (1.0 if not confident yet)
+function energy_tick:time_until_next_tick()
+    if not self.confident or self.last_tick_time == 0 then
         return 1.0
     end
-    local elapsed = _core_time() - state.last_tick_time
-    return ENERGY_TICK_INTERVAL - (elapsed % ENERGY_TICK_INTERVAL)
+
+    local now = _core_time()
+    local elapsed = now - self.last_tick_time
+    local remaining = self.TICK_INTERVAL - (elapsed % self.TICK_INTERVAL)
+
+    return remaining
 end
 
--- ============================================================================
--- DECISION HELPERS
--- ============================================================================
+---Check if an action should be delayed to wait for an imminent energy tick
+---Use this in rotation logic to prevent clipping ticks with powershifts
+---@return boolean True if tick is arriving within DELAY_THRESHOLD seconds
+function energy_tick:should_delay_action()
+    if not self.confident then
+        return false
+    end
 
---- Check if we should delay powershift to catch next tick
----@return boolean True if shift should be delayed
-function energy_tick.should_delay_shift()
-    if not state.confident then return false end
-    return energy_tick.time_until_next_tick() <= TICK_WAIT_THRESHOLD
+    return self:time_until_next_tick() <= self.DELAY_THRESHOLD
 end
 
---- Check if we should prefer Mangle over Shred due to tick optimization
+---Reset tracking state
+---Call this when powershifting to reset confidence until next tick is detected
+function energy_tick:on_shift()
+    self.confident = false
+    self.last_tick_time = 0
+    -- Keep last_energy as-is to avoid false positives from shift energy
+end
 
----@param current_energy number Current energy value
+---Get the predicted time of the last detected tick
+---@return number Timestamp of last tick (0 if none detected)
+function energy_tick:get_last_tick_time()
+    return self.last_tick_time
+end
+
+---Check if tracker has detected at least one tick and is confident
+---@return boolean True if at least one tick has been detected
+function energy_tick:is_confident()
+    return self.confident
+end
+
+---Determine if Mangle should be preferred over Shred based on energy tick timing
+---Call this when CP < 5 and deciding between Mangle and Shred
+---If energy tick is imminent and using Shred would clip the tick, prefer Mangle
+---@param current_energy number Current player energy
+---@param mangle_cost number Energy cost of Mangle (typically 45)
+---@param shred_cost number Energy cost of Shred (typically 42)
 ---@return boolean True if Mangle should be preferred over Shred
-function energy_tick.should_prefer_mangle(current_energy)
-    return current_energy >= TICK_OPT_MANGLE_LOW
-       and current_energy <= TICK_OPT_MANGLE_HIGH
-       and state.confident
-       and energy_tick.time_until_next_tick() < TICK_OPT_THRESHOLD
+function energy_tick.should_prefer_mangle(current_energy, mangle_cost, shred_cost)
+    -- If not confident about tick timing, don't optimize
+    if not energy_tick.confident then
+        return false
+    end
+
+    local time_until = energy_tick:time_until_next_tick()
+
+    -- If tick is more than 1 second away, no need to optimize
+    if time_until > 1.0 then
+        return false
+    end
+
+    -- Check if we have enough energy for either ability
+    if current_energy < shred_cost then
+        return false  -- Can't afford Shred anyway
+    end
+
+    -- The "dead zone" logic: if a tick is imminent (within 1 second),
+    -- and we can afford Mangle (which costs more), prefer Mangle
+    -- because it uses more energy before the tick arrives
+    if current_energy >= mangle_cost then
+        return true  -- Prefer Mangle in the dead zone
+    end
+
+    return false
 end
 
---- Legacy compatibility: should_prefer_mangle with explicit costs
----@param energy number Current energy
----@param mangle_cost number Mangle energy cost (ignored, uses constants)
----@param shred_cost number Shred energy cost (ignored, uses constants)
----@return boolean True if Mangle should be preferred
-function energy_tick.should_prefer_mangle_legacy(energy, mangle_cost, shred_cost)
-    -- Delegate to new implementation using constants
-    return energy_tick.should_prefer_mangle(energy)
-end
-
--- ============================================================================
--- STATE MANAGEMENT
--- ============================================================================
-
---- Reset tick confidence (call on form changes, combat end, etc.)
-function energy_tick.reset_confidence()
-    state.confident = false
-    state.last_tick_time = 0
-end
-
---- Get debug information for HUD/display
----@return table Debug info table
+---Get debug information for dashboard/HUD display
+---@return table Debug info table with fields: confident, time_until_next, should_delay, wolfshead
 function energy_tick.get_debug_info()
     return {
-        confident = state.confident,
-        last_tick_time = state.last_tick_time,
-        time_until_next = energy_tick.time_until_next_tick(),
-        should_delay = energy_tick.should_delay_shift(),
-        wolfshead = energy_tick.is_wolfshead_equipped(),
-        last_shift = state.last_shift_time,
-        
-        tick_opt_low = TICK_OPT_MANGLE_LOW,
-        tick_opt_high = TICK_OPT_MANGLE_HIGH,
-        energy_after_shift = energy_tick.get_energy_after_shift()
+        confident = energy_tick.confident,
+        time_until_next = energy_tick:time_until_next_tick(),
+        should_delay = energy_tick:should_delay_action(),
+        wolfshead = energy_tick.is_wolfshead_equipped()
     }
 end
 
--- ============================================================================
--- CONSTANTS EXPORT (for external use)
--- ============================================================================
+---Check if player has Wolfshead Helm equipped
+---Wolfshead Helm (item ID 8345) provides +20 energy when shifting into cat form
+---@return boolean True if Wolfshead Helm is equipped
+function energy_tick.is_wolfshead_equipped()
+    -- Try multiple methods to check for Wolfshead Helm
+    
+    -- Method 1: Sylvanas inventory API
+    if core.inventory and core.inventory.get_item_id then
+        local head_item = core.inventory.get_item_id(1)  -- slot 1 is head
+        if head_item then
+            return head_item == 8345
+        end
+    end
+    
+    -- Method 2: Check via player equipment (if available)
+    local player = core.object_manager.get_local_player()
+    if player then
+        -- Try to get equipped items via buff manager or other means
+        -- For now, return false as fallback
+        return false
+    end
+    
+    return false
+end
 
-energy_tick.ENERGY_COST_RIP = ENERGY_COST_RIP
-energy_tick.ENERGY_COST_RAKE = ENERGY_COST_RAKE
-energy_tick.ENERGY_COST_MANGLE = ENERGY_COST_MANGLE
-energy_tick.ENERGY_COST_SHRED = ENERGY_COST_SHRED
-energy_tick.ENERGY_COST_BITE = ENERGY_COST_BITE
-energy_tick.FUROR_ENERGY = FUROR_ENERGY
-energy_tick.WOLFSHEAD_BONUS = WOLFSHEAD_BONUS
-energy_tick.TICK_OPT_THRESHOLD = TICK_OPT_THRESHOLD
+-- ============================================================================
+-- Module Export
+-- ============================================================================
 
 return energy_tick

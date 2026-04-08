@@ -51,13 +51,13 @@ function middleware_manager.initialize(menu)
     local mana_potion_threshold = (menu.mana_potion_pct and menu.mana_potion_pct:get()) or 15
     
     local use_divine_protection = (menu.use_divine_protection and menu.use_divine_protection:get_state()) or false
-    local divine_protection_threshold = (menu.divine_protection_hp and menu.divine_protection_hp:get()) or 30
+    local divine_protection_threshold = (menu.divine_protection_hp_pct and menu.divine_protection_hp_pct:get()) or 30
     
     local use_divine_shield = (menu.use_divine_shield and menu.use_divine_shield:get_state()) or false
-    local divine_shield_threshold = (menu.divine_shield_hp and menu.divine_shield_hp:get()) or 20
+    local divine_shield_threshold = (menu.divine_shield_hp_pct and menu.divine_shield_hp_pct:get()) or 20
     
     local use_lay_on_hands = (menu.use_lay_on_hands and menu.use_lay_on_hands:get_state()) or false
-    local lay_on_hands_threshold = (menu.lay_on_hands_hp and menu.lay_on_hands_hp:get()) or 15
+    local lay_on_hands_threshold = (menu.lay_on_hands_hp_pct and menu.lay_on_hands_hp_pct:get()) or 15
     
     local use_divine_illumination = (menu.use_divine_illumination and menu.use_divine_illumination:get_state()) or false
     local divine_illumination_threshold = (menu.divine_illumination_pct and menu.divine_illumination_pct:get()) or 60

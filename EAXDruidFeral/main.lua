@@ -11,10 +11,10 @@ local force_commands = require("libraries/force_commands")
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
-local ooc_manager = require("../libraries/ooc_manager")
-local form_consumables = require("../libraries/form_consumables")
-local burst_manager = require("../libraries/burst_manager")
-local trinket_manager = require("../libraries/trinket_manager")
+local ooc_manager = require("libraries/ooc_manager")
+local form_consumables = require("libraries/form_consumables")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -91,6 +91,10 @@ local function resolve()
     -- PvP spells
     rt.entangling_roots_id = utils.resolve_spell_id(spells.ENTANGLING_ROOTS)
     rt.hibernate_id = utils.resolve_spell_id(spells.HIBERNATE)
+    
+    -- Form spell IDs (for form_consumables)
+    rt.bear_form_id = utils.resolve_spell_id(spells.BEAR_FORM)
+    rt.dire_bear_form_id = utils.resolve_spell_id(spells.DIRE_BEAR_FORM)
 
     rt.spell_costs.shred = get_spell_cost(rt.shred_id, 42)
     rt.spell_costs.mangle = get_spell_cost(rt.mangle_cat_id, 40)
@@ -154,6 +158,7 @@ local function try_cat_form(me)
     if not utils.can_cast_self(rt.cat_form_id, me) then return false end
     if utils.cast_self(rt.cat_form_id, me) then
         utils.log_debug(menu, "Cat Form")
+        energy_tick:on_shift()  -- Reset energy tick tracking after shift
         return true
     end
     return false
@@ -256,7 +261,7 @@ local function try_shred(me, t)
             if energy_tick.should_prefer_mangle(e, rt.spell_costs.mangle, rt.spell_costs.shred) then
                 if utils.throttle("tick_opt_debug", 2.0) then
                     utils.log_debug(menu, string.format("Tick opt: preferring Mangle over Shred (energy=%d, tick in %.2fs)",
-                        e, energy_tick.time_until_next_tick()))
+                        e, energy_tick:time_until_next_tick()))
                 end
                 return false
             end
@@ -282,7 +287,7 @@ local function try_tigers_fury(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false
         end
@@ -477,15 +482,10 @@ local function on_update()
     dashboard.set_enabled(show_dashboard)
 
     -- OOC Manager: Handle out-of-combat buffs
+    -- Order matters: Buffs first (in human form), then shift to Cat Form
     if not me:is_in_combat() then
         ooc_manager.on_update(me, menu, utils, {
             group_buffs = {
-                {
-                    spell_id = rt.cat_form_id,
-                    buff_ids = spells.BUFF_CAT_FORM,
-                    name = "Cat Form",
-                    toggle = menu.use_cat_form
-                },
                 {
                     spell_id = utils.resolve_spell_id(spells.MARK_OF_THE_WILD),
                     buff_ids = spells.BUFF_MARK_OF_THE_WILD,
@@ -498,20 +498,15 @@ local function on_update()
                     name = "Thorns",
                     toggle = menu.use_thorns
                 },
+                {
+                    spell_id = rt.cat_form_id,
+                    buff_ids = spells.BUFF_CAT_FORM,
+                    name = "Cat Form",
+                    toggle = menu.use_cat_form
+                },
             }
         })
-    end
-
-    -- Initialize middleware on first run
-    if not rt.middleware_initialized then
-        middleware_manager.initialize(menu)
-        rt.middleware_initialized = true
-    end
-
-    -- Build context and execute middleware
-    local context = middleware_manager.build_context(me, menu)
-    if middleware_manager.execute(icon, context) then
-        return
+        return  -- Exit after OOC buffs to prevent combat rotation from overwriting
     end
 
     -- CC Detection: Stop rotation if crowd controlled
@@ -568,6 +563,42 @@ local function on_update()
     local t = me:get_target()
     if not t or not t:is_valid() or t:is_dead() then return end
     if not me:can_attack(t) then return end
+
+    -- Build settings table for middleware
+    local settings = {
+        use_healthstone = (menu.use_healthstone and menu.use_healthstone:get_state()) or false,
+        use_healing_potion = (menu.use_healing_potion and menu.use_healing_potion:get_state()) or false,
+        use_racial = (menu.use_racial and menu.use_racial:get_state()) or false,
+    }
+
+    -- Initialize middleware on first run
+    if not rt.middleware_initialized then
+        middleware_manager.initialize(menu)
+        rt.middleware_initialized = true
+    end
+
+    -- Build context and execute middleware (FIXED: proper args + nil icon)
+    local context = middleware_manager.build_context(me, t, settings)
+    local mw_result, mw_msg = middleware_manager.execute(nil, context)
+    if mw_result then
+        if menu.debug and menu.debug:get_state() then
+            print("[Middleware] " .. (mw_msg or "executed"))
+        end
+        return
+    end
+
+    -- Try to break roots via shapeshift
+    if utils.try_shapeshift_root_break(me, menu) then return end
+
+    -- CC Detection: Stop rotation if crowd controlled
+    local cc_detector = require("libraries/cc_detector")
+    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
+    if should_stop then
+        if (menu.debug and menu.debug:get_state()) then
+            print(string.format("[CC] Rotation paused: %s", cc_reason or "CC"))
+        end
+        return
+    end
 
     -- Form-aware consumables
     local use_form_consumables = (menu.use_form_consumables and menu.use_form_consumables.get and menu.use_form_consumables:get()) or false

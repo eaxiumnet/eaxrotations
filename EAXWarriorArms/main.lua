@@ -4,7 +4,7 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
@@ -24,6 +24,8 @@ local dashboard = require("libraries/dashboard")
 local burst_manager = require("libraries/burst_manager")
 local trinket_manager = require("libraries/trinket_manager")
 local swing_manager = require("libraries/swing_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -383,7 +385,7 @@ local function try_death_wish(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false -- Target dies too soon, don't waste CD
         end
@@ -405,7 +407,7 @@ local function try_berserker_rage(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false -- Target dies too soon, don't waste CD
         end
@@ -425,7 +427,7 @@ local function try_recklessness(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false -- Target dies too soon, don't waste CD
         end
@@ -461,7 +463,7 @@ local function try_sweeping_strikes(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false -- Target dies too soon, don't waste CD
         end
@@ -683,6 +685,17 @@ local function on_update()
     local target_hp_pct = target:get_health_percentage()
     local rage = get_rage(me)
     
+    -- Flux: Update swing manager
+    swing_manager:update_swing(me)
+    
+    -- Flux: Sample combat forecast
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
+    
+    -- Flux: Check swing delay (don't clip auto attacks)
+    if swing_manager:is_swing_landing_soon(0.15) then return end
+    
     -- Burst & Trinket Automation (ported from Flux)
     local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
     local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
@@ -692,7 +705,9 @@ local function on_update()
             if try_sweeping_strikes(me, target) then return end
         end
     end
-    trinket_manager.check_trinkets(me, is_burst_window, menu)
+    
+    -- Flux: Trinkets V2
+    trinket_manager.check_trinkets_v2(me, target, is_burst_window, force_commands, combat_forecast, menu)
     
     -- Swing Manager: Queue Heroic Strike or Cleave optimally
     if (menu.use_swing_manager and menu.use_swing_manager:get_state()) and
@@ -830,6 +845,9 @@ local function on_control_panel()
 end
 
 resolve_spells()
+
+-- Initialize Flux force_commands
+force_commands:init()
 
 core.register_on_update_callback(on_update)
 core.register_on_render_callback(menu.on_render)

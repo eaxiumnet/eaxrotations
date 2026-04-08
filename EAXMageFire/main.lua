@@ -25,7 +25,7 @@ local _get_spell_cd = core.spell_book.get_spell_cooldown
 ---@type interrupt_manager
 local interrupt_manager = require("libraries/interrupt_manager")
 ---@type ooc_manager
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 ---@type ttd_tracker
 local ttd_tracker = require("libraries/ttd_tracker")
 ---@type consumables_manager

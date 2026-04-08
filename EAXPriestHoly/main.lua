@@ -5,7 +5,7 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")

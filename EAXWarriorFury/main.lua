@@ -16,7 +16,7 @@ local anti_fake_manager = require("libraries/anti_fake_manager")
 ---@type racial_manager
 local racial_manager = require("libraries/racial_manager")
 ---@type ooc_manager
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 ---@type middleware_manager
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")

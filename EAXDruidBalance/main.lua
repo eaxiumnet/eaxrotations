@@ -6,11 +6,11 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
-local ooc_manager = require("../libraries/ooc_manager")
-local mana_manager = require("../libraries/mana_manager")
-local burst_manager = require("../libraries/burst_manager")
-local trinket_manager = require("../libraries/trinket_manager")
-local form_consumables = require("../libraries/form_consumables")
+local ooc_manager = require("libraries/ooc_manager")
+local mana_manager = require("libraries/mana_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local form_consumables = require("libraries/form_consumables")
 
 -- Flux libraries integration
 local energy_tick = require("libraries/energy_tick")
@@ -156,7 +156,7 @@ local function try_moonfire(me, t)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and t then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
             return false
         end
@@ -181,7 +181,7 @@ local function try_insect_swarm(me, t)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and t then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
             return false
         end
@@ -214,6 +214,33 @@ local function try_wrath(me, t)
     if not utils.can_cast_hostile(rt.wrath_id, me, t) then return false end
     if utils.cast_target(rt.wrath_id, me, t) then
         utils.log_debug(menu, "Wrath")
+        return true
+    end
+    return false
+end
+
+-- Clearcasting exploitation functions
+local function try_starfire_clearcasting(me, t)
+    -- ONLY cast if Clearcasting is active - highest priority free spell
+    if not utils.has_clearcasting_buff(me) then return false end
+    if not (menu.use_starfire and menu.use_starfire:get_state()) or false then return false end
+    if not rt.starfire_id then return false end
+    if is_moving() then return false end
+    if not utils.can_cast_hostile(rt.starfire_id, me, t) then return false end
+    if utils.cast_target(rt.starfire_id, me, t) then
+        utils.log_debug(menu, "Starfire (Clearcasting - FREE!)")
+        return true
+    end
+    return false
+end
+
+local function try_wrath_clearcasting(me, t)
+    -- Fallback Clearcasting spell when Starfire can't be cast (moving, out of range)
+    if not utils.has_clearcasting_buff(me) then return false end
+    if not rt.wrath_id then return false end
+    if not utils.can_cast_hostile(rt.wrath_id, me, t) then return false end
+    if utils.cast_target(rt.wrath_id, me, t) then
+        utils.log_debug(menu, "Wrath (Clearcasting - FREE!)")
         return true
     end
     return false
@@ -256,7 +283,7 @@ local function try_force_of_nature(me, t)
     local min_ttd = (menu.force_of_nature_min_ttd and menu.force_of_nature_min_ttd:get()) or 10
     if min_ttd > 0 and t then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
             return false
         end
@@ -377,18 +404,31 @@ local function do_rotation(me, t)
         if try_moonkin_form(me) then return end
     end
 
+    -- Clearcasting exploitation - HIGHEST PRIORITY (free spells before DoTs)
+    if try_starfire_clearcasting(me, t) then return end
+    if try_wrath_clearcasting(me, t) then return end
+
     -- Rotation priority
     if try_faerie_fire(me, t) then return end
     if try_moonfire(me, t) then return end
     if try_insect_swarm(me, t) then return end
     if try_hurricane(me, t) then return end
 
-    -- Mana tier check
+    -- Mana tier check with Nature's Grace Wrath priority
     local mp = mana_pct(me)
     local tier2 = ((menu.bal_tier2_mana and menu.bal_tier2_mana:get()) or 30) / 100
-    if mp < tier2 then
+    local ng_wrath_enabled = (menu.bal_ng_wrath and menu.bal_ng_wrath.get and menu.bal_ng_wrath:get()) or false
+    local has_ng = utils.has_natures_grace_buff(me)
+
+    if ng_wrath_enabled and has_ng then
+        -- Prioritize Wrath when Nature's Grace is active
+        if try_wrath(me, t) then return end
+        if try_starfire(me, t) then return end
+    elseif mp < tier2 then
+        -- Low mana: use efficient Wrath
         if try_wrath(me, t) then return end
     else
+        -- Normal rotation: Starfire priority
         if try_starfire(me, t) then return end
         if try_wrath(me, t) then return end
     end

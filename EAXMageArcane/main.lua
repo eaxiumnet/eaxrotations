@@ -4,7 +4,7 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 local mana_manager = require("libraries/mana_manager")
 local burst_manager = require("libraries/burst_manager")
 local trinket_manager = require("libraries/trinket_manager")
@@ -151,7 +151,7 @@ local function try_icy_veins(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false
         end
@@ -198,7 +198,7 @@ local function try_arcane_power(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false
         end
@@ -229,7 +229,7 @@ local function try_presence_of_mind(me)
     local target = me:get_target()
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false
         end

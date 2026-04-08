@@ -121,7 +121,7 @@ menu.pvp_use_shackle                     = core.menu.checkbox(true, "eaxpriestho
 menu.pvp_shackle_threshold               = core.menu.slider_int(10, 100, 80, "eaxpriestholy_pvp_shackle_threshold")
 
 
-menu.dashboard_enabled                   = core.menu.checkbox(true, "eaxpriestholy_dashboard_enabled")
+menu.show_dashboard                   = core.menu.checkbox(true, "eaxpriestholy_dashboard_enabled")
 menu.dashboard_x                         = core.menu.slider_int(0, 1000, 20, "eaxpriestholy_dashboard_x")
 menu.dashboard_y                         = core.menu.slider_int(0, 1000, 200, "eaxpriestholy_dashboard_y")
 menu.show_timer_bars = core.menu.checkbox(true, "eaxpriestholy_show_timer_bars")
@@ -257,9 +257,10 @@ function menu.render()
         
         def_tree:render("Dashboard & ", function()
             ps.header("Dashboard")
-            menu.dashboard_enabled:render("Enable Dashboard", "Show combat HUD")
+            menu.show_dashboard:render("Enable Dashboard", "Show combat HUD")
             menu.dashboard_x:render("Position X", "Horizontal position")
-            menu.dashboard_y:render("Position Y", "Vertical position")            
+            menu.dashboard_y:render("Position Y", "Vertical position")
+            
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
@@ -321,6 +322,7 @@ function menu.render()
         ps.render_racial(menu, racial_tree)
     end)
 end
+
 
 return menu
 

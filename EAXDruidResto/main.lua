@@ -6,10 +6,10 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
-local ooc_manager = require("../libraries/ooc_manager")
-local hot_manager = require("../libraries/hot_manager")
-local mana_manager = require("../libraries/mana_manager")
-local form_consumables = require("../libraries/form_consumables")
+local ooc_manager = require("libraries/ooc_manager")
+local hot_manager = require("libraries/hot_manager")
+local mana_manager = require("libraries/mana_manager")
+local form_consumables = require("libraries/form_consumables")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -65,7 +65,9 @@ local function resolve()
     rt.regrowth_id = utils.resolve_spell_id(spells.REGROWTH)
     rt.lifebloom_id = utils.resolve_spell_id(spells.LIFEBLOOM)
     rt.swiftmend_id = utils.resolve_spell_id(spells.SWIFTMEND)
-    rt.healing_touch_id = utils.resolve_spell_id(spells.HEALING_TOUCH)
+    -- Healing Touch: use rank-based selection from menu
+    local ht_rank = (menu.healing_touch_rank and menu.healing_touch_rank:get()) or 12
+    rt.healing_touch_id = spells.HEALING_TOUCH_RANKS[ht_rank]
     rt.tranquility_id = utils.resolve_spell_id(spells.TRANQUILITY)
     rt.natures_swiftness_id = utils.resolve_spell_id(spells.NATURES_SWIFTNESS)
     rt.innervate_id = utils.resolve_spell_id(spells.INNERVATE)
@@ -152,6 +154,13 @@ local function try_lifebloom(me, target)
     local stacks = hot_manager.get_lifebloom_stacks(target)
     local needs_refresh = hot_manager.is_lifebloom_refresh_needed(target, 3)
     
+    -- Check if we should allow bloom for mana return
+    local allow_bloom_enabled = (menu.lifebloom_allow_bloom and menu.lifebloom_allow_bloom:get_state()) or false
+    if allow_bloom_enabled and hot_manager.should_allow_bloom(target, me) then
+        utils.log_debug(menu, "Lifebloom: Allowing bloom for mana return")
+        return false
+    end
+    
     -- Only cast if we need to build stacks or refresh
     if stacks >= 3 and not needs_refresh then return false end
     
@@ -225,6 +234,88 @@ local function try_natures_swiftness_heal(me, target)
     return false
 end
 
+local function try_healing_touch(me, target)
+    if not menu.use_healing_touch or not menu.use_healing_touch:get_state() then return false end
+    if not rt.healing_touch_id then return false end
+    
+    -- Get threshold from menu (default 40%)
+    local threshold = ((menu.healing_touch_tank_threshold and menu.healing_touch_tank_threshold:get()) or 40) / 100
+    if utils.get_health_pct(target) > threshold then return false end
+    
+    -- Prioritize tanks - only cast if target is a tank
+    if not utils.is_unit_tank(target) then return false end
+    
+    if not utils.can_cast_target(rt.healing_touch_id, me, target) then return false end
+    if utils.cast_target(rt.healing_touch_id, me, target) then
+        utils.log_debug(menu, "Healing Touch")
+        return true
+    end
+    return false
+end
+
+-- Clearcasting exploitation: Free Healing Touch when Omen of Clarity procs
+local function try_healing_touch_clearcasting(me, target)
+    -- Only cast when Clearcasting is active (Omen of Clarity buff)
+    if not utils.has_clearcasting(me) then return false end
+    -- Check if Healing Touch is enabled in menu
+    if not menu.use_healing_touch or not menu.use_healing_touch:get_state() then return false end
+    if not rt.healing_touch_id then return false end
+    -- Target must be injured
+    if utils.get_health_pct(target) >= 1.0 then return false end
+    -- Cast the highest rank Healing Touch for free
+    if not utils.can_cast_target(rt.healing_touch_id, me, target) then return false end
+    if utils.cast_target(rt.healing_touch_id, me, target) then
+        utils.log_debug(menu, "Healing Touch (Clearcasting - FREE!)")
+        return true
+    end
+    return false
+end
+
+-- Clearcasting exploitation: Free Regrowth when HT not available/priority
+local function try_regrowth_clearcasting(me, target)
+    -- Only cast when Clearcasting is active
+    if not utils.has_clearcasting(me) then return false end
+    -- Only use if we didn't already consume Clearcasting with HT
+    if not rt.regrowth_id then return false end
+    -- Target must be injured
+    if utils.get_health_pct(target) >= 1.0 then return false end
+    -- Don't cast if target already has Regrowth (blanketing)
+    if hot_manager.has_hot(target, spells.REGROWTH) then return false end
+    -- Cast Regrowth for free
+    if not utils.can_cast_target(rt.regrowth_id, me, target) then return false end
+    if utils.cast_target(rt.regrowth_id, me, target) then
+        utils.log_debug(menu, "Regrowth (Clearcasting - FREE!)")
+        return true
+    end
+    return false
+end
+
+local function try_rebirth(me)
+    -- Battle resurrection: ONLY cast in combat
+    if not me:is_in_combat() then return false end
+    
+    -- Check menu toggle (nil-guarded)
+    local use_rebirth = (menu.use_rebirth and menu.use_rebirth:get_state()) or false
+    if not use_rebirth then return false end
+    
+    -- Check if spell is available
+    if not rt.rebirth_id then return false end
+    
+    -- Find a dead ally to resurrect
+    local dead_ally = utils.find_dead_ally(me)
+    if not dead_ally then return false end
+    
+    -- Check if we can cast on the target
+    if not utils.can_cast_target(rt.rebirth_id, me, dead_ally) then return false end
+    
+    -- Cast Rebirth
+    if utils.cast_target(rt.rebirth_id, me, dead_ally) then
+        utils.log_debug(menu, "Rebirth (Battle Resurrection)")
+        return true
+    end
+    return false
+end
+
 local function try_innervate(me)
     if not menu.use_innervate or not menu.use_innervate:get_state() then return false end
     if not rt.innervate_id then return false end
@@ -233,6 +324,24 @@ local function try_innervate(me)
     if not utils.can_cast_self(rt.innervate_id, me) then return false end
     if utils.cast_self(rt.innervate_id, me) then
         utils.log_debug(menu, "Innervate")
+        return true
+    end
+    return false
+end
+
+local function try_tranquility(me)
+    if not menu.use_tranquility or not menu.use_tranquility:get_state() then return false end
+    if not rt.tranquility_id then return false end
+    -- Check if already channeling Tranquility
+    if has_buff(me, spells.BUFF_TRANQUILITY) then return false end
+    -- Check mana threshold (Tranquility is expensive)
+    if mana_pct(me) < 20 then return false end
+    -- Count injured allies below 70% HP
+    local injured_count = utils.count_below_hp(me, 70)
+    if injured_count < 3 then return false end
+    if not utils.can_cast_self(rt.tranquility_id, me) then return false end
+    if utils.cast_self(rt.tranquility_id, me) then
+        utils.log_debug(menu, "Tranquility (" .. tostring(injured_count) .. " injured allies)")
         return true
     end
     return false
@@ -331,7 +440,22 @@ local function do_rotation(me, t)
     end
 
     -- Cooldowns
+    if try_rebirth(me) then return end
     if try_innervate(me) then return end
+    if try_tranquility(me) then return end
+
+    -- Clearcasting exploitation: Consume Omen of Clarity procs for free heals
+    local tank = get_tank()
+    local lowest, lowest_hp = get_lowest_hp_party_member()
+    -- Priority: Clearcasting on tank first, then lowest HP ally
+    if tank and utils.get_health_pct(tank) < 0.95 then
+        if try_healing_touch_clearcasting(me, tank) then return end
+        if try_regrowth_clearcasting(me, tank) then return end
+    end
+    if lowest and lowest_hp < 0.95 then
+        if try_healing_touch_clearcasting(me, lowest) then return end
+        if try_regrowth_clearcasting(me, lowest) then return end
+    end
 
     -- Get healing targets
     local tank = get_tank()
@@ -340,6 +464,7 @@ local function do_rotation(me, t)
     -- Emergency healing
     if lowest and lowest_hp < 0.3 then
         if try_natures_swiftness_heal(me, lowest) then return end
+        if try_healing_touch(me, lowest) then return end
         if try_swiftmend(me, lowest) then return end
     end
 
@@ -406,6 +531,7 @@ local function on_update()
                 },
             }
         })
+        return  -- Exit after OOC buffs to prevent combat rotation
     end
 
     -- Build context and execute middleware

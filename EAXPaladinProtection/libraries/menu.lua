@@ -67,6 +67,7 @@ menu.leveling_mana_floor                 = core.menu.slider_int(5, 50, 20, "eaxp
 
 -- Rotation
 menu.use_holy_shield                     = core.menu.checkbox(true, "eaxpaladinprotection_use_holy_shield")
+menu.prioritize_holy_shield              = core.menu.checkbox(true, "eaxpaladinprotection_prioritize_holy_shield")
 menu.use_shield_of_righteous             = core.menu.checkbox(true, "eaxpaladinprotection_use_shield_of_righteous")
 menu.use_judgement                       = core.menu.checkbox(true, "eaxpaladinprotection_use_judgement")
 menu.use_consecration                    = core.menu.checkbox(true, "eaxpaladinprotection_use_consecration")
@@ -99,6 +100,14 @@ menu.use_devotion_aura                   = core.menu.checkbox(true, "eaxpaladinp
 menu.use_cleansing                       = core.menu.checkbox(true, "eaxpaladinprotection_use_cleansing")
 menu.use_turn_undead                     = core.menu.checkbox(true, "eaxpaladinprotection_use_turn_undead")
 menu.use_holy_wrath                      = core.menu.checkbox(true, "eaxpaladinprotection_use_holy_wrath")
+
+-- Missing menu items for main.lua compatibility
+menu.use_cleanse = core.menu.checkbox(true, "eaxpaladinprotection_use_cleanse")
+menu.use_hammer_of_justice = core.menu.checkbox(true, "eaxpaladinprotection_use_hammer_of_justice")
+menu.use_auto_tab = core.menu.checkbox(true, "eaxpaladinprotection_use_auto_tab")
+menu.no_taunt = core.menu.checkbox(false, "eaxpaladinprotection_no_taunt")
+menu.use_righteous_defense = core.menu.checkbox(true, "eaxpaladinprotection_use_righteous_defense")
+menu.tab_max_mobs = core.menu.slider_int(2, 10, 4, "eaxpaladinprotection_tab_max_mobs")
 menu.show_notifications = core.menu.checkbox(true, "eaxpaladinprotection_show_notifications")
 menu.consecration_enemy_count = core.menu.slider_int(1, 10, 3, "eaxpaladinprotection_consecration_enemy_count")
 menu.consecration_radius = core.menu.slider_int(1, 30, 8, "eaxpaladinprotection_consecration_radius")
@@ -135,6 +144,7 @@ menu.enable_smart_collapse = core.menu.checkbox(true, "eaxpaladinprotection_enab
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_holy_shield", label = "Holy Shield" },
+    { toggle = "prioritize_holy_shield", label = "Prioritize Holy Shield" },
     { toggle = "use_shield_of_righteous", label = "Shield of Righteous" },
     { toggle = "use_judgement", label = "Judgement" },
     { toggle = "use_consecration", label = "Consecration" },
@@ -175,6 +185,13 @@ function menu.render()
             menu.use_cleansing:render("Cleansing", "Dispel")
             menu.use_turn_undead:render("Turn Undead", "CC")
             menu.use_holy_wrath:render("Holy Wrath", "AoE undead")
+            menu.use_cleanse:render("Use Cleanse", "Dispel Magic/Poison/Disease debuffs")
+            menu.use_hammer_of_justice:render("Hammer of Justice", "Stun on cooldown")
+            menu.prioritize_holy_shield:render("Prioritize Holy Shield", "Keep Holy Shield active")
+            menu.use_auto_tab:render("Auto Tab Targeting", "Auto-switch targets when current dies")
+            menu.tab_max_mobs:render("Tab Max Mobs", "Max mobs being tanked before stopping tab", 2, 10)
+            menu.no_taunt:render("No Taunt Mode", "Disable all taunts (Righteous Defense)")
+            menu.use_righteous_defense:render("Use Righteous Defense", "Enable taunt ability")
         end)
 
         -- Blessings
@@ -256,5 +273,5 @@ function menu.render()
     end)
 end
 
-return menu
 
+return menu

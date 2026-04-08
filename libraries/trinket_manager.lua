@@ -60,7 +60,7 @@ end
 function trinket_manager.check_trinkets(me, is_burst_window, menu)
    if not _get_target then return end
    local target = _get_target()
-   local forecast = require("common/modules/combat_forecast")
+    local combat_forecast = require("combat_forecast")
    
    for _, slot in ipairs(TRINKET_SLOTS) do
       local slot_num = slot - 12  -- 13->1, 14->2
@@ -71,7 +71,7 @@ function trinket_manager.check_trinkets(me, is_burst_window, menu)
          if is_burst_window then
             -- TTD gate for offensive trinkets
             if target then
-               if forecast:is_valid_forecast_logic(DEFAULT_OFFENSIVE_TTD, target, false) then
+               if combat_forecast:is_valid_forecast_logic(DEFAULT_OFFENSIVE_TTD, target, false) then
                   trinket_manager.use_trinket_if_ready(slot)
                end
             else

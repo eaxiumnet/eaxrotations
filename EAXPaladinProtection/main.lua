@@ -11,6 +11,7 @@ end
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
+local eax_utils = require("libraries/eax_utils")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
 
@@ -23,14 +24,13 @@ local defensive_manager = require("libraries/defensive_manager")
 ---@type consumables_manager
 local consumables_manager = require("libraries/consumables_manager")
 ---@type ooc_manager
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 
 
 local middleware_manager = require("libraries/middleware_manager")
-local dashboard_config = require("libraries/dashboard_config")
 
 -- NEW: Trinket manager for defensive trinket mode
-local trinket_manager = require("../libraries/trinket_manager")
+local trinket_manager = require("libraries/trinket_manager")
 
 -- NEW: Advanced tanking libraries from Flux port
 ---@type context_builder
@@ -38,7 +38,7 @@ local context_builder = require("libraries/context_builder")
 ---@type threat_tab_manager
 local threat_tab_manager = require("libraries/threat_tab_manager")
 ---@type smart_defensive
-local smart_defensive = require("../libraries/smart_defensive")
+local smart_defensive = require("libraries/smart_defensive")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -101,6 +101,8 @@ local function resolve_spells()
     runtime.devotion_aura_id = utils.resolve_spell_id(spells.DEVOTION_AURA)
     runtime.blessing_of_kings_id = utils.resolve_spell_id(spells.BLESSING_OF_KINGS)
     runtime.blessing_of_sanctuary_id = utils.resolve_spell_id(spells.BLESSING_OF_SANCTUARY)
+    runtime.blessing_of_might_id = utils.resolve_spell_id(spells.BLESSING_OF_MIGHT)
+    runtime.blessing_of_wisdom_id = utils.resolve_spell_id(spells.BLESSING_OF_WISDOM)
     runtime.redemption_id = utils.resolve_spell_id(spells.REDEMPTION)
 end
 
@@ -391,7 +393,7 @@ local function try_divine_shield(me, ctx)
     
     -- Use smart_defensive for predictive mitigation
     local settings = {
-        divine_shield_hp = ((menu.divine_shield_hp and menu.divine_shield_hp:get()) or 15),
+        divine_shield_hp = ((menu.divine_shield_hp_pct and menu.divine_shield_hp_pct:get()) or 15),
     }
     local should_use, reason = smart_defensive.should_use(me, "divine_shield", ctx or {}, settings)
     
@@ -413,7 +415,7 @@ local function try_lay_on_hands(me, ctx)
     
     -- Use smart_defensive for predictive mitigation
     local settings = {
-        lay_on_hands_hp = ((menu.lay_on_hands_hp and menu.lay_on_hands_hp:get()) or 15),
+        lay_on_hands_hp = ((menu.lay_on_hands_hp_pct and menu.lay_on_hands_hp_pct:get()) or 15),
     }
     local should_use, reason = smart_defensive.should_use(me, "lay_on_hands", ctx or {}, settings)
     
@@ -474,6 +476,8 @@ local function try_ooc_buffs(me)
         redemption = runtime.redemption_id,
         blessing_of_kings = runtime.blessing_of_kings_id,
         blessing_of_sanctuary = runtime.blessing_of_sanctuary_id,
+        blessing_of_might = runtime.blessing_of_might_id,
+        blessing_of_wisdom = runtime.blessing_of_wisdom_id,
         righteous_fury = runtime.righteous_fury_id,
         devotion_aura = runtime.devotion_aura_id,
     }
@@ -635,7 +639,7 @@ core.register_on_update_callback(function()
 
     -- Paladin special: Try Divine Shield for any CC before stopping
     if should_stop then
-        if utils.try_divine_shield_cc_break(me, menu) then
+        if defensive_manager.try_divine_shield_cc_break(me, menu) then
             return  -- Successfully broke CC
         end
     end
@@ -664,7 +668,6 @@ core.register_on_update_callback(function()
     if ensure_aura(me) then return end
     
     -- Don't cast while eating/drinking
-    local eax_utils = require("libraries/eax_utils")
     if eax_utils.is_eating_or_drinking(me) then return end
     
     local target = me:get_target()
@@ -747,7 +750,9 @@ core.register_on_update_callback(function()
     end
     
     -- Holy Wrath (AoE undead/demon)
-    if try_holy_wrath(me) then return end
+    if (menu.use_holy_wrath and menu.use_holy_wrath:get_state()) then
+        if try_holy_wrath(me) then return end
+    end
 
     -- Defensive trinket check (tank mode - not burst)
     trinket_manager.check_trinkets(me, false, menu)

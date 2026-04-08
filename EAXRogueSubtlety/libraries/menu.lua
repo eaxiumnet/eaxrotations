@@ -108,6 +108,12 @@ menu.use_energy_tick = core.menu.checkbox(true, "eaxroguesubtlety_use_energy_tic
 menu.use_swing_delay = core.menu.checkbox(true, "eaxroguesubtlety_use_swing_delay")
 menu.trinket_ttd = core.menu.slider_int(5, 30, 10, "eaxroguesubtlety_trinket_ttd")
 
+-- Consumables
+menu.use_healthstone  = core.menu.checkbox(true, "eaxroguesubtlety_use_healthstone")
+menu.healthstone_hp_pct = core.menu.slider_int(10, 50, 30, "eaxroguesubtlety_healthstone_hp_pct")
+menu.use_healing_potion = core.menu.checkbox(true, "eaxroguesubtlety_use_healing_potion")
+menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxroguesubtlety_healing_potion_hp_pct")
+
 -- Dashboard menu items
 menu.show_dashboard         = core.menu.checkbox(true, "eaxroguesubtlety_show_dashboard")
 menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxroguesubtlety_dashboard_opacity")
@@ -188,6 +194,11 @@ function menu.render()
             menu.cloak_of_shadows_hp_pct:render("Cloak HP %", "Below")
             menu.use_vanish:render("Vanish", "Escape")
             menu.vanish_hp_pct:render("Vanish HP %", "Below")
+            ps.header("Consumables")
+            menu.use_healthstone:render("Healthstone", "Use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
+            menu.use_healing_potion:render("Healing Potion", "Use healing potion")
+            menu.healing_potion_hp_pct:render("Potion HP %", "Below")
         end)
 
         -- Utility
@@ -256,6 +267,7 @@ function menu.render()
         ps.render_racial(menu, racial_tree)
     end)
 end
+
 
 return menu
 

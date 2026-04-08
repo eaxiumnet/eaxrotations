@@ -6,7 +6,6 @@
     for rotation decision-making and safety checks.
     
     Usage:
-        local cc_detector = require("../libraries/cc_detector")
         local is_ccd, cc_type = cc_detector.is_ccd(unit)
         if is_ccd then
             -- Handle CC state

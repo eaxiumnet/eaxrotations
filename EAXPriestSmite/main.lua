@@ -8,7 +8,7 @@ local utils = require("libraries/utils")
 local buff_manager = require("common/modules/buff_manager")
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 local burst_manager = require("libraries/burst_manager")
 local trinket_manager = require("libraries/trinket_manager")
 local combat_forecast = require("libraries/combat_forecast")
@@ -330,7 +330,7 @@ local function try_inner_focus(me, target)
         local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
         if min_ttd > 0 and target then
             ---@type combat_forecast
-            local forecast = require("common/modules/combat_forecast")
+            local forecast = require("libraries/combat_forecast")
             if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
                 return false
             end
@@ -375,7 +375,7 @@ local function try_power_infusion(me, target)
         local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
         if min_ttd > 0 and target then
             ---@type combat_forecast
-            local forecast = require("common/modules/combat_forecast")
+            local forecast = require("libraries/combat_forecast")
             if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
                 return false
             end
@@ -600,7 +600,7 @@ local function on_update()
     end
     
     -- CC Detection: Stop rotation if crowd controlled
-    local cc_detector = require("../libraries/cc_detector")
+    local cc_detector = require("libraries/cc_detector")
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
     if should_stop then
@@ -677,6 +677,7 @@ local function on_update()
                 },
             }
         })
+        return  -- Exit after OOC buffs to prevent combat rotation
     end
     
     -- Buff maintenance (out of combat or in combat)

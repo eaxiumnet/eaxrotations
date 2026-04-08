@@ -6,7 +6,7 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 local buff_manager = require("common/modules/buff_manager")
 local spell_queue = require("common/modules/spell_queue")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 local burst_manager = require("libraries/burst_manager")
 local trinket_manager = require("libraries/trinket_manager")
 
@@ -191,7 +191,7 @@ end
 local function should_use_cds(target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     if min_ttd <= 0 or not target then return true end
-    local forecast = require("common/modules/combat_forecast")
+    local forecast = require("libraries/combat_forecast")
     return forecast:is_valid_forecast_logic(min_ttd, target, false)
 end
 

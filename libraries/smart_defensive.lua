@@ -3,7 +3,7 @@
 -- Uses combat_forecast for predictive mitigation
 
 ---@type combat_forecast
-local combat_forecast = require("common/modules/combat_forecast")
+local combat_forecast = require("combat_forecast")
 
 local smart_defensive = {}
 

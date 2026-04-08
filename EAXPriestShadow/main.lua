@@ -5,17 +5,17 @@
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
 
-local mana_manager = require("../libraries/mana_manager")
-local burst_manager = require("../libraries/burst_manager")
-local trinket_manager = require("../libraries/trinket_manager")
-local combat_forecast = require("../libraries/combat_forecast")
-local force_commands = require("../libraries/force_commands")
+local mana_manager = require("libraries/mana_manager")
+local burst_manager = require("libraries/burst_manager")
+local trinket_manager = require("libraries/trinket_manager")
+local combat_forecast = require("libraries/combat_forecast")
+local force_commands = require("libraries/force_commands")
 
 local buff_manager = require("common/modules/buff_manager")
 local spell_queue = require("common/modules/spell_queue")

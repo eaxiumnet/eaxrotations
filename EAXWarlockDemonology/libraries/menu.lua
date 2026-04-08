@@ -267,6 +267,6 @@ function menu.render()
     end)
 end
 
-return menu
 
+return menu
 

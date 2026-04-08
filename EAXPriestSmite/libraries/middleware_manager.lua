@@ -176,7 +176,7 @@ function middleware_manager.initialize(menu)
                 -- TTD gating for burst CDs
                 if min_ttd > 0 and ctx.target then
                     ---@type combat_forecast
-                    local forecast = require("common/modules/combat_forecast")
+                    local forecast = require("libraries/combat_forecast")
                     if not forecast:is_valid_forecast_logic(min_ttd, ctx.target, false) then
                         return false
                     end

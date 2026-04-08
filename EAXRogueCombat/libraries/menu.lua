@@ -128,6 +128,12 @@ menu.trinket_defensive_hp                = core.menu.slider_int(0, 100, 35, "eax
 menu.use_energy_tick                     = core.menu.checkbox(true, "eaxroguecombat_use_energy_tick")
 menu.use_swing_delay                     = core.menu.checkbox(true, "eaxroguecombat_use_swing_delay")
 
+-- Consumables
+menu.use_healthstone  = core.menu.checkbox(true, "eaxroguecombat_use_healthstone")
+menu.healthstone_hp_pct = core.menu.slider_int(10, 50, 30, "eaxroguecombat_healthstone_hp_pct")
+menu.use_healing_potion = core.menu.checkbox(true, "eaxroguecombat_use_healing_potion")
+menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxroguecombat_healing_potion_hp_pct")
+
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_sinister_strike", label = "Sinister Strike" },
     { toggle = "use_rupture", label = "Rupture" },
@@ -195,6 +201,11 @@ function menu.render()
             menu.cloak_of_shadows_hp_pct:render("Cloak HP %", "Below")
             menu.use_vanish:render("Vanish", "Escape")
             menu.vanish_hp_pct:render("Vanish HP %", "Below")
+            ps.header("Consumables")
+            menu.use_healthstone:render("Healthstone", "Use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
+            menu.use_healing_potion:render("Healing Potion", "Use healing potion")
+            menu.healing_potion_hp_pct:render("Potion HP %", "Below")
         end)
 
         -- Utility
@@ -256,7 +267,8 @@ function menu.render()
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_scale:render("Scale", "Dashboard UI scale")
             menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
+            menu.dashboard_y:render("Position Y", "Dashboard vertical position")
+            
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
@@ -267,6 +279,7 @@ function menu.render()
         ps.render_racial(menu, racial_tree)
     end)
 end
+
 
 return menu
 

@@ -5,6 +5,7 @@
 
 local ps   = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
+
 local menu = {}
 
 -- Tree nodes
@@ -322,6 +323,5 @@ function menu.render()
     end)
 end
 
+
 return menu
-
-

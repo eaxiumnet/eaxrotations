@@ -12,6 +12,7 @@ spells.GROWL = { 2649, 6795, 6794, 6793 }
 spells.CHALLENGING_ROAR = { 5209 }
 spells.BASH = { 5211, 6798, 8983 }
 spells.FERAL_CHARGE = { 16979 }
+spells.SURVIVAL_INSTINCTS = { 50322 }
 spells.ENRAGE = { 5229 }
 
 -- -- Forms -------------------------------------------------------------------
@@ -26,12 +27,14 @@ spells.BUFF_FRENZIED_REGENERATION = { 22842 }
 spells.BUFF_ENRAGE = { 5229 }
 spells.BUFF_THORNS = { 26992, 9910, 9756, 8914, 1075, 782, 467 }  -- Thorns buff IDs
 spells.BUFF_MARK_OF_THE_WILD = { 26990, 21849, 21850, 1126, 5232, 5234, 8907, 10937, 10938, 25460, 26991 }  -- MOTW buff IDs
+spells.BUFF_SURVIVAL_INSTINCTS = { 50322 }
 
 -- -- Debuffs -----------------------------------------------------------------
 spells.DEBUFF_LACERATE = { 33745 }
 spells.DEBUFF_DEMORALIZING_ROAR = { 26998, 9898, 9896, 99 }
 spells.DEBUFF_MANGLE = { 33987, 33986, 33878 }
 spells.DEBUFF_FAERIE_FIRE = { 26993, 9907, 770 }
+spells.DEBUFF_FAERIE_FIRE_FERAL = { 16857, 17390, 17391, 17392 }
 
 -- -- Utility spells ------------------------------------------------------------
 spells.FAERIE_FIRE = { 26993, 9907, 770 }

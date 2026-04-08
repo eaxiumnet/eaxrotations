@@ -432,6 +432,54 @@ function utils.is_cced(unit)
     return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
 end
 
+-- ============================================================================
+-- Root Break via Shapeshift
+-- ============================================================================
+
+--[[
+    Attempts to break root effects by shapeshifting
+    Druids can break roots by shifting out of and back into form
+    
+    @param me: Local player object
+    @param menu: Menu table for settings
+    @return boolean: true if shapeshift attempted, false otherwise
+--]]
+function utils.try_shapeshift_root_break(me, menu)
+    if not me or not me:is_valid() then return false end
+    
+    -- Check if enabled in menu (safe access)
+    local enabled = false
+    if menu and menu.use_shapeshift_break then
+        local ok, val = pcall(function() return menu.use_shapeshift_break:get_state() end)
+        if ok then enabled = val end
+    end
+    
+    if not enabled then return false end
+    
+    -- Check if currently rooted
+    if not me.get_loss_of_control_info then return false end
+    
+    local loc_info = me:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then return false end
+    
+    -- LOC_ROOT = 7 (from Sylvanas API)
+    if loc_info.type ~= 7 then return false end
+    
+    -- Get current form
+    local current_form = utils.get_form_name()
+    
+    -- If in a form, shift to caster to break root
+    if current_form ~= "Caster" then
+        -- Use cancel_form API if available
+        if me.cancel_form then
+            local ok = pcall(function() me:cancel_form() end)
+            return ok
+        end
+    end
+    
+    return false
+end
+
 return utils
 
 

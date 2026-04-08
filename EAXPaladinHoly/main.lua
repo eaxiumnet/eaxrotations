@@ -27,7 +27,7 @@ local trinket_manager = require("libraries/trinket_manager")
 
 
 local middleware_manager = require("libraries/middleware_manager")
-local dashboard_config = require("libraries/dashboard_config")
+local ooc_manager = require("libraries/ooc_manager")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -281,7 +281,7 @@ local function try_divine_shield(me)
     if not (menu.use_divine_shield and menu.use_divine_shield:get_state()) then return false end
     if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then return false end
     local hp_pct = utils.get_health_pct(me)
-    local threshold = ((menu.divine_shield_hp and menu.divine_shield_hp:get()) or 20) / 100
+    local threshold = ((menu.divine_shield_hp_pct and menu.divine_shield_hp_pct:get()) or 20) / 100
     if hp_pct > threshold then return false end
     if not utils.can_cast_self(runtime.divine_shield_id, me) then return false end
     if utils.cast_self(runtime.divine_shield_id, me) then
@@ -299,7 +299,7 @@ local function try_divine_protection(me)
     if not (menu.use_divine_protection and menu.use_divine_protection:get_state()) then return false end
     if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then return false end
     local hp_pct = utils.get_health_pct(me)
-    local threshold = ((menu.divine_protection_hp and menu.divine_protection_hp:get()) or 30) / 100
+    local threshold = ((menu.divine_protection_hp_pct and menu.divine_protection_hp_pct:get()) or 30) / 100
     if hp_pct > threshold then return false end
     if not utils.can_cast_self(runtime.divine_protection_id, me) then return false end
     if utils.cast_self(runtime.divine_protection_id, me) then
@@ -362,7 +362,7 @@ local function try_judgement(me, target)
     if current_seal == "none" then return false end
     
     -- Check if debuff already present
-    local judge_choice = (menu.judge_debuff and menu.judge_debuff:get()) or 1
+    local judge_choice = (menu.maintain_judgement and menu.maintain_judgement:get()) or 1
     local debuff_ids = nil
     if judge_choice == 1 then debuff_ids = spells.DEBUFF_JUDGEMENT_OF_LIGHT
     elseif judge_choice == 2 then debuff_ids = spells.DEBUFF_JUDGEMENT_OF_WISDOM
@@ -399,24 +399,24 @@ local function do_healing(me)
     local hp_pct = utils.get_effective_hp_pct(target)
     
     -- Emergency: Lay on Hands
-    if hp_pct < ((menu.lay_on_hands_hp and menu.lay_on_hands_hp:get()) or 15) / 100 then
+    if hp_pct < ((menu.lay_on_hands_hp_pct and menu.lay_on_hands_hp_pct:get()) or 15) / 100 then
         if cast_lay_on_hands(me, target) then return true end
     end
     
     -- Holy Shock for instant heal
-    local holy_shock_threshold = ((menu.holy_shock_hp and menu.holy_shock_hp:get()) or 50) / 100
+    local holy_shock_threshold = ((menu.holy_shock_hp_pct and menu.holy_shock_hp_pct:get()) or 50) / 100
     if hp_pct < holy_shock_threshold then
         if cast_holy_shock(me, target) then return true end
     end
     
     -- Holy Light (primary heal)
-    local holy_light_threshold = ((menu.holy_light_hp and menu.holy_light_hp:get()) or 90) / 100
+    local holy_light_threshold = ((menu.holy_light_hp_pct and menu.holy_light_hp_pct:get()) or 90) / 100
     if hp_pct < holy_light_threshold then
         if cast_holy_light(me, target) then return true end
     end
     
     -- Flash of Light (filler)
-    local flash_threshold = ((menu.flash_of_light_hp and menu.flash_of_light_hp:get()) or 95) / 100
+    local flash_threshold = ((menu.flash_of_light_hp_pct and menu.flash_of_light_hp_pct:get()) or 95) / 100
     if hp_pct < flash_threshold then
         if cast_flash_of_light(me, target) then return true end
     end

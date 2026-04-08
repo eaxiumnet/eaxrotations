@@ -89,6 +89,8 @@ menu.use_seal_of_righteousness           = core.menu.checkbox(true, "eaxpaladinr
 menu.use_blessing_of_might               = core.menu.checkbox(true, "eaxpaladinretribution_use_blessing_of_might")
 menu.use_blessing_of_kings               = core.menu.checkbox(true, "eaxpaladinretribution_use_blessing_of_kings")
 menu.use_blessing_of_wisdom              = core.menu.checkbox(true, "eaxpaladinretribution_use_blessing_of_wisdom")
+menu.use_righteous_fury                  = core.menu.checkbox(false, "eaxpaladinretribution_use_righteous_fury")
+menu.use_devotion_aura                   = core.menu.checkbox(true, "eaxpaladinretribution_use_devotion_aura")
 menu.use_sanctity_aura                   = core.menu.checkbox(true, "eaxpaladinret_use_sanctity_aura")
 
 -- Judgement and Aura (new)
@@ -98,6 +100,8 @@ menu.use_divine_illumination             = core.menu.checkbox(true, "eaxpaladinr
 menu.use_zealotry                        = core.menu.checkbox(true, "eaxpaladinretribution_use_zealotry")
 menu.use_crusader_aura                   = core.menu.checkbox(true, "eaxpaladinretribution_use_crusader_aura")
 menu.use_retribution_aura                = core.menu.checkbox(true, "eaxpaladinretribution_use_retribution_aura")
+menu.use_righteous_fury                  = core.menu.checkbox(false, "eaxpaladinretribution_use_righteous_fury")
+menu.use_devotion_aura                   = core.menu.checkbox(false, "eaxpaladinretribution_use_devotion_aura")
 
 -- Cooldowns (new)
 menu.use_avenging_wrath                  = core.menu.checkbox(true, "eaxpaladinret_use_avenging_wrath")
@@ -314,5 +318,5 @@ end)
     end)
 end
 
-return menu
 
+return menu

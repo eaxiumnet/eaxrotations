@@ -8,11 +8,14 @@ local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
 local _compat = require("libraries/rotation_compat")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 local burst_manager = require("libraries/burst_manager")
 local trinket_manager = require("libraries/trinket_manager")
 local combat_forecast = require("libraries/combat_forecast")
 local force_commands = require("libraries/force_commands")
+
+-- Hunter Clip Tracker (ported from Flux)
+local clip_tracker = require("libraries/hunter_clip_tracker")
 
 -- Hot-path local caching
 local _core_time = core.time
@@ -23,6 +26,7 @@ local _get_spell_cd = core.spell_book.get_spell_cooldown
 -- Runtime state -------------------------------------------------------------
 local rt = {
     last_spell_refresh = 0,
+    last_clip_tracker_update = 0,
     auto_shot_id       = nil,
     aimed_shot_id      = nil,
     arcane_shot_id     = nil,
@@ -377,7 +381,7 @@ local function try_rapid_fire(me, t)
         -- Legacy TTD check when auto-burst is disabled
         local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
         if min_ttd > 0 and t then
-            local forecast = require("common/modules/combat_forecast")
+            local forecast = require("libraries/combat_forecast")
             if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
                 return false
             end
@@ -410,7 +414,7 @@ local function try_readiness(me, t)
             -- Legacy TTD check when auto-burst is disabled
             local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
             if min_ttd > 0 and t then
-                local forecast = require("common/modules/combat_forecast")
+                local forecast = require("libraries/combat_forecast")
                 if not forecast:is_valid_forecast_logic(min_ttd, t, false) then
                     return false
                 end
@@ -456,6 +460,7 @@ local function try_aimed_shot(me, t)
     if not utils.can_cast_hostile(rt.aimed_shot_id, me, t) then return false end
     if utils.cast_target(rt.aimed_shot_id, me, t) then
         rt.last_aimed_shot_cast_count = core.spell_book.get_spell_cast_count(rt.aimed_shot_id)
+        clip_tracker.on_spell_cast("Aimed Shot", false)
         return true
     end
     return false
@@ -469,6 +474,7 @@ local function try_arcane_shot(me, t)
     if not utils.can_cast_hostile(rt.arcane_shot_id, me, t) then return false end
     if utils.cast_target(rt.arcane_shot_id, me, t) then
         rt.last_arcane_shot_cast_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
+        clip_tracker.on_spell_cast("Arcane Shot", false)
         return true
     end
     return false
@@ -483,6 +489,7 @@ local function try_multi_shot(me, t)
     if not utils.can_cast_hostile(rt.multi_shot_id, me, t) then return false end
     if utils.cast_target(rt.multi_shot_id, me, t) then
         rt.last_multi_shot_cast_count = core.spell_book.get_spell_cast_count(rt.multi_shot_id)
+        clip_tracker.on_spell_cast("Multi-Shot", false)
         return true
     end
     return false
@@ -496,6 +503,7 @@ local function try_steady_shot(me, t)
     if not utils.can_cast_hostile(rt.steady_shot_id, me, t) then return false end
     if utils.cast_target(rt.steady_shot_id, me, t) then
         rt.last_steady_shot_cast_count = core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+        clip_tracker.on_spell_cast("Steady Shot", false)
         return true
     end
     return false
@@ -508,6 +516,7 @@ local function try_raptor_strike(me, t)
     if not utils.can_cast_hostile(rt.raptor_strike_id, me, t) then return false end
     if utils.cast_target(rt.raptor_strike_id, me, t) then
         rt.last_raptor_strike_cast_count = core.spell_book.get_spell_cast_count(rt.raptor_strike_id)
+        clip_tracker.on_spell_cast("Raptor Strike", true)
         return true
     end
     return false
@@ -527,6 +536,7 @@ local function try_wing_clip(me, t)
     if not utils.can_cast_hostile(rt.wing_clip_id, me, t) then return false end
     if utils.cast_target(rt.wing_clip_id, me, t) then
         rt.last_wing_clip_cast_count = core.spell_book.get_spell_cast_count(rt.wing_clip_id)
+        clip_tracker.on_spell_cast("Wing Clip", true)
         return true
     end
     return false
@@ -592,10 +602,13 @@ local function on_update()
     if not (menu.enabled and menu.enabled:get_state()) then return end
     if not me or me:is_dead() then return end
 
-    -- Track combat state for burst manager
+    -- Track combat state for burst manager and clip tracker
     local in_combat_now = me:is_in_combat()
     if in_combat_now and not rt.in_combat then
         rt.combat_start_time = _core_time()
+        clip_tracker.on_combat_start()
+    elseif not in_combat_now and rt.in_combat then
+        clip_tracker.on_combat_end()
     end
     rt.in_combat = in_combat_now
 
@@ -625,6 +638,25 @@ local function on_update()
     -- Initialize middleware on first run
     if not middleware_manager.is_initialized() then
         middleware_manager.initialize(menu)
+    end
+
+    -- Initialize clip tracker
+    local clip_enabled = (menu.clip_tracker_enabled and menu.clip_tracker_enabled:get_state()) or false
+    if clip_tracker.is_enabled() ~= clip_enabled then
+        clip_tracker.set_enabled(clip_enabled)
+        clip_tracker.set_print_summary((menu.clip_tracker_print_summary and menu.clip_tracker_print_summary:get_state()) or true)
+        clip_tracker.set_thresholds(
+            (menu.clip_threshold_green and menu.clip_threshold_green:get()) or 125,
+            (menu.clip_threshold_yellow and menu.clip_threshold_yellow:get()) or 250,
+            (menu.clip_threshold_orange and menu.clip_threshold_orange:get()) or 500
+        )
+    end
+
+    -- Update clip tracker (throttled)
+    local now = _core_time()
+    if (now - rt.last_clip_tracker_update) >= 0.5 then
+        rt.last_clip_tracker_update = now
+        clip_tracker.update(me)
     end
 
     if try_revive(me) then return end

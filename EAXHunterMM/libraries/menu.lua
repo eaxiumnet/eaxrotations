@@ -132,11 +132,14 @@ menu.mana_potion_pct = core.menu.slider_int(5, 50, 20, "eaxhuntermm_mana_potion_
 menu.use_deterrence_mw = core.menu.checkbox(true, "eaxhuntermm_use_deterrence_mw")
 menu.deterrence_mw_hp = core.menu.slider_int(5, 30, 15, "eaxhuntermm_deterrence_mw_hp")
 
--- Dashboard Settings
-menu.dashboard_enabled = core.menu.checkbox(true, "eaxhuntermm_dashboard_enabled")
+-- Dashboard Settings (Standardized)
+menu.show_dashboard   = core.menu.checkbox(false, "eaxhuntermm_show_dashboard")  -- Default OFF (Beta)
 menu.dashboard_opacity = core.menu.slider_int(50, 255, 190, "eaxhuntermm_dashboard_opacity")
-menu.dashboard_x = core.menu.slider_int(0, 1000, 20, "eaxhuntermm_dashboard_x")
-menu.dashboard_y = core.menu.slider_int(0, 1000, 200, "eaxhuntermm_dashboard_y")
+menu.dashboard_scale  = core.menu.slider_float(0.5, 2.0, 1.0, "eaxhuntermm_dashboard_scale")
+menu.dashboard_x      = core.menu.slider_int(0, 2000, 20, "eaxhuntermm_dashboard_x")
+menu.dashboard_y      = core.menu.slider_int(0, 2000, 200, "eaxhuntermm_dashboard_y")
+menu.show_timer_bars  = core.menu.checkbox(true, "eaxhuntermm_show_timer_bars")
+menu.show_action_history = core.menu.checkbox(true, "eaxhuntermm_show_action_history")
 menu.show_timer_bars = core.menu.checkbox(true, "eaxhuntermm_show_timer_bars")
 menu.show_action_history = core.menu.checkbox(true, "eaxhuntermm_show_action_history")
 menu.show_energy_tick = core.menu.checkbox(false, "eaxhuntermm_show_energy_tick")
@@ -144,6 +147,13 @@ menu.show_combo_points = core.menu.checkbox(false, "eaxhuntermm_show_combo_point
 menu.show_threat_bar = core.menu.checkbox(false, "eaxhuntermm_show_threat_bar")
 menu.enable_smart_collapse = core.menu.checkbox(true, "eaxhuntermm_enable_smart_collapse")
 menu.dashboard_scale = core.menu.slider_float(0.5, 2.0, 1.0, "eaxhuntermm_dashboard_scale")
+
+-- Clip Tracker Settings
+menu.clip_tracker_enabled = core.menu.checkbox(false, "eaxhuntermm_clip_tracker_enabled")
+menu.clip_tracker_print_summary = core.menu.checkbox(true, "eaxhuntermm_clip_print_summary")
+menu.clip_threshold_green = core.menu.slider_int(50, 200, 125, "eaxhuntermm_clip_threshold_1")
+menu.clip_threshold_yellow = core.menu.slider_int(150, 400, 250, "eaxhuntermm_clip_threshold_2")
+menu.clip_threshold_orange = core.menu.slider_int(300, 750, 500, "eaxhuntermm_clip_threshold_3")
 
 settings.setup_major_toggle_keybinds(menu, {
     { toggle = "use_serpent_sting", label = "Serpent Sting" },
@@ -275,17 +285,28 @@ function menu.render()
             menu.deterrence_mw_hp:render("Deterrence MW HP %", "Trigger below this %")
         end)
 
-        -- Dashboard Settings
-        dashboard_tree:render("Dashboard", function()
-            menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
+        -- Dashboard Settings (Beta)
+        dashboard_tree:render("Dashboard (Beta)", function()
+            ps.header("Display (Beta)")
+            menu.show_dashboard:render("Show Dashboard", "Enable dashboard (Beta feature)")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
+            menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
             menu.dashboard_x:render("Position X", "Horizontal position")
-            menu.dashboard_y:render("Position Y", "Vertical position")            
+            menu.dashboard_y:render("Position Y", "Vertical position")
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
-            menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
-            menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
+        end)
+
+        -- Clip Tracker Settings
+        local clip_tree = ps.tree_node()
+        clip_tree:render("Clip Tracker", function()
+            menu.clip_tracker_enabled:render("Enable Clip Tracker", "Track auto-shot clipping")
+            menu.clip_tracker_print_summary:render("Print Summary", "Show combat summary")
+            ps.header("Severity Thresholds (ms)")
+            menu.clip_threshold_green:render("Green/Yellow", "Green to yellow threshold")
+            menu.clip_threshold_yellow:render("Yellow/Orange", "Yellow to orange threshold")
+            menu.clip_threshold_orange:render("Orange/Red", "Orange to red threshold")
         end)
 
         ps.render_targeting(menu, tgt_tree)

@@ -6,7 +6,7 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 local mana_manager = require("libraries/mana_manager")
 local burst_manager = require("libraries/burst_manager")
 local trinket_manager = require("libraries/trinket_manager")
@@ -183,7 +183,7 @@ local function try_unstable_affliction(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 10
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false  -- Target dies too soon, don't waste DoT
         end
@@ -210,7 +210,7 @@ local function try_corruption(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 10
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false  -- Target dies too soon, don't waste DoT
         end
@@ -237,7 +237,7 @@ local function try_siphon_life(me, target)
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 10
     if min_ttd > 0 and target then
         ---@type combat_forecast
-        local forecast = require("common/modules/combat_forecast")
+        local forecast = require("libraries/combat_forecast")
         if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
             return false  -- Target dies too soon, don't waste DoT
         end

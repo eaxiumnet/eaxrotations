@@ -7,6 +7,7 @@
 local ps       = require("libraries/ps_theme")
 local settings = require("libraries/settings_framework")
 
+
 local menu = {}
 
 -- Lane options for form selection
@@ -17,24 +18,18 @@ menu.lane = core.menu.combobox(1, "eaxdruidferal_lane")
 menu.auto_form = core.menu.checkbox(true, "eaxdruidferal_auto_form")
 menu.shift_mana_floor = core.menu.slider_int(10, 50, 25, "eaxdruidferal_shift_mana_floor")
 
--- -- Tree nodes (declared outside render, as per API requirements) -------------
-local root_tree     = ps.tree_node()
-local rotation_tree = ps.tree_node()
-local cat_tree      = ps.tree_node()
-local bear_tree     = ps.tree_node()
-local guardian_tree = ps.tree_node()
-local shared_tree   = ps.tree_node()
-local auto_tree     = ps.tree_node()
-local ooc_tree      = ps.tree_node()
-local group_tree    = ps.tree_node()
-local def_tree      = ps.tree_node()
-local tgt_tree      = ps.tree_node()
-local racial_tree   = ps.tree_node()
-local esp_tree      = ps.tree_node()
-local middleware_tree = ps.tree_node()
-local dashboard_tree  = ps.tree_node()
-local pvp_tree        = ps.tree_node()
-local burst_tree      = ps.tree_node()
+-- -- Tree nodes (Standard EAX Menu Structure) -----------------------------
+local root_tree      = ps.tree_node()
+local general_tree   = ps.tree_node()  -- NEW: General settings
+local rotation_tree  = ps.tree_node()  -- Rotation + forms
+local defensive_tree = ps.tree_node()  -- Merged: Guardian + Defensive
+local utility_tree   = ps.tree_node()  -- Renamed: Shared/Utility
+local buffs_tree     = ps.tree_node()  -- Renamed: OOC buffs
+local consumables_tree = ps.tree_node()  -- Renamed: Middleware
+local pvp_tree       = ps.tree_node()
+local automation_tree = ps.tree_node()  -- Renamed: Burst/Trinket
+local dashboard_tree = ps.tree_node()
+local advanced_tree  = ps.tree_node()  -- NEW: Targeting + Racial
 
 -- -- Controls ------------------------------------------------------------------
 menu.enabled         = core.menu.checkbox(true,  "eaxdruidferal_enabled")
@@ -52,6 +47,9 @@ menu.racial_hp   = core.menu.slider_int(10, 80, 40, "eaxdruidferal_racial_hp")
 
 -- -- Interrupt -----------------------------------------------------------------
 menu.use_interrupt = core.menu.checkbox(true, "eaxdruidferal_use_interrupt")
+
+-- -- Defensive -----------------------------------------------------------------
+menu.use_shapeshift_break = core.menu.checkbox(true, "eaxdruidferal_use_shapeshift_break")
 
 -- -- OOC -----------------------------------------------------------------------
 menu.ooc_drink        = core.menu.checkbox(true,  "eax_ooc_drink")
@@ -102,6 +100,7 @@ menu.use_rake_trick       = core.menu.checkbox(true, "eaxdruidferal_use_rake_tri
 menu.use_wolfshead_shred_shift = core.menu.checkbox(true, "eaxdruidferal_use_wolfshead_shred_shift")  -- Wolfshead Shred Shift
 menu.auto_powershift        = core.menu.checkbox(false, "eaxdruidferal_auto_powershift")  -- Auto powershift when energy low (BETA)
 menu.powershift_min_mana    = core.menu.slider_int(10, 50, 20, "eaxdruidferal_powershift_min_mana")  -- Min mana % to powershift
+menu.powershift_threshold   = core.menu.slider_int(15, 40, 25, "eaxdruidferal_powershift_threshold")  -- Energy threshold to powershift
 menu.rip_only_elites        = core.menu.checkbox(false, "eaxdruidferal_rip_only_elites")  -- Only Rip elite/boss targets
 menu.use_mangle_builder     = core.menu.checkbox(true, "eaxdruidferal_use_mangle_builder")  -- Use Mangle as CP builder
 menu.enable_aoe             = core.menu.checkbox(true, "eaxdruidferal_enable_aoe")  -- Enable AoE rotation
@@ -169,7 +168,7 @@ menu.use_form_healing_potion = core.menu.checkbox(true, "eaxdruidferal_form_poti
 menu.form_healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxdruidferal_potion_hp_pct")
 
 
-menu.show_dashboard         = core.menu.checkbox(true, "eaxdruidferal_show_dashboard")
+menu.show_dashboard         = core.menu.checkbox(false, "eaxdruidferal_show_dashboard")  -- Default OFF (Beta)
 menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxdruidferal_dashboard_opacity")
 menu.dashboard_scale        = core.menu.slider_float(0.5, 2.0, 1.0, "eaxdruidferal_dashboard_scale")
 menu.dashboard_x            = core.menu.slider_int(0, 2000, 20, "eaxdruidferal_dashboard_x")
@@ -204,6 +203,7 @@ menu.powershift_enabled   = core.menu.checkbox(true, "eaxdruidferal_powershift_e
 
 -- -- Window --------------------------------------------------------------------
 settings.setup_major_toggle_keybinds(menu, {
+    { toggle = "enabled", label = "Rotation", key_field = "toggle_key" },
     { toggle = "use_mangle_cat", label = "Mangle (Cat)" },
     { toggle = "use_shred", label = "Shred" },
     { toggle = "use_rip", label = "Rip" },
@@ -225,24 +225,20 @@ function menu.render()
 
     root_tree:render("Eax's Druid Feral", function()
 
-        ps.render_controls(menu, "Eax's Druid Feral")
+        -- 1. General - Visible immediately at top level
+        ps.header("General")
+        menu.enabled:render("Enabled", "Enable/disable rotation")
+        menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
+        menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
 
-        -- Form Management
-        rotation_tree:render("Form Management", function()
-            ps.header("Shapeshifting")
-            menu.lane:render("Active Lane", LANE_OPTIONS)
-            menu.auto_form:render("Auto Form", "Automatically switch forms based on combat situation")
-            menu.shift_mana_floor:render("Shift Mana Floor %", "Don't shift below this mana percent")
-        end)
-
-        -- Cat Form
-        cat_tree:render("Cat Form", function()
-            ps.header("Stealth")
+        -- 2. Rotation (merged: Form Management + Cat Form + Bear Form)
+        rotation_tree:render("Rotation", function()
+            ps.header("Cat Form - Stealth")
             menu.use_prowl:render("Prowl", "Enter stealth when safe")
             menu.use_pounce:render("Pounce", "Stealth opener stun")
             menu.use_ravage:render("Ravage", "Stealth opener damage")
 
-            ps.header("Builder")
+            ps.header("Cat Form - Builder")
             menu.use_faerie_fire:render("Faerie Fire (Feral)", "Armor reduction debuff")
             menu.use_likely_shred:render("Likely Shred", "Use Shred when behind target")
             menu.use_mangle_cat:render("Mangle (Cat)", "Maintain Mangle debuff")
@@ -251,39 +247,34 @@ function menu.render()
             menu.use_shred:render("Shred", "Main damage when behind")
             menu.use_claw:render("Claw", "Combo point builder when Shred unavailable")
 
-            ps.header("Finisher")
+            ps.header("Cat Form - Finisher")
             menu.use_rip:render("Rip", "Maintain Rip DoT")
             menu.rip_combo_points:render("Rip Combo Points", "Minimum combo points for Rip")
             menu.rip_refresh_seconds:render("Rip Refresh (sec)", "Refresh Rip when remaining time is below this value")
             menu.use_ferocious_bite:render("Ferocious Bite", "Execute finisher")
-            menu.bite_min_cp:render("Bite Min CP", "Minimum CP for Ferocious Bite ")
+            menu.bite_min_cp:render("Bite Min CP", "Minimum CP for Ferocious Bite")
             menu.bite_max_energy:render("Bite Max Energy", "Don't FB above this energy to avoid waste")
             menu.use_bite_execute:render("Bite Execute Mode", "Use FB as execute on low HP/short TTD")
-            menu.use_bite_trick:render("Bite Trick", "Low-energy FB dump in dead zone ")
+            menu.use_bite_trick:render("Bite Trick", "Low-energy FB dump in dead zone")
             menu.bite_killshot_hp_pct:render("Killshot HP %", "Use Ferocious Bite below this target HP percent")
             menu.use_maim:render("Maim (interrupt)", "Use Maim as interrupt finisher")
 
-            ps.header("Energy")
+            ps.header("Cat Form - Energy & Advanced")
             menu.use_tigers_fury:render("Tiger's Fury", "Energy cooldown")
             menu.tigers_fury_energy:render("Tiger's Fury Energy", "Use Tiger's Fury below this energy")
             menu.cd_min_ttd:render("Min TTD for CDs", "Don't burst if target dies sooner (sec)")
-            menu.use_powershift:render("Powershift (Wolfshead) [BETA]", "Powershift for energy with Wolfshead Helm - BETA feature")
-            
-            ps.header("Advanced (v1.9)")
             menu.cat_tick_optimization:render("Tick Optimization", "Prefer Mangle over Shred when tick imminent")
             menu.use_rake_trick:render("Rake Trick", "Use Rake Trick conditions")
             menu.use_wolfshead_shred_shift:render("Wolfshead Shred Shift", "Smart shift when Shred needed but energy low")
-            menu.auto_powershift:render("Auto Powershift [BETA]", "Automatically powershift when energy is critically low - BETA feature")
+            menu.auto_powershift:render("Auto Powershift", "Automatically powershift when energy is critically low")
             menu.powershift_min_mana:render("Powershift Min Mana %", "Don't powershift below this mana percent")
+            menu.powershift_threshold:render("Powershift Energy Threshold", "Energy level to trigger powershift")
             menu.rip_only_elites:render("Rip Elites Only", "Only use Rip on elite or boss targets")
             menu.use_mangle_builder:render("Mangle Builder", "Use Mangle as combo point builder")
             menu.enable_aoe:render("Enable AoE", "Enable AoE rotation when multiple targets present")
             menu.spread_rake:render("Spread Rake", "Spread Rake DoT to nearby targets")
-        end)
 
-        -- Bear Form
-        bear_tree:render("Bear Form", function()
-            ps.header("Threat")
+            ps.header("Bear Form - Threat")
             menu.use_mangle_bear:render("Mangle (Bear)", "Main threat ability")
             menu.use_lacerate:render("Lacerate", "Maintain Lacerate stacks")
             menu.use_demoralizing_roar:render("Demoralizing Roar", "Attack power reduction")
@@ -293,9 +284,9 @@ function menu.render()
             menu.maul_min_rage:render("Maul Min Rage", "Minimum rage to use Maul")
         end)
 
-        -- Guardian
-        guardian_tree:render("Guardian", function()
-            ps.header("Defensive")
+        -- 3. Defensive (merged: Guardian + Defensive)
+        defensive_tree:render("Defensive", function()
+            ps.header("Tank Defensives")
             menu.use_frenzied_regeneration:render("Frenzied Regen", "Self-heal cooldown")
             menu.frenzied_regeneration_hp_pct:render("Frenzied Regen HP %", "Use below this health percent")
             menu.auto_growl:render("Auto Growl", "Auto-taunt when losing threat")
@@ -305,16 +296,24 @@ function menu.render()
             menu.use_challenging_roar:render("Challenging Roar", "AoE taunt")
             menu.challenging_roar_party_hp_pct:render("Challenging Roar Party HP %", "Use when party members below this HP")
             menu.guardian_swipe_enemy_count:render("Guardian Swipe Count", "Swipe threshold in Guardian mode")
+            
+            ps.header("Survival")
+            menu.use_barkskin:render("Barkskin", "Damage reduction cooldown")
+            menu.barkskin_hp_pct:render("Barkskin HP %", "Use below this health percent")
+            menu.use_innervate:render("Innervate", "Mana recovery")
+            menu.innervate_mana_pct:render("Innervate Mana %", "Use below this mana percent")
+            menu.use_ooc_self_heal:render("OOC Self-Heal", "Heal out of combat")
+            menu.ooc_self_heal_hp_pct:render("OOC Self-Heal HP %", "Heal below this HP")
         end)
 
-        -- Shared / Utility
-        shared_tree:render("Shared / Utility", function()
+        -- 4. Utility (renamed: Shared / Utility)
+        utility_tree:render("Utility", function()
             ps.header("Mobility")
             menu.use_feral_charge:render("Feral Charge / Dash", "Gap closer / escape")
             menu.use_travel_form:render("Travel Form OOC", "Use Travel Form when out of combat")
             menu.use_root_escape:render("Root Escape", "Shift to break roots")
 
-            ps.header("CC")
+            ps.header("Crowd Control")
             menu.use_bash:render("Bash", "Bear stun")
             menu.use_cyclone:render("Cyclone", "CC")
             menu.use_entangling_roots:render("Entangling Roots", "Root")
@@ -322,118 +321,117 @@ function menu.render()
             menu.use_interrupt:render("Interrupt", "Auto-interrupt enemy casts")
             menu.war_stomp_hp_pct:render("War Stomp HP %", "Use below this HP")
             menu.war_stomp_attackers:render("War Stomp Attacker Count", "Use above this attacker count")
-        end)
-
-        -- Defensive
-        def_tree:render("Defensive", function()
-            menu.use_barkskin:render("Barkskin", "Damage reduction cooldown")
-            menu.barkskin_hp_pct:render("Barkskin HP %", "Use below this health percent")
-            menu.use_innervate:render("Innervate", "Mana recovery")
-            menu.innervate_mana_pct:render("Innervate Mana %", "Use below this mana percent")
-            menu.use_ooc_self_heal:render("OOC Self-Heal", "Heal out of combat")
-            menu.ooc_self_heal_hp_pct:render("OOC Self-Heal HP %", "Heal below this HP")
+            
+            ps.header("Dispels")
             menu.use_abolish_poison:render("Abolish Poison", "Dispel poison")
             menu.use_remove_curse:render("Remove Curse", "Dispel curse")
             menu.use_natures_grasp:render("Nature's Grasp", "Root on melee hit")
-            menu.use_thorns:render("Thorns", "Auto-apply Thorns when missing (OOC)")
         end)
 
-        
-        middleware_tree:render("Middleware / Consumables", function()
-            ps.header("Healthstone")
-            menu.use_healthstone:render("Use Healthstone", "Auto-use healthstone when HP low (off-GCD)")
-            menu.healthstone_hp_pct:render("Healthstone HP %", "Use healthstone below this HP")
+        -- 5. Buffs (renamed: Out of Combat)
+        buffs_tree:render("Buffs", function()
+            ps.header("Self Buffs (OOC)")
+            menu.use_mark_of_the_wild:render("Mark of the Wild", "Apply MotW when missing")
+            menu.use_thorns:render("Thorns", "Apply Thorns when missing")
+            menu.use_cat_form:render("Cat Form", "Shift to Cat Form after buffing")
             
-            ps.header("Healing Potion")
-            menu.use_healing_potion:render("Use Healing Potion", "Auto-use healing potion when HP low (off-GCD)")
-            menu.healing_potion_hp_pct:render("Potion HP %", "Use potion below this HP")
+            ps.header("Group Support")
+            menu.ooc_rez:render("Auto-Resurrect", "Accept and cast resurrection when out of combat")
+            menu.ooc_group_buff:render("Group Buffs", "Apply class buffs to party members between pulls")
+        end)
+
+        -- 6. Consumables (renamed: Middleware)
+        consumables_tree:render("Consumables", function()
+            ps.header("Emergency Items")
+            menu.use_healthstone:render("Healthstone", "Auto-use when HP low (off-GCD)")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below this HP")
+            menu.use_healing_potion:render("Healing Potion", "Auto-use when HP low (off-GCD)")
+            menu.healing_potion_hp_pct:render("Potion HP %", "Use below this HP")
 
             ps.header("Form Consumables")
-            menu.use_form_consumables:render("Use Form Consumables", "Auto-use consumables based on current form")
-            menu.use_form_healthstone:render("Use Healthstone", "Use healthstone when low HP")
-            menu.form_healthstone_hp_pct:render("Healthstone HP%", "HP threshold for healthstone")
-            menu.use_form_healing_potion:render("Use Healing Potion", "Use potion when low HP")
-            menu.form_healing_potion_hp_pct:render("Potion HP%", "HP threshold for potion")
+            menu.use_form_consumables:render("Form Consumables", "Auto-use based on current form")
+            menu.use_form_healthstone:render("Healthstone (Form)", "Use healthstone when low HP")
+            menu.form_healthstone_hp_pct:render("Healthstone HP%", "HP threshold")
+            menu.use_form_healing_potion:render("Healing Potion (Form)", "Use potion when low HP")
+            menu.form_healing_potion_hp_pct:render("Potion HP%", "HP threshold")
+            
+            ps.header("Sustain (OOC)")
+            menu.ooc_drink:render("Auto-Drink", "Drink to restore mana when out of combat")
+            menu.drink_threshold:render("Drink Threshold %", "Start drinking below this mana")
+            menu.ooc_eat:render("Auto-Eat", "Eat food to restore health when out of combat")
+            menu.eat_threshold:render("Eat Threshold %", "Start eating below this HP")
+            menu.auto_ooc_food_drink:render("Auto Food/Drink", "Use food and drink OOC when low")
+            menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically")
         end)
 
-        
-        dashboard_tree:render("Dashboard", function()
-            ps.header("Display")
-            menu.show_dashboard:render("Show Dashboard", "Enable  combat dashboard")
-            menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
-            menu.dashboard_scale:render("Scale", "Dashboard UI scale")
-            menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
+        -- 7. PvP
+        pvp_tree:render("PvP", function()
+            ps.header("General")
+            menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
+            menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "PvP detection mode")
+            menu.pvp_use_trinket:render("PvP Trinket", "Auto-use when CC'd")
+            menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below this HP%")
+            
+            ps.header("Crowd Control")
+            menu.pvp_entangling_roots:render("Entangling Roots", "Root melee attackers")
+            menu.pvp_hibernate:render("Hibernate", "Hibernate druids/shamans in beast forms")
+        end)
+
+        -- 8. Automation (renamed: Burst / Trinket)
+        automation_tree:render("Automation", function()
+            ps.header("Burst Cooldowns")
+            menu.auto_burst_enabled:render("Auto Burst", "Automatically use burst cooldowns")
+            menu.burst_on_bloodlust:render("Burst on Bloodlust", "Use CDs when Bloodlust active")
+            menu.burst_on_pull:render("Burst on Pull", "Use CDs at start of combat")
+            menu.burst_on_execute:render("Burst on Execute", "Use CDs when target below 20% HP")
+            menu.burst_in_combat:render("Burst in Combat", "Use CDs whenever available")
+            menu.cd_min_ttd:render("Min TTD for CDs", "Don't burst if target dies sooner")
+            
+            ps.header("Trinkets")
+            menu.trinket1_mode:render("Trinket 1", {"Off", "Offensive", "Defensive"})
+            menu.trinket2_mode:render("Trinket 2", {"Off", "Offensive", "Defensive"})
+            menu.trinket_ttd:render("Offensive TTD", "Don't use if target dies sooner")
+            menu.defensive_trinket_hp:render("Defensive HP%", "Use below this HP")
+            
+            ps.header("Advanced")
+            menu.powershift_enabled:render("Powershift", "Enable powershift automation")
+        end)
+
+        -- 9. Dashboard
+        dashboard_tree:render("Dashboard (Beta)", function()
+            ps.header("Display (Beta)")
+            menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard (Beta feature)")
+            menu.dashboard_opacity:render("Opacity", "Background opacity")
+            menu.dashboard_scale:render("Scale", "UI scale")
+            menu.dashboard_x:render("Position X", "Horizontal position")
+            menu.dashboard_y:render("Position Y", "Vertical position")
+            
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
-            menu.show_action_history:render("Action History", "Show recent spell casts")
+            menu.show_action_history:render("Action History", "Show recent casts")
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
             menu.show_energy_tick:render("Energy Tick", "Show energy tick tracker")
             menu.show_combo_points:render("Combo Points", "Show combo point pips")
         end)
 
-        -- Burst / Trinket Settings
-        burst_tree:render("Burst / Trinket", function()
-            ps.header("Burst Automation")
-            menu.auto_burst_enabled:render("Auto Burst", "Automatically use burst cooldowns based on conditions")
-            menu.burst_on_bloodlust:render("Burst on Bloodlust", "Use CDs when Bloodlust/Heroism is active")
-            menu.burst_on_pull:render("Burst on Pull", "Use CDs at start of combat (first 5 sec)")
-            menu.burst_on_execute:render("Burst on Execute", "Use CDs when target is below 20% HP")
-            menu.burst_in_combat:render("Burst in Combat", "Use CDs whenever available in combat")
-            menu.cd_min_ttd:render("Min TTD for CDs", "Don't burst if target dies sooner (seconds)")
+        -- 10. Advanced (merged: Targeting + Racial + Leveling)
+        advanced_tree:render("Advanced", function()
+            ps.header("Targeting")
+            menu.focus_priority:render("Focus Priority", "Prioritize focus target")
+            menu.combat_self_hp_boost:render("Self HP Boost", "HP threshold adjustment")
             
-            ps.header("Trinket Automation")
-            menu.trinket1_mode:render("Trinket 1 Mode", {"Off", "Offensive", "Defensive"}, "Automation mode for top trinket slot")
-            menu.trinket2_mode:render("Trinket 2 Mode", {"Off", "Offensive", "Defensive"}, "Automation mode for bottom trinket slot")
-            menu.trinket_ttd:render("Offensive TTD Threshold", "Don't use offensive trinkets if target dies sooner (seconds)")
-            menu.defensive_trinket_hp:render("Defensive HP Threshold", "Use defensive trinkets below this HP percent")
+            ps.header("Racial")
+            menu.use_racial:render("Use Racial", "Auto-use racial abilities")
+            menu.racial_hp:render("Racial HP %", "Use below this HP")
             
-            ps.header("Powershift")
-            menu.powershift_enabled:render("Enable Powershift", "Enable powershift automation with Flux library")
-        end)
-
-        -- PvP Settings
-        pvp_tree:render("PvP", function()
-            ps.header("General")
-            menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
-            menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Select PvP detection mode")
-            menu.pvp_use_trinket:render("Use PvP Trinket", "Auto-use PvP trinket when CC'd")
-            menu.pvp_defensive_threshold:render("Defensive Threshold %", "Use defensives below this HP% in PvP")
-            
-            ps.header("Crowd Control")
-            menu.pvp_entangling_roots:render("Entangling Roots", "Root melee attackers in PvP")
-            menu.pvp_hibernate:render("Hibernate", "Hibernate druids/shamans in beast forms")
-        end)
-
-        -- Targeting
-        ps.render_targeting(menu, tgt_tree)
-
-        -- Racial
-        ps.render_racial(menu, racial_tree)
-
-        -- Out-of-combat
-        ooc_tree:render("Out of Combat", function()
-            ps.header("Sustain")
-            menu.ooc_drink:render("Auto-Drink", "Drink to restore mana when out of combat")
-            menu.drink_threshold:render("Drink Threshold %", "Start drinking below this mana percent")
-            menu.ooc_eat:render("Auto-Eat", "Eat food to restore health when out of combat")
-            menu.eat_threshold:render("Eat Threshold %", "Start eating below this health percent")
-
-            ps.header("Group")
-            menu.ooc_rez:render("Auto-Resurrect", "Accept and cast resurrection when out of combat")
-            menu.ooc_group_buff:render("Group Buffs", "Apply class buffs to party members between pulls")
-
-            ps.header("Automation")
-            menu.auto_ooc_food_drink:render("Auto OOC Food / Drink", "Use food and drink out of combat when health or mana is low")
-            menu.auto_flask:render("Auto Flask", "Maintain flask buff automatically when enabled")
-
             ps.header("Leveling")
-            menu.leveling_conserve_mana:render("Conserve Mana", "Use a more mana-efficient leveling rotation")
-            menu.leveling_mana_floor:render("Mana Floor %", "Switch to conservation mode below this mana percent")
+            menu.leveling_conserve_mana:render("Conserve Mana", "Mana-efficient rotation")
+            menu.leveling_mana_floor:render("Mana Floor %", "Conservation mode threshold")
         end)
 
     end)
 end
+
 
 return menu
 

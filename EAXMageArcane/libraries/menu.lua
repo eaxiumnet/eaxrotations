@@ -122,6 +122,12 @@ menu.arcane_move_ice_lance              = core.menu.checkbox(true, "eaxmagearcan
 menu.arcane_move_cone_of_cold           = core.menu.checkbox(true, "eaxmagearcane_move_cone_of_cold")
 menu.arcane_move_arcane_explosion       = core.menu.checkbox(true, "eaxmagearcane_move_arcane_explosion")
 
+-- Consumables
+menu.use_healthstone                    = core.menu.checkbox(true, "eaxmagearcane_use_healthstone")
+menu.healthstone_hp_pct                 = core.menu.slider_int(10, 50, 30, "eaxmagearcane_healthstone_hp_pct")
+menu.use_healing_potion                 = core.menu.checkbox(true, "eaxmagearcane_use_healing_potion")
+menu.healing_potion_hp_pct              = core.menu.slider_int(10, 50, 25, "eaxmagearcane_healing_potion_hp_pct")
+
 -- NEW: Arcane Rotation Settings (2 items)
 menu.arcane_blasts_between_fillers      = core.menu.slider_int(1, 5, 3, "eaxmagearcane_ab_between_fillers")
 menu.arcane_filler                      = core.menu.combobox(1, "eaxmagearcane_filler")
@@ -226,6 +232,11 @@ function menu.render()
         def_tree:render("Defensive", function()
             menu.use_ice_barrier:render("Ice Barrier", "Shield")
             menu.ice_barrier_hp_pct:render("Ice Barrier HP %", "Below")
+            ps.header("Consumables")
+            menu.use_healthstone:render("Use Healthstone", "Auto-use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below this %")
+            menu.use_healing_potion:render("Use Healing Potion", "Auto-use healing potion")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Use below this %")
         end)
 
         -- Automation
@@ -281,6 +292,7 @@ ps.render_targeting(menu, tgt_tree)
         ps.render_racial(menu, racial_tree)
     end)
 end
+
 
 return menu
 

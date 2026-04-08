@@ -41,6 +41,8 @@ menu.use_interrupt = core.menu.checkbox(true, "eaxpriestsmite_use_interrupt")
 -- -- OOC -----------------------------------------------------------------------
 menu.ooc_drink        = core.menu.checkbox(true,  "eax_ooc_drink")
 menu.ooc_eat          = core.menu.checkbox(true,  "eax_ooc_eat")
+menu.ooc_rez          = core.menu.checkbox(true,  "eax_ooc_rez")
+menu.ooc_group_buff   = core.menu.checkbox(true,  "eax_ooc_group_buff")
 menu.drink_threshold  = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold    = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 
@@ -222,10 +224,15 @@ function menu.render()
             menu.drink_threshold:render("Drink Threshold %", "Start drinking below this mana percent")
             menu.ooc_eat:render("Auto-Eat", "Eat food to restore health when out of combat")
             menu.eat_threshold:render("Eat Threshold %", "Start eating below this health percent")
+            
+            ps.header("Group Support")
+            menu.ooc_rez:render("Auto-Resurrect", "Accept and cast resurrection when out of combat")
+            menu.ooc_group_buff:render("Group Buffs", "Apply buffs to party members between pulls")
         end)
 
     end)
 end
+
 
 return menu
 

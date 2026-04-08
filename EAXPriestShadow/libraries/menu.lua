@@ -101,7 +101,7 @@ menu.pvp_use_fear_ward                   = core.menu.checkbox(true, "eaxpriestsh
 menu.pvp_use_shackle                     = core.menu.checkbox(true, "eaxpriestshadow_pvp_shackle")
 
 
-menu.dashboard_enabled                   = core.menu.checkbox(true, "eaxpriestshadow_dashboard_enabled")
+menu.show_dashboard                   = core.menu.checkbox(true, "eaxpriestshadow_dashboard_enabled")
 menu.dashboard_x                         = core.menu.slider_int(0, 1000, 20, "eaxpriestshadow_dashboard_x")
 menu.dashboard_y                         = core.menu.slider_int(0, 1000, 200, "eaxpriestshadow_dashboard_y")
 menu.show_timer_bars = core.menu.checkbox(true, "eaxpriestshadow_show_timer_bars")
@@ -123,6 +123,12 @@ menu.use_emergency_heal                  = core.menu.checkbox(true, "eaxpriestsh
 menu.emergency_heal_threshold            = core.menu.slider_int(10, 60, 30, "eaxpriestshadow_emergency_heal_threshold")
 menu.use_defensive_racial                = core.menu.checkbox(true, "eaxpriestshadow_use_defensive_racial")
 menu.defensive_racial_threshold          = core.menu.slider_int(10, 60, 40, "eaxpriestshadow_defensive_racial_threshold")
+
+-- Consumables
+menu.use_healthstone                     = core.menu.checkbox(true, "eaxpriestshadow_use_healthstone")
+menu.healthstone_hp_pct                  = core.menu.slider_int(10, 50, 30, "eaxpriestshadow_healthstone_hp_pct")
+menu.use_healing_potion                  = core.menu.checkbox(true, "eaxpriestshadow_use_healing_potion")
+menu.healing_potion_hp_pct               = core.menu.slider_int(10, 50, 25, "eaxpriestshadow_healing_potion_hp_pct")
 
 -- Mana Management
 menu.use_mana_manager = core.menu.checkbox(true, "eaxpriestshadow_use_mana_manager")
@@ -226,9 +232,14 @@ function menu.render()
         end)
 
         
-        cd_tree:render("Dashboard & ", function()
+        cd_tree:render("Dashboard & Consumables", function()
+            ps.header("Consumables")
+            menu.use_healthstone:render("Healthstone", "Use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
+            menu.use_healing_potion:render("Healing Potion", "Use potion")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Below")
             ps.header("Dashboard")
-            menu.dashboard_enabled:render("Enable Dashboard", "Show combat HUD")
+            menu.show_dashboard:render("Enable Dashboard", "Show combat HUD")
             menu.dashboard_x:render("Position X", "Horizontal position")
             menu.dashboard_y:render("Position Y", "Vertical position")            
             ps.header("Features")
@@ -282,6 +293,7 @@ function menu.render()
         ps.render_racial(menu, racial_tree)
     end)
 end
+
 
 return menu
 

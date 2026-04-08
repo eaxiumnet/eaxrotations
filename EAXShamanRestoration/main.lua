@@ -8,7 +8,7 @@ local buff_manager = require("common/modules/buff_manager")
 local spell_queue = require("common/modules/spell_queue")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 local heal_context = require("libraries/heal_context")
 local mana_manager = require("libraries/mana_manager")
 

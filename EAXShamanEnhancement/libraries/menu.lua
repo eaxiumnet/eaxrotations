@@ -103,6 +103,12 @@ menu.trinket2_mode                       = core.menu.combobox(1, "eaxshamanenhan
 menu.use_swing_manager                   = core.menu.checkbox(true, "eaxshamanenhancement_use_swing_manager")
 menu.swing_queue_threshold               = core.menu.slider_int(30, 100, 50, "eaxshamanenhancement_swing_queue_threshold")
 
+-- Consumables
+menu.use_healthstone  = core.menu.checkbox(true, "eaxshamanenhancement_use_healthstone")
+menu.healthstone_hp_pct = core.menu.slider_int(10, 50, 30, "eaxshamanenhancement_healthstone_hp_pct")
+menu.use_healing_potion = core.menu.checkbox(true, "eaxshamanenhancement_use_healing_potion")
+menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxshamanenhancement_healing_potion_hp_pct")
+
 -- Dashboard
 menu.show_dashboard         = core.menu.checkbox(true, "eaxshamanenhancement_show_dashboard")
 menu.dashboard_opacity      = core.menu.slider_int(50, 255, 190, "eaxshamanenhancement_dashboard_opacity")
@@ -221,6 +227,11 @@ function menu.render()
             menu.use_healing_wave:render("Healing Wave", "Self-heal")
             menu.healing_wave_hp:render("Healing Wave HP %", "Below")
             menu.use_lesser_healing_wave:render("Lesser Healing Wave", "Fast heal")
+            ps.header("Consumables")
+            menu.use_healthstone:render("Use Healthstone", "Auto use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
+            menu.use_healing_potion:render("Use Healing Potion", "Auto use healing potion")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Below")
         end)
 
         -- Automation

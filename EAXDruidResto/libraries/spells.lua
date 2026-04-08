@@ -9,6 +9,13 @@ spells.SWIFTMEND = { 18562 }
 spells.HEALING_TOUCH = { 26979, 25297, 22848, 22847, 22846, 5185 }
 spells.TRANQUILITY = { 26983, 9863, 9862, 740 }
 
+-- -- Healing Touch Ranks -----------------------------------------------------
+spells.HEALING_TOUCH_RANKS = {
+    [1] = 5185, [2] = 5186, [3] = 5187, [4] = 5188,
+    [5] = 5189, [6] = 6778, [7] = 8903, [8] = 9758,
+    [9] = 9888, [10] = 9889, [11] = 25297, [12] = 26979
+}
+
 -- -- Utility spells ------------------------------------------------------------
 spells.NATURES_SWIFTNESS = { 17116 }
 spells.INNERVATE = { 29166 }
@@ -32,6 +39,8 @@ spells.BUFF_NATURES_SWIFTNESS = { 17116 }
 spells.BUFF_ABOLISH_POISON = { 2893 }
 spells.BUFF_THORNS = { 26992, 9910, 9756, 8914, 1075, 782, 467 }  -- Thorns buff IDs
 spells.BUFF_MARK_OF_THE_WILD = { 26990, 21849, 21850, 1126, 5232, 5234, 8907, 10937, 10938, 25460, 26991 }  -- MOTW buff IDs
+spells.BUFF_CLEARCASTING = { 16870 }
+spells.BUFF_TRANQUILITY = { 26983 }
 
 -- -- Debuffs -----------------------------------------------------------------
 spells.DEBUFF_CYCLONE = { 33786 }

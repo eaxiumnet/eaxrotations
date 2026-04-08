@@ -61,6 +61,7 @@ menu.eat_threshold                       = core.menu.slider_int(50, 100, 80, "ea
 
 -- Automation
 menu.auto_combat_potions                = core.menu.checkbox(false, "eaxpaladinholy_auto_combat_potions")
+menu.auto_mana_potion = menu.auto_combat_potions  -- Alias for compatibility
 menu.auto_ooc_food_drink                = core.menu.checkbox(true, "eaxpaladinholy_auto_ooc_food_drink")
 menu.auto_flask                         = core.menu.checkbox(false, "eaxpaladinholy_auto_flask")
 menu.leveling_conserve_mana              = core.menu.checkbox(true, "eaxpaladinholy_lev_conserve")
@@ -75,11 +76,14 @@ menu.use_holy_shock                      = core.menu.checkbox(true, "eaxpaladinh
 menu.holy_shock_hp_pct                   = core.menu.slider_int(10, 100, 70, "eaxpaladinholy_holy_shock_hp_pct")
 menu.use_divine_illumination             = core.menu.checkbox(true, "eaxpaladinholy_use_divine_illumination")
 menu.use_cleanse                         = core.menu.checkbox(true, "eaxpaladinholy_use_cleanse")
+menu.use_cleanse_party                   = core.menu.checkbox(true, "eaxpaladinholy_use_cleanse_party")
 menu.use_lay_on_hands                    = core.menu.checkbox(true, "eaxpaladinholy_use_lay_on_hands")
 menu.lay_on_hands_hp_pct                 = core.menu.slider_int(5, 50, 20, "eaxpaladinholy_lay_on_hands_hp_pct")
 menu.use_divine_favor                    = core.menu.checkbox(true, "eaxpaladinholy_use_divine_favor")
 menu.use_divine_shield                   = core.menu.checkbox(true, "eaxpaladinholy_use_divine_shield")
 menu.divine_shield_hp_pct                = core.menu.slider_int(0, 100, 20, "eaxpaladinholy_divine_shield_hp_pct")
+menu.use_divine_protection               = core.menu.checkbox(true, "eaxpaladinholy_use_divine_protection")
+menu.divine_protection_hp_pct            = core.menu.slider_int(0, 100, 30, "eaxpaladinholy_divine_protection_hp_pct")
 menu.use_blessing_of_light               = core.menu.checkbox(true, "eaxpaladinholy_use_blessing_of_light")
 menu.use_blessing_of_wisdom              = core.menu.checkbox(true, "eaxpaladinholy_use_blessing_of_wisdom")
 menu.use_blessing_of_might               = core.menu.checkbox(true, "eaxpaladinholy_use_blessing_of_might")
@@ -95,6 +99,9 @@ menu.use_exorcism                        = core.menu.checkbox(true, "eaxpaladinh
 menu.use_holy_wrath                      = core.menu.checkbox(true, "eaxpaladinholy_use_holy_wrath")
 menu.use_turn_undead                     = core.menu.checkbox(true, "eaxpaladinholy_use_turn_undead")
 menu.use_redemption                      = core.menu.checkbox(true, "eaxpaladinholy_use_redemption")
+menu.seal_choice = core.menu.combobox(1, "eaxpaladinholy_seal_choice")
+menu.use_avenging_wrath = core.menu.checkbox(true, "eaxpaladinholy_use_avenging_wrath")
+menu.divine_illumination_pct = menu.divine_illumination_mana_pct  -- Alias for compatibility
 
 -- Missing toggles (12 total)
 -- Judgement Maintenance (1)
@@ -114,7 +121,6 @@ menu.bop_hp_pct                          = core.menu.slider_int(5, 50, 30, "eaxp
 
 -- Utility (2)
 menu.use_bop_on_tank                     = core.menu.checkbox(false, "eaxpaladinholy_use_bop_on_tank")
-menu.use_divine_protection               = core.menu.checkbox(true, "eaxpaladinholy_use_divine_protection")
 menu.use_cleanse_key = core.menu.keybind(7, false, "eaxpaladinholy_cleanse_key")
 menu.use_hand_of_freedom_key = core.menu.keybind(7, false, "eaxpaladinholy_hand_of_freedom_key")
 menu.overheal_protection = core.menu.checkbox(false, "eaxpaladinholy_overheal_protection")
@@ -191,6 +197,7 @@ function menu.render()
             menu.use_divine_illumination:render("Divine Illumination", "CD reduction")
             menu.divine_illumination_mana_pct:render("Divine Illumination Mana %", "Below")
             menu.use_cleanse:render("Cleansing", "Dispel")
+            menu.use_cleanse_party:render("Cleanse Party", "Dispel party members")
             menu.use_lay_on_hands:render("Lay on Hands", "Emergency")
             menu.lay_on_hands_hp_pct:render("LoH HP %", "Below")
             menu.use_divine_favor:render("Divine Favor", "Guaranteed crit")
@@ -226,6 +233,7 @@ function menu.render()
         -- Defensive
         def_tree:render("Defensive", function()
             menu.use_divine_protection:render("Divine Protection", "-50% physical")
+            menu.divine_protection_hp_pct:render("Divine Protection HP %", "Below")
             menu.use_divine_shield:render("Divine Shield", "Immunity")
             menu.divine_shield_hp_pct:render("Divine Shield HP %", "Below")
             ps.header("Blessing of Protection")
@@ -294,5 +302,5 @@ menu.trinket2_mode                       = core.menu.combobox(1, "eaxpaladinholy
     end)
 end
 
-return menu
 
+return menu

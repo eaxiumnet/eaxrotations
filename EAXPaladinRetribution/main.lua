@@ -22,7 +22,7 @@ local burst_manager = require("libraries/burst_manager")
 ---@type trinket_manager
 local trinket_manager = require("libraries/trinket_manager")
 local middleware_manager = require("libraries/middleware_manager")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 
 -- Flux Feature Integration
 local combat_forecast = require("libraries/combat_forecast")
@@ -422,7 +422,7 @@ local function on_update()
     end
     
     -- CC Detection: Stop rotation if crowd controlled
-    local cc_detector = require("../libraries/cc_detector")
+    local cc_detector = require("libraries/cc_detector")
     local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
 
     -- Paladin special: Try Divine Shield for any CC before stopping
@@ -481,6 +481,7 @@ local function on_update()
                 },
             }
         })
+        return  -- Exit after OOC buffs to prevent combat rotation
     end
     
     -- Don't cast while eating/drinking

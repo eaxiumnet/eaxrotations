@@ -8,7 +8,7 @@ local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
 local _compat = require("libraries/rotation_compat")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 
 -- Burst & Trinket Automation (ported from Flux)
 local burst_manager = require("libraries/burst_manager")
@@ -19,6 +19,9 @@ local force_commands = require("libraries/force_commands")
 -- Swing timer for shot rotation timing (prevents Auto Shot clipping)
 local swing_timer = require("libraries/swing_timer")
 
+-- Hunter Clip Tracker (ported from Flux)
+local clip_tracker = require("libraries/hunter_clip_tracker")
+
 -- Hot-path local caching (performance critical)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
@@ -28,6 +31,7 @@ local _get_spell_cd = core.spell_book.get_spell_cooldown
 -- Runtime state -------------------------------------------------------------
 local rt = {
     last_spell_refresh = 0,
+    last_clip_tracker_update = 0,
     revive_in_progress = false,
     revive_started_at  = 0,
     auto_shot_id       = nil,
@@ -430,6 +434,7 @@ local function try_arcane_shot(me, t)
     if not utils.can_cast_hostile(rt.arcane_shot_id, me, t) then return false end
     if utils.cast_target(rt.arcane_shot_id, me, t) then
         rt.last_arcane_shot_cast_count = core.spell_book.get_spell_cast_count(rt.arcane_shot_id)
+        clip_tracker.on_spell_cast("Arcane Shot", false)
         return true
     end
     return false
@@ -457,6 +462,7 @@ local function try_multi_shot(me, t)
     if not utils.can_cast_hostile(rt.multi_shot_id, me, t) then return false end
     if utils.cast_target(rt.multi_shot_id, me, t) then
         rt.last_multi_shot_cast_count = core.spell_book.get_spell_cast_count(rt.multi_shot_id)
+        clip_tracker.on_spell_cast("Multi-Shot", false)
         return true
     end
     return false
@@ -487,6 +493,7 @@ local function try_steady_shot(me, t)
     if utils.can_cast_hostile(rt.steady_shot_id, me, t) then
         if utils.cast_target(rt.steady_shot_id, me, t) then
             rt.last_steady_shot_cast_count = core.spell_book.get_spell_cast_count(rt.steady_shot_id)
+            clip_tracker.on_spell_cast("Steady Shot", false)
             return true
         end
     end
@@ -500,6 +507,7 @@ local function try_raptor_strike(me, t)
     if not utils.can_cast_hostile(rt.raptor_strike_id, me, t) then return false end
     if utils.cast_target(rt.raptor_strike_id, me, t) then
         rt.last_raptor_strike_cast_count = core.spell_book.get_spell_cast_count(rt.raptor_strike_id)
+        clip_tracker.on_spell_cast("Raptor Strike", true)
         return true
     end
     return false
@@ -519,6 +527,7 @@ local function try_wing_clip(me, t)
     if not utils.can_cast_hostile(rt.wing_clip_id, me, t) then return false end
     if utils.cast_target(rt.wing_clip_id, me, t) then
         rt.last_wing_clip_cast_count = core.spell_book.get_spell_cast_count(rt.wing_clip_id)
+        clip_tracker.on_spell_cast("Wing Clip", true)
         return true
     end
     return false
@@ -595,8 +604,17 @@ local function on_update()
     -- Crowd Control check - return early if stunned/silenced/feared etc.
     if utils.is_cced and utils.is_cced(me) then return end
 
+    -- Track combat state for clip tracker
+    local in_combat_now = me:is_in_combat()
+    if in_combat_now and not rt.in_combat then
+        clip_tracker.on_combat_start()
+    elseif not in_combat_now and rt.in_combat then
+        clip_tracker.on_combat_end()
+    end
+    rt.in_combat = in_combat_now
+
     -- OOC Manager - handle out-of-combat buffs
-    if not me:is_in_combat() then
+    if not in_combat_now then
         ooc_manager.on_update(me, menu, utils, {
             group_buffs = {
                 {
@@ -612,6 +630,25 @@ local function on_update()
     -- Initialize middleware on first run
     if not middleware_manager.is_initialized() then
         middleware_manager.initialize(menu)
+    end
+
+    -- Initialize clip tracker
+    local clip_enabled = (menu.clip_tracker_enabled and menu.clip_tracker_enabled:get_state()) or false
+    if clip_tracker.is_enabled() ~= clip_enabled then
+        clip_tracker.set_enabled(clip_enabled)
+        clip_tracker.set_print_summary((menu.clip_tracker_print_summary and menu.clip_tracker_print_summary:get_state()) or true)
+        clip_tracker.set_thresholds(
+            (menu.clip_threshold_green and menu.clip_threshold_green:get()) or 125,
+            (menu.clip_threshold_yellow and menu.clip_threshold_yellow:get()) or 250,
+            (menu.clip_threshold_orange and menu.clip_threshold_orange:get()) or 500
+        )
+    end
+
+    -- Update clip tracker (throttled)
+    local now = _core_time()
+    if (now - rt.last_clip_tracker_update) >= 0.5 then
+        rt.last_clip_tracker_update = now
+        clip_tracker.update(me)
     end
 
     if try_revive(me) then return end

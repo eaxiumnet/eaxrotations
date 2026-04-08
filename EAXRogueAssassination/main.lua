@@ -6,14 +6,11 @@ local spells = require("libraries/spells")
 local utils = require("libraries/utils")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 local anti_fake_manager = require("libraries/anti_fake_manager")
 
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
-
----@type combat_forecast
-local forecast = require("common/modules/combat_forecast")
 
 -- Burst & Trinket Automation
 local burst_manager = require("libraries/burst_manager")

@@ -343,6 +343,50 @@ function utils.get_moonkin_status(me)
     return status
 end
 
+---Check if player has Clearcasting (Omen of Clarity) buff
+--@param me game_object
+--@return boolean
+function utils.has_clearcasting_buff(me)
+    if not me or not me:is_valid() then return false end
+    
+    -- Try me:has_aura() method first (Clearcasting/Omen of Clarity = 16870)
+    if me.has_aura then
+        local ok, result = pcall(function() return me:has_aura(16870) end)
+        if ok then return result end
+    end
+    
+    -- Fallback to buff_manager
+    local ok, result = pcall(function()
+        local data = buff_manager:get_buff_data(me, 16870)
+        return data and data.is_active
+    end)
+    if ok then return result end
+    
+    return false
+end
+
+---Check if player has Nature's Grace buff
+--@param me game_object
+--@return boolean
+function utils.has_natures_grace_buff(me)
+    if not me or not me:is_valid() then return false end
+    
+    -- Try me:has_aura() method first (Nature's Grace = 16886)
+    if me.has_aura then
+        local ok, result = pcall(function() return me:has_aura(16886) end)
+        if ok then return result end
+    end
+    
+    -- Fallback to buff_manager
+    local ok, result = pcall(function()
+        local data = buff_manager:get_buff_data(me, 16886)
+        return data and data.is_active
+    end)
+    if ok then return result end
+    
+    return false
+end
+
 -- ============================================================================
 -- Crowd Control Detection
 -- ============================================================================

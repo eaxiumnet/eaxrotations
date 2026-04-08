@@ -280,6 +280,194 @@ function utils.is_cced(unit)
     return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
 end
 
+-- 1. Alias mana_pct to get_mana_pct for naming consistency
+function utils.get_mana_pct(me)
+    return utils.mana_pct(me)
+end
+
+-- 2. Check if target is in melee range (5 yards squared = 25)
+function utils.is_melee_target(me, target)
+    if not me or not me:is_valid() or not target or not target:is_valid() then
+        return false
+    end
+    local dist_sq = utils.dist_squared(me, target)
+    return dist_sq <= 25
+end
+
+-- 3. Check if target is undead or demon (for Exorcism/Holy Wrath)
+function utils.is_undead_or_demon(target)
+    if not target or not target:is_valid() then return false end
+    
+    local ok, creature_type = pcall(function() return target:get_creature_type() end)
+    if ok and creature_type then
+        return creature_type == "Undead" or creature_type == "Demon"
+    end
+    
+    -- Fallback: check classification
+    local ok2, classification = pcall(function() return target:get_classification() end)
+    if ok2 and classification then
+        return classification.creature_type == "Undead" or classification.creature_type == "Demon"
+    end
+    
+    return false
+end
+
+-- 4. Count enemies within radius using squared distance
+function utils.count_enemies_within_radius(me, radius)
+    if not me or not me:is_valid() then return 0 end
+    
+    local radius_sq = radius * radius
+    local count = 0
+    
+    local ok, objects = pcall(function() 
+        return core.object_manager.get_visible_objects() 
+    end)
+    
+    if not ok or not objects then return 0 end
+    
+    for i = 1, #objects do
+        local obj = objects[i]
+        if obj and obj:is_valid() and not obj:is_dead() then
+            local ok_attack, can_attack = pcall(function() return me:can_attack(obj) end)
+            if ok_attack and can_attack then
+                local dist_sq = utils.dist_squared(me, obj)
+                if dist_sq <= radius_sq then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    
+    return count
+end
+
+-- 5. Check if target has aggro on player (target's target is player)
+function utils.has_target_aggro(target, me)
+    if not target or not target:is_valid() or not me or not me:is_valid() then
+        return false
+    end
+    
+    local ok, target_of_target = pcall(function() return target:get_target() end)
+    if not ok or not target_of_target then return false end
+    
+    return utils.same_unit(target_of_target, me)
+end
+
+-- 6. Get party member units
+function utils.get_party_units(me)
+    if not me or not me:is_valid() then return {me} end
+    
+    local units = {me}
+    
+    for i = 1, 4 do
+        local ok, member = pcall(function() 
+            return core.object_manager.get_player_by_index(i) 
+        end)
+        if ok and member and member:is_valid() then
+            table.insert(units, member)
+        end
+    end
+    
+    return units
+end
+
+-- 7. Check if player needs Cleanse (has dispellable debuff)
+function utils.needs_cleanse(me)
+    if not me or not me:is_valid() then return false end
+    
+    local buff_manager = require("common/modules/buff_manager")
+    
+    -- Paladin Cleanse removes: Magic, Poison, Disease
+    local dispellable_types = { Magic = true, Poison = true, Disease = true }
+    
+    local ok, debuffs = pcall(function() 
+        return buff_manager:get_all_debuffs(me) 
+    end)
+    
+    if ok and debuffs then
+        for _, debuff in ipairs(debuffs) do
+            if debuff.dispel_type and dispellable_types[debuff.dispel_type] then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+-- 8. Get buff remaining time in seconds (not ms - match usage in main.lua)
+function utils.get_buff_remaining_ms(unit, buff_table)
+    if not unit or not unit:is_valid() or not buff_table then return 0 end
+    
+    local buff_manager = require("common/modules/buff_manager")
+    local data = buff_manager:get_buff_data(unit, buff_table)
+    
+    if data and data.is_active and data.remaining then
+        return data.remaining * 1000  -- Convert to ms
+    end
+    
+    return 0
+end
+
+-- 9. Try to use Divine Shield to break CC
+function utils.try_divine_shield_cc_break(me, menu)
+    if not me or not me:is_valid() then return false end
+    
+    -- Check if enabled in menu
+    local use_divine_shield = false
+    if menu and menu.use_divine_shield then
+        local ok, val = pcall(function() return menu.use_divine_shield:get_state() end)
+        if ok then use_divine_shield = val end
+    end
+    
+    if not use_divine_shield then return false end
+    
+    -- Check if CC'd (has loss of control effect)
+    if not me.get_loss_of_control_info then return false end
+    
+    local loc_info = me:get_loss_of_control_info()
+    if not loc_info or not loc_info.valid then return false end
+    
+    -- LOC_STUN = 5, LOC_SILENCE = 8, etc. - any CC that prevents casting
+    local cc_types = { [5] = true, [6] = true, [8] = true, [9] = true, [10] = true, [11] = true }
+    if not cc_types[loc_info.type] then return false end
+    
+    -- Check Divine Shield availability
+    local spells = require("libraries/spells")
+    local ds_id = utils.resolve_spell_id(spells.DIVINE_SHIELD)
+    if not ds_id then return false end
+    
+    if not utils.can_cast_self(ds_id, me) then return false end
+    
+    -- Cast Divine Shield
+    if utils.cast_self(ds_id, me) then
+        return true
+    end
+    
+    return false
+end
+
+-- 10. Fast cast for urgent spells (skip queue)
+function utils.cast_self_fast(spell_id, me)
+    if not spell_id or not me or not me:is_valid() then return false end
+    
+    -- Get IZI spell object
+    local izi = require("common/izi_sdk")
+    local izi_spell = izi.spell(spell_id)
+    if not izi_spell then return false end
+    
+    -- Check if learned and castable
+    if not izi_spell:is_learned() then return false end
+    if not izi_spell:is_castable_to_unit(me) then return false end
+    
+    -- Cast without throttling
+    local ok, result = pcall(function()
+        return izi_spell:cast_safe(me, "[Self] Fast Cast")
+    end)
+    
+    return ok and result
+end
+
 return utils
 
 

@@ -136,7 +136,7 @@ menu.use_swing_delay = core.menu.checkbox(true, "eaxdruidbalance_use_swing_delay
 menu.trinket_ttd = core.menu.slider_int(5, 30, 10, "eaxdruidbalance_trinket_ttd")
 
 -- -- Dashboard -----------------------------------------------------------------
-menu.dashboard_enabled                    = core.menu.checkbox(true, "eaxdruidbalance_dashboard_enabled")
+menu.show_dashboard                    = core.menu.checkbox(true, "eaxdruidbalance_dashboard_enabled")
 menu.dashboard_opacity                    = core.menu.slider_int(50, 255, 190, "eaxdruidbalance_dashboard_opacity")
 menu.dashboard_scale                      = core.menu.slider_float(0.5, 2.0, 1.0, "eaxdruidbalance_dashboard_scale")
 menu.dashboard_x                          = core.menu.slider_int(0, 2000, 20, "eaxdruidbalance_dashboard_x")
@@ -302,7 +302,7 @@ function menu.render()
 
         -- -- Dashboard -----------------------------------------------------------
         dashboard_tree:render("Dashboard", function()
-            menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
+            menu.show_dashboard:render("Enable Dashboard", "Show combat dashboard")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
             menu.dashboard_x:render("Position X", "Dashboard horizontal position")
@@ -334,6 +334,7 @@ function menu.render()
 
     end)
 end
+
 
 return menu
 

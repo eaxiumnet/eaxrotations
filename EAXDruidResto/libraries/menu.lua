@@ -66,6 +66,8 @@ menu.use_spirit_tap_wand                 = core.menu.checkbox(true,  "eaxdruidre
 menu.use_rejuvenation                    = core.menu.checkbox(true, "eaxdruidrestoration_use_rejuvenation")
 menu.use_regrowth                        = core.menu.checkbox(true, "eaxdruidrestoration_use_regrowth")
 menu.use_healing_touch                   = core.menu.checkbox(true, "eaxdruidrestoration_use_healing_touch")
+menu.healing_touch_rank                  = core.menu.slider_int(1, 12, 12, "eaxdruidrestoration_healing_touch_rank")
+menu.healing_touch_tank_threshold        = core.menu.slider_int(10, 100, 40, "eaxdruidrestoration_healing_touch_tank_threshold")
 menu.use_swiftmend                       = core.menu.checkbox(true, "eaxdruidrestoration_use_swiftmend")
 menu.swiftmend_hp_pct                    = core.menu.slider_int(10, 100, 50, "eaxdruidresto_swiftmend_hp_pct")
 menu.use_lifebloom                       = core.menu.checkbox(true, "eaxdruidrestoration_use_lifebloom")
@@ -125,6 +127,12 @@ menu.consumable_health_threshold           = core.menu.slider_int(10, 50, 35, "e
 menu.use_mana_potion                     = core.menu.checkbox(true, "eaxdruidresto_use_mana_potion")
 menu.mana_potion_pct                     = core.menu.slider_int(5, 30, 10, "eaxdruidresto_mana_potion_pct")
 
+-- Consumables
+menu.use_healthstone                     = core.menu.checkbox(true, "eaxdruidresto_use_healthstone")
+menu.healthstone_hp_pct                  = core.menu.slider_int(10, 50, 30, "eaxdruidresto_healthstone_hp_pct")
+menu.use_healing_potion                  = core.menu.checkbox(true, "eaxdruidresto_use_healing_potion")
+menu.healing_potion_hp_pct               = core.menu.slider_int(10, 50, 25, "eaxdruidresto_healing_potion_hp_pct")
+
 -- Mana Manager (unified mana recovery chain)
 menu.use_mana_manager                    = core.menu.checkbox(true, "eaxdruidresto_use_mana_manager")
 menu.mana_potion_pct                     = core.menu.slider_int(5, 100, 20, "eaxdruidresto_mana_potion_pct")
@@ -138,7 +146,6 @@ menu.use_war_stomp                       = core.menu.checkbox(true, "eaxdruidres
 
 -- ============================================================================
 
-menu.dashboard_enabled                   = core.menu.checkbox(true, "eaxdruidresto_dashboard_enabled")
 menu.show_dashboard                      = core.menu.checkbox(true, "eaxdruidresto_show_dashboard")
 menu.dashboard_opacity                     = core.menu.slider_int(50, 255, 190, "eaxdruidresto_dashboard_opacity")
 menu.dashboard_scale                     = core.menu.slider_float(0.5, 2.0, 1.0, "eaxdruidresto_dashboard_scale")
@@ -227,6 +234,8 @@ function menu.render()
             menu.use_swiftmend:render("Swiftmend", "Emergency heal")
             menu.swiftmend_hp_pct:render("Swiftmend HP %", "Use below")
             menu.use_healing_touch:render("Healing Touch", "Big slow heal")
+            menu.healing_touch_rank:render("Healing Touch Rank", "Max rank to use (1-12)")
+            menu.healing_touch_tank_threshold:render("Healing Touch Tank Threshold", "HP% to use on tanks")
             menu.use_natures_swiftness:render("Nature's Swiftness", "Instant cast")
             menu.emergency_hp:render("Emergency HP %", "Nature's Swiftness below")
             menu.use_tranquility:render("Tranquility", "AoE heal")
@@ -273,6 +282,11 @@ function menu.render()
 
         
         middleware_tree:render("Middleware", function()
+            ps.header("Consumables")
+            menu.use_healthstone:render("Healthstone", "Use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
+            menu.use_healing_potion:render("Healing Potion", "Use potion")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Below")
             ps.header("Recovery Items (Healer Thresholds)")
             menu.use_healthstone:render("Healthstone", "Use healthstone")
             menu.healthstone_hp_pct:render("Healthstone HP %", "Below (healer: 35%)")
@@ -290,7 +304,6 @@ function menu.render()
 
         
         dashboard_tree:render("Dashboard", function()
-            menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
             menu.show_dashboard:render("Show Dashboard", "Toggle dashboard visibility")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_scale:render("Scale", "Dashboard UI scale")
@@ -349,6 +362,7 @@ function menu.render()
         ps.render_racial(menu, racial_tree)
     end)
 end
+
 
 return menu
 

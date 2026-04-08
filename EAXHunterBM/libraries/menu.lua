@@ -40,6 +40,8 @@ menu.use_interrupt = core.menu.checkbox(true, "eaxhunterbm_use_interrupt")
 -- OOC Sustain
 menu.ooc_drink       = core.menu.checkbox(true,  "eax_ooc_drink")
 menu.ooc_eat         = core.menu.checkbox(true,  "eax_ooc_eat")
+menu.ooc_rez          = core.menu.checkbox(true,  "eax_ooc_rez")
+menu.ooc_group_buff   = core.menu.checkbox(true,  "eax_ooc_group_buff")
 menu.drink_threshold = core.menu.slider_int(50, 100, 80, "eax_drink_threshold")
 menu.eat_threshold   = core.menu.slider_int(50, 100, 80, "eax_eat_threshold")
 menu.use_aspect_hawk = core.menu.checkbox(true, "eaxhunterbm_use_aspect_hawk")
@@ -160,6 +162,13 @@ menu.show_combo_points = core.menu.checkbox(false, "eaxhunterbm_show_combo_point
 menu.show_threat_bar = core.menu.checkbox(false, "eaxhunterbm_show_threat_bar")
 menu.enable_smart_collapse = core.menu.checkbox(true, "eaxhunterbm_enable_smart_collapse")
 menu.dashboard_scale = core.menu.slider_float(0.5, 2.0, 1.0, "eaxhunterbm_dashboard_scale")
+
+-- Clip Tracker Settings
+menu.clip_tracker_enabled = core.menu.checkbox(false, "eaxhunterbm_clip_tracker_enabled")
+menu.clip_tracker_print_summary = core.menu.checkbox(true, "eaxhunterbm_clip_print_summary")
+menu.clip_threshold_green = core.menu.slider_int(50, 200, 125, "eaxhunterbm_clip_threshold_1")
+menu.clip_threshold_yellow = core.menu.slider_int(150, 400, 250, "eaxhunterbm_clip_threshold_2")
+menu.clip_threshold_orange = core.menu.slider_int(300, 750, 500, "eaxhunterbm_clip_threshold_3")
 
 -- Pet Settings
 menu.preferred_pet       = core.menu.combobox(1, "eaxhunterbm_preferred_pet")
@@ -338,12 +347,23 @@ function menu.render()
             menu.dashboard_enabled:render("Enable Dashboard", "Show combat dashboard")
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_x:render("Position X", "Horizontal position")
-            menu.dashboard_y:render("Position Y", "Vertical position")            
+            menu.dashboard_y:render("Position Y", "Vertical position")
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
             menu.enable_smart_collapse:render("Smart Collapse", "Hide empty sections")
             menu.dashboard_scale:render("Scale", "Dashboard size multiplier")
+        end)
+
+        -- Clip Tracker Settings
+        local clip_tree = ps.tree_node()
+        clip_tree:render("Clip Tracker", function()
+            menu.clip_tracker_enabled:render("Enable Clip Tracker", "Track auto-shot clipping")
+            menu.clip_tracker_print_summary:render("Print Summary", "Show combat summary")
+            ps.header("Severity Thresholds (ms)")
+            menu.clip_threshold_green:render("Green/Yellow", "Green to yellow threshold")
+            menu.clip_threshold_yellow:render("Yellow/Orange", "Yellow to orange threshold")
+            menu.clip_threshold_orange:render("Orange/Red", "Orange to red threshold")
         end)
 
         ps.render_targeting(menu, tgt_tree)

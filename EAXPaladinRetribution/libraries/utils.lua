@@ -280,6 +280,41 @@ function utils.is_cced(unit)
     return CAST_PREVENTING_CC_TYPES[loc_info.type] or false
 end
 
+-- Get debuff stacks on a unit
+function utils.get_debuff_stacks(unit, debuff_table)
+    if not unit or not unit:is_valid() or not debuff_table then return 0 end
+    local data = buff_manager:get_debuff_data(unit, debuff_table)
+    if data and data.is_active and data.stacks then
+        return data.stacks
+    end
+    return 0
+end
+
+-- Ensure melee auto-attack is active on target
+function utils.ensure_melee_auto_attack(me, target)
+    if not me or not target then return false end
+    -- Auto-attack is typically handled by the game client
+    -- This function serves as a placeholder for any custom auto-attack logic
+    return true
+end
+
+-- Try to break CC with Divine Shield
+function utils.try_divine_shield_cc_break(me, menu)
+    if not me or not me:is_valid() then return false end
+    local divine_shield_id = utils.resolve_spell_id({642})
+    if not divine_shield_id then return false end
+    if not utils.can_cast_self(divine_shield_id, me) then return false end
+    local forbearance_ids = {25771}
+    if utils.has_debuff(me, forbearance_ids) then return false end
+    if utils.cast_self(divine_shield_id, me) then
+        if menu and menu.debug and menu.debug:get_state() then
+            utils.log_debug(menu, "Divine Shield (CC break)")
+        end
+        return true
+    end
+    return false
+end
+
 return utils
 
 

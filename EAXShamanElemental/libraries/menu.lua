@@ -132,6 +132,12 @@ menu.use_mana_manager = core.menu.checkbox(true, "eaxshamanelemental_use_mana_ma
 menu.mana_potion_pct = core.menu.slider_int(5, 100, 20, "eaxshamanelemental_mana_potion_pct")
 menu.dark_rune_pct = core.menu.slider_int(5, 100, 15, "eaxshamanelemental_dark_rune_pct")
 
+-- Consumables
+menu.use_healthstone  = core.menu.checkbox(true, "eaxshamanelemental_use_healthstone")
+menu.healthstone_hp_pct = core.menu.slider_int(10, 50, 30, "eaxshamanelemental_healthstone_hp_pct")
+menu.use_healing_potion = core.menu.checkbox(true, "eaxshamanelemental_use_healing_potion")
+menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxshamanelemental_healing_potion_hp_pct")
+
 -- Burst & Trinket Automation
 menu.auto_burst_enabled = core.menu.checkbox(false, "eaxshamanelemental_auto_burst")
 menu.burst_on_bloodlust = core.menu.checkbox(true, "eaxshamanelemental_burst_bloodlust")
@@ -141,6 +147,10 @@ menu.burst_in_combat = core.menu.checkbox(false, "eaxshamanelemental_burst_alway
 menu.cd_min_ttd = core.menu.slider_int(0, 60, 0, "eaxshamanelemental_cd_min_ttd")
 menu.trinket1_mode = core.menu.combobox(1, "eaxshamanelemental_trinket1_mode")
 menu.trinket2_mode = core.menu.combobox(1, "eaxshamanelemental_trinket2_mode")
+
+-- Flux Swing Manager (for melee weaving)
+menu.use_swing_manager = core.menu.checkbox(true, "eaxshamanelemental_use_swing_manager")
+menu.swing_queue_threshold = core.menu.slider_int(30, 100, 50, "eaxshamanelemental_swing_queue_threshold")
 
 mana_conservator.register_menu_items(menu, "eax_shaman_elemental")
 
@@ -187,6 +197,18 @@ function menu.render()
             menu.use_heroism:render("Heroism", "Haste")
             menu.use_fire_elemental:render("Fire Elemental", "Pet")
             menu.use_astral_shift:render("Astral Shift", "Damage reduction")
+            
+            ps.header("Burst & Trinkets")
+            menu.auto_burst_enabled:render("Auto Burst", "Enable automatic burst detection")
+            menu.burst_on_bloodlust:render("On Bloodlust", "Burst when Bloodlust/Heroism active")
+            menu.burst_on_pull:render("On Pull", "Burst in first 5 seconds")
+            menu.burst_on_execute:render("On Execute", "Burst below 20% HP")
+            menu.trinket1_mode:render("Trinket 1", "Mode: Off/Offensive/Defensive")
+            menu.trinket2_mode:render("Trinket 2", "Mode: Off/Offensive/Defensive")
+            
+            ps.header("Swing Management")
+            menu.use_swing_manager:render("Use Swing Manager", "Queue abilities optimally")
+            menu.swing_queue_threshold:render("Queue Threshold", "Rage to queue next swing")
         end)
 
         -- Totems
@@ -249,6 +271,11 @@ function menu.render()
         def_tree:render("Self-Healing", function()
             menu.use_healing_wave:render("Healing Wave", "Self-heal")
             menu.healing_wave_hp:render("Healing Wave HP %", "Below")
+            ps.header("Consumables")
+            menu.use_healthstone:render("Use Healthstone", "Auto use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
+            menu.use_healing_potion:render("Use Healing Potion", "Auto use healing potion")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Below")
         end)
 
         -- Automation

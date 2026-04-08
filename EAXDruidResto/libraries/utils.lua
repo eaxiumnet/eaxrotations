@@ -442,6 +442,40 @@ function utils.count_below_hp(me, threshold)
     return heal_utils.count_below_hp(me, threshold)
 end
 
+-- ============================================================================
+-- Battle Resurrection Helpers
+-- ============================================================================
+
+---Find the first dead ally that can be assisted
+---Iterates through party/raid members and returns the first dead unit
+---@param me game_object The player unit
+---@return game_object|nil The dead ally, or nil if none found
+function utils.find_dead_ally(me)
+    if not me or not me:is_valid() then return nil end
+    
+    for _, o in ipairs(core.object_manager.get_all_objects()) do
+        if o and o:is_valid() and o:is_unit() and o:is_dead() then
+            -- Check if it's a party/raid member or the player
+            if o:is_party_member() or utils.same_unit(o, me) then
+                -- Verify we can assist this target (not an enemy)
+                if not me:can_attack(o) then
+                    return o
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
+---Check if there are any dead party/raid members
+---Convenience wrapper around find_dead_ally
+---@param me game_object The player unit
+---@return boolean True if a dead party member exists
+function utils.has_dead_party_member(me)
+    return utils.find_dead_ally(me) ~= nil
+end
+
 return utils
 
 

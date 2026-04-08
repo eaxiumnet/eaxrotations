@@ -318,4 +318,39 @@ unit:get_health_percentage()
 
 ---
 
+## Orchestration Defaults (Performance)
+
+**User Preference: Maximum speed + quality. Apply automatically.**
+
+### Parallel Execution
+- Always fire 3-5 agents simultaneously for multi-file searches
+- Default to `run_in_background=true` unless blocking truly required
+- Batch file reads - never sequential
+
+### Token Efficiency  
+- Use `smart_search`/`smart_outline` instead of reading full files
+- Use `smart_unfold` only for specific symbols that need full source
+- Apply `head_limit` to glob results to avoid over-reading
+
+### Category Matching
+| Task Type | Category |
+|---|---|
+| UI/styling/animations | `visual-engineering` |
+| Complex logic/algorithms | `ultrabrain` |
+| Multi-file refactor | `deep` |
+| Single file fix | `quick` |
+| Documentation | `writing` |
+
+### Session Continuity
+- Always capture `session_id` from task outputs
+- Reuse `session_id` for all follow-ups to same agent
+- Never start fresh conversations with agents mid-task
+
+### Delegation Pattern
+- Decompose all non-trivial tasks before acting
+- Delegate to specialized agents rather than implementing directly
+- Include explicit MUST DO / MUST NOT DO in all prompts
+
+---
+
 *This file is human-curated. Update when patterns change or new APIs are adopted.*

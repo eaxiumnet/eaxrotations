@@ -165,6 +165,12 @@ menu.drink_mana_pct                      = core.menu.slider_int(50, 100, 70, "ea
 menu.use_mana_potion                     = core.menu.checkbox(true, "eaxshamanresto_use_mana_potion")
 menu.mana_potion_pct                     = core.menu.slider_int(10, 50, 20, "eaxshamanresto_mana_potion_pct")
 
+-- Health Consumables
+menu.use_healthstone  = core.menu.checkbox(true, "eaxshamanrestoration_use_healthstone")
+menu.healthstone_hp_pct = core.menu.slider_int(10, 50, 30, "eaxshamanrestoration_healthstone_hp_pct")
+menu.use_healing_potion = core.menu.checkbox(true, "eaxshamanrestoration_use_healing_potion")
+menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxshamanrestoration_healing_potion_hp_pct")
+
 -- Mana Manager (3)
 menu.use_mana_manager                    = core.menu.checkbox(true, "eaxshamanresto_use_mana_manager")
 menu.mana_potion_pct                     = core.menu.slider_int(5, 100, 20, "eaxshamanresto_mana_potion_pct")
@@ -334,6 +340,11 @@ function menu.render()
             menu.drink_mana_pct:render("Drink Mana %", "Below")
             menu.use_mana_potion:render("Use Mana Potion", "Auto use")
             menu.mana_potion_pct:render("Potion Mana %", "Below")
+            ps.header("Health Consumables")
+            menu.use_healthstone:render("Use Healthstone", "Auto use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
+            menu.use_healing_potion:render("Use Healing Potion", "Auto use healing potion")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Below")
         end)
 
         -- OOC

@@ -17,7 +17,7 @@ local racial_manager = require("libraries/racial_manager")
 ---@type middleware_manager
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
-local ooc_manager = require("../libraries/ooc_manager")
+local ooc_manager = require("libraries/ooc_manager")
 
 -- NEW: Advanced tanking libraries from Flux port
 ---@type context_builder

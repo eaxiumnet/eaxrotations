@@ -20,6 +20,7 @@ local tgt_tree     = ps.tree_node()
 local racial_tree  = ps.tree_node()
 local esp_tree     = ps.tree_node()
 local pvp_tree     = ps.tree_node()
+local dashboard_tree = ps.tree_node()
 
 -- Controls
 menu.enabled                             = core.menu.checkbox(true, "eaxmagefrost_enabled")
@@ -103,6 +104,12 @@ menu.winters_chill_refresh               = core.menu.slider_int(1, 5, 3, "eaxmag
 menu.use_water_elemental                  = core.menu.checkbox(true, "eaxmagefrost_use_water_elemental")
 menu.use_trinkets                        = core.menu.checkbox(true, "eaxmagefrost_use_trinkets")
 
+-- Consumables
+menu.use_healthstone                     = core.menu.checkbox(true, "eaxmagefrost_use_healthstone")
+menu.healthstone_hp_pct                  = core.menu.slider_int(10, 50, 30, "eaxmagefrost_healthstone_hp_pct")
+menu.use_healing_potion                  = core.menu.checkbox(true, "eaxmagefrost_use_healing_potion")
+menu.healing_potion_hp_pct               = core.menu.slider_int(10, 50, 25, "eaxmagefrost_healing_potion_hp_pct")
+
 -- PvP Settings
 menu.pvp_enabled                         = core.menu.checkbox(true, "eaxmagefrost_pvp_enabled")
 menu.pvp_mode                            = core.menu.combobox(1, "eaxmagefrost_pvp_mode")
@@ -167,6 +174,11 @@ function menu.render()
             menu.ice_barrier_hp_pct:render("Ice Barrier HP %", "Below")
             menu.use_ice_block:render("Ice Block", "Immunity")
             menu.ice_block_hp_pct:render("Ice Block HP %", "Below")
+            ps.header("Consumables")
+            menu.use_healthstone:render("Use Healthstone", "Auto-use healthstone")
+            menu.healthstone_hp_pct:render("Healthstone HP %", "Use below this %")
+            menu.use_healing_potion:render("Use Healing Potion", "Auto-use healing potion")
+            menu.healing_potion_hp_pct:render("Healing Potion HP %", "Use below this %")
         end)
 
         -- Automation
@@ -212,6 +224,11 @@ menu.burst_in_combat = core.menu.checkbox(false, "eaxmagefrost_burst_always")
 menu.trinket1_mode = core.menu.combobox(1, "eaxmagefrost_trinket1_mode")
 menu.trinket2_mode = core.menu.combobox(1, "eaxmagefrost_trinket2_mode")
 
+-- Force Commands (Flux integration)
+menu.force_burst = core.menu.keybind(0, false, "eaxmagefrost_force_burst")
+menu.force_aoe = core.menu.keybind(0, false, "eaxmagefrost_force_aoe")
+menu.force_defensive = core.menu.keybind(0, false, "eaxmagefrost_force_defensive")
+
 -- PvP Settings
         pvp_tree:render("PvP", function()
             menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
@@ -221,7 +238,7 @@ menu.trinket2_mode = core.menu.combobox(1, "eaxmagefrost_trinket2_mode")
         end)
 
         -- Dashboard
-        root_tree:render("Dashboard", function()
+        dashboard_tree:render("Dashboard", function()
             menu.show_dashboard:render("Show Dashboard", "Enable combat dashboard")            
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
@@ -233,6 +250,7 @@ menu.trinket2_mode = core.menu.combobox(1, "eaxmagefrost_trinket2_mode")
         ps.render_racial(menu, racial_tree)
     end)
 end
+
 
 return menu
 

@@ -1,8 +1,8 @@
 --[[
     _compat.lua - Legacy to Sylvanas Compatibility Layer
     
-    Provides API wrappers that map  patterns to Sylvanas,
-    enabling incremental migration of  features to EAX specs.
+    Provides API wrappers that map legacy patterns to Sylvanas,
+    enabling incremental migration of features to EAX specs.
     
     Usage: local _compat = require("libraries/rotation_compat")
 --]]

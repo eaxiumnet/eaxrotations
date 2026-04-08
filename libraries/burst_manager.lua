@@ -43,7 +43,7 @@ function burst_manager.should_auto_burst(me, target, combat_time, menu)
    -- TTD gating - don't waste CDs on dying targets
    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
    if min_ttd > 0 and target then
-      local forecast = require("common/modules/combat_forecast")
+      local forecast = require("combat_forecast")
       if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
          return false, "ttd"
       end

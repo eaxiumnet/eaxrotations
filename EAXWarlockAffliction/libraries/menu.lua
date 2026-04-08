@@ -313,7 +313,8 @@ function menu.render()
             menu.dashboard_opacity:render("Opacity", "Dashboard background opacity")
             menu.dashboard_scale:render("Scale", "Dashboard UI scale")
             menu.dashboard_x:render("Position X", "Dashboard horizontal position")
-            menu.dashboard_y:render("Position Y", "Dashboard vertical position")            
+            menu.dashboard_y:render("Position Y", "Dashboard vertical position")
+            
             ps.header("Features")
             menu.show_timer_bars:render("Timer Bars", "Show GCD and swing timers")
             menu.show_action_history:render("Action History", "Show recent spell casts")
@@ -325,6 +326,6 @@ function menu.render()
     end)
 end
 
-return menu
 
+return menu
 
