@@ -379,9 +379,9 @@ function utils.count_nearby_enemies_by_class(me, radius)
 end
 
 -- Check if target has aggro on us
-function utils.has_target_aggro(target)
+function utils.has_target_aggro(target, me)
     if not target or not target:is_valid() then return false end
-    local me = core.object_manager.get_local_player()
+    me = me or core.object_manager.get_local_player()
     if not me then return false end
     
     local ok, target_target = pcall(function() return target:get_target() end)
