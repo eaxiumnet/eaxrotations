@@ -1,5 +1,5 @@
 -- Eax Mage Fire  spells.lua
--- Ported from  - TBC Fire Mage spell definitions
+-- TBC Fire Mage spell definitions
 
 local spells = {}
 
@@ -39,11 +39,16 @@ spells.MAGE_ARMOR = { 27125, 22783, 22782, 6117 }
 spells.ICE_ARMOR = { 27124, 10220, 10219, 7320, 7302, 7300, 168 }
 spells.MOLTEN_ARMOR = { 30482 }
 
+-- Buff Spells
+spells.ARCANE_INTELLECT = { 27127, 10157, 10156, 1461, 1460, 1459 }
+
 -- Buff IDs
 spells.BUFF_COMBUSTION = { 11129 }
 spells.BUFF_ICY_VEINS = { 12472 }
 spells.BUFF_ICE_BLOCK = { 45438 }
 spells.BUFF_CLEARCASTING = { 12536 }
+spells.BUFF_MAGE_ARMOR = { 27125, 22783, 22782, 6117 }
+spells.BUFF_ARCANE_INTELLECT = { 27127, 10157, 10156, 1461, 1460, 1459 }
 
 -- Debuff IDs
 spells.DEBUFF_IMPROVED_SCORCH = { 22959 }  -- Fire Vulnerability, stacks to 5

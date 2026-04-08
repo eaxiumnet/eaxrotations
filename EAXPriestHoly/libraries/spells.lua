@@ -1,4 +1,4 @@
--- EAX Port) | spells.lua
+-- EAX Priest Holy | spells.lua
 -- TBC-only spell tables for Holy healing automation.
 -- Source: /rotation/source/aio/priest/holy.lua
 
@@ -40,16 +40,20 @@ spells.FADE = { 25429, 10942, 10941, 9592, 9579, 9578, 586 }
 spells.SHADOWFIEND = { 34433 }
 spells.PSYCHIC_SCREAM = { 10890, 10888, 8124, 8122 }
 spells.SILENCE = { 15487 }
+spells.RESURRECTION = { 25435, 25434, 20770, 20769, 2010, 2009, 2008, 2006, 2005, 2004 }
 
 -- Buff/Debuff tracking
 spells.BUFF_INNER_FIRE = { 588, 7128, 602, 1006, 10951, 10952, 25430, 25431 }
 spells.BUFF_POWER_WORD_SHIELD = { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }
+spells.BUFF_POWER_WORD_FORTITUDE = { 1243, 1244, 1245, 2791, 10937, 10938, 25389, 48161, 48162 }
+spells.BUFF_DIVINE_SPIRIT = { 14752, 14818, 14819, 25312, 48073, 48074 }
 spells.BUFF_RENEW = spells.RENEW
 spells.BUFF_PRAYER_OF_MENDING = spells.PRAYER_OF_MENDING
 spells.BUFF_INNER_FOCUS = { 14751 }
 spells.BUFF_SURGE_OF_LIGHT = { 33152, 33151, 33150 }
 spells.BUFF_CLEARCASTING = { 12536 }
 spells.BUFF_FEAR_WARD = { 6346 }
+spells.BUFF_SHADOW_PROTECTION = { 25433, 10958, 10957, 976 }
 spells.BUFF_FADE = spells.FADE
 
 spells.DEBUFF_WEAKENED_SOUL = { 6788 }

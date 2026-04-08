@@ -1,4 +1,4 @@
--- spells.lua  |  EAX Port)  |  TBC
+-- spells.lua  |  EAX Hunter BM  |  TBC
 local spells = {}
 
 -- -- Ranged shots --------------------------------------------------------------

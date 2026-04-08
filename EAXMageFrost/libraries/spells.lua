@@ -1,5 +1,5 @@
 -- Eax Mage Frost  spells.lua
--- Ported from  - TBC Frost Mage spell definitions
+-- TBC Frost Mage spell definitions
 
 local spells = {}
 
@@ -41,6 +41,8 @@ spells.BUFF_ICY_VEINS = { 12472 }
 spells.BUFF_ICE_BLOCK = { 45438 }
 spells.BUFF_CLEARCASTING = { 12536 }
 spells.BUFF_ICE_BARRIER = { 33405, 13033, 13032, 13031, 11426 }
+spells.BUFF_ICE_ARMOR = { 27124, 10220, 10219, 7320, 7302, 7300, 168 }
+spells.BUFF_ARCANE_INTELLECT = { 27126, 10157, 10156, 10154, 1461, 1460, 1459 }
 
 -- Debuff IDs
 spells.DEBUFF_WINTERS_CHILL = { 12579 }  -- Winter's Chill, stacks to 5

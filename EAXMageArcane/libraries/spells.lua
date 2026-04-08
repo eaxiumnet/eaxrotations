@@ -1,5 +1,5 @@
 -- Eax Mage Arcane  spells.lua
--- Ported from  - TBC Arcane Mage spell definitions
+-- TBC Arcane Mage spell definitions
 
 local spells = {}
 

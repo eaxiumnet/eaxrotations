@@ -1,4 +1,4 @@
--- EAX Port) | spells.lua
+-- EAX Priest Shadow | spells.lua
 -- TBC-only spell tables for Shadow DPS automation.
 -- Source: /rotation/source/aio/priest/shadow.lua
 
@@ -48,6 +48,13 @@ spells.BUFF_INNER_FIRE = { 588, 7128, 602, 1006, 10951, 10952, 25430, 25431 }
 spells.BUFF_POWER_WORD_SHIELD = { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }
 spells.BUFF_INNER_FOCUS = { 14751 }
 spells.BUFF_FADE = spells.FADE
+spells.BUFF_FORTITUDE = { 1243, 1244, 1245, 2791, 10937, 10938, 25389 }
+spells.BUFF_DIVINE_SPIRIT = { 14752, 14818, 14819, 25312 }
+spells.BUFF_FEAR_WARD = { 6346 }
+spells.BUFF_SHADOW_PROTECTION = { 25433, 10958, 10957, 976 }
+
+-- Resurrection
+spells.RESURRECTION = { 25435, 25434, 20763, 20762, 20761, 20760, 20759, 2010, 2009, 2008, 2006, 2005, 2004 }
 
 -- Racials
 spells.BERSERKING = { 26297 }

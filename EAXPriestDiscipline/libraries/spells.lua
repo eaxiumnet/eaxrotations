@@ -1,4 +1,4 @@
--- EAX Port) | spells.lua
+-- EAX Priest Discipline | spells.lua
 -- TBC-only spell tables for Discipline healing automation.
 -- Source: /rotation/source/aio/priest/discipline.lua
 
@@ -28,6 +28,9 @@ spells.SHADOW_PROTECTION = { 25433, 10958, 10957, 976 }
 spells.PRAYER_OF_SHADOW_PROTECTION = { 27683, 39374 }
 spells.FEAR_WARD = { 6346 }
 
+-- Resurrection
+spells.RESURRECTION = { 25435, 25434, 20770, 20769, 2010, 2009, 2006, 2005, 2004 }
+
 -- Utility
 spells.DISPEL_MAGIC = { 988, 527 }
 spells.ABOLISH_DISEASE = { 552 }
@@ -40,12 +43,15 @@ spells.SILENCE = { 15487 }
 -- Buff/Debuff tracking
 spells.BUFF_INNER_FIRE = { 588, 7128, 602, 1006, 10951, 10952, 25430, 25431 }
 spells.BUFF_POWER_WORD_SHIELD = { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }
+spells.BUFF_FORTITUDE = { 1243, 1244, 1245, 2791, 10937, 10938, 25389, 21562, 21564, 25392 }
+spells.BUFF_DIVINE_SPIRIT = { 14752, 14818, 14819, 25312, 27681, 32999 }
 spells.BUFF_RENEW = spells.RENEW
 spells.BUFF_PRAYER_OF_MENDING = spells.PRAYER_OF_MENDING
 spells.BUFF_INNER_FOCUS = { 14751 }
 spells.BUFF_POWER_INFUSION = { 10060 }
 spells.BUFF_PAIN_SUPPRESSION = { 33206 }
 spells.BUFF_FEAR_WARD = { 6346 }
+spells.BUFF_SHADOW_PROTECTION = { 25433, 10958, 10957, 976 }
 spells.BUFF_FADE = spells.FADE
 
 spells.DEBUFF_WEAKENED_SOUL = { 6788 }
