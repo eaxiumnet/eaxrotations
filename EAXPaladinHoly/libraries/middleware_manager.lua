@@ -3,6 +3,11 @@
 
 local middleware_manager = {}
 
+-- Cached API references (performance optimization)
+local _get_spell_cd = core.spell_book.get_spell_cooldown
+local _is_spell_learned = core.spell_book.is_spell_learned
+local _cast_spell = core.input.cast_target_spell
+
 -- Load the middleware system
 local middleware = require("libraries/middleware")
 
@@ -112,8 +117,8 @@ function middleware_manager.initialize(menu)
                 end
                 
                 -- Check cooldown
-                if core.spell_book and core.spell_book.get_spell_cooldown then
-                    local cd = core.spell_book.get_spell_cooldown(PALADIN_SPELLS.DIVINE_PROTECTION)
+                if _get_spell_cd then
+                    local cd = _get_spell_cd(PALADIN_SPELLS.DIVINE_PROTECTION)
                     if cd > 0 then return false end
                 end
                 
@@ -152,8 +157,8 @@ function middleware_manager.initialize(menu)
                 end
                 
                 -- Check cooldown
-                if core.spell_book and core.spell_book.get_spell_cooldown then
-                    local cd = core.spell_book.get_spell_cooldown(PALADIN_SPELLS.DIVINE_SHIELD)
+                if _get_spell_cd then
+                    local cd = _get_spell_cd(PALADIN_SPELLS.DIVINE_SHIELD)
                     if cd > 0 then return false end
                 end
                 
@@ -192,8 +197,8 @@ function middleware_manager.initialize(menu)
                 end
                 
                 -- Check cooldown
-                if core.spell_book and core.spell_book.get_spell_cooldown then
-                    local cd = core.spell_book.get_spell_cooldown(PALADIN_SPELLS.LAY_ON_HANDS)
+                if _get_spell_cd then
+                    local cd = _get_spell_cd(PALADIN_SPELLS.LAY_ON_HANDS)
                     if cd > 0 then return false end
                 end
                 
@@ -226,8 +231,8 @@ function middleware_manager.initialize(menu)
                 if ctx.mp_pct >= divine_illumination_threshold then return false end
                 
                 -- Check cooldown
-                if core.spell_book and core.spell_book.get_spell_cooldown then
-                    local cd = core.spell_book.get_spell_cooldown(PALADIN_SPELLS.DIVINE_ILLUMINATION)
+                if _get_spell_cd then
+                    local cd = _get_spell_cd(PALADIN_SPELLS.DIVINE_ILLUMINATION)
                     if cd > 0 then return false end
                 end
                 
@@ -260,8 +265,8 @@ function middleware_manager.initialize(menu)
                 if not ctx.target then return false end
                 
                 -- Check cooldown
-                if core.spell_book and core.spell_book.get_spell_cooldown then
-                    local cd = core.spell_book.get_spell_cooldown(PALADIN_SPELLS.BERSERKING)
+                if _get_spell_cd then
+                    local cd = _get_spell_cd(PALADIN_SPELLS.BERSERKING)
                     if cd > 0 then return false end
                 end
                 

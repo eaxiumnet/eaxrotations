@@ -201,7 +201,7 @@ end
 ---@return boolean
 function ooc_manager.try_drink(me, menu, utils)
     -- Nil-guarded menu access
-    local drink_enabled = (menu.ooc_drink and menu.ooc_drink:get_state()) or false
+    local drink_enabled = ((menu and menu.ooc_drink) and menu.ooc_drink:get_state()) or false
     if not drink_enabled then
         return false
     end
@@ -228,7 +228,7 @@ function ooc_manager.try_drink(me, menu, utils)
     end
 
     -- Check mana threshold (nil-guarded)
-    local threshold_pct = (menu.drink_threshold and menu.drink_threshold:get()) or 80
+    local threshold_pct = ((menu and menu.drink_threshold) and menu.drink_threshold:get()) or 80
     local threshold = threshold_pct / 100.0
     local mana_pct = get_mana_pct(me)
 
@@ -262,7 +262,7 @@ end
 ---@return boolean
 function ooc_manager.try_eat(me, menu, utils)
     -- Nil-guarded menu access
-    local eat_enabled = (menu.ooc_eat and menu.ooc_eat:get_state()) or false
+    local eat_enabled = ((menu and menu.ooc_eat) and menu.ooc_eat:get_state()) or false
     if not eat_enabled then
         return false
     end
@@ -289,7 +289,7 @@ function ooc_manager.try_eat(me, menu, utils)
     end
 
     -- Check health threshold (nil-guarded)
-    local threshold_pct = (menu.eat_threshold and menu.eat_threshold:get()) or 80
+    local threshold_pct = ((menu and menu.eat_threshold) and menu.eat_threshold:get()) or 80
     local threshold = threshold_pct / 100.0
     local hp_pct = get_health_pct(me, utils)
 
@@ -328,7 +328,7 @@ function ooc_manager.try_resurrect(me, rez_spell_id, menu, utils, allow_in_comba
     end
 
     -- Nil-guarded menu access
-    local rez_enabled = (menu.ooc_rez and menu.ooc_rez:get_state()) or false
+    local rez_enabled = ((menu and menu.ooc_rez) and menu.ooc_rez:get_state()) or false
     if not rez_enabled then
         return false
     end
