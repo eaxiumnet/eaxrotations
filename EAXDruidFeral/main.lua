@@ -322,7 +322,7 @@ local function try_cat_form(me)
 end
 
 local function try_prowl(me)
-    if not (menu.use_prowl and menu.use_prowl:get_state()) then return false end
+    if not ((menu.use_prowl and menu.use_prowl:get_state()) or false) then return false end
     if not rt.prowl_id then return false end
     if me:is_in_combat() then return false end
     if is_stealthed(me) then return false end
@@ -347,7 +347,7 @@ local function try_ravage(me, t)
 end
 
 local function try_rake(me, t)
-    if not (menu.use_rake and menu.use_rake:get_state()) then return false end
+    if not ((menu.use_rake and menu.use_rake:get_state()) or false) then return false end
     if not rt.rake_id then return false end
     
     local e = energy(me)
@@ -368,11 +368,7 @@ local function try_rake(me, t)
     local should_rake = false
     
     -- Get user refresh setting
-    local user_refresh = 3  -- Default 3 seconds
-    if menu.rake_refresh_seconds then
-        local ok, val = pcall(function() return menu.rake_refresh_seconds:get() end)
-        if ok and val then user_refresh = val end
-    end
+    local user_refresh = (menu.rake_refresh_seconds and menu.rake_refresh_seconds:get()) or 3
     
     -- Calculate dynamic threshold with pandemic (30% of max duration)
     local refresh_threshold = get_dot_refresh_threshold(user_refresh, rt.dot_durations.rake)
@@ -384,12 +380,8 @@ local function try_rake(me, t)
     
     -- Feature 6: AoE Rake Spreading (from flux cat.lua lines 658-676)
     local is_aoe_situation = false
-    if menu.enable_aoe and menu.enable_aoe:get_state() then
-        local aoe_threshold = 3  -- Default 3 enemies
-        if menu.aoe_enemy_count then
-            local ok, val = pcall(function() return menu.aoe_enemy_count:get() end)
-            if ok and val then aoe_threshold = val end
-        end
+    if (menu.enable_aoe and menu.enable_aoe:get_state()) or false then
+        local aoe_threshold = (menu.aoe_enemy_count and menu.aoe_enemy_count:get()) or 3
         
         if rt.enemy_count >= aoe_threshold then
             is_aoe_situation = true
@@ -397,7 +389,7 @@ local function try_rake(me, t)
     end
     
     -- AoE Rake spreading logic
-    if is_aoe_situation and menu.spread_rake and menu.spread_rake:get_state() then
+    if is_aoe_situation and ((menu.spread_rake and menu.spread_rake:get_state()) or false) then
         -- In AoE, we want Rake on all targets
         -- Primary target Rake maintenance (already checked above)
         -- For nearby targets, we rely on the rotation to switch targets
@@ -428,11 +420,7 @@ local function try_rip(me, t)
     local e = energy(me)
     
     -- Get minimum CP setting
-    local rip_min_cp = 5
-    if menu.rip_combo_points then
-        local ok, val = pcall(function() return menu.rip_combo_points:get() end)
-        if ok and val then rip_min_cp = val end
-    end
+    local rip_min_cp = (menu.rip_combo_points and menu.rip_combo_points:get()) or 5
     
     if cp < rip_min_cp then return false end
     if e < rt.spell_costs.rip then return false end
@@ -452,11 +440,7 @@ local function try_rip(me, t)
     local should_rip = false
     
     -- Get user refresh setting
-    local user_refresh = 3  -- Default 3 seconds
-    if menu.rip_refresh_seconds then
-        local ok, val = pcall(function() return menu.rip_refresh_seconds:get() end)
-        if ok and val then user_refresh = val end
-    end
+    local user_refresh = (menu.rip_refresh_seconds and menu.rip_refresh_seconds:get()) or 3
     
     -- Calculate dynamic threshold with pandemic (30% of max duration = 3.6s for Rip)
     local refresh_threshold = get_dot_refresh_threshold(user_refresh, rt.dot_durations.rip)
@@ -467,7 +451,7 @@ local function try_rip(me, t)
     end
     
     -- Check rip_only_elites setting
-    if should_rip and menu.rip_only_elites and menu.rip_only_elites:get_state() then
+    if should_rip and ((menu.rip_only_elites and menu.rip_only_elites:get_state()) or false) then
         local classification = nil
         if t and t.get_classification then
             local ok, cls = pcall(function() return t:get_classification() end)
@@ -480,7 +464,7 @@ local function try_rip(me, t)
     end
     
     -- v1.8.13: Energy Pooling for Rip (only when enabled)
-    if should_rip and menu.cat_energy_pooling and menu.cat_energy_pooling:get_state() then
+    if should_rip and ((menu.cat_energy_pooling and menu.cat_energy_pooling:get_state()) or false) then
         -- Pool energy: wait until near energy cap (80+) before casting Rip
         -- This maximizes the time we can spend building CP while Rip ticks
         local max_energy = utils.get_max_energy(me)
@@ -517,7 +501,7 @@ local function try_rip(me, t)
 end
 
 local function try_ferocious_bite(me, t)
-    if not (menu.use_ferocious_bite and menu.use_ferocious_bite:get_state()) then return false end
+    if not ((menu.use_ferocious_bite and menu.use_ferocious_bite:get_state()) or false) then return false end
     if not rt.ferocious_bite_id then return false end
     
     local cp = combo_points(me)
@@ -540,19 +524,10 @@ local function try_ferocious_bite(me, t)
     -- Feature 3: TTD-scaled Execute Bite (from flux cat.lua lines 487-509)
     -- Bite scales with CP: 1 CP bite only if mob dies in 1 GCD, 5 CP bite with 7.5s left
     local use_bite_execute = false
-    if menu.use_bite_execute and menu.use_bite_execute:get_state() then
+    if (menu.use_bite_execute and menu.use_bite_execute:get_state()) or false then
         -- Get execute settings
-        local bite_execute_ttd = 7.5  -- Default: 7.5s
-        local bite_execute_hp = 20     -- Default: 20%
-        
-        if menu.bite_execute_ttd then
-            local ok, val = pcall(function() return menu.bite_execute_ttd:get() end)
-            if ok and val then bite_execute_ttd = val end
-        end
-        if menu.bite_execute_hp then
-            local ok, val = pcall(function() return menu.bite_execute_hp:get() end)
-            if ok and val then bite_execute_hp = val end
-        end
+        local bite_execute_ttd = (menu.bite_execute_ttd and menu.bite_execute_ttd:get()) or 7.5
+        local bite_execute_hp = (menu.bite_execute_hp and menu.bite_execute_hp:get()) or 20
         
         -- TTD-based execute: CP * 1.5 seconds (1 CP = 1.5s, 5 CP = 7.5s)
         if ttd <= cp * 1.5 then
@@ -566,11 +541,7 @@ local function try_ferocious_bite(me, t)
     end
     
     -- Standard bite logic
-    local bite_min_cp = 4
-    if menu.bite_min_cp then
-        local ok, val = pcall(function() return menu.bite_min_cp:get() end)
-        if ok and val then bite_min_cp = val end
-    end
+    local bite_min_cp = (menu.bite_min_cp and menu.bite_min_cp:get()) or 4
     
     -- Check if we should bite
     local should_bite = false
@@ -583,11 +554,7 @@ local function try_ferocious_bite(me, t)
     -- Normal bite at sufficient CP
     if not should_bite and cp >= bite_min_cp and e >= rt.spell_costs.ferocious_bite then
         -- Check energy cap to avoid waste
-        local fb_max_energy = 39
-        if menu.bite_max_energy then
-            local ok, val = pcall(function() return menu.bite_max_energy:get() end)
-            if ok and val then fb_max_energy = val end
-        end
+        local fb_max_energy = (menu.bite_max_energy and menu.bite_max_energy:get()) or 39
         
         if e <= fb_max_energy then
             should_bite = true
@@ -617,7 +584,7 @@ end
 -- ============================================================================
 
 local function try_bite_trick(me, t)
-    if not (menu.use_bite_trick and menu.use_bite_trick:get_state()) then return false end
+    if not ((menu.use_bite_trick and menu.use_bite_trick:get_state()) or false) then return false end
     if not rt.ferocious_bite_id then return false end
     
     local cp = combo_points(me)
@@ -651,7 +618,7 @@ end
 -- ============================================================================
 
 local function try_rake_trick(me, t)
-    if not (menu.use_rake_trick and menu.use_rake_trick:get_state()) then return false end
+    if not ((menu.use_rake_trick and menu.use_rake_trick:get_state()) or false) then return false end
     if not rt.rake_id then return false end
     
     local cp = combo_points(me)
@@ -685,7 +652,7 @@ local function try_rake_trick(me, t)
 end
 
 local function try_mangle(me, t)
-    if not (menu.use_mangle_cat and menu.use_mangle_cat:get_state()) then return false end
+    if not ((menu.use_mangle_cat and menu.use_mangle_cat:get_state()) or false) then return false end
     if not rt.mangle_cat_id then return false end
     if has_debuff(t, spells.DEBUFF_MANGLE) then return false end
     if energy(me) < 40 then return false end
@@ -698,22 +665,21 @@ local function try_mangle(me, t)
 end
 
 local function try_shred(me, t)
-    if not (menu.use_shred and menu.use_shred:get_state()) then return false end
+    if not ((menu.use_shred and menu.use_shred:get_state()) or false) then return false end
     if not rt.shred_id then return false end
     if not is_behind_target(me, t) then return false end
 
     local cp = combo_points(me)
     local e = energy(me)
 
-    -- At 5 CP: only shred if energy above FB cap (energy dump for next Rip)
+        -- At 5 CP: only shred if energy above FB cap (energy dump for next Rip)
     if cp >= 5 then
-        local ok_fb_max, fb_max_energy = pcall(function() return menu.fb_max_energy:get() end)
-        fb_max_energy = (ok_fb_max and fb_max_energy) or 39
+        local fb_max_energy = (menu.fb_max_energy and menu.fb_max_energy:get()) or 39
         if e <= fb_max_energy then return false end
         -- Energy is above FB cap, continue to shred for energy dump
     else
         -- CP < 5: Check tick optimization (prefer Mangle in dead-zone)
-        if menu.cat_tick_optimization and menu.cat_tick_optimization:get_state() then
+        if (menu.cat_tick_optimization and menu.cat_tick_optimization:get_state()) or false then
             if energy_tick.should_prefer_mangle(e, rt.spell_costs.mangle, rt.spell_costs.shred) then
                 if utils.throttle("tick_opt_debug", 2.0) then
                     utils.log_debug(menu, string.format("Tick opt: preferring Mangle over Shred (energy=%d, tick in %.2fs)",
@@ -776,7 +742,7 @@ end
 ---@param t userdata Target unit
 ---@return boolean True if Claw was cast
 local function try_claw(me, t)
-    if not (menu.use_claw and menu.use_claw:get_state()) then return false end
+    if not ((menu.use_claw and menu.use_claw:get_state()) or false) then return false end
     
     -- Resolve Claw spell ID (not cached in rt)
     local claw_id = utils.resolve_spell_id(spells.CLAW)
@@ -821,7 +787,7 @@ end
 ---@param t userdata Target unit
 ---@return boolean True if Mangle was cast as builder
 local function try_mangle_builder(me, t)
-    if not (menu.use_mangle_builder and menu.use_mangle_builder:get_state()) then return false end
+    if not ((menu.use_mangle_builder and menu.use_mangle_builder:get_state()) or false) then return false end
     if not rt.mangle_cat_id then return false end
     
     local cp = combo_points(me)
@@ -838,11 +804,7 @@ local function try_mangle_builder(me, t)
     
     -- Only dump energy if above FB max energy cap
     -- This prevents wasting energy that could be used for Rip
-    local fb_max_energy = 39
-    if menu.fb_max_energy then
-        local ok, val = pcall(function() return menu.fb_max_energy:get() end)
-        if ok and val then fb_max_energy = val end
-    end
+    local fb_max_energy = (menu.fb_max_energy and menu.fb_max_energy:get()) or 39
     if e <= fb_max_energy then return false end
     
     -- Check if we have energy for Mangle (or clearcasting)
@@ -866,13 +828,13 @@ local function try_mangle_builder(me, t)
 end
 
 local function try_tigers_fury(me, target)
-    if not (menu.use_tigers_fury and menu.use_tigers_fury:get_state()) then return false end
+    if not ((menu.use_tigers_fury and menu.use_tigers_fury:get_state()) or false) then return false end
     if not rt.tigers_fury_id then return false end
     if utils.has_buff(me, spells.BUFF_TIGERS_FURY) then return false end
     if energy(me) > 40 then return false end
     
     -- TTD gating for burst CDs
-    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
+    local min_ttd = ((menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0)
     if min_ttd > 0 and target then
         ---@type combat_forecast
         local forecast = require("libraries/combat_forecast")
@@ -912,7 +874,7 @@ local function try_powershift(me)
 end
 
 local function try_faerie_fire(me, t)
-    if not (menu.use_faerie_fire and menu.use_faerie_fire:get_state()) then return false end
+    if not ((menu.use_faerie_fire and menu.use_faerie_fire:get_state()) or false) then return false end
     if not rt.faerie_fire_id then return false end
     if is_stealthed(me) then return false end  -- Don't break stealth
     if has_debuff(t, spells.DEBUFF_FAERIE_FIRE) then return false end
@@ -991,8 +953,8 @@ local function do_rotation(me, t)
     end
 
     -- Check rotation toggles
-    local cat_rotation_enabled = (menu.use_cat_rotation and menu.use_cat_rotation:get_state()) or false
-    local bear_rotation_enabled = (menu.use_bear_rotation and menu.use_bear_rotation:get_state()) or false
+    local cat_rotation_enabled = ((menu.use_cat_rotation and menu.use_cat_rotation:get_state()) or false)
+    local bear_rotation_enabled = ((menu.use_bear_rotation and menu.use_bear_rotation:get_state()) or false)
 
     -- Ensure in cat form (if cat rotation enabled)
     if cat_rotation_enabled and not utils.has_buff(me, spells.BUFF_CAT_FORM) then
@@ -1060,7 +1022,7 @@ local function do_rotation(me, t)
         if try_faerie_fire(me, t) then return end
         
         -- Use Bear Mangle if enabled (primary threat ability, cast on cooldown)
-        if menu.use_mangle_bear and menu.use_mangle_bear:get_state() then
+        if (menu.use_mangle_bear and menu.use_mangle_bear:get_state()) or false then
             local mangle_bear_id = utils.resolve_spell_id(spells.MANGLE_BEAR)
             if mangle_bear_id and utils.can_cast_hostile(mangle_bear_id, me, t) then
                 if utils.cast_target(mangle_bear_id, me, t) then
@@ -1071,7 +1033,7 @@ local function do_rotation(me, t)
         end
         
         -- Use Lacerate if enabled
-        if menu.use_lacerate and menu.use_lacerate:get_state() then
+        if (menu.use_lacerate and menu.use_lacerate:get_state()) or false then
             local lacerate_id = utils.resolve_spell_id(spells.LACERATE)
             if lacerate_id and utils.can_cast_hostile(lacerate_id, me, t) then
                 -- Check Lacerate stacks/refresh
@@ -1089,7 +1051,7 @@ local function do_rotation(me, t)
         end
         
         -- Use Swipe for AoE if enabled
-        if menu.use_swipe and menu.use_swipe:get_state() and rt.enemy_count >= 3 then
+        if ((menu.use_swipe and menu.use_swipe:get_state()) or false) and rt.enemy_count >= 3 then
             local swipe_id = utils.resolve_spell_id(spells.SWIPE)
             if swipe_id and utils.can_cast_hostile(swipe_id, me, t) then
                 if utils.cast_target(swipe_id, me, t) then
@@ -1100,7 +1062,7 @@ local function do_rotation(me, t)
         end
         
         -- Use Maul as rage dump
-        if menu.use_maul and menu.use_maul:get_state() then
+        if (menu.use_maul and menu.use_maul:get_state()) or false then
             local maul_id = utils.resolve_spell_id(spells.MAUL)
             if maul_id then
                 -- Get rage
@@ -1111,7 +1073,7 @@ local function do_rotation(me, t)
                     max_rage = (me.get_max_power and me:get_max_power(1)) or 100
                 end
                 -- Use Maul if above threshold
-                local maul_threshold = menu.maul_min_rage and menu.maul_min_rage:get() or 25
+                local maul_threshold = (menu.maul_min_rage and menu.maul_min_rage:get()) or 25
                 if rage >= maul_threshold and utils.can_cast_hostile(maul_id, me, t) then
                     if utils.cast_target(maul_id, me, t) then
                         utils.log_debug(menu, "Maul")
@@ -1167,7 +1129,7 @@ local function on_update()
     end
 
     -- Enable dashboard when rotation is active (respect menu setting)
-    local show_dashboard = (menu.show_dashboard and menu.show_dashboard.get and menu.show_dashboard:get()) or false
+    local show_dashboard = ((menu.show_dashboard and menu.show_dashboard.get and menu.show_dashboard:get()) or false)
     dashboard.set_enabled(show_dashboard)
 
     -- OOC Manager: Handle out-of-combat buffs
@@ -1255,9 +1217,9 @@ local function on_update()
 
     -- Build settings table for middleware
     local settings = {
-        use_healthstone = (menu.use_healthstone and menu.use_healthstone:get_state()) or false,
-        use_healing_potion = (menu.use_healing_potion and menu.use_healing_potion:get_state()) or false,
-        use_racial = (menu.use_racial and menu.use_racial:get_state()) or false,
+        use_healthstone = ((menu.use_healthstone and menu.use_healthstone:get_state()) or false),
+        use_healing_potion = ((menu.use_healing_potion and menu.use_healing_potion:get_state()) or false),
+        use_racial = ((menu.use_racial and menu.use_racial:get_state()) or false),
     }
 
     -- Initialize middleware on first run
@@ -1277,7 +1239,7 @@ local function on_update()
     if utils.try_shapeshift_root_break(me, menu) then return end
 
     -- Form-aware consumables
-    local use_form_consumables = (menu.use_form_consumables and menu.use_form_consumables.get and menu.use_form_consumables:get()) or false
+    local use_form_consumables = ((menu.use_form_consumables and menu.use_form_consumables.get and menu.use_form_consumables:get()) or false)
     if use_form_consumables then
         local form_spells = {
             CAT = rt.cat_form_id,
