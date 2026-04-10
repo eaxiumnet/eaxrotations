@@ -1,6 +1,12 @@
 -- EAX Paladin Protection  main.lua
 -- Protection tank rotation ported from 
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local _G = _G
 local NS = _G.EAX
 if not NS then
@@ -32,9 +38,18 @@ local middleware_manager = require("libraries/middleware_manager")
 -- NEW: Trinket manager for defensive trinket mode
 local trinket_manager = require("libraries/trinket_manager")
 
+-- NEW: Combat forecast for TTD-based trinket checks
+local combat_forecast = require("libraries/combat_forecast")
+
+-- NEW: Force commands for /eax burst and /eax def
+local force_commands = require("libraries/force_commands")
+
+-- NEW: Burst manager for Avenging Wrath timing
+local burst_manager = require("libraries/burst_manager")
+
 -- NEW: Advanced tanking libraries from Flux port
----@type context_builder
-local context_builder = require("libraries/context_builder")
+---@type combat_context
+local combat_context = require("libraries/combat_context")
 ---@type threat_tab_manager
 local threat_tab_manager = require("libraries/threat_tab_manager")
 ---@type smart_defensive
@@ -44,6 +59,7 @@ local smart_defensive = require("libraries/smart_defensive")
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
+local _get_visible_objects = core.object_manager.get_visible_objects
 
 local runtime = {
     holy_shield_id = nil,
@@ -67,6 +83,8 @@ local runtime = {
     devotion_aura_id = nil,
     blessing_of_kings_id = nil,
     blessing_of_sanctuary_id = nil,
+    blessing_of_might_id = nil,
+    blessing_of_wisdom_id = nil,
     redemption_id = nil,
     last_cast_time = 0,
     last_aura_cast_at = 0,
@@ -159,10 +177,11 @@ local function ensure_seal(me)
     return false
 end
 
--- Aura management
+-- Aura management (using combined buff IDs for reliable detection)
 local function ensure_aura(me)
     if (_core_time() - runtime.last_aura_cast_at) < AURA_RETRY_WINDOW then return false end
-    if utils.has_buff(me, spells.BUFF_DEVOTION_AURA) or utils.has_buff(me, spells.BUFF_RETRIBUTION_AURA) then
+    -- Use combined aura buff IDs to check if ANY aura is active
+    if utils.has_any_buff_from_table(me, spells.ALL_AURA_BUFF_IDS) then
         return false
     end
     
@@ -209,7 +228,10 @@ end
 local function try_avengers_shield(me, target)
     if not (menu.use_avengers_shield and menu.use_avengers_shield:get_state()) then return false end
     if not runtime.avengers_shield_id then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     -- Only use in first 3 seconds of combat
     local combat_time = _core_time() - runtime.combat_start_time
     if combat_time > 3 then return false end
@@ -239,8 +261,12 @@ end
 local function try_judgement(me, target)
     if not (menu.use_judgement and menu.use_judgement:get_state()) then return false end
     if not runtime.judgement_id then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     if not utils.is_melee_target(me, target) then return false end
     if not utils.can_cast_target(runtime.judgement_id, me, target) then return false end
     -- Need a seal active
@@ -256,7 +282,10 @@ end
 local function try_exorcism(me, target)
     if not (menu.use_exorcism and menu.use_exorcism:get_state()) then return false end
     if not runtime.exorcism_id then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     if not utils.is_undead_or_demon(target) then return false end
     if utils.get_mana_pct(me) < 0.40 then return false end
     if not utils.can_cast_target(runtime.exorcism_id, me, target) then return false end
@@ -271,7 +300,10 @@ end
 local function try_hammer_of_wrath(me, target)
     if not (menu.use_hammer_of_wrath and menu.use_hammer_of_wrath:get_state()) then return false end
     if not runtime.hammer_of_wrath_id then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     if utils.get_health_pct(target) > 0.20 then return false end
     if not utils.can_cast_target(runtime.hammer_of_wrath_id, me, target) then return false end
     if utils.cast_target(runtime.hammer_of_wrath_id, me, target) then
@@ -288,7 +320,7 @@ local function try_holy_wrath(me)
     if enemy_count < 3 then return false end
     -- Check if any are undead/demon
     local has_valid_target = false
-    local objects = core.object_manager.get_visible_objects()
+    local objects = _get_visible_objects()
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and me:can_attack(obj) and utils.is_undead_or_demon(obj) then
@@ -311,7 +343,10 @@ local function try_righteous_defense(me, target)
     if menu.no_taunt and menu.no_taunt:get_state() then return false end
     if not (menu.use_righteous_defense and menu.use_righteous_defense:get_state()) then return false end
     if not runtime.righteous_defense_id then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     -- Only taunt if we don't have aggro
     if utils.has_target_aggro(target, me) then return false end
     -- Check if target is attacking a party member
@@ -334,12 +369,21 @@ local function try_righteous_defense(me, target)
 end
 
 -- Cooldowns
-local function try_avenging_wrath(me)
+local function try_avenging_wrath(me, target)
     if not (menu.use_avenging_wrath and menu.use_avenging_wrath:get_state()) then return false end
     if not runtime.avenging_wrath_id then return false end
     if not me:is_in_combat() then return false end
     if utils.has_buff(me, spells.BUFF_AVENGING_WRATH) then return false end
     if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then return false end
+    
+    -- Use burst_manager for intelligent Avenging Wrath timing
+    local auto_burst = (menu.auto_burst_enabled and menu.auto_burst_enabled:get_state()) or false
+    if auto_burst then
+        local combat_time = _core_time() - runtime.combat_start_time
+        local should_burst, reason = burst_manager.should_auto_burst(me, target, combat_time, menu)
+        if not should_burst then return false end
+    end
+    
     if not utils.can_cast_self(runtime.avenging_wrath_id, me) then return false end
     if utils.cast_self_fast(runtime.avenging_wrath_id, me) then
         note_cast()
@@ -404,8 +448,12 @@ end
 local function try_hammer_of_justice(me, target)
     if not (menu.use_hammer_of_justice and menu.use_hammer_of_justice:get_state()) then return false end
     if not runtime.hammer_of_justice_id then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     -- Check if target is casting
     local ok, is_casting = pcall(function() return target:is_casting_spell() end)
     if not ok or not is_casting then return false end
@@ -418,59 +466,82 @@ local function try_hammer_of_justice(me, target)
 end
 
 -- OOC buffs (delegated to ooc_manager)
+-- In TBC, you can only have ONE blessing at a time - check for ANY blessing first
 local function try_ooc_buffs(me)
     if me:is_in_combat() then return false end
     
-    local resolved = {
-        redemption = runtime.redemption_id,
-        blessing_of_kings = runtime.blessing_of_kings_id,
-        blessing_of_sanctuary = runtime.blessing_of_sanctuary_id,
-        blessing_of_might = runtime.blessing_of_might_id,
-        blessing_of_wisdom = runtime.blessing_of_wisdom_id,
-        righteous_fury = runtime.righteous_fury_id,
-        devotion_aura = runtime.devotion_aura_id,
-    }
+    -- Check if we have ANY blessing already (prevents ping-pong between Might/Wisdom/Kings/Sanctuary)
+    local has_any_blessing = utils.has_any_buff_from_table(me, spells.ALL_BLESSING_BUFF_IDS)
+    
+    -- Determine which blessing to cast based on priority: Sanctuary > Kings > Wisdom > Might
+    local blessing_spell = nil
+    local blessing_buff_ids = nil
+    local blessing_name = nil
+    local blessing_toggle = nil
+    
+    if not has_any_blessing then
+        -- Priority 1: Sanctuary (tanking blessing)
+        if runtime.blessing_of_sanctuary_id and menu.use_blessing_of_sanctuary and menu.use_blessing_of_sanctuary:get_state() then
+            blessing_spell = runtime.blessing_of_sanctuary_id
+            blessing_buff_ids = spells.BUFF_BLESSING_OF_SANCTUARY
+            blessing_name = "Blessing of Sanctuary"
+            blessing_toggle = menu.use_blessing_of_sanctuary
+        -- Priority 2: Kings
+        elseif runtime.blessing_of_kings_id and menu.use_blessing_of_kings and menu.use_blessing_of_kings:get_state() then
+            blessing_spell = runtime.blessing_of_kings_id
+            blessing_buff_ids = spells.BUFF_BLESSING_OF_KINGS
+            blessing_name = "Blessing of Kings"
+            blessing_toggle = menu.use_blessing_of_kings
+        -- Priority 3: Wisdom
+        elseif runtime.blessing_of_wisdom_id and menu.use_blessing_of_wisdom and menu.use_blessing_of_wisdom:get_state() then
+            blessing_spell = runtime.blessing_of_wisdom_id
+            blessing_buff_ids = spells.BUFF_BLESSING_OF_WISDOM
+            blessing_name = "Blessing of Wisdom"
+            blessing_toggle = menu.use_blessing_of_wisdom
+        -- Priority 4: Might
+        elseif runtime.blessing_of_might_id and menu.use_blessing_of_might and menu.use_blessing_of_might:get_state() then
+            blessing_spell = runtime.blessing_of_might_id
+            blessing_buff_ids = spells.BUFF_BLESSING_OF_MIGHT
+            blessing_name = "Blessing of Might"
+            blessing_toggle = menu.use_blessing_of_might
+        end
+    end
+    
+    -- Build group_buffs list (only ONE blessing + auras)
+    local group_buffs_list = {}
+    
+    -- Add the ONE blessing we decided on
+    if blessing_spell then
+        table.insert(group_buffs_list, {
+            spell_id = blessing_spell,
+            buff_ids = blessing_buff_ids,
+            name = blessing_name,
+            toggle = blessing_toggle
+        })
+    end
+    
+    -- Add auras (these don't conflict with blessings)
+    if runtime.righteous_fury_id and menu.use_righteous_fury and menu.use_righteous_fury:get_state() then
+        table.insert(group_buffs_list, {
+            spell_id = runtime.righteous_fury_id,
+            buff_ids = spells.BUFF_RIGHTEOUS_FURY,
+            name = "Righteous Fury",
+            toggle = menu.use_righteous_fury
+        })
+    end
+    
+    if runtime.devotion_aura_id and menu.use_devotion_aura and menu.use_devotion_aura:get_state() then
+        table.insert(group_buffs_list, {
+            spell_id = runtime.devotion_aura_id,
+            buff_ids = spells.BUFF_DEVOTION_AURA,
+            name = "Devotion Aura",
+            toggle = menu.use_devotion_aura
+        })
+    end
     
     return ooc_manager.on_update(me, menu, utils, {
-        rez_spell_id = resolved.redemption,
-        group_buffs = {
-            {
-                spell_id = resolved.blessing_of_might,
-                buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
-                name = "Blessing of Might",
-                toggle = menu.use_blessing_of_might
-            },
-            {
-                spell_id = resolved.blessing_of_wisdom,
-                buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
-                name = "Blessing of Wisdom",
-                toggle = menu.use_blessing_of_wisdom
-            },
-            {
-                spell_id = resolved.blessing_of_kings,
-                buff_ids = spells.BUFF_BLESSING_OF_KINGS,
-                name = "Blessing of Kings",
-                toggle = menu.use_blessing_of_kings
-            },
-            {
-                spell_id = resolved.blessing_of_sanctuary,
-                buff_ids = spells.BUFF_BLESSING_OF_SANCTUARY,
-                name = "Blessing of Sanctuary",
-                toggle = menu.use_blessing_of_sanctuary
-            },
-            {
-                spell_id = resolved.righteous_fury,
-                buff_ids = spells.BUFF_RIGHTEOUS_FURY,
-                name = "Righteous Fury",
-                toggle = menu.use_righteous_fury
-            },
-            {
-                spell_id = resolved.devotion_aura,
-                buff_ids = spells.BUFF_DEVOTION_AURA,
-                name = "Devotion Aura",
-                toggle = menu.use_devotion_aura
-            },
-        }
+        rez_spell_id = runtime.redemption_id,
+        group_buffs = group_buffs_list
     })
 end
 
@@ -479,14 +550,15 @@ local function try_auto_tab(me)
     if not (menu.use_auto_tab and menu.use_auto_tab:get_state()) then return false end
     if (_core_time() - runtime.last_tab_target_at) < runtime.tab_target_cooldown then return false end
     
-    local current_target = me:get_target()
+    local ok_target, current_target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then current_target = nil end
     if not current_target or not current_target:is_valid() then return false end
     
     -- If we have aggro on current target, check for others
     if utils.has_target_aggro(current_target, me) then
         -- Look for mobs attacking party members
         local party = utils.get_party_units(me)
-        local objects = core.object_manager.get_visible_objects()
+        local objects = _get_visible_objects()
         local max_mobs = (menu.tab_max_mobs and menu.tab_max_mobs:get()) or 4
         local managed_mobs = 0
         
@@ -523,12 +595,25 @@ end
 
 -- Toggle handling removed - unified menu handles toggling
 
--- Initialize
-resolve_spells()
+-- Initialize spells on first on_update (not at module load - prevents F6 reload crashes)
+local spells_resolved = false
+local force_commands_initialized = false
 
 -- Main update loop
 core.register_on_update_callback(function()
     if not (menu.enabled and menu.enabled:get_state()) then return end
+    
+    -- Resolve spells on first run (after game state is ready)
+    if not spells_resolved then
+        resolve_spells()
+        spells_resolved = true
+    end
+    
+    -- Initialize force_commands on first run (not at module load - prevents F6 reload crashes)
+    if not force_commands_initialized then
+        force_commands:init()
+        force_commands_initialized = true
+    end
     
     -- Initialize middleware on first run
     if not middleware_manager.is_initialized() then
@@ -539,29 +624,24 @@ core.register_on_update_callback(function()
     if not me or me:is_dead() then return end
     
     -- Sync dashboard settings
-    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    local ok_show, show_dashboard = pcall(function() return (menu.dashboard_enabled and menu.dashboard_enabled:get_state()) or false end)
     if ok_show then
         dashboard.set_enabled(show_dashboard)
     end
     
-    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
-    if ok_opacity then
-        dashboard.set_opacity(opacity)
-    end
+    local opacity = (menu.dashboard_opacity and menu.dashboard_opacity:get()) or 190
+    dashboard.set_opacity(opacity)
     
-    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
-    if ok_scale then
-        dashboard.set_scale(scale)
-    end
+    local scale = (menu.dashboard_scale and menu.dashboard_scale:get()) or 1.0
+    dashboard.set_scale(scale)
     
-    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
-    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
-    if ok_x and ok_y then
-        dashboard.set_position(pos_x, pos_y)
-    end
+    local pos_x = (menu.dashboard_x and menu.dashboard_x:get()) or 20
+    local pos_y = (menu.dashboard_y and menu.dashboard_y:get()) or 200
+    dashboard.set_position(pos_x, pos_y)
     
     -- Build middleware context
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     local ctx = middleware_manager.build_context(me, target, {
         use_healthstone = (menu.use_healthstone and menu.use_healthstone:get_state()) or false,
         use_healing_potion = (menu.use_health_potion and menu.use_health_potion:get_state()) or false,
@@ -613,10 +693,11 @@ core.register_on_update_callback(function()
     -- Don't cast while eating/drinking
     if eax_utils.is_eating_or_drinking(me) then return end
     
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     
     -- NEW: Build rotation context once per frame
-    local tank_ctx = context_builder.build(me, target, menu)
+    local tank_ctx = combat_context.build(me)
     
     -- NEW: Update manual target detection for threat_tab_manager
     threat_tab_manager.update_manual_target(target)
@@ -627,7 +708,7 @@ core.register_on_update_callback(function()
         if threat_tab_manager.execute_tab(me) then
             -- Update target to new one
             target = new_target
-            tank_ctx = context_builder.build(me, target, menu)
+            tank_ctx = combat_context.build(me)
         end
     end
     
@@ -638,6 +719,11 @@ core.register_on_update_callback(function()
     -- Only continue if in combat
     if not me:is_in_combat() then return end
     
+    -- Sample combat forecast for TTD tracking
+    if combat_forecast and target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
+    
     -- Consumables
     if menu.auto_combat_potions and menu.auto_combat_potions:get_state() then
         consumables_manager.try_use_combat_consumable(me, menu, utils)
@@ -647,7 +733,7 @@ core.register_on_update_callback(function()
     racial_manager.try_defensive(me)
     
     -- Avenging Wrath
-    if try_avenging_wrath(me) then return end
+    if try_avenging_wrath(me, target) then return end
     
     -- Cleanse
     if try_cleanse(me) then return end
@@ -694,17 +780,31 @@ core.register_on_update_callback(function()
         if try_holy_wrath(me) then return end
     end
 
-    -- Defensive trinket check (tank mode - not burst)
-    trinket_manager.check_trinkets(me, false, menu)
+    -- Defensive trinket check with force_commands and TTD support
+    trinket_manager.check_trinkets_v2(me, target, false, force_commands, combat_forecast, menu)
+end)
+
+-- Menu rendering
+local _vec2 = require("common/geometry/vector_2")
+local _space_win = core.menu.window("eaxpaladinprotectionspace_win")
+_space_win:set_initial_size(_vec2.new(460, 580))
+_space_win:set_next_window_min_size(_vec2.new(320, 300))
+_space_win:set_next_window_padding(_vec2.new(10, 8))
+menu.set_window(_space_win)
+
+core.register_on_render_menu_callback(function()
+    menu.render()
 end)
 
 -- Initialize dashboard
 dashboard.init(dashboard_config)
 dashboard.register_render_callback()
 
--- Export toggle settings for external access
-local NS = _G.EAXPaladinProtection and _G.EAXPaladinProtection.NS or {}
-_G.EAXPaladinProtection = _G.EAXPaladinProtection or {}
-_G.EAXPaladinProtection.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only when fully loaded)
+if header.load then
+    local NS = _G.EAXPaladinProtection and _G.EAXPaladinProtection.NS or {}
+    _G.EAXPaladinProtection = _G.EAXPaladinProtection or {}
+    _G.EAXPaladinProtection.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 

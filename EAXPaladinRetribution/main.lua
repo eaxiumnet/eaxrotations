@@ -1,6 +1,12 @@
 -- EAX Paladin Retribution | main.lua
 -- Retribution DPS rotation ported with seal twisting
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -29,10 +35,19 @@ local combat_forecast = require("libraries/combat_forecast")
 local force_commands = require("libraries/force_commands")
 local swing_manager = require("libraries/swing_manager")
 
--- Hot-path local caching
+-- Hot-path local caching (Pattern 2: API caching at module load)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
+local _is_spell_learned = core.spell_book.is_spell_learned
+local _get_spell_cooldown = core.spell_book.get_spell_cooldown
+local _is_usable_spell = core.spell_book.is_usable_spell
+local _is_spell_in_range = core.spell_book.is_spell_in_range
+local _cast_target_spell = core.input.cast_target_spell
+local _get_target = core.object_manager.get_target
+local _is_in_combat = core.object_manager.is_in_combat
+local _get_health_percentage = core.object_manager.get_health_percentage
+local _get_enemy_list = core.object_manager.get_enemy_list
 
 local runtime = {
     crusader_strike_id = nil,
@@ -106,10 +121,9 @@ local function resolve_spells()
     runtime.righteous_fury_id = utils.resolve_spell_id(spells.RIGHTEOUS_FURY)
 end
 
-resolve_spells()
-
--- Initialize Flux force_commands
-force_commands:init()
+-- Initialize spells on first on_update (not at module load - prevents F6 reload crashes)
+local spells_resolved = false
+local force_commands_initialized = false
 
 -- Spell casting helpers
 local function try_cast_self(spell_id, me, label)
@@ -135,7 +149,9 @@ end
 -- Aura management
 local function ensure_aura(me)
     if not (menu.use_aura and menu.use_aura:get_state()) then return false end
-    if not me or me:is_dead() then return false end
+    if not me then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if ok_dead and is_dead then return false end
     if not runtime.sanctity_aura_id then return false end
     
     local now = _core_time()
@@ -152,7 +168,9 @@ end
 
 -- Seal management
 local function ensure_baseline_seal(me)
-    if not me or me:is_dead() then return false end
+    if not me then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if ok_dead and is_dead then return false end
     
     local now = _core_time()
     if (now - runtime.last_twist_at) < ((menu.seal_twist_cooldown and menu.seal_twist_cooldown:get()) or 3) then return false end
@@ -188,8 +206,12 @@ end
 -- Seal twisting logic
 local function begin_seal_twist(me, target)
     if not (menu.use_seal_twist and menu.use_seal_twist:get_state()) then return false end
-    if not me or me:is_dead() then return false end
-    if not target or not target:is_valid() then return false end
+    if not me then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if ok_dead and is_dead then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    if not ok_valid or not is_valid then return false end
     
     local now = _core_time()
     if (now - runtime.last_twist_at) < ((menu.seal_twist_cooldown and menu.seal_twist_cooldown:get()) or 3) then return false end
@@ -252,8 +274,11 @@ end
 local function try_crusader_strike(me, target)
     if not (menu.use_crusader_strike and menu.use_crusader_strike:get_state()) then return false end
     if not runtime.crusader_strike_id then return false end
-    if not target or not target:is_valid() then return false end
-    if not me:can_attack(target) then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    if not ok_valid or not is_valid then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     return try_cast_target(runtime.crusader_strike_id, me, target, "Crusader Strike")
 end
@@ -261,8 +286,11 @@ end
 local function try_judgement(me, target)
     if not (menu.use_judgement and menu.use_judgement:get_state()) then return false end
     if not runtime.judgement_id then return false end
-    if not target or not target:is_valid() then return false end
-    if not me:can_attack(target) then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    if not ok_valid or not is_valid then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     return try_cast_target(runtime.judgement_id, me, target, "Judgement")
 end
@@ -270,10 +298,15 @@ end
 local function try_hammer_of_wrath(me, target)
     if not (menu.use_hammer_of_wrath and menu.use_hammer_of_wrath:get_state()) then return false end
     if not runtime.hammer_of_wrath_id then return false end
-    if not target or not target:is_valid() then return false end
-    if not me:can_attack(target) then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    if not ok_valid or not is_valid then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
-    local hp_pct = target:get_health_percentage()
+    local ok_hp, hp = pcall(function() return target:get_health() end)
+local ok_max, max_hp = pcall(function() return target:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     if hp_pct > 20 then return false end
     
     return try_cast_target(runtime.hammer_of_wrath_id, me, target, "Hammer of Wrath")
@@ -282,8 +315,11 @@ end
 local function try_exorcism(me, target)
     if not (menu.use_exorcism and menu.use_exorcism:get_state()) then return false end
     if not runtime.exorcism_id then return false end
-    if not target or not target:is_valid() then return false end
-    if not me:can_attack(target) then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    if not ok_valid or not is_valid then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     -- Only cast on undead/demon targets
     local creature_type = nil
@@ -298,7 +334,8 @@ end
 local function try_consecration(me, target)
     if not (menu.use_consecration and menu.use_consecration:get_state()) then return false end
     if not runtime.consecration_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     return try_cast_self(runtime.consecration_id, me, "Consecration")
 end
@@ -307,7 +344,8 @@ end
 local function try_avenging_wrath(me, target)
     if not (menu.use_avenging_wrath and menu.use_avenging_wrath:get_state()) then return false end
     if not runtime.avenging_wrath_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_AVENGING_WRATH) then return false end
     
     return try_cast_self(runtime.avenging_wrath_id, me, "Avenging Wrath")
@@ -316,7 +354,8 @@ end
 local function try_divine_favor(me, target)
     if not (menu.use_divine_favor and menu.use_divine_favor:get_state()) then return false end
     if not runtime.divine_favor_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_DIVINE_FAVOR) then return false end
     
     return try_cast_self(runtime.divine_favor_id, me, "Divine Favor")
@@ -325,10 +364,13 @@ end
 local function try_divine_shield(me)
     if not (menu.use_divine_shield and menu.use_divine_shield:get_state()) then return false end
     if not runtime.divine_shield_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_DIVINE_SHIELD) then return false end
     
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     local threshold = (menu.divine_shield_hp_pct and menu.divine_shield_hp_pct:get()) or 20
     if hp_pct > threshold then return false end
     
@@ -339,7 +381,8 @@ end
 local function try_hand_of_freedom(me)
     if not (menu.use_hand_of_freedom and menu.use_hand_of_freedom:get_state()) then return false end
     if not runtime.hand_of_freedom_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_HAND_OF_FREEDOM) then return false end
     
     -- Check for root/snare effects
@@ -356,7 +399,8 @@ end
 local function try_cleanse(me)
     if not (menu.use_cleansing and menu.use_cleansing:get_state()) then return false end
     if not runtime.cleanse_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     -- Check for dispellable debuffs on self
     local has_poison = utils.has_debuff(me, spells.DEBUFF_POISON)
@@ -372,11 +416,25 @@ end
 local function on_update()
     if not (menu.enabled and menu.enabled:get_state()) then return end
     
+    -- Resolve spells on first run (after game state is ready)
+    if not spells_resolved then
+        resolve_spells()
+        spells_resolved = true
+    end
+    
+    -- Initialize force_commands on first run (not at module load - prevents F6 reload crashes)
+    if not force_commands_initialized then
+        force_commands:init()
+        force_commands_initialized = true
+    end
+    
     local me = _get_local_player()
-    if not me or me:is_dead() then return end
+    if not me then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if ok_dead and is_dead then return end
     
     -- Sync dashboard settings
-    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
+    local ok_show, show_dashboard = pcall(function() return (menu.dashboard_enabled and menu.dashboard_enabled:get_state()) or false end)
     if ok_show then
         dashboard.set_enabled(show_dashboard)
     end
@@ -398,10 +456,9 @@ local function on_update()
     end
     
     -- Build middleware context
-    local target = me:get_target()
+    local ok_target, target = pcall(function() return me:get_target() end)
+    if not ok_target or not target then return end
     local ctx = middleware_manager.build_context(me, target, {
-        use_healthstone = (menu.use_healthstone and menu.use_healthstone:get_state()) or false,
-        use_healing_potion = (menu.use_health_potion and menu.use_health_potion:get_state()) or false,
         use_mana_potion = (menu.use_mana_potion and menu.use_mana_potion:get_state()) or false,
         use_divine_protection = (menu.use_divine_protection and menu.use_divine_protection:get_state()) or false,
         use_divine_shield = (menu.use_divine_shield and menu.use_divine_shield:get_state()) or false,
@@ -434,44 +491,45 @@ local function on_update()
     end
     
     -- OOC
-    if not me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
         ooc_manager.on_update(me, menu, utils, {
             group_buffs = {
                 {
                     spell_id = runtime.blessing_of_might_id,
                     buff_ids = spells.BUFF_BLESSING_OF_MIGHT,
                     name = "Blessing of Might",
-                    toggle = menu.use_blessing_of_might
+                    toggle = (menu.use_blessing_of_might and menu.use_blessing_of_might:get_state()) or false
                 },
                 {
                     spell_id = runtime.blessing_of_wisdom_id,
                     buff_ids = spells.BUFF_BLESSING_OF_WISDOM,
                     name = "Blessing of Wisdom",
-                    toggle = menu.use_blessing_of_wisdom
+                    toggle = (menu.use_blessing_of_wisdom and menu.use_blessing_of_wisdom:get_state()) or false
                 },
                 {
                     spell_id = runtime.blessing_of_kings_id,
                     buff_ids = spells.BUFF_BLESSING_OF_KINGS,
                     name = "Blessing of Kings",
-                    toggle = menu.use_blessing_of_kings
+                    toggle = (menu.use_blessing_of_kings and menu.use_blessing_of_kings:get_state()) or false
                 },
                 {
                     spell_id = runtime.righteous_fury_id,
                     buff_ids = spells.BUFF_RIGHTEOUS_FURY,
                     name = "Righteous Fury",
-                    toggle = menu.use_righteous_fury
+                    toggle = (menu.use_righteous_fury and menu.use_righteous_fury:get_state()) or false
                 },
                 {
                     spell_id = runtime.devotion_aura_id,
                     buff_ids = spells.BUFF_DEVOTION_AURA,
                     name = "Devotion Aura",
-                    toggle = menu.use_devotion_aura
+                    toggle = (menu.use_devotion_aura and menu.use_devotion_aura:get_state()) or false
                 },
                 {
                     spell_id = runtime.sanctity_aura_id,
                     buff_ids = spells.BUFF_SANCTITY_AURA,
                     name = "Sanctity Aura",
-                    toggle = menu.use_sanctity_aura
+                    toggle = (menu.use_sanctity_aura and menu.use_sanctity_aura:get_state()) or false
                 },
             }
         })
@@ -485,13 +543,14 @@ local function on_update()
     -- Maintain aura
     if ensure_aura(me) then return end
     
-    local target = me:get_target()
-    
+    local ok_target, target = pcall(function() return me:get_target() end)
+    if not ok_target or not target then return end
     -- Defensive CDs
     if try_divine_shield(me) then return end
     
     -- Only continue if in combat
-    if not me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
         runtime.combat_start_time = nil
         return
     end
@@ -582,6 +641,9 @@ local function on_update()
     if begin_seal_twist(me, target) then return end
 end
 
+-- CRITICAL: Register the on_update callback (was missing - caused F6 reload crashes)
+core.register_on_update_callback(on_update)
+
 -- Menu rendering
 local _vec2 = require("common/geometry/vector_2")
 local _space_win = core.menu.window("eaxpaladinretributionspace_win")
@@ -589,10 +651,6 @@ _space_win:set_initial_size(_vec2.new(460, 580))
 _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
-
-core.register_on_render_callback(function()
-    menu.render()
-end)
 
 core.register_on_render_menu_callback(function()
     menu.render()
@@ -602,8 +660,11 @@ end)
 dashboard.init(dashboard_config)
 dashboard.register_render_callback()
 
--- Export toggle settings for external access
-local NS = _G.EAXPaladinRetribution and _G.EAXPaladinRetribution.NS or {}
-_G.EAXPaladinRetribution = _G.EAXPaladinRetribution or {}
-_G.EAXPaladinRetribution.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only when fully loaded)
+if header.load then
+    local NS = _G.EAXPaladinRetribution and _G.EAXPaladinRetribution.NS or {}
+    _G.EAXPaladinRetribution = _G.EAXPaladinRetribution or {}
+    _G.EAXPaladinRetribution.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
+
