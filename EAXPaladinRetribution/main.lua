@@ -32,6 +32,8 @@ local ooc_manager = require("libraries/ooc_manager")
 
 -- Flux Feature Integration
 local combat_forecast = require("libraries/combat_forecast")
+---@type combat_context
+local combat_context = require("libraries/combat_context")
 local force_commands = require("libraries/force_commands")
 local swing_manager = require("libraries/swing_manager")
 
