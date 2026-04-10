@@ -25,7 +25,7 @@ local force_commands = require("libraries/force_commands")
 local swing_manager = require("libraries/swing_manager")
 
 -- Hot-path API caching
-local _core_time = core.game_time
+local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 

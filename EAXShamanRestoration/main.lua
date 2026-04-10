@@ -19,7 +19,7 @@ local heal_context = require("libraries/heal_context")
 local mana_manager = require("libraries/mana_manager")
 
 -- Hot-path API caching
-local _core_time = core.game_time
+local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 
