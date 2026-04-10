@@ -343,7 +343,7 @@ end
 local function on_update()
     if not (menu.enabled and menu.enabled:get_state()) then return end
 
-    local ok_me, me = pcall(function() return core.object_manager.get_local_player() end)
+    local ok_me, me = pcall(_get_local_player)
     if not ok_me then me = nil end
     local ok_me, me_valid = pcall(function() return me and me:is_valid() end)
     if not ok_me or not me_valid then return end
