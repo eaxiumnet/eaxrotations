@@ -709,27 +709,19 @@ core.register_on_update_callback(function()
 
     if not (menu.enabled and menu.enabled:get_state()) then return end
 
-    -- Sync dashboard settings (safe pcall for uninitialized menu items)
-    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
-    if ok_show then
-        dashboard.set_enabled(show_dashboard)
-    end
+    -- Sync dashboard settings (with nil guards)
+    local show_dashboard = (menu.show_dashboard and menu.show_dashboard:get()) or false
+    dashboard.set_enabled(show_dashboard)
     
-    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
-    if ok_opacity then
-        dashboard.set_opacity(opacity)
-    end
+    local opacity = (menu.dashboard_opacity and menu.dashboard_opacity:get()) or 190
+    dashboard.set_opacity(opacity)
     
-    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
-    if ok_scale then
-        dashboard.set_scale(scale)
-    end
+    local scale = (menu.dashboard_scale and menu.dashboard_scale:get()) or 1.0
+    dashboard.set_scale(scale)
     
-    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
-    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
-    if ok_x and ok_y then
-        dashboard.set_position(pos_x, pos_y)
-    end
+    local pos_x = (menu.dashboard_x and menu.dashboard_x:get()) or 20
+    local pos_y = (menu.dashboard_y and menu.dashboard_y:get()) or 200
+    dashboard.set_position(pos_x, pos_y)
 
     -- OOC self-buffing via ooc_manager
     local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
@@ -762,7 +754,8 @@ core.register_on_update_callback(function()
     end
 
     -- Mana recovery check (high priority for Arcane burn phases)
-    if (menu.use_mana_manager and menu.use_mana_manager:get()) then
+    local use_mana_mgr = (menu.use_mana_manager and menu.use_mana_manager:get()) or false
+    if use_mana_mgr then
         local used_mana, mana_type = mana_manager.check_and_recover(me, menu, mana_manager.CLASS_RECOVERY.MAGE)
         if used_mana then
             -- Mana recovery triggered, continue rotation
@@ -777,7 +770,7 @@ if header.load then
     local NS = _G.EAXMageArcane and _G.EAXMageArcane.NS or {}
     _G.EAXMageArcane = _G.EAXMageArcane or {}
     _G.EAXMageArcane.NS = NS
-    NS.toggle_menu = menu.toggle_menu
+    NS.toggle_menu = (menu.toggle_menu and menu.toggle_menu) or nil
 end
 
 return {}

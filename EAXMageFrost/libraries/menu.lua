@@ -113,6 +113,42 @@ menu.pvp_mode                            = core.menu.combobox(1, "eaxmagefrost_p
 menu.pvp_use_trinket                     = core.menu.checkbox(true, "eaxmagefrost_pvp_trinket")
 menu.pvp_defensive_threshold             = core.menu.slider_int(10, 80, 40, "eaxmagefrost_pvp_def_hp")
 
+-- Mana Management (moved from inside render function - CRITICAL FIX)
+menu.use_mana_manager                    = core.menu.checkbox(true, "eaxmagefrost_use_mana_manager")
+menu.mana_gem_pct                        = core.menu.slider_int(5, 100, 30, "eaxmagefrost_mana_gem_pct")
+menu.mana_potion_pct                     = core.menu.slider_int(5, 100, 20, "eaxmagefrost_mana_potion_pct")
+menu.dark_rune_pct                       = core.menu.slider_int(5, 100, 15, "eaxmagefrost_dark_rune_pct")
+menu.evocation_pct                       = core.menu.slider_int(5, 100, 25, "eaxmagefrost_evocation_pct")
+
+-- Burst & Trinket Automation (moved from inside render function - CRITICAL FIX)
+menu.auto_burst_enabled                  = core.menu.checkbox(false, "eaxmagefrost_auto_burst")
+menu.burst_on_bloodlust                  = core.menu.checkbox(true, "eaxmagefrost_burst_bloodlust")
+menu.burst_on_pull                       = core.menu.checkbox(true, "eaxmagefrost_burst_pull")
+menu.burst_on_execute                    = core.menu.checkbox(true, "eaxmagefrost_burst_execute")
+menu.burst_in_combat                     = core.menu.checkbox(false, "eaxmagefrost_burst_always")
+menu.trinket1_mode                       = core.menu.combobox(1, "eaxmagefrost_trinket1_mode")
+menu.trinket2_mode                       = core.menu.combobox(1, "eaxmagefrost_trinket2_mode")
+
+-- Force Commands (moved from inside render function - CRITICAL FIX)
+menu.force_burst                         = core.menu.keybind(0, false, "eaxmagefrost_force_burst")
+menu.force_aoe                           = core.menu.keybind(0, false, "eaxmagefrost_force_aoe")
+menu.force_defensive                     = core.menu.keybind(0, false, "eaxmagefrost_force_defensive")
+
+-- Missing movement menu items (referenced in main.lua but not defined)
+menu.frost_move_fire_blast               = core.menu.checkbox(true, "eaxmagefrost_move_fire_blast")
+menu.frost_move_ice_lance                = core.menu.checkbox(true, "eaxmagefrost_move_ice_lance")
+menu.frost_move_cone_of_cold             = core.menu.checkbox(true, "eaxmagefrost_move_cone_of_cold")
+menu.frost_move_arcane_explosion         = core.menu.checkbox(true, "eaxmagefrost_move_arcane_explosion")
+
+-- Missing rotation menu items (referenced in main.lua but not defined)
+menu.frost_use_frostbolt                 = core.menu.checkbox(true, "eaxmagefrost_use_frostbolt_main")
+menu.frost_use_ice_block                 = core.menu.checkbox(true, "eaxmagefrost_use_ice_block")
+menu.frost_use_frost_nova                = core.menu.checkbox(true, "eaxmagefrost_use_frost_nova")
+menu.frost_aoe_threshold                 = core.menu.slider_int(2, 10, 3, "eaxmagefrost_aoe_threshold")
+
+-- Dashboard toggle (referenced in main.lua but not defined)
+menu.show_dashboard                      = core.menu.checkbox(true, "eaxmagefrost_show_dashboard")
+
 mana_conservator.register_menu_items(menu, "eax_mage_frost")
 
 settings.setup_major_toggle_keybinds(menu, {
@@ -208,28 +244,7 @@ function menu.render()
             menu.ooc_group_buff:render("Buffs", "Party")
         end)
 
--- Mana Management
-menu.use_mana_manager = core.menu.checkbox(true, "eaxmagefrost_use_mana_manager")
-menu.mana_gem_pct = core.menu.slider_int(5, 100, 30, "eaxmagefrost_mana_gem_pct")
-menu.mana_potion_pct = core.menu.slider_int(5, 100, 20, "eaxmagefrost_mana_potion_pct")
-menu.dark_rune_pct = core.menu.slider_int(5, 100, 15, "eaxmagefrost_dark_rune_pct")
-menu.evocation_pct = core.menu.slider_int(5, 100, 25, "eaxmagefrost_evocation_pct")
-
--- Burst & Trinket Automation
-menu.auto_burst_enabled = core.menu.checkbox(false, "eaxmagefrost_auto_burst")
-menu.burst_on_bloodlust = core.menu.checkbox(true, "eaxmagefrost_burst_bloodlust")
-menu.burst_on_pull = core.menu.checkbox(true, "eaxmagefrost_burst_pull")
-menu.burst_on_execute = core.menu.checkbox(true, "eaxmagefrost_burst_execute")
-menu.burst_in_combat = core.menu.checkbox(false, "eaxmagefrost_burst_always")
-menu.trinket1_mode = core.menu.combobox(1, "eaxmagefrost_trinket1_mode")
-menu.trinket2_mode = core.menu.combobox(1, "eaxmagefrost_trinket2_mode")
-
--- Force Commands (Flux integration)
-menu.force_burst = core.menu.keybind(0, false, "eaxmagefrost_force_burst")
-menu.force_aoe = core.menu.keybind(0, false, "eaxmagefrost_force_aoe")
-menu.force_defensive = core.menu.keybind(0, false, "eaxmagefrost_force_defensive")
-
--- PvP Settings
+        -- PvP Settings
         pvp_tree:render("PvP", function()
             menu.pvp_enabled:render("Enable PvP", "Enable PvP rotation features")
             menu.pvp_mode:render("PvP Mode", {"Auto", "PvE Only", "PvP Only"}, "Select PvP detection mode")

@@ -577,27 +577,19 @@ local function on_update()
     local ok_dead, is_dead = pcall(function() return me:is_dead() end)
     if ok_dead and is_dead then return end
 
-    -- Sync dashboard settings (safe pcall for uninitialized menu items)
-    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
-    if ok_show then
-        dashboard.set_enabled(show_dashboard)
-    end
+    -- Sync dashboard settings (with nil guards)
+    local show_dashboard = (menu.show_dashboard and menu.show_dashboard:get()) or false
+    dashboard.set_enabled(show_dashboard)
     
-    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
-    if ok_opacity then
-        dashboard.set_opacity(opacity)
-    end
+    local opacity = (menu.dashboard_opacity and menu.dashboard_opacity:get()) or 190
+    dashboard.set_opacity(opacity)
     
-    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
-    if ok_scale then
-        dashboard.set_scale(scale)
-    end
+    local scale = (menu.dashboard_scale and menu.dashboard_scale:get()) or 1.0
+    dashboard.set_scale(scale)
     
-    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
-    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
-    if ok_x and ok_y then
-        dashboard.set_position(pos_x, pos_y)
-    end
+    local pos_x = (menu.dashboard_x and menu.dashboard_x:get()) or 20
+    local pos_y = (menu.dashboard_y and menu.dashboard_y:get()) or 200
+    dashboard.set_position(pos_x, pos_y)
 
     -- Crowd Control check - return early if stunned/silenced/feared etc.
     if utils.is_cced and utils.is_cced(me) then return end
@@ -684,5 +676,5 @@ if header.load then
     local NS = _G.EAXMageFire and _G.EAXMageFire.NS or {}
     _G.EAXMageFire = _G.EAXMageFire or {}
     _G.EAXMageFire.NS = NS
-    NS.toggle_menu = menu.toggle_menu
+    NS.toggle_menu = (menu.toggle_menu and menu.toggle_menu) or nil
 end
