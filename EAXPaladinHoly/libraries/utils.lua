@@ -15,12 +15,19 @@ local heal_utils = require("libraries/heal_utils")
 ---@type heal_context
 local heal_context = require("libraries/heal_context")
 
+-- Hot-path API caching (AGENTS.md Pattern 2)
+local _core_time = core.time
+local _is_spell_learned = core.spell_book.is_spell_learned
+local _get_spell_cooldown = core.spell_book.get_spell_cooldown
+local _is_usable_spell = core.spell_book.is_usable_spell
+local _is_spell_in_range = core.spell_book.is_spell_in_range
+
 local throttle_data = {}
 local queue_request_timestamps = {}
 local SPELL_QUEUE_INTERVAL_S = 0.25
 
 function utils.throttle(key, interval)
-    local now = core.time()
+    local now = _core_time()
     if not throttle_data[key] or (now - throttle_data[key]) >= interval then
         throttle_data[key] = now
         return true
@@ -43,17 +50,7 @@ local function get_izi_spell(spell_id)
 end
 
 function utils.resolve_spell_id(rank_table)
-    if not rank_table then return nil end
-    if type(rank_table) == "number" then
-        return core.spell_book.is_spell_learned(rank_table) and rank_table or nil
-    end
-    for i = 1, #rank_table do
-        local spell_id = rank_table[i]
-        if spell_id and core.spell_book.is_spell_learned(spell_id) then
-            return spell_id
-        end
-    end
-    return nil
+    return spell_resolver.resolve_spell_id(rank_table)
 end
 
 function utils.get_health_pct(unit)
@@ -61,12 +58,14 @@ function utils.get_health_pct(unit)
     local hp = unit:get_health()
     local max = unit:get_max_health()
     if not max or max <= 0 then return 0 end
-    return hp / max
+    return (hp / max) * 100
 end
 
 function utils.get_distance_to_target(me, target)
     if not me or not target then return math.huge end
-    local me_pos = me:get_position()
+    local ok_pos, me_pos = pcall(function() return me:get_position() end)
+    if not ok_pos then return nil end
+    me_pos = me_pos
     local target_pos = target:get_position()
     if not me_pos or not target_pos then return math.huge end
     return me_pos:dist_to(target_pos)
@@ -80,10 +79,10 @@ end
 
 function utils.can_cast_target(spell_id, me, target)
     if not spell_id or not me or not target then return false end
-    if not core.spell_book.is_spell_learned(spell_id) then return false end
-    if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
-    if not core.spell_book.is_usable_spell(spell_id) then return false end
-    if not core.spell_book.is_spell_in_range(spell_id, target, me) then return false end
+    if not _is_spell_learned(spell_id) then return false end
+    if _get_spell_cooldown(spell_id) > 0 then return false end
+    if not _is_usable_spell(spell_id) then return false end
+    if not _is_spell_in_range(spell_id, target, me) then return false end
     return true
 end
 
@@ -116,6 +115,21 @@ function utils.has_buff(unit, buff_table)
     return entry ~= nil and entry.is_active == true
 end
 
+-- Check if unit has ANY buff from a combined table (Flux-style detection)
+function utils.has_any_buff_from_table(unit, buff_id_table)
+    if not unit or not unit:is_valid() or not buff_id_table then return false end
+    for i = 1, #buff_id_table do
+        local id = buff_id_table[i]
+        if id then
+            local entry = buff_manager:get_buff_data(unit, {id})
+            if entry and entry.is_active then return true end
+            entry = buff_manager:get_aura_data(unit, {id})
+            if entry and entry.is_active then return true end
+        end
+    end
+    return false
+end
+
 function utils.has_debuff(unit, debuff_table)
     if not unit or not unit:is_valid() or not debuff_table then return false end
     local data = buff_manager:get_debuff_data(unit, debuff_table)
@@ -132,7 +146,7 @@ end
 
 local function can_issue_queue_request(kind, spell_id, target, interval_s)
     local key = kind .. ":" .. tostring(spell_id) .. ":" .. tostring(target)
-    local now = core.time()
+    local now = _core_time()
     local last = queue_request_timestamps[key] or 0
     if (now - last) < interval_s then return false end
     queue_request_timestamps[key] = now
@@ -141,9 +155,9 @@ end
 
 function utils.can_cast_self(spell_id, me)
     if not spell_id or not me or not me:is_valid() then return false end
-    if not core.spell_book.is_spell_learned(spell_id) then return false end
-    if core.spell_book.get_spell_cooldown(spell_id) > 0 then return false end
-    if not core.spell_book.is_usable_spell(spell_id) then return false end
+    if not _is_spell_learned(spell_id) then return false end
+    if _get_spell_cooldown(spell_id) > 0 then return false end
+    if not _is_usable_spell(spell_id) then return false end
     return true
 end
 
@@ -221,7 +235,10 @@ end
 -- Squared distance for performance (no sqrt)
 function utils.dist_squared(me, target)
     if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
+    local ok_p1, p1 = pcall(function() if me and me.get_position then return me:get_position() end return nil end)
+    local ok_p2, p2 = pcall(function() if target and target.get_position then return target:get_position() end return nil end)
+    if not ok_p1 then p1 = nil end
+    if not ok_p2 then p2 = nil end
     if not p1 or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)
@@ -329,7 +346,7 @@ function utils.get_effective_hp_pct(unit)
     local hp_pct = heal_utils.get_mana_pct(unit)  -- Reuse percentage logic
     -- Actually use health percentage
     local ok, health_pct = pcall(function()
-        return unit:get_health_percentage() / 100
+        local hp = unit:get_health(); local max_hp = unit:get_max_health(); if hp and max_hp and max_hp > 0 then return (hp / max_hp) * 100 end; return 100 / 100
     end)
     if ok and health_pct then
         return health_pct
@@ -407,7 +424,7 @@ end
 ---@return boolean True if spell is known
 function utils.is_known_spell(spell_id)
     if not spell_id then return false end
-    return core.spell_book.is_spell_learned(spell_id)
+    return _is_spell_learned(spell_id)
 end
 
 ---Cast a spell on self without queue check (fast cast)

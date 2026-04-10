@@ -1,6 +1,12 @@
 -- EAX Paladin Holy  main.lua
 -- Holy healing rotation ported from 
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -24,7 +30,13 @@ local defensive_manager = require("libraries/defensive_manager")
 local consumables_manager = require("libraries/consumables_manager")
 ---@type trinket_manager
 local trinket_manager = require("libraries/trinket_manager")
+---@type burst_manager
+local burst_manager = require("libraries/burst_manager")
+---@type force_commands
+local force_commands = require("libraries/force_commands")
 
+-- Flux Feature Integration
+local combat_forecast = require("libraries/combat_forecast")
 
 local middleware_manager = require("libraries/middleware_manager")
 local ooc_manager = require("libraries/ooc_manager")
@@ -61,6 +73,7 @@ local runtime = {
     last_cast_time = 0,
     last_heal_target = nil,
     last_aura_cast_at = 0,
+    combat_start_time = 0,
 }
 
 local AURA_RETRY_WINDOW = 12.0
@@ -128,13 +141,12 @@ local function ensure_seal(me)
     return false
 end
 
--- Aura management
+-- Aura management (using combined buff IDs for reliable detection)
 local function ensure_aura(me)
     if (_core_time() - runtime.last_aura_cast_at) < AURA_RETRY_WINDOW then return false end
     
-    if utils.has_buff(me, spells.BUFF_DEVOTION_AURA) or 
-       utils.has_buff(me, spells.BUFF_CONCENTRATION_AURA) or
-       utils.has_buff(me, spells.BUFF_RETRIBUTION_AURA) then
+    -- Use combined aura buff IDs to check if ANY aura is active
+    if utils.has_any_buff_from_table(me, spells.ALL_AURA_BUFF_IDS) then
         return false
     end
     
@@ -199,10 +211,11 @@ local function cast_lay_on_hands(me, target)
 end
 
 -- Cooldowns
-local function try_divine_favor(me)
+local function try_divine_favor(me, target, combat_time)
     if not runtime.divine_favor_id then return false end
     if not (menu.use_divine_favor and menu.use_divine_favor:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if not utils.can_cast_self(runtime.divine_favor_id, me) then return false end
     -- Only use if someone needs healing
     local ctx = heal_context.get_context(me)
@@ -210,6 +223,12 @@ local function try_divine_favor(me)
     if not lowest then return false end
     local hp_pct = utils.get_effective_hp_pct(lowest)
     if hp_pct > 0.8 then return false end
+    
+    -- Use burst_manager for optimal timing (bloodlust, pull, execute phases)
+    local should_burst, burst_reason = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    if not should_burst and not force_commands.is_forced("burst") then
+        return false
+    end
     
     if utils.cast_self_fast(runtime.divine_favor_id, me) then
         note_cast()
@@ -221,7 +240,8 @@ end
 local function try_divine_illumination(me)
     if not runtime.divine_illumination_id then return false end
     if not (menu.use_divine_illumination and menu.use_divine_illumination:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     local mana_pct = utils.get_mana_pct(me)
     local threshold = ((menu.divine_illumination_pct and menu.divine_illumination_pct:get()) or 60) / 100
     if mana_pct > threshold then return false end
@@ -233,16 +253,23 @@ local function try_divine_illumination(me)
     return false
 end
 
-local function try_avenging_wrath(me)
+local function try_avenging_wrath(me, target, combat_time)
     if not runtime.avenging_wrath_id then return false end
     if not (menu.use_avenging_wrath and menu.use_avenging_wrath:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_AVENGING_WRATH) then return false end
     if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then return false end
     if not utils.can_cast_self(runtime.avenging_wrath_id, me) then return false end
     -- Only use during heavy healing
     local count = utils.count_below_hp(me, 70)
     if count < 2 then return false end
+    
+    -- Use burst_manager for optimal timing (bloodlust, pull, execute phases)
+    local should_burst, burst_reason = burst_manager.should_auto_burst(me, target, combat_time, menu)
+    if not should_burst and not force_commands.is_forced("burst") then
+        return false
+    end
     
     if utils.cast_self_fast(runtime.avenging_wrath_id, me) then
         note_cast()
@@ -316,8 +343,11 @@ end
 local function try_judgement(me, target)
     if not (menu.use_judgement and menu.use_judgement:get_state()) then return false end
     if not runtime.judgement_id then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_valid = pcall(function() return target:is_valid() end)
+    local ok_dead = pcall(function() return target:is_dead() end)
+    if not target or not ok_valid or not ok_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     if not utils.is_known_spell(runtime.judgement_id) then return false end
     if core.spell_book.get_spell_cooldown(runtime.judgement_id) > 0 then return false end
     
@@ -335,10 +365,11 @@ local function try_judgement(me, target)
     if debuff_ids and utils.get_debuff_remaining_ms(target, debuff_ids) > 3000 then return false end
     
     -- Need to be in melee range
-    local my_pos = me:get_position()
+    local ok_pos, my_pos = pcall(function() if me and me.get_position then return me:get_position() end return nil end)
+    if not ok_pos then my_pos = nil end
     local target_pos = target:get_position()
     if not my_pos or not target_pos then return false end
-    local reach = (me:get_combat_reach() or 0) + (target:get_combat_reach() or 0) + 1.0
+    local reach = (me:get_bounding_radius() or 1.0) + (target:get_bounding_radius() or 1.0) + 1.0
     local sq_dist = my_pos:squared_dist_to_ignore_z(target_pos)
     if sq_dist > (reach * reach) then return false end
     
@@ -385,11 +416,20 @@ local function do_healing(me)
     return false
 end
 
-resolve_spells()
+-- Initialize spells on first on_update (not at module load - prevents F6 reload crashes)
+local spells_resolved = false
 
 -- Main update loop
 core.register_on_update_callback(function()
     if not (menu.enabled and menu.enabled:get_state()) then return end
+    
+    -- Resolve spells on first run (after game state is ready)
+    if not spells_resolved then
+        resolve_spells()
+        spells_resolved = true
+        -- Initialize force commands for /eax burst and /eax def
+        force_commands:init()
+    end
     
     -- Initialize middleware on first run
     if not middleware_manager.is_initialized() then
@@ -397,32 +437,19 @@ core.register_on_update_callback(function()
     end
     
     local me = _get_local_player()
-    if not me or me:is_dead() then return end
+    if not me then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if ok_dead and is_dead then return end
     
-    -- Sync dashboard settings
-    local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
-    if ok_show then
-        dashboard.set_enabled(show_dashboard)
-    end
+    -- Sync dashboard settings (dashboard menu not defined in this spec)
+    local show_dashboard = false
+    dashboard.set_enabled(show_dashboard)
     
-    local ok_opacity, opacity = pcall(function() return menu.dashboard_opacity:get() end)
-    if ok_opacity then
-        dashboard.set_opacity(opacity)
-    end
-    
-    local ok_scale, scale = pcall(function() return menu.dashboard_scale:get() end)
-    if ok_scale then
-        dashboard.set_scale(scale)
-    end
-    
-    local ok_x, pos_x = pcall(function() return menu.dashboard_x:get() end)
-    local ok_y, pos_y = pcall(function() return menu.dashboard_y:get() end)
-    if ok_x and ok_y then
-        dashboard.set_position(pos_x, pos_y)
-    end
+    -- Dashboard settings skipped (menu items not defined in this spec)
     
     -- Build middleware context
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     local ctx = middleware_manager.build_context(me, target, {
         use_healthstone = (menu.use_healthstone and menu.use_healthstone:get_state()) or false,
         use_healing_potion = (menu.use_health_potion and menu.use_health_potion:get_state()) or false,
@@ -457,7 +484,8 @@ core.register_on_update_callback(function()
     end
     
     -- OOC: drink, buff, and rez
-    if not me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
         if menu.ooc_drink and menu.ooc_drink:get_state() then
             consumables_manager.try_use_ooc_food_drink(me, menu, utils)
         end
@@ -526,7 +554,63 @@ core.register_on_update_callback(function()
         end
     end
     
+    -- Track combat start time for burst_manager
+    if in_combat and runtime.combat_start_time == 0 then
+        runtime.combat_start_time = _core_time()
+    elseif not in_combat then
+        runtime.combat_start_time = 0
+    end
+
+    -- OOC buffing (blessings) - prevent buff ping-pong
+    -- In TBC, you can only have ONE blessing at a time
+    -- We check for ANY blessing first, then cast only ONE based on priority
+    if not in_combat and menu.ooc_group_buff and menu.ooc_group_buff:get_state() then
+        -- Check if we have ANY blessing already
+        local has_any_blessing = utils.has_any_buff_from_table(me, spells.ALL_BLESSING_BUFF_IDS)
+        
+        if not has_any_blessing then
+            -- Determine which blessing to cast based on priority: Kings > Wisdom > Might
+            local buff_to_cast = nil
+            local buff_name = nil
+            local buff_ids = nil
+            
+            -- Priority 1: Kings (if learned, enabled, and has mana)
+            if runtime.blessing_of_kings_id and menu.use_blessing_of_kings and menu.use_blessing_of_kings:get_state() then
+                buff_to_cast = runtime.blessing_of_kings_id
+                buff_name = "Blessing of Kings"
+                buff_ids = spells.BUFF_BLESSING_OF_KINGS
+            -- Priority 2: Wisdom (for Holy healers, if enabled)
+            elseif runtime.blessing_of_wisdom_id and menu.use_blessing_of_wisdom and menu.use_blessing_of_wisdom:get_state() then
+                buff_to_cast = runtime.blessing_of_wisdom_id
+                buff_name = "Blessing of Wisdom"
+                buff_ids = spells.BUFF_BLESSING_OF_WISDOM
+            -- Priority 3: Might (fallback, if enabled)
+            elseif runtime.blessing_of_might_id and menu.use_blessing_of_might and menu.use_blessing_of_might:get_state() then
+                buff_to_cast = runtime.blessing_of_might_id
+                buff_name = "Blessing of Might"
+                buff_ids = spells.BUFF_BLESSING_OF_MIGHT
+            end
+            
+            -- Cast only ONE blessing
+            if buff_to_cast then
+                ooc_manager.on_update(me, menu, utils, {
+                    group_buffs = {
+                        {
+                            spell_id = buff_to_cast,
+                            buff_ids = buff_ids,
+                            name = buff_name,
+                            toggle = menu.ooc_group_buff
+                        }
+                    }
+                })
+            end
+        end
+    end
+
     if not in_combat then return end
+    
+    -- Calculate combat time for burst decisions
+    local combat_time = (runtime.combat_start_time > 0) and (_core_time() - runtime.combat_start_time) or 0
     
     -- Combat potions
     if menu.auto_mana_potion and menu.auto_mana_potion:get_state() then
@@ -536,14 +620,19 @@ core.register_on_update_callback(function()
     -- Racial
     racial_manager.try_defensive(me)
     
-    -- Trinkets (offensive during burst, defensive when low HP)
-    trinket_manager.check_trinkets(me, false, menu)
+    -- Flux: Sample combat forecast for TTD tracking (used by trinket_manager)
+    if target and target:is_valid() then
+        combat_forecast:sample(target)
+    end
     
-    -- Avenging Wrath during heavy damage
-    if try_avenging_wrath(me) then return end
+    -- Trinkets (offensive during burst, defensive when low HP) with force command integration
+    trinket_manager:check_trinkets_v2(me, target, false, force_commands, combat_forecast, menu)
     
-    -- Divine Favor before big heal
-    if try_divine_favor(me) then return end
+    -- Avenging Wrath during heavy damage (with burst_manager timing)
+    if try_avenging_wrath(me, target, combat_time) then return end
+    
+    -- Divine Favor before big heal (with burst_manager timing)
+    if try_divine_favor(me, target, combat_time) then return end
     
     -- Cleanse
     if try_cleanse(me) then return end
@@ -552,7 +641,8 @@ core.register_on_update_callback(function()
     if ensure_seal(me) then return end
     
     -- Try to judge for mana (if in melee)
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     if target and target:is_valid() and not target:is_dead() and me:can_attack(target) then
         try_judgement(me, target)
     end
@@ -569,10 +659,6 @@ _space_win:set_next_window_min_size(_vec2.new(320, 300))
 _space_win:set_next_window_padding(_vec2.new(10, 8))
 menu.set_window(_space_win)
 
-core.register_on_render_callback(function()
-    menu.render()
-end)
-
 core.register_on_render_menu_callback(function()
     menu.render()
 end)
@@ -581,10 +667,12 @@ end)
 dashboard.init(dashboard_config)
 dashboard.register_render_callback()
 
--- Export toggle settings for external access
-local NS = _G.EAXPaladinHoly and _G.EAXPaladinHoly.NS or {}
-_G.EAXPaladinHoly = _G.EAXPaladinHoly or {}
-_G.EAXPaladinHoly.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only when fully loaded)
+if header.load then
+    local NS = _G.EAXPaladinHoly and _G.EAXPaladinHoly.NS or {}
+    _G.EAXPaladinHoly = _G.EAXPaladinHoly or {}
+    _G.EAXPaladinHoly.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 

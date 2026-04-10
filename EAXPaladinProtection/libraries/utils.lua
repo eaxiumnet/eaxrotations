@@ -37,17 +37,7 @@ local function get_izi_spell(spell_id)
 end
 
 function utils.resolve_spell_id(rank_table)
-    if not rank_table then return nil end
-    if type(rank_table) == "number" then
-        return core.spell_book.is_spell_learned(rank_table) and rank_table or nil
-    end
-    for i = 1, #rank_table do
-        local spell_id = rank_table[i]
-        if spell_id and core.spell_book.is_spell_learned(spell_id) then
-            return spell_id
-        end
-    end
-    return nil
+    return spell_resolver.resolve_spell_id(rank_table)
 end
 
 function utils.get_health_pct(unit)
@@ -55,14 +45,15 @@ function utils.get_health_pct(unit)
     local hp = unit:get_health()
     local max = unit:get_max_health()
     if not max or max <= 0 then return 0 end
-    return hp / max
+    return (hp / max) * 100
 end
 
 function utils.get_distance_to_target(me, target)
     if not me or not target then return math.huge end
-    local me_pos = me:get_position()
-    local target_pos = target:get_position()
-    if not me_pos or not target_pos then return math.huge end
+    local ok_pos, me_pos = pcall(function() return me:get_position() end)
+    if not ok_pos or not me_pos then return math.huge end
+    local ok_target, target_pos = pcall(function() return target:get_position() end)
+    if not ok_target or not target_pos then return math.huge end
     return me_pos:dist_to(target_pos)
 end
 
@@ -108,6 +99,21 @@ function utils.has_buff(unit, buff_table)
     if entry and entry.is_active then return true end
     entry = buff_manager:get_aura_data(unit, buff_table)
     return entry ~= nil and entry.is_active == true
+end
+
+-- Check if unit has ANY buff from a combined table (Flux-style detection)
+function utils.has_any_buff_from_table(unit, buff_id_table)
+    if not unit or not unit:is_valid() or not buff_id_table then return false end
+    for i = 1, #buff_id_table do
+        local id = buff_id_table[i]
+        if id then
+            local entry = buff_manager:get_buff_data(unit, {id})
+            if entry and entry.is_active then return true end
+            entry = buff_manager:get_aura_data(unit, {id})
+            if entry and entry.is_active then return true end
+        end
+    end
+    return false
 end
 
 function utils.has_debuff(unit, debuff_table)
@@ -205,7 +211,7 @@ function utils.mana_pct(me)
         local ok_mana, mana = pcall(function() return me:get_power(0) end)
         local ok_max, max_mana = pcall(function() return me:get_max_power(0) end)
         if ok_mana and ok_max and max_mana > 0 then
-            return mana / max_mana
+            return (mana / max_mana) * 100
         end
     end
     return 0
@@ -214,7 +220,10 @@ end
 -- Squared distance for performance (no sqrt)
 function utils.dist_squared(me, target)
     if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
+    local ok_p1, p1 = pcall(function() if me and me.get_position then return me:get_position() end return nil end)
+    local ok_p2, p2 = pcall(function() if target and target.get_position then return target:get_position() end return nil end)
+    if not ok_p1 then p1 = nil end
+    if not ok_p2 then p2 = nil end
     if not p1 or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)
@@ -319,7 +328,7 @@ function utils.count_enemies_within_radius(me, radius)
     local count = 0
     
     local ok, objects = pcall(function() 
-        return core.object_manager.get_visible_objects() 
+        return core.object_manager.get_all_objects() 
     end)
     
     if not ok or not objects then return 0 end
@@ -424,7 +433,9 @@ function utils.try_divine_shield_cc_break(me, menu)
     -- Check if CC'd (has loss of control effect)
     if not me.get_loss_of_control_info then return false end
     
-    local loc_info = me:get_loss_of_control_info()
+    local ok_loc, loc_info = pcall(function() return me:get_loss_of_control_info() end)
+    if not ok_loc then return false end
+    loc_info = loc_info
     if not loc_info or not loc_info.valid then return false end
     
     -- LOC_STUN = 5, LOC_SILENCE = 8, etc. - any CC that prevents casting
