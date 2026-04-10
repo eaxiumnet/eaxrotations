@@ -27,7 +27,9 @@ local function use_first_ready_item(me, ids)
     if not me or not ids then return false end
 
     for _, item_id in ipairs(ids) do
-        if me:has_item(item_id) and me:get_item_cooldown(item_id) <= 0 then
+        local ok_has, has_item = pcall(function() return me:has_item(item_id) end)
+        local ok_cd, item_cd = pcall(function() return me:get_item_cooldown(item_id) end)
+        if ok_has and ok_cd and has_item and item_cd <= 0 then
             if core and core.input and core.input.use_item and core.input.use_item(item_id) then
                 return true
             end
@@ -58,8 +60,10 @@ function consumables_manager.try_use_ooc_food_drink(me, menu, utils)
     if not can_attempt(last_ooc_food_drink_at, 2.0) then return false end
 
     local hp_pct = (utils and utils.get_health_pct and utils.get_health_pct(me)) or 1.0
-    local max_mana = me:get_max_power(0)
-    local mana_pct = (max_mana and max_mana > 0) and (me:get_power(0) / max_mana) or 1.0
+    local ok_max_mana, max_mana = pcall(function() return me:get_max_power(0) end)
+    max_mana = ok_max_mana and max_mana or 0
+    local ok_power, power = pcall(function() return me:get_power(0) end)
+    local mana_pct = (ok_max_mana and ok_power and max_mana and max_mana > 0) and (power / max_mana) or 1.0
 
     local eat_threshold = menu and menu.eat_threshold and (menu.eat_threshold:get() / 100.0) or 0.80
     local drink_threshold = menu and menu.drink_threshold and (menu.drink_threshold:get() / 100.0) or 0.80

@@ -25,11 +25,16 @@ settings.init({
     role = "healer",
 })
 
+-- Tree nodes defined at module load time (NOT inside render function)
+local trinket_tree = ps.tree_node()
+local pvp_tree = ps.tree_node()
+
+-- Settings tree references (using existing tree nodes)
 local settings_tree = {
-    targeting = tgt_tree,
-    racial = racial_tree,
+    targeting = rotation_tree,
+    racial = def_tree,
     ooc = ooc_tree,
-    display = esp_tree,
+    display = dashboard_tree,
 }
 
 -- Controls
@@ -98,6 +103,15 @@ menu.use_turn_undead                     = core.menu.checkbox(true, "eaxpaladinh
 menu.use_redemption                      = core.menu.checkbox(true, "eaxpaladinholy_use_redemption")
 menu.seal_choice = core.menu.combobox(1, "eaxpaladinholy_seal_choice")
 menu.use_avenging_wrath = core.menu.checkbox(true, "eaxpaladinholy_use_avenging_wrath")
+
+-- Burst / Avenging Wrath configuration
+menu.auto_burst_enabled                  = core.menu.checkbox(false, "eaxpaladinholy_auto_burst_enabled")
+menu.burst_on_bloodlust                  = core.menu.checkbox(true, "eaxpaladinholy_burst_on_bloodlust")
+menu.burst_on_pull                       = core.menu.checkbox(true, "eaxpaladinholy_burst_on_pull")
+menu.burst_on_execute                    = core.menu.checkbox(false, "eaxpaladinholy_burst_on_execute")
+menu.burst_in_combat                     = core.menu.checkbox(false, "eaxpaladinholy_burst_in_combat")
+menu.cd_min_ttd                          = core.menu.slider_int(0, 60, 10, "eaxpaladinholy_cd_min_ttd")
+
 menu.divine_illumination_pct = menu.divine_illumination_mana_pct  -- Alias for compatibility
 
 -- Missing toggles (12 total)
@@ -122,15 +136,11 @@ menu.use_cleanse_key = core.menu.keybind(7, false, "eaxpaladinholy_cleanse_key")
 menu.use_hand_of_freedom_key = core.menu.keybind(7, false, "eaxpaladinholy_hand_of_freedom_key")
 menu.overheal_protection = core.menu.checkbox(false, "eaxpaladinholy_overheal_protection")
 
-        -- Trinkets
-        local trinket_tree = ps.tree_node()
-        trinket_tree:render("Trinkets", function()
-            ps.header("Trinket Automation")
-            menu.trinket1_mode:render("Trinket 1 (Top)", "Mode")
-            menu.trinket2_mode:render("Trinket 2 (Bottom)", "Mode")
-        end)
+-- Trinket mode definitions (moved here from below)
+menu.trinket1_mode                       = core.menu.combobox(1, "eaxpaladinholy_trinket1_mode")
+menu.trinket2_mode                       = core.menu.combobox(1, "eaxpaladinholy_trinket2_mode")
 
-        -- PvP / Consumables
+-- PvP / Consumables
 menu.use_healthstone        = core.menu.checkbox(true, "eaxpaladinholy_use_healthstone")
 menu.healthstone_hp_pct     = core.menu.slider_int(5, 50, 30, "eaxpaladinholy_healthstone_hp_pct")
 menu.use_health_potion      = core.menu.checkbox(true, "eaxpaladinholy_use_health_potion")
@@ -196,6 +206,14 @@ function menu.render()
             menu.use_lay_on_hands:render("Lay on Hands", "Emergency")
             menu.lay_on_hands_hp_pct:render("LoH HP %", "Below")
             menu.use_divine_favor:render("Divine Favor", "Guaranteed crit")
+            ps.header("Avenging Wrath (Burst)")
+            menu.use_avenging_wrath:render("Avenging Wrath", "Enable burst cooldown")
+            menu.auto_burst_enabled:render("Auto-Burst", "Automatically time Avenging Wrath")
+            menu.burst_on_bloodlust:render("Burst on Bloodlust", "Use when Bloodlust/Heroism active")
+            menu.burst_on_pull:render("Burst on Pull", "Use within first 5 seconds of combat")
+            menu.burst_on_execute:render("Burst on Execute", "Use when target < 20% HP")
+            menu.burst_in_combat:render("Burst in Combat", "Use anytime in combat")
+            menu.cd_min_ttd:render("Min TTD (seconds)", "Don't burst if target dies sooner than this")
         end)
 
         -- DPS Fallback
@@ -234,48 +252,6 @@ function menu.render()
             ps.header("Blessing of Protection")
             menu.use_bop_on_tank:render("BoP on Tank", "Allow tank BoP")
             menu.bop_hp_pct:render("BoP HP %", "Below")
-        end)
-
--- Trinkets
-menu.trinket1_mode                       = core.menu.combobox(1, "eaxpaladinholy_trinket1_mode")
-menu.trinket2_mode                       = core.menu.combobox(1, "eaxpaladinholy_trinket2_mode")
-        local pvp_tree = ps.tree_node()
-        pvp_tree:render("PvP / Consumables", function()
-            ps.header("Consumables")
-            menu.use_healthstone:render("Healthstone", "Auto-use")
-            menu.healthstone_hp_pct:render("Healthstone HP %", "Below")
-            menu.use_health_potion:render("Healing Potion", "Auto-use")
-            menu.health_potion_hp_pct:render("Heal Potion HP %", "Below")
-            menu.use_mana_potion:render("Mana Potion", "Auto-use")
-            menu.mana_potion_pct:render("Mana Potion %", "Below")
-            ps.header("Racials")
-            menu.use_berserking:render("Berserking", "Troll haste")
-            menu.use_stoneform:render("Stoneform", "Dwarf cleanse")
-            menu.stoneform_hp_pct:render("Stoneform HP %", "Below")
-        end)
-
-        -- Automation
-        auto_tree:render("Automation", function()
-            menu.auto_combat_potions:render("Combat Potions", "In combat")
-            menu.auto_ooc_food_drink:render("OOC Food/Drink", "Eat/drink")
-            menu.auto_flask:render("Auto Flask", "Flask")
-            menu.leveling_conserve_mana:render("Conserve Mana", "Leveling")
-            menu.leveling_mana_floor:render("Mana %", "Below")
-        end)
-
-        -- OOC
-        ooc_tree:render("OOC Sustain", function()
-            menu.ooc_drink:render("Auto-Drink", "Drink")
-            menu.drink_threshold:render("Drink %", "Below")
-            menu.ooc_eat:render("Auto-Eat", "Eat")
-            menu.eat_threshold:render("Eat %", "Below")
-        end)
-
-        -- Group
-        group_tree:render("Group", function()
-            menu.ooc_rez:render("Auto-Rez", "Accept")
-            menu.ooc_group_buff:render("Buffs", "Party")
-            menu.use_redemption:render("Redemption", "Resurrect")
         end)
 
         -- Dashboard

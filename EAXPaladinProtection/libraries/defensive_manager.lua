@@ -32,13 +32,17 @@ end
 ---@return number hp_pct (0-100)
 local function get_hp_pct(me)
     if not me or not me:is_valid() then return 100 end
-    local ok, hp_pct = pcall(function() return me:get_health_percentage() end)
+    local ok, hp_pct = pcall(function() return (me:get_health() / me:get_max_health()) * 100 end)
     if ok and type(hp_pct) == "number" then
         return hp_pct
     end
     -- Fallback calculation
-    local hp = me:get_health()
-    local max_hp = me:get_max_health()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+    if not ok_hp then return 100 end
+    hp = hp
+    local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+    if not ok_max then return 100 end
+    max_hp = max_hp
     if max_hp and max_hp > 0 then
         return (hp / max_hp) * 100
     end
@@ -184,7 +188,8 @@ end
 ---@return boolean defensive_used
 function defensive_manager.on_update(me, menu)
     if not me or not me:is_valid() then return false end
-    if not me:is_in_combat() then return false end
+    local ok_ic, in_combat = pcall(function() return me:is_in_combat() end)
+    if not ok_ic or not in_combat then return false end
     
     -- Throttle to prevent spam
     if not utils.throttle(THROTTLE_KEY, THROTTLE_INTERVAL) then

@@ -19,7 +19,8 @@ local THROTTLE_INTERVAL = 1.5  -- seconds between consumable attempts
 local function find_available_item(me, item_ids)
     if not me or not item_ids then return nil end
     for _, item_id in ipairs(item_ids) do
-        if me:has_item(item_id) then
+        local ok_has, has = pcall(function() return me:has_item(item_id) end)
+        if ok_has and has then
             return item_id
         end
     end
@@ -32,8 +33,10 @@ end
 -- @return boolean: True if item can be used
 local function is_item_ready(me, item_id)
     if not me or not item_id then return false end
-    if not me:has_item(item_id) then return false end
-    local cd = me:get_item_cooldown(item_id)
+    local ok_has, has = pcall(function() return me:has_item(item_id) end)
+    if not ok_has or not has then return false end
+    local ok_cd, cd = pcall(function() return me:get_item_cooldown(item_id) end)
+    if not ok_cd then return false end
     return cd <= 0
 end
 
@@ -47,7 +50,9 @@ local function try_use_healthstone(me, menu)
     if not use_healthstone then return false end
     
     local hp_threshold = (menu.healthstone_hp_pct and menu.healthstone_hp_pct:get()) or 30
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     
     if hp_pct > hp_threshold then return false end
     
@@ -71,7 +76,9 @@ local function try_use_healing_potion(me, menu)
     if not use_health_potion then return false end
     
     local hp_threshold = (menu.health_potion_hp_pct and menu.health_potion_hp_pct:get()) or 40
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     
     if hp_pct > hp_threshold then return false end
     
@@ -119,7 +126,8 @@ end
 -- @return boolean: True if any consumable was used
 function consumables_manager.try_use_combat_consumable(me, menu, utils)
     if not me or not me:is_valid() then return false end
-    if not me:is_in_combat() then return false end
+    local ok_ic, in_combat = pcall(function() return me:is_in_combat() end)
+    if not ok_ic or not in_combat then return false end
     if not menu then return false end
     
     -- Check master toggle

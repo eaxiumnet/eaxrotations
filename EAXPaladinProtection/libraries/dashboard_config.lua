@@ -57,8 +57,8 @@ return {
     custom_lines = {
         -- Current Seal
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Seal", "Unknown" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Seal", "Unknown" end
             
             local spells = require("libraries/spells")
             if utils.has_buff(me, spells.BUFF_SEAL_OF_VENGEANCE) then
@@ -74,8 +74,8 @@ return {
         
         -- Holy Shield status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Holy Shield", "-" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Holy Shield", "-" end
             
             local spells = require("libraries/spells")
             if utils.has_buff(me, spells.BUFF_HOLY_SHIELD) then
@@ -87,8 +87,8 @@ return {
         
         -- Righteous Fury status (tank stance)
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "RFury", "-" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "RFury", "-" end
             
             local spells = require("libraries/spells")
             if utils.has_buff(me, spells.BUFF_RIGHTEOUS_FURY) then
@@ -100,8 +100,8 @@ return {
         
         -- Forbearance status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Forbearance", "-" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Forbearance", "-" end
             
             local spells = require("libraries/spells")
             if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then

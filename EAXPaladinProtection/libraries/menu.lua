@@ -108,6 +108,15 @@ menu.gift_of_the_naaru_hp_pct            = core.menu.slider_int(10, 80, 50, "eax
 menu.use_redemption                      = core.menu.checkbox(true, "eaxpaladinprotection_use_redemption")
 menu.use_devotion_aura                   = core.menu.checkbox(true, "eaxpaladinprotection_use_devotion_aura")
 
+-- -- Burst / Avenging Wrath ----------------------------------------------------
+menu.use_avenging_wrath                  = core.menu.checkbox(true, "eaxpaladinprotection_use_avenging_wrath")
+menu.auto_burst_enabled                  = core.menu.checkbox(false, "eaxpaladinprotection_auto_burst_enabled")
+menu.burst_on_bloodlust                  = core.menu.checkbox(true, "eaxpaladinprotection_burst_on_bloodlust")
+menu.burst_on_pull                       = core.menu.checkbox(true, "eaxpaladinprotection_burst_on_pull")
+menu.burst_on_execute                    = core.menu.checkbox(false, "eaxpaladinprotection_burst_on_execute")
+menu.burst_in_combat                     = core.menu.checkbox(false, "eaxpaladinprotection_burst_in_combat")
+menu.cd_min_ttd                          = core.menu.slider_int(0, 60, 10, "eaxpaladinprotection_cd_min_ttd")
+
 -- -- PvP / Consumables ---------------------------------------------------------
 menu.use_healthstone                     = core.menu.checkbox(true, "eaxpaladinprotection_use_healthstone")
 menu.healthstone_hp_pct                  = core.menu.slider_int(5, 50, 30, "eaxpaladinprotection_healthstone_hp_pct")
@@ -220,6 +229,15 @@ function menu.render()
             menu.divine_protection_hp_pct:render("Divine Protection HP %", "Use below this health")
             menu.use_blessing_of_protection:render("Blessing of Protection", "Physical immunity on self")
             menu.blessing_of_protection_hp_pct:render("BoP HP %", "Use below this health")
+
+            ps.header("Avenging Wrath (Burst)")
+            menu.use_avenging_wrath:render("Avenging Wrath", "Enable burst cooldown")
+            menu.auto_burst_enabled:render("Auto-Burst", "Automatically time Avenging Wrath")
+            menu.burst_on_bloodlust:render("Burst on Bloodlust", "Use when Bloodlust/Heroism active")
+            menu.burst_on_pull:render("Burst on Pull", "Use within first 5 seconds of combat")
+            menu.burst_on_execute:render("Burst on Execute", "Use when target < 20% HP")
+            menu.burst_in_combat:render("Burst in Combat", "Use anytime in combat")
+            menu.cd_min_ttd:render("Min TTD (seconds)", "Don't burst if target dies sooner than this")
 
             ps.header("Racial & Aura")
             menu.use_gift_of_the_naaru:render("Gift of the Naaru (Draenei)", "Racial heal over time")

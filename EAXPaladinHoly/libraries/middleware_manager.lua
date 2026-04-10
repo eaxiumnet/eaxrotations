@@ -121,8 +121,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(PALADIN_SPELLS.DIVINE_PROTECTION)
-                    return true, "[MW] Divine Protection"
+                    local ok_cast = pcall(function() icon:cast(PALADIN_SPELLS.DIVINE_PROTECTION) end)
+                    if ok_cast then
+                        return true, "[MW] Divine Protection"
+                    end
                 end
                 return false
             end,
@@ -159,8 +161,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(PALADIN_SPELLS.DIVINE_SHIELD)
-                    return true, "[MW] Divine Shield"
+                    local ok_cast = pcall(function() icon:cast(PALADIN_SPELLS.DIVINE_SHIELD) end)
+                    if ok_cast then
+                        return true, "[MW] Divine Shield"
+                    end
                 end
                 return false
             end,
@@ -197,8 +201,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(PALADIN_SPELLS.LAY_ON_HANDS)
-                    return true, "[MW] Lay on Hands"
+                    local ok_cast = pcall(function() icon:cast(PALADIN_SPELLS.LAY_ON_HANDS) end)
+                    if ok_cast then
+                        return true, "[MW] Lay on Hands"
+                    end
                 end
                 return false
             end,
@@ -229,8 +235,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(PALADIN_SPELLS.DIVINE_ILLUMINATION)
-                    return true, "[MW] Divine Illumination"
+                    local ok_cast = pcall(function() icon:cast(PALADIN_SPELLS.DIVINE_ILLUMINATION) end)
+                    if ok_cast then
+                        return true, "[MW] Divine Illumination"
+                    end
                 end
                 return false
             end,
@@ -261,8 +269,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(PALADIN_SPELLS.BERSERKING)
-                    return true, "[MW] Berserking"
+                    local ok_cast = pcall(function() icon:cast(PALADIN_SPELLS.BERSERKING) end)
+                    if ok_cast then
+                        return true, "[MW] Berserking"
+                    end
                 end
                 return false
             end,

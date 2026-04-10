@@ -26,7 +26,8 @@ function anti_fake_manager.is_likely_fake(target)
     
     -- If they've faked twice recently, be cautious
     if history.fake_count >= SUCCESSIVE_FAKE_COUNT then
-        local cast_time = target:get_cast_time() or 0
+        local ok_cast_time, cast_time = pcall(function() return target:get_cast_time() end)
+    cast_time = (ok_cast_time and cast_time) or 0
         if cast_time < FAKE_CAST_THRESHOLD_MS then
             return true  -- Probably another fake
         end

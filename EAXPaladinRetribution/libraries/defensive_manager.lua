@@ -55,7 +55,10 @@ function defensive_manager.get_defensive(hp_pct, class_name)
 end
 
 function defensive_manager.try_defensive(me, class_name, utils_module)
-    local hp_pct = me:get_health_percentage() / 100
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+if not ok_hp or not ok_max or not hp or not max_hp or max_hp == 0 then return false end
+local hp_pct = (hp / max_hp) * 100
     local defensive = defensive_manager.get_defensive(hp_pct, class_name)
     if not defensive then return false end
 

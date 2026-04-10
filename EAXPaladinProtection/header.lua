@@ -8,14 +8,16 @@ local plugin = {
     load = true,
 }
 
-local local_player = core.object_manager.get_local_player()
+local ok, local_player = pcall(function() return core.object_manager.get_local_player() end)
+if not ok or not local_player then
+    plugin.load = false
+    return plugin
+end
 
-if local_player then
-    local player_class = local_player:get_class()
-    if player_class ~= 2 then
-        plugin.load = false
-        return plugin
-    end
+local ok2, player_class = pcall(function() return local_player:get_class() end)
+if not ok2 or player_class ~= 2 then
+    plugin.load = false
+    return plugin
 end
 
 return plugin

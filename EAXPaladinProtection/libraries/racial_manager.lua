@@ -38,7 +38,7 @@ local function get_health_pct(me)
         return 100
     end
     
-    local success, result = pcall(function() return me:get_health_percentage() end)
+    local success, result = pcall(function() return (me:get_health() / me:get_max_health()) * 100 end)
     if success then
         return result or 100
     end

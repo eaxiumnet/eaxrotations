@@ -18,7 +18,8 @@ end
 function eax_utils.get_self_heal_threshold(me, base_threshold, menu_settings)
     if not me or not me.is_valid or not me:is_valid() then return base_threshold end
     local in_combat = false
-    if me.is_in_combat then in_combat = me:is_in_combat() end
+    local ok_ic, ic_val = pcall(function() return me:is_in_combat() end)
+    if ok_ic then in_combat = ic_val end
     local boost = 0
     if menu_settings and menu_settings.combat_self_hp_boost then
         if type(menu_settings.combat_self_hp_boost.get) == "function" then

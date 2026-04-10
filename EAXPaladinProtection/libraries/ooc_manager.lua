@@ -86,8 +86,8 @@ local function get_health_pct(me, utils)
         end
     end
 
-    if me and type(me.get_health_percentage) == "function" then
-        local ok, value = pcall(me.get_health_percentage, me)
+    if me and me.get_health and me.get_max_health then
+        local ok, value = pcall(function() return ((me:get_health() / me:get_max_health()) * 100) end)
         if ok and type(value) == "number" then
             return value / 100.0
         end
@@ -245,7 +245,7 @@ function ooc_manager.try_drink(me, menu, utils)
     local item_id = find_consumable_of_type(me, true, false)
     if item_id then
         -- Use spell_queue for item casting
-        spell_queue:queue_item_self(item_id, 1, "OOC: Drinking")
+        core.input.use_item(item_id)
         _pending_drink_until = now + 3.0
         log_debug(utils, menu, "OOC: Drinking")
         return true
@@ -305,7 +305,7 @@ function ooc_manager.try_eat(me, menu, utils)
     local item_id = find_consumable_of_type(me, false, true)
     if item_id then
         -- Use spell_queue for item casting
-        spell_queue:queue_item_self(item_id, 1, "OOC: Eating")
+        core.input.use_item(item_id)
         log_debug(utils, menu, "OOC: Eating")
         return true
     end
@@ -348,18 +348,20 @@ function ooc_manager.try_resurrect(me, rez_spell_id, menu, utils, allow_in_comba
     local now = _core_time()
 
     for _, target in ipairs(targets) do
-        local guid = tostring(target:get_guid())
-
-        -- Check throttle for this target
-        if (now - (last_rez_attempt[guid] or 0)) >= REZ_ATTEMPT_INTERVAL_S then
+        local ok, guid_val = pcall(function() return target:get_guid() end)
+        if ok and guid_val then
+            local guid = tostring(guid_val)
+            -- Check throttle for this target
+            if (now - (last_rez_attempt[guid] or 0)) >= REZ_ATTEMPT_INTERVAL_S then
             -- Check if spell is castable using spell_helper
-            if is_spell_castable(rez_spell_id, me, target) then
+                if is_spell_castable(rez_spell_id, me, target) then
                 -- Queue the resurrection spell
-                spell_queue:queue_spell_target(rez_spell_id, target, 1, "OOC: Resurrecting party member")
-                last_rez_attempt[guid] = now
-                log_debug(utils, menu, "OOC: Resurrecting party member")
-                return true
+                    spell_queue:queue_spell_target(rez_spell_id, target, 1, "OOC: Resurrecting party member")
+                    last_rez_attempt[guid] = now
+                    log_debug(utils, menu, "OOC: Resurrecting party member")
+                    return true
             end
+        end
         end
     end
 
@@ -424,10 +426,10 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
 
         if cooldown_ok and is_spell_castable(spell_id, me, nil) then
             -- Queue self-buff
-            spell_queue:queue_spell_target(spell_id, me, 1, "OOC: Buffing self - " .. (buff_name or ""))
+                spell_queue:queue_spell_target(spell_id, me, 1, "OOC: Buffing self - " .. (buff_name or ""))
             last_group_buff[spell_id] = now
-            log_debug(utils, menu, "OOC: Buffing self - " .. (buff_name or ""))
-            return true
+                log_debug(utils, menu, "OOC: Buffing self - " .. (buff_name or ""))
+                return true
         end
     end
 
@@ -452,10 +454,10 @@ function ooc_manager.try_group_buff(me, spell_id, buff_ids, buff_name, menu_togg
 
                 if party_cd_ok and is_spell_castable(spell_id, me, obj) then
                     -- Queue buff on party member
-                    spell_queue:queue_spell_target(spell_id, obj, 1, "OOC: Buffing party - " .. (buff_name or ""))
+                        spell_queue:queue_spell_target(spell_id, obj, 1, "OOC: Buffing party - " .. (buff_name or ""))
                     last_group_buff[spell_id] = now
-                    log_debug(utils, menu, "OOC: Buffing party - " .. (buff_name or ""))
-                    return true
+                        log_debug(utils, menu, "OOC: Buffing party - " .. (buff_name or ""))
+                        return true
                 end
             end
         end

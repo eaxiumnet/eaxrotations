@@ -59,8 +59,8 @@ return {
     custom_lines = {
         -- Current Seal
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Seal", "Unknown" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Seal", "Unknown" end
             
             local spells = require("libraries/spells")
             if utils.has_buff(me, spells.BUFF_SEAL_OF_COMMAND) then
@@ -78,8 +78,8 @@ return {
         
         -- Vengeance talent stacks (+5% holy damage per stack)
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Vengeance", "0" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Vengeance", "0" end
             
             local spells = require("libraries/spells")
             local stacks = utils.get_aura_stacks and utils.get_aura_stacks(me, spells.BUFF_VENGEANCE_TALENT[1]) or 0
@@ -88,8 +88,8 @@ return {
         
         -- Current Aura
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Aura", "Unknown" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Aura", "Unknown" end
             
             local spells = require("libraries/spells")
             if utils.has_buff(me, spells.BUFF_SANCTITY_AURA) then
@@ -107,8 +107,8 @@ return {
         
         -- Forbearance status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Forbearance", "-" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Forbearance", "-" end
             
             local spells = require("libraries/spells")
             if utils.has_debuff(me, spells.DEBUFF_FORBEARANCE) then
