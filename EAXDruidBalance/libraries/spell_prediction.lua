@@ -22,7 +22,7 @@ local HURRICANE_RADIUS_SQ = HURRICANE_RADIUS * HURRICANE_RADIUS
 
 -- Hot-path API caching
 local _core_time = core.time
-local _get_visible_objects = core.object_manager.get_visible_objects
+local _get_visible_objects = core.object_manager.get_all_objects
 
 ---Calculate squared distance between two positions
 ---@param pos1 table {x, y, z}
@@ -40,9 +40,9 @@ end
 ---@param obj table target object
 ---@return number squared distance
 local function dist_squared_obj(me, obj)
-    local me_pos = me:get_position()
-    local obj_pos = obj:get_position()
-    if not me_pos or not obj_pos then return math.huge end
+    local ok_m, me_pos = pcall(function() return me:get_position() end)
+    local ok_o, obj_pos = pcall(function() return obj:get_position() end)
+    if not ok_m or not ok_o or not me_pos or not obj_pos then return math.huge end
     local dx = me_pos.x - obj_pos.x
     local dy = me_pos.y - obj_pos.y
     local dz = me_pos.z - obj_pos.z
@@ -68,8 +68,8 @@ function spell_prediction.count_enemies_in_radius(me, position, radius)
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
             if me:can_attack(obj) then
-                local obj_pos = obj:get_position()
-                if obj_pos then
+                local ok, obj_pos = pcall(function() return obj:get_position() end)
+                if ok and obj_pos then
                     local dist_sq = dist_squared_pos(position, obj_pos)
                     if dist_sq <= radius_sq then
                         count = count + 1
@@ -106,8 +106,8 @@ function spell_prediction.get_best_hurricane_position(me, target, min_targets)
         end
     end
     
-    local target_pos = target:get_position()
-    if not target_pos then return nil end
+    local ok, target_pos = pcall(function() return target:get_position() end)
+    if not ok or not target_pos then return nil end
     
     -- Count enemies at target position
     local count_at_target = spell_prediction.count_enemies_in_radius(me, target_pos, HURRICANE_RADIUS)
@@ -130,8 +130,8 @@ function spell_prediction.get_best_hurricane_position(me, target, min_targets)
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
             if me:can_attack(obj) then
-                local obj_pos = obj:get_position()
-                if obj_pos then
+                local ok, obj_pos = pcall(function() return obj:get_position() end)
+                if ok and obj_pos then
                     -- Only check if within reasonable range of player
                     local dist_to_me_sq = dist_squared_obj(me, obj)
                     if dist_to_me_sq <= 900 then  -- 30 yards max cast range squared

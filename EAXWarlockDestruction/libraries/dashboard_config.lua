@@ -4,6 +4,7 @@
 --]]
 
 local utils = require("libraries/utils")
+local buff_manager = require("common/modules/buff_manager")
 
 return {
     class_name = "Warlock Destruction",
@@ -46,14 +47,14 @@ return {
     custom_lines = {
         -- Backlash proc status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Backlash", "--" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Backlash", "--" end
             
             local spells = require("libraries/spells")
             local has_backlash = false
             if spells.BUFF_BACKLASH then
                 for _, id in ipairs(spells.BUFF_BACKLASH) do
-                    if me:has_buff(id) then has_backlash = true break end
+                    if buff_manager.has_buff(me, id) then has_backlash = true break end
                 end
             end
             

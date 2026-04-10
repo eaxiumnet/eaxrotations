@@ -67,8 +67,8 @@ return {
         
         -- Combo Points (when in cat form)
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Combo Points", "0" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Combo Points", "0" end
             
             -- Only show combo points in cat form
             local spells = require("libraries/spells")

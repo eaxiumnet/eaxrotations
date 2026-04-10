@@ -37,20 +37,23 @@ local _initialized = false
 
 --- Check if player has a specific buff
 local function has_buff_self(buff_id)
-    local me = core.object_manager.get_local_player()
-    if not me or not me:is_valid() then return false end
+    local ok_me, me = pcall(function() return core.object_manager.get_local_player() end)
+    if not ok_me or not me or not me:is_valid() then return false end
     return false
 end
 
 --- Get lowest mana party member (for Innervate targeting)
 local function get_lowest_mana_party_member()
-    local me = core.object_manager.get_local_player()
-    if not me then return nil, 100 end
+    local ok_me, me = pcall(function() return core.object_manager.get_local_player() end)
+    if not ok_me or not me then return nil, 100 end
     
     local lowest = nil
     local lowest_mana = 100
     
-    for _, o in ipairs(core.object_manager.get_all_objects()) do
+    local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects or not all_objects then return nil, 100 end
+    
+    for _, o in ipairs(all_objects) do
         if o and o:is_valid() and o:is_unit() and not o:is_dead() then
             if o:is_party_member() or utils.same_unit(o, me) then
                 -- Check if unit uses mana

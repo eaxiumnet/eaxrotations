@@ -9,10 +9,10 @@ local hot_manager = {}
 -- ============================================================================
 
 ---@type buff_manager
-local buff_manager = require("common/modules/buff_manager")
+local buff_manager = require('common/modules/buff_manager')
 
 ---@type izi_api
-local izi = require("common/izi_sdk")
+local izi = require('common/izi_sdk')
 
 -- ============================================================================
 -- API Caching (at module load)
@@ -23,8 +23,11 @@ local _get_friends_in_range = core.object_manager.get_friends_in_range
 
 -- Get health/mana from game_object methods (not core.unit.*)
 local function _get_health_percentage(unit)
-    if unit and unit.get_health_percentage then
-        return unit:get_health_percentage()
+    if unit and unit.get_health and unit.get_max_health then
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+        local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+        if ok_hp and ok_max and hp and max_hp and max_hp > 0 then return (hp / max_hp) * 100 end
+        return 100
     end
     return 100
 end
@@ -259,11 +262,11 @@ local function get_units_to_scan()
     if is_in_raid then
         local raid_units = {}
         for i = 1, 40 do
-            raid_units[i] = "raid" .. i
+            raid_units[i] = 'raid' .. i
         end
         return raid_units, 40
     else
-        return {"player", "party1", "party2", "party3", "party4"}, 5
+        return {'player', 'party1', 'party2', 'party3', 'party4'}, 5
     end
 end
 
@@ -290,7 +293,7 @@ local function is_valid_heal_target(unit_id)
         return false
     end
     
-    local can_assist = _G.UnitCanAssist and _G.UnitCanAssist("player", unit_id) or false
+    local can_assist = _G.UnitCanAssist and _G.UnitCanAssist('player', unit_id) or false
     if not can_assist then
         return false
     end

@@ -57,7 +57,10 @@ local function get_unit_health_pct(unit)
     end
 
     local ok, result = pcall(function()
-        return _unit_helper:get_health_percentage(unit)
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+if not ok_hp or not ok_max or not hp or not max_hp or max_hp == 0 then return 100 end
+return _((hp / max_hp) * 100)
     end)
 
     if ok and result then
@@ -66,7 +69,7 @@ local function get_unit_health_pct(unit)
 
     -- Fallback to game_object method
     ok, result = pcall(function()
-        return unit:get_health_percentage()
+        local ok_hp, hp = pcall(function() return unit:get_health() end); local ok_max, max_hp = pcall(function() return unit:get_max_health() end); if ok_hp and ok_max and hp and max_hp and max_hp > 0 then return (hp / max_hp) * 100 end; return 100
     end)
 
     if ok and result then
@@ -449,7 +452,7 @@ function heal_utils.predict_effective_deficit(unit, incoming_heal_lookahead)
     -- Fallback: manual calculation using health_prediction
     local current_health = 0
     ok, current_health = pcall(function()
-        return unit:get_health_percentage() / 100 * max_health
+        local ok_hp, hp = pcall(function() return unit:get_health() end); local ok_max, max_hp = pcall(function() return unit:get_max_health() end); if ok_hp and ok_max and hp and max_hp and max_hp > 0 then return (hp / max_hp) * 100 end; return 100 / 100 * max_health
     end)
 
     if not ok or not current_health then

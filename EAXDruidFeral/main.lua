@@ -1,6 +1,12 @@
 -- EAX Druid Feral | Project Sylvanas
 -- Priority: Prowl -> Ravage -> DoTs -> Finishers -> Builders
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -8,6 +14,7 @@ local energy_tick = require("libraries/energy_tick")
 local powershift = require("libraries/powershift")
 local combat_forecast = require("libraries/combat_forecast")
 local force_commands = require("libraries/force_commands")
+local swing_manager = require("libraries/swing_manager")  -- v1.8.13: For swing delay feature
 local middleware_manager = require("libraries/middleware_manager")
 local dashboard = require("libraries/dashboard")
 local dashboard_config = require("libraries/dashboard_config")
@@ -72,6 +79,44 @@ local SHIFT_COOLDOWN = 1.0
 -- Helpers
 local function get_me() return _get_local_player() end
 
+-- ============================================================================
+-- v1.8.13: Swing Delay Check Utility
+-- ============================================================================
+
+---Check if we should delay ability to avoid clipping auto-attack swing
+---Uses swing_manager for timing (0.15s threshold like flux)
+---@param me userdata Player unit
+---@return boolean True if swing landing soon and we should delay
+local function should_delay_for_swing(me)
+    -- Check if swing delay is enabled in menu
+    if menu.cat_swing_delay then
+        local ok, enabled = pcall(function() return menu.cat_swing_delay:get_state() end)
+        if not ok or not enabled then
+            return false
+        end
+    else
+        return false  -- Toggle doesn't exist, don't delay
+    end
+    
+    -- Use swing_manager to check if swing landing soon
+    if swing_manager and swing_manager.is_swing_landing_soon then
+        local ok, should_delay = pcall(function() return swing_manager:is_swing_landing_soon(0.15) end)
+        if ok then return should_delay end
+    end
+    
+    -- Fallback: try auto_attack_helper directly
+    local has_helper, helper = pcall(require, "common/utility/auto_attack_helper")
+    if has_helper and helper and helper.get_next_attack_core_time then
+        local ok, next_swing = pcall(function() return helper:get_next_attack_core_time(me, 1) end)
+        if ok and next_swing then
+            local time_until = next_swing - _core_time()
+            return time_until > 0 and time_until <= 0.15
+        end
+    end
+    
+    return false
+end
+
 local function resolve()
     local now = _core_time()
     if (now - rt.last_spell_refresh) < SPELL_REFRESH then return end
@@ -134,9 +179,11 @@ end
 
 local function debuff_rem(target, tbl)
     if not target or not target:is_valid() then return 0 end
-    local d = target:get_debuff_data(tbl)
+    local ok_d, d = pcall(function() return target:get_debuff_data(tbl) end)
+    if not ok_d then d = nil end
     if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
-    d = target:get_aura_data(tbl)
+    local ok_a, d = pcall(function() return target:get_aura_data(tbl) end)
+    if not ok_a then d = nil end
     if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
     return 0
 end
@@ -147,7 +194,9 @@ end
 
 local function detect_mode()
     local n = 0
-    for _, o in ipairs(core.object_manager.get_all_objects()) do
+    local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, o in ipairs(all_objects) do
         if o and o:is_valid() and o:is_unit() and not o:is_dead() and o:is_party_member() then
             n = n + 1
         end
@@ -200,28 +249,35 @@ local function update_combat_context(me, target)
     -- Count enemies near target
     local count = 1  -- Start with current target
     local is_boss = false
+    local is_elite = false
     
     if target and target:is_valid() then
         -- Check if target is boss/elite
-        local classification = nil
+        local ok_class, classification = pcall(function() return target:get_classification() end)
+    if not ok_class then classification = nil end
         if target.get_classification then
             local ok, cls = pcall(function() return target:get_classification() end)
             if ok then classification = cls end
         end
-        is_boss = classification == "worldboss" or classification == "elite" or classification == "rareelite"
+        is_boss = classification == "worldboss"
+        is_elite = classification == "elite" or classification == "rareelite" or classification == "worldboss"
         
         -- Count nearby enemies
-        local target_pos = nil
+        local ok_pos, target_pos = pcall(function() return target:get_position() end)
+    if not ok_pos then target_pos = nil end
         if target.get_position then
             local ok, pos = pcall(function() return target:get_position() end)
             if ok then target_pos = pos end
         end
         
         if target_pos then
-            for _, obj in ipairs(core.object_manager.get_all_objects()) do
+            local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, obj in ipairs(all_objects) do
                 if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() 
                    and obj ~= target and me:can_attack(obj) then
-                    local obj_pos = nil
+                    local ok_op, obj_pos = pcall(function() return obj:get_position() end)
+    if not ok_op then obj_pos = nil end
                     if obj.get_position then
                         local ok, pos = pcall(function() return obj:get_position() end)
                         if ok then obj_pos = pos end
@@ -242,12 +298,20 @@ local function update_combat_context(me, target)
     
     rt.enemy_count = count
     rt.is_boss = is_boss
+    rt.is_elite = is_elite
 end
 
 -- Rotation functions
 local function try_cat_form(me)
     if not rt.cat_form_id then return false end
     if utils.has_buff(me, spells.BUFF_CAT_FORM) then return false end
+    
+    -- Don't shift to cat if drinking (respect OOC drink)
+    if utils.is_drinking(me) then return false end
+    
+    -- Don't shift to cat if in bear form (user wants to stay in bear)
+    if utils.is_in_bear_form(me) then return false end
+    
     if not utils.can_cast_self(rt.cat_form_id, me) then return false end
     if utils.cast_self(rt.cat_form_id, me) then
         utils.log_debug(menu, "Cat Form")
@@ -405,13 +469,28 @@ local function try_rip(me, t)
     -- Check rip_only_elites setting
     if should_rip and menu.rip_only_elites and menu.rip_only_elites:get_state() then
         local classification = nil
-        if t.get_classification then
+        if t and t.get_classification then
             local ok, cls = pcall(function() return t:get_classification() end)
             if ok then classification = cls end
         end
         local is_elite = classification == "worldboss" or classification == "elite" or classification == "rareelite"
         if not is_elite then
             should_rip = false
+        end
+    end
+    
+    -- v1.8.13: Energy Pooling for Rip (only when enabled)
+    if should_rip and menu.cat_energy_pooling and menu.cat_energy_pooling:get_state() then
+        -- Pool energy: wait until near energy cap (80+) before casting Rip
+        -- This maximizes the time we can spend building CP while Rip ticks
+        local max_energy = utils.get_max_energy(me)
+        local pool_threshold = max_energy - 20  -- Pool to 80+ energy
+        
+        if e < pool_threshold then
+            -- Check if we have time to pool (Rip not expiring immediately)
+            if rip_rem > 3 then  -- Safe to pool
+                return false  -- Wait for more energy
+            end
         end
     end
     
@@ -453,8 +532,8 @@ local function try_ferocious_bite(me, t)
     
     -- Get target HP percent
     local target_hp_pct = 100
-    if t and t:is_valid() and t.get_health_percentage then
-        local ok, hp = pcall(function() return t:get_health_percentage() end)
+    if t and t:is_valid() and t.get_health and t.get_max_health then
+        local ok, hp = pcall(function() return ((t:get_health() / t:get_max_health()) * 100) end)
         if ok and hp then target_hp_pct = hp end
     end
     
@@ -533,6 +612,78 @@ local function try_ferocious_bite(me, t)
     return false
 end
 
+-- ============================================================================
+-- v1.8.13: Bite Trick - Low-energy FB dump to avoid energy waste
+-- ============================================================================
+
+local function try_bite_trick(me, t)
+    if not (menu.use_bite_trick and menu.use_bite_trick:get_state()) then return false end
+    if not rt.ferocious_bite_id then return false end
+    
+    local cp = combo_points(me)
+    local e = energy(me)
+    
+    -- Bite trick: Low energy FB dump right before energy tick
+    -- Requirements: 5 CP, energy < 35 (FB cost), tick imminent (< 0.1s), Rip up on target
+    if cp < 5 then return false end
+    if e >= rt.spell_costs.ferocious_bite then return false end  -- Must be below FB cost
+    
+    -- Check if Rip is up (per flux logic - only bite trick if Rip active)
+    local rip_rem = debuff_rem(t, spells.DEBUFF_RIP)
+    if rip_rem <= 0 then return false end
+    
+    -- Check tick timing - must be < 0.1s away (BITE_TRICK_TICK_THRESHOLD)
+    if energy_tick:should_skip_bite_trick() then
+        return false  -- Tick is too close, skip to avoid energy waste
+    end
+    
+    if not utils.can_cast_hostile(rt.ferocious_bite_id, me, t) then return false end
+    if utils.cast_target(rt.ferocious_bite_id, me, t) then
+        local time_until = energy_tick:time_until_next_tick()
+        utils.log_debug(menu, string.format("Bite Trick (%.1fs before tick, energy=%d)", time_until, e))
+        return true
+    end
+    return false
+end
+
+-- ============================================================================
+-- v1.8.13: Rake Trick - Low-energy Rake filler in the energy dead zone
+-- ============================================================================
+
+local function try_rake_trick(me, t)
+    if not (menu.use_rake_trick and menu.use_rake_trick:get_state()) then return false end
+    if not rt.rake_id then return false end
+    
+    local cp = combo_points(me)
+    local e = energy(me)
+    
+    -- Rake trick: Use Rake in energy dead zone before tick
+    -- Requirements: CP < 5, energy >= 35 (rake cost), tick < 1.0s away, no Rake on target
+    if cp >= 5 then return false end  -- Don't waste CP at 5
+    if e < rt.spell_costs.rake then return false end   -- Must have energy for Rake
+    
+    -- Check if Rake is NOT up (or expiring) - we want to apply it
+    local rake_rem = debuff_rem(t, spells.DEBUFF_RAKE)
+    if rake_rem > 3 then return false end  -- Don't refresh if > 3s left
+    
+    -- Check tick timing - must be < 1.0s away (RAKE_TRICK_TICK_THRESHOLD)
+    if energy_tick:should_skip_rake_trick() then
+        return false  -- Tick is too close, skip to avoid energy waste
+    end
+    
+    -- Check Mangle debuff is up (per flux - rake trick only when mangle up)
+    local mangle_rem = debuff_rem(t, spells.DEBUFF_MANGLE)
+    if mangle_rem <= 0 then return false end
+    
+    if not utils.can_cast_hostile(rt.rake_id, me, t) then return false end
+    if utils.cast_target(rt.rake_id, me, t) then
+        local time_until = energy_tick:time_until_next_tick()
+        utils.log_debug(menu, string.format("Rake Trick (%.1fs before tick, energy=%d)", time_until, e))
+        return true
+    end
+    return false
+end
+
 local function try_mangle(me, t)
     if not (menu.use_mangle_cat and menu.use_mangle_cat:get_state()) then return false end
     if not rt.mangle_cat_id then return false end
@@ -549,6 +700,7 @@ end
 local function try_shred(me, t)
     if not (menu.use_shred and menu.use_shred:get_state()) then return false end
     if not rt.shred_id then return false end
+    if not is_behind_target(me, t) then return false end
 
     local cp = combo_points(me)
     local e = energy(me)
@@ -576,6 +728,138 @@ local function try_shred(me, t)
     if not utils.can_cast_hostile(rt.shred_id, me, t) then return false end
     if utils.cast_target(rt.shred_id, me, t) then
         utils.log_debug(menu, "Shred")
+        return true
+    end
+    return false
+end
+
+-- ============================================================================
+-- Flux v1.8.12 Fix: Mangle Builder at 5 CP when not behind target
+-- ============================================================================
+
+---Check if player is behind target (for Shred positional requirement)
+---Uses is_usable_spell as proxy ONLY when Shred has energy and no cooldown
+---This distinguishes positional failure from resource/cooldown constraints
+---@param me userdata Player unit
+---@param target userdata Target unit
+---@return boolean True if player is likely behind target
+local function is_behind_target(me, target)
+    if not rt.shred_id or not me or not target then return false end
+    
+    -- Only use is_usable_spell as proxy when we have energy and no cooldown
+    -- This ensures we're detecting POSITION, not resource/cooldown issues
+    local has_energy = energy(me) >= rt.spell_costs.shred
+    local has_no_cd = true
+    
+    if core.spell_book and core.spell_book.get_spell_cooldown then
+        local ok, cd = pcall(function() return core.spell_book.get_spell_cooldown(rt.shred_id) end)
+        if ok and cd and cd > 0 then has_no_cd = false end
+    end
+    
+    -- Only check position if we have resources and no cooldown
+    if has_energy and has_no_cd then
+        if core.spell_book and core.spell_book.is_usable_spell then
+            local ok, usable = pcall(function() return core.spell_book.is_usable_spell(rt.shred_id) end)
+            if ok and not usable then
+                -- Shred is not usable despite having energy and no cooldown = not behind target
+                return false
+            end
+        end
+    end
+    
+    return true  -- Default to assuming behind (let Shred fail naturally if not)
+end
+
+---Claw - Fallback CP builder when Shred is not available (not behind target)
+---Ported from flux cat.lua logic + TBC spell reference
+---@param me userdata Player unit
+---@param t userdata Target unit
+---@return boolean True if Claw was cast
+local function try_claw(me, t)
+    if not (menu.use_claw and menu.use_claw:get_state()) then return false end
+    
+    -- Resolve Claw spell ID (not cached in rt)
+    local claw_id = utils.resolve_spell_id(spells.CLAW)
+    if not claw_id then return false end
+    
+    local cp = combo_points(me)
+    local e = energy(me)
+    
+    -- Only use Claw as fallback when CP < 5
+    if cp >= 5 then return false end
+    
+    -- Only use Claw when we have enough energy
+    -- Claw costs 40 energy (same as Mangle)
+    local claw_cost = 40
+    if e < claw_cost then return false end
+    
+    -- Only use Claw when Shred can't be used (positional check)
+    if is_behind_target(me, t) then
+        -- We're behind target, Shred should be used instead
+        return false
+    end
+    
+    -- Note: Claw can be used regardless of Mangle debuff state
+    -- The rotation already prioritizes Mangle maintenance in try_mangle()
+    -- which runs before Claw in the priority order
+    
+    if not utils.can_cast_hostile(claw_id, me, t) then return false end
+    if utils.cast_target(claw_id, me, t) then
+        utils.log_debug(menu, string.format("Claw (CP=%d, fallback - not behind target)", cp))
+        return true
+    end
+    return false
+end
+
+---Mangle Builder - Fallback CP builder at 5 CP when not behind target (Flux v1.8.12 Fix)
+---This is the key fix: allows Mangle to be used as builder at 5 CP when:
+---1. Not behind target (can't use Shred)
+---2. Energy above FB cap (need to dump energy)
+---3. Mangle debuff is already up (or we're just dumping energy)
+---This prevents the rotation from idling at 5 CP when positioning prevents Shred
+---@param me userdata Player unit
+---@param t userdata Target unit
+---@return boolean True if Mangle was cast as builder
+local function try_mangle_builder(me, t)
+    if not (menu.use_mangle_builder and menu.use_mangle_builder:get_state()) then return false end
+    if not rt.mangle_cat_id then return false end
+    
+    local cp = combo_points(me)
+    local e = energy(me)
+    
+    -- Only use at 5 CP (the flux v1.8.12 fix removes this restriction)
+    if cp < 5 then return false end
+    
+    -- Only use when not behind target (Shred's position)
+    if is_behind_target(me, t) then
+        -- We're behind target, Shred should be used for energy dump instead
+        return false
+    end
+    
+    -- Only dump energy if above FB max energy cap
+    -- This prevents wasting energy that could be used for Rip
+    local fb_max_energy = 39
+    if menu.fb_max_energy then
+        local ok, val = pcall(function() return menu.fb_max_energy:get() end)
+        if ok and val then fb_max_energy = val end
+    end
+    if e <= fb_max_energy then return false end
+    
+    -- Check if we have energy for Mangle (or clearcasting)
+    local has_clearcasting = utils.has_buff(me, spells.BUFF_OMEN_OF_CLARITY)
+    if e < rt.spell_costs.mangle and not has_clearcasting then return false end
+    
+    -- Don't use as builder if Mangle debuff needs maintenance (let try_mangle handle that)
+    if has_debuff(t, spells.DEBUFF_MANGLE) then
+        -- Debuff is up, safe to use as builder
+    else
+        -- No debuff - only use if we can't afford to apply debuff now
+        -- (this is an edge case, usually we want debuff up)
+    end
+    
+    if not utils.can_cast_hostile(rt.mangle_cat_id, me, t) then return false end
+    if utils.cast_target(rt.mangle_cat_id, me, t) then
+        utils.log_debug(menu, string.format("Mangle Builder (5 CP energy dump, not behind, e=%d)", e))
         return true
     end
     return false
@@ -613,13 +897,13 @@ local function try_powershift(me)
     
     -- Check if we should powershift using the library
     if powershift:should_powershift(me, current_energy, energy_tick, menu) then
-        -- Pass enemy_count and is_boss for sapper integration
-        if powershift:execute(me, me:get_target(), energy_tick, menu, rt.cat_form_id, rt.enemy_count, rt.is_boss) then
+        -- FIXED: Correct argument order - cat_form_id is the 4th parameter
+        if powershift:execute(me, me:get_target(), energy_tick, rt.cat_form_id) then
             rt.last_powershift_time = _core_time()
             if utils.throttle("powershift_debug", 2.0) then
                 local debug_info = powershift:get_debug_info(me, current_energy, energy_tick)
-                utils.log_debug(menu, string.format("Powershift: %d -> %d energy (Wolfshead: %s, Enemies: %d)",
-                    debug_info.current_energy, debug_info.energy_after_shift, tostring(debug_info.has_wolfshead), rt.enemy_count))
+                utils.log_debug(menu, string.format("Powershift: %d -> %d energy (Wolfshead: %s)",
+                    debug_info.current_energy, debug_info.energy_after_shift, tostring(debug_info.has_wolfshead)))
             end
             return true
         end
@@ -706,38 +990,144 @@ local function do_rotation(me, t)
         core.log(string.format("|cFF00FF00[EAX Feral]|r Energy=%d CP=%d RipOK=%s RakeOK=%s", e, cp, tostring(rip_ok), tostring(rake_ok)))
     end
 
-    -- Ensure in cat form
-    if not utils.has_buff(me, spells.BUFF_CAT_FORM) then
-        if try_cat_form(me) then return end
+    -- Check rotation toggles
+    local cat_rotation_enabled = (menu.use_cat_rotation and menu.use_cat_rotation:get_state()) or false
+    local bear_rotation_enabled = (menu.use_bear_rotation and menu.use_bear_rotation:get_state()) or false
+
+    -- Ensure in cat form (if cat rotation enabled)
+    if cat_rotation_enabled and not utils.has_buff(me, spells.BUFF_CAT_FORM) then
+        -- Only force cat form if not drinking and not in bear
+        if not utils.is_drinking(me) and not utils.is_in_bear_form(me) then
+            if try_cat_form(me) then return end
+        end
     end
 
-    -- Stealth opener
-    if not me:is_in_combat() then
-        if try_prowl(me) then return end
+    -- Cat Form Rotation (only if enabled)
+    if cat_rotation_enabled and utils.has_buff(me, spells.BUFF_CAT_FORM) then
+        -- Stealth opener
+        if not me:is_in_combat() then
+            if try_prowl(me) then return end
+        end
+        if is_stealthed(me) then
+            if try_ravage(me, t) then return end
+        end
+
+        -- Powershift check (BEFORE spending energy - Flux-style GCD check)
+        -- Only consider powershift if GCD is ready (prevents "ability not ready" spam)
+        local ok_gcd, gcd_remains = pcall(function() return _get_gcd() end)
+        if (not ok_gcd or not gcd_remains or gcd_remains <= 0.1) then
+            if try_powershift(me) then return end
+        end
+
+        -- Cooldowns (Tiger's Fury after powershift decision)
+        if try_tigers_fury(me, t) then return end
+
+        -- Rotation priority (v1.8.13: Bite Trick and Rake Trick before Mangle)
+        -- v1.8.13: Check swing timer delay before each ability to avoid clipping auto-attacks
+        if not should_delay_for_swing(me) then
+            if try_faerie_fire(me, t) then return end
+        end
+        if not should_delay_for_swing(me) then
+            if try_rip(me, t) then return end
+        end
+        if not should_delay_for_swing(me) then
+            if try_ferocious_bite(me, t) then return end
+        end
+        -- v1.8.13: Bite Trick and Rake Trick now check BEFORE Mangle debuff (sim priority)
+        if not should_delay_for_swing(me) then
+            if try_bite_trick(me, t) then return end
+        end
+        if not should_delay_for_swing(me) then
+            if try_rake_trick(me, t) then return end
+        end
+        if not should_delay_for_swing(me) then
+            if try_mangle(me, t) then return end
+        end
+        if not should_delay_for_swing(me) then
+            if try_rake(me, t) then return end
+        end
+        if not should_delay_for_swing(me) then
+            if try_shred(me, t) then return end
+        end
+        -- Flux v1.8.12 Fix: Fallback builders when Shred fails (not behind target or at 5 CP)
+        if try_mangle_builder(me, t) then return end  -- Energy dump at 5 CP when not behind
+        if try_claw(me, t) then return end             -- Fallback builder when CP < 5 and not behind
     end
-    if is_stealthed(me) then
-        if try_ravage(me, t) then return end
+    
+    -- Bear Form Rotation (only if enabled and in bear)
+    if bear_rotation_enabled and utils.is_in_bear_form(me) then
+        -- Bear tank rotation: Faerie Fire > Mangle > Lacerate > Swipe (AoE) > Maul
+        if try_faerie_fire(me, t) then return end
+        
+        -- Use Bear Mangle if enabled (primary threat ability, cast on cooldown)
+        if menu.use_mangle_bear and menu.use_mangle_bear:get_state() then
+            local mangle_bear_id = utils.resolve_spell_id(spells.MANGLE_BEAR)
+            if mangle_bear_id and utils.can_cast_hostile(mangle_bear_id, me, t) then
+                if utils.cast_target(mangle_bear_id, me, t) then
+                    utils.log_debug(menu, "Mangle (Bear)")
+                    return true
+                end
+            end
+        end
+        
+        -- Use Lacerate if enabled
+        if menu.use_lacerate and menu.use_lacerate:get_state() then
+            local lacerate_id = utils.resolve_spell_id(spells.LACERATE)
+            if lacerate_id and utils.can_cast_hostile(lacerate_id, me, t) then
+                -- Check Lacerate stacks/refresh
+                local debuff_data = t:get_debuff_data(spells.DEBUFF_LACERATE or {33745})
+                local stacks = (debuff_data and debuff_data.stacks) or 0
+                local remaining = (debuff_data and debuff_data.remaining) or 0
+                -- Apply if < 5 stacks or about to expire
+                if stacks < 5 or remaining < 3 then
+                    if utils.cast_target(lacerate_id, me, t) then
+                        utils.log_debug(menu, "Lacerate")
+                        return true
+                    end
+                end
+            end
+        end
+        
+        -- Use Swipe for AoE if enabled
+        if menu.use_swipe and menu.use_swipe:get_state() and rt.enemy_count >= 3 then
+            local swipe_id = utils.resolve_spell_id(spells.SWIPE)
+            if swipe_id and utils.can_cast_hostile(swipe_id, me, t) then
+                if utils.cast_target(swipe_id, me, t) then
+                    utils.log_debug(menu, "Swipe (AoE)")
+                    return true
+                end
+            end
+        end
+        
+        -- Use Maul as rage dump
+        if menu.use_maul and menu.use_maul:get_state() then
+            local maul_id = utils.resolve_spell_id(spells.MAUL)
+            if maul_id then
+                -- Get rage
+                local rage = 0
+                local max_rage = 100
+                if me.get_power then
+                    rage = me:get_power(1) or 0  -- 1 = rage
+                    max_rage = (me.get_max_power and me:get_max_power(1)) or 100
+                end
+                -- Use Maul if above threshold
+                local maul_threshold = menu.maul_min_rage and menu.maul_min_rage:get() or 25
+                if rage >= maul_threshold and utils.can_cast_hostile(maul_id, me, t) then
+                    if utils.cast_target(maul_id, me, t) then
+                        utils.log_debug(menu, "Maul")
+                        return true
+                    end
+                end
+            end
+        end
     end
-
-    -- Cooldowns
-    if try_tigers_fury(me, t) then return end
-
-    -- Powershift if low energy
-    if try_powershift(me) then return end
-
-    -- Rotation priority
-    if try_faerie_fire(me, t) then return end
-    if try_rip(me, t) then return end
-    if try_ferocious_bite(me, t) then return end
-    if try_rake(me, t) then return end
-    if try_mangle(me, t) then return end
-    if try_shred(me, t) then return end
 end
 
--- Update loop
+    -- Update loop
 local function on_update()
     resolve()
     local me = get_me()
+    if not me or not me:is_valid() then return end
 
     -- Update energy tick tracker with new parameters (Feature 5)
     local current_energy = energy(me)
@@ -745,7 +1135,8 @@ local function on_update()
     energy_tick.update(current_energy, in_cat_form, rt.last_powershift_time)
 
     -- Update combat context for enemy count and boss detection (Features 2 & 6)
-    local t = me:get_target()
+    local ok_t, t = pcall(function() return me:get_target() end)
+    if not ok_t then t = nil end
     update_combat_context(me, t)
 
     -- Sample TTD for combat forecast (~1 second throttle)
@@ -819,6 +1210,7 @@ local function on_update()
     end
 
     if should_stop then
+        return  -- Stop rotation while crowd controlled
     end
 
     -- Sync dashboard settings (safe pcall for uninitialized menu items)
@@ -843,7 +1235,8 @@ local function on_update()
         dashboard.set_position(pos_x, pos_y)
     end
 
-    if not me or me:is_dead() then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if not me or (ok_dead and is_dead) then return end
 
     -- Track combat start time for burst manager
     local now = _core_time()
@@ -857,7 +1250,8 @@ local function on_update()
 
     -- Target already retrieved above
     if not t or not t:is_valid() or t:is_dead() then return end
-    if not me:can_attack(t) then return end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(t) end)
+    if not (ok_attack and can_attack) then return end
 
     -- Build settings table for middleware
     local settings = {
@@ -876,16 +1270,11 @@ local function on_update()
     local context = middleware_manager.build_context(me, t, settings)
     local mw_result, mw_msg = middleware_manager.execute(nil, context)
     if mw_result then
+        return  -- Middleware handled action (healthstone, potion, racial, etc.)
     end
 
     -- Try to break roots via shapeshift
     if utils.try_shapeshift_root_break(me, menu) then return end
-
-    -- CC Detection: Stop rotation if crowd controlled
-    local cc_detector = require("libraries/cc_detector")
-    local should_stop, cc_reason = cc_detector.should_stop_rotation(me)
-    if should_stop then
-    end
 
     -- Form-aware consumables
     local use_form_consumables = (menu.use_form_consumables and menu.use_form_consumables.get and menu.use_form_consumables:get()) or false
@@ -926,11 +1315,13 @@ local function on_update()
         if try_tigers_fury(me, t) then return end
     end
     
-    -- V2 Trinket check with TTD gating and force command integration
+    -- V2 Trinket check with TTD gating, boss/elite check, and force command integration
     local is_burst = burst_manager and burst_manager.is_burst_active and burst_manager:is_burst_active()
     trinket_manager:check_trinkets_v2(me, t, is_burst, force_commands, combat_forecast, menu, {
         offensive_ttd = (menu.trinket_ttd and menu.trinket_ttd:get()) or 10,
         defensive_hp = (menu.defensive_trinket_hp and menu.defensive_trinket_hp:get()) or 35,
+        is_boss = rt.is_boss,
+        is_elite = rt.is_elite,
     })
 
     do_rotation(me, t)
@@ -951,10 +1342,20 @@ dashboard.register_render_callback()
 -- Initialize force commands
 force_commands:init()
 
--- Export toggle settings for external access
-local NS = _G.EAXDruidFeral_ and _G.EAXDruidFeral_.NS or {}
-_G.EAXDruidFeral_ = _G.EAXDruidFeral_ or {}
-_G.EAXDruidFeral_.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only if header loaded successfully)
+if header.load then
+    local NS = _G.EAXDruidFeral_ and _G.EAXDruidFeral_.NS or {}
+    _G.EAXDruidFeral_ = _G.EAXDruidFeral_ or {}
+    _G.EAXDruidFeral_.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 return {}
+
+
+
+
+
+
+
+

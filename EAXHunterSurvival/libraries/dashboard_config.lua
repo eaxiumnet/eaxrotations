@@ -64,15 +64,15 @@ return {
                 return "Pet", "NONE"
             end
             local pet_hp = 0
-            local ok, hp = pcall(function() return pet:get_health_percentage() end)
+            local ok, hp = pcall(function() return ((pet:get_health() / pet:get_max_health()) * 100) end)
             if ok then pet_hp = hp or 0 end
             return "Pet HP", string.format("%.0f%%", pet_hp)
         end,
 
         -- Current Aspect
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Aspect", "Unknown" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Aspect", "Unknown" end
 
             local spells = require("libraries/spells")
             if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_HAWK) then

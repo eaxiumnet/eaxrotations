@@ -1,6 +1,12 @@
 -- main.lua | EAX Hunter BM | TBC
 -- Priority: Kill Command -> Bestial Wrath -> Intimidation -> Serpent/arcane weaving -> Steady Shot
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu    = require("libraries/menu")
 local spells  = require("libraries/spells")
 local utils   = require("libraries/utils")
@@ -26,6 +32,11 @@ local clip_tracker = require("libraries/hunter_clip_tracker")
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
+
+-- Pet autocast API caching
+local _get_pet_action_info = core.spell_book.get_pet_action_info
+local _enable_pet_autocast = core.input.enable_pet_autocast
+local _disable_pet_autocast = core.input.disable_pet_autocast
 
 -- Runtime state -------------------------------------------------------------
 local rt = {
@@ -98,6 +109,11 @@ local rt = {
     -- French rotation tracking (5:5:1:1 cycle)
     french_rotation_step = 0,  -- 0-4 for 5-step French rotation
     last_french_cast_time = 0,
+    -- Pet autocast sync state
+    pet_autocast_guid = nil,
+    pet_autocast_mode = nil,
+    pet_autocast_configured = false,
+    pet_autocast_last_scan = 0,
 }
 
 local SPELL_REFRESH     = 1.0
@@ -154,12 +170,16 @@ local function resolve()
 end
 
 local function pet_alive()   local p = get_pet(); return p and not p:is_dead() end
-local function is_moving()   local me = get_me(); return me and me.is_moving and me:is_moving() end
+local function is_moving()   local me = get_me(); local ok_moving, is_moving = pcall(function() return me:is_moving() end)
+    return ok_moving and is_moving end
 
 -- Squared distance for performance
 local function dist_squared(target)
     local me = get_me(); if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
+    local ok_p1, p1 = pcall(function() return me:get_position() end)
+    local ok_p2, p2 = pcall(function() return target:get_position() end)
+    if not ok_p1 then p1 = nil end
+    if not ok_p2 then p2 = nil end
     if not p1 or not p2 then return 999999 end
     local dx,dy,dz = p1.x-p2.x, p1.y-p2.y, p1.z-p2.z
     return (dx*dx + dy*dy + dz*dz)
@@ -171,27 +191,37 @@ local function mana_pct(me)
     if ok and ok2 and mm and mm>0 then return mp/mm end
     return 1.0
 end
-local function hp_pct(me) return (me:get_health_percentage() or 100)/100 end
+local function hp_pct(me) 
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+    local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+    return (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) / 100 or 1
+end
 
 local function has_debuff(target, tbl)
     if not target or not target:is_valid() then return false end
-    local d = target:get_debuff_data(tbl)
+    local ok_d, d = pcall(function() return target:get_debuff_data(tbl) end)
+    if not ok_d then d = nil end
     if d and d.is_active then return true end
-    d = target:get_aura_data(tbl)
+    local ok_a, d = pcall(function() return target:get_aura_data(tbl) end)
+    if not ok_a then d = nil end
     return d ~= nil and d.is_active == true
 end
 local function debuff_rem(target, tbl)
     if not target or not target:is_valid() then return 0 end
-    local d = target:get_debuff_data(tbl)
+    local ok_d, d = pcall(function() return target:get_debuff_data(tbl) end)
+    if not ok_d then d = nil end
     if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
-    d = target:get_aura_data(tbl)
+    local ok_a, d = pcall(function() return target:get_aura_data(tbl) end)
+    if not ok_a then d = nil end
     if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
     return 0
 end
 
 local function detect_mode()
     local n=0
-    for _,o in ipairs(core.object_manager.get_all_objects()) do
+    local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, o in ipairs(all_objects) do
         if o and o:is_valid() and o:is_unit() and not o:is_dead() and o:is_party_member() then n=n+1 end
     end
     if n==0 then return "solo" elseif n<=4 then return "dungeon" end
@@ -238,11 +268,25 @@ local function try_aspect(me)
     end
     if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_VIPER) then return false end
     local now = _core_time()
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     local target_guid = nil
-    if target and target.is_valid then
-        local ok_guid, guid = pcall(function() return target:get_guid() end)
-        if ok_guid and guid then target_guid = tostring(guid) end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    if target and ok_valid and is_valid then
+        if target.get_guid then
+            local ok_guid, guid = pcall(function() return target:get_guid() end)
+            if ok_guid and guid then target_guid = tostring(guid) end
+        end
+        -- Fallback if get_guid fails or not available
+        if not target_guid then
+            local ok_npc, npc_id = pcall(function() return target:get_npc_id() end)
+    if not ok_npc then npc_id = 0 end
+            local ok_pos, pos = pcall(function() return target:get_position() end)
+    if not ok_pos then pos = nil end
+            if pos then
+                target_guid = string.format("%d_%.1f_%.1f", npc_id, pos.x, pos.y)
+            end
+        end
     end
     local in_melee = rt.aspect_last_in_melee
     local need_scan = (now - (rt.aspect_last_scan_time or 0)) >= 0.75
@@ -250,11 +294,17 @@ local function try_aspect(me)
         or rt.aspect_last_target_guid ~= target_guid
     if need_scan then
         in_melee = false
-        for _, o in ipairs(core.object_manager.get_all_objects()) do
+        local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, o in ipairs(all_objects) do
             if o and o:is_valid() and o:is_unit() and not o:is_dead() and me:can_attack(o) then
-                local ok, ot = pcall(function() return o:get_target() end)
+                local ok_ot, ot = pcall(function() return o:get_target() end)
+    if not ok_ot then ot = nil end
                 if ok and ot and utils.same_unit(ot, me) then
-                    local p1, p2 = me:get_position(), o:get_position()
+                    local ok_p1, p1 = pcall(function() return me:get_position() end)
+    local ok_p2, p2 = pcall(function() return o:get_position() end)
+    if not ok_p1 then p1 = nil end
+    if not ok_p2 then p2 = nil end
                     if p1 and p2 then
                         local dx,dy,dz = p1.x-p2.x, p1.y-p2.y, p1.z-p2.z
                         if (dx*dx + dy*dy + dz*dz) <= 64 then
@@ -296,7 +346,8 @@ local function try_revive(me)
     if pet_alive() then return false end
     if me:is_in_combat() then return false end
     local p = get_pet()
-    if p and p:is_dead() then
+    local ok_dead, is_dead = pcall(function() return p:is_dead() end)
+    if p and ok_dead and is_dead then
         if rt.revive_pet_id and utils.can_cast_self(rt.revive_pet_id, me) then
             utils.cast_self(rt.revive_pet_id, me)
             return true
@@ -315,20 +366,111 @@ local function try_mend(me)
     if not rt.mend_pet_id then return false end
     local p = get_pet(); if not p or p:is_dead() then return false end
     local thresh = (menu.mend_pet_hp and menu.mend_pet_hp:get()) or 50
-    if (p:get_health_percentage() or 100) > thresh then return false end
-    local pp, mp = p:get_position(), me:get_position()
+    local ok_hp, hp = pcall(function() return p:get_health() end)
+local ok_max, max_hp = pcall(function() return p:get_max_health() end)
+local p_hp = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
+if p_hp > thresh then return false end
+    local ok_pp, pp = pcall(function() return p:get_position() end)
+    local ok_mp, mp = pcall(function() return me:get_position() end)
+    if not ok_pp then pp = nil end
+    if not ok_mp then mp = nil end
     if pp and mp then
         local dx,dy,dz = pp.x-mp.x, pp.y-mp.y, pp.z-mp.z
         if (dx*dx + dy*dy + dz*dz) > 196 then return false end
     end
     if is_moving() then return false end
-    local bd = p:get_buff_data(spells.MEND_PET)
+    local ok_bd, bd = pcall(function() return p:get_buff_data(spells.MEND_PET) end)
+    if not ok_bd then bd = nil end
     if bd and bd.is_active then return false end
     if utils.can_cast_self(rt.mend_pet_id, me) then
         utils.cast_self(rt.mend_pet_id, me)
         return true
     end
     return false
+end
+
+-- -- Pet autocast synchronization ---------------------------------------------
+local function sync_pet_autocast(me)
+    -- Menu guard: check if feature enabled
+    if not (menu.sync_pet_autocast and menu.sync_pet_autocast:get_state()) then return end
+    
+    local pet = get_pet()
+    if not pet then 
+        rt.pet_autocast_guid, rt.pet_autocast_mode, rt.pet_autocast_configured = nil, nil, false
+        return 
+    end
+    
+    -- Get pet GUID safely
+    local guid = nil
+    pcall(function() guid = tostring(pet:get_guid()) end)
+    
+    local mode = active_mode()
+    local now = _core_time()
+    
+    -- Throttle: only scan every 1.5s, or when pet/mode changes
+    if rt.pet_autocast_configured and rt.pet_autocast_guid == guid and rt.pet_autocast_mode == mode 
+       and (now - (rt.pet_autocast_last_scan or 0)) < 1.5 then 
+        return 
+    end
+    
+    -- Get pet action info safely with pcall
+    local ok, actions = pcall(function() return _get_pet_action_info() end)
+    if not ok or type(actions) ~= "table" then return end
+    
+    -- Define which abilities should have autocast enabled
+    local want = { 
+        Claw = true, 
+        Bite = true, 
+        Gore = true, 
+        ["Lightning Breath"] = true, 
+        ["Poison Spit"] = true, 
+        ["Furious Howl"] = true, 
+        Screech = true, 
+        Thunderstomp = true 
+    }
+    
+    -- Helper to extract autocast state from various API formats
+    local function current_autocast_state(a)
+        if type(a) ~= "table" then return nil end
+        if a.autocast ~= nil then return a.autocast end
+        if a.autocast_enabled ~= nil then return a.autocast_enabled end
+        if a.is_autocast ~= nil then return a.is_autocast end
+        if a.enabled ~= nil then return a.enabled end
+        if a[3] ~= nil then return a[3] end
+        if a[2] ~= nil then return a[2] end
+        if type(a[1]) == "boolean" then return a[1] end
+        return nil
+    end
+    
+    -- Process each pet action
+    for _, a in ipairs(actions) do
+        local name = a and (a.name or a[1])
+        local autocast = current_autocast_state(a)
+        
+        if name and autocast ~= nil then
+            -- Determine if this ability should be enabled
+            -- Growl is special: disable in group if menu option set
+            local enabled = want[name] or (name == "Growl" and not (
+                (menu.disable_growl_in_group and menu.disable_growl_in_group:get_state()) 
+                and mode ~= "solo"
+            ))
+            
+            -- Toggle autocast if needed
+            if enabled ~= autocast then
+                if enabled then 
+                    pcall(function() _enable_pet_autocast(name) end)
+                else 
+                    pcall(function() _disable_pet_autocast(name) end)
+                end
+            end
+        end
+    end
+    
+    -- Update cached state
+    rt.pet_autocast_guid = guid
+    rt.pet_autocast_mode = mode
+    rt.pet_autocast_configured = true
+    rt.pet_autocast_last_scan = now
 end
 
 -- -- Shots ---------------------------------------------------------------------
@@ -514,9 +656,12 @@ local function try_wing_clip(me, t)
     if not rt.wing_clip_id or dist_squared(t) > 25 then return false end
     if has_debuff(t, spells.DEBUFF_WING_CLIP) then return false end
     if rt.last_wing_clip_cast_count == core.spell_book.get_spell_cast_count(rt.wing_clip_id) then return false end
-    local ok_hp, target_hp = pcall(function() return t:get_health_percentage() end)
+    local ok_hp, hp = pcall(function() return t:get_health() end)
+    local ok_max, max_hp = pcall(function() return t:get_max_health() end)
+    local target_hp = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     if not ok_hp then return false end
-    local ok_player, is_player = pcall(function() return t:is_player() end)
+    local ok_player, is_player_val = pcall(function() return t:is_player() end)
+    local is_player = ok_player and is_player_val or false
     if not ok_player then is_player = false end
     local threshold = is_player and ((menu.wing_clip_pvp_hp and menu.wing_clip_pvp_hp:get()) or 25) or ((menu.wing_clip_pve_hp and menu.wing_clip_pve_hp:get()) or 35)
     if target_hp > threshold then return false end
@@ -595,7 +740,8 @@ local function on_update()
     local me = get_me()
     if utils.throttle("bm_mode", MODE_REFRESH) then rt.cached_mode = detect_mode() end
     if not (menu.enabled and menu.enabled:get_state()) then return end
-    if not me or me:is_dead() then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if not me or (ok_dead and is_dead) then return end
 
     -- Sync dashboard settings (safe pcall for uninitialized menu items)
     local ok_show, show_dashboard = pcall(function() return menu.dashboard_enabled:get_state() end)
@@ -623,7 +769,8 @@ local function on_update()
     if utils.is_cced and utils.is_cced(me) then return end
 
     -- Track combat state for clip tracker
-    local in_combat_now = me:is_in_combat()
+    local ok_combat, in_combat_now = pcall(function() return me:is_in_combat() end)
+    if not ok_combat then in_combat_now = false end
     if in_combat_now and not rt.in_combat then
         clip_tracker.on_combat_start()
     elseif not in_combat_now and rt.in_combat then
@@ -670,10 +817,15 @@ local function on_update()
     end
 
     if try_revive(me) then return end
+    
+    -- Sync pet autocast settings (throttled internally)
+    sync_pet_autocast(me)
 
-    local t = me:get_target()
+    local ok_t, t = pcall(function() return me:get_target() end)
+    if not ok_t then t = nil end
     if not t or not t:is_valid() or t:is_dead() then return end
-    if not me:can_attack(t) then return end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(t) end)
+    if not (ok_attack and can_attack) then return end
 
     -- Build middleware context and execute
     local ctx = middleware_manager.build_context(me, t, {})
@@ -725,9 +877,29 @@ if force_commands and force_commands.init then
 end
 
 -- Export toggle settings for external access
-local NS = _G.EAXHunterBM and _G.EAXHunterBM.NS or {}
-_G.EAXHunterBM = _G.EAXHunterBM or {}
-_G.EAXHunterBM.NS = NS
-NS.toggle_menu = menu.toggle_menu
+if header.load then
+    local NS = _G.EAXHunterBM and _G.EAXHunterBM.NS or {}
+    _G.EAXHunterBM = _G.EAXHunterBM or {}
+    _G.EAXHunterBM.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 return {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

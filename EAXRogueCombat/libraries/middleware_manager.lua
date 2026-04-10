@@ -156,14 +156,10 @@ function middleware_manager.initialize(menu)
                 if not ctx.in_combat then return false end
                 if not ctx.me then return false end
                 
-                local hp_pct = 100
-                if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
-                    if max_hp > 0 then
-                        hp_pct = (hp / max_hp) * 100
-                    end
-                end
+                local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                if not ok_hp or not ok_max or not hp or not max_hp or max_hp == 0 then return false end
+                local hp_pct = (hp / max_hp) * 100
                 
                 if hp_pct > vanish_threshold then return false end
                 
@@ -198,14 +194,10 @@ function middleware_manager.initialize(menu)
                 if not ctx.in_combat then return false end
                 if not ctx.me then return false end
                 
-                local hp_pct = 100
-                if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
-                    if max_hp > 0 then
-                        hp_pct = (hp / max_hp) * 100
-                    end
-                end
+                local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                if not ok_hp or not ok_max or not hp or not max_hp or max_hp == 0 then return false end
+                local hp_pct = (hp / max_hp) * 100
                 
                 if hp_pct > evasion_threshold then return false end
                 
@@ -241,14 +233,10 @@ function middleware_manager.initialize(menu)
                 if not ctx.in_combat then return false end
                 if not ctx.me then return false end
                 
-                local hp_pct = 100
-                if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
-                    if max_hp > 0 then
-                        hp_pct = (hp / max_hp) * 100
-                    end
-                end
+                local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                if not ok_hp or not ok_max or not hp or not max_hp or max_hp == 0 then return false end
+                local hp_pct = (hp / max_hp) * 100
                 
                 if hp_pct > cloak_threshold then return false end
                 

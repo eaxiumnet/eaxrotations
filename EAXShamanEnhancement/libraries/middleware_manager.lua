@@ -5,6 +5,7 @@ local middleware_manager = {}
 
 -- Load the middleware system
 local middleware = require("libraries/middleware")
+local buff_manager = require("common/modules/buff_manager")
 
 -- Spell IDs for TBC Enhancement Shaman
 local SHAMAN_SPELLS = {
@@ -83,7 +84,8 @@ function middleware_manager.initialize(menu)
                 if not ctx.in_combat then return false end
                 if not ctx.me then return false end
                 
-                local mana_pct = ctx.me:get_power_percentage() or 100
+                local ok, mana_pct = pcall(function() return ctx.me:get_power_percentage() end)
+                mana_pct = (ok and mana_pct) or 100
                 if mana_pct > mana_potion_threshold then return false end
                 
                 -- Check cooldown
@@ -138,7 +140,7 @@ function middleware_manager.initialize(menu)
                 local spells = require("libraries/spells")
                 if ctx.me and spells.BUFF_BLOODLUST then
                     for _, id in ipairs(spells.BUFF_BLOODLUST) do
-                        if ctx.me:has_buff(id) then return false end
+                        if buff_manager.has_buff(ctx.me, id) then return false end
                     end
                 end
                 
@@ -180,7 +182,8 @@ function middleware_manager.initialize(menu)
                 if not ctx.me then return false end
                 
                 -- Check mana threshold
-                local mana_pct = ctx.me:get_power_percentage() or 100
+                local ok, mana_pct = pcall(function() return ctx.me:get_power_percentage() end)
+                mana_pct = (ok and mana_pct) or 100
                 if mana_pct > rage_threshold then return false end
                 
                 -- TTD gating for burst CDs

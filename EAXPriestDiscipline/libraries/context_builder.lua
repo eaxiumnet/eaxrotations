@@ -29,9 +29,12 @@ function context_builder.build(me, target, menu)
     
     -- === PLAYER STATE ===
     ctx.me = me
-    ctx.hp = me:get_health_percentage()
-    ctx.max_hp = me:get_max_health()
-    ctx.in_combat = me:is_in_combat()
+    local ok_hp, hp = pcall(function() return me:get_health_percentage() end)
+    ctx.hp = ok_hp and hp or 100
+    local ok_max_hp, max_hp = pcall(function() return me:get_max_health() end)
+    ctx.max_hp = ok_max_hp and max_hp or 0
+    local ok, in_combat = pcall(function() return me:is_in_combat() end)
+    ctx.in_combat = ok and in_combat or false
     
     -- Resource (rage/mana)
     local power_type = 0
@@ -77,27 +80,49 @@ function context_builder.build(me, target, menu)
     ctx.form = nil
     if me.has_aura then
         -- Check warrior stances
-        if me:has_aura(2457) then ctx.stance = "battle"
-        elseif me:has_aura(71) then ctx.stance = "defensive"
-        elseif me:has_aura(2458) then ctx.stance = "berserker"
+        local ok_battle, has_battle = pcall(function() return me:has_aura(2457) end)
+        if ok_battle and has_battle then ctx.stance = "battle"
+        else
+            local ok_def, has_def = pcall(function() return me:has_aura(71) end)
+            if ok_def and has_def then ctx.stance = "defensive"
+            else
+                local ok_berk, has_berk = pcall(function() return me:has_aura(2458) end)
+                if ok_berk and has_berk then ctx.stance = "berserker" end
+            end
         end
         -- Check druid forms
-        if me:has_aura(5487) then ctx.form = "bear"
-        elseif me:has_aura(9634) then ctx.form = "dire_bear"
-        elseif me:has_aura(768) then ctx.form = "cat"
+        local ok_bear, has_bear = pcall(function() return me:has_aura(5487) end)
+        if ok_bear and has_bear then ctx.form = "bear"
+        else
+            local ok_dire, has_dire = pcall(function() return me:has_aura(9634) end)
+            if ok_dire and has_dire then ctx.form = "dire_bear"
+            else
+                local ok_cat, has_cat = pcall(function() return me:has_aura(768) end)
+                if ok_cat and has_cat then ctx.form = "cat" end
+            end
         end
     end
     
     -- === TARGET STATE ===
     ctx.target = target
-    ctx.has_target = target and target:is_valid() and not target:is_dead()
+    local has_target_ok = false
+    if target then
+        local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+        local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+        has_target_ok = ok_valid and is_valid and not (ok_dead and is_dead)
+    end
+    ctx.has_target = has_target_ok
     
     if ctx.has_target then
-        ctx.target_hp = target:get_health_percentage()
-        ctx.target_max_hp = target:get_max_health()
+        local ok_thp, thp = pcall(function() return target:get_health_percentage() end)
+        ctx.target_hp = ok_thp and thp or 100
+        local ok_tmax, tmax = pcall(function() return target:get_max_health() end)
+        ctx.target_max_hp = ok_tmax and tmax or 0
         ctx.in_melee_range = context_builder._is_melee_range(me, target)
-        ctx.target_is_player = target:is_player()
-        ctx.target_classification = target:get_classification()
+        local ok_player, is_player = pcall(function() return target:is_player() end)
+        ctx.target_is_player = ok_player and is_player or false
+        local ok_class, class = pcall(function() return target:get_classification() end)
+        ctx.target_classification = ok_class and class or "normal"
         ctx.target_is_casting = false
         if target.is_casting then
             local ok, casting = pcall(function() return target:is_casting() end)
@@ -116,12 +141,17 @@ function context_builder.build(me, target, menu)
             end
         else
             -- Fallback: check target's target
-            local target_target = target:get_target()
-            if target_target and target_target:is_valid() then
-                if target_target == me then
-                    ctx.threat_status = 3  -- Securely tanking
+            local ok_tt, target_target = pcall(function() return target:get_target() end)
+            if ok_tt and target_target then
+                local ok_ttv, ttv_valid = pcall(function() return target_target:is_valid() end)
+                if ok_ttv and ttv_valid then
+                    if target_target == me then
+                        ctx.threat_status = 3  -- Securely tanking
+                    else
+                        ctx.threat_status = 1  -- Have threat but not tanking
+                    end
                 else
-                    ctx.threat_status = 1  -- Have threat but not tanking
+                    ctx.threat_status = 0
                 end
             else
                 ctx.threat_status = 0  -- Loose mob
@@ -142,14 +172,20 @@ function context_builder.build(me, target, menu)
     local objects = core.object_manager.get_visible_objects()
     for i = 1, #objects do
         local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
-            if me:can_attack(obj) then
-                ctx.enemy_count = ctx.enemy_count + 1
-                table.insert(ctx.enemies, obj)
-                
-                local dist_sq = context_builder._dist_squared(me, obj)
-                if dist_sq <= 25 then  -- 5 yards squared (melee range)
-                    ctx.melee_enemies = ctx.melee_enemies + 1
+        if obj then
+            local ok_valid, is_valid = pcall(function() return obj:is_valid() end)
+            local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
+            local ok_dead, is_dead = pcall(function() return obj:is_dead() end)
+            if ok_valid and is_valid and ok_unit and is_unit and not (ok_dead and is_dead) then
+                local ok_attack, can_attack = pcall(function() return me:can_attack(obj) end)
+                if ok_attack and can_attack then
+                    ctx.enemy_count = ctx.enemy_count + 1
+                    table.insert(ctx.enemies, obj)
+                    
+                    local dist_sq = context_builder._dist_squared(me, obj)
+                    if dist_sq <= 25 then  -- 5 yards squared (melee range)
+                        ctx.melee_enemies = ctx.melee_enemies + 1
+                    end
                 end
             end
         end
@@ -164,9 +200,12 @@ function context_builder.build(me, target, menu)
             local ok, m = pcall(function() return me:get_party_member(i) end)
             if ok then member = m end
         end
-        if member and member:is_valid() then
-            ctx.party_size = ctx.party_size + 1
-            table.insert(ctx.party_members, member)
+        if member then
+            local ok_valid, is_valid = pcall(function() return member:is_valid() end)
+            if ok_valid and is_valid then
+                ctx.party_size = ctx.party_size + 1
+                table.insert(ctx.party_members, member)
+            end
         end
     end
     
@@ -234,9 +273,9 @@ end
 ---@return number squared_distance
 function context_builder._dist_squared(a, b)
     if not a or not b then return math.huge end
-    local a_pos = a:get_position()
-    local b_pos = b:get_position()
-    if not a_pos or not b_pos then return math.huge end
+    local ok_a, a_pos = pcall(function() return a:get_position() end)
+    local ok_b, b_pos = pcall(function() return b:get_position() end)
+    if not ok_a or not a_pos or not ok_b or not b_pos then return math.huge end
     
     local dx = a_pos.x - b_pos.x
     local dy = a_pos.y - b_pos.y
@@ -249,7 +288,9 @@ end
 ---@param debuff_ids table Array of spell IDs
 ---@return table|nil debuff_data
 function context_builder.get_debuff_data(target, debuff_ids)
-    if not target or not target:is_valid() then return nil end
+    if not target then return nil end
+    local ok, is_valid = pcall(function() return target:is_valid() end)
+    if not ok or not is_valid then return nil end
     return buff_manager:get_debuff_data(target, debuff_ids)
 end
 
@@ -258,7 +299,9 @@ end
 ---@param buff_ids table Array of spell IDs
 ---@return table|nil buff_data
 function context_builder.get_buff_data(unit, buff_ids)
-    if not unit or not unit:is_valid() then return nil end
+    if not unit then return nil end
+    local ok, is_valid = pcall(function() return unit:is_valid() end)
+    if not ok or not is_valid then return nil end
     return buff_manager:get_buff_data(unit, buff_ids)
 end
 
@@ -273,11 +316,17 @@ function context_builder.count_enemies_in_radius(me, radius)
     
     for i = 1, #objects do
         local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
-            if me:can_attack(obj) then
-                local dist_sq = context_builder._dist_squared(me, obj)
-                if dist_sq <= radius_sq then
-                    count = count + 1
+        if obj then
+            local ok_valid, is_valid = pcall(function() return obj:is_valid() end)
+            local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
+            local ok_dead, is_dead = pcall(function() return obj:is_dead() end)
+            if ok_valid and is_valid and ok_unit and is_unit and not (ok_dead and is_dead) then
+                local ok_attack, can_attack = pcall(function() return me:can_attack(obj) end)
+                if ok_attack and can_attack then
+                    local dist_sq = context_builder._dist_squared(me, obj)
+                    if dist_sq <= radius_sq then
+                        count = count + 1
+                    end
                 end
             end
         end
@@ -297,17 +346,27 @@ function context_builder.count_enemies_by_class(me, radius)
     
     for i = 1, #objects do
         local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
-            if me:can_attack(obj) then
-                local dist_sq = context_builder._dist_squared(me, obj)
-                if dist_sq <= radius_sq then
-                    local classification = obj:get_classification()
-                    if classification == "worldboss" then
-                        counts.bosses = counts.bosses + 1
-                    elseif classification == "elite" or classification == "rareelite" then
-                        counts.elites = counts.elites + 1
-                    else
-                        counts.trash = counts.trash + 1
+        if obj then
+            local ok_valid, is_valid = pcall(function() return obj:is_valid() end)
+            local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
+            local ok_dead, is_dead = pcall(function() return obj:is_dead() end)
+            if ok_valid and is_valid and ok_unit and is_unit and not (ok_dead and is_dead) then
+                local ok_attack, can_attack = pcall(function() return me:can_attack(obj) end)
+                if ok_attack and can_attack then
+                    local dist_sq = context_builder._dist_squared(me, obj)
+                    if dist_sq <= radius_sq then
+                        local ok_class, classification = pcall(function() return obj:get_classification() end)
+                        if ok_class then
+                            if classification == "worldboss" then
+                                counts.bosses = counts.bosses + 1
+                            elseif classification == "elite" or classification == "rareelite" then
+                                counts.elites = counts.elites + 1
+                            else
+                                counts.trash = counts.trash + 1
+                            end
+                        else
+                            counts.trash = counts.trash + 1
+                        end
                     end
                 end
             end

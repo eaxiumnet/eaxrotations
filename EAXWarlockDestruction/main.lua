@@ -1,6 +1,12 @@
 -- EAX Warlock Destruction | main.lua | Project Sylvanas
 -- Burst spell rotation: Immolate, Conflagrate, Shadowbolt, Incinerate
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -17,6 +23,9 @@ local force_commands = require("libraries/force_commands")
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
+
+-- Inventory API caching
+local _get_items_in_bag = core.inventory.get_items_in_bag
 
 -- Runtime state
 local runtime = {
@@ -142,11 +151,63 @@ local function refresh_mode_cache()
     runtime.cached_mode = utils.detect_mode(me) or runtime.cached_mode or "solo"
 end
 
+-- Inventory helper: Check for healthstone in bags
+-- Healthstone item IDs: Minor (5504), Lesser (5505), Healthstone (5506), Greater (5507), Major (19004), Super (22103), Master (36889)
+local HEALTHSTONE_ITEM_IDS = {5504, 5505, 5506, 5507, 19004, 22103, 36889}
+local function find_healthstone_in_bags()
+    for bag = 0, 4 do  -- 0=backpack, 1-4=bag slots
+        local ok, items = pcall(function() return _get_items_in_bag(bag) end)
+        if ok and items then
+            for _, item in ipairs(items) do
+                if item and item.object then
+                    local ok_id, item_id = pcall(function() return item.object:get_item_id() end)
+                    if ok_id and item_id then
+                        for _, hs_id in ipairs(HEALTHSTONE_ITEM_IDS) do
+                            if item_id == hs_id then
+                                return item_id, item.object
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
+-- Try to use healthstone if HP is low and one is available
+local function try_use_healthstone(me)
+    if not (menu.use_healthstone and menu.use_healthstone:get_state()) then return false end
+    
+    -- Check HP threshold
+    local hp_pct = utils.get_health_percentage(me)
+    local threshold = (menu.healthstone_hp_pct and menu.healthstone_hp_pct:get()) or 30
+    if hp_pct > threshold then return false end
+    
+    -- Find healthstone in bags
+    local hs_id, hs_obj = find_healthstone_in_bags()
+    if not hs_id or not hs_obj then return false end
+    
+    -- Use the healthstone
+    local ok_use = pcall(function() 
+        core.input.use_item(hs_id)
+        return true
+    end)
+    
+    if ok_use then
+        return true
+    end
+    return false
+end
+
 -- Target validation
 local function is_valid_target(me, target)
     if not me or not target then return false end
-    if not target:is_valid() or target:is_dead() then return false end
-    return me:can_attack(target)
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or (ok_dead and is_dead) then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    return ok_attack and can_attack
 end
 
 -- TTD check for DoT spells
@@ -401,7 +462,8 @@ end
 
 local function try_use_healthstone(me)
     if not (menu.use_healthstone and menu.use_healthstone:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not in_combat then return false end
     local hp = utils.get_health_pct(me)
     local threshold = ((menu.healthstone_hp_pct and menu.healthstone_hp_pct:get()) or 30) / 100
     if hp > threshold then return false end
@@ -459,8 +521,10 @@ local function get_pet_npc_id()
     local me = _get_local_player()
     if not me then return 0 end
     local pet = me.get_pet and me:get_pet() or nil
-    if not pet or not pet:is_valid() or pet:is_dead() then return 0 end
-    return pet.get_npc_id and pet:get_npc_id() or 0
+    local ok_pet, pet_valid = pcall(function() return pet and pet:is_valid() and not pet:is_dead() end)
+    if not ok_pet or not pet_valid then return 0 end
+    local ok_npc, npc_id = pcall(function() return pet:get_npc_id() end)
+    return (ok_npc and npc_id) or 0
 end
 
 local function current_pet_name()
@@ -562,7 +626,8 @@ core.register_on_update_callback(function()
     end
 
     local me = _get_local_player()
-    if not me or me:is_dead() then return end
+    local ok_me, me_valid = pcall(function() return me and not me:is_dead() end)
+    if not ok_me or not me_valid then return end
 
     -- CC Detection: Stop rotation if crowd controlled
     local cc_detector = require("libraries/cc_detector")
@@ -595,7 +660,8 @@ core.register_on_update_callback(function()
     end
 
     -- OOC utilities (using ooc_manager for buffs)
-    if not me:is_in_combat() then
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not in_combat then
         ooc_manager.on_update(me, menu, utils, {
             group_buffs = {
                 {
@@ -622,7 +688,8 @@ core.register_on_update_callback(function()
     -- Combat utilities
     if try_use_healthstone(me) then return end
 
-    local target = me:get_target()
+    local ok_target, target = pcall(function() return me:get_target() end)
+    if not ok_target then return end
     if not is_valid_target(me, target) then
         target = utils.find_best_target(me)
     end
@@ -631,15 +698,17 @@ core.register_on_update_callback(function()
     do_rotation(me, target)
 end)
 
--- Toggle function for unified menu
-local NS = _G.EAXWarlockDestruction and _G.EAXWarlockDestruction.NS or {}
-NS.toggle_menu = menu.toggle_menu
-_G.EAXWarlockDestruction = _G.EAXWarlockDestruction or {}
-_G.EAXWarlockDestruction.NS = NS
-
 -- Initialize dashboard
 dashboard.init(dashboard_config)
 dashboard.set_enabled(true)
 if dashboard.register_render_callback then
     dashboard.register_render_callback()
+end
+
+-- Export toggle settings for external access (only when fully loaded)
+if header.load then
+    local NS = _G.EAXWarlockDestruction and _G.EAXWarlockDestruction.NS or {}
+    _G.EAXWarlockDestruction = _G.EAXWarlockDestruction or {}
+    _G.EAXWarlockDestruction.NS = NS
+    NS.toggle_menu = menu.toggle_menu
 end

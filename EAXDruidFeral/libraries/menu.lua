@@ -36,6 +36,10 @@ menu.enabled         = core.menu.checkbox(true,  "eaxdruidferal_enabled")
 menu.toggle_key      = core.menu.keybind(7, false, "eaxdruidferal_toggle_key")
 menu.mode            = core.menu.combobox(1, "eaxdruidferal_mode")
 
+-- Form Rotation Toggles (User Request)
+menu.use_cat_rotation  = core.menu.checkbox(true, "eaxdruidferal_use_cat_rotation")
+menu.use_bear_rotation = core.menu.checkbox(true, "eaxdruidferal_use_bear_rotation")
+
 -- -- Targeting ------------------------------------------------------------------
 menu.focus_priority        = core.menu.checkbox(false, "eaxdruidferal_focus_priority")
 menu.combat_self_hp_boost  = core.menu.slider_int(0, 30, 10, "eaxdruidferal_combat_self_hp_boost")
@@ -83,7 +87,7 @@ menu.rake_refresh_seconds   = core.menu.slider_int(1, 10, 3, "eaxdruidferal_rake
 menu.use_shred              = core.menu.checkbox(true, "eaxdruidferal_use_shred")
 menu.use_claw               = core.menu.checkbox(true, "eaxdruidferal_use_claw")
 menu.use_rip                = core.menu.checkbox(true, "eaxdruidferal_use_rip")
-menu.rip_combo_points       = core.menu.slider_int(1, 5, 4, "eaxdruidferal_rip_combo_points")
+menu.rip_combo_points       = core.menu.slider_int(1, 5, 5, "eaxdruidferal_rip_combo_points")  -- v1.8.13: Changed default 4→5 for sim-optimal
 menu.rip_refresh_seconds    = core.menu.slider_int(1, 10, 3, "eaxdruidferal_rip_refresh_seconds")
 menu.use_ferocious_bite     = core.menu.checkbox(true, "eaxdruidferal_use_ferocious_bite")
 menu.bite_min_cp            = core.menu.slider_int(1, 5, 5, "eaxdruidferal_bite_min_cp")  
@@ -99,17 +103,22 @@ menu.use_maim               = core.menu.checkbox(true, "eaxdruidferal_use_maim")
 menu.cat_tick_optimization  = core.menu.checkbox(true, "eaxdruidferal_cat_tick_optimization")  -- Prefer Mangle over Shred when tick imminent
 menu.use_rake_trick       = core.menu.checkbox(true, "eaxdruidferal_use_rake_trick")  
 menu.use_wolfshead_shred_shift = core.menu.checkbox(true, "eaxdruidferal_use_wolfshead_shred_shift")  -- Wolfshead Shred Shift
+-- v1.8.13: New toggles for sim-aligned features
+menu.cat_swing_delay        = core.menu.checkbox(true, "eaxdruidferal_cat_swing_delay")  -- Delay abilities 0.15s before swing lands
+menu.cat_energy_pooling     = core.menu.checkbox(true, "eaxdruidferal_cat_energy_pooling")  -- Only pool energy for Rip, not Mangle
+menu.use_smart_shift_delay  = core.menu.checkbox(true, "eaxdruidferal_use_smart_shift_delay")  -- Context-aware shift delay up to 1.0s
 menu.auto_powershift        = core.menu.checkbox(false, "eaxdruidferal_auto_powershift")  -- Auto powershift when energy low (BETA)
-menu.powershift_min_mana    = core.menu.slider_int(10, 50, 20, "eaxdruidferal_powershift_min_mana")  -- Min mana % to powershift
+menu.powershift_min_mana    = core.menu.slider_int(10, 50, 25, "eaxdruidferal_powershift_min_mana")  -- Min mana % to powershift
 menu.powershift_threshold   = core.menu.slider_int(15, 40, 25, "eaxdruidferal_powershift_threshold")  -- Energy threshold to powershift
-menu.rip_only_elites        = core.menu.checkbox(false, "eaxdruidferal_rip_only_elites")  -- Only Rip elite/boss targets
+menu.rip_only_elites        = core.menu.checkbox(true, "eaxdruidferal_rip_only_elites")  -- v1.8.13: Changed default false→true (elites only)
+-- REMOVED: Duplicate menu.use_powershift - use menu.auto_powershift instead
 menu.use_mangle_builder     = core.menu.checkbox(true, "eaxdruidferal_use_mangle_builder")  -- Use Mangle as CP builder
 menu.enable_aoe             = core.menu.checkbox(true, "eaxdruidferal_enable_aoe")  -- Enable AoE rotation
 menu.aoe_enemy_count        = core.menu.slider_int(2, 8, 3, "eaxdruidferal_aoe_enemy_count")  -- Enemy count threshold for AoE
 menu.spread_rake            = core.menu.checkbox(false, "eaxdruidferal_spread_rake")  -- Spread Rake to nearby targets
 menu.use_tigers_fury        = core.menu.checkbox(true, "eaxdruidferal_use_tigers_fury")
 menu.tigers_fury_energy     = core.menu.slider_int(20, 60, 30, "eaxdruidferal_tigers_fury_energy")
-menu.use_powershift         = core.menu.checkbox(false, "eaxdruidferal_use_powershift")
+-- REMOVED: menu.use_powershift - use menu.auto_powershift instead (defined above)
 
 -- -- Bear Form -----------------------------------------------------------------
 menu.use_mangle_bear        = core.menu.checkbox(true, "eaxdruidferal_use_mangle_bear")
@@ -205,7 +214,7 @@ menu.trinket1_mode        = core.menu.combobox(1, "eaxdruidferal_trinket1_mode")
 menu.trinket2_mode        = core.menu.combobox(1, "eaxdruidferal_trinket2_mode")
 menu.trinket_ttd          = core.menu.slider_int(5, 30, 10, "eaxdruidferal_trinket_ttd")
 menu.defensive_trinket_hp = core.menu.slider_int(15, 50, 35, "eaxdruidferal_def_trinket_hp")
-menu.powershift_enabled   = core.menu.checkbox(true, "eaxdruidferal_powershift_enabled")
+-- REMOVED: menu.powershift_enabled - use menu.auto_powershift instead (defined above)
 
 -- -- Window --------------------------------------------------------------------
 settings.setup_major_toggle_keybinds(menu, {
@@ -236,6 +245,10 @@ function menu.render()
         menu.enabled:render("Enabled", "Enable/disable rotation")
         menu.mode:render("Mode", {"Auto", "PvE", "PvP"}, "Rotation mode selection")
         menu.toggle_key:render("Toggle Key", "Keybind to enable/disable")
+        
+        ps.header("Form Rotation Toggles")
+        menu.use_cat_rotation:render("Cat Rotation", "Enable Cat Form DPS rotation")
+        menu.use_bear_rotation:render("Bear Rotation", "Enable Bear Form tank rotation")
 
         -- 2. Rotation (merged: Form Management + Cat Form + Bear Form)
         rotation_tree:render("Rotation", function()
@@ -273,6 +286,10 @@ function menu.render()
             menu.cd_min_ttd:render("Min TTD for CDs", "Don't burst if target dies sooner (sec)")
             menu.cat_tick_optimization:render("Tick Optimization", "Prefer Mangle over Shred when tick imminent")
             menu.use_rake_trick:render("Rake Trick", "Use Rake Trick conditions")
+            -- v1.8.13: New toggle renders
+            menu.cat_swing_delay:render("Swing Delay", "Delay abilities 0.15s before swing lands")
+            menu.cat_energy_pooling:render("Energy Pooling (Rip)", "Only pool energy for Rip, not Mangle")
+            menu.use_smart_shift_delay:render("Smart Shift Delay", "Context-aware shift delay up to 1.0s")
             menu.use_wolfshead_shred_shift:render("Wolfshead Shred Shift", "Smart shift when Shred needed but energy low")
             menu.auto_powershift:render("Auto Powershift", "Automatically powershift when energy is critically low")
             menu.powershift_min_mana:render("Powershift Min Mana %", "Don't powershift below this mana percent")
@@ -407,7 +424,7 @@ function menu.render()
             menu.defensive_trinket_hp:render("Defensive HP%", "Use below this HP")
             
             ps.header("Advanced")
-            menu.powershift_enabled:render("Powershift", "Enable powershift automation")
+            menu.auto_powershift:render("Powershift", "Enable powershift automation")
         end)
 
         -- 9. Dashboard

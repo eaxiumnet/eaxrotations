@@ -31,7 +31,8 @@ function context_builder.build(me, target, menu)
     ctx.me = me
     ctx.hp = me:get_health_percentage()
     ctx.max_hp = me:get_max_health()
-    ctx.in_combat = me:is_in_combat()
+    local ok, in_combat = pcall(function() return me:is_in_combat() end)
+    ctx.in_combat = ok and in_combat or false
     
     -- Resource (rage/mana)
     local power_type = 0

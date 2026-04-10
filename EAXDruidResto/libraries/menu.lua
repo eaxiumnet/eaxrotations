@@ -117,17 +117,13 @@ menu.consumable_health_threshold           = core.menu.slider_int(10, 50, 35, "e
 
 -- Mana Potion (low threshold - conserve for heals)
 menu.use_mana_potion                     = core.menu.checkbox(true, "eaxdruidresto_use_mana_potion")
-menu.mana_potion_pct                     = core.menu.slider_int(5, 30, 10, "eaxdruidresto_mana_potion_pct")
+menu.mana_potion_pct                     = core.menu.slider_int(5, 100, 20, "eaxdruidresto_mana_potion_pct")
 
--- Consumables (duplicate declarations - keeping for compatibility)
-menu.use_healthstone                     = core.menu.checkbox(true, "eaxdruidresto_use_healthstone")
-menu.healthstone_hp_pct                  = core.menu.slider_int(10, 50, 30, "eaxdruidresto_healthstone_hp_pct")
-menu.use_healing_potion                  = core.menu.checkbox(true, "eaxdruidresto_use_healing_potion")
-menu.healing_potion_hp_pct               = core.menu.slider_int(10, 50, 25, "eaxdruidresto_healing_potion_hp_pct")
+-- REMOVED: Duplicate consumables declarations - already defined above
 
 -- Mana Manager (unified mana recovery chain)
 menu.use_mana_manager                    = core.menu.checkbox(true, "eaxdruidresto_use_mana_manager")
-menu.mana_potion_pct                     = core.menu.slider_int(5, 100, 20, "eaxdruidresto_mana_potion_pct")
+-- REMOVED: Duplicate mana_potion_pct - already defined above
 menu.dark_rune_pct                       = core.menu.slider_int(5, 100, 15, "eaxdruidresto_dark_rune_pct")
 menu.innervate_pct                       = core.menu.slider_int(5, 100, 30, "eaxdruidresto_innervate_pct")
 

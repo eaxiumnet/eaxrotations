@@ -9,8 +9,8 @@ local spells = require("libraries/spells")
 
 -- Check if in bear form
 local function is_in_bear_form()
-    local me = core.object_manager.get_local_player()
-    if not me or not me:is_valid() then return false end
+    local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+    if not ok or not me or not me:is_valid() then return false end
     
     local buff_manager = require("common/modules/buff_manager")
     local bear = buff_manager:get_buff_data(me, spells.BUFF_BEAR_FORM)
@@ -20,8 +20,8 @@ end
 
 -- Get rage percentage
 local function get_rage_percent()
-    local me = core.object_manager.get_local_player()
-    if not me or not me:is_valid() then return 0 end
+    local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+    if not ok or not me or not me:is_valid() then return 0 end
     
     if me.get_power and me.get_max_power then
         local ok_rage, rage = pcall(function() return me:get_power(1) end)
@@ -35,7 +35,8 @@ end
 
 -- Get Lacerate stack count on target
 local function get_lacerate_stacks()
-    local target = (me and me:get_target())
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     if not target or not target:is_valid() then return 0 end
     
     local buff_manager = require("common/modules/buff_manager")
@@ -106,7 +107,8 @@ return {
         
         -- Threat status (simplified)
         function(ctx)
-            local target = (me and me:get_target())
+            local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
             if not target or not target:is_valid() then
                 return "Threat", "No Target"
             end
@@ -118,7 +120,7 @@ return {
                 if ok then target_of_target = tot end
             end
             
-            local me = core.object_manager.get_local_player()
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
             if target_of_target and me and utils.same_unit(target_of_target, me) then
                 return "Threat", "TANKING"
             else

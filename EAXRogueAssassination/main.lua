@@ -1,6 +1,12 @@
 -- EAX Rogue Assassination | main.lua | Project Sylvanas
 -- Assassination rotation: Mutilate builder, maintain Slice and Dice, Rupture at 5 CP
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -112,12 +118,15 @@ local function is_gcd_ready()
     return gcd <= 0
 end
 
--- Target validation
+-- Target validation with pcall protection
 local function is_valid_hostile_target(me, target)
     if not me or not target then return false end
-    if not target:is_valid() then return false end
-    if target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    if not ok_valid or not is_valid then return false end
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if ok_dead and is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     return true
 end
 
@@ -147,13 +156,17 @@ end
 -- Rotation abilities
 local function try_kick(me, target)
     if not (menu.use_interrupt and menu.use_interrupt:get_state()) then return false end
-    if not target:is_casting_spell() and not target:is_channelling_spell() then return false end
+    local ok_casting, is_casting = pcall(function() return target:is_casting_spell() end)
+    local ok_channel, is_channelling = pcall(function() return target:is_channelling_spell() end)
+    if not ((ok_casting and is_casting) or (ok_channel and is_channelling)) then return false end
     
     -- PvP anti-fake interrupt delay
-    if target:is_player() then
+    local ok_player, is_player = pcall(function() return target:is_player() end)
+    if ok_player and is_player then
         local delay = anti_fake_manager.get_interrupt_delay(target, true)
         if delay > 0 then
-            local cast_rem = target:get_cast_remaining_time() or 0
+            local ok_cast_rem, cast_rem = pcall(function() return target:get_cast_remaining_time() end)
+            cast_rem = (ok_cast_rem and cast_rem) or 0
             if cast_rem > delay then
                 -- Wait for delay before interrupting
                 return false
@@ -283,12 +296,15 @@ local function try_feint(me)
     if not runtime.feint_id then return false end
     -- Count enemies
     local enemy_count = 0
-    local objects = core.object_manager.get_all_objects()
+    local ok_objects, objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then objects = {} end
     for i = 1, #objects do
         local obj = objects[i]
-        if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
+        local ok_obj, obj_valid = pcall(function() return obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() end)
+        if ok_obj and obj_valid then
         local me_player = _get_local_player()
-        if me_player and me_player:can_attack(obj) and utils.is_melee_target(me_player, obj) then
+        local ok_attack, can_attack = pcall(function() return me_player and me_player:can_attack(obj) end)
+            if ok_attack and can_attack and utils.is_melee_target(me_player, obj) then
                 enemy_count = enemy_count + 1
             end
         end
@@ -325,18 +341,22 @@ local function on_update()
         dashboard.set_position(pos_x, pos_y)
     end
 
-    local me = core.object_manager.get_local_player()
-    if not me or not me:is_valid() then return end
+    local ok_me, me = pcall(function() return core.object_manager.get_local_player() end)
+    if not ok_me then me = nil end
+    local ok_me, me_valid = pcall(function() return me and me:is_valid() end)
+    if not ok_me or not me_valid then return end
 
     -- Flux library updates
-    energy_tick:update(me:get_power(3))
+    local ok_power, power_val = pcall(function() return me:get_power(3) end)
+    if ok_power then energy_tick:update(power_val) end
     swing_manager:update_swing(me)
 
     -- Crowd Control check - return early if stunned/silenced/feared etc.
     if utils.is_cced and utils.is_cced(me) then return end
 
     -- OOC handling (drink/eat only for rogues - poisons are item-based)
-    if not me:is_in_combat() then
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not in_combat then
         runtime.combat_start_time = nil
         ooc_manager.on_update(me, menu, utils, {})
     end
@@ -346,15 +366,19 @@ local function on_update()
     runtime.energy = utils.get_energy(me)
 
     -- Get target
-    local target = me:get_target()
+    local ok_target, target = pcall(function() return me:get_target() end)
+    if not ok_target then return end
     if not is_valid_hostile_target(me, target) then
         target = utils.find_best_target(me)
         if not target then return end
     end
 
     -- Flux combat forecast sampling
-    if combat_forecast and target and target:is_valid() then
-        combat_forecast:sample(target)
+    if combat_forecast and target then
+        local ok_target_valid, target_valid = pcall(function() return target:is_valid() end)
+        if ok_target_valid and target_valid then
+            combat_forecast:sample(target)
+        end
     end
 
     -- Energy tick delay check before expensive abilities
@@ -446,10 +470,12 @@ local function on_update()
 end
 
 -- Toggle function for unified menu
-local NS = _G.EAXRogueAssassination and _G.EAXRogueAssassination.NS or {}
-NS.toggle_menu = menu.toggle_menu
-_G.EAXRogueAssassination = _G.EAXRogueAssassination or {}
-_G.EAXRogueAssassination.NS = NS
+if header.load then
+    local NS = _G.EAXRogueAssassination and _G.EAXRogueAssassination.NS or {}
+    NS.toggle_menu = menu.toggle_menu
+    _G.EAXRogueAssassination = _G.EAXRogueAssassination or {}
+    _G.EAXRogueAssassination.NS = NS
+end
 
 -- Register update callback
 core.register_on_update_callback(on_update)

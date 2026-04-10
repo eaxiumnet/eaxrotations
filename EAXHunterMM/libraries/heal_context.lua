@@ -3,7 +3,7 @@
 -- Builds a cached view of the healing situation for party/raid
 --
 -- Usage:
---   local heal_context = require("heal_context")
+--   local heal_context = require('heal_context')
 --   local ctx = heal_context.get_context(me)
 --   if ctx.injured_count > 0 then
 --       -- Heal the lowest ally
@@ -17,19 +17,19 @@ local heal_context = {}
 -- ============================================================================
 
 ---@type izi_api
-local izi = require("common/izi_sdk")
+local izi = require('common/izi_sdk')
 
 ---@type health_prediction
-local health_prediction = require("common/modules/health_prediction")
+local health_prediction = require('common/modules/health_prediction')
 
 ---@type target_selector
-local target_selector = require("common/modules/target_selector")
+local target_selector = require('common/modules/target_selector')
 
 ---@type spell_prediction
-local spell_prediction = require("common/modules/spell_prediction")
+local spell_prediction = require('common/modules/spell_prediction')
 
 ---@type unit_helper
-local unit_helper = require("common/utility/unit_helper")
+local unit_helper = require('common/utility/unit_helper')
 
 -- ============================================================================
 -- HOT-PATH API CACHING (Module Load)
@@ -45,7 +45,7 @@ local _core_object_manager = core.object_manager
 -- Throttle interval for context rebuild (0.5 seconds)
 local REBUILD_INTERVAL_S = 0.5
 
--- Default health threshold for considering a unit "injured"
+-- Default health threshold for considering a unit 'injured'
 local DEFAULT_INJURED_THRESHOLD = 90
 
 -- Default emergency threshold
@@ -112,16 +112,12 @@ local function get_health_percentage_safe(unit)
     end
 
     local ok, pct = pcall(function()
-        return unit_helper:get_health_percentage(unit) * 100
-    end)
-
-    if ok and pct then
-        return pct
-    end
-
-    -- Fallback to game_object method
-    ok, pct = pcall(function()
-        return unit:get_health_percentage()
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+        local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+        if ok_hp and ok_max and hp and max_hp and max_hp > 0 then
+            return (hp / max_hp) * 100
+        end
+        return 100
     end)
 
     if ok and pct then

@@ -102,7 +102,7 @@ menu.use_grace_of_air_totem              = core.menu.checkbox(true, "eaxshamanre
 menu.use_sentry_totem                    = core.menu.checkbox(true, "eaxshamanrestoration_use_sentry_totem")
 menu.use_water_shield                    = core.menu.checkbox(true, "eaxshamanrestoration_use_water_shield")
 menu.use_lightning_shield                = core.menu.checkbox(true, "eaxshamanrestoration_use_lightning_shield")
-menu.use_earth_shield                    = core.menu.checkbox(true, "eaxshamanrestoration_use_earth_shield")
+-- REMOVED: Duplicate use_earth_shield - already defined above in Healing section
 menu.use_water_breathing                 = core.menu.checkbox(true, "eaxshamanrestoration_use_water_breathing")
 menu.use_water_walking                   = core.menu.checkbox(true, "eaxshamanrestoration_use_water_walking")
 menu.use_ancestral_spirit                = core.menu.checkbox(true, "eaxshamanrestoration_use_ancestral_spirit")
@@ -162,7 +162,7 @@ menu.tank_priority_weight                = core.menu.slider_int(1, 10, 5, "eaxsh
 menu.use_drink                           = core.menu.checkbox(true, "eaxshamanresto_use_drink")
 menu.drink_mana_pct                      = core.menu.slider_int(50, 100, 70, "eaxshamanresto_drink_mana_pct")
 menu.use_mana_potion                     = core.menu.checkbox(true, "eaxshamanresto_use_mana_potion")
-menu.mana_potion_pct                     = core.menu.slider_int(10, 50, 20, "eaxshamanresto_mana_potion_pct")
+menu.mana_potion_pct                     = core.menu.slider_int(5, 100, 20, "eaxshamanresto_mana_potion_pct")
 
 -- Health Consumables
 menu.use_healthstone  = core.menu.checkbox(true, "eaxshamanrestoration_use_healthstone")
@@ -172,7 +172,7 @@ menu.healing_potion_hp_pct = core.menu.slider_int(10, 50, 25, "eaxshamanrestorat
 
 -- Mana Manager (3)
 menu.use_mana_manager                    = core.menu.checkbox(true, "eaxshamanresto_use_mana_manager")
-menu.mana_potion_pct                     = core.menu.slider_int(5, 100, 20, "eaxshamanresto_mana_potion_pct")
+-- REMOVED: Duplicate mana_potion_pct - already defined above
 menu.dark_rune_pct                       = core.menu.slider_int(5, 100, 15, "eaxshamanresto_dark_rune_pct")
 
 -- Water Shield (1)

@@ -17,17 +17,19 @@ local _is_spell_learned = core.spell_book.is_spell_learned
 
 -- Get health/mana from game_object methods (not core.unit.*)
 local function _get_health_percentage(unit)
-    if unit and unit.get_health_percentage then
-        return unit:get_health_percentage()
+    if unit and unit.get_health and unit.get_max_health then
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+        local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+        if ok_hp and ok_max and hp and max_hp and max_hp > 0 then return (hp / max_hp) * 100 end
+        return 100
     end
     return 100
 end
 
 local function _get_mana_percentage(unit)
-    if unit and unit.get_mana_percentage then
-        return unit:get_mana_percentage()
-    end
-    return 100
+    if not unit then return 100 end
+    local ok, pct = pcall(function() return unit:get_mana_percentage() end)
+    return ok and pct or 100
 end
 
 -- ============================================================================
@@ -103,7 +105,14 @@ local function get_health_pct(me)
         return 100
     end
     
-    local success, result = pcall(_get_health_percentage, me)
+    local success, result = pcall(function() 
+        local ok_hp, hp = pcall(function() return me:get_health() end)
+        local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+        if ok_hp and ok_max and hp and max_hp and max_hp > 0 then
+            return (hp / max_hp) * 100
+        end
+        return 100
+    end)
     if success then
         return result or 100
     end
@@ -129,7 +138,7 @@ end
 ---@param item_ids table Array of item IDs to check
 ---@return number|nil Item ID if found ready, nil otherwise
 function mana_manager.get_first_ready_item(item_ids)
-    if not item_ids or type(item_ids) ~= "table" then
+    if not item_ids or type(item_ids) ~= 'table' then
         return nil
     end
     
@@ -207,7 +216,7 @@ end
 ---@param ranks table Array of Life Tap spell IDs (lowest to highest rank)
 ---@return number|nil Highest learned rank spell ID, or nil if none learned
 function mana_manager.resolve_life_tap_rank(me, ranks)
-    if not me or not ranks or type(ranks) ~= "table" then
+    if not me or not ranks or type(ranks) ~= 'table' then
         return nil
     end
     
@@ -238,7 +247,7 @@ function mana_manager.check_and_recover(me, menu, class_recovery)
         return false
     end
     
-    if not class_recovery or type(class_recovery) ~= "table" then
+    if not class_recovery or type(class_recovery) ~= 'table' then
         return false
     end
     
@@ -258,7 +267,7 @@ function mana_manager.check_and_recover(me, menu, class_recovery)
     -- Only use consumables in combat
     local in_combat = is_in_combat()
     
-    -- MAGE: Mana gems → Potions → Runes → Evocation
+    -- MAGE: Mana gems -> Potions -> Runes -> Evocation
     if class_recovery.gems and mana_pct <= gem_threshold then
         local gem_id = mana_manager.get_first_ready_item(MANA_GEMS)
         if gem_id and in_combat then

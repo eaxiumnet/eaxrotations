@@ -68,9 +68,9 @@ end
 
 function utils.get_distance_to_target(me, target)
     if not me or not target then return math.huge end
-    local me_pos = me:get_position()
-    local target_pos = target:get_position()
-    if not me_pos or not target_pos then return math.huge end
+    local ok_me, me_pos = pcall(function() return me:get_position() end)
+    local ok_target, target_pos = pcall(function() return target:get_position() end)
+    if not ok_me or not me_pos or not ok_target or not target_pos then return math.huge end
     return me_pos:dist_to(target_pos)
 end
 
@@ -233,7 +233,10 @@ end
 -- Squared distance for performance (no sqrt)
 function utils.dist_squared(me, target)
     if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
+    local ok_p1, p1 = pcall(function() if me and me.get_position then return me:get_position() end return nil end)
+    local ok_p2, p2 = pcall(function() if target and target.get_position then return target:get_position() end return nil end)
+    if not ok_p1 then p1 = nil end
+    if not ok_p2 then p2 = nil end
     if not p1 or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)

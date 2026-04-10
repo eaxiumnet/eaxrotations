@@ -112,20 +112,23 @@ local function get_health_percentage_safe(unit)
     end
 
     local ok, pct = pcall(function()
-        return unit_helper:get_health_percentage(unit) * 100
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+if not ok_hp or not ok_max or not hp or not max_hp or max_hp == 0 then return 100 end
+return ((hp / max_hp) * 100) * 100
     end)
 
     if ok and pct then
         return pct
     end
 
-    -- Fallback to game_object method
-    ok, pct = pcall(function()
-        return unit:get_health_percentage()
-    end)
-
-    if ok and pct then
-        return pct
+    -- Fallback to manual calculation
+    if unit and unit.get_health and unit.get_max_health then
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+        local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+        if hp and max_hp and max_hp > 0 then
+            return (hp / max_hp) * 100
+        end
     end
 
     return 100

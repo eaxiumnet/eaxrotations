@@ -9,19 +9,19 @@ local heal_utils = {}
 -- ============================================================================
 
 ---@type izi_api
-local _izi = require("common/izi_sdk")
+local _izi = require('common/izi_sdk')
 
 ---@type health_prediction
-local _health_prediction = require("common/modules/health_prediction")
+local _health_prediction = require('common/modules/health_prediction')
 
 ---@type target_selector
-local _target_selector = require("common/modules/target_selector")
+local _target_selector = require('common/modules/target_selector')
 
 ---@type pvp_helper
-local _pvp_helper = require("common/utility/pvp_helper")
+local _pvp_helper = require('common/utility/pvp_helper')
 
 ---@type unit_helper
-local _unit_helper = require("common/utility/unit_helper")
+local _unit_helper = require('common/utility/unit_helper')
 
 -- ============================================================================
 -- HOT-PATH API CACHING (Module Load)
@@ -57,16 +57,12 @@ local function get_unit_health_pct(unit)
     end
 
     local ok, result = pcall(function()
-        return _unit_helper:get_health_percentage(unit)
-    end)
-
-    if ok and result then
-        return result * 100  -- Convert from 0-1 to 0-100
-    end
-
-    -- Fallback to game_object method
-    ok, result = pcall(function()
-        return unit:get_health_percentage()
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+        local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+        if ok_hp and ok_max and hp and max_hp and max_hp > 0 then
+            return (hp / max_hp) * 100
+        end
+        return 100
     end)
 
     if ok and result then
@@ -140,7 +136,7 @@ end
 ---@return boolean True if unit cannot receive heals
 local function is_unit_immune_to_heal(unit)
     if not unit or not unit:is_valid() then
-        return true  -- Invalid units are "immune" (can't heal them)
+        return true  -- Invalid units are 'immune' (can't heal them)
     end
 
     local ok, result = pcall(function()
@@ -449,7 +445,12 @@ function heal_utils.predict_effective_deficit(unit, incoming_heal_lookahead)
     -- Fallback: manual calculation using health_prediction
     local current_health = 0
     ok, current_health = pcall(function()
-        return unit:get_health_percentage() / 100 * max_health
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+        local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+        if ok_hp and ok_max and hp and max_hp and max_hp > 0 then
+            return (hp / max_hp) * max_health
+        end
+        return max_health
     end)
 
     if not ok or not current_health then

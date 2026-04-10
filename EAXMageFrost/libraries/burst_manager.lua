@@ -6,6 +6,7 @@ local burst_manager = {}
 
 -- Cache hot-path APIs at load
 local _core_time = core.time
+local buff_manager = require("common/modules/buff_manager")
 
 -- TBC Bloodlust/Heroism buff IDs
 local BLOODLUST_BUFFS = {
@@ -20,7 +21,8 @@ local EXECUTE_THRESHOLD_PCT = 20
 ---@return boolean has_bloodlust
 function burst_manager.has_bloodlust(me)
    for _, buff_id in ipairs(BLOODLUST_BUFFS) do
-      if me:has_buff(buff_id) then
+      local buff_data = buff_manager:get_buff_data(me, {buff_id})
+      if buff_data and buff_data.is_active then
          return true
       end
    end
@@ -68,9 +70,13 @@ function burst_manager.should_auto_burst(me, target, combat_time, menu)
    -- Execute phase check
    local burst_on_execute = (menu.burst_on_execute and menu.burst_on_execute:get_state()) or false
    if burst_on_execute and target then
-      local target_max_hp = target:get_max_health()
-      if target_max_hp > 0 then
-         local target_hp_pct = (target:get_health() / target_max_hp) * 100
+      local ok_max, target_max_hp = pcall(function() return target:get_max_health() end)
+      if ok_max and target_max_hp and target_max_hp > 0 then
+         local ok_hp, target_hp = pcall(function() return target:get_health() end)
+         local target_hp_pct = 100
+         if ok_hp and target_hp then
+            target_hp_pct = (target_hp / target_max_hp) * 100
+         end
          if target_hp_pct < EXECUTE_THRESHOLD_PCT then
             return true, "execute"
          end
@@ -96,12 +102,13 @@ function burst_manager.should_defensive_burst(me, menu)
       return false
    end
    
-   local max_hp = me:get_max_health()
+   local ok_max, max_hp = pcall(function() return me:get_max_health() end)
    if max_hp <= 0 then
       return false
    end
    
-   local hp_pct = (me:get_health() / max_hp) * 100
+   local ok_hp, hp = pcall(function() return me:get_health() end)
+   local hp_pct = (ok_hp and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
    local threshold = (menu.defensive_hp_threshold and menu.defensive_hp_threshold:get()) or 35
    
    return hp_pct < threshold

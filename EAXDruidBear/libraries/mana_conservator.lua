@@ -41,14 +41,26 @@ local _eax_utils             = nil
 
 local function is_leveling_character(me)
     if not me or not me.is_valid or not me:is_valid() or not me.get_level then return false end
-    local lvl = me:get_level() or 0
+    local ok_lvl, lvl = pcall(function() return me:get_level() end)
+    if not ok_lvl then return false end
+    lvl = lvl or 0
     return lvl > 0 and lvl < 70
 end
 
 local function get_mana_pct(me)
-    local max_mana = me:get_max_power(POWER_TYPE_MANA)
-    if max_mana <= 0 then return 100 end
-    return (me:get_power(POWER_TYPE_MANA) / max_mana) * 100
+    local ok_max, max_mana = pcall(function() return me:get_max_power(POWER_TYPE_MANA) end)
+    if not ok_max or not max_mana or max_mana <= 0 then return 100 end
+    local ok_mana, mana = pcall(function() return me:get_power(POWER_TYPE_MANA) end)
+    if not ok_mana or not mana then return 100 end
+    return (mana / max_mana) * 100
+end
+
+local function _OLD_get_mana_pct(me)
+    local ok_max, max_mana = pcall(function() return me:get_max_power(POWER_TYPE_MANA) end)
+    if not ok_max or max_mana <= 0 then return 100 end
+    local ok_power, power = pcall(function() return me:get_power(POWER_TYPE_MANA) end)
+    if not ok_power then return 100 end
+    return (power / max_mana) * 100
 end
 
 local function has_wand_equipped(me)

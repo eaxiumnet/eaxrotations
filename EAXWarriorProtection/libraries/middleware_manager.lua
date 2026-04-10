@@ -93,8 +93,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(WARRIOR_SPELLS.BERSERKING)
-                    return true, "[MW] Berserking"
+                    local ok_cast = pcall(function() icon:cast(WARRIOR_SPELLS.BERSERKING) end)
+                    if ok_cast then
+                        return true, "[MW] Berserking"
+                    end
                 end
                 return false
             end,
@@ -125,7 +127,8 @@ function middleware_manager.initialize(menu)
                 if not ctx.target then return false end
                 
                 -- Only use if target is casting
-                if not ctx.target.is_casting or not ctx.target:is_casting() then return false end
+                local ok, is_casting = pcall(function() return ctx.target:is_casting() end)
+                if not ok or not is_casting then return false end
                 
                 -- Check cooldown
                 if core.spell_book and core.spell_book.get_spell_cooldown then
@@ -137,8 +140,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(WARRIOR_SPELLS.WAR_STOMP)
-                    return true, "[MW] War Stomp"
+                    local ok_cast = pcall(function() icon:cast(WARRIOR_SPELLS.WAR_STOMP) end)
+                    if ok_cast then
+                        return true, "[MW] War Stomp"
+                    end
                 end
                 return false
             end,

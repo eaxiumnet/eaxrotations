@@ -2,6 +2,12 @@
 -- Shadow DPS rotation with DoT maintenance (VT, SW:P, DP), Mind Blast CD, SW:Death execute.
 -- Source: /rotation/source/aio/priest/shadow.lua
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -196,9 +202,14 @@ end
 
 -- Try Pre-Combat Pull (VT or MB)
 local function try_precombat_pull(me, target)
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if me:is_in_combat() then return false end
-    if not me:can_attack(target) then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and is_combat then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     if not utils.has_buff(me, spells.BUFF_SHADOWFORM) then return false end
     
     -- Check if VT already on target
@@ -230,9 +241,14 @@ end
 local function try_vampiric_embrace(me, target)
     if not resolved.vampiric_embrace then return false end
     if not (menu.shadow_ve_maintain and menu.shadow_ve_maintain:get_state()) then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     -- Don't apply on dying targets
     local ttd = utils.get_health_pct(target) * 100
@@ -253,9 +269,14 @@ end
 -- Try Vampiric Touch (refresh when remaining <= ~1.5s cast time)
 local function try_vampiric_touch(me, target)
     if not resolved.vampiric_touch then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     -- Don't apply on dying targets
     local ttd = utils.get_health_pct(target) * 100
@@ -278,9 +299,14 @@ end
 -- Try Shadow Word: Pain (reapply only when it falls off)
 local function try_shadow_word_pain(me, target)
     if not resolved.shadow_word_pain then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     -- Don't apply if already active
     if utils.has_debuff(target, spells.DEBUFF_SHADOW_WORD_PAIN) then return false end
@@ -304,9 +330,14 @@ end
 local function try_devouring_plague(me, target)
     if not resolved.devouring_plague then return false end
     if not (menu.shadow_use_devouring_plague and menu.shadow_use_devouring_plague:get_state()) then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     -- Don't waste 3min CD on dying targets
     local ttd = utils.get_health_pct(target) * 100
@@ -328,15 +359,26 @@ end
 local function try_starshards(me, target)
     if not resolved.starshards then return false end
     if not (menu.shadow_use_starshards and menu.shadow_use_starshards:get_state()) then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
-    -- Night Elf only (race ID 4)
+    -- Night Elf check via Starshards spell learned
     local race_ok = false
-    if me.get_race then
-        local ok, race = pcall(function() return me:get_race() end)
-        if ok and race == 4 then race_ok = true end
+    if core.spell_book and core.spell_book.is_spell_learned then
+        -- Check if any Starshards rank is learned
+        local starshards_ids = {19316, 19317, 19318, 19319, 19320, 19321, 19322, 19323, 19324, 19325}
+        for _, spell_id in ipairs(starshards_ids) do
+            if core.spell_book.is_spell_learned(spell_id) then
+                race_ok = true
+                break
+            end
+        end
     end
     if not race_ok then return false end
     
@@ -357,7 +399,8 @@ local function try_inner_focus(me)
     if not resolved.inner_focus then return false end
     if not (menu.shadow_use_inner_focus and menu.shadow_use_inner_focus:get_state()) then return false end
     if not is_inner_focus_ready() then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_INNER_FOCUS) then return false end
     
     -- Only use if MB is also ready (pair them)
@@ -374,9 +417,14 @@ end
 -- Try Mind Blast (on cooldown)
 local function try_mind_blast(me, target)
     if not resolved.mind_blast then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     -- CHANNEL PROTECTION: Check if we should clip current channel
     -- Mind Blast is high priority, so allow emergency clip
@@ -399,9 +447,14 @@ end
 local function try_shadow_word_death(me, target)
     if not resolved.shadow_word_death then return false end
     if not (menu.shadow_use_swd and menu.shadow_use_swd:get_state()) then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     -- CHANNEL PROTECTION: SW:Death is execute priority, allow emergency clip
     if not should_allow_cast(true) then return false end
@@ -426,7 +479,8 @@ end
 
 -- Try Racial (Berserking)
 local function try_racial(me)
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if not (menu.use_racial and menu.use_racial:get_state()) then return false end
     
     -- TTD gating for major CDs
@@ -448,7 +502,8 @@ end
 -- Try Power Infusion (burst CD)
 local function try_power_infusion(me)
     if not resolved.power_infusion then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_POWER_INFUSION) then return false end
     
     if core.spell_book.get_spell_cooldown(resolved.power_infusion) == 0 then
@@ -464,7 +519,8 @@ end
 -- Try AoE SW:P Spread
 local function try_aoe_swp_spread(me, target)
     if not resolved.shadow_word_pain then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local min_count = (menu.shadow_aoe_count and menu.shadow_aoe_count:get() or 4)
     local hostiles = utils.get_nearby_hostiles(me, 40, 10)
@@ -486,7 +542,8 @@ end
 -- Try AoE VT Spread
 local function try_aoe_vt_spread(me, target)
     if not resolved.vampiric_touch then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local min_count = (menu.shadow_aoe_count and menu.shadow_aoe_count:get() or 4)
     local hostiles = utils.get_nearby_hostiles(me, 40, 10)
@@ -511,9 +568,14 @@ end
 -- Try Mind Flay (filler)
 local function try_mind_flay(me, target)
     if not resolved.mind_flay then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     -- CHANNEL PROTECTION: Don't cast if already channeling Mind Flay
     if not should_cast_mind_flay() then
@@ -544,9 +606,14 @@ end
 -- Try Low Mana PW:S (defensive when conserving)
 local function try_low_mana_pws(me, target)
     if not resolved.power_word_shield then return false end
-    if not me:is_in_combat() then return false end
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     local low_mana_threshold = (menu.shadow_low_mana_pct and menu.shadow_low_mana_pct:get() or 50) / 100
     local mana_pct = utils.get_mana_pct(me)
@@ -573,7 +640,8 @@ end
 local function try_fade(me)
     if not resolved.fade then return false end
     if not (menu.use_fade and menu.use_fade:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_FADE) then return false end
     
     local hp = utils.get_health_pct(me)
@@ -591,7 +659,8 @@ end
 local function try_shadowfiend(me, target)
     if not resolved.shadowfiend then return false end
     if not (menu.use_shadowfiend and menu.use_shadowfiend:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     -- TTD gating for major CDs
     local ttd = utils.get_time_to_die and utils.get_time_to_die(target)
@@ -605,9 +674,14 @@ local function try_shadowfiend(me, target)
     local now = _core_time()
     if runtime.shadowfiend_last and (now - runtime.shadowfiend_last) < 300 then return false end
     
-    local target = me:get_target()
-    if not target or not target:is_valid() or target:is_dead() then return false end
-    if not me:can_attack(target) then return false end
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
     
     if utils.cast_target(resolved.shadowfiend, me, target) then
         runtime.shadowfiend_last = now
@@ -621,7 +695,8 @@ end
 -- Try Desperate Prayer (emergency self-heal)
 local function try_desperate_prayer(me)
     if not resolved.desperate_prayer then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local hp = utils.get_health_pct(me)
     if hp > 0.30 then return false end
@@ -654,7 +729,8 @@ local function on_update()
     log_mode(mode)
     
     -- Execute middleware (healthstones, potions, racials)
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     local mw_result, mw_msg = middleware_manager.execute_middleware(nil, me, target)
     if mw_result then
         note_cast()
@@ -676,7 +752,8 @@ local function on_update()
     end
     
     -- OOC handling via shared ooc_manager
-    if not me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
         ooc_manager.on_update(me, menu, utils, {
             rez_spell_id = resolved.resurrection,
             group_buffs = {
@@ -718,7 +795,8 @@ local function on_update()
     if ensure_shadowform(me) then return end
     
     -- Get target
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     
     -- Sample combat forecast for TTD tracking
     if combat_forecast and target and target:is_valid() then
@@ -728,7 +806,8 @@ local function on_update()
     -- Pre-combat pull
     if try_precombat_pull(me, target) then return end
     
-    if not me:is_in_combat() then return end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return end
     
     -- Emergency: Desperate Prayer
     if try_desperate_prayer(me) then return end
@@ -830,9 +909,11 @@ end
 core.register_on_render_control_panel_callback(on_control_panel)
 
 -- Export toggle settings for external access
-local NS = _G.EAXPriestShadow and _G.EAXPriestShadow.NS or {}
-_G.EAXPriestShadow = _G.EAXPriestShadow or {}
-_G.EAXPriestShadow.NS = NS
-NS.toggle_menu = menu.toggle_menu
+if header.load then
+    local NS = _G.EAXPriestShadow and _G.EAXPriestShadow.NS or {}
+    _G.EAXPriestShadow = _G.EAXPriestShadow or {}
+    _G.EAXPriestShadow.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 

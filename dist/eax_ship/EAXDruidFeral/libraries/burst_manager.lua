@@ -6,6 +6,7 @@ local burst_manager = {}
 
 -- Cache hot-path APIs at load
 local _core_time = core.time
+local buff_manager = require("common/modules/buff_manager")
 
 -- TBC Bloodlust/Heroism buff IDs
 local BLOODLUST_BUFFS = {

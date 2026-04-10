@@ -50,8 +50,8 @@ function smart_defensive.predict_burst(me, window_seconds)
     
     -- Predict damage in window
     local predicted_damage = incoming_dps * window_seconds * (1 - mitigation)
-    local hp = me:get_health()
-    local max_hp = me:get_max_health()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+    local ok_max, max_hp = pcall(function() return me:get_max_health() end)
     local hp_pct = (hp / max_hp) * 100
     
     -- Check if predicted damage would be dangerous
@@ -119,16 +119,16 @@ function smart_defensive.count_nearby_enemies(me, radius)
     local radius_sq = radius * radius
     local count = 0
     
-    local my_pos = me:get_position()
-    if not my_pos then return 0 end
+    local ok, my_pos = pcall(function() return me:get_position() end)
+    if not ok or not my_pos then return 0 end
     
-    local objects = core.object_manager.get_visible_objects()
+    local objects = core.object_manager.get_all_objects()
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
             if me:can_attack(obj) then
-                local obj_pos = obj:get_position()
-                if obj_pos then
+                local ok2, obj_pos = pcall(function() return obj:get_position() end)
+                if ok2 and obj_pos then
                     local dx = obj_pos.x - my_pos.x
                     local dy = obj_pos.y - my_pos.y
                     local dz = obj_pos.z - my_pos.z
@@ -156,7 +156,16 @@ end
 function smart_defensive.should_use(me, defensive_type, ctx, settings)
     if not me or not me:is_valid() then return false, "invalid_player" end
     
-    local hp_pct = me:get_health_percentage()
+    local hp_pct = 100
+    if me and me.get_health and me.get_max_health then
+        local ok_hp, current = pcall(function() return me:get_health() end)
+        current = (ok_hp and current) or 0
+        local ok_max, max = pcall(function() return me:get_max_health() end)
+        max = (ok_max and max) or 1
+        if max > 0 then
+            hp_pct = (current / max) * 100
+        end
+    end
     local base_threshold = settings[defensive_type .. "_hp"] or 25
     
     -- Basic HP threshold check
@@ -257,7 +266,16 @@ end
 function smart_defensive.get_recommended_defensive(me, ctx, available_defensives, settings)
     if not me or not me:is_valid() then return nil, nil, "invalid_player" end
     
-    local hp_pct = me:get_health_percentage()
+    local hp_pct = 100
+    if me and me.get_health and me.get_max_health then
+        local ok_hp, current = pcall(function() return me:get_health() end)
+        current = (ok_hp and current) or 0
+        local ok_max, max = pcall(function() return me:get_max_health() end)
+        max = (ok_max and max) or 1
+        if max > 0 then
+            hp_pct = (current / max) * 100
+        end
+    end
     local enemy_count = ctx.enemy_count or smart_defensive.count_nearby_enemies(me, 10)
     
     -- Sort by priority
@@ -329,8 +347,19 @@ function smart_defensive.get_status(me, ctx)
     local enemy_count = smart_defensive.count_nearby_enemies(me, 10)
     local mitigation = smart_defensive.get_current_mitigation(me)
     
+    local hp_pct = 100
+    if me and me.get_health and me.get_max_health then
+        local ok_hp, current = pcall(function() return me:get_health() end)
+        current = (ok_hp and current) or 0
+        local ok_max, max = pcall(function() return me:get_max_health() end)
+        max = (ok_max and max) or 1
+        if max > 0 then
+            hp_pct = (current / max) * 100
+        end
+    end
+    
     return {
-        hp_pct = me:get_health_percentage(),
+        hp_pct = hp_pct,
         burst_predicted = burst,
         predicted_damage = predicted,
         incoming_dps = dps,

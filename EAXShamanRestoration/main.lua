@@ -1,6 +1,12 @@
 -- Eax Shaman Restoration | main.lua
 -- Restoration Shaman rotation: Chain Heal bouncing, Earth Shield, emergency healing
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -13,7 +19,7 @@ local heal_context = require("libraries/heal_context")
 local mana_manager = require("libraries/mana_manager")
 
 -- Hot-path API caching
-local _core_time = core.time
+local _core_time = core.game_time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 
@@ -122,13 +128,10 @@ local totem_state = {
 local function refresh_totem_state()
     local now = _core_time()
     for slot = 1, 4 do
-        local ok, have, name, start, dur = pcall(function()
-            local h, n, s, d = GetTotemInfo(slot)
-            return h, n, s, d
-        end)
-        if ok then
-            local active = have and name and name ~= ""
-            local remaining = active and ((start + dur) - now) or 0
+        local totem = core.spell_book.get_totem_info(slot)
+        if totem then
+            local active = totem.have_totem and totem.totem_name and totem.totem_name ~= ""
+            local remaining = active and ((totem.start_time + totem.duration) - now) or 0
             if slot == 1 then
                 totem_state.fire_active = active
                 totem_state.fire_remaining = remaining
@@ -259,8 +262,11 @@ local function try_totem_management(me)
     if s.resto_earth_totem ~= 3 then
         local skip_earth = false
         if menu.use_auto_tremor and menu.use_auto_tremor:get_state() and totem_state.earth_active then
-            local ok, name = pcall(function() local _, n = GetTotemInfo(2); return n end)
-            if ok and name and name:find("Tremor") then skip_earth = true end
+            local totem = core.spell_book.get_totem_info(2)
+            if totem and totem.have_totem then
+                local name = totem.totem_name
+                if name and name:find("Tremor") then skip_earth = true end
+            end
         end
         if not skip_earth then
             if not totem_state.earth_active or totem_state.earth_remaining < threshold then
@@ -387,7 +393,8 @@ end
 local function try_dispel(me)
     -- Cure Poison
     if menu.use_cure_poison and menu.use_cure_poison:get_state() and runtime.cure_poison_id then
-        local auras = me:get_debuffs()
+        local ok_auras, auras = pcall(function() if me and me.get_debuffs then return me:get_debuffs() end return {} end)
+    if not ok_auras then auras = {} end
         if auras then
             for i = 1, #auras do
                 local a = auras[i]
@@ -400,7 +407,8 @@ local function try_dispel(me)
     
     -- Cure Disease
     if menu.use_cure_disease and menu.use_cure_disease:get_state() and runtime.cure_disease_id then
-        local auras = me:get_debuffs()
+        local ok_auras, auras = pcall(function() if me and me.get_debuffs then return me:get_debuffs() end return {} end)
+    if not ok_auras then auras = {} end
         if auras then
             for i = 1, #auras do
                 local a = auras[i]
@@ -434,7 +442,8 @@ end
 -- Main on_update
 local function on_update()
     local me = _get_local_player()
-    if not me or not me:is_valid() then return end
+    local ok_me, me_valid = pcall(function() return me and me:is_valid() end)
+    if not ok_me or not me_valid then return end
     
     -- Build healing context (throttled internally)
     heal_context.get_context(me)
@@ -479,7 +488,8 @@ local function on_update()
     runtime.has_natures_swiftness = utils.has_buff(me, spells.BUFF_NATURES_SWIFTNESS)
     
     -- Out of combat
-    if not me:is_in_combat() then
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not in_combat then
         -- OOC Manager: rez, shields, buffs
         local resolved = {
             ancestral_spirit = runtime.ancestral_spirit_id,
@@ -529,7 +539,8 @@ local function on_update()
     if try_healing_wave(me) then return end
     
     -- Solo damage fallback
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     if target and utils.is_valid_hostile_target(me, target) then
         if try_solo_damage(me, target) then return end
     end
@@ -537,12 +548,6 @@ end
 
 if core and core.register_on_update_callback then
     core.register_on_update_callback(on_update)
-end
-
-if core and core.register_on_render_callback then
-    core.register_on_render_callback(function()
-        menu.render()
-    end)
 end
 
 if core and core.register_on_render_menu_callback then
@@ -559,10 +564,12 @@ if dashboard.register_render_callback then
     dashboard.register_render_callback()
 end
 
--- Export toggle settings for external access
-local NS = _G.EAXShamanRestoration and _G.EAXShamanRestoration.NS or {}
-_G.EAXShamanRestoration = _G.EAXShamanRestoration or {}
-_G.EAXShamanRestoration.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only when fully loaded)
+if header.load then
+    local NS = _G.EAXShamanRestoration and _G.EAXShamanRestoration.NS or {}
+    _G.EAXShamanRestoration = _G.EAXShamanRestoration or {}
+    _G.EAXShamanRestoration.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 

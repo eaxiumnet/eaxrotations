@@ -4,6 +4,7 @@
 --]]
 
 local utils = require("libraries/utils")
+local buff_manager = require("common/modules/buff_manager")
 
 return {
     class_name = "Warlock Demonology",
@@ -61,7 +62,9 @@ return {
         function(ctx)
             local pet = core.pet and core.pet.get_pet()
             if pet and pet:is_valid() then
-                local hp_pct = pet:get_health_percentage() or 0
+                local ok_hp, hp = pcall(function() return pet:get_health() end)
+local ok_max, max_hp = pcall(function() return pet:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 0
                 return "Pet HP", string.format("%.0f%%", hp_pct)
             else
                 return "Pet HP", "--"
@@ -70,14 +73,14 @@ return {
         
         -- Soul Link status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Soul Link", "--" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Soul Link", "--" end
             
             local spells = require("libraries/spells")
             local has_soul_link = false
             if spells.BUFF_SOUL_LINK then
                 for _, id in ipairs(spells.BUFF_SOUL_LINK) do
-                    if me:has_buff(id) then has_soul_link = true break end
+                    if buff_manager.has_buff(me, id) then has_soul_link = true break end
                 end
             end
             

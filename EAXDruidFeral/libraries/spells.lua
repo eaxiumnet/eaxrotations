@@ -3,6 +3,7 @@ local spells = {}
 
 -- -- Cat Form spells ---------------------------------------------------------
 spells.SHRED = { 27001, 27000, 22568, 22557, 5221 }
+spells.CLAW = { 2700, 9850, 9849, 5201, 3029, 1082 }  -- Fallback builder when not behind target (TBC ranks 6→1)
 spells.RAKE = { 27003, 1823, 1822 }
 spells.RIP = { 27008, 1079 }
 spells.FEROCIOUS_BITE = { 31018, 22568, 22557, 24248 }
@@ -58,7 +59,8 @@ spells.THORNS = { 26992, 9910, 9756, 8914, 1075, 782, 467 }  -- Ranked Thorns
 spells.DEBUFF_RAKE = { 27003, 1823, 1822 }
 spells.DEBUFF_RIP = { 27008, 1079 }
 spells.DEBUFF_MANGLE = { 33983, 33982, 33876, 33987, 33986, 33878 }
-spells.DEBUFF_FAERIE_FIRE = { 26993, 9907, 770 }
+spells.DEBUFF_FAERIE_FIRE = { 26993, 9907, 770, 16857, 17390, 17391, 17392 }
+spells.DEBUFF_LACERATE = { 33745 }
 
 -- -- Items -------------------------------------------------------------------
 spells.WOLFSHEAD_HELM_ID = 8345

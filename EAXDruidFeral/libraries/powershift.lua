@@ -169,10 +169,24 @@ function powershift:should_powershift(me, current_energy, energy_tick_module, se
         return false
     end
 
+    -- Must be in Cat Form to powershift
+    local ok_form, in_cat_form = pcall(function()
+        if me.has_buff then
+            return me:has_buff(768)  -- Cat Form buff ID
+        end
+        return false
+    end)
+    if not ok_form or not in_cat_form then
+        return false  -- Not in cat form, can't powershift
+    end
+
     -- Check mana sufficiency
     if not self:has_sufficient_mana(me, settings) then
         return false
     end
+
+    -- NOTE: GCD check moved to main rotation (Flux-style) for smoother response
+    -- This function assumes GCD is ready when called
 
     -- Check energy threshold
     local threshold = self:get_threshold(me, settings)
@@ -180,13 +194,27 @@ function powershift:should_powershift(me, current_energy, energy_tick_module, se
         return false
     end
 
-    -- Check if tick is imminent - wait if tick < 0.4s away
-    -- This prevents clipping energy ticks
-    if energy_tick_module.should_delay_shift then
-        if energy_tick_module:should_delay_shift() then
-            return false
+    -- v1.8.13: Smart Shift Delay with context-aware energy checking
+    -- Check if we should delay shift for an imminent energy tick
+    if settings and settings.use_smart_shift_delay then
+        local ok_smart, smart_enabled = pcall(function() return settings.use_smart_shift_delay:get_state() end)
+        if ok_smart and smart_enabled and energy_tick_module.should_delay_shift then
+            -- Determine target energy based on rotation context
+            local target_energy = nil
+            if current_energy < 42 then  -- Shred cost threshold
+                target_energy = 42
+            elseif current_energy < 35 then  -- Rake cost threshold  
+                target_energy = 35
+            elseif current_energy < 40 then  -- Mangle cost threshold
+                target_energy = 40
+            end
+            
+            if energy_tick_module:should_delay_shift(current_energy, target_energy) then
+                return false  -- Delay shift to capture tick
+            end
         end
     elseif energy_tick_module.should_delay_action then
+        -- Legacy fallback: simple delay check
         if energy_tick_module:should_delay_action() then
             return false
         end
@@ -233,6 +261,11 @@ function powershift:execute(me, target, energy_tick_module, cat_form_id)
         end
         return false
     end)
+
+    -- Track successful powershift time for cooldown
+    if success then
+        self._last_powershift_time = _core_time()
+    end
 
     return success
 end

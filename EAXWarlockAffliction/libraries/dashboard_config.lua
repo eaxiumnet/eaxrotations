@@ -4,6 +4,7 @@
 --]]
 
 local utils = require("libraries/utils")
+local buff_manager = require("common/modules/buff_manager")
 
 return {
     class_name = "Warlock Affliction",
@@ -82,14 +83,14 @@ return {
         
         -- Nightfall proc status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Nightfall", "--" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Nightfall", "--" end
             
             local spells = require("libraries/spells")
             local has_nightfall = false
             if spells.BUFF_NIGHTFALL then
                 for _, id in ipairs(spells.BUFF_NIGHTFALL) do
-                    if me:has_buff(id) then has_nightfall = true break end
+                    if buff_manager.has_buff(me, id) then has_nightfall = true break end
                 end
             end
             

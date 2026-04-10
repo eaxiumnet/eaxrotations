@@ -230,19 +230,15 @@ function settings_framework.process_major_toggle_keybinds(menu)
         local toggle = menu[binding.toggle_field]
         if keybind and toggle then
             local state_key = binding.key_field
-            if keybind:get_key_code() == 7 then
-                menu._major_toggle_hotkey_states[state_key] = false
-            else
-                local pressed = keybind:get_state()
-                if (not binding.runtime_managed) and pressed and not menu._major_toggle_hotkey_states[state_key] then
-                    local new_state = not toggle:get_state()
-                    toggle:set(new_state)
-                    if debug_enabled then
-                        core.log(get_major_toggle_log_prefix(menu) .. binding.label .. " -> " .. tostring(new_state))
-                    end
+            local pressed = keybind:get_state()
+            if (not binding.runtime_managed) and pressed and not menu._major_toggle_hotkey_states[state_key] then
+                local new_state = not toggle:get_state()
+                toggle:set(new_state)
+                if debug_enabled then
+                    core.log(get_major_toggle_log_prefix(menu) .. binding.label .. " -> " .. tostring(new_state))
                 end
-                menu._major_toggle_hotkey_states[state_key] = pressed
             end
+            menu._major_toggle_hotkey_states[state_key] = pressed
         end
     end
 end

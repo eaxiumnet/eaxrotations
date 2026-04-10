@@ -56,8 +56,8 @@ return {
     custom_lines = {
         -- Pet status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Pet", "N/A" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Pet", "N/A" end
 
             local ok, pet = pcall(function() return me:get_pet() end)
             if not ok or not pet or not pet:is_valid() then
@@ -68,15 +68,17 @@ return {
                 return "Pet", "DEAD"
             end
 
-            local pet_hp = pet:get_health_percentage() or 0
+            local ok_hp, hp = pcall(function() return pet:get_health() end)
+local ok_max, max_hp = pcall(function() return pet:get_max_health() end)
+local pet_hp = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 0
             return "Pet HP", string.format("%.0f%%", pet_hp)
         end,
 
         -- Current Aspect
         function(ctx)
             local spells = require("libraries/spells")
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Aspect", "None" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Aspect", "None" end
 
             if utils.has_buff(me, spells.BUFF_ASPECT_OF_THE_HAWK) then
                 return "Aspect", "Hawk"
@@ -95,8 +97,8 @@ return {
 
         -- Mana status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Mana", "N/A" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Mana", "N/A" end
 
             local ok_mana, mana = pcall(function() return me:get_power(0) end)
             local ok_max_mana, max_mana = pcall(function() return me:get_max_power(0) end)

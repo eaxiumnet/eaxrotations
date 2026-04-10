@@ -55,12 +55,14 @@ function utils.get_health_pct(unit)
     local hp = unit:get_health()
     local max = unit:get_max_health()
     if not max or max <= 0 then return 0 end
-    return hp / max
+    return (hp / max) * 100
 end
 
 function utils.get_distance_to_target(me, target)
     if not me or not target then return math.huge end
-    local me_pos = me:get_position()
+    local ok_pos, me_pos = pcall(function() return me:get_position() end)
+    if not ok_pos then return nil end
+    me_pos = me_pos
     local target_pos = target:get_position()
     if not me_pos or not target_pos then return math.huge end
     return me_pos:dist_to(target_pos)
@@ -214,7 +216,10 @@ end
 -- Squared distance for performance (no sqrt)
 function utils.dist_squared(me, target)
     if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
+    local ok_p1, p1 = pcall(function() if me and me.get_position then return me:get_position() end return nil end)
+    local ok_p2, p2 = pcall(function() if target and target.get_position then return target:get_position() end return nil end)
+    if not ok_p1 then p1 = nil end
+    if not ok_p2 then p2 = nil end
     if not p1 or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)
@@ -412,7 +417,9 @@ end
 function utils.find_best_target(me)
     if not me or not me:is_valid() then return nil end
     
-    local target = me:get_target()
+    local ok_target, target = pcall(function() return me:get_target() end)
+    if not ok_target then return nil end
+    target = target
     if target and target:is_valid() and target:is_hostile() then
         return target
     end
@@ -572,7 +579,9 @@ end
 
 -- Check if we can Slam without clipping auto-attack
 function utils.can_slam_without_clipping(me, slam_id, swing_time_remaining)
-    if not me or not me:is_valid() then return false end
+    if not me then return false end
+    local ok_valid, is_valid = pcall(function() return me:is_valid() end)
+    if not ok_valid or not is_valid then return false end
     swing_time_remaining = swing_time_remaining or 100
     
     local izi_spell = get_izi_spell(slam_id)

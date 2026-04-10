@@ -134,11 +134,7 @@ menu.emergency_heal_threshold            = core.menu.slider_int(10, 60, 30, "eax
 menu.use_defensive_racial                = core.menu.checkbox(true, "eaxpriestdiscipline_use_defensive_racial")
 menu.defensive_racial_threshold          = core.menu.slider_int(10, 60, 40, "eaxpriestdiscipline_defensive_racial_threshold")
 
--- Consumables
-menu.use_healthstone                     = core.menu.checkbox(true, "eaxpriestdiscipline_use_healthstone")
-menu.healthstone_hp_pct                  = core.menu.slider_int(10, 50, 30, "eaxpriestdiscipline_healthstone_hp_pct")
-menu.use_healing_potion                  = core.menu.checkbox(true, "eaxpriestdiscipline_use_healing_potion")
-menu.healing_potion_hp_pct               = core.menu.slider_int(10, 50, 25, "eaxpriestdiscipline_healing_potion_hp_pct")
+-- REMOVED: Duplicate consumables - already defined above (lines 126-129)
 
 -- Mana Management
 menu.use_mana_manager = core.menu.checkbox(true, "eaxpriestdiscipline_use_mana_manager")

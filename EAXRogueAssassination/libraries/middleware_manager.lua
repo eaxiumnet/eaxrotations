@@ -109,8 +109,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(ROGUE_SPELLS.COLD_BLOOD)
-                    return true, "[MW] Cold Blood"
+                    local ok_cast = pcall(function() icon:cast(ROGUE_SPELLS.COLD_BLOOD) end)
+                    if ok_cast then
+                        return true, "[MW] Cold Blood"
+                    end
                 end
                 return false
             end,
@@ -132,12 +134,10 @@ function middleware_manager.initialize(menu)
                 if not ctx.me then return false end
                 
                 local hp_pct = 100
-                if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
-                    if max_hp > 0 then
-                        hp_pct = (hp / max_hp) * 100
-                    end
+                local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                if ok_hp and ok_max and hp and max_hp and max_hp > 0 then
+                    hp_pct = (hp / max_hp) * 100
                 end
                 
                 if hp_pct > vanish_threshold then return false end
@@ -151,8 +151,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(ROGUE_SPELLS.VANISH)
-                    return true, "[MW] Vanish"
+                    local ok_cast = pcall(function() icon:cast(ROGUE_SPELLS.VANISH) end)
+                    if ok_cast then
+                        return true, "[MW] Vanish"
+                    end
                 end
                 return false
             end,
@@ -174,12 +176,10 @@ function middleware_manager.initialize(menu)
                 if not ctx.me then return false end
                 
                 local hp_pct = 100
-                if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
-                    if max_hp > 0 then
-                        hp_pct = (hp / max_hp) * 100
-                    end
+                local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                if ok_hp and ok_max and hp and max_hp and max_hp > 0 then
+                    hp_pct = (hp / max_hp) * 100
                 end
                 
                 if hp_pct > evasion_threshold then return false end
@@ -193,8 +193,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(ROGUE_SPELLS.EVASION)
-                    return true, "[MW] Evasion"
+                    local ok_cast = pcall(function() icon:cast(ROGUE_SPELLS.EVASION) end)
+                    if ok_cast then
+                        return true, "[MW] Evasion"
+                    end
                 end
                 return false
             end,
@@ -217,12 +219,10 @@ function middleware_manager.initialize(menu)
                 if not ctx.me then return false end
                 
                 local hp_pct = 100
-                if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
-                    if max_hp > 0 then
-                        hp_pct = (hp / max_hp) * 100
-                    end
+                local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                if ok_hp and ok_max and hp and max_hp and max_hp > 0 then
+                    hp_pct = (hp / max_hp) * 100
                 end
                 
                 if hp_pct > cloak_threshold then return false end
@@ -236,8 +236,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(ROGUE_SPELLS.CLOAK_OF_SHADOWS)
-                    return true, "[MW] Cloak of Shadows"
+                    local ok_cast = pcall(function() icon:cast(ROGUE_SPELLS.CLOAK_OF_SHADOWS) end)
+                    if ok_cast then
+                        return true, "[MW] Cloak of Shadows"
+                    end
                 end
                 return false
             end,

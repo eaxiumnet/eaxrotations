@@ -563,10 +563,13 @@ end
 
 function hunter_clip_tracker.update(me)
     if not _state.enabled then return end
-    if not me or not me:is_valid() then return end
+    if not me then return end
+    local ok_valid, is_valid = pcall(function() return me:is_valid() end)
+    if not ok_valid or not is_valid then return end
 
-    -- Check movement state
-    local is_moving_now = me:is_moving()
+    -- Check movement state (pcall protected for Sylvanas compatibility)
+    local ok_moving, is_moving_now = pcall(function() return me:is_moving() end)
+    if not ok_moving then is_moving_now = false end
     if is_moving_now and not _state.is_currently_moving then
         hunter_clip_tracker.on_start_moving()
     elseif not is_moving_now and _state.is_currently_moving then

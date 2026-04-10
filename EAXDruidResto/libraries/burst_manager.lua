@@ -6,6 +6,7 @@ local burst_manager = {}
 
 -- Cache hot-path APIs at load
 local _core_time = core.time
+local buff_manager = require("common/modules/buff_manager")
 
 -- TBC Bloodlust/Heroism buff IDs
 local BLOODLUST_BUFFS = {
@@ -20,7 +21,8 @@ local EXECUTE_THRESHOLD_PCT = 20
 ---@return boolean has_bloodlust
 function burst_manager.has_bloodlust(me)
    for _, buff_id in ipairs(BLOODLUST_BUFFS) do
-      if me:has_buff(buff_id) then
+      local buff_data = buff_manager:get_buff_data(me, {buff_id})
+      if buff_data and buff_data.is_active then
          return true
       end
    end
@@ -43,9 +45,9 @@ function burst_manager.should_auto_burst(me, target, combat_time, menu)
    -- TTD gating - don't waste CDs on dying targets
    local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
    if min_ttd > 0 and target then
-       local forecast = require("libraries/combat_forecast")
+       local forecast = require('libraries/combat_forecast')
       if not forecast:is_valid_forecast_logic(min_ttd, target, false) then
-         return false, "ttd"
+         return false, 'ttd'
       end
    end
    
@@ -53,7 +55,7 @@ function burst_manager.should_auto_burst(me, target, combat_time, menu)
    local burst_on_bloodlust = (menu.burst_on_bloodlust and menu.burst_on_bloodlust:get_state()) or false
    if burst_on_bloodlust then
       if burst_manager.has_bloodlust(me) then
-         return true, "bloodlust"
+         return true, 'bloodlust'
       end
    end
    
@@ -61,18 +63,21 @@ function burst_manager.should_auto_burst(me, target, combat_time, menu)
    local burst_on_pull = (menu.burst_on_pull and menu.burst_on_pull:get_state()) or false
    if burst_on_pull then
       if combat_time < PULL_WINDOW_SECONDS then
-         return true, "pull"
+         return true, 'pull'
       end
    end
    
    -- Execute phase check
    local burst_on_execute = (menu.burst_on_execute and menu.burst_on_execute:get_state()) or false
    if burst_on_execute and target then
-      local target_max_hp = target:get_max_health()
-      if target_max_hp > 0 then
-         local target_hp_pct = (target:get_health() / target_max_hp) * 100
+      local ok_max, target_max_hp = pcall(function() return target:get_max_health() end)
+      local ok_hp, target_hp = pcall(function() return target:get_health() end)
+      if not ok_max or not ok_hp or not target_max_hp or not target_hp or target_max_hp <= 0 then
+         -- Cannot determine target health, skip execute check
+      else
+         local target_hp_pct = (target_hp / target_max_hp) * 100
          if target_hp_pct < EXECUTE_THRESHOLD_PCT then
-            return true, "execute"
+            return true, 'execute'
          end
       end
    end
@@ -80,7 +85,7 @@ function burst_manager.should_auto_burst(me, target, combat_time, menu)
    -- Always in combat
    local burst_in_combat = (menu.burst_in_combat and menu.burst_in_combat:get_state()) or false
    if burst_in_combat then
-      return true, "combat"
+      return true, 'combat'
    end
    
    return false, nil
@@ -96,12 +101,13 @@ function burst_manager.should_defensive_burst(me, menu)
       return false
    end
    
-   local max_hp = me:get_max_health()
-   if max_hp <= 0 then
+   local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+   local ok_hp, hp = pcall(function() return me:get_health() end)
+   if not ok_max or not ok_hp or not max_hp or not hp or max_hp <= 0 then
       return false
    end
    
-   local hp_pct = (me:get_health() / max_hp) * 100
+   local hp_pct = (hp / max_hp) * 100
    local threshold = (menu.defensive_hp_threshold and menu.defensive_hp_threshold:get()) or 35
    
    return hp_pct < threshold

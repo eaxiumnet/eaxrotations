@@ -259,7 +259,9 @@ end
 
 -- Validate unit object
 local function is_valid_unit(unit)
-    return unit ~= nil and type(unit) == "table" and unit.guid ~= nil
+    if not unit then return false end
+    local ok, valid = pcall(function() return unit:is_valid() end)
+    return ok and valid
 end
 
 -- ============================================================================

@@ -15,7 +15,7 @@ local BUFF_LIFEBLOOM = 33763
 
 -- Get active HoT count on party/raid
 local function get_active_hot_count()
-    local me = core.object_manager.get_local_player()
+    local ok, me = pcall(function() return core.object_manager.get_local_player() end)
     if not me then return 0 end
     
     local hot_count = 0
@@ -64,8 +64,8 @@ end
 
 -- Check if has Innervate buff
 local function has_innervate_buff()
-    local me = core.object_manager.get_local_player()
-    if not me or not me:is_valid() then return false end
+    local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+    if not ok or not me or not me:is_valid() then return false end
     
     local buff_manager = require("common/modules/buff_manager")
     local innervate = buff_manager:get_buff_data(me, { BUFF_INNERVATE })
@@ -74,8 +74,8 @@ end
 
 -- Check Tree of Life form
 local function is_tree_of_life()
-    local me = core.object_manager.get_local_player()
-    if not me or not me:is_valid() then return false end
+    local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+    if not ok or not me or not me:is_valid() then return false end
     
     local buff_manager = require("common/modules/buff_manager")
     local tree = buff_manager:get_buff_data(me, spells.BUFF_TREE_OF_LIFE_FORM)
@@ -116,7 +116,7 @@ return {
     custom_lines = {
         -- Mana percentage (primary healer resource)
         function(ctx)
-            local me = core.object_manager.get_local_player()
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
             local mana_pct = 0
             if me and me.get_power and me.get_max_power then
                 local ok_mana, mana = pcall(function() return me:get_power(0) end)

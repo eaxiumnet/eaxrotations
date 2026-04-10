@@ -23,8 +23,10 @@ local _get_friends_in_range = core.object_manager.get_friends_in_range
 
 -- Get health/mana from game_object methods (not core.unit.*)
 local function _get_health_percentage(unit)
-    if unit and unit.get_health_percentage then
-        return unit:get_health_percentage()
+    if unit and unit.get_health and unit.get_max_health then
+        local ok_hp, hp = pcall(function() return unit:get_health() end)
+        local ok_max, max_hp = pcall(function() return unit:get_max_health() end)
+        if ok_hp and ok_max and hp and max_hp and max_hp > 0 then return (hp / max_hp) * 100 end
     end
     return 100
 end

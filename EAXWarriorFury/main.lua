@@ -1,6 +1,12 @@
 -- Eax Warrior Fury  main.lua
 --  Fury rotation with Bloodthirst spam, Rampage maintenance, Flurry tracking.
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -129,23 +135,42 @@ local function should_use_rampage(me)
 end
 
 local function try_cancelaura_buffs(me)
-    if not me:is_in_combat() then return false end
-    local hp_pct = me:get_health_percentage()
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if not (ok_combat and in_combat) then return false end
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     local threshold = (menu.cancelaura_hp_threshold and menu.cancelaura_hp_threshold:get()) or 80
     if (menu.cancel_pws and menu.cancel_pws:get_state()) then
-        if me:has_buff(17) then
+        local buff_data = buff_manager:get_buff_data(me, {17})
+        if buff_data.is_active then
             local rage = get_rage(me)
             if rage < 30 and hp_pct > threshold then
-                local ok = pcall(function() core.input.cancel_aura("Power Word: Shield") end)
-                if ok then utils.log_debug(menu, "Cancelaura: PW:S"); return true end
+                local ok_buffs, buffs = pcall(function() return me:get_buffs() end)
+                if not ok_buffs then buffs = {} end
+                for _, buff in ipairs(buffs) do
+                    if buff.buff_id == 17 then
+                        local ok = pcall(function() core.input.cancel_buff(buff) end)
+                        if ok then utils.log_debug(menu, "Cancelaura: PW:S"); return true end
+                        break
+                    end
+                end
             end
         end
     end
     if (menu.cancel_bop and menu.cancel_bop:get_state()) then
-        if me:has_buff(1022) then
+        local buff_data = buff_manager:get_buff_data(me, {1022})
+        if buff_data.is_active then
             if hp_pct > threshold then
-                local ok = pcall(function() core.input.cancel_aura("Blessing of Protection") end)
-                if ok then utils.log_debug(menu, "Cancelaura: BoP"); return true end
+                local ok_buffs, buffs = pcall(function() return me:get_buffs() end)
+                if not ok_buffs then buffs = {} end
+                for _, buff in ipairs(buffs) do
+                    if buff.buff_id == 1022 then
+                        local ok = pcall(function() core.input.cancel_buff(buff) end)
+                        if ok then utils.log_debug(menu, "Cancelaura: BoP"); return true end
+                        break
+                    end
+                end
             end
         end
     end
@@ -265,7 +290,8 @@ end
 
 local function try_charge(me, target)
     if not runtime.charge_id then return false end
-    if me:is_in_combat() then return false end
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and in_combat then return false end
     if not utils.can_cast_hostile(runtime.charge_id, me, target) then return false end
     if utils.cast_target_fast(runtime.charge_id, target) then
         utils.log_debug(menu, "Charge")
@@ -276,7 +302,8 @@ end
 
 local function try_death_wish(me)
     if not (menu.use_death_wish and menu.use_death_wish:get_state()) or not runtime.death_wish_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if not (ok_combat and in_combat) then return false end
     if utils.has_buff(me, spells.BUFF_DEATH_WISH) then return false end
     if not utils.can_cast_self(runtime.death_wish_id, me) then return false end
     if utils.cast_self_fast(runtime.death_wish_id, me) then
@@ -288,7 +315,8 @@ end
 
 local function try_berserker_rage(me)
     if not (menu.use_berserker_rage and menu.use_berserker_rage:get_state()) or not runtime.berserker_rage_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if not (ok_combat and in_combat) then return false end
     if utils.has_buff(me, spells.BUFF_BERSERKER_RAGE) then return false end
     if utils.get_current_stance(me) ~= "berserker" then return false end
     if not utils.can_cast_self(runtime.berserker_rage_id, me) then return false end
@@ -301,7 +329,8 @@ end
 
 local function try_recklessness(me)
     if not (menu.use_recklessness and menu.use_recklessness:get_state()) or not runtime.recklessness_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if not (ok_combat and in_combat) then return false end
     if utils.has_buff(me, spells.BUFF_RECKLESSNESS) then return false end
     if utils.get_current_stance(me) ~= "berserker" then return false end
     if not utils.can_cast_self(runtime.recklessness_id, me) then return false end
@@ -429,8 +458,10 @@ local function try_pvp_interrupt(me, target, ctx)
     if not interrupt_manager.should_interrupt(target) then return false end
     
     -- Anti-fake: Record cast start for tracking
-    local target_guid = target:get_guid()
-    if target_guid and target:is_casting_spell() then
+    local ok_guid, target_guid = pcall(function() return target:get_guid() end)
+    if not ok_guid then target_guid = nil end
+    local ok_casting, is_casting = pcall(function() return target:is_casting_spell() end)
+    if target_guid and ok_casting and is_casting then
         if _cast_tracking.target_guid ~= target_guid or not _cast_tracking.is_tracking then
             anti_fake_manager.record_cast_start(target)
             _cast_tracking.target_guid = target_guid
@@ -518,7 +549,9 @@ local function on_update()
     
     local target = utils.find_best_target(me)
     if not target then return end
-    local target_hp_pct = target:get_health_percentage()
+    local ok_hp, hp = pcall(function() return target:get_health() end)
+local ok_max, max_hp = pcall(function() return target:get_max_health() end)
+local target_hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     local rage = get_rage(me)
     
     -- Flux Phase 1: Sample TTD every ~1 second for trinket decisions
@@ -694,7 +727,6 @@ resolve_spells()
 force_commands:init()
 
 core.register_on_update_callback(on_update)
-core.register_on_render_callback(menu.on_render)
 core.register_on_render_menu_callback(menu.on_menu_render)
 core.register_on_render_control_panel_callback(on_control_panel)
 
@@ -706,9 +738,10 @@ if dashboard.register_render_callback then
     dashboard.register_render_callback()
 end
 
--- Export toggle settings for external access
-local NS = _G.EAXWarriorFury and _G.EAXWarriorFury.NS or {}
-_G.EAXWarriorFury = _G.EAXWarriorFury or {}
-_G.EAXWarriorFury.NS = NS
-NS.toggle_menu = menu.toggle_menu
-
+-- Export toggle settings for external access (only when fully loaded)
+if header.load then
+    local NS = _G.EAXWarriorFury and _G.EAXWarriorFury.NS or {}
+    _G.EAXWarriorFury = _G.EAXWarriorFury or {}
+    _G.EAXWarriorFury.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end

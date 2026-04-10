@@ -55,7 +55,7 @@ end
 -- Get health percentage (0-100)
 ---@param me table
 ---@return number
-function utils.get_health_percentage(me)
+function utils.get_health_pct(me)
     if not me or not me:is_valid() then return 0 end
     local ok_hp, hp = pcall(function() return me:get_health() end)
     local ok_max, max_hp = pcall(function() return me:get_max_health() end)
@@ -155,17 +155,17 @@ local _enemy_count_objects = { n = 0 }
 ---@return number
 function utils.enemy_count_in_radius(me, radius)
     if not me or not me:is_valid() then return 0 end
-    local me_pos = me:get_position()
-    if not me_pos then return 0 end
+    local ok_me, me_pos = pcall(function() return me:get_position() end)
+    if not ok_me or not me_pos then return 0 end
     
     local radius_sq = radius * radius  -- Squared!
     local count = 0
     
-    local objects = core.object_manager.get_visible_objects()
+    local objects = core.object_manager.get_all_objects()
     for _, obj in ipairs(objects) do
         if obj:is_enemy_with(me) and obj:is_valid() and not obj:is_dead() then
-            local obj_pos = obj:get_position()
-            if obj_pos then
+            local ok_obj, obj_pos = pcall(function() return obj:get_position() end)
+            if ok_obj and obj_pos then
                 local dx = obj_pos.x - me_pos.x
                 local dy = obj_pos.y - me_pos.y
                 local dist_sq = dx * dx + dy * dy  -- Squared distance!
@@ -200,8 +200,9 @@ end
 ---@return number
 function utils.dist_squared(me, target)
     if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
-    if not p1 or not p2 then return 999999 end
+    local ok_me, p1 = pcall(function() return me:get_position() end)
+    local ok_target, p2 = pcall(function() return target:get_position() end)
+    if not ok_me or not p1 or not ok_target or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)
 end

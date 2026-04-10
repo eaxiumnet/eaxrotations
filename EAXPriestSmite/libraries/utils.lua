@@ -42,7 +42,7 @@ end
 -- Get health percentage (0-100)
 ---@param me table
 ---@return number
-function utils.get_health_percentage(me)
+function utils.get_health_pct(me)
     if not me or not me:is_valid() then return 0 end
     local ok_hp, hp = pcall(function() return me:get_health() end)
     local ok_max, max_hp = pcall(function() return me:get_max_health() end)
@@ -60,7 +60,7 @@ function utils.get_party_avg_health()
 
     local player = core.object_manager.get_local_player()
     if player then
-        total_health_pct = total_health_pct + utils.get_health_percentage(player)
+        total_health_pct = total_health_pct + utils.get_health_pct(player)
         member_count = member_count + 1
     end
 
@@ -68,7 +68,7 @@ function utils.get_party_avg_health()
     if party_members then
         for _, member in ipairs(party_members) do
             if member and member:is_valid() and not member:is_dead() then
-                local hp_pct = utils.get_health_percentage(member)
+                local hp_pct = utils.get_health_pct(member)
                 total_health_pct = total_health_pct + hp_pct
                 member_count = member_count + 1
             end
@@ -175,8 +175,9 @@ end
 ---@return number
 function utils.dist_squared(me, target)
     if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
-    if not p1 or not p2 then return 999999 end
+    local ok_me, p1 = pcall(function() return me:get_position() end)
+    local ok_target, p2 = pcall(function() return target:get_position() end)
+    if not ok_me or not p1 or not ok_target or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)
 end

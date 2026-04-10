@@ -34,14 +34,17 @@ function trinket_manager.use_trinket_if_ready(slot)
    end
    
    -- Get item info
-   local item = me:get_equipped_item(slot)
+   local ok_item, item = pcall(function() return me:get_equipped_item(slot) end)
+    if not ok_item then return false end
+    item = item
    local item_id = item and item.id or nil
    if not item_id or item_id == 0 then
       return false
    end
    
    -- Check cooldown
-   local start, duration = me:get_item_cooldown(slot)
+   local ok_cd, start, duration = pcall(function() return me:get_item_cooldown(slot) end)
+    if not ok_cd then return false end
    if start > 0 then
       local remaining = start + duration - _core_time()
       if remaining > 0 then
@@ -64,7 +67,8 @@ end
 ---@param menu table Menu reference
 function trinket_manager.check_trinkets(me, is_burst_window, menu)
    if not me then return end
-   local target = (me and me:get_target())
+   local ok, target = pcall(function() return me:get_target() end)
+   if not ok or not target then return end
     local combat_forecast = require("combat_forecast")
    
    for _, slot in ipairs(TRINKET_SLOTS) do
@@ -85,13 +89,14 @@ function trinket_manager.check_trinkets(me, is_burst_window, menu)
             end
          end
       elseif mode == 3 then  -- Defensive mode
-         local max_hp = me:get_max_health()
-         if max_hp > 0 then
-            local hp_pct = (me:get_health() / max_hp) * 100
+         local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+         if not ok_max or not max_hp or max_hp <= 0 then max_hp = 1 end
+         local ok_hp, hp = pcall(function() return me:get_health() end)
+         if not ok_hp or not hp then hp = 0 end
+         local hp_pct = (hp / max_hp) * 100
             if hp_pct < DEFAULT_DEFENSIVE_HP then
                trinket_manager.use_trinket_if_ready(slot)
             end
-         end
       end
    end
 end
@@ -107,13 +112,15 @@ function trinket_manager.get_trinket_status(menu)
       local mode_key = "trinket" .. slot_num .. "_mode"
       local mode = (menu[mode_key] and menu[mode_key]:get()) or 1
       
-      local item = me and me:get_equipped_item(slot) or nil
+      local ok_item, item = pcall(function() if me and me.get_equipped_item then return me:get_equipped_item(slot) end return nil end)
+      if not ok_item then item = nil end
       local item_id = item and item.id or nil
       local has_trinket = item_id and item_id > 0
       
       local ready = false
       if has_trinket and me then
-         local start, duration = me:get_item_cooldown(slot)
+         local ok_cd, start, duration = pcall(function() return me:get_item_cooldown(slot) end)
+    if not ok_cd then return false end
          ready = start == 0 or (_core_time() >= start + duration)
       end
       
@@ -182,12 +189,13 @@ function trinket_manager:should_fire_defensive(me, threshold)
    
    if not me then return false end
    
-   local max_hp = me:get_max_health()
-   if not max_hp or max_hp <= 0 then
+   local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+   if not ok_max or not max_hp or max_hp <= 0 then
       return false
    end
    
-   local hp = me:get_health()
+   local ok_hp, hp = pcall(function() return me:get_health() end)
+   if not ok_hp or not hp then hp = 0 end
    local hp_pct = (hp / max_hp) * 100
    
    return hp_pct < threshold
@@ -237,6 +245,15 @@ function trinket_manager:check_trinkets_v2(me, target, is_burst_active, force_co
             end
          end
          
+         -- Boss/Elite check: Only fire on bosses/elites unless forced
+         if should_fire and not force_burst then
+            local is_boss = opts.is_boss or false
+            local is_elite = opts.is_elite or false
+            if not is_boss and not is_elite then
+               should_fire = false  -- Don't waste trinkets on trash mobs
+            end
+         end
+         
          if should_fire then
             self.use_trinket_if_ready(slot)
          end
@@ -273,7 +290,9 @@ function trinket_manager.use_trinket_izi(slot)
       return false
    end
    
-   local item = me:get_equipped_item(slot)
+   local ok_item, item = pcall(function() return me:get_equipped_item(slot) end)
+    if not ok_item then return false end
+    item = item
    local item_id = item and item.id or nil
    if not item_id or item_id == 0 then
       return false

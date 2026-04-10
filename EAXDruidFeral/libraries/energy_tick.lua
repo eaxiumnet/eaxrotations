@@ -12,10 +12,14 @@ local energy_tick = {
     last_tick_time = 0,
     confident = false,
     TICK_INTERVAL = 2.0,
-    DELAY_THRESHOLD = 0.4,  -- Wait if tick < 0.4s away
+    -- v1.8.13: Renamed and updated for Smart Shift Delay (1.0s context-aware)
+    SHIFT_DELAY_TICK_THRESHOLD = 1.0,  -- Was DELAY_THRESHOLD = 0.4, now 1.0s
     TICK_OPT_THRESHOLD = 1.0,  -- Tick optimization window (seconds)
     SHIFT_ENERGY_IGNORE_WINDOW = 0.6,  -- Ignore energy increases within 0.6s of shift
     last_shift_time = 0,  -- Track when last powershift occurred
+    -- v1.8.13: Sim-matched tick thresholds for trick abilities
+    BITE_TRICK_TICK_THRESHOLD = 0.1,  -- Bite trick: fire unless tick nearly instant
+    RAKE_TRICK_TICK_THRESHOLD = 1.0,  -- Rake trick: only fire when tick is far away
 }
 
 -- ============================================================================
@@ -111,14 +115,72 @@ function energy_tick:time_until_next_tick()
 end
 
 ---Check if an action should be delayed to wait for an imminent energy tick
----Use this in rotation logic to prevent clipping ticks with powershifts
----@return boolean True if tick is arriving within DELAY_THRESHOLD seconds
+---Legacy function - use should_delay_shift() for v1.8.13+ Smart Shift Delay
+---@return boolean True if tick is arriving within threshold seconds
 function energy_tick:should_delay_action()
     if not self.confident then
         return false
     end
 
-    return self:time_until_next_tick() <= self.DELAY_THRESHOLD
+    -- v1.8.13: Use new threshold name for consistency
+    return self:time_until_next_tick() <= self.SHIFT_DELAY_TICK_THRESHOLD
+end
+
+-- ============================================================================
+-- v1.8.13: Smart Shift Delay - Context-aware tick waiting up to 1.0s
+-- ============================================================================
+
+---Check if powershift should be delayed to wait for an imminent energy tick
+---Context-aware: Only delays if waiting would reach useful energy threshold
+---@param current_energy number|nil Current player energy (optional)
+---@param target_energy number|nil Target energy we want to reach (optional, e.g., spell cost)
+---@return boolean True if shift should be delayed
+function energy_tick:should_delay_shift(current_energy, target_energy)
+    if not self.confident then
+        return false
+    end
+    
+    local time_until = self:time_until_next_tick()
+    
+    -- If tick is more than threshold away, no need to delay
+    if time_until > self.SHIFT_DELAY_TICK_THRESHOLD then
+        return false
+    end
+    
+    -- Context-aware check: Would waiting for this tick get us to useful energy?
+    -- Typical energy tick is 20 energy in TBC
+    if current_energy and target_energy then
+        local energy_after_tick = current_energy + 20
+        if energy_after_tick >= target_energy then
+            -- Waiting would let us reach the energy we need - delay the shift
+            return true
+        end
+        -- Not enough energy even after tick - don't delay, shift now
+        return false
+    end
+    
+    -- Default behavior when no context provided: delay if tick is very close (< 0.5s)
+    return time_until < 0.5
+end
+
+---Check if bite trick should be skipped for an imminent energy tick
+---Bite trick threshold: 0.1s (from flux v1.8.13)
+---@return boolean True if tick is arriving too soon for bite trick
+function energy_tick:should_skip_bite_trick()
+    if not self.confident then
+        return false
+    end
+    return self:time_until_next_tick() < self.BITE_TRICK_TICK_THRESHOLD
+end
+
+---Check if rake trick should be skipped because an energy tick is coming
+---Rake trick threshold: 1.0s (from flux v1.8.13)
+---@return boolean True if tick is arriving too soon for rake trick
+function energy_tick:should_skip_rake_trick()
+    if not self.confident then
+        return false
+    end
+    return self:time_until_next_tick() < self.RAKE_TRICK_TICK_THRESHOLD
 end
 
 ---Reset tracking state
@@ -205,8 +267,8 @@ function energy_tick.is_wolfshead_equipped()
     -- Try multiple methods to check for Wolfshead Helm
     
     -- Method 1: Check equipped item via player object
-    local me = core.object_manager.get_local_player()
-    if me and me.get_equipped_item then
+    local ok_me, me = pcall(function() return core.object_manager.get_local_player() end)
+    if ok_me and me and me.get_equipped_item then
         local item = me:get_equipped_item(1)  -- slot 1 is head
         if item and item.id then
             return item.id == 8345

@@ -159,7 +159,8 @@ local function frost_nova_middleware(menu)
             if not utils.can_cast_self(spell_ids.frost_nova, ctx.me) then return false end
             
             -- Check for melee attackers within 8 yards
-            local objects = core.object_manager.get_all_objects()
+            local ok_objects, objects = pcall(function() return core.object_manager.get_all_objects() end)
+            if not ok_objects or not objects then return false end
             for i = 1, #objects do
                 local obj = objects[i]
                 if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead()
@@ -222,7 +223,9 @@ local function evocation_middleware(menu)
         setting_key = "use_evocation",
         matches = function(ctx)
             if not ctx.in_combat then return false end
-            if ctx.me:is_moving() then return false end
+            local ok_moving, is_moving = pcall(function() return ctx.me:is_moving() end)
+            if not ok_moving then is_moving = false end
+            if is_moving then return false end
             if ctx.me:is_channelling_spell() then return false end
             local threshold = get_menu_value(menu, "evocation_pct", 25)
             if ctx.mp_pct > threshold then return false end
@@ -346,7 +349,8 @@ local function cone_of_cold_middleware(menu)
             -- Check for enough enemies
             local min_enemies = get_menu_value(menu, "frost_aoe_threshold", 3)
             local count = 0
-            local objects = core.object_manager.get_all_objects()
+            local ok_objects, objects = pcall(function() return core.object_manager.get_all_objects() end)
+            if not ok_objects or not objects then return false end
             for i = 1, #objects do
                 local obj = objects[i]
                 if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and ctx.me:can_attack(obj) then

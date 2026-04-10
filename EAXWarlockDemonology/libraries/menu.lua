@@ -93,6 +93,10 @@ menu.health_funnel_hp_pct              = core.menu.slider_int(10, 80, 50, "eaxwa
 menu.life_tap_hp_pct                   = core.menu.slider_int(10, 90, 60, "eaxwarlockdemonology_life_tap_hp_pct")
 menu.preferred_pet                     = core.menu.combobox(6, "eaxwarlockdemonology_preferred_pet")
 
+-- Healthstone Settings
+menu.use_healthstone                   = core.menu.checkbox(true, "eaxwarlockdemonology_use_healthstone")
+menu.healthstone_hp_pct                = core.menu.slider_int(5, 100, 30, "eaxwarlockdemonology_healthstone_hp_pct")
+
 -- Mana Management (Warlock uses Life Tap)
 menu.use_mana_manager = core.menu.checkbox(true, "eaxwarlockdemonology_use_mana_manager")
 menu.life_tap_pct = core.menu.slider_int(5, 100, 50, "eaxwarlockdemonology_life_tap_pct")

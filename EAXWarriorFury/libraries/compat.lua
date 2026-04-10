@@ -4,15 +4,15 @@
     Provides API wrappers that map legacy patterns to Sylvanas,
     enabling incremental migration of features to EAX specs.
     
-    Usage: local _compat = require("libraries/rotation_compat")
+    Usage: local _compat = require('libraries/rotation_compat')
 --]]
 
 -- ============================================================================
 -- REQUIRES
 -- ============================================================================
 
-require("common/modules/buff_manager")
-require("common/utility/spell_helper")
+require('common/modules/buff_manager')
+require('common/utility/spell_helper')
 
 -- ============================================================================
 -- API CACHING (at module load - never in on_update)
@@ -32,7 +32,7 @@ local _gcd_ready = _core_spell_book.is_global_cooldown_ready
 local DEBUG_ENABLED = false
 local function debug_log(msg)
     if DEBUG_ENABLED then
-        print("[] " .. tostring(msg))
+        print('[] ' .. tostring(msg))
     end
 end
 
@@ -55,7 +55,7 @@ function _compat.get_menu_value(menu, key, default)
     end
     
     local item = menu[key]
-    if item and type(item.get) == "function" then
+    if item and type(item.get) == 'function' then
         return item:get()
     end
     
@@ -89,21 +89,31 @@ function _compat.build_context(me, menu, utils)
     context.gcd_remains = _get_gcd()
     
     -- Combat state
-    context.in_combat = me.is_in_combat and me:is_in_combat() or false
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    context.in_combat = (ok_combat and in_combat) or false
     context.combat_time = 0  -- Will be updated by caller if tracked
     
     -- Health and resources
-    context.hp = (me.get_health_percentage and me:get_health_percentage()) or 100
-    context.max_hp = (me.get_max_health and me:get_max_health()) or 0
-    context.current_hp = (me.get_health and me:get_health()) or 0
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+    local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+    if ok_hp and ok_max and hp and max_hp and max_hp > 0 then
+        context.hp = (hp / max_hp) * 100
+    else
+        context.hp = 100
+    end
+    context.max_hp = (ok_max and max_hp) or 0
+    context.current_hp = (ok_hp and hp) or 0
     
     -- Mana/Energy/Rage/etc
     if me.get_power_percentage then
-        context.mana_pct = me:get_power_percentage()
+        local ok, mana_pct = pcall(function() return me:get_power_percentage() end)
+        context.mana_pct = ok and mana_pct or 100
     elseif me.get_power and me.get_max_power then
-        local max_power = me:get_max_power()
+        local ok_max_power, max_power = pcall(function() return me:get_max_power() end)
+        max_power = (ok_max_power and max_power) or 0
         if max_power > 0 then
-            context.mana_pct = (me:get_power() / max_power) * 100
+            local ok_power, power = pcall(function() return me:get_power() end)
+        context.mana_pct = (ok_power and power and max_power > 0) and ((power / max_power) * 100) or 0
         else
             context.mana_pct = 0
         end
@@ -112,14 +122,23 @@ function _compat.build_context(me, menu, utils)
     end
     
     -- Target information
-    local target = (me.get_target and me:get_target()) or nil
+    local ok_target, target = pcall(function() return (me.get_target and me:get_target()) or nil end)
+    target = ok_target and target or nil
     if target then
-        context.target_hp = (target.get_health_percentage and target:get_health_percentage()) or 100
+        local ok_tgt_hp, tgt_hp = pcall(function() return target:get_health() end)
+        local ok_tgt_max, tgt_max_hp = pcall(function() return target:get_max_health() end)
+        if ok_tgt_hp and ok_tgt_max and tgt_hp and tgt_max_hp and tgt_max_hp > 0 then
+            context.target_hp = (tgt_hp / tgt_max_hp) * 100
+        else
+            context.target_hp = 100
+        end
         context.ttd = target.time_to_death or 999  -- Time to death estimate
         
         -- Range check (squared distance for performance)
-        local me_x, me_y, me_z = me:get_position()
-        local tgt_x, tgt_y, tgt_z = target:get_position()
+        local ok_pos, me_x, me_y, me_z = pcall(function() return me:get_position() end)
+        if not ok_pos then me_x, me_y, me_z = nil, nil, nil end
+        local ok_tgt_pos, tgt_x, tgt_y, tgt_z = pcall(function() return target:get_position() end)
+        if not ok_tgt_pos then tgt_x, tgt_y, tgt_z = nil, nil, nil end
         if me_x and tgt_x then
             local dx = tgt_x - me_x
             local dy = tgt_y - me_y
@@ -132,7 +151,8 @@ function _compat.build_context(me, menu, utils)
         end
         
         -- Boss detection (health pool heuristic)
-        local tgt_max_hp = target.get_max_health and target:get_max_health() or 0
+        local ok_tgt_max, tgt_max_hp = pcall(function() return (target.get_max_health and target:get_max_health()) or 0 end)
+        tgt_max_hp = (ok_tgt_max and tgt_max_hp) or 0
         context.is_boss = tgt_max_hp > 1000000  -- 1M+ health = boss
     else
         context.target_hp = 100
@@ -158,11 +178,11 @@ function _compat.build_context(me, menu, utils)
     -- Settings from menu (with nil guards)
     context.settings = {}
     if menu then
-        context.settings.mode = _compat.get_menu_value(menu, "mode", 1)
-        context.settings.heal_threshold = _compat.get_menu_value(menu, "heal_threshold", 50)
-        context.settings.defensive_threshold = _compat.get_menu_value(menu, "defensive_threshold", 30)
-        context.settings.use_cds = _compat.get_menu_value(menu, "use_cds", true)
-        context.settings.aoe_enabled = _compat.get_menu_value(menu, "aoe_enabled", true)
+        context.settings.mode = _compat.get_menu_value(menu, 'mode', 1)
+        context.settings.heal_threshold = _compat.get_menu_value(menu, 'heal_threshold', 50)
+        context.settings.defensive_threshold = _compat.get_menu_value(menu, 'defensive_threshold', 30)
+        context.settings.use_cds = _compat.get_menu_value(menu, 'use_cds', true)
+        context.settings.aoe_enabled = _compat.get_menu_value(menu, 'aoe_enabled', true)
     end
     
     return context
@@ -186,14 +206,14 @@ _compat.middleware_registry = {}
 --]]
 function _compat.register_middleware(mw)
     if not mw or not mw.name or not mw.execute then
-        debug_log("Invalid middleware registration attempt")
+        debug_log('Invalid middleware registration attempt')
         return false
     end
     
     -- Check for duplicate
     for i, existing in ipairs(_compat.middleware_registry) do
         if existing.name == mw.name then
-            debug_log("Middleware '" .. mw.name .. "' already registered, updating")
+            debug_log('Middleware ' .. mw.name .. ' already registered, updating')
             _compat.middleware_registry[i] = mw
             -- Re-sort
             table.sort(_compat.middleware_registry, function(a, b)
@@ -211,7 +231,7 @@ function _compat.register_middleware(mw)
         return (a.priority or 0) > (b.priority or 0)
     end)
     
-    debug_log("Registered middleware: " .. mw.name .. " (priority: " .. tostring(mw.priority or 0) .. ")")
+    debug_log('Registered middleware: ' .. mw.name .. ' (priority: ' .. tostring(mw.priority or 0) .. ')')
     return true
 end
 
@@ -226,7 +246,7 @@ function _compat.execute_middleware(icon, context)
     for _, mw in ipairs(_compat.middleware_registry) do
         local should_block, message = mw.execute(icon, context)
         if should_block then
-            debug_log("Middleware '" .. mw.name .. "' executed: " .. tostring(message))
+            debug_log('Middleware ' .. mw.name .. ' executed: ' .. tostring(message))
             return true, message
         end
     end
@@ -253,7 +273,7 @@ function _compat.set_force_flag(flag_name, duration)
     
     local expiry = _core_time() + (duration or 0)
     _compat.force_flags[flag_name] = expiry
-    debug_log("Set force flag '" .. flag_name .. "' for " .. tostring(duration) .. "s")
+    debug_log('Set force flag ' .. flag_name .. ' for ' .. tostring(duration) .. 's')
 end
 
 --[[

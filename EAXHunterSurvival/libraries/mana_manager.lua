@@ -17,17 +17,16 @@ local _is_spell_learned = core.spell_book.is_spell_learned
 
 -- Get health/mana from game_object methods (not core.unit.*)
 local function _get_health_percentage(unit)
-    if unit and unit.get_health_percentage then
-        return unit:get_health_percentage()
+    if unit and unit.get_health and unit.get_max_health then
+        local hp = unit:get_health(); local max_hp = unit:get_max_health(); if hp and max_hp and max_hp > 0 then return (hp / max_hp) * 100 end; return 100
     end
     return 100
 end
 
 local function _get_mana_percentage(unit)
-    if unit and unit.get_mana_percentage then
-        return unit:get_mana_percentage()
-    end
-    return 100
+    if not unit then return 100 end
+    local ok, pct = pcall(function() return unit:get_mana_percentage() end)
+    return ok and pct or 100
 end
 
 -- ============================================================================
@@ -103,7 +102,7 @@ local function get_health_pct(me)
         return 100
     end
     
-    local success, result = pcall(_get_health_percentage, me)
+    local success, result = pcall(function() return ((me:get_health() / me:get_max_health()) * 100) end)
     if success then
         return result or 100
     end

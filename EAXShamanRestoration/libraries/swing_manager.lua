@@ -63,8 +63,8 @@ function swing_manager.queue_next_swing(me, heroic_strike_id, cleave_id, rage_th
     end
     
     -- Check rage threshold
-    local rage = me:get_power_percentage()
-    if not rage or rage < (rage_threshold or 50) then
+    local ok, rage = pcall(function() return me:get_power_percentage() end)
+    if not ok or not rage or rage < (rage_threshold or 50) then
         return false
     end
     

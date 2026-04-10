@@ -4,6 +4,7 @@
 --]]
 
 local utils = require("libraries/utils")
+local buff_manager = require("common/modules/buff_manager")
 
 return {
     class_name = "Shaman Elemental",
@@ -57,23 +58,23 @@ return {
     custom_lines = {
         -- Active Shield type
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Shield", "None" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Shield", "None" end
             
             local spells = require("libraries/spells")
             if spells.BUFF_LIGHTNING_SHIELD then
                 for _, id in ipairs(spells.BUFF_LIGHTNING_SHIELD) do
-                    if me:has_buff(id) then return "Shield", "Lightning" end
+                    if buff_manager.has_buff(me, id) then return "Shield", "Lightning" end
                 end
             end
             if spells.BUFF_WATER_SHIELD then
                 for _, id in ipairs(spells.BUFF_WATER_SHIELD) do
-                    if me:has_buff(id) then return "Shield", "Water" end
+                    if buff_manager.has_buff(me, id) then return "Shield", "Water" end
                 end
             end
             if spells.BUFF_EARTH_SHIELD then
                 for _, id in ipairs(spells.BUFF_EARTH_SHIELD) do
-                    if me:has_buff(id) then return "Shield", "Earth" end
+                    if buff_manager.has_buff(me, id) then return "Shield", "Earth" end
                 end
             end
             return "Shield", "None"
@@ -92,14 +93,14 @@ return {
         
         -- Clearcasting status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Clearcasting", "No" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Clearcasting", "No" end
             
             local spells = require("libraries/spells")
             local has_clearcasting = false
             if spells.BUFF_CLEARCASTING then
                 for _, id in ipairs(spells.BUFF_CLEARCASTING) do
-                    if me:has_buff(id) then has_clearcasting = true break end
+                    if buff_manager.has_buff(me, id) then has_clearcasting = true break end
                 end
             end
             return "Clearcasting", has_clearcasting and "READY" or "--"

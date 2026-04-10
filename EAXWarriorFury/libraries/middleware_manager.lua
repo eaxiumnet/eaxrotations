@@ -92,8 +92,10 @@ function middleware_manager.initialize(menu)
             end,
             execute = function(icon, ctx)
                 if icon and icon.cast then
-                    icon:cast(WARRIOR_SPELLS.BERSERKING)
-                    return true, "[MW] Berserking"
+                    local ok_cast = pcall(function() icon:cast(WARRIOR_SPELLS.BERSERKING) end)
+                    if ok_cast then
+                        return true, "[MW] Berserking"
+                    end
                 end
                 return false
             end,

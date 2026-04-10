@@ -1,6 +1,12 @@
 -- EAX Druid Balance | Project Sylvanas
 -- Priority: Faerie Fire -> DoTs -> Nukes -> AoE
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -96,7 +102,8 @@ end
 
 local function is_moving()
     local me = get_me()
-    return me and me.is_moving and me:is_moving()
+    local ok_moving, is_moving = pcall(function() return me:is_moving() end)
+    return ok_moving and is_moving
 end
 
 local function mana_pct(me)
@@ -111,14 +118,17 @@ local function debuff_rem(target, tbl)
     if not target or not target:is_valid() then return 0 end
     local d = target:get_debuff_data(tbl)
     if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
-    d = target:get_aura_data(tbl)
+    local ok_a, d = pcall(function() return target:get_aura_data(tbl) end)
+    if not ok_a then d = nil end
     if d and d.is_active and (d.remaining or 0) > 0 then return d.remaining end
     return 0
 end
 
 local function detect_mode()
     local n = 0
-    for _, o in ipairs(core.object_manager.get_all_objects()) do
+    local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, o in ipairs(all_objects) do
         if o and o:is_valid() and o:is_unit() and not o:is_dead() and o:is_party_member() then
             n = n + 1
         end
@@ -254,7 +264,9 @@ local function try_hurricane(me, t)
     local count = 1
     local tp = t:get_position()
     if tp then
-        for _, o in ipairs(core.object_manager.get_all_objects()) do
+        local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, o in ipairs(all_objects) do
             if o and o:is_valid() and o:is_unit() and not o:is_dead() and me:can_attack(o) and o ~= t then
                 local op = o:get_position()
                 if op then
@@ -438,9 +450,11 @@ end
 local function on_update()
     resolve()
     local me = get_me()
-    
+    if not me or not me:is_valid() then return end
+
     -- Flux library updates
-    energy_tick:update(me:get_power(3))
+    local ok_power, power_val = pcall(function() return me:get_power(3) end)
+    energy_tick:update(ok_power and power_val or 0)
     swing_manager:update_swing(me)
     
     if utils.throttle("balancemode", MODE_REFRESH) then
@@ -497,7 +511,8 @@ local function on_update()
         dashboard.set_position(pos_x, pos_y)
     end
 
-    if not me or me:is_dead() then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if not me or (ok_dead and is_dead) then return end
 
     -- Form-aware consumable usage (before rotation)
     local use_hs = (menu.use_healthstone and menu.use_healthstone:get()) or false
@@ -540,9 +555,11 @@ local function on_update()
         return
     end
 
-    local t = me:get_target()
+    local ok_t, t = pcall(function() return me:get_target() end)
+    if not ok_t then t = nil end
     if not t or not t:is_valid() or t:is_dead() then return end
-    if not me:can_attack(t) then return end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(t) end)
+    if not (ok_attack and can_attack) then return end
 
     -- Flux combat forecast sampling
     if combat_forecast and t and t:is_valid() then
@@ -598,10 +615,18 @@ local config = require("libraries/dashboard_config")
 dashboard.init(config)
 dashboard.register_render_callback()
 
--- Export toggle settings for external access
-local NS = _G.EAXDruidBalance and _G.EAXDruidBalance.NS or {}
-_G.EAXDruidBalance = _G.EAXDruidBalance or {}
-_G.EAXDruidBalance.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only if header loaded successfully)
+if header.load then
+    local NS = _G.EAXDruidBalance and _G.EAXDruidBalance.NS or {}
+    _G.EAXDruidBalance = _G.EAXDruidBalance or {}
+    _G.EAXDruidBalance.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 return {}
+
+
+
+
+
+

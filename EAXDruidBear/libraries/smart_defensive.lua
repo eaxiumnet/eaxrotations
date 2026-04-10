@@ -50,8 +50,9 @@ function smart_defensive.predict_burst(me, window_seconds)
     
     -- Predict damage in window
     local predicted_damage = incoming_dps * window_seconds * (1 - mitigation)
-    local hp = me:get_health()
-    local max_hp = me:get_max_health()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+    local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+    if not ok_hp or not ok_max or not hp or not max_hp or max_hp == 0 then return false, 0, 0 end
     local hp_pct = (hp / max_hp) * 100
     
     -- Check if predicted damage would be dangerous
@@ -83,7 +84,20 @@ function smart_defensive.predict_burst(me, window_seconds)
     return is_burst, predicted_damage, incoming_dps
 end
 
----Get current damage mitigation from stances/buffs
+-- TBC Armor DR Formula: DR% = Armor / (Armor + 400 + 85 * AttackerLevel)
+-- Against level 73 boss: DR% = Armor / (Armor + 6605)
+-- Note: Druids in bear form have 400% armor multiplier from Thick Hide talent
+local ARMOR_DENOMINATOR = 6605  -- 400 + 85 * 73 (boss level)
+
+---Calculate physical damage reduction from armor
+---@param armor number
+---@return number dr_percentage (0.0 - 1.0)
+local function calculate_armor_mitigation(armor)
+    if not armor or armor <= 0 then return 0 end
+    return armor / (armor + ARMOR_DENOMINATOR)
+end
+
+---Get current damage mitigation from armor and buffs
 ---@param me game_object
 ---@return number mitigation_percentage (0.0 - 1.0)
 function smart_defensive.get_current_mitigation(me)
@@ -91,21 +105,26 @@ function smart_defensive.get_current_mitigation(me)
     
     local mitigation = 0
     
-    -- Check for defensive stance (Warrior)
+    -- Get armor-based physical mitigation (Druids have very high armor in bear form)
+    local ok_armor, armor = pcall(function() return me:get_armor() end)
+    if ok_armor and armor then
+        local armor_mitigation = calculate_armor_mitigation(armor)
+        mitigation = mitigation + armor_mitigation
+    end
+    
+    -- Barkskin: 20% damage reduction (magic and physical)
     if me.has_aura then
-        if me:has_aura(71) then  -- Defensive Stance
-            mitigation = mitigation + 0.10  -- 10% DR
+        local ok_barkskin, has_barkskin = pcall(function() return me:has_aura(22812) end)
+        if ok_barkskin and has_barkskin then
+            mitigation = mitigation + 0.20
         end
     end
     
-    -- Check for Shield Block buff (Warrior)
-    if me.has_aura then
-        if me:has_aura(2565) then  -- Shield Block
-            mitigation = mitigation + 0.20  -- Estimated 20% from blocking
-        end
-    end
+    -- Survival Instincts (if available): increases max HP, not direct mitigation
+    -- Frenzied Regeneration: healing, not mitigation
     
-    return mitigation
+    -- Cap at 75% (TBC armor cap)
+    return math.min(mitigation, 0.75)
 end
 
 ---Count nearby enemies
@@ -119,16 +138,17 @@ function smart_defensive.count_nearby_enemies(me, radius)
     local radius_sq = radius * radius
     local count = 0
     
-    local my_pos = me:get_position()
-    if not my_pos then return 0 end
+    local ok, my_pos = pcall(function() return me:get_position() end)
+    if not ok or not my_pos then return 0 end
     
-    local objects = core.object_manager.get_visible_objects()
+    local ok_objects, objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects or not objects then return 0 end
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
             if me:can_attack(obj) then
-                local obj_pos = obj:get_position()
-                if obj_pos then
+                local ok2, obj_pos = pcall(function() return obj:get_position() end)
+                if ok2 and obj_pos then
                     local dx = obj_pos.x - my_pos.x
                     local dy = obj_pos.y - my_pos.y
                     local dz = obj_pos.z - my_pos.z
@@ -156,7 +176,12 @@ end
 function smart_defensive.should_use(me, defensive_type, ctx, settings)
     if not me or not me:is_valid() then return false, "invalid_player" end
     
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, current = pcall(function() return me:get_health() end)
+    local ok_max, max = pcall(function() return me:get_max_health() end)
+    local hp_pct = 100
+    if ok_hp and ok_max and current and max and max > 0 then
+        hp_pct = (current / max) * 100
+    end
     local base_threshold = settings[defensive_type .. "_hp"] or 25
     
     -- Basic HP threshold check
@@ -257,7 +282,12 @@ end
 function smart_defensive.get_recommended_defensive(me, ctx, available_defensives, settings)
     if not me or not me:is_valid() then return nil, nil, "invalid_player" end
     
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, current = pcall(function() return me:get_health() end)
+    local ok_max, max = pcall(function() return me:get_max_health() end)
+    local hp_pct = 100
+    if ok_hp and ok_max and current and max and max > 0 then
+        hp_pct = (current / max) * 100
+    end
     local enemy_count = ctx.enemy_count or smart_defensive.count_nearby_enemies(me, 10)
     
     -- Sort by priority
@@ -329,8 +359,15 @@ function smart_defensive.get_status(me, ctx)
     local enemy_count = smart_defensive.count_nearby_enemies(me, 10)
     local mitigation = smart_defensive.get_current_mitigation(me)
     
+    local ok_hp, current = pcall(function() return me:get_health() end)
+    local ok_max, max = pcall(function() return me:get_max_health() end)
+    local hp_pct = 100
+    if ok_hp and ok_max and current and max and max > 0 then
+        hp_pct = (current / max) * 100
+    end
+    
     return {
-        hp_pct = me:get_health_percentage(),
+        hp_pct = hp_pct,
         burst_predicted = burst,
         predicted_damage = predicted,
         incoming_dps = dps,

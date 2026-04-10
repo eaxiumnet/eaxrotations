@@ -129,7 +129,8 @@ local function is_player_class_match()
     if not player then
         return false
     end
-    local player_class = player:get_class()
+    local ok_class, player_class = pcall(function() return player:get_class() end)
+    if not ok_class then return false end
     return player_class == dashboard.config.class_id
 end
 
@@ -583,12 +584,9 @@ function dashboard.update()
     
     -- Get player and target
     dashboard._cached_player = _get_local_player()
-    -- FIX: get_target is a method on the player object
-    if dashboard._cached_player and dashboard._cached_player.get_target then
-        dashboard._cached_target = dashboard._cached_player:get_target()
-    else
-        dashboard._cached_target = nil
-    end
+        -- FIX: Wrap get_target in pcall for safety
+    local ok, target = pcall(function() return dashboard._cached_player:get_target() end)
+    dashboard._cached_target = ok and target or nil
     
     -- Update data
     update_resources(dashboard._cached_player)
@@ -1139,4 +1137,3 @@ end
 -- dashboard.register_render_callback()
 
 return dashboard
-

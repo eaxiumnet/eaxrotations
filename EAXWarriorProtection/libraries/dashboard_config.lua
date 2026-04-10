@@ -4,6 +4,7 @@
 --]]
 
 local utils = require("libraries/utils")
+local buff_manager = require("common/modules/buff_manager")
 
 return {
     class_name = "Warrior Protection",
@@ -55,23 +56,23 @@ return {
     custom_lines = {
         -- Current stance
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Stance", "Unknown" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Stance", "Unknown" end
             
             local spells = require("libraries/spells")
             if spells.BUFF_DEFENSIVE_STANCE then
                 for _, id in ipairs(spells.BUFF_DEFENSIVE_STANCE) do
-                    if me:has_buff(id) then return "Stance", "Defensive" end
+                    if buff_manager.has_buff(me, id) then return "Stance", "Defensive" end
                 end
             end
             if spells.BUFF_BATTLE_STANCE then
                 for _, id in ipairs(spells.BUFF_BATTLE_STANCE) do
-                    if me:has_buff(id) then return "Stance", "Battle" end
+                    if buff_manager.has_buff(me, id) then return "Stance", "Battle" end
                 end
             end
             if spells.BUFF_BERSERKER_STANCE then
                 for _, id in ipairs(spells.BUFF_BERSERKER_STANCE) do
-                    if me:has_buff(id) then return "Stance", "Berserker" end
+                    if buff_manager.has_buff(me, id) then return "Stance", "Berserker" end
                 end
             end
             return "Stance", "None"
@@ -79,15 +80,17 @@ return {
         
         -- Shield Block status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Shield Block", "--" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Shield Block", "--" end
             
             local spells = require("libraries/spells")
             local has_shield_block = false
             local remaining = 0
             if spells.BUFF_SHIELD_BLOCK then
                 for _, id in ipairs(spells.BUFF_SHIELD_BLOCK) do
-                    local buff = me:get_buff(id)
+                    local ok_buff, buff = pcall(function() return me:get_buff(id) end)
+                    if not ok_buff then buff = nil end
+                    buff = buff
                     if buff then
                         has_shield_block = true
                         remaining = buff.remaining or 0
@@ -150,8 +153,8 @@ return {
         
         -- Rage level indicator
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Rage", "0" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Rage", "0" end
             
             local rage = me:get_power() or 0
             local max_rage = 100

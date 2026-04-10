@@ -3,7 +3,7 @@
 -- Uses combat_forecast for predictive mitigation
 
 ---@type combat_forecast
-local combat_forecast = require("libraries/combat_forecast")
+local combat_forecast = require('libraries/combat_forecast')
 
 local smart_defensive = {}
 
@@ -50,8 +50,11 @@ function smart_defensive.predict_burst(me, window_seconds)
     
     -- Predict damage in window
     local predicted_damage = incoming_dps * window_seconds * (1 - mitigation)
-    local hp = me:get_health()
-    local max_hp = me:get_max_health()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+    local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+    if not ok_hp or not ok_max or not hp or not max_hp or max_hp <= 0 then
+        return false, 0, incoming_dps
+    end
     local hp_pct = (hp / max_hp) * 100
     
     -- Check if predicted damage would be dangerous
@@ -119,16 +122,16 @@ function smart_defensive.count_nearby_enemies(me, radius)
     local radius_sq = radius * radius
     local count = 0
     
-    local my_pos = me:get_position()
-    if not my_pos then return 0 end
+    local ok, my_pos = pcall(function() return me:get_position() end)
+    if not ok or not my_pos then return 0 end
     
-    local objects = core.object_manager.get_visible_objects()
+    local objects = core.object_manager.get_all_objects()
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
             if me:can_attack(obj) then
-                local obj_pos = obj:get_position()
-                if obj_pos then
+                local ok2, obj_pos = pcall(function() return obj:get_position() end)
+                if ok2 and obj_pos then
                     local dx = obj_pos.x - my_pos.x
                     local dy = obj_pos.y - my_pos.y
                     local dz = obj_pos.z - my_pos.z
@@ -148,20 +151,27 @@ end
 ---Should use defensive cooldown?
 ---Enhanced logic with predictive mitigation and multi-target awareness
 ---@param me game_object
----@param defensive_type string ("last_stand", "shield_wall", "barkskin", "frenzied_regen", etc.)
+---@param defensive_type string ('last_stand', 'shield_wall', 'barkskin', 'frenzied_regen', etc.)
 ---@param ctx table Context from context_builder
 ---@param settings table Settings with thresholds
 ---@return boolean should_use
 ---@return string|nil reason
 function smart_defensive.should_use(me, defensive_type, ctx, settings)
-    if not me or not me:is_valid() then return false, "invalid_player" end
+    if not me or not me:is_valid() then return false, 'invalid_player' end
     
-    local hp_pct = me:get_health_percentage()
-    local base_threshold = settings[defensive_type .. "_hp"] or 25
+    local hp_pct = 100
+    if me and me.get_health and me.get_max_health then
+        local ok_hp, current = pcall(function() return me:get_health() end)
+        local ok_max, max = pcall(function() return me:get_max_health() end)
+        if ok_hp and ok_max and max and max > 0 then
+            hp_pct = ((current or 0) / max) * 100
+        end
+    end
+    local base_threshold = settings[defensive_type .. '_hp'] or 25
     
     -- Basic HP threshold check
     if hp_pct > base_threshold then
-        return false, "hp_above_threshold"
+        return false, 'hp_above_threshold'
     end
     
     -- Predictive: check if burst is incoming
@@ -169,7 +179,7 @@ function smart_defensive.should_use(me, defensive_type, ctx, settings)
     
     if burst_incoming then
         -- Use defensively BEFORE the damage
-        return true, "burst_predicted"
+        return true, 'burst_predicted'
     end
     
     -- Multi-target adjustment
@@ -177,36 +187,36 @@ function smart_defensive.should_use(me, defensive_type, ctx, settings)
     if enemy_count >= smart_defensive.MULTI_TARGET_THRESHOLD then
         -- More lenient with multiple targets
         if hp_pct < base_threshold + 10 then
-            return true, "multi_target"
+            return true, 'multi_target'
         end
     end
     
     -- Check if already buffed with similar effect
     if smart_defensive.has_similar_buff(me, defensive_type) then
-        return false, "already_buffed"
+        return false, 'already_buffed'
     end
     
     -- Check Forbearance (Paladin)
-    if defensive_type == "divine_shield" or defensive_type == "lay_on_hands" then
+    if defensive_type == 'divine_shield' or defensive_type == 'lay_on_hands' then
         if me.has_aura and me:has_aura(25771) then  -- Forbearance
-            return false, "forbearance"
+            return false, 'forbearance'
         end
     end
     
     -- Stance checks for Warrior
-    if defensive_type == "shield_wall" then
+    if defensive_type == 'shield_wall' then
         -- Shield Wall requires Defensive Stance
         local in_defensive = false
         if me.has_aura then
             in_defensive = me:has_aura(71)  -- Defensive Stance
         end
         if not in_defensive then
-            return false, "wrong_stance"
+            return false, 'wrong_stance'
         end
     end
     
     -- Standard HP threshold trigger
-    return hp_pct <= base_threshold, "hp_threshold"
+    return hp_pct <= base_threshold, 'hp_threshold'
 end
 
 ---Check if player already has a similar defensive buff
@@ -218,27 +228,27 @@ function smart_defensive.has_similar_buff(me, defensive_type)
     if not me.has_aura then return false end
     
     -- Last Stand check
-    if defensive_type == "last_stand" then
+    if defensive_type == 'last_stand' then
         return me:has_aura(12975)  -- Last Stand buff
     end
     
     -- Shield Wall check
-    if defensive_type == "shield_wall" then
+    if defensive_type == 'shield_wall' then
         return me:has_aura(871)  -- Shield Wall buff
     end
     
     -- Barkskin check
-    if defensive_type == "barkskin" then
+    if defensive_type == 'barkskin' then
         return me:has_aura(22812)  -- Barkskin buff
     end
     
     -- Frenzied Regeneration check
-    if defensive_type == "frenzied_regen" then
+    if defensive_type == 'frenzied_regen' then
         return me:has_aura(22842)  -- Frenzied Regeneration buff
     end
     
     -- Divine Shield check
-    if defensive_type == "divine_shield" then
+    if defensive_type == 'divine_shield' then
         return me:has_aura(642)  -- Divine Shield
     end
     
@@ -255,9 +265,16 @@ end
 ---@return number|nil spell_id
 ---@return string|nil reason
 function smart_defensive.get_recommended_defensive(me, ctx, available_defensives, settings)
-    if not me or not me:is_valid() then return nil, nil, "invalid_player" end
+    if not me or not me:is_valid() then return nil, nil, 'invalid_player' end
     
-    local hp_pct = me:get_health_percentage()
+    local hp_pct = 100
+    if me and me.get_health and me.get_max_health then
+        local ok_hp, current = pcall(function() return me:get_health() end)
+        local ok_max, max = pcall(function() return me:get_max_health() end)
+        if ok_hp and ok_max and max and max > 0 then
+            hp_pct = ((current or 0) / max) * 100
+        end
+    end
     local enemy_count = ctx.enemy_count or smart_defensive.count_nearby_enemies(me, 10)
     
     -- Sort by priority
@@ -275,7 +292,7 @@ function smart_defensive.get_recommended_defensive(me, ctx, available_defensives
         end
     end
     
-    return nil, nil, "none_needed"
+    return nil, nil, 'none_needed'
 end
 
 ---PvP: Should switch to defensive stance when kiting?
@@ -329,8 +346,17 @@ function smart_defensive.get_status(me, ctx)
     local enemy_count = smart_defensive.count_nearby_enemies(me, 10)
     local mitigation = smart_defensive.get_current_mitigation(me)
     
+    local hp_pct = 100
+    if me and me.get_health and me.get_max_health then
+        local ok_hp, current = pcall(function() return me:get_health() end)
+        local ok_max, max = pcall(function() return me:get_max_health() end)
+        if ok_hp and ok_max and max and max > 0 then
+            hp_pct = ((current or 0) / max) * 100
+        end
+    end
+    
     return {
-        hp_pct = me:get_health_percentage(),
+        hp_pct = hp_pct,
         burst_predicted = burst,
         predicted_damage = predicted,
         incoming_dps = dps,

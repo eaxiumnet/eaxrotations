@@ -4,6 +4,7 @@
 --]]
 
 local utils = require("libraries/utils")
+local buff_manager = require("common/modules/buff_manager")
 
 return {
     class_name = "Shaman Enhancement",
@@ -53,18 +54,18 @@ return {
     custom_lines = {
         -- Active Shield type
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Shield", "None" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Shield", "None" end
             
             local spells = require("libraries/spells")
             if spells.BUFF_LIGHTNING_SHIELD then
                 for _, id in ipairs(spells.BUFF_LIGHTNING_SHIELD) do
-                    if me:has_buff(id) then return "Shield", "Lightning" end
+                    if buff_manager.has_buff(me, id) then return "Shield", "Lightning" end
                 end
             end
             if spells.BUFF_WATER_SHIELD then
                 for _, id in ipairs(spells.BUFF_WATER_SHIELD) do
-                    if me:has_buff(id) then return "Shield", "Water" end
+                    if buff_manager.has_buff(me, id) then return "Shield", "Water" end
                 end
             end
             return "Shield", "None"
@@ -72,8 +73,8 @@ return {
         
         -- Weapon Imbues status
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Weapon Imbues", "--" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Weapon Imbues", "--" end
             
             local spells = require("libraries/spells")
             local mainhand = "None"
@@ -81,12 +82,12 @@ return {
             
             if spells.BUFF_WINDFURY_WEAPON then
                 for _, id in ipairs(spells.BUFF_WINDFURY_WEAPON) do
-                    if me:has_buff(id) then mainhand = "WF" break end
+                    if buff_manager.has_buff(me, id) then mainhand = "WF" break end
                 end
             end
             if spells.BUFF_FLAMETONGUE_WEAPON then
                 for _, id in ipairs(spells.BUFF_FLAMETONGUE_WEAPON) do
-                    if me:has_buff(id) then offhand = "FT" break end
+                    if buff_manager.has_buff(me, id) then offhand = "FT" break end
                 end
             end
             
@@ -109,14 +110,16 @@ return {
         
         -- Flurry stacks
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Flurry", "0" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Flurry", "0" end
             
             local spells = require("libraries/spells")
             local stacks = 0
             if spells.BUFF_FLURRY then
                 for _, id in ipairs(spells.BUFF_FLURRY) do
-                    local buff = me:get_buff(id)
+                    local ok_buff, buff = pcall(function() return me:get_buff(id) end)
+                    if not ok_buff then buff = nil end
+                    buff = buff
                     if buff then
                         stacks = buff.stacks or 1
                         break

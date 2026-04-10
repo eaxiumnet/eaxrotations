@@ -252,9 +252,9 @@ function form_consumables.check_and_use(me, menu, form_spells, saved_form)
     end
     
     -- Get menu settings with defaults
-    local use_healthstone = (menu and menu.use_healthstone and menu.use_healthstone:get_state()) or false
-    local use_healing_potion = (menu and menu.use_healing_potion and menu.use_healing_potion:get_state()) or false
-    local health_threshold = (menu and menu.consumable_health_threshold and menu.consumable_health_threshold:get()) or 35
+    local use_healthstone = (menu.use_healthstone and menu.use_healthstone:get_state()) or false
+    local use_healing_potion = (menu.use_healing_potion and menu.use_healing_potion:get_state()) or false
+    local health_threshold = (menu.consumable_health_threshold and menu.consumable_health_threshold:get()) or 35
     
     -- If no consumables enabled, skip
     if not use_healthstone and not use_healing_potion then

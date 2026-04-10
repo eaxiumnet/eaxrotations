@@ -2,6 +2,12 @@
 -- Holy DPS rotation with Shadow Weaving/Misery utility via SW:P
 -- Holy Fire weave optimization, Surge of Light proc handling
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -124,7 +130,9 @@ end
 -- Get target time-to-death estimate (simplified)
 local function get_target_ttd(target)
     if not target or not target:is_valid() then return 999 end
-    local hp_pct = target:get_health_percentage()
+    local ok_hp, hp = pcall(function() return target:get_health() end)
+local ok_max, max_hp = pcall(function() return target:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     -- Rough estimate: assume target dies when HP reaches 0
     -- In practice, this would need more sophisticated tracking
     return hp_pct > 0 and (hp_pct / 10) or 0  -- Rough 10% per second assumption
@@ -133,7 +141,9 @@ end
 -- Check if we should be in healing mode
 local function should_heal_mode(me)
     if not me or not me:is_valid() then return false end
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     local threshold = (menu.self_heal_threshold and menu.self_heal_threshold:get()) or 30
     local balance = (menu.dps_heal_balance and menu.dps_heal_balance:get()) or 80
     
@@ -181,7 +191,8 @@ local function try_shadow_word_pain(me, target)
     local use_swp = (menu.use_shadow_word_pain and menu.use_shadow_word_pain:get_state()) or false
     if not use_swp then return false end
     if not runtime.shadow_word_pain_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     -- Check if debuff already active
     local remaining = get_debuff_remaining(target, spells.DEBUFF_SHADOW_WORD_PAIN)
@@ -278,7 +289,9 @@ local function try_shadow_word_death(me, target)
     
     -- Check target HP threshold
     local threshold = (menu.swd_hp_threshold and menu.swd_hp_threshold:get()) or 40
-    local target_hp = target:get_health_percentage()
+    local ok_hp2, hp2 = pcall(function() return target:get_health() end)
+local ok_max2, max_hp2 = pcall(function() return target:get_max_health() end)
+local target_hp = (ok_hp2 and ok_max2 and hp2 and max_hp2 and max_hp2 > 0) and ((hp2 / max_hp2) * 100) or 100
     if target_hp > threshold then return false end
     
     -- Check if we can cast
@@ -356,7 +369,8 @@ local function try_power_infusion(me, target)
     local use_pi = (menu.use_power_infusion and menu.use_power_infusion:get_state()) or false
     if not use_pi then return false end
     if not runtime.power_infusion_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
 
     -- Check if already active
     if utils.has_buff(me, spells.BUFF_POWER_INFUSION) then return false end
@@ -395,7 +409,8 @@ local function try_shadowfiend(me, target)
     local use_sf = (menu.use_shadowfiend and menu.use_shadowfiend:get_state()) or false
     if not use_sf then return false end
     if not runtime.shadowfiend_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     -- Check mana threshold
     local mana_pct = get_mana_pct(me)
@@ -420,7 +435,9 @@ local function try_flash_heal(me)
     if not runtime.flash_heal_id then return false end
     
     -- Check if we actually need healing
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     local threshold = (menu.self_heal_threshold and menu.self_heal_threshold:get()) or 30
     if hp_pct >= threshold then return false end
     
@@ -443,7 +460,9 @@ local function try_renew(me)
     if utils.has_buff(me, spells.BUFF_RENEW) then return false end
     
     -- Check if we need healing
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     local threshold = (menu.self_heal_threshold and menu.self_heal_threshold:get()) or 30
     if hp_pct >= threshold + 10 then return false end  -- Slightly higher threshold for HoT
     
@@ -467,7 +486,9 @@ local function try_power_word_shield(me)
     if utils.has_debuff(me, spells.DEBUFF_WEAKENED_SOUL) then return false end
     
     -- Check if we need shield (low HP or in combat)
-    local hp_pct = me:get_health_percentage()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     if hp_pct > 50 and not me:is_in_combat() then return false end
     
     if utils.can_cast_self(runtime.power_word_shield_id, me) then
@@ -520,14 +541,18 @@ local function find_best_target(me)
     -- Check focus first if enabled
     local use_focus = (menu.focus_priority and menu.focus_priority:get_state()) or false
     if use_focus then
-        local focus = core.object_manager.get_focus_target()
+        local focus = nil
+        if core.input and core.input.get_focus then
+            focus = core.input.get_focus()
+        end
         if focus and focus:is_valid() and not focus:is_dead() and me:can_attack(focus) then
             return focus
         end
     end
     
     -- Check current target
-    local target = me:get_target()
+    local ok, target = pcall(function() return me:get_target() end)
+    if not ok or not target then return nil end
     if target and target:is_valid() and not target:is_dead() and me:can_attack(target) then
         return target
     end
@@ -604,7 +629,8 @@ local function on_update()
     end
 
     -- Combat time tracking for burst manager
-    if me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and is_combat then
         if combat_start_time == 0 then
             combat_start_time = _core_time()
         end
@@ -626,7 +652,8 @@ local function on_update()
     end
 
     -- Out of Combat management (buffs + resurrection)
-    if not me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
         local resolved = {
             inner_fire = runtime.inner_fire_id,
             fortitude = runtime.fortitude_id,
@@ -750,7 +777,7 @@ force_commands:init()
 
 -- Register callbacks
 core.register_on_update_callback(on_update)
-core.register_on_render_callback(menu.render)
+core.register_on_render_menu_callback(menu.render)
 core.register_on_render_control_panel_callback(on_control_panel)
 
 -- Initialize dashboard
@@ -760,7 +787,9 @@ dashboard.set_enabled((menu.show_dashboard and menu.show_dashboard:get_state()) 
 dashboard.register_render_callback()
 
 -- Export toggle settings for external access
-local NS = _G.EAXPriestSmite and _G.EAXPriestSmite.NS or {}
-_G.EAXPriestSmite = _G.EAXPriestSmite or {}
-_G.EAXPriestSmite.NS = NS
-NS.toggle_menu = menu.toggle_menu
+if header.load then
+    local NS = _G.EAXPriestSmite and _G.EAXPriestSmite.NS or {}
+    _G.EAXPriestSmite = _G.EAXPriestSmite or {}
+    _G.EAXPriestSmite.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end

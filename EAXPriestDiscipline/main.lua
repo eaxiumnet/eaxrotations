@@ -2,6 +2,12 @@
 -- Discipline healing rotation with PW:S spam, Penance burst, Weakened Soul management.
 -- Source: /rotation/source/aio/priest/discipline.lua
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -111,10 +117,14 @@ local function try_pain_suppression(me)
     if not resolved.pain_suppression then return false end
     if not (menu.use_pain_suppression and menu.use_pain_suppression:get_state()) then return false end
     if not is_pain_suppression_ready() then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local tank = utils.get_tank_unit(me)
-    if not tank or not tank:is_valid() or tank:is_dead() then return false end
+    if not tank then return false end
+    local ok_valid, is_valid = pcall(function() return tank:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return tank:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     
     local threshold = ((menu.pain_suppression_threshold and menu.pain_suppression_threshold:get()) or 40) / 100
     local hp = utils.get_health_pct(tank)
@@ -133,7 +143,8 @@ local function try_power_infusion(me)
     if not resolved.power_infusion then return false end
     if not (menu.use_power_infusion and menu.use_power_infusion:get_state()) then return false end
     if not is_power_infusion_ready() then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_POWER_INFUSION) then return false end
     
     -- Cast on self for now (could be extended to target healers/DPS)
@@ -150,7 +161,8 @@ local function try_inner_focus(me)
     if not resolved.inner_focus then return false end
     if not (menu.use_inner_focus and menu.use_inner_focus:get_state()) then return false end
     if not is_inner_focus_ready() then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_INNER_FOCUS) then return false end
     
     -- Only use if we have a low HP target that needs Greater Heal
@@ -169,7 +181,8 @@ end
 -- Try Emergency Flash Heal on critically low target
 local function try_emergency_flash_heal(me)
     if not resolved.flash_heal then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local threshold = ((menu.disc_emergency_hp and menu.disc_emergency_hp:get()) or 25) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
@@ -194,7 +207,8 @@ end
 -- Try Binding Heal (self + target both damaged)
 local function try_binding_heal(me)
     if not resolved.binding_heal then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local self_hp = utils.get_health_pct(me)
     if self_hp > 0.80 then return false end
@@ -217,7 +231,10 @@ local function try_shield_tank(me)
     if not (menu.use_power_word_shield and menu.use_power_word_shield:get_state()) then return false end
     
     local tank = utils.get_tank_unit(me)
-    if not tank or not tank:is_valid() or tank:is_dead() then return false end
+    if not tank then return false end
+    local ok_valid, is_valid = pcall(function() return tank:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return tank:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     
     -- Check Weakened Soul
     if utils.has_debuff(tank, spells.DEBUFF_WEAKENED_SOUL) then return false end
@@ -256,7 +273,10 @@ local function try_prayer_of_mending(me)
         target = utils.find_lowest_effective_ally(me, threshold, false)
     end
     
-    if not target or not target:is_valid() or target:is_dead() then return false end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     if utils.has_buff(target, spells.BUFF_PRAYER_OF_MENDING) then return false end
     
     if utils.cast_target(resolved.prayer_of_mending, me, target) then
@@ -271,7 +291,8 @@ end
 local function try_shield_others(me)
     if not resolved.power_word_shield then return false end
     if not (menu.use_power_word_shield and menu.use_power_word_shield:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     -- No tank-only mode in menu, skip this check
     -- if menu.disc_shield_tank_only and menu.disc_shield_tank_only:get_state() then return false end
     
@@ -302,7 +323,10 @@ local function try_renew_tank(me)
     if not (menu.use_renew and menu.use_renew:get_state()) then return false end
     
     local tank = utils.get_tank_unit(me)
-    if not tank or not tank:is_valid() or tank:is_dead() then return false end
+    if not tank then return false end
+    local ok_valid, is_valid = pcall(function() return tank:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return tank:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     
     local threshold = ((menu.renew_threshold and menu.renew_threshold:get()) or 90) / 100
     local hp = utils.get_health_pct(tank)
@@ -327,7 +351,8 @@ end
 -- Try Greater Heal (sustained healing)
 local function try_greater_heal(me)
     if not resolved.greater_heal then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local flash_threshold = ((menu.flash_heal_hp_pct and menu.flash_heal_hp_pct:get()) or 50) / 100
     local renew_threshold = ((menu.renew_threshold and menu.renew_threshold:get()) or 90) / 100
@@ -357,7 +382,8 @@ end
 -- Try Flash Heal (moderate urgency)
 local function try_flash_heal(me)
     if not resolved.flash_heal then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local threshold = ((menu.flash_heal_hp_pct and menu.flash_heal_hp_pct:get()) or 50) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
@@ -387,7 +413,8 @@ end
 local function try_renew_spread(me)
     if not resolved.renew then return false end
     if not (menu.use_renew and menu.use_renew:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local threshold = ((menu.renew_threshold and menu.renew_threshold:get()) or 90) / 100
     local lowest, lowest_hp = utils.find_lowest_effective_ally(me, threshold, false)
@@ -408,7 +435,8 @@ end
 local function try_prayer_of_healing(me)
     if not resolved.prayer_of_healing then return false end
     if not (menu.use_prayer_of_healing and menu.use_prayer_of_healing:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local min_count = ((menu.disc_aoe_count and menu.disc_aoe_count:get()) or 3)
     local damaged_count = utils.count_below_hp(me, 0.90)
@@ -425,7 +453,8 @@ end
 
 -- Try Racial (Berserking/Arcane Torrent)
 local function try_racial(me)
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if not (menu.use_racial and menu.use_racial:get_state()) then return false end
     
     if resolved.berserking and core.spell_book.get_spell_cooldown(resolved.berserking) == 0 then
@@ -443,7 +472,8 @@ end
 local function try_fade(me)
     if not resolved.fade then return false end
     if not (menu.use_fade and menu.use_fade:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_FADE) then return false end
     
     local hp = utils.get_health_pct(me)
@@ -461,7 +491,8 @@ end
 local function try_shadowfiend(me)
     if not resolved.shadowfiend then return false end
     if not (menu.use_shadowfiend and menu.use_shadowfiend:get_state()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local threshold = (menu.shadowfiend_pct and menu.shadowfiend_pct:get() or 50) / 100
     local mana_pct = utils.get_mana_pct(me)
@@ -470,8 +501,12 @@ local function try_shadowfiend(me)
     local now = _core_time()
     if runtime.shadowfiend_last and (now - runtime.shadowfiend_last) < 300 then return false end
     
-    local target = me:get_target()
-    if not target or not target:is_valid() or target:is_dead() then return false end
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_valid or not is_valid or not ok_dead or is_dead then return false end
     if not me:can_attack(target) then return false end
     
     if utils.cast_target(resolved.shadowfiend, me, target) then
@@ -486,7 +521,8 @@ end
 -- Try Desperate Prayer (emergency self-heal)
 local function try_desperate_prayer(me)
     if not resolved.desperate_prayer then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     
     local hp = utils.get_health_pct(me)
     if hp > 0.30 then return false end
@@ -503,7 +539,8 @@ end
 local function try_inner_fire(me)
     if not resolved.inner_fire then return false end
     if not (menu.use_inner_fire and menu.use_inner_fire:get_state()) then return false end
-    if me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and is_combat then return false end
     if utils.has_buff(me, spells.BUFF_INNER_FIRE) then return false end
     
     if utils.cast_self(resolved.inner_fire, me) then
@@ -518,7 +555,8 @@ end
 local function try_fear_ward(me)
     if not resolved.fear_ward then return false end
     if not (menu.use_fear_ward and menu.use_fear_ward:get_state()) then return false end
-    if me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and is_combat then return false end
     if utils.has_buff(me, spells.BUFF_FEAR_WARD) then return false end
     
     if utils.cast_self(resolved.fear_ward, me) then
@@ -533,7 +571,8 @@ end
 local function try_fortitude(me)
     if not resolved.fortitude then return false end
     if not (menu.use_fortitude and menu.use_fortitude:get_state()) then return false end
-    if me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and is_combat then return false end
     if utils.has_buff(me, spells.BUFF_POWER_WORD_FORT) then return false end
     
     if utils.cast_self(resolved.fortitude, me) then
@@ -548,7 +587,8 @@ end
 local function try_divine_spirit(me)
     if not resolved.divine_spirit then return false end
     if not (menu.use_divine_spirit and menu.use_divine_spirit:get_state()) then return false end
-    if me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and is_combat then return false end
     if utils.has_buff(me, spells.BUFF_DIVINE_SPIRIT) then return false end
     
     if utils.cast_self(resolved.divine_spirit, me) then
@@ -583,7 +623,8 @@ local function on_update()
     end
     
     -- Execute middleware (healthstones, potions, racials)
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     local mw_result, mw_msg = middleware_manager.execute_middleware(nil, me, target)
     if mw_result then
         note_cast()
@@ -600,7 +641,8 @@ local function on_update()
     end
     
     -- OOC buffs and resurrection via ooc_manager
-    if not me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
         ooc_manager.on_update(me, menu, utils, {
             rez_spell_id = resolved.resurrection,
             group_buffs = {
@@ -639,13 +681,15 @@ local function on_update()
     end
     
     -- Pre-pull shields/renews
-    if not me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
         if try_shield_tank(me) then return end
         if try_renew_tank(me) then return end
         if try_prayer_of_mending(me) then return end
     end
     
-    if not me:is_in_combat() then return end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return end
     
     -- Emergency: Desperate Prayer
     if try_desperate_prayer(me) then return end
@@ -697,9 +741,11 @@ end
 core.register_on_update_callback(on_update)
 
 -- Export toggle settings for external access
-local NS = _G.EAXPriestDiscipline and _G.EAXPriestDiscipline.NS or {}
-_G.EAXPriestDiscipline = _G.EAXPriestDiscipline or {}
-_G.EAXPriestDiscipline.NS = NS
-NS.toggle_menu = menu.toggle_menu
+if header.load then
+    local NS = _G.EAXPriestDiscipline and _G.EAXPriestDiscipline.NS or {}
+    _G.EAXPriestDiscipline = _G.EAXPriestDiscipline or {}
+    _G.EAXPriestDiscipline.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 

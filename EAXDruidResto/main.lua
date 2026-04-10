@@ -1,6 +1,12 @@
 -- EAX Druid Restoration | Project Sylvanas
 -- Priority: Lifebloom -> Rejuvenation -> Regrowth -> Swiftmend
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -120,7 +126,9 @@ end
 
 local function detect_mode()
     local n = 0
-    for _, o in ipairs(core.object_manager.get_all_objects()) do
+    local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, o in ipairs(all_objects) do
         if o and o:is_valid() and o:is_unit() and not o:is_dead() and o:is_party_member() then
             n = n + 1
         end
@@ -496,6 +504,7 @@ end
 local function on_update()
     resolve()
     local me = get_me()
+    if not me or not me:is_valid() then return end
     if utils.throttle("restomode", MODE_REFRESH) then
         rt.cached_mode = detect_mode()
     end
@@ -578,11 +587,14 @@ local function on_update()
         dashboard.set_position(pos_x, pos_y)
     end
 
-    if not me or me:is_dead() then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if not me or (ok_dead and is_dead) then return end
 
-    local t = me:get_target()
+    local ok_t, t = pcall(function() return me:get_target() end)
+    if not ok_t then t = nil end
     if not t or not t:is_valid() or t:is_dead() then return end
-    if not me:can_attack(t) then return end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(t) end)
+    if not (ok_attack and can_attack) then return end
 
     -- PvP context detection
     local now = _core_time()
@@ -613,10 +625,15 @@ local config = require("libraries/dashboard_config")
 dashboard.init(config)
 dashboard.register_render_callback()
 
--- Export toggle settings for external access
-local NS = _G.EAXDruidResto and _G.EAXDruidResto.NS or {}
-_G.EAXDruidResto = _G.EAXDruidResto or {}
-_G.EAXDruidResto.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only if header loaded successfully)
+if header.load then
+    local NS = _G.EAXDruidResto and _G.EAXDruidResto.NS or {}
+    _G.EAXDruidResto = _G.EAXDruidResto or {}
+    _G.EAXDruidResto.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 return {}
+
+
+

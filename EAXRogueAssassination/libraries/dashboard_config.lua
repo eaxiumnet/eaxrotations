@@ -54,8 +54,8 @@ return {
     -- Custom dashboard lines (label, value function)
     custom_lines = {
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Energy", "N/A" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Energy", "N/A" end
             
             local energy = 0
             if me.get_power then
@@ -65,8 +65,8 @@ return {
             return "Energy", tostring(energy)
         end,
         function(ctx)
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "Combo", "N/A" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "Combo", "N/A" end
             
             local cp = 0
             if me.get_power then
@@ -77,8 +77,8 @@ return {
         end,
         function(ctx)
             local spells = require("libraries/spells")
-            local me = core.object_manager.get_local_player()
-            if not me or not me:is_valid() then return "SnD", "N/A" end
+            local ok, me = pcall(function() return core.object_manager.get_local_player() end)
+            if not ok or not me or not me:is_valid() then return "SnD", "N/A" end
             
             local has_snd = utils.has_buff(me, spells.BUFF_SLICE_AND_DICE)
             return "Slice and Dice", has_snd and "UP" or "DOWN"

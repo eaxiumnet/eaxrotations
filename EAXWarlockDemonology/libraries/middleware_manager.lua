@@ -82,7 +82,8 @@ function middleware_manager.initialize(menu)
                 if not ctx.in_combat then return false end
                 if not ctx.me then return false end
                 
-                local mana_pct = ctx.me:get_power_percentage() or 100
+                local ok, mana_pct = pcall(function() return ctx.me:get_power_percentage() end)
+                mana_pct = (ok and mana_pct) or 100
                 if mana_pct > mana_potion_threshold then return false end
                 
                 -- Check cooldown
@@ -134,7 +135,9 @@ function middleware_manager.initialize(menu)
                 if not ctx.me then return false end
                 
                 -- Check HP threshold
-                local hp_pct = ctx.me:get_health_percentage() or 100
+                local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+local hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
                 if hp_pct > death_coil_threshold then return false end
                 
                 -- Check cooldown

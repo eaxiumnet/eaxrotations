@@ -130,33 +130,48 @@ function middleware.build_context(me, target, settings, force_commands)
         on_gcd = gcd_remaining > 0
     end
     
-    -- Get combat state
+    -- Get combat state (pcall protected)
     local in_combat = false
     if me and me.is_in_combat then
-        in_combat = me:is_in_combat()
+        local ok_combat, combat_result = pcall(function() return me:is_in_combat() end)
+        if ok_combat then in_combat = combat_result end
     end
     
-    -- Get health/mana percentages
+    -- Get health/mana percentages (pcall protected)
     local hp, max_hp, hp_pct = 100, 100, 100
     local mp, max_mp, mp_pct = 100, 100, 100
     
     if me then
-        if me.get_health then
-            hp = me:get_health()
-        end
-        if me.get_max_health then
-            max_hp = me:get_max_health()
-        end
+        -- Health getters with pcall protection
+        local ok_hp, hp_result = pcall(function()
+            if me.get_health then return me:get_health() end
+            return 100
+        end)
+        if ok_hp then hp = hp_result end
+        
+        local ok_max_hp, max_hp_result = pcall(function()
+            if me.get_max_health then return me:get_max_health() end
+            return 100
+        end)
+        if ok_max_hp then max_hp = max_hp_result end
+        
         if max_hp > 0 then
             hp_pct = (hp / max_hp) * 100
         end
         
-        if me.get_mana then
-            mp = me:get_mana()
-        end
-        if me.get_max_mana then
-            max_mp = me:get_max_mana()
-        end
+        -- Mana getters with pcall protection
+        local ok_mp, mp_result = pcall(function()
+            if me.get_mana then return me:get_mana() end
+            return 100
+        end)
+        if ok_mp then mp = mp_result end
+        
+        local ok_max_mp, max_mp_result = pcall(function()
+            if me.get_max_mana then return me:get_max_mana() end
+            return 100
+        end)
+        if ok_max_mp then max_mp = max_mp_result end
+        
         if max_mp > 0 then
             mp_pct = (mp / max_mp) * 100
         end
@@ -464,7 +479,8 @@ function middleware.emergency_heal(spell_id, threshold_pct, priority, requires_c
             if requires_combo_points then
                 local cp = 0
                 if ctx.me and ctx.me.get_combo_points then
-                    cp = ctx.me:get_combo_points()
+                    local ok_cp, cp_result = pcall(function() return ctx.me:get_combo_points() end)
+                    if ok_cp then cp = cp_result end
                 end
                 if cp < 1 then return false end
             end

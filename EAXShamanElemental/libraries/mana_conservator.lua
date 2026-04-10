@@ -38,7 +38,9 @@ local conserve_mode_active   = false
 
 local function is_leveling_character(me)
     if not me or not me.is_valid or not me:is_valid() or not me.get_level then return false end
-    return (me:get_level() or 70) < 70
+    local ok_level, level = pcall(function() return me:get_level() end)
+    if not ok_level then return false end
+    return (level or 70) < 70
 end
 
 local function get_mana_pct(me)
@@ -47,11 +49,15 @@ local function get_mana_pct(me)
         -- Fallback: power type 0 = mana in TBC
         local ok, max_m = pcall(function() return me:get_max_power(0) end)
         if not ok or not max_m or max_m <= 0 then return 100 end
-        return (me:get_power(0) / max_m) * 100
+        local ok_power, power = pcall(function() return me:get_power(0) end)
+            if not ok_power then return 100 end
+            return (power / max_m) * 100
     end
-    local max_mana = me:get_max_power(enums.power_type.MANA)
-    if max_mana <= 0 then return 100 end
-    return (me:get_power(enums.power_type.MANA) / max_mana) * 100
+    local ok_max, max_mana = pcall(function() return me:get_max_power(enums.power_type.MANA) end)
+        if not ok_max or max_mana <= 0 then return 100 end
+        local ok_power, power = pcall(function() return me:get_power(enums.power_type.MANA) end)
+        if not ok_power then return 100 end
+        return (power / max_mana) * 100
 end
 
 local function has_wand_equipped(me)

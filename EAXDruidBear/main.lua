@@ -1,6 +1,12 @@
 -- EAX Druid Bear | Project Sylvanas
 -- Priority: Mangle -> Lacerate -> Swipe -> Maul
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -91,14 +97,17 @@ end
 
 local function debuff_stacks(target, spell_id)
     if not target or not target:is_valid() then return 0 end
-    local d = target:get_debuff_data({ spell_id })
+    local ok_d, d = pcall(function() return target:get_debuff_data({ spell_id }) end)
+    if not ok_d then d = nil end
     if d and d.is_active then return d.stacks or 0 end
     return 0
 end
 
 local function detect_mode()
     local n = 0
-    for _, o in ipairs(core.object_manager.get_all_objects()) do
+    local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, o in ipairs(all_objects) do
         if o and o:is_valid() and o:is_unit() and not o:is_dead() and o:is_party_member() then
             n = n + 1
         end
@@ -131,7 +140,7 @@ local function try_frenzied_regeneration(me, ctx)
     
     -- Use smart_defensive for predictive mitigation
     local settings = {
-        frenzied_regen_hp = ((menu.frenzied_regen_hp and menu.frenzied_regen_hp:get_value()) or 30),
+        frenzied_regen_hp = ((menu.frenzied_regen_hp and menu.frenzied_regen_hp:get()) or 30),
     }
     local should_use, reason = smart_defensive.should_use(me, "frenzied_regen", ctx or {}, settings)
     
@@ -146,13 +155,13 @@ local function try_frenzied_regeneration(me, ctx)
 end
 
 local function try_barkskin(me, ctx)
-    local use_barkskin = (menu.use_barkskin and menu.use_barkskin.is_checked and menu.use_barkskin:is_checked()) or false
+    local use_barkskin = (menu.use_barkskin and menu.use_barkskin.get_state and menu.use_barkskin:get_state()) or false
     if not use_barkskin then return false end
     if not rt.barkskin_id then return false end
     
     -- Use smart_defensive for predictive mitigation
     local settings = {
-        barkskin_hp = ((menu.barkskin_hp and menu.barkskin_hp:get_value()) or 40),
+        barkskin_hp = ((menu.barkskin_hp and menu.barkskin_hp:get()) or 40),
     }
     local should_use, reason = smart_defensive.should_use(me, "barkskin", ctx or {}, settings)
     
@@ -260,11 +269,15 @@ local function try_swipe(me, t)
     if not rt.swipe_id then return false end
     local min_targets = (menu.swipe_min_targets and menu.swipe_min_targets:get()) or 2
     local count = 1
-    local tp = t:get_position()
+    local ok_tp, tp = pcall(function() return t:get_position() end)
+    if not ok_tp then tp = nil end
     if tp then
-        for _, o in ipairs(core.object_manager.get_all_objects()) do
+        local ok_objects, all_objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then all_objects = {} end
+    for _, o in ipairs(all_objects) do
             if o and o:is_valid() and o:is_unit() and not o:is_dead() and me:can_attack(o) and o ~= t then
-                local op = o:get_position()
+                local ok_op, op = pcall(function() return o:get_position() end)
+    if not ok_op then op = nil end
                 if op then
                     local dx, dy, dz = op.x - tp.x, op.y - tp.y, op.z - tp.z
                     if (dx * dx + dy * dy + dz * dz) <= 64 then
@@ -400,7 +413,8 @@ local function on_update()
         dashboard.set_position(pos_x, pos_y)
     end
     
-    if not me or me:is_dead() then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if not me or (ok_dead and is_dead) then return end
 
     -- CC Detection: Stop rotation if crowd controlled
     local cc_detector = require("libraries/cc_detector")
@@ -444,9 +458,11 @@ local function on_update()
         return  -- Fix: Exit after OOC buffs to prevent combat rotation from overwriting
     end
 
-    local t = me:get_target()
+    local ok_t, t = pcall(function() return me:get_target() end)
+    if not ok_t then t = nil end
     if not t or not t:is_valid() or t:is_dead() then return end
-    if not me:can_attack(t) then return end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(t) end)
+    if not (ok_attack and can_attack) then return end
     
     -- NEW: Build rotation context once per frame
     local ctx = context_builder.build(me, t, menu)
@@ -500,10 +516,18 @@ local config = require("libraries/dashboard_config")
 dashboard.init(config)
 dashboard.register_render_callback()
 
--- Export toggle settings for external access
-local NS = _G.EAXDruidBear and _G.EAXDruidBear.NS or {}
-_G.EAXDruidBear = _G.EAXDruidBear or {}
-_G.EAXDruidBear.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only if header loaded successfully)
+if header.load then
+    local NS = _G.EAXDruidBear and _G.EAXDruidBear.NS or {}
+    _G.EAXDruidBear = _G.EAXDruidBear or {}
+    _G.EAXDruidBear.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 return {}
+
+
+
+
+
+

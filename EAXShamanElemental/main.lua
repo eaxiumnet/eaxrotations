@@ -1,6 +1,12 @@
 -- Eax Shaman Elemental | main.lua
 -- Elemental Shaman rotation: Lightning Bolt/Chain Lightning spam, Flame Shock, Totems
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -19,7 +25,7 @@ local force_commands = require("libraries/force_commands")
 local swing_manager = require("libraries/swing_manager")
 
 -- Hot-path API caching
-local _core_time = core.time
+local _core_time = core.game_time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
 
@@ -139,13 +145,10 @@ local totem_state = {
 local function refresh_totem_state()
     local now = _core_time()
     for slot = 1, 4 do
-        local ok, have, name, start, dur = pcall(function()
-            local h, n, s, d = GetTotemInfo(slot)
-            return h, n, s, d
-        end)
-        if ok then
-            local active = have and name and name ~= ""
-            local remaining = active and ((start + dur) - now) or 0
+        local totem = core.spell_book.get_totem_info(slot)
+        if totem then
+            local active = totem.have_totem and totem.totem_name and totem.totem_name ~= ""
+            local remaining = active and ((totem.start_time + totem.duration) - now) or 0
             if slot == 1 then
                 totem_state.fire_active = active
                 totem_state.fire_remaining = remaining
@@ -262,8 +265,11 @@ local function try_totem_management(me)
     if s.ele_earth_totem ~= 3 then -- not none
         local skip_earth = false
         if menu.use_auto_tremor and menu.use_auto_tremor:get_state() and totem_state.earth_active then
-            local ok, name = pcall(function() local _, n = GetTotemInfo(2); return n end)
-            if ok and name and name:find("Tremor") then skip_earth = true end
+            local totem = core.spell_book.get_totem_info(2)
+            if totem and totem.have_totem then
+                local name = totem.totem_name
+                if name and name:find("Tremor") then skip_earth = true end
+            end
         end
         if not skip_earth then
             if not totem_state.earth_active or totem_state.earth_remaining < threshold then
@@ -493,7 +499,8 @@ end
 -- Main on_update callback
 local function on_update()
     local me = _get_local_player()
-    if not me or not me:is_valid() then return end
+    local ok_me, me_valid = pcall(function() return me and me:is_valid() end)
+    if not ok_me or not me_valid then return end
     
     -- CC Detection: Stop rotation if crowd controlled
     local cc_detector = require("libraries/cc_detector")
@@ -515,7 +522,8 @@ local function on_update()
     check_combat_reset(me:is_in_combat())
     
     -- Out of combat utilities
-    if not me:is_in_combat() then
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not in_combat then
         ooc_manager.on_update(me, menu, utils, {
             group_buffs = {
                 {
@@ -559,7 +567,8 @@ local function on_update()
     end
     
     -- Get target
-    local target = me:get_target()
+    local ok_target, target = pcall(function() return me:get_target() end)
+    if not ok_target then return end
     if not utils.is_valid_hostile_target(me, target) then
         target = utils.find_best_target(me)
         if not target then return end
@@ -574,8 +583,11 @@ local function on_update()
     swing_manager:update_swing(me)
     
     -- Flux: Sample combat forecast
-    if combat_forecast and target and target:is_valid() then
+    if combat_forecast and target then
+        local ok_target_valid, target_valid = pcall(function() return target:is_valid() end)
+        if ok_target_valid and target_valid then
         combat_forecast:sample(target)
+        end
     end
     
     -- Flux: Check swing delay (don't clip auto attacks if melee weaving)
@@ -611,18 +623,9 @@ if core and core.register_on_update_callback then
     core.register_on_update_callback(on_update)
 end
 
--- Menu render callbacks (legacy, simple_ui handles its own rendering)
--- These are no-op since simple_ui.menu handles rendering internally
-if core and core.register_on_render_callback then
-    core.register_on_render_callback(function()
-        -- simple_ui handles rendering - no-op for compatibility
-        menu.render()
-    end)
-end
-
+-- Menu render callback
 if core and core.register_on_render_menu_callback then
     core.register_on_render_menu_callback(function(win)
-        -- simple_ui handles window management - no-op for compatibility
         menu.set_window(win)
         menu.render()
     end)
@@ -635,10 +638,12 @@ if dashboard.register_render_callback then
     dashboard.register_render_callback()
 end
 
--- Export toggle settings for external access
-local NS = _G.EAXShamanElemental and _G.EAXShamanElemental.NS or {}
-_G.EAXShamanElemental = _G.EAXShamanElemental or {}
-_G.EAXShamanElemental.NS = NS
-NS.toggle_menu = menu.toggle_menu
+-- Export toggle settings for external access (only when fully loaded)
+if header.load then
+    local NS = _G.EAXShamanElemental and _G.EAXShamanElemental.NS or {}
+    _G.EAXShamanElemental = _G.EAXShamanElemental or {}
+    _G.EAXShamanElemental.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end
 
 

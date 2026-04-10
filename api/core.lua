@@ -816,6 +816,18 @@ function core.game_ui.add_tooltip_double_line(left_text, right_text, lr, lg, lb,
     return nil
 end
 
+--- Returns whether the ping system is currently enabled.
+---@return boolean enabled True if the ping system is enabled, false otherwise.
+function core.game_ui.is_ping_enabled()
+    return false
+end
+
+--- Sends a ping, optionally targeting a game object.
+---@param ping_type? integer The ping type ID. Pass -1 or omit for default contextual ping.
+---@param target? game_object The target game object to ping on. Omit for a contextual ping at the cursor.
+function core.game_ui.send_ping(ping_type, target)
+end
+
 --- Starts a countdown timer in the party/raid.
 ---@param seconds integer The countdown duration in seconds.
 ---@return boolean success Whether the countdown was started successfully.
@@ -852,6 +864,20 @@ end
 ---@param arg3? integer Is inspect (classic) or spec group index (retail).
 ---@return talent_info_classic|talent_info_retail info The talent information table.
 function core.game_ui.get_talent_info(arg1, arg2, arg3)
+    return {}
+end
+
+--- Returns all active talent nodes for the player (retail 10.0+ only).
+--- Falls back to an empty table on classic.
+---@class active_talent_entry
+---@field node_id integer The talent node ID.
+---@field spell_id integer The spell ID associated with the talent.
+---@field name string The talent name.
+---@field rank integer The current rank purchased.
+---@field max_rank integer The maximum rank available.
+
+---@return active_talent_entry[] talents Array of active talent entries.
+function core.game_ui.get_active_talents()
     return {}
 end
 

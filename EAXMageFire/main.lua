@@ -1,5 +1,11 @@
 -- EAX Mage Fire | main.lua | Project Sylvanas
 
+-- Load header first to check if we should load at all
+local header = require("header")
+if not header.load then
+    return
+end
+
 local menu = require("libraries/menu")
 local spells = require("libraries/spells")
 local utils = require("libraries/utils")
@@ -103,7 +109,14 @@ end
 
 -- Helper functions
 local function is_valid_hostile_target(me, target)
-    return target and target:is_valid() and not target:is_dead() and me:can_attack(target)
+    if not target then return false end
+    local ok_valid, is_valid = pcall(function() return target:is_valid() end)
+    if not ok_valid or not is_valid then return false end
+    local ok_dead, is_dead = pcall(function() return target:is_dead() end)
+    if not ok_dead or is_dead then return false end
+    local ok_attack, can_attack = pcall(function() return me:can_attack(target) end)
+    if not ok_attack or not can_attack then return false end
+    return true
 end
 
 local function get_target_ttd_seconds(target)
@@ -134,7 +147,8 @@ local function try_maintain_scorch(me, target)
     if not (menu.fire_maintain_scorch and menu.fire_maintain_scorch:get()) then return false end
     if not runtime.scorch_id then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    if me:is_moving() then return false end
+    local ok_moving, is_moving = pcall(function() return me:is_moving() end)
+    if ok_moving and is_moving then return false end
 
     local stacks, duration = get_scorch_state(target)
     local refresh_threshold = (menu.fire_scorch_refresh and menu.fire_scorch_refresh:get()) or 6
@@ -155,7 +169,8 @@ local function try_combustion(me, target)
     if not runtime.combustion_id then return false end
     if not (menu.use_combustion and menu.use_combustion:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_COMBUSTION) then return false end
 
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
@@ -180,7 +195,8 @@ local function try_icy_veins(me, target)
     if not runtime.icy_veins_id then return false end
     if not (menu.use_icy_veins and menu.use_icy_veins:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.has_buff(me, spells.BUFF_ICY_VEINS) then return false end
 
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
@@ -197,7 +213,8 @@ end
 
 local function try_racial(me, target)
     if not is_valid_hostile_target(me, target) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
 
     local min_ttd = (menu.cd_min_ttd and menu.cd_min_ttd:get()) or 0
     local ttd = get_target_ttd_seconds(target)
@@ -226,12 +243,14 @@ local function try_blast_wave(me, target)
     if not runtime.blast_wave_id then return false end
     if not (menu.use_blast_wave and menu.use_blast_wave:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
 
     local min_enemies = (menu.fire_aoe_threshold and menu.fire_aoe_threshold:get()) or 3
 
     local count = 0
-    local objects = core.object_manager.get_all_objects()
+    local ok_objects, objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then objects = {} end
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
@@ -257,12 +276,14 @@ local function try_dragons_breath(me, target)
     if not runtime.dragons_breath_id then return false end
     if not (menu.use_dragons_breath and menu.use_dragons_breath:get()) then return false end
     if not is_valid_hostile_target(me, target) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
 
     local min_enemies = (menu.fire_aoe_threshold and menu.fire_aoe_threshold:get()) or 3
 
     local count = 0
-    local objects = core.object_manager.get_all_objects()
+    local ok_objects, objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then objects = {} end
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
@@ -289,10 +310,12 @@ local function try_aoe(me, target)
     if threshold == 0 then return false end
 
     if not is_valid_hostile_target(me, target) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
 
     local count = 0
-    local objects = core.object_manager.get_all_objects()
+    local ok_objects, objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then objects = {} end
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() and me:can_attack(obj) then
@@ -325,7 +348,8 @@ local function try_aoe(me, target)
 end
 
 local function try_movement_spell(me, target)
-    if not me:is_moving() then return false end
+    local ok_moving, is_moving = pcall(function() return me:is_moving() end)
+    if ok_moving and not is_moving then return false end
     if not is_valid_hostile_target(me, target) then return false end
 
     if (menu.use_fire_blast_move and menu.use_fire_blast_move:get()) and runtime.fire_blast_id then
@@ -342,7 +366,8 @@ end
 
 local function try_primary_spell(me, target)
     if not is_valid_hostile_target(me, target) then return false end
-    if me:is_moving() then return false end
+    local ok_moving, is_moving = pcall(function() return me:is_moving() end)
+    if ok_moving and is_moving then return false end
 
     if not (menu.use_fireball and menu.use_fireball:get()) then return false end
     if not runtime.fireball_id then return false end
@@ -357,7 +382,8 @@ end
 
 local function try_mana_gem(me)
     if not (menu.use_mana_gem and menu.use_mana_gem:get()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if utils.get_mana_pct(me) > ((menu.mana_gem_pct and menu.mana_gem_pct:get()) or 30) then return false end
 
     for i = 1, #spells.MANA_GEM_ITEMS do
@@ -372,9 +398,11 @@ end
 local function try_evocation(me)
     if not (menu.use_evocation and menu.use_evocation:get()) then return false end
     if not runtime.evocation_id then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
     if me:is_channelling_spell() then return false end
-    if me:is_moving() then return false end
+    local ok_moving, is_moving = pcall(function() return me:is_moving() end)
+    if ok_moving and is_moving then return false end
 
     local threshold = (menu.evocation_pct and menu.evocation_pct:get()) or 25
     if utils.get_mana_pct(me) > threshold then return false end
@@ -394,7 +422,8 @@ local function try_ice_block(me)
     end
     if not runtime.ice_block_id then return false end
 
-    local hp_pct = me:get_health_percentage() / 100
+    local ok_hp, hp_pct = pcall(function() if me and me.get_health_percentage then return me:get_health_percentage() / 100 end return 1 end)
+    if not ok_hp then hp_pct = 1 end
     local threshold = ((menu.ice_block_hp_pct and menu.ice_block_hp_pct:get()) or 30) / 100
     if hp_pct > threshold then return false end
     if utils.has_buff(me, spells.BUFF_ICE_BLOCK) then return false end
@@ -413,7 +442,8 @@ local function try_frost_nova(me)
     end
     if not runtime.frost_nova_id then return false end
 
-    local objects = core.object_manager.get_all_objects()
+    local ok_objects, objects = pcall(function() return core.object_manager.get_all_objects() end)
+    if not ok_objects then objects = {} end
     local melee_attacker = false
     for i = 1, #objects do
         local obj = objects[i]
@@ -438,8 +468,10 @@ local function try_remove_curse(me)
         runtime.remove_curse_id = utils.resolve_spell_id(spells.REMOVE_CURSE)
     end
     if not runtime.remove_curse_id then return false end
-    if not me:is_in_combat() then return false end
-    if me:is_moving() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
+    local ok_moving, is_moving = pcall(function() return me:is_moving() end)
+    if ok_moving and is_moving then return false end
 
     if utils.has_debuff(me, spells.REMOVE_CURSE) then
         if utils.can_cast_self(runtime.remove_curse_id, me) then
@@ -453,7 +485,8 @@ end
 
 local function try_trinkets(me)
     if not (menu.use_trinkets and menu.use_trinkets:get()) then return false end
-    if not me:is_in_combat() then return false end
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then return false end
 
     local trinkets = utils.get_self_cast_trinket_ids(me)
     for i = 1, #trinkets do
@@ -541,7 +574,8 @@ local function on_update()
 
     local me = _get_local_player()
     if not me then return end
-    if me:is_dead() then return end
+    local ok_dead, is_dead = pcall(function() return me:is_dead() end)
+    if ok_dead and is_dead then return end
 
     -- Sync dashboard settings (safe pcall for uninitialized menu items)
     local ok_show, show_dashboard = pcall(function() return menu.show_dashboard:get_state() end)
@@ -569,7 +603,8 @@ local function on_update()
     if utils.is_cced and utils.is_cced(me) then return end
 
     -- OOC handling via shared ooc_manager
-    if not me:is_in_combat() then
+    local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
         local resolved = {
             mage_armor = runtime.mage_armor_id,
             arcane_intellect = runtime.arcane_intellect_id
@@ -592,10 +627,12 @@ local function on_update()
         })
     end
 
-    local target = me:get_target()
+    local ok_target, target = pcall(function() if me and me.get_target then return me:get_target() end return nil end)
+    if not ok_target then target = nil end
     if not is_valid_hostile_target(me, target) then
         -- OOC handling via shared ooc_manager
-        if not me:is_in_combat() then
+        local ok_combat, is_combat = pcall(function() return me:is_in_combat() end)
+    if ok_combat and not is_combat then
             local resolved = {
                 mage_armor = runtime.mage_armor_id,
                 arcane_intellect = runtime.arcane_intellect_id
@@ -626,7 +663,8 @@ local function on_update()
     end
 
     local self_threshold = 0.30
-    local my_hp = me:get_health_percentage() / 100
+    local ok_hp, my_hp = pcall(function() if me and me.get_health_percentage then return me:get_health_percentage() / 100 end return 1 end)
+    if not ok_hp then my_hp = 1 end
     if my_hp < self_threshold then
         try_ice_block(me)
     end
@@ -642,7 +680,9 @@ end
 core.register_on_update_callback(on_update)
 
 -- Export toggle settings for external access
-local NS = _G.EAXMageFire and _G.EAXMageFire.NS or {}
-_G.EAXMageFire = _G.EAXMageFire or {}
-_G.EAXMageFire.NS = NS
-NS.toggle_menu = menu.toggle_menu
+if header.load then
+    local NS = _G.EAXMageFire and _G.EAXMageFire.NS or {}
+    _G.EAXMageFire = _G.EAXMageFire or {}
+    _G.EAXMageFire.NS = NS
+    NS.toggle_menu = menu.toggle_menu
+end

@@ -73,12 +73,17 @@ local COMBAT_FORMS = {
     Check if player has any of the given buff IDs
 --]]
 local function has_any_buff(me, buff_ids)
-    if not me or not me:is_valid() or not buff_ids then
+    if not me or not buff_ids then
+        return false
+    end
+    local ok_valid, is_valid = pcall(function() return me:is_valid() end)
+    if not ok_valid or not is_valid then
         return false
     end
     
     for _, buff_id in ipairs(buff_ids) do
-        if me:has_aura(buff_id) then
+        local ok_buff, has_buff = pcall(function() return me:has_aura(buff_id) end)
+        if ok_buff and has_buff then
             return true
         end
     end
@@ -245,7 +250,8 @@ function form_consumables.check_and_use(me, menu, form_spells, saved_form)
     end
     
     -- Only use consumables in combat
-    if not me:is_in_combat() then
+    local ok_combat, in_combat = pcall(function() return me:is_in_combat() end)
+    if not ok_combat or not in_combat then
         return false, nil, "not_in_combat"
     end
     
@@ -260,7 +266,9 @@ function form_consumables.check_and_use(me, menu, form_spells, saved_form)
     end
     
     -- Check health percentage
-    local health_pct = me:get_health_percentage()
+    local ok_hp, hp = pcall(function() return me:get_health() end)
+local ok_max, max_hp = pcall(function() return me:get_max_health() end)
+local health_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((hp / max_hp) * 100) or 100
     if not health_pct or health_pct > health_threshold then
         return false, nil, "health_above_threshold"
     end

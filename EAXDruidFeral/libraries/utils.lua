@@ -69,9 +69,9 @@ end
 
 function utils.get_distance_to_target(me, target)
     if not me or not target then return math.huge end
-    local me_pos = me:get_position()
-    local target_pos = target:get_position()
-    if not me_pos or not target_pos then return math.huge end
+    local ok_me, me_pos = pcall(function() return me:get_position() end)
+    local ok_target, target_pos = pcall(function() return target:get_position() end)
+    if not ok_me or not me_pos or not ok_target or not target_pos then return math.huge end
     return me_pos:dist_to(target_pos)
 end
 
@@ -234,8 +234,9 @@ end
 -- Squared distance for performance (no sqrt)
 function utils.dist_squared(me, target)
     if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
-    if not p1 or not p2 then return 999999 end
+    local ok_me, p1 = pcall(function() return me:get_position() end)
+    local ok_target, p2 = pcall(function() return target:get_position() end)
+    if not ok_me or not p1 or not ok_target or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)
 end
@@ -258,11 +259,9 @@ function utils.get_form_name()
     -- Travel Form: 783
     -- Aquatic Form: 1066
     -- Moonkin Form: 24858, 33943
-    if me.has_buff then
-        if me:has_buff(783) then return "Travel" end
-        if me:has_buff(1066) then return "Aqua" end
-        if me:has_buff(24858) or me:has_buff(33943) then return "Moonkin" end
-    end
+    if buff_manager.has_buff(me, 783) then return "Travel" end
+    if buff_manager.has_buff(me, 1066) then return "Aqua" end
+    if buff_manager.has_buff(me, 24858) or buff_manager.has_buff(me, 33943) then return "Moonkin" end
     
     return "Caster"
 end
@@ -458,7 +457,9 @@ function utils.try_shapeshift_root_break(me, menu)
     -- Check if currently rooted
     if not me.get_loss_of_control_info then return false end
     
-    local loc_info = me:get_loss_of_control_info()
+    local ok_loc, loc_info = pcall(function() return me:get_loss_of_control_info() end)
+    if not ok_loc then return false end
+    loc_info = loc_info
     if not loc_info or not loc_info.valid then return false end
     
     -- LOC_ROOT = 7 (from Sylvanas API)
@@ -477,6 +478,43 @@ function utils.try_shapeshift_root_break(me, menu)
     end
     
     return false
+end
+
+-- Drink/Eat buff IDs for OOC detection
+local DRINK_BUFF_IDS = { 430, 2639, 1133, 10250, 22734, 27089, 29007, 46755 }
+local EAT_BUFF_IDS = { 433, 787, 1131, 5004, 5005, 7737, 18191, 35270 }
+
+--[[
+    Check if player is currently drinking
+    
+    @param me: Local player object
+    @return boolean: true if drinking buff active
+--]]
+function utils.is_drinking(me)
+    if not me or not me:is_valid() then return false end
+    return utils.has_buff(me, DRINK_BUFF_IDS)
+end
+
+--[[
+    Check if player is currently eating
+    
+    @param me: Local player object
+    @return boolean: true if eating buff active
+--]]
+function utils.is_eating(me)
+    if not me or not me:is_valid() then return false end
+    return utils.has_buff(me, EAT_BUFF_IDS)
+end
+
+--[[
+    Check if player is in bear or dire bear form
+    
+    @param me: Local player object
+    @return boolean: true if in bear form
+--]]
+function utils.is_in_bear_form(me)
+    if not me or not me:is_valid() then return false end
+    return utils.has_buff(me, {5487, 9634})  -- Bear Form, Dire Bear Form
 end
 
 return utils

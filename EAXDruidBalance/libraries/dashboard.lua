@@ -584,12 +584,9 @@ function dashboard.update()
     
     -- Get player and target
     dashboard._cached_player = _get_local_player()
-    -- FIX: get_target is a method on the player object
-    if dashboard._cached_player and dashboard._cached_player.get_target then
-        dashboard._cached_target = dashboard._cached_player:get_target()
-    else
-        dashboard._cached_target = nil
-    end
+        -- FIX: Wrap get_target in pcall for safety
+    local ok, target = pcall(function() return dashboard._cached_player:get_target() end)
+    dashboard._cached_target = ok and target or nil
     
     -- Update data
     update_resources(dashboard._cached_player)

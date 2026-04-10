@@ -87,8 +87,10 @@ function middleware_manager.initialize(menu)
                 -- Check health percentage
                 local hp_pct = 100
                 if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
+                    local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                    local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                    if not ok_hp then hp = 0 end
+                    if not ok_max then max_hp = 100 end
                     if max_hp > 0 then
                         hp_pct = (hp / max_hp) * 100
                     end
@@ -134,8 +136,10 @@ function middleware_manager.initialize(menu)
                 -- Check health percentage
                 local hp_pct = 100
                 if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
+                    local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                    local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                    if not ok_hp then hp = 0 end
+                    if not ok_max then max_hp = 100 end
                     if max_hp > 0 then
                         hp_pct = (hp / max_hp) * 100
                     end
@@ -197,8 +201,10 @@ function middleware_manager.initialize(menu)
                 -- Check health percentage
                 local hp_pct = 100
                 if ctx.me.get_health and ctx.me.get_max_health then
-                    local hp = ctx.me:get_health()
-                    local max_hp = ctx.me:get_max_health()
+                    local ok_hp, hp = pcall(function() return ctx.me:get_health() end)
+                    local ok_max, max_hp = pcall(function() return ctx.me:get_max_health() end)
+                    if not ok_hp then hp = 0 end
+                    if not ok_max then max_hp = 100 end
                     if max_hp > 0 then
                         hp_pct = (hp / max_hp) * 100
                     end

@@ -52,17 +52,18 @@ end
 
 function utils.get_health_pct(unit)
     if not unit or not unit:is_valid() then return 0 end
-    local hp = unit:get_health()
-    local max = unit:get_max_health()
+    local ok_hp, hp = pcall(function() return unit:get_health() end)
+    local ok_max, max = pcall(function() return unit:get_max_health() end)
+    if not ok_hp or not ok_max then return 0 end
     if not max or max <= 0 then return 0 end
-    return hp / max
+    return (hp / max) * 100
 end
 
 function utils.get_distance_to_target(me, target)
     if not me or not target then return math.huge end
-    local me_pos = me:get_position()
-    local target_pos = target:get_position()
-    if not me_pos or not target_pos then return math.huge end
+    local ok_me, me_pos = pcall(function() return me:get_position() end)
+    local ok_target, target_pos = pcall(function() return target:get_position() end)
+    if not ok_me or not me_pos or not ok_target or not target_pos then return math.huge end
     return me_pos:dist_to(target_pos)
 end
 
@@ -214,8 +215,9 @@ end
 -- Squared distance for performance (no sqrt)
 function utils.dist_squared(me, target)
     if not me or not target then return 999999 end
-    local p1, p2 = me:get_position(), target:get_position()
-    if not p1 or not p2 then return 999999 end
+    local ok_me, p1 = pcall(function() return me:get_position() end)
+    local ok_target, p2 = pcall(function() return target:get_position() end)
+    if not ok_me or not p1 or not ok_target or not p2 then return 999999 end
     local dx, dy, dz = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
     return (dx * dx + dy * dy + dz * dz)
 end
@@ -767,12 +769,11 @@ end
 function utils.find_best_target(me)
     if not me or not me:is_valid() then return nil end
     
-    local target = me:get_target()
+    local ok_target, target = pcall(function() return me:get_target() end)
+    if not ok_target or not target then return nil end
     if target and target:is_valid() and target:is_hostile() then
         return target
     end
-    
-    local enemies = core.object_manager.get_enemies_in_radius(me, 40)
     if enemies and #enemies > 0 then
         for _, enemy in ipairs(enemies) do
             if enemy and enemy:is_valid() and enemy:is_hostile() then
@@ -819,3 +820,4 @@ function utils.can_slam_without_clipping(me, slam_id, swing_time_remaining)
 end
 
 return utils
+

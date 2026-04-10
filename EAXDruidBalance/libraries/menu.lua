@@ -108,13 +108,13 @@ menu.use_healing_potion                   = core.menu.checkbox(true, "eaxdruidba
 menu.consumable_health_threshold          = core.menu.slider_int(10, 50, 35, "eaxdruidbalance_consumable_threshold")
 menu.health_potion_hp_pct                 = core.menu.slider_int(10, 60, 40, "eaxdruidbalance_health_potion_hp_pct")
 menu.use_mana_potion                      = core.menu.checkbox(true, "eaxdruidbalance_use_mana_potion")
-menu.mana_potion_pct                      = core.menu.slider_int(5, 30, 15, "eaxdruidbalance_mana_potion_pct")
+menu.mana_potion_pct                      = core.menu.slider_int(5, 100, 20, "eaxdruidbalance_mana_potion_pct")
 menu.use_war_stomp                        = core.menu.checkbox(true, "eaxdruidbalance_use_war_stomp")
 
 -- -- Mana Management -----------------------------------------------------------
 menu.use_mana_manager = core.menu.checkbox(true, "eaxdruidbalance_use_mana_manager")
 menu.innervate_pct = core.menu.slider_int(5, 100, 30, "eaxdruidbalance_innervate_pct")
-menu.mana_potion_pct = core.menu.slider_int(5, 100, 20, "eaxdruidbalance_mana_potion_pct")
+-- REMOVED: Duplicate mana_potion_pct - unified above
 menu.dark_rune_pct = core.menu.slider_int(5, 100, 15, "eaxdruidbalance_dark_rune_pct")
 
 -- -- Burst & Trinket Automation ------------------------------------------------

@@ -867,6 +867,20 @@ function core.game_ui.get_talent_info(arg1, arg2, arg3)
     return {}
 end
 
+--- Returns all active talent nodes for the player (retail 10.0+ only).
+--- Falls back to an empty table on classic.
+---@class active_talent_entry
+---@field node_id integer The talent node ID.
+---@field spell_id integer The spell ID associated with the talent.
+---@field name string The talent name.
+---@field rank integer The current rank purchased.
+---@field max_rank integer The maximum rank available.
+
+---@return active_talent_entry[] talents Array of active talent entries.
+function core.game_ui.get_active_talents()
+    return {}
+end
+
 --- Shows a context menu at the cursor with simple text buttons.
 --- Use get_context_menu_result() to poll for the clicked option.
 ---@class context_menu_entry

@@ -91,6 +91,10 @@ menu.curse_mode                          = core.menu.combobox(1, "eaxwarlockdest
 menu.life_tap_threshold                  = core.menu.slider_int(10, 80, 40, "eaxwarlockdestruction_life_tap_threshold")
 menu.preferred_pet                       = core.menu.combobox(1, "eaxwarlockdestruction_preferred_pet")
 
+-- Healthstone Settings
+menu.use_healthstone                     = core.menu.checkbox(true, "eaxwarlockdestruction_use_healthstone")
+menu.healthstone_hp_pct                  = core.menu.slider_int(5, 100, 30, "eaxwarlockdestruction_healthstone_hp_pct")
+
 -- Mana Management (Warlock uses Life Tap)
 menu.use_mana_manager = core.menu.checkbox(true, "eaxwarlockdestruction_use_mana_manager")
 menu.life_tap_pct = core.menu.slider_int(5, 100, 50, "eaxwarlockdestruction_life_tap_pct")

@@ -66,7 +66,7 @@ function threat_tab_manager.get_unit_priority(target)
     if not target or not target:is_valid() then return threat_tab_manager.PRIO_TRASH end
     
     local classification = target:get_classification()
-    if classification == "worldboss" then return threat_tab_manager.PRIO_BOSS end
+    if classification == 3 then return threat_tab_manager.PRIO_BOSS end           -- World Boss
     if classification == "elite" or classification == "rareelite" then 
         return threat_tab_manager.PRIO_ELITE 
     end
@@ -121,15 +121,16 @@ function threat_tab_manager.get_best_target(me, current_target, min_priority)
     local tier2_units = {}  -- Insecurely tanking
     
     local scan_radius_sq = threat_tab_manager.SCAN_RADIUS * threat_tab_manager.SCAN_RADIUS
-    local objects = core.object_manager.get_visible_objects()
+    local objects = core.object_manager.get_all_objects()
     
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
             if me:can_attack(obj) then
                 -- Check distance
-                local my_pos = me:get_position()
-                local obj_pos = obj:get_position()
+                local ok_m, my_pos = pcall(function() return me:get_position() end)
+                local ok_o, obj_pos = pcall(function() return obj:get_position() end)
+                if not ok_m or not ok_o or not my_pos or not obj_pos then goto continue end
                 if my_pos and obj_pos then
                     local dx = obj_pos.x - my_pos.x
                     local dy = obj_pos.y - my_pos.y
@@ -156,6 +157,7 @@ function threat_tab_manager.get_best_target(me, current_target, min_priority)
                 end
             end
         end
+        ::continue::
     end
     
     -- Helper to find highest priority unit in a tier
@@ -247,7 +249,7 @@ function threat_tab_manager.should_tab(me, current_target, menu)
     
     -- Single target - no need to tab
     local enemy_count = 0
-    local objects = core.object_manager.get_visible_objects()
+    local objects = core.object_manager.get_all_objects()
     for i = 1, #objects do
         local obj = objects[i]
         if obj and obj:is_valid() and obj:is_unit() and not obj:is_dead() then
