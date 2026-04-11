@@ -21,6 +21,14 @@
 - `luac -p` must pass on every modified file
 - Only Project Sylvanas API (`api/`, `apidocs/`) — no external platforms
 
+## Research Context
+
+- **Origin:** Jeremy Howard (Answer.AI) proposed llms.txt in September 2024 as "robots.txt for AI"
+- **Google Statement:** John Mueller (Google Search): "No AI system currently uses llms.txt"
+- **Adoption:** 844,000+ implementations across GitHub (per grep.app)
+- **Industry Usage:** Fireworks AI uses llms.txt for their own docs at docs.fireworks.ai
+- **Performance Testing:** Reddit r/opencodeCLI testing showed oh-my-opencode-slim decreased performance (73.1% → 69.2%)
+
 ---
 
 ## Complete Project Structure
@@ -350,7 +358,7 @@ izi.on_debuff_lose(callback)
 
 -- Spell events
 izi.on_spell_success(callback)
-izi.on_spell_fail(callback)
+-- NOTE: izi.on_spell_fail() does not exist in the IZI SDK
 
 -- Input events
 izi.on_key_release(key_code, callback)
