@@ -600,7 +600,9 @@ local target_hp_pct = (ok_hp and ok_max and hp and max_hp and max_hp > 0) and ((
     -- Burst & Trinket Automation (ported from Flux)
     local combat_time = _core_time() - (ctx.combat_start_time or _core_time())
     local is_burst_window = burst_manager.should_auto_burst(me, target, combat_time, menu)
-    if is_burst_window then
+    -- Force burst from /eax burst command
+    local force_burst = force_commands:is_burst_active()
+    if is_burst_window or force_burst then
         -- Try burst CDs based on conditions
         if (menu.use_death_wish and menu.use_death_wish:get_state()) then
             if try_death_wish(me) then return end

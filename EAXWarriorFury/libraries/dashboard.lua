@@ -44,7 +44,7 @@ local dashboard = {
     -- Phase 2: Timer Bars
     _timer_bars = {
         gcd = { active = false, remaining = 0, total = 1.5 },
-        swing = { active = false, remaining = 0, total = 2.0 },
+        swing = { active = false, remaining = 0, total = 2.0, landing_soon = false },
     },
     _show_timer_bars = false,
     -- Phase 3: Action History (CLEU Integration)
@@ -120,6 +120,7 @@ local _text_2d = core.graphics.text_2d
 local vec2 = require("common/geometry/vector_2")
 local color = require("common/color")
 local buff_manager = require("common/modules/buff_manager")
+local swing_manager = require("libraries/swing_manager")
 -- Class validation helper to prevent cross-spec rendering conflicts
 local function is_player_class_match()
     if not dashboard.config or not dashboard.config.class_id then
@@ -505,10 +506,45 @@ local function update_timer_bars()
         dashboard._timer_bars.gcd.remaining = 0
     end
     
-    -- Update Swing (placeholder - would need attack speed API)
-    -- For now, just track if we have an active swing timer
-    dashboard._timer_bars.swing.active = false
-    dashboard._timer_bars.swing.remaining = 0
+    -- Update Swing using swing_manager data
+    local swing_bar = dashboard._timer_bars.swing
+    local swing_remaining = nil
+    local swing_active = false
+    local landing_soon = false
+    if swing_manager and swing_manager.time_until_next_swing then
+        local ok, remaining = pcall(function()
+            return swing_manager:time_until_next_swing()
+        end)
+        if ok and remaining and remaining > 0 then
+            swing_remaining = remaining
+            swing_active = true
+            local landing_ok, landing = pcall(function()
+                return swing_manager:is_swing_landing_soon()
+            end)
+            if landing_ok and landing then
+                landing_soon = true
+            end
+        end
+    end
+    if swing_active and swing_remaining then
+        swing_bar.active = true
+        swing_bar.remaining = swing_remaining
+        local swing_speed = nil
+        if swing_manager and swing_manager.get_swing_speed then
+            local speed_ok, speed = pcall(function()
+                return swing_manager:get_swing_speed()
+            end)
+            if speed_ok and speed and speed > 0 then
+                swing_speed = speed
+            end
+        end
+        swing_bar.total = swing_speed or math.max(swing_remaining, 0.1)
+        swing_bar.landing_soon = landing_soon
+    else
+        swing_bar.active = false
+        swing_bar.remaining = 0
+        swing_bar.landing_soon = false
+    end
 end
 
 -- Phase 5: Update combo points
@@ -894,8 +930,9 @@ function dashboard.render()
         -- Swing Bar (if active)
         if dashboard._timer_bars.swing.active then
             local swing_pct = dashboard._timer_bars.swing.remaining / dashboard._timer_bars.swing.total
+            local swing_color = dashboard._timer_bars.swing.landing_soon and THEME.accent or THEME.energy
             draw_timer_bar(x + 5 * scale, current_y, timer_bar_width, timer_bar_height,
-                1 - swing_pct, THEME.energy, "Swing",
+                1 - swing_pct, swing_color, "Swing",
                 string.format("%.1f", dashboard._timer_bars.swing.remaining),
                 {30, 30, 30, 200})
             current_y = current_y + timer_bar_height + ICON_GAP * scale
