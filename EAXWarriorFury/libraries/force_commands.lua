@@ -1,6 +1,7 @@
 -- libraries/force_commands.lua
--- Force command system for /eax burst and /eax def commands
--- Ported from Flux with Sylvanas API compliance
+-- Force command system for burst/defensive mode activation
+-- Note: Project Sylvanas does not support slash commands (/eax burst)
+-- Use menu toggles, keybinds, or programmatic triggers instead
 
 local force_commands = {
     flags = {
@@ -15,37 +16,15 @@ local _core_time = core.time
 local _core_log = core.log
 
 -- ============================================================================
--- CHAT EVENT HANDLER
--- ============================================================================
-local function on_chat_msg(msg)
-    if not msg then return end
-    
-    -- Parse /eax burst
-    if msg:match("^/eax%s+burst") or msg:match("^/eax%s+offensive") then
-        force_commands.flags.burst = _core_time() + force_commands.DURATION
-        _core_log("[EAX] Burst mode activated for 3 seconds")
-        return
-    end
-    
-    -- Parse /eax def
-    if msg:match("^/eax%s+def") or msg:match("^/eax%s+defensive") then
-        force_commands.flags.defensive = _core_time() + force_commands.DURATION
-        _core_log("[EAX] Defensive mode activated for 3 seconds")
-        return
-    end
-end
-
--- ============================================================================
 -- PUBLIC API
 -- ============================================================================
 
 ---Initialize the force commands system
 ---Call once from main.lua during plugin load
+---Note: Chat commands not supported by Project Sylvanas API
 function force_commands:init()
-    -- Register chat event handler for slash commands
-    if core.add_event_callback then
-        core.add_event_callback("CHAT_MSG", on_chat_msg)
-    end
+    -- No chat API available in Project Sylvanas
+    -- Use menu toggles or keybinds to trigger burst/defensive modes
 end
 
 ---Check if burst mode is currently active
