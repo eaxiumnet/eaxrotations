@@ -1,0 +1,309 @@
+-- ============================================================================
+-- Shared Runtime Helper: TBC Trinket Manager
+-- ============================================================================
+-- Readability notes:
+--   What: nil-safe automated TBC on-use trinket handling for EaxRotations.
+--   When: registered by core_sylvanas.lua after NS helpers are available.
+--   Why: offensive/defensive trinket usage is cross-class cooldown behavior.
+--   Safety: inventory and item-use APIs are guarded; cooldown checks fail closed.
+
+local _G = _G
+local NS = _G.EaxRotations
+
+local M = {}
+
+local type, tostring = type, tostring
+local EMPTY = {}
+
+local DEFAULT_DEFENSIVE_HP = 40
+local DEFAULT_ITEM_COOLDOWN = 120
+local FRAME_CACHE_FALLBACK_MS = -1
+
+local TRINKET_KIND_OFFENSIVE = "offensive"
+local TRINKET_KIND_DEFENSIVE = "defensive"
+
+local TRINKETS = {
+    -- Offensive TBC on-use trinkets.
+    [29383] = { name = "Bloodlust Brooch", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
+    [29370] = { name = "Icon of the Silver Crescent", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
+    [29132] = { name = "Scryer's Bloodgem", kind = TRINKET_KIND_OFFENSIVE, cooldown = 90 },
+    [33829] = { name = "Hex Shrunken Head", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
+    [32483] = { name = "The Skull of Gul'dan", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
+    [23206] = { name = "Mark of the Champion", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
+    [28040] = { name = "Vengeance of the Illidari", kind = TRINKET_KIND_OFFENSIVE, cooldown = 90 },
+    [28121] = { name = "Icon of Unyielding Courage", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
+    [29387] = { name = "Gnomeregan Auto-Blocker 600", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
+
+    -- Defensive TBC on-use trinkets.
+    [28528] = { name = "Moroes' Lucky Pocket Watch", kind = TRINKET_KIND_DEFENSIVE, cooldown = 120 },
+    [30629] = { name = "Scarab of Displacement", kind = TRINKET_KIND_DEFENSIVE, cooldown = 120 },
+    [32501] = { name = "Shadowmoon Insignia", kind = TRINKET_KIND_DEFENSIVE, cooldown = 120 },
+    [34473] = { name = "Commendation of Kael'thas", kind = TRINKET_KIND_DEFENSIVE, cooldown = 120 },
+    [32658] = { name = "Badge of Tenacity", kind = TRINKET_KIND_DEFENSIVE, cooldown = 120 },
+}
+
+local _registered = false
+local _last_used = {}
+local _slot_cache = {
+    frame_ms = FRAME_CACHE_FALLBACK_MS,
+    slots = { [13] = nil, [14] = nil },
+}
+
+local function safe(fn, ...)
+    if type(fn) ~= "function" then return nil end
+    local ok, a, b, c = pcall(fn, ...)
+    if ok then return a, b, c end
+    return nil
+end
+
+local function safe_field(obj, key)
+    if NS and NS.safe_field then return NS.safe_field(obj, key) end
+    if not obj then return nil end
+    local ok, value = pcall(function() return obj[key] end)
+    return ok and value or nil
+end
+
+local function now_seconds()
+    if NS and NS.time_now then return NS.time_now() end
+    local core = (NS and NS.core) or _G.core
+    local t = core and core.time and safe(core.time) or nil
+    return type(t) == "number" and t or 0
+end
+
+local function now_ms()
+    if NS and NS.game_time_ms then return NS.game_time_ms() end
+    return now_seconds() * 1000
+end
+
+local function get_player()
+    return NS and NS.GetPlayer and NS.GetPlayer() or nil
+end
+
+local function context_or_default(override)
+    if type(override) == "table" then return override end
+    local context = NS and NS.GetCurrentContext and NS.GetCurrentContext() or nil
+    if type(context) == "table" then return context end
+
+    local me = get_player()
+    if not me then return nil end
+    local is_in_combat = safe_field(me, "is_in_combat")
+    local target = NS and NS.GetTarget and NS.GetTarget() or nil
+    return {
+        me = me,
+        target = target,
+        settings = NS and NS.settings or EMPTY,
+        hp = NS and NS.unit_health_pct and NS.unit_health_pct(me) or 100,
+        in_combat = is_in_combat and safe(is_in_combat, me) == true or false,
+        has_valid_enemy_target = target ~= nil and (not NS or not NS.is_hostile_unit or NS.is_hostile_unit(me, target) == true),
+    }
+end
+
+local function setting(settings, key, default)
+    if settings and settings[key] ~= nil then return settings[key] end
+    if NS and NS.get_setting then return NS.get_setting(key, default) end
+    return default
+end
+
+local function setting_enabled(settings, key, default)
+    return setting(settings, key, default ~= false) ~= false
+end
+
+local function seed_default_settings()
+    if not NS or type(NS.set_setting) ~= "function" or type(NS.get_setting) ~= "function" then return end
+    if NS.get_setting("use_trinket_1", nil) == nil then NS.set_setting("use_trinket_1", true) end
+    if NS.get_setting("use_trinket_2", nil) == nil then NS.set_setting("use_trinket_2", true) end
+    if NS.get_setting("use_trinket_offensive", nil) == nil then NS.set_setting("use_trinket_offensive", true) end
+    if NS.get_setting("use_trinket_defensive", nil) == nil then NS.set_setting("use_trinket_defensive", true) end
+    if NS.get_setting("trinket_defensive_hp", nil) == nil then NS.set_setting("trinket_defensive_hp", DEFAULT_DEFENSIVE_HP) end
+end
+
+local function trinket_slots()
+    local slots = NS and NS.EQUIPMENT_SLOTS or nil
+    return (slots and slots.TRINKET1) or 13, (slots and slots.TRINKET2) or 14
+end
+
+local function refresh_slot_cache()
+    local frame_ms = now_ms()
+    if _slot_cache.frame_ms == frame_ms then return _slot_cache.slots end
+
+    local slot1, slot2 = trinket_slots()
+    _slot_cache.frame_ms = frame_ms
+    _slot_cache.slots[slot1] = NS and NS.get_equipped_item_id and NS.get_equipped_item_id(slot1) or nil
+    _slot_cache.slots[slot2] = NS and NS.get_equipped_item_id and NS.get_equipped_item_id(slot2) or nil
+    return _slot_cache.slots
+end
+
+local function slot_enabled(settings, slot)
+    local slot1, slot2 = trinket_slots()
+    if slot == slot1 then return setting_enabled(settings, "use_trinket_1", true) end
+    if slot == slot2 then return setting_enabled(settings, "use_trinket_2", true) end
+    return false
+end
+
+local function manual_cooldown_remaining(slot, item_id, entry)
+    local key = tostring(slot) .. ":" .. tostring(item_id)
+    local last = _last_used[key]
+    if not last then return 0 end
+    local cooldown = entry and entry.cooldown or DEFAULT_ITEM_COOLDOWN
+    local remaining = cooldown - (now_seconds() - last)
+    return remaining > 0 and remaining or 0
+end
+
+local function item_cooldown_remaining(me, slot, item_id, entry)
+    local get_item_cooldown = safe_field(me, "get_item_cooldown")
+    if get_item_cooldown then
+        local a, b = safe(get_item_cooldown, me, item_id)
+        if type(a) == "number" and type(b) == "number" then
+            local remaining = (a + b) - now_seconds()
+            if remaining > 0 then return remaining end
+        elseif type(a) == "number" and a > 0 then
+            return a
+        end
+    end
+
+    local core = (NS and NS.core) or _G.core
+    local cd_fn = core and core.spell_book and core.spell_book.get_spell_cooldown_information
+    local info = safe(cd_fn, item_id)
+    if type(info) == "table" then
+        if info.enabled == false then return 0 end
+        local start_time = tonumber(info.start_time or info.start or 0) or 0
+        local duration = tonumber(info.duration or 0) or 0
+        if duration > 0 then
+            local remaining
+            if start_time > 1000 then
+                local duration_ms = duration > 1000 and duration or duration * 1000
+                remaining = (start_time + duration_ms - now_ms()) / 1000
+            elseif duration > 1000 then
+                remaining = ((start_time * 1000) + duration - now_ms()) / 1000
+            else
+                remaining = start_time + duration - now_seconds()
+            end
+            if remaining > 0 then return remaining end
+        end
+    end
+
+    return manual_cooldown_remaining(slot, item_id, entry)
+end
+
+local function trinket_ready(me, slot, item_id, entry)
+    if not item_id or not entry then return false end
+    if item_cooldown_remaining(me, slot, item_id, entry) > 0 then return false end
+
+    local core = (NS and NS.core) or _G.core
+    local is_item_ready = core and core.spell_book and core.spell_book.is_item_ready
+    local ready = safe(is_item_ready, item_id)
+    if ready == false then return false end
+    return true
+end
+
+local function use_slot(slot, item_id, entry)
+    local core = (NS and NS.core) or _G.core
+    local use_item = core and core.input and core.input.use_item
+    if type(use_item) ~= "function" then return false end
+    local result = safe(use_item, slot)
+    if result == false then return false end
+
+    _last_used[tostring(slot) .. ":" .. tostring(item_id)] = now_seconds()
+    if NS and NS.log then NS.log("[Trinket] " .. tostring(entry.name or item_id)) end
+    return true
+end
+
+local function should_use_offensive(context, settings)
+    if not setting_enabled(settings, "use_trinket_offensive", true) then return false end
+    if not context.in_combat or not context.has_valid_enemy_target then return false end
+    if context.should_burst then return true end
+    return setting(settings, "use_trinket_offensive", true) == true
+end
+
+local function should_use_defensive(context, settings)
+    if not setting_enabled(settings, "use_trinket_defensive", true) then return false end
+    local threshold = setting(settings, "trinket_defensive_hp", DEFAULT_DEFENSIVE_HP) or DEFAULT_DEFENSIVE_HP
+    return (context.hp or 100) < threshold
+end
+
+local function try_use_kind(context, kind)
+    local me = context.me or get_player()
+    if not me then return false end
+    local settings = context.settings or EMPTY
+    local slots = refresh_slot_cache()
+    local slot1, slot2 = trinket_slots()
+
+    for i = 1, 2 do
+        local slot = i == 1 and slot1 or slot2
+        if slot_enabled(settings, slot) then
+            local item_id = slots[slot]
+            local entry = item_id and TRINKETS[item_id] or nil
+            if entry and entry.kind == kind and trinket_ready(me, slot, item_id, entry) then
+                return use_slot(slot, item_id, entry)
+            end
+        end
+    end
+    return false
+end
+
+local strategies = {
+    {
+        name = "DefensiveTrinket",
+        category = "defensive",
+        matches = function(context)
+            return should_use_defensive(context, context and context.settings or EMPTY)
+        end,
+        execute = function(context)
+            return try_use_kind(context, TRINKET_KIND_DEFENSIVE)
+        end,
+    },
+    {
+        name = "OffensiveTrinket",
+        category = "cooldown",
+        is_burst = true,
+        matches = function(context)
+            return should_use_offensive(context, context and context.settings or EMPTY)
+        end,
+        execute = function(context)
+            return try_use_kind(context, TRINKET_KIND_OFFENSIVE)
+        end,
+    },
+}
+
+function M.on_update(optional_context)
+    if not NS then return false end
+    local context = (type(optional_context) == "table" and optional_context) or context_or_default()
+    if not context then return false end
+    local settings = context.settings or EMPTY
+
+    if strategies[1].matches(context) and strategies[1].execute(context) then return true end
+    if setting_enabled(settings, "use_cooldowns", true) and strategies[2].matches(context) and strategies[2].execute(context) then return true end
+    return false
+end
+
+function M.register_trinket_manager()
+    if _registered then return true end
+    if not NS or type(NS.register_on_update_callback) ~= "function" then return false end
+    seed_default_settings()
+    local ok = NS.register_on_update_callback(function()
+        return M.on_update()
+    end)
+    _registered = ok ~= false
+    return _registered
+end
+
+function M.get_trinket_entry(item_id)
+    return TRINKETS[item_id]
+end
+
+function M.get_equipped_trinkets()
+    return refresh_slot_cache()
+end
+
+M.TRINKETS = TRINKETS
+M.strategies = strategies
+M.DEFAULT_DEFENSIVE_HP = DEFAULT_DEFENSIVE_HP
+
+if NS then
+    NS.TrinketManager = M
+    NS.trinket_manager = M
+    NS.register_trinket_manager = M.register_trinket_manager
+end
+
+_G.EaxTrinketManager = M
+return M
