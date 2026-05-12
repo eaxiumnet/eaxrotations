@@ -1,0 +1,114 @@
+-- ============================================================================
+-- Shared Helper: Burst Logic (should_auto_burst + offensive_autocast_matches)
+-- ============================================================================
+-- Readability notes:
+--   What: pure burst-window decision helpers.
+--   When: classes need a common answer for whether offensive cooldowns should be allowed.
+--   Why: cooldown timing is shared behavior and is easier to test as pure data logic.
+--   Safety: all runtime dependencies are injected through the deps table.
+-- Pure functions extracted from core_sylvanas.lua for reuse in tests.
+-- All NS/api/ dependencies are injected via the deps table for testability.
+--
+-- Usage (production):
+--   local burst = require("shared/burst_logic_sylvanas")
+--   burst.should_auto_burst(context, {
+--     is_bloodlust_active = NS.is_bloodlust_active,
+--     is_drums_active = NS.is_drums_active,
+--   })
+--
+-- Usage (test — dofile pattern):
+--   dofile("EaxRotations/shared/burst_logic_sylvanas.lua")
+--   local should_auto_burst = _G.BurstLogic.should_auto_burst
+-- ============================================================================
+
+-- Decision notes:
+--   Shared helpers stay pure or dependency-injected where practical so class files can reuse them safely.
+--   Inputs are plain tables/numbers instead of live game objects unless a caller explicitly passes adapters.
+--   Keeping this logic outside playstyles makes edge cases testable without a Sylvanas runtime.
+local M = {}
+
+-- Bloodlust alignment timeout: if Bloodlust hasn't come by this many seconds
+-- into combat, fire burst CDs anyway. Prevents holding CDs forever on fights
+-- without a Shaman. Sim APL uses ~60s as the effective timeout; we use 45s
+-- to avoid wasting the entire first CD usage window.
+M.BLOODLUST_TIMEOUT_SECONDS = 45
+
+--- Determine whether offensive cooldowns should auto-fire.
+-- @param context table - Rotation context with settings, in_combat, etc.
+-- @param deps table - Optional injected dependencies:
+--   - is_bloodlust_active function(me) -> boolean
+--   - is_drums_active function(me) -> boolean
+-- @return boolean|nil - true (burst now), false (don't burst), nil (no config → fire on CD)
+-- [PRE-ALLOC] Reusable empty table for `deps or {}` fallback.
+-- Avoids creating a new table per frame when deps is nil (Lua 5.1 GC pressure).
+-- Safe because should_auto_burst only READS from deps, never writes.
+local EMPTY_DEPS = {}
+
+function M.should_auto_burst(context, deps)
+    deps = deps or EMPTY_DEPS
+    local settings = context and context.settings
+    if not settings then return nil end
+
+    local any_configured = settings.burst_in_combat
+        or settings.burst_on_pull
+        or settings.burst_on_execute
+        or settings.burst_on_bloodlust
+    if not any_configured then return nil end
+
+    if not context or not context.in_combat or not context.has_valid_enemy_target then
+        return false
+    end
+
+    if settings.burst_in_combat then return true end
+    if settings.burst_on_pull and context.combat_time and context.combat_time < 5 then return true end
+    if settings.burst_on_execute and context.target_hp and context.target_hp <= 20 then return true end
+    if settings.burst_on_bloodlust then
+        local me = context.me
+        local bl_active = deps.is_bloodlust_active and deps.is_bloodlust_active(me) or false
+        local drums_active = deps.is_drums_active and deps.is_drums_active(me) or false
+        if bl_active or drums_active then return true end
+
+        -- [BL-ALIGN] Timeout fallback: if we've been in combat long enough and
+        -- Bloodlust still hasn't come, fire CDs anyway. This prevents holding CDs
+        -- forever on fights without a Shaman or when Lust comes very late.
+        -- Per sim APL: CDs aligned to Bloodlust have an effective ~45-60s timeout.
+        -- Also allow if target is about to die (TTD ≤ 15s) — better to use CDs than waste them.
+        local combat_time = context.combat_time or 0
+        local ttd = context.ttd or 999
+        if combat_time >= M.BLOODLUST_TIMEOUT_SECONDS or ttd <= 15 then
+            return true
+        end
+    end
+
+    return false
+end
+
+--- Shared gate for all autocast offensive cooldowns (trinkets, racials, potions).
+-- Mirrors the sim's APLActionAutocastOtherCooldowns gating logic.
+-- @param context table - Rotation context
+-- @param deps table - Injected dependencies (same as should_auto_burst)
+-- @return boolean
+function M.offensive_autocast_matches(context, deps)
+    if not context.in_combat or not context.has_valid_enemy_target then return false end
+    -- APL alignment: fire during Bloodlust/Drums when burst_on_bloodlust is on
+    if context.settings and context.settings.burst_on_bloodlust then
+        if context.bloodlust_active or context.drums_active then
+            return true
+        end
+        -- [BL-ALIGN] Timeout fallback — same logic as should_auto_burst
+        local combat_time = context.combat_time or 0
+        local ttd = context.ttd or 999
+        if combat_time >= M.BLOODLUST_TIMEOUT_SECONDS or ttd <= 15 then
+            return true
+        end
+    end
+    -- Standard burst gate
+    local auto_burst = M.should_auto_burst(context, deps)
+    if auto_burst then return true end
+    -- Fallback: no burst conditions configured → fire on CD
+    if auto_burst == nil then return true end
+    return false
+end
+
+_G.BurstLogic = M
+return M

@@ -1,0 +1,50 @@
+-- Readability notes:
+--   What: lightweight Hunter shot timing state.
+--   When: Hunter rotations ask whether a casted shot should be delayed.
+--   Why: Steady Shot should not repeatedly clip Auto Shot when timing data exists.
+--   Safety: if swing data is unavailable, the tracker permits casting instead of blocking the rotation.
+
+-- Decision notes:
+--   Playstyle files are ordered priority lists: earlier strategies must be more urgent or more time-sensitive.
+--   Matches functions explain when an action is allowed; execute functions only perform the already-gated cast.
+--   Role logic follows TBC expectations and avoids post-TBC spells, speculative target swaps, and impossible casts.
+local NS = _G.EaxRotations
+if not NS then return nil end
+
+local M = { last_shot_ms = 0, last_auto_ms = 0, estimated_weapon_ms = 2800 }
+
+local function now()
+    return NS.game_time_ms()
+end
+
+function M.record_auto_shot()
+    M.last_auto_ms = now()
+end
+
+function M.record_manual_shot()
+    M.last_shot_ms = now()
+end
+
+function M.set_weapon_speed_seconds(speed)
+    if type(speed) == "number" and speed > 0 then
+        M.estimated_weapon_ms = math.floor(speed * 1000)
+    end
+end
+
+function M.ms_until_auto()
+    local elapsed = now() - (M.last_auto_ms or 0)
+    local remain = (M.estimated_weapon_ms or 2800) - elapsed
+    return remain > 0 and remain or 0
+end
+
+function M.can_cast_steady()
+    local remain = M.ms_until_auto()
+    return remain == 0 or remain > 450
+end
+
+function M.after_spell(spell_name)
+    if spell_name then M.record_manual_shot() end
+end
+
+NS.HunterClipTracker = M
+return M
