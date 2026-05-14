@@ -12,6 +12,8 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local SPELLS = NS.PaladinSpells or {}
+local REAGENT_SYMBOL_OF_KINGS = 21177
+local REAGENT_SYMBOL_OF_WISDOM = 19848
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("paladin", "Repentance", SPELLS),
@@ -291,6 +293,254 @@ local strategies = {
                 end
             end
 
+            return false
+        end,
+    },
+
+    -- ============================================================================
+    -- SELF-BUFF: KINGS (Out of combat - refresh)
+    -- ============================================================================
+    {
+        name = "Paladin_SelfBuffKings",
+        priority = 75,
+        matches = function(context)
+            if context.in_combat then return false end
+            if context.is_mounted then return false end
+            local settings = context.settings or {}
+            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            if playstyle ~= "protection" then return false end
+            local me = context.me
+            if not me or not me.buff_remains then return false end
+            local kingsRemains = (me:buff_remains(20217) or 0) + (me:buff_remains(25898) or 0)
+            if kingsRemains > 120 then return false end
+            if not SPELLS.BlessingOfKings then return false end
+            return true
+        end,
+        execute = function(context)
+            if not SPELLS.BlessingOfKings then return false end
+            local useGreater = false
+            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+                if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
+            end
+            local spell = useGreater and SPELLS.GreaterBlessingOfKings or SPELLS.BlessingOfKings
+            local label = useGreater and "Greater Blessing of Kings" or "Blessing of Kings"
+            if NS.spell_ready and NS.spell_ready(spell, context.me, {}) then
+                return NS.try_cast(spell, context.me, "[PALADIN] " .. label .. " (self, OOC)")
+            end
+            return false
+        end,
+    },
+
+    -- ============================================================================
+    -- COMBAT KINGS REFRESH (Self only)
+    -- ============================================================================
+    {
+        name = "Paladin_CombatKingsRefresh",
+        priority = 72,
+        matches = function(context)
+            if not context.in_combat then return false end
+            local settings = context.settings or {}
+            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            if playstyle ~= "protection" then return false end
+            local me = context.me
+            if not me or not me.buff_remains then return false end
+            local manaPct = context.mana_pct or 100
+            if manaPct < (settings.combat_kings_refresh_mana or 30) then return false end
+            local kingsRemains = (me:buff_remains(20217) or 0) + (me:buff_remains(25898) or 0)
+            local threshold = settings.combat_kings_refresh_threshold or 60
+            if kingsRemains > threshold then return false end
+            if not SPELLS.BlessingOfKings then return false end
+            return true
+        end,
+        execute = function(context)
+            if not SPELLS.BlessingOfKings then return false end
+            if NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfKings, context.me, {}) then
+                return NS.try_cast(SPELLS.BlessingOfKings, context.me, "[PALADIN] Combat Kings refresh (self)")
+            end
+            return false
+        end,
+    },
+
+    -- ============================================================================
+    -- COMBAT WISDOM REFRESH (Self then party)
+    -- ============================================================================
+    {
+        name = "Paladin_CombatWisdomRefresh",
+        priority = 71,
+        matches = function(context)
+            if not context.in_combat then return false end
+            local me = context.me
+            if not me or not me.buff_remains then return false end
+            local settings = context.settings or {}
+            local manaPct = context.mana_pct or 100
+            if manaPct < (settings.combat_wisdom_refresh_mana or 30) then return false end
+            local threshold = settings.combat_wisdom_refresh_threshold or 120
+            -- Check self first
+            local wisdomRemains = (me:buff_remains(20355) or 0) + (me:buff_remains(25894) or 0)
+            if wisdomRemains <= threshold and SPELLS.BlessingOfWisdom then
+                return true
+            end
+            -- Check party members
+            local useGreater = false
+            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25894) and NS.has_item then
+                if NS.has_item(REAGENT_SYMBOL_OF_WISDOM) then useGreater = true end
+            end
+            if NS.GetPartyMembers then
+                local members = NS.GetPartyMembers()
+                for _, member in ipairs(members or {}) do
+                    if member and member.buff_remains then
+                        local mRemains = (member:buff_remains(20355) or 0) + (member:buff_remains(25894) or 0)
+                        if mRemains <= threshold then
+                            if (useGreater and SPELLS.GreaterBlessingOfWisdom) or SPELLS.BlessingOfWisdom then
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local me = context.me
+            local settings = context.settings or {}
+            local threshold = settings.combat_wisdom_refresh_threshold or 120
+            -- Self first
+            local selfRemains = (me:buff_remains(20355) or 0) + (me:buff_remains(25894) or 0)
+            if selfRemains <= threshold and SPELLS.BlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfWisdom, me, {}) then
+                return NS.try_cast(SPELLS.BlessingOfWisdom, me, "[PALADIN] Combat Wisdom refresh (self)")
+            end
+            -- Group members
+            local useGreater = false
+            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25894) and NS.has_item then
+                if NS.has_item(REAGENT_SYMBOL_OF_WISDOM) then useGreater = true end
+            end
+            if NS.GetPartyMembers then
+                local members = NS.GetPartyMembers()
+                for _, member in ipairs(members or {}) do
+                    if member and member.buff_remains then
+                        local mRemains = (member:buff_remains(20355) or 0) + (member:buff_remains(25894) or 0)
+                        if mRemains <= threshold then
+                            if useGreater and SPELLS.GreaterBlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfWisdom, member, {}) then
+                                return NS.try_cast(SPELLS.GreaterBlessingOfWisdom, member, "[PALADIN] Greater Wisdom refresh (party)")
+                            elseif SPELLS.BlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfWisdom, member, {}) then
+                                return NS.try_cast(SPELLS.BlessingOfWisdom, member, "[PALADIN] Wisdom refresh (party)")
+                            end
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+    },
+
+    -- ============================================================================
+    -- COMBAT KINGS REFRESH (Group)
+    -- ============================================================================
+    {
+        name = "Paladin_CombatGroupKingsRefresh",
+        priority = 70,
+        matches = function(context)
+            if not context.in_combat then return false end
+            local settings = context.settings or {}
+            local manaPct = context.mana_pct or 100
+            if manaPct < (settings.combat_kings_refresh_mana or 30) then return false end
+            local useGreater = false
+            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+                if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
+            end
+            if NS.GetPartyMembers then
+                local members = NS.GetPartyMembers()
+                for _, member in ipairs(members or {}) do
+                    if member and member.buff_remains then
+                        local mRemains = (member:buff_remains(20217) or 0) + (member:buff_remains(25898) or 0)
+                        if mRemains <= (settings.combat_kings_refresh_threshold or 60) then
+                            if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local settings = context.settings or {}
+            local threshold = settings.combat_kings_refresh_threshold or 60
+            local useGreater = false
+            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+                if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
+            end
+            if NS.GetPartyMembers then
+                local members = NS.GetPartyMembers()
+                for _, member in ipairs(members or {}) do
+                    if member and member.buff_remains then
+                        local mRemains = (member:buff_remains(20217) or 0) + (member:buff_remains(25898) or 0)
+                        if mRemains <= threshold then
+                            if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
+                                return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings refresh (party)")
+                            elseif SPELLS.BlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfKings, member, {}) then
+                                return NS.try_cast(SPELLS.BlessingOfKings, member, "[PALADIN] Kings refresh (party)")
+                            end
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+    },
+
+    -- ============================================================================
+    -- GROUP BLESS KINGS (Out of combat)
+    -- ============================================================================
+    {
+        name = "Paladin_GroupBlessKings",
+        priority = 65,
+        matches = function(context)
+            if context.in_combat then return false end
+            if context.is_mounted then return false end
+            if not SPELLS.BlessingOfKings then return false end
+            local useGreater = false
+            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+                if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
+            end
+            if NS.GetPartyMembers then
+                local members = NS.GetPartyMembers()
+                for _, member in ipairs(members or {}) do
+                    if member and member.buff_remains then
+                        local mRemains = (member:buff_remains(20217) or 0) + (member:buff_remains(25898) or 0)
+                        -- Skip if they have another blessing type (don't overwrite)
+                        local hasOther = member.has_buff and (member:has_buff(19740) or member:has_buff(20355) or member:has_buff(20911))
+                        if not hasOther and mRemains <= 0 then
+                            if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local useGreater = false
+            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+                if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
+            end
+            if NS.GetPartyMembers then
+                local members = NS.GetPartyMembers()
+                for _, member in ipairs(members or {}) do
+                    if member and member.buff_remains then
+                        local mRemains = (member:buff_remains(20217) or 0) + (member:buff_remains(25898) or 0)
+                        local hasOther = member.has_buff and (member:has_buff(19740) or member:has_buff(20355) or member:has_buff(20911))
+                        if not hasOther and mRemains <= 0 then
+                            if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
+                                return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings (group, OOC)")
+                            elseif SPELLS.BlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfKings, member, {}) then
+                                return NS.try_cast(SPELLS.BlessingOfKings, member, "[PALADIN] Kings (group, OOC)")
+                            end
+                        end
+                    end
+                end
+            end
             return false
         end,
     },
