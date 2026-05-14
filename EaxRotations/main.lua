@@ -530,7 +530,7 @@ local function render_menu()
             -- DecisionCache stats
             local dc_stats = optimizer and optimizer.DecisionCache and optimizer.DecisionCache:get_stats() or nil
             if dc_stats then
-                menu_elements.header_dc_stats:render(format("DecisionCache: gen=%d entries=%d age=%.2fs", dc_stats.generation, dc_stats.entries, dc_stats.age), MENU_COLORS.green)
+                menu_elements.header_dc_stats:render(format("DecisionCache: gen=%d age=%.2fs", dc_stats.generation, dc_stats.age), MENU_COLORS.green)
             else
                 menu_elements.header_dc_not_loaded:render("DecisionCache: not loaded", MENU_COLORS.red)
             end
@@ -629,4 +629,4 @@ core.register_on_render_control_panel_callback(on_control_panel_render)
 core.log("[EaxRotations] Framework initialized successfully!")
 core.log("[EaxRotations] Class: " .. plugin_info.player_class_name)
 core.log("[EaxRotations] APIs: core, izi_sdk (Project Sylvanas native)")
-core.log("[EaxRotations] Optimizations: DecisionCache (memoization)")
+core.log("[EaxRotations] Optimizations: DecisionCache (state tracking)")

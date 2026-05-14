@@ -10,7 +10,7 @@
 --   When API data is missing, callers should skip unsafe work rather than guessing.
 -- ============================================================================
 -- EaxRotations - Decision Cache (Project Sylvanas API)
--- Memoization layer for rotation decisions: avoids redundant checks per frame
+-- State tracking layer for rotation invalidation: detects combat/cast/resource changes
 -- Note: strategy registry
 -- itself is the optimizer. DecisionCache is the only useful optimization
 -- primitive that doesn't duplicate what the registry already does.
@@ -34,7 +34,7 @@ end
 
 -- ============================================================================
 -- DECISION CACHE
--- Memoizes function results for a single "generation" (frame window).
+-- Tracks state changes across frames for rotation invalidation.
 -- Invalidation triggers:
 --   1. Combat state change
 --   2. Cast start/end
@@ -43,7 +43,6 @@ end
 --   5. Time advancement (> 0.1s)
 -- ============================================================================
 local DecisionCache = {
-    cache = {},
     generation = 0,
     last_invalidation_time = 0,
     -- Track previous-frame state to detect change triggers
@@ -56,36 +55,7 @@ local DecisionCache = {
 --- Increment generation to invalidate all cached values
 function DecisionCache:invalidate()
     self.generation = self.generation + 1
-    for key in pairs(self.cache) do
-        self.cache[key] = nil
-    end
     self.last_invalidation_time = current_time()
-end
-
---- Memoize a function result for the current generation
--- @param key string - Cache key (use strategy name or unique identifier)
--- @param fn function - Function to compute value
--- @return any - Cached or computed value
--- [#31] NOTE: No class, strategy, or middleware currently calls DecisionCache:memoize().
--- The check_invalidation() call in main_sylvanas.lua still runs every tick,
--- which provides value (generation tracking, state delta detection) even without
--- memoize() consumers. The invalidation logic is lightweight and detects
--- combat/cast/resource state changes between ticks.
---
--- To activate memoization: wrap expensive per-tick computations like
--- collect_healing_units, GetEnemiesInRange, has_phys_immunity in:
---   DecisionCache:memoize("heal_units", function() return NS.collect_healing_units() end)
--- This would avoid redundant work when multiple strategies query the same data
--- within the same generation (0.1s window).
-function DecisionCache:memoize(key, fn)
-    local entry = self.cache[key]
-    if entry and entry.gen == self.generation then
-        return entry.value
-    end
-
-    local value = fn()
-    self.cache[key] = { gen = self.generation, value = value }
-    return value
 end
 
 --- Check if cache should be invalidated based on state changes
@@ -151,10 +121,7 @@ end
 --- Get cache statistics (for diagnostics)
 -- @return table - { entries, generation, age }
 function DecisionCache:get_stats()
-    local count = 0
-    for _ in pairs(self.cache) do count = count + 1 end
     return {
-        entries = count,
         generation = self.generation,
         age = current_time() - self.last_invalidation_time,
     }
