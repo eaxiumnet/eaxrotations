@@ -38,5 +38,11 @@ sylvanas-dev-docs-llm/
 # Temp API files
 .api/
 
+# Untracked local noise
+node_modules/
+.omo/
+OldProjects/
+Sonah/
+
 # Packaging policy
 *.toc
