@@ -21,12 +21,15 @@ local SPELLS = {
     BlessingOfKings = NS.spell_action({ 19897, 19898, 19899, 19900 }, "BlessingOfKings"),
     BlessingOfMight = NS.spell_action({ 25782, 19740, 20378 }, "BlessingOfMight"),
     BlessingOfWisdom = NS.spell_action({ 20355, 20356, 20357 }, "BlessingOfWisdom"),
+    GreaterBlessingOfKings = NS.spell_action({ 25898 }, "GreaterBlessingOfKings"),
+    GreaterBlessingOfWisdom = NS.spell_action({ 25894 }, "GreaterBlessingOfWisdom"),
     Cleanse = NS.spell_action({ 4987 }, "Cleanse"),
     ConcentrationAura = NS.spell_action({ 19746, 19747 }, "ConcentrationAura"),
     Consecration = NS.spell_action({ 27173, 20924, 20923, 20922, 20116, 26573 }, "Consecration"),
     CrusaderStrike = NS.spell_action({ 35395 }, "CrusaderStrike"),
     DevotionAura = NS.spell_action({ 465, 10291, 10292 }, "DevotionAura"),
     DivineFavor = NS.spell_action({ 20216 }, "DivineFavor"),
+    DivineIllumination = NS.spell_action({ 31842 }, "DivineIllumination"),
     DivineShield = NS.spell_action({ 642 }, "DivineShield"),
     Exorcism = NS.spell_action({ 27138, 10314, 10313, 10312, 5615, 5614, 879 }, "Exorcism"),
     FlashOfLight = NS.spell_action({ 27137, 19943, 19942, 19941, 19940, 19939, 19750 }, "FlashOfLight"),
@@ -71,7 +74,7 @@ local function load_child(name)
 end
 
 load_child("middleware_sylvanas")
-load_child("healing_sylvanas")
+load_child("heal_helper_sylvanas")
 load_child("holy_sylvanas")
 load_child("protection_sylvanas")
 load_child("retribution_sylvanas")

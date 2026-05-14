@@ -1,0 +1,19 @@
+{
+  "name": "Fury Dual Wield",
+  "author": "EaxRotations",
+  "class": "warrior",
+  "spec": "fury",
+  "patch": "2.4.3",
+  "description": "Dual wield fury warrior rotation for raid play",
+  "settings": {
+    "use_cooldowns": true,
+    "use_bloodthirst": true,
+    "use_whirlwind": true,
+    "use_heroic_strike": true,
+    "heroic_strike_rage": 60
+  },
+  "metadata": {
+    "date": "2026-05-13",
+    "version": "1.0.0"
+  }
+}
