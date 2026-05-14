@@ -214,6 +214,104 @@ local strategies = {
         end,
     },
 
+    -- ========================================================================
+    -- MEND PET (Heal pet during combat — maintain pet HP above threshold)
+    -- ========================================================================
+    {
+        name = "MendPet",
+        priority = 700,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if not context.in_combat then return false end
+            if settings.auto_mend_pet == false then return false end
+            -- Check if pet needs healing
+            local pet_hp_pct = NS.get_pet_hp and NS.get_pet_hp() or 100
+            if pet_hp_pct > (settings.mend_pet_hp or 50) then return false end
+            -- Check if Mend Pet is already active (HoT)
+            local mp_buffs = { 27046, 13544, 13543, 13542, 3662, 3661, 3111, 136 }
+            local pet = NS.get_pet and NS.get_pet()
+            if pet and NS.has_player_buff then
+                for _, id in ipairs(mp_buffs) do
+                    if NS.buff_up and NS.buff_up(pet, id) then return false end
+                end
+            end
+            return NS.spell_ready and NS.spell_ready(SPELLS.MendPet, context.me)
+        end,
+        execute = function(context)
+            local pet = NS.get_pet and NS.get_pet()
+            if not pet then return false end
+            return NS.try_cast(SPELLS.MendPet, pet, "[HUNTER] Mend Pet")
+        end,
+    },
+
+    -- ========================================================================
+    -- REVIVE PET (Out-of-combat — revive dead pet automatically)
+    -- ========================================================================
+    {
+        name = "RevivePet",
+        priority = 400,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_revive_pet == false then return false end
+            -- Check if pet is dead
+            if NS.has_pet and NS.has_pet() then return false end
+            return NS.spell_ready and NS.spell_ready(SPELLS.RevivePet, context.me, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.RevivePet, context.me, "[HUNTER] Revive Pet", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- CALL PET (Out-of-combat — call pet if dismissed/missing)
+    -- ========================================================================
+    {
+        name = "CallPet",
+        priority = 390,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_call_pet == false then return false end
+            if NS.has_pet and NS.has_pet() then return false end
+            return NS.spell_ready and NS.spell_ready(SPELLS.CallPet, context.me, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.CallPet, context.me, "[HUNTER] Call Pet", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- HUNTER'S MARK (Debuff maintenance — apply to target if missing)
+    -- ========================================================================
+    {
+        name = "HuntersMark",
+        priority = 600,
+        matches = function(context)
+            local settings = context.settings or {}
+            if not context.in_combat then return false end
+            if not context.has_valid_enemy_target then return false end
+            if settings.auto_hunters_mark == false then return false end
+            local target = context.target
+            if not target then return false end
+            -- Check if Hunter's Mark is already on target
+            local hm_debuffs = { 14325, 14324, 14323, 1130 }
+            for _, id in ipairs(hm_debuffs) do
+                if NS.debuff_up and NS.debuff_up(target, id) then
+                    local remains = NS.debuff_remains and NS.debuff_remains(target, id) or 999
+                    if remains > 3 then return false end
+                end
+            end
+            return NS.spell_ready and NS.spell_ready(SPELLS.HuntersMark, context.me)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.HuntersMark, context.target, "[HUNTER] Hunter's Mark")
+        end,
+    },
+
 }
 NS.register_class_middleware("hunter", strategies)
 return strategies

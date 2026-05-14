@@ -39,6 +39,9 @@ local SPELLS = {
     PresenceOfMind = NS.spell_action({ 12043 }, "PresenceOfMind"),
     Scorch = NS.spell_action({ 27073, 10207, 10206, 10205, 8446, 8445, 8444, 2948 }, "Scorch"),
     WaterElemental = NS.spell_action({ 31687 }, "WaterElemental"),
+    FrostNova = NS.spell_action({ 27088, 12505, 122, 865, 6131, 10230, 120, 119 }, "FrostNova"),
+    ConeOfCold = NS.spell_action({ 27087, 27086, 12057, 10161, 10160, 10159, 8492, 42931, 42930 }, "ConeOfCold"),
+    ColdSnap = NS.spell_action({ 11958 }, "ColdSnap"),
 }
 NS.MageSpells = SPELLS
 

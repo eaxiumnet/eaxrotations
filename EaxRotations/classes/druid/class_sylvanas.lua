@@ -22,6 +22,7 @@ local SPELLS = {
     ChallengingRoar = NS.spell_action({ 5209 }, "ChallengingRoar"),
     Claw = NS.spell_action({ 27000, 9850, 9849, 1082 }, "Claw"),
     Cower = NS.spell_action({ 27004, 9892, 8998 }, "Cower"),
+    Dash = NS.spell_action({ 33357, 9821, 1850 }, "Dash"),
     DemoralizingRoar = NS.spell_action({ 26998, 9898, 9747, 9490, 1735, 99 }, "DemoralizingRoar"),
     FaerieFire = NS.spell_action({ 26993, 9907, 9749, 778, 770 }, "FaerieFire"),
     FaerieFireFeral = NS.spell_action({ 27011, 17392, 17391, 17390, 16857 }, "FaerieFireFeral"),
