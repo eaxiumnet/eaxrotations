@@ -46,7 +46,7 @@
     { file = "helpers_sylvanas.lua",   order = 10.5, description = "Shared helper import module (NS.import_helpers)" },
     { file = "explain_helpers_sylvanas.lua", order = 10.7, description = "Universal explain system (NS.explain_spell_gates, NS.explain_context_gates)" },
     { file = "optimizer.lua",         order = 11, description = "DecisionCache memoization layer" },
-    { file = "damage_meter_sylvanas.lua", order = 12, description = "Damage tracking and DPS calculation" },
+    { file = "shared/combat_log_parser_sylvanas.lua", order = 12, description = "CLEU-based damage/healing tracking with ring buffer" },
     { file = "dashboard_sylvanas.lua",   order = 13, description = "Combat overlay with resource bars" },
     { file = "debug_log_sylvanas.lua",  order = 14, description = "Debug log frame and diagnostics" },
     { file = "api_probe_sylvanas.lua",    order = 14.5, description = "API probe diagnostic (pcall-tests all API functions)" },
