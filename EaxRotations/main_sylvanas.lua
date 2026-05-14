@@ -130,12 +130,17 @@ local function build_context()
     _context.has_valid_enemy_target = enemy_ok
     _context.target_hp = enemy_ok and NS.unit_health_pct(target) or 100
     _context.hp = NS.unit_health_pct(me)
+    _context.player_hp = _context.hp
     _context.mana_pct = NS.mana_pct(me)
-    _context.player_mana_pct = NS.mana_pct(me)
+    _context.player_mana = _context.mana_pct
+    _context.player_mana_pct = _context.mana_pct
     _context.gcd_remains = NS.gcd_remains and NS.gcd_remains() or 0
+    _context.on_gcd = (_context.gcd_remains or 0) > 0
     _context.combat_time = _combat_start_time and (NS.time_now() - _combat_start_time) or 0
     _context.rage = NS.power_current(NS.POWER_RAGE)
+    _context.player_rage = _context.rage
     _context.energy = NS.power_current(NS.POWER_ENERGY)
+    _context.player_energy = _context.energy
     _context.focus = NS.power_current(NS.POWER_FOCUS)
     _context.bloodlust_active = me and NS.buff_up(me, BLOODLUST_IDS) or false
     _context.drums_active = me and NS.buff_up(me, DRUMS_IDS) or false
@@ -144,6 +149,10 @@ local function build_context()
         is_drums_active = function() return _context.drums_active end,
     })
     _context.burst_reason = _context.should_burst and "burst_conditions_met" or nil
+    -- target_distance uses get_distance when available, otherwise falls back to melee range check
+    local dist_ok, dist_val = pcall(function() return target and NS.safe_field(target, "get_distance") and target:get_distance(me) end)
+    _context.target_range = (dist_ok and type(dist_val) == "number") and dist_val or (_context.in_melee_range and 5 or 40)
+    _context.target_distance = _context.target_range
     _context.in_melee_range = target and target.is_in_melee_range and target:is_in_melee_range(5) or false
     _context.combo_points = combo_points(me)
     _context.enemy_count = count
@@ -157,6 +166,13 @@ local function build_context()
     end
     _context.is_pvp = NS.is_pvp_zone and NS.is_pvp_zone() or false
     _context.settings = NS.settings or {}
+    _context.ttd = ttd or 999
+    _context.force_burst = NS.force_burst_active and NS.force_burst_active() or false
+    _context.force_defensive = NS.force_defensive_active and NS.force_defensive_active() or false
+    _context.force_gap = NS.force_gap_active and NS.force_gap_active() or false
+    _context.has_breakable_cc_nearby = NS.has_breakable_cc_nearby and NS.has_breakable_cc_nearby() or false
+    _context.target_is_player = target and NS.safe_field and NS.safe_field(target, "is_player") and target:is_player() or false
+    _context.target_is_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and target:is_boss() or false
     _context.ttd = ttd or 999
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)

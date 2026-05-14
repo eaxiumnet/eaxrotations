@@ -905,7 +905,18 @@ function NS.try_cast(spell, unit, reason, opts)
         target = NS.GetPlayer()
         if not target then return false end
     end
-    if not id or not NS.spell_ready(spell, target, opts) then return false end
+    if not id then return false end
+    -- Sticky spell anti-flicker: skip if same spell was cast within 0.3s
+    local last_cast = _last_cast_time[id]
+    if last_cast then
+        local elapsed = NS.time_now() - last_cast
+        if elapsed < 0.3 then
+            return false
+        end
+    end
+    if not NS.spell_ready(spell, target, opts) then return false end
+    -- Update sticky spell tracker
+    NS.sticky_spell_should_override(id, reason or "unknown", 0)
     if NS.get_setting("use_spell_queue", false) then
         local queue_ok, spell_queue = pcall(require, "common/modules/spell_queue")
         local queue_spell = queue_ok and spell_queue and spell_queue.queue_spell or nil
