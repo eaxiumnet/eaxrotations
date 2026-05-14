@@ -33,6 +33,10 @@ Conflagrate = NS.spell_action({ 17962 }, "Conflagrate"),
     SiphonLife = NS.spell_action({ 30911, 27264, 18881, 18880, 18879, 18265 }, "SiphonLife"),
     Soulshatter = NS.spell_action(29858, "Soulshatter"),
     UnstableAffliction = NS.spell_action({ 30405, 30404, 30108 }, "UnstableAffliction"),
+    SummonFelguard = NS.spell_action({ 30146 }, "SummonFelguard"),
+    HealthFunnel = NS.spell_action({ 27259, 11695, 11694, 11693, 755, 3699, 3700 }, "HealthFunnel"),
+    ShadowWard = NS.spell_action({ 28610 }, "ShadowWard"),
+    FelDomination = NS.spell_action({ 18708 }, "FelDomination"),
 }
 NS.WarlockSpells = SPELLS
 

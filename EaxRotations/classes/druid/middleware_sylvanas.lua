@@ -237,6 +237,62 @@ local strategies = {
         end,
     },
 
+    -- ========================================================================
+    -- MARK OF THE WILD (Self-buff — maintain MotW at all times)
+    -- ========================================================================
+    {
+        name = "MarkOfTheWild",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_self_buffs == false then return false end
+            local motw_buffs = { 26991, 9885, 9884, 8907, 5234, 1126 }
+            if NS.has_player_buff and NS.has_player_buff(motw_buffs) then return false end
+            local spell = { id = { 26991, 9885, 9884, 8907, 5234, 1126 }, name = "MarkOfTheWild" }
+            return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast({ id = { 26991, 9885, 9884, 8907, 5234, 1126 }, name = "MarkOfTheWild" }, context.me, "[DRUID] Mark of the Wild", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- THORNS (Self-buff — maintain Thorns for minor reflect damage)
+    -- ========================================================================
+    {
+        name = "Thorns",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_self_buffs == false then return false end
+            local thorns_buffs = { 26992, 9910, 467, 782 }
+            if NS.has_player_buff and NS.has_player_buff(thorns_buffs) then return false end
+            local spell = { id = { 26992, 9910, 467, 782 }, name = "Thorns" }
+            return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast({ id = { 26992, 9910, 467, 782 }, name = "Thorns" }, context.me, "[DRUID] Thorns", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- BEAR FORM OOC (Pre-combat — enter Bear form for defensive readiness)
+    -- ========================================================================
+    {
+        name = "BearFormPreCombat",
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_bear_form_ooc == false then return false end
+            -- Check if already in Bear Form (buff check)
+            local bear_buffs = { 9634, 5487 }
+            if NS.has_player_buff and NS.has_player_buff(bear_buffs) then return false end
+            local spell = { id = { 9634, 5487 }, name = "BearForm" }
+            return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast({ id = { 9634, 5487 }, name = "BearForm" }, context.me, "[DRUID] Bear Form", { skip_range = true })
+        end,
+    },
+
 }
 NS.register_class_middleware("druid", strategies)
 return strategies
