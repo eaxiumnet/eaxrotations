@@ -25,7 +25,7 @@ if not _buff_db_ok or type(BUFF_DB) ~= "table" then BUFF_DB = {} end
 -- Manual cooldown tracker: records last cast time per spell ID.
 -- Used as a final fallback when the engine cooldown APIs return 0
 -- (prevents tick-level retry spam for spells whose cooldowns aren't tracked).
-local _last_cast_time = {}
+local _last_cast_id = nil; local _last_cast_time = 0
 
 -- Spell ID resolver cache: avoids repeated is_spell_learned() calls.
 -- Keys are colon-joined rank ID lists; values are { id=resolved_id, ts=timestamp }.
@@ -720,10 +720,9 @@ end
 local _last_cast_time_cooldown
 
 local _last_cast_time_cooldown = function(id, expected_cooldown)
-    local last = _last_cast_time[id]
-    if not last then return nil end
+    if _last_cast_id ~= id then return nil end
     local throttle = expected_cooldown or 1.5
-    local elapsed = NS.time_now() - last
+    local elapsed = NS.time_now() - _last_cast_time
     if elapsed < throttle then return throttle - elapsed end
     return nil
 end
@@ -783,10 +782,9 @@ end
 -- Uses `expected_cooldown` if known, otherwise falls back to 1.5s minimum.
 -- Used as final fallback when engine cooldown APIs return 0.
 _last_cast_time_cooldown = function(id, expected_cooldown)
-    local last = _last_cast_time[id]
-    if not last then return nil end
+    if _last_cast_id ~= id then return nil end
     local throttle = expected_cooldown or 1.5
-    local elapsed = NS.time_now() - last
+    local elapsed = NS.time_now() - _last_cast_time
     if elapsed < throttle then return throttle - elapsed end
     return nil
 end
@@ -907,9 +905,8 @@ function NS.try_cast(spell, unit, reason, opts)
     end
     if not id then return false end
     -- Sticky spell anti-flicker: skip if same spell was cast within 0.3s
-    local last_cast = _last_cast_time[id]
-    if last_cast then
-        local elapsed = NS.time_now() - last_cast
+    if _last_cast_id == id then
+        local elapsed = NS.time_now() - _last_cast_time
         if elapsed < 0.3 then
             return false
         end
@@ -923,7 +920,7 @@ function NS.try_cast(spell, unit, reason, opts)
         if type(queue_spell) == "function" then
             local queued = safe(queue_spell, id, target)
             if queued == false then return false end
-            _last_cast_time[id] = NS.time_now()
+            _last_cast_id = id; _last_cast_time = NS.time_now()
             if reason then NS.log(reason) end
             return true
         end
@@ -933,7 +930,7 @@ function NS.try_cast(spell, unit, reason, opts)
     local result = safe(cast, id, target)
     if result == false then return false end
     -- Record cast time for manual cooldown fallback
-    _last_cast_time[id] = NS.time_now()
+    _last_cast_id = id; _last_cast_time = NS.time_now()
     if reason then NS.log(reason) end
     return true
 end
@@ -946,7 +943,7 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
     if type(cast) ~= "function" then return false end
     local result = safe(cast, id, position)
     if result == false then return false end
-    _last_cast_time[id] = NS.time_now()
+    _last_cast_id = id; _last_cast_time = NS.time_now()
     if reason then NS.log(reason) end
     return true
 end
@@ -2257,7 +2254,7 @@ function NS.action_execute(context, action, prefix)
             if type(cast) ~= "function" then return false end
             local result = safe(cast, id, position)
             if result == false then return false end
-            _last_cast_time[id] = NS.time_now()
+            _last_cast_id = id; _last_cast_time = NS.time_now()
             NS.log(reason)
             return true
         end
@@ -2280,7 +2277,7 @@ function NS.action_execute(context, action, prefix)
         if type(cast) ~= "function" then return false end
         local result = safe(cast, id, target)
         if result == false then return false end
-        _last_cast_time[id] = NS.time_now()
+        _last_cast_id = id; _last_cast_time = NS.time_now()
         NS.log(reason)
         return true
     end
