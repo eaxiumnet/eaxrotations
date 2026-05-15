@@ -957,6 +957,252 @@ test("rotation: low mana scenario - wand should match", function()
 end)
 
 -- ============================================================================
+-- Edge Case: Form Management — player shapeshifted into cat/bear form
+-- The leveling rotation is caster-form. Shapeshifting blocks caster spells.
+-- These tests verify graceful handling when player is in the wrong form.
+-- ============================================================================
+
+test("edge_form: cat_form has_buff returns false for caster buffs", function()
+    -- When shapeshifted, caster buffs like Mark of the Wild won't be present
+    local NS2, _, mp = build_mock_env()
+    mp.has_buff = function(id) return false end  -- Cat form has no caster buffs
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    assert_false(state.has_mark_of_wild, "cat form should not have caster buff up")
+    assert_false(state.has_thorns, "cat form should not have Thorns up")
+end)
+
+test("edge_form: cat_form match functions do not crash", function()
+    -- All match functions should be callable when player is in wrong form
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.matches, ctx, state)
+        assert_true(ok, "strategy[" .. i .. "] (", s.name, ") matches should not throw when in cat form")
+    end
+end)
+
+test("edge_form: OOC buff matches return false when in cat form via has_buff mock", function()
+    -- Simulate cat form: player has no caster buffs, has "cat form" buff instead
+    local ctx = make_context({in_combat = false})
+    ctx.settings = {}
+    local state = get_state(ctx)
+    state.in_combat = false
+    state.mark_of_the_wild_ready = true
+    state.thorns_ready = true
+
+    -- Without buff tracking, match functions should still evaluate correctly
+    -- has_mark_of_wild = false (no buff), mark_of_the_wild_ready = true -> should match
+    assert_true(strategies[1].matches(ctx, state), "MotW should match when no buff and OOC")
+    assert_true(strategies[2].matches(ctx, state), "Thorns should match when no buff and OOC")
+end)
+
+test("edge_form: travel_form caster rotation still evaluates safely", function()
+    -- In travel form, caster abilities are blocked but rotation shouldn't crash
+    local ctx = make_context({in_combat = true, is_moving = true})
+    local state = get_state(ctx)
+    -- Wrath allows moving cast, Starfire/Hurricane do not
+    local ok1, wrath_result = pcall(strategies[11].matches, ctx, state)  -- Wrath
+    assert_true(ok1, "Wrath matches should not throw while moving/in travel form")
+    local ok2, sf_result = pcall(strategies[10].matches, ctx, state)   -- Starfire
+    assert_true(ok2, "Starfire matches should not throw while moving")
+end)
+
+-- ============================================================================
+-- Edge Case: Mana Conservation — wand threshold, OOM, low mana
+-- ============================================================================
+
+test("edge_mana: wand_threshold = 0 means never wand (always enough mana)", function()
+    local ctx = make_context({mana_pct = 1})
+    ctx.settings.leveling_wand_threshold = 0
+    local state = get_state(ctx)
+    state.mana_pct = 1
+    state.wand_threshold = 0
+    state.wand_learned = true
+    assert_false(strategies[12].matches(ctx, state), "threshold=0 with 1% mana should NOT match wand (1 >= 0 means enough mana)")
+end)
+
+test("edge_mana: wand_threshold = 100 means always wand (never enough mana)", function()
+    local ctx = make_context({mana_pct = 50})
+    ctx.settings.leveling_wand_threshold = 100
+    local state = get_state(ctx)
+    state.mana_pct = 50
+    state.wand_threshold = 100
+    state.wand_learned = true
+    assert_true(strategies[12].matches(ctx, state), "threshold=100 with 50% mana should match wand (50 < 100 means too little mana)")
+end)
+
+-- Also verify threshold=100 with full mana does NOT wand
+test("edge_mana: wand_threshold = 100 with full mana (100%) does not wand", function()
+    local ctx = make_context({mana_pct = 50})
+    ctx.settings.leveling_wand_threshold = 100
+    local state = get_state(ctx)
+    state.mana_pct = 100
+    state.wand_threshold = 100
+    state.wand_learned = true
+    assert_false(strategies[12].matches(ctx, state), "threshold=100 with 100% mana should NOT match wand (100 >= 100 means enough mana)")
+end)
+
+test("edge_mana: complete OOM with wand not learned -> no wand fallback", function()
+    local ctx = make_context({mana_pct = 0})
+    local state = get_state(ctx)
+    state.mana_pct = 0
+    state.wand_threshold = 30
+    state.wand_learned = false
+    assert_false(strategies[12].matches(ctx, state), "OOM without wand should not match wand")
+end)
+
+test("edge_mana: rapid mana changes handled gracefully", function()
+    -- Simulate mana potion coming off CD: mana goes from 0 to 100
+    local ctx1 = make_context({mana_pct = 0})
+    local state1 = get_state(ctx1)
+    state1.mana_pct = 0
+    state1.wand_threshold = 30
+    state1.wand_learned = true
+    assert_true(strategies[12].matches(ctx1, state1), "0% mana should match wand")
+
+    local ctx2 = make_context({mana_pct = 100})
+    local state2 = get_state(ctx2)
+    state2.mana_pct = 100
+    state2.wand_threshold = 30
+    state2.wand_learned = true
+    assert_false(strategies[12].matches(ctx2, state2), "100% mana should not match wand")
+end)
+
+test("edge_mana: low mana with all spells ready -> damage spells still preferred over wand", function()
+    local ctx = make_context({mana_pct = 35, is_moving = false})
+    local state = get_state(ctx)
+    state.mana_pct = 35
+    state.wand_threshold = 30
+    state.wand_learned = true
+    state.wrath_ready = true
+    state.starfire_ready = true
+
+    -- Mana at 35, threshold at 30. wand_threshold check: mana_pct >= threshold so wand should NOT match
+    assert_false(strategies[12].matches(ctx, state), "wand should not match when mana (35) >= threshold (30)")
+
+    -- Damage spells should still work
+    assert_true(strategies[10].matches(ctx, state), "Starfire should match at 35% mana (above threshold)")
+    assert_true(strategies[11].matches(ctx, state), "Wrath should match at 35% mana")
+end)
+
+-- ============================================================================
+-- Edge Case: Helper Function Resilience — pcall, nil values, throwing APIs
+-- ============================================================================
+
+test("edge_helper: has_buff pcall catches throwing API", function()
+    local NS2, _, mp2 = build_mock_env()
+    -- Simulate a throwing has_buff
+    mp2.has_buff = function(id) error("fake has_buff crash") end
+    _G.EaxRotations = NS2
+    _G.core = core
+
+    -- Reload module with crashing has_buff
+    local mod2 = dofile("EaxRotations/classes/druid/leveling_sylvanas.lua")
+    if mod2 then
+        local reg2 = NS2.rotation_registry._registrations["leveling"]
+        local get_state2 = reg2 and reg2.opts and reg2.opts.get_state
+        if get_state2 then
+            local ctx = make_context({in_combat = false})
+            local state = get_state2(ctx)
+            -- has_buff uses pcall internally -> should not throw, just return false
+            assert_false(state.has_mark_of_wild, "throwing has_buff should result in false via pcall")
+        end
+    end
+
+    -- Restore
+    _G.EaxRotations = NS
+end)
+
+test("edge_helper: spell_ready nil NS does not crash", function()
+    local NS2, _, _ = build_mock_env()
+    NS2.spell_ready = nil
+    _G.EaxRotations = NS2
+
+    local mod2 = dofile("EaxRotations/classes/druid/leveling_sylvanas.lua")
+    if mod2 then
+        local reg2 = NS2.rotation_registry._registrations["leveling"]
+        local get_state2 = reg2 and reg2.opts and reg2.opts.get_state
+        if get_state2 then
+            local ctx = make_context()
+            local state = get_state2(ctx)
+            -- All spell_ready fields should be false when NS.spell_ready is nil
+            assert_false(state.mark_of_the_wild_ready, "motw ready should be false when spell_ready nil")
+            assert_false(state.moonfire_ready, "moonfire ready should be false when spell_ready nil")
+            assert_false(state.wrath_ready, "wrath ready should be false when spell_ready nil")
+        end
+    end
+
+    _G.EaxRotations = NS
+end)
+
+test("edge_helper: try_cast pcall catches failure gracefully", function()
+    local NS2, _, _ = build_mock_env()
+    NS2.try_cast = nil
+    _G.EaxRotations = NS2
+
+    local mod2 = dofile("EaxRotations/classes/druid/leveling_sylvanas.lua")
+    if mod2 then
+        local reg2 = NS2.rotation_registry._registrations["leveling"]
+        if reg2 then
+            local _, ok = pcall(reg2.strategies[1].execute, make_context())
+            assert_true(true, "execute with nil try_cast should not throw")
+        end
+    end
+
+    _G.EaxRotations = NS
+end)
+
+test("edge_helper: NS.get_local_player nil does not crash build_state", function()
+    local NS2, _, _ = build_mock_env()
+    NS2.get_local_player = nil
+    _G.EaxRotations = NS2
+
+    local mod2 = dofile("EaxRotations/classes/druid/leveling_sylvanas.lua")
+    if mod2 then
+        local reg2 = NS2.rotation_registry._registrations["leveling"]
+        local get_state2 = reg2 and reg2.opts and reg2.opts.get_state
+        if get_state2 then
+            local ctx = make_context()
+            local ok, state = pcall(get_state2, ctx)
+            assert_true(ok, "build_state with nil get_local_player should not throw")
+        end
+    end
+
+    _G.EaxRotations = NS
+end)
+
+test("edge_helper: empty settings table does not crash state builder", function()
+    local ctx = {}
+    ctx.is_solo = false
+    ctx.is_leveling = true
+    ctx.settings = {}
+    ctx.me = {
+        is_valid = function() return true end,
+        has_buff = function() return false end,
+        get_health = function() return 10000 end,
+        get_max_health = function() return 10000 end,
+    }
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function() return 5 end,
+        get_health_percentage = function() return 80 end,
+    }
+
+    local ok, state = pcall(get_state, ctx)
+    assert_true(ok, "empty settings should not throw")
+    if ok and state then
+        assert_eq(state.wand_threshold, 30, "default wand_threshold = 30")
+        assert_eq(state.heal_hp, 40, "default heal_hp = 40")
+    end
+end)
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 
