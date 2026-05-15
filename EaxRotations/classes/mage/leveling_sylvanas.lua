@@ -1,0 +1,318 @@
+-- Mage leveling priority list.
+-- Designed for solo/leveling play, from level 1 to 70.
+-- Handles unlearned spells gracefully via NS.spell_ready checks.
+-- Uses wand/Shoot as fallback when out of mana.
+
+local NS = _G.EaxRotations
+if not NS then return nil end
+local SPELLS = NS.MageSpells or {}
+
+-- ============================================================================
+-- Constants
+-- ============================================================================
+
+local ARCANE_INTELLECT_BUFF = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
+local MOLTEN_ARMOR_BUFF = { 30482 }
+local ICE_BARRIER_BUFF = { 27134, 13033, 13032, 13031, 11426 }
+local MANA_SHIELD_BUFF = { 27142, 13008, 13007, 13006, 13005, 13003, 8495, 8494, 8492, 1463 }
+local POLYMORPH_IDS = { 12826, 12825, 12824, 118 }
+
+-- Wand spell ID (Shoot)
+local WAND_SPELL_ID = 5019
+
+local EMPTY_SETTINGS = {}
+local leveling_state = {}
+
+-- ============================================================================
+-- Context guard
+-- ============================================================================
+
+local function leveling_context_allowed(context)
+    if not context then return false end
+    if context.is_solo == true or context.is_leveling == true then return true end
+    -- Also allow if user explicitly selected leveling playstyle
+    local settings = context.settings or EMPTY_SETTINGS
+    return settings.playstyle == "leveling" or settings.active_playstyle == "leveling"
+end
+
+-- ============================================================================
+-- Spell readiness helper (hoisted to module level — no closure per frame)
+-- ============================================================================
+
+local function spell_is_ready(action, target, opts)
+    if not NS.spell_ready then return false end
+    local ok, ready = pcall(NS.spell_ready, action, target, opts)
+    return ok and ready
+end
+
+-- ============================================================================
+-- State builder
+-- ============================================================================
+
+local function build_state(context)
+    if not context then return nil end
+    local settings = context.settings or EMPTY_SETTINGS
+    local me = context.me
+
+    leveling_state.has_ai = me and NS.buff_up and NS.buff_up(me, ARCANE_INTELLECT_BUFF) or false
+    leveling_state.has_molten_armor = me and NS.buff_up and NS.buff_up(me, MOLTEN_ARMOR_BUFF) or false
+    leveling_state.has_ice_barrier = me and NS.buff_up and NS.buff_up(me, ICE_BARRIER_BUFF) or false
+    leveling_state.has_mana_shield = me and NS.buff_up and NS.buff_up(me, MANA_SHIELD_BUFF) or false
+
+    leveling_state.in_combat = context.in_combat or false
+    leveling_state.mana_pct = context.mana_pct or 100
+    leveling_state.hp = context.hp or 100
+    leveling_state.enemies = context.enemies_count or 0
+    leveling_state.target = context.target
+    leveling_state.is_moving = context.is_moving or false
+
+    -- Settings from schema (with sensible defaults)
+    local settings = context.settings or EMPTY_SETTINGS
+    leveling_state.wand_threshold = settings.leveling_wand_threshold or 30
+    leveling_state.polymorph_hp = settings.leveling_polymorph_hp or 40
+    leveling_state.use_arcane_missiles = settings.leveling_arcane_missiles_use ~= false
+    leveling_state.use_scorch = settings.leveling_scorch_use ~= false
+    leveling_state.use_interrupt = settings.use_interrupt ~= false
+    leveling_state.use_fire_blast = settings.leveling_fire_blast_use ~= false
+
+    -- Spell readiness (each returns false if spell not learned, errors caught via pcall)
+    leveling_state.frostbolt_ready = spell_is_ready(SPELLS.Frostbolt, context.target)
+    leveling_state.fire_blast_ready = spell_is_ready(SPELLS.FireBlast, context.target)
+    leveling_state.scorch_ready = spell_is_ready(SPELLS.Scorch, context.target)
+    leveling_state.arcane_missiles_ready = spell_is_ready(SPELLS.ArcaneMissiles, context.target)
+    leveling_state.frost_nova_ready = spell_is_ready(SPELLS.FrostNova, context.target)
+    leveling_state.blizzard_ready = spell_is_ready(SPELLS.Blizzard, context.target)
+    leveling_state.polymorph_ready = spell_is_ready(SPELLS.Polymorph, context.target)
+    leveling_state.counterspell_ready = spell_is_ready(SPELLS.Counterspell, context.target)
+    leveling_state.evocation_ready = spell_is_ready(SPELLS.Evocation, nil, { skip_range = true })
+    leveling_state.ice_barrier_ready = spell_is_ready(SPELLS.IceBarrier, nil, { skip_range = true })
+    leveling_state.mana_shield_ready = spell_is_ready(SPELLS.ManaShield, nil, { skip_range = true })
+    leveling_state.ai_ready = spell_is_ready(SPELLS.ArcaneIntellect, nil, { skip_range = true })
+    leveling_state.remove_curse_ready = spell_is_ready(SPELLS.RemoveCurse, nil, { skip_range = true })
+
+    -- Wand readiness (learned via wand training)
+    local ok_wand, exists = pcall(NS.spell_exists, WAND_SPELL_ID)
+    leveling_state.wand_learned = ok_wand and exists or false
+
+    return leveling_state
+end
+
+-- ============================================================================
+-- Match functions
+-- ============================================================================
+
+local function arcane_intellect_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if state.in_combat then return false end
+    if state.has_ai then return false end
+    return state.ai_ready
+end
+
+local function evocation_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.in_combat then return false end
+    if state.mana_pct > 25 then return false end
+    return state.evocation_ready
+end
+
+local function ice_barrier_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if state.has_ice_barrier then return false end
+    if not state.in_combat then return false end
+    return state.ice_barrier_ready
+end
+
+local function mana_shield_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if state.has_mana_shield then return false end
+    if state.hp > 40 then return false end
+    return state.mana_shield_ready
+end
+
+local function counterspell_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.use_interrupt then return false end
+    local ok, casting = pcall(function() return state.target:is_casting() end)
+    if not ok or not casting then return false end
+    return state.counterspell_ready
+end
+
+local function polymorph_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if state.in_combat then return false end
+    -- Don't polymorph targets below HP threshold (too dangerous to pull)
+    local ok, hp = pcall(function() return state.target:get_health_percentage() end)
+    if ok and hp and hp >= (state.polymorph_hp or 40) then return false end
+    local remains = NS.debuff_remains and NS.debuff_remains(state.target, POLYMORPH_IDS) or 0
+    if remains > 10 then return false end
+    return state.polymorph_ready
+end
+
+local function frost_nova_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not context.me then return false end
+    -- Only frost nova when target is in melee range
+    local ok, dist = pcall(function() return state.target:get_distance(context.me) end)
+    if not ok or not dist or dist > 10 then return false end
+    return state.frost_nova_ready
+end
+
+local function blizzard_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if state.enemies < 3 then return false end
+    if state.is_moving then return false end
+    return state.blizzard_ready
+end
+
+local function fire_blast_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not state.use_fire_blast then return false end
+    return state.fire_blast_ready
+end
+
+local function arcane_missiles_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if state.is_moving then return false end
+    if not state.use_arcane_missiles then return false end
+    if state.mana_pct < 20 then return false end
+    return state.arcane_missiles_ready
+end
+
+local function frostbolt_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if state.is_moving then return false end
+    if state.mana_pct < 10 then return false end
+    return state.frostbolt_ready
+end
+
+local function scorch_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not state.use_scorch then return false end
+    if state.is_moving then return false end
+    if state.mana_pct < 10 then return false end
+    return state.scorch_ready
+end
+
+local function wand_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.wand_learned then return false end
+    -- Use wand threshold from settings instead of hardcoded 20%
+    if state.mana_pct >= (state.wand_threshold or 30) then return false end
+    return true
+end
+
+-- ============================================================================
+-- Execute functions
+-- ============================================================================
+
+local function execute_wand(context)
+    if not context or not context.target then return false end
+    if core and core.input and core.input.cast_target_spell then
+        core.input.cast_target_spell(WAND_SPELL_ID, context.target)
+        return true
+    end
+    return false
+end
+
+local function frost_nova_execute()
+    -- Frost Nova is a self-centered AoE, no target needed
+    return NS.try_cast and NS.try_cast(SPELLS.FrostNova, nil, "[LEVELING] Frost Nova") or false
+end
+
+-- ============================================================================
+-- Strategies
+-- ============================================================================
+
+local strategies = {
+    -- Out-of-combat buffs
+    { name = "ArcaneIntellect",
+      matches = arcane_intellect_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[LEVELING] Arcane Intellect") or false end },
+
+    -- Pull / CC
+    { name = "Polymorph",
+      matches = polymorph_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Polymorph, context.target, "[LEVELING] Polymorph") or false end },
+
+    -- Combat utility
+    { name = "Counterspell",
+      matches = counterspell_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Counterspell, context.target, "[LEVELING] Counterspell") or false end },
+
+    -- Defensive
+    { name = "ManaShield",
+      matches = mana_shield_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.ManaShield, NS.PLAYER_UNIT, "[LEVELING] Mana Shield") or false end },
+
+    { name = "IceBarrier",
+      matches = ice_barrier_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[LEVELING] Ice Barrier") or false end },
+
+    { name = "FrostNova",
+      matches = frost_nova_matches,
+      execute = frost_nova_execute },
+
+    -- AoE
+    { name = "Blizzard",
+      matches = blizzard_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Blizzard, context.target, "[LEVELING] Blizzard") or false end },
+
+    -- Mana recovery
+    { name = "Evocation",
+      matches = evocation_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[LEVELING] Evocation") or false end },
+
+    -- Damage
+    { name = "FireBlast",
+      matches = fire_blast_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.FireBlast, context.target, "[LEVELING] Fire Blast") or false end },
+
+    { name = "Scorch",
+      matches = scorch_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Scorch, context.target, "[LEVELING] Scorch") or false end },
+
+    { name = "ArcaneMissiles",
+      matches = arcane_missiles_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[LEVELING] Arcane Missiles") or false end },
+
+    { name = "Frostbolt",
+      matches = frostbolt_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Frostbolt, context.target, "[LEVELING] Frostbolt") or false end },
+
+    -- Wand fallback (threshold controlled by schema setting)
+    { name = "Wand",
+      matches = wand_matches,
+      execute = execute_wand },
+}
+
+NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+NS.log("Mage leveling rotation registered")
+return strategies

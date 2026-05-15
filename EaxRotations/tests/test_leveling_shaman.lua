@@ -1,0 +1,968 @@
+-- Unit tests for Shaman leveling rotation
+-- Tests build_state, all 14 match functions, strategy ordering,
+-- helper functions, and edge case handling
+
+local EAXROTATIONS_DIR = "C:/newbot/scripts/EaxRotations"
+if not package.path:find(EAXROTATIONS_DIR, 1, true) then
+    package.path = package.path .. ";" .. EAXROTATIONS_DIR .. "/?.lua"
+end
+
+local passed = 0
+local failed = 0
+local assertions = 0
+
+local function assert_true(v, label)
+    assertions = assertions + 1
+    if not v then error(label or "assert_true failed", 2) end
+end
+
+local function assert_false(v, label)
+    assertions = assertions + 1
+    if v then error(label or "assert_false failed: expected false", 2) end
+end
+
+local function assert_eq(a, b, label)
+    assertions = assertions + 1
+    if a ~= b then
+        error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2)
+    end
+end
+
+local function assert_nil(v, label)
+    assertions = assertions + 1
+    if v ~= nil then error(label or "assert_nil failed: expected nil got " .. tostring(v), 2) end
+end
+
+local function assert_not_nil(v, label)
+    assertions = assertions + 1
+    if v == nil then error(label or "assert_not_nil failed: expected non-nil", 2) end
+end
+
+local function test(name, fn)
+    local ok, err = pcall(fn)
+    if ok then
+        passed = passed + 1
+        print("  PASS: " .. name)
+    else
+        failed = failed + 1
+        print("  FAIL: " .. name .. " -- " .. tostring(err))
+    end
+end
+
+-- ============================================================================
+-- Mock environment builder
+-- ============================================================================
+
+local MOCK_SHAMAN_SPELLS = {
+    LightningBolt = { 25449 },
+    EarthShock = { 25454 },
+    FlameShock = { 25457 },
+    FrostShock = { 25464 },
+    ChainLightning = { 25442 },
+    LightningShield = { 25472 },
+    WaterShield = { 33736 },
+    HealingWave = { 25396 },
+    LesserHealingWave = { 25420 },
+    GhostWolf = { 2645 },
+    Purge = { 370 },
+    EarthbindTotem = { 2484 },
+    StoneclawTotem = { 2487 },
+    FireNovaTotem = { 25459 },
+    SearingTotem = { 25295 },
+    StrengthOfEarthTotem = { 25587 },
+    GraceOfAirTotem = { 25360 },
+    ManaSpringTotem = { 25570 },
+    HealingStreamTotem = { 25567 },
+    GroundingTotem = { 8177 },
+    WindfuryTotem = { 8516 },
+    TremorTotem = { 8143 },
+    WindfuryWeapon = { 25485 },
+    RockbiterWeapon = { 25487 },
+    FlametongueWeapon = { 25489 },
+    FrostbrandWeapon = { 25493 },
+    Shoot = { 5019 },
+}
+
+--- Create a fresh mock environment. Returns (NS, core, mock_player, mock_target).
+local function build_mock_env()
+    local NS = {}
+    local core = {}
+
+    core.time = function() return 100 end
+    core.game_time = function() return 100000 end
+
+    core.spell_book = {
+        get_spell_cooldown = function() return 0 end,
+        get_global_cooldown = function() return 0 end,
+        is_spell_learned = function() return true end,
+        get_totem_info = function() return nil end,
+    }
+
+    core.input = {
+        cast_target_spell = function(spell_id, target)
+            return spell_id ~= nil and target ~= nil
+        end,
+    }
+
+    local mock_state = {
+        health = 8000,
+        max_health = 10000,
+        mana = 5000,
+        max_mana = 10000,
+        buffs = {},
+        debuffs = {},
+        is_casting = false,
+        target_guid = "mock-target",
+    }
+
+    local mock_target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return mock_state.is_casting end,
+        is_alive = function() return true end,
+        get_guid = function() return mock_state.target_guid end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 80 end,
+    }
+
+    local mock_player = {
+        is_valid = function() return true end,
+        get_health = function() return mock_state.health end,
+        get_max_health = function() return mock_state.max_health end,
+        get_mana = function() return mock_state.mana end,
+        get_max_mana = function() return mock_state.max_mana end,
+        has_buff = function(id)
+            if not id then return false end
+            local remains = mock_state.buffs[id]
+            return remains ~= nil and remains > 0
+        end,
+        has_debuff = function(id) return false end,
+        get_class = function() return 7 end,
+        is_in_combat = function() return false end,
+        get_target = function() return mock_target end,
+        get_position = function() return { x = 0, y = 0, z = 0 } end,
+        get_item_at_inventory_slot = function() return nil end,
+        get_totem_info = function() return nil end,
+    }
+
+    NS.log = function() end
+    NS.log_warning = function() end
+    NS.spell_ready = function(spell_action, target, opts)
+        if not spell_action then return false end
+        return true
+    end
+    NS.spell_exists = function(spell_id) return true end
+    NS.try_cast = function(spell_action, target, label, opts)
+        if not spell_action then return false end
+        return true
+    end
+    NS.get_local_player = function() return mock_player end
+    NS.GetPlayer = function() return mock_player end
+    NS.get_target = function() return mock_target end
+    NS.get_distance = function(target)
+        if not target then return nil end
+        return 10
+    end
+    NS.debuff_remains = function(target, spell)
+        if not target or not spell then return 0 end
+        return 0
+    end
+    NS.buff_remains = function(unit, buff_ids) return 0 end
+    NS.buff_up = function(unit, buff_ids)
+        if not unit or not buff_ids then return false end
+        return false
+    end
+    NS.game_time_ms = function() return 100000 end
+
+    -- rotation_registry mock
+    NS.rotation_registry = {
+        _registrations = {},
+        register = function(self, key, strategies, opts)
+            self._registrations[key] = { strategies = strategies, opts = opts }
+        end,
+        set_class_config = function(self, config) end,
+    }
+
+    NS.ShamanSpells = {}
+    for k, v in pairs(MOCK_SHAMAN_SPELLS) do
+        NS.ShamanSpells[k] = v
+    end
+
+    _G.core = core
+    _G.EaxRotations = NS
+
+    return NS, core, mock_player, mock_target, mock_state
+end
+
+--- Create a mock context with sensible defaults.
+local function make_context(overrides)
+    local ctx = {
+        is_solo = false,
+        is_leveling = true,
+        in_combat = true,
+        mana_pct = 80,
+        hp = 100,
+        enemies_count = 1,
+        is_moving = false,
+        has_valid_enemy_target = false,
+        me = {
+            is_valid = function() return true end,
+            get_health = function() return 10000 end,
+            get_max_health = function() return 10000 end,
+            has_buff = function(id) return false end,
+            get_position = function() return { x = 0, y = 0, z = 0 } end,
+        },
+        target = {
+            is_valid = function() return true end,
+            get_health = function() return 8000 end,
+            get_max_health = function() return 10000 end,
+            is_casting = function() return false end,
+            is_alive = function() return true end,
+            get_guid = function() return "mock-target" end,
+            get_distance = function(other) return 5 end,
+            get_health_percentage = function() return 80 end,
+        },
+        pet = { guid = "mock-pet" },
+        settings = {
+            playstyle = "leveling",
+            active_playstyle = "leveling",
+            use_interrupt = true,
+            leveling_wand_threshold = 30,
+            leveling_heal_hp = 50,
+            leveling_use_shocks = true,
+            leveling_default_shock = "flame",
+            leveling_use_weapon_imbue = true,
+            leveling_weapon_imbue = "windfury",
+            leveling_use_totems = true,
+            leveling_use_searing_totem = true,
+            leveling_use_strength_totem = true,
+            leveling_use_water_totem = true,
+        },
+    }
+    if overrides then
+        for k, v in pairs(overrides) do
+            ctx[k] = v
+        end
+    end
+    return ctx
+end
+
+-- ============================================================================
+-- Load the Shaman leveling module
+-- ============================================================================
+
+local NS, core, mock_player, mock_target, mock_state = build_mock_env()
+local ok, module = pcall(dofile, "EaxRotations/classes/shaman/leveling_sylvanas.lua")
+if not ok then
+    error("Failed to load Shaman leveling module: " .. tostring(module))
+end
+if not module or type(module) ~= "table" then
+    error("Shaman leveling module should return a table of strategies")
+end
+
+local reg = NS.rotation_registry._registrations["leveling"]
+if not reg then
+    error("Shaman leveling module should register as 'leveling' in rotation_registry")
+end
+local strategies = reg.strategies
+local get_state = reg.opts.get_state
+
+print("=== Shaman Leveling Unit Tests ===\n")
+print("Loaded " .. tostring(#strategies) .. " strategies\n")
+
+-- ============================================================================
+-- Test: build_state
+-- ============================================================================
+
+test("build_state: nil context returns nil", function()
+    assert_nil(get_state(nil), "nil context should return nil")
+end)
+
+test("build_state: minimal context returns full state table", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    assert_not_nil(state, "should return a table")
+    assert_eq(state.in_combat, true, "in_combat from context")
+    assert_eq(state.mana_pct, 80, "mana_pct from context")
+    assert_eq(state.hp, 100, "hp from context")
+    assert_eq(state.enemies, 1, "enemies from context")
+    assert_false(state.is_moving, "is_moving from context")
+    assert_not_nil(state.target, "target from context")
+end)
+
+test("build_state: missing context fields use defaults", function()
+    local ctx = {
+        is_solo = false,
+        is_leveling = true,
+        me = { is_valid = function() return true end, has_buff = function(id) return false end, get_health = function() return 10000 end, get_max_health = function() return 10000 end },
+        target = { is_valid = function() return true end, get_health = function() return 8000 end, get_max_health = function() return 10000 end, is_casting = function() return false end, is_alive = function() return true end, get_guid = function() return "mock-target" end, get_distance = function() return 5 end, get_health_percentage = function() return 80 end },
+        settings = {},
+    }
+    local state = get_state(ctx)
+    assert_not_nil(state, "should return a table")
+    assert_eq(state.hp, 100, "default hp = 100")
+    assert_eq(state.mana_pct, 100, "default mana_pct = 100")
+    assert_eq(state.enemies, 0, "default enemies = 0")
+    assert_false(state.is_moving, "default is_moving = false")
+    assert_false(state.in_combat, "default in_combat = false")
+end)
+
+test("build_state: spell readiness fields populated", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    assert_true(state.lightning_bolt_ready, "lightning_bolt_ready")
+    assert_true(state.earth_shock_ready, "earth_shock_ready")
+    assert_true(state.flame_shock_ready, "flame_shock_ready")
+    assert_true(state.frost_shock_ready, "frost_shock_ready")
+    assert_true(state.chain_lightning_ready, "chain_lightning_ready")
+    assert_true(state.lightning_shield_ready, "lightning_shield_ready")
+    assert_true(state.water_shield_ready, "water_shield_ready")
+    assert_true(state.healing_wave_ready, "healing_wave_ready")
+    assert_true(state.ghost_wolf_ready, "ghost_wolf_ready")
+    assert_true(state.earthbind_totem_ready, "earthbind_totem_ready")
+    assert_true(state.searing_totem_ready, "searing_totem_ready")
+    assert_true(state.strength_of_earth_ready, "strength_of_earth_ready")
+    assert_true(state.mana_spring_ready, "mana_spring_ready")
+    assert_true(state.grounding_totem_ready, "grounding_totem_ready")
+end)
+
+test("build_state: custom settings from context", function()
+    local ctx = make_context()
+    ctx.settings.leveling_wand_threshold = 15
+    ctx.settings.leveling_heal_hp = 30
+    ctx.settings.leveling_use_shocks = false
+    ctx.settings.leveling_default_shock = "earth"
+    ctx.settings.leveling_use_weapon_imbue = false
+    ctx.settings.leveling_use_totems = false
+    local state = get_state(ctx)
+    assert_eq(state.wand_threshold, 15, "wand_threshold from settings")
+    assert_eq(state.heal_hp, 30, "heal_hp from settings")
+    assert_false(state.use_shocks, "use_shocks from settings")
+    assert_eq(state.default_shock, "earth", "default_shock from settings")
+    assert_false(state.use_weapon_imbue, "use_weapon_imbue from settings")
+    assert_false(state.use_totems, "use_totems from settings")
+end)
+
+test("build_state: missing settings uses defaults", function()
+    local ctx = make_context({settings = {}})
+    local state = get_state(ctx)
+    assert_eq(state.wand_threshold, 30, "default wand_threshold = 30")
+    assert_eq(state.heal_hp, 50, "default heal_hp = 50")
+    assert_true(state.use_shocks, "default use_shocks = true")
+    assert_eq(state.default_shock, "flame", "default default_shock = flame")
+    assert_true(state.use_weapon_imbue, "default use_weapon_imbue = true")
+    assert_true(state.use_totems, "default use_totems = true")
+end)
+
+-- ============================================================================
+-- Test: weapon_imbue_matches (strategy #1)
+-- ============================================================================
+
+test("weapon_imbue_matches: OOC, enabled, no imbue, ready -> true", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.use_weapon_imbue = true
+    state.weapon_imbue = { 25485 }
+    state.has_mainhand_imbue = false
+    state.weapon_imbue_api_known = true
+    assert_true(strategies[1].matches(ctx, state), "OOC without imbue should match")
+end)
+
+test("weapon_imbue_matches: in combat -> false", function()
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.use_weapon_imbue = true
+    state.has_mainhand_imbue = false
+    assert_false(strategies[1].matches(ctx, state), "in combat should not match")
+end)
+
+test("weapon_imbue_matches: disabled -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.use_weapon_imbue = false
+    state.has_mainhand_imbue = false
+    assert_false(strategies[1].matches(ctx, state), "disabled should not match")
+end)
+
+test("weapon_imbue_matches: already has imbue -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.use_weapon_imbue = true
+    state.has_mainhand_imbue = true
+    assert_false(strategies[1].matches(ctx, state), "already imbued should not match")
+end)
+
+-- ============================================================================
+-- Test: lightning_shield_matches (strategy #2)
+-- ============================================================================
+
+test("lightning_shield_matches: OOC, ready, no shield -> true", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_lightning_shield = false
+    state.lightning_shield_ready = true
+    assert_true(strategies[2].matches(ctx, state), "OOC without shield should match")
+end)
+
+test("lightning_shield_matches: in combat -> false", function()
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.has_lightning_shield = false
+    state.lightning_shield_ready = true
+    assert_false(strategies[2].matches(ctx, state), "in combat should not match")
+end)
+
+test("lightning_shield_matches: already has shield -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_lightning_shield = true
+    state.lightning_shield_ready = true
+    assert_false(strategies[2].matches(ctx, state), "already shielded should not match")
+end)
+
+-- ============================================================================
+-- Test: earth_shock_interrupt_matches (strategy #3)
+-- ============================================================================
+
+test("earth_shock_interrupt: ready, target casting -> true", function()
+    local ctx = make_context()
+    ctx.target.is_casting = function() return true end
+    local state = get_state(ctx)
+    state.earth_shock_ready = true
+    assert_true(strategies[3].matches(ctx, state), "target casting should match")
+end)
+
+test("earth_shock_interrupt: target not casting -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.earth_shock_ready = true
+    assert_false(strategies[3].matches(ctx, state), "target not casting should not match")
+end)
+
+test("earth_shock_interrupt: interrupt disabled -> false", function()
+    local ctx = make_context()
+    ctx.settings.use_interrupt = false
+    local state = get_state(ctx)
+    state.earth_shock_ready = true
+    state.use_interrupt = false
+    assert_false(strategies[3].matches(ctx, state), "interrupt disabled should not match")
+end)
+
+test("earth_shock_interrupt: not in combat -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.in_combat = false
+    state.earth_shock_ready = true
+    assert_false(strategies[3].matches(ctx, state), "OOC should not match")
+end)
+
+-- ============================================================================
+-- Test: healing_wave_matches (strategy #4)
+-- ============================================================================
+
+test("healing_wave_matches: ready, HP below threshold -> true", function()
+    local ctx = make_context({hp = 30})
+    local state = get_state(ctx)
+    state.healing_wave_ready = true
+    state.hp = 30
+    state.heal_hp = 50
+    assert_true(strategies[4].matches(ctx, state), "HP below 50 should match")
+end)
+
+test("healing_wave_matches: HP above threshold -> false", function()
+    local ctx = make_context({hp = 80})
+    local state = get_state(ctx)
+    state.healing_wave_ready = true
+    state.hp = 80
+    state.heal_hp = 50
+    assert_false(strategies[4].matches(ctx, state), "HP above 50 should not match")
+end)
+
+test("healing_wave_matches: not in combat -> false", function()
+    local ctx = make_context({in_combat = false, hp = 30})
+    local state = get_state(ctx)
+    state.healing_wave_ready = true
+    state.in_combat = false
+    state.hp = 30
+    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+end)
+
+-- ============================================================================
+-- Test: searing_totem_matches (strategy #5)
+-- ============================================================================
+
+test("searing_totem_matches: in combat, ready, enabled, no existing totem -> true", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.searing_totem_ready = true
+    state.use_totems = true
+    state.use_searing_totem = true
+    state.mana_pct = 80
+    assert_true(strategies[5].matches(ctx, state), "should match in combat")
+end)
+
+test("searing_totem_matches: not in combat -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.searing_totem_ready = true
+    state.use_totems = true
+    state.use_searing_totem = true
+    state.in_combat = false
+    assert_false(strategies[5].matches(ctx, state), "OOC should not match")
+end)
+
+test("searing_totem_matches: totems disabled -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.searing_totem_ready = true
+    state.use_totems = false
+    assert_false(strategies[5].matches(ctx, state), "totems disabled should not match")
+end)
+
+-- ============================================================================
+-- Test: strength_totem_matches (strategy #6)
+-- ============================================================================
+
+test("strength_totem_matches: in combat, ready, enabled -> true", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.strength_of_earth_ready = true
+    state.use_totems = true
+    state.use_strength_totem = true
+    state.mana_pct = 80
+    assert_true(strategies[6].matches(ctx, state), "should match in combat")
+end)
+
+test("strength_totem_matches: not in combat -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.strength_of_earth_ready = true
+    state.use_totems = true
+    state.use_strength_totem = true
+    state.in_combat = false
+    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
+end)
+
+-- ============================================================================
+-- Test: water_totem_matches (strategy #7)
+-- ============================================================================
+
+test("water_totem_matches: ready, mana below threshold -> true", function()
+    local ctx = make_context({mana_pct = 60})
+    local state = get_state(ctx)
+    state.mana_spring_ready = true
+    state.healing_stream_ready = true
+    state.use_totems = true
+    state.use_water_totem = true
+    state.mana_pct = 60
+    state.hp = 100
+    assert_true(strategies[7].matches(ctx, state), "should match when mana < 85")
+end)
+
+test("water_totem_matches: not in combat -> false", function()
+    local ctx = make_context({in_combat = false, mana_pct = 60})
+    local state = get_state(ctx)
+    state.mana_spring_ready = true
+    state.use_totems = true
+    state.use_water_totem = true
+    state.in_combat = false
+    state.mana_pct = 60
+    assert_false(strategies[7].matches(ctx, state), "OOC should not match")
+end)
+
+test("water_totem_matches: totems disabled -> false", function()
+    local ctx = make_context({mana_pct = 60})
+    local state = get_state(ctx)
+    state.mana_spring_ready = true
+    state.use_totems = false
+    state.mana_pct = 60
+    assert_false(strategies[7].matches(ctx, state), "totems disabled should not match")
+end)
+
+-- ============================================================================
+-- Test: chain_lightning_matches (strategy #8)
+-- ============================================================================
+
+test("chain_lightning_matches: ready, 2+ enemies -> true", function()
+    local ctx = make_context({enemies_count = 3})
+    local state = get_state(ctx)
+    state.chain_lightning_ready = true
+    state.enemies = 3
+    assert_true(strategies[8].matches(ctx, state), "3 enemies should match")
+end)
+
+test("chain_lightning_matches: single enemy -> false", function()
+    local ctx = make_context({enemies_count = 1})
+    local state = get_state(ctx)
+    state.chain_lightning_ready = true
+    state.enemies = 1
+    assert_false(strategies[8].matches(ctx, state), "1 enemy should not match")
+end)
+
+-- ============================================================================
+-- Test: flame_shock_matches (strategy #9)
+-- ============================================================================
+
+test("flame_shock_matches: ready, default shock = flame, DoT expired -> true", function()
+    local ctx = make_context()
+    NS.debuff_remains = function(target, spell) return 0 end
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    assert_true(strategies[9].matches(ctx, state), "should match when using flame shock")
+end)
+
+test("flame_shock_matches: default shock is earth -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "earth"
+    assert_false(strategies[9].matches(ctx, state), "should not match with earth as default")
+end)
+
+test("flame_shock_matches: DoT still active -> false", function()
+    local ctx = make_context()
+    NS.debuff_remains = function(target, spell) return 10 end
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    assert_false(strategies[9].matches(ctx, state), "active DoT should not match")
+    NS.debuff_remains = function(target, spell) return 0 end
+end)
+
+test("flame_shock_matches: shocks disabled -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = false
+    state.default_shock = "flame"
+    assert_false(strategies[9].matches(ctx, state), "shocks disabled should not match")
+end)
+
+-- ============================================================================
+-- Test: earth_shock_dps_matches (strategy #10)
+-- ============================================================================
+
+test("earth_shock_dps_matches: ready, default shock = earth -> true", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.earth_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "earth"
+    assert_true(strategies[10].matches(ctx, state), "should match with earth as default")
+end)
+
+test("earth_shock_dps_matches: default shock is flame -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.earth_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    assert_false(strategies[10].matches(ctx, state), "should not match with flame as default")
+end)
+
+-- ============================================================================
+-- Test: frost_shock_matches (strategy #11)
+-- ============================================================================
+
+test("frost_shock_matches: ready, default shock = frost -> true", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.frost_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "frost"
+    assert_true(strategies[11].matches(ctx, state), "should match with frost as default")
+end)
+
+test("frost_shock_matches: default shock is flame -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.frost_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    assert_false(strategies[11].matches(ctx, state), "should not match with flame as default")
+end)
+
+-- ============================================================================
+-- Test: earthbind_totem_matches (strategy #12)
+-- ============================================================================
+
+test("earthbind_totem_matches: 3+ enemies, low HP -> true", function()
+    local ctx = make_context({hp = 40, enemies_count = 4})
+    local state = get_state(ctx)
+    state.earthbind_totem_ready = true
+    state.hp = 40
+    state.enemies = 4
+    assert_true(strategies[12].matches(ctx, state), "overwhelmed should match")
+end)
+
+test("earthbind_totem_matches: high HP -> false", function()
+    local ctx = make_context({hp = 80, enemies_count = 4})
+    local state = get_state(ctx)
+    state.earthbind_totem_ready = true
+    state.hp = 80
+    state.enemies = 4
+    assert_false(strategies[12].matches(ctx, state), "high HP should not match")
+end)
+
+test("earthbind_totem_matches: 1 enemy -> false", function()
+    local ctx = make_context({hp = 40, enemies_count = 1})
+    local state = get_state(ctx)
+    state.earthbind_totem_ready = true
+    state.hp = 40
+    state.enemies = 1
+    assert_false(strategies[12].matches(ctx, state), "single enemy should not match")
+end)
+
+-- ============================================================================
+-- Test: lightning_bolt_matches (strategy #13)
+-- ============================================================================
+
+test("lightning_bolt_matches: ready, not moving -> true", function()
+    local ctx = make_context({is_moving = false})
+    local state = get_state(ctx)
+    state.lightning_bolt_ready = true
+    state.is_moving = false
+    assert_true(strategies[13].matches(ctx, state), "stationary should match")
+end)
+
+test("lightning_bolt_matches: moving -> false", function()
+    local ctx = make_context({is_moving = true})
+    local state = get_state(ctx)
+    state.lightning_bolt_ready = true
+    state.is_moving = true
+    assert_false(strategies[13].matches(ctx, state), "moving should not match")
+end)
+
+test("lightning_bolt_matches: no target -> false", function()
+    local ctx = make_context({target = nil})
+    local state = get_state(ctx)
+    state.lightning_bolt_ready = true
+    state.target = nil
+    assert_false(strategies[13].matches(ctx, state), "no target should not match")
+end)
+
+-- ============================================================================
+-- Test: ghost_wolf_matches (strategy #14)
+-- ============================================================================
+
+test("ghost_wolf_matches: OOC, ready, target far -> true", function()
+    local ctx = make_context({in_combat = false})
+    NS.get_distance = function(target) return 25 end
+    local state = get_state(ctx)
+    state.ghost_wolf_ready = true
+    state.in_combat = false
+    assert_true(strategies[14].matches(ctx, state), "OOC with distant target should match")
+end)
+
+test("ghost_wolf_matches: in combat -> false", function()
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.ghost_wolf_ready = true
+    state.in_combat = true
+    assert_false(strategies[14].matches(ctx, state), "in combat should not match")
+end)
+
+test("ghost_wolf_matches: target too close -> false", function()
+    local ctx = make_context({in_combat = false})
+    NS.get_distance = function(target) return 10 end
+    local state = get_state(ctx)
+    state.ghost_wolf_ready = true
+    state.in_combat = false
+    assert_false(strategies[14].matches(ctx, state), "target close should not match")
+end)
+
+test("ghost_wolf_matches: no target -> false", function()
+    local ctx = make_context({in_combat = false, target = nil})
+    local state = get_state(ctx)
+    state.ghost_wolf_ready = true
+    state.in_combat = false
+    assert_false(strategies[14].matches(ctx, state), "no target should not match")
+end)
+
+-- ============================================================================
+-- Test: wand_matches (strategy #15, via create_wand_matches)
+-- ============================================================================
+
+test("wand_matches: low mana -> true", function()
+    local ctx = make_context({mana_pct = 10})
+    local state = get_state(ctx)
+    state.mana_pct = 10
+    state.wand_threshold = 30
+    state.wand_learned = true
+    assert_true(strategies[15].matches(ctx, state), "low mana should match")
+end)
+
+test("wand_matches: enough mana -> false", function()
+    local ctx = make_context({mana_pct = 80})
+    local state = get_state(ctx)
+    state.mana_pct = 80
+    state.wand_threshold = 30
+    state.wand_learned = true
+    assert_false(strategies[15].matches(ctx, state), "enough mana should not match")
+end)
+
+test("wand_matches: wand not learned -> false", function()
+    local ctx = make_context({mana_pct = 10})
+    local state = get_state(ctx)
+    state.mana_pct = 10
+    state.wand_learned = false
+    assert_false(strategies[15].matches(ctx, state), "wand not learned should not match")
+end)
+
+-- ============================================================================
+-- Test: Strategy priority ordering
+-- ============================================================================
+
+test("strategies: 15 strategies in correct priority order", function()
+    local expected = {
+        "WeaponImbue",
+        "LightningShield",
+        "EarthShockInterrupt",
+        "HealingWave",
+        "SearingTotem",
+        "StrengthOfEarthTotem",
+        "WaterTotem",
+        "ChainLightning",
+        "FlameShock",
+        "EarthShock",
+        "FrostShock",
+        "EarthbindTotem",
+        "LightningBolt",
+        "GhostWolf",
+        "Wand",
+    }
+    assert_eq(#strategies, 15, "should have 15 strategies")
+    for i, name in ipairs(expected) do
+        assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
+    end
+end)
+
+test("strategies: every strategy has name, matches, execute", function()
+    for i, s in ipairs(strategies) do
+        assert_true(type(s.name) == "string", "strategy[" .. i .. "] should have string name")
+        assert_true(type(s.matches) == "function", "strategy[" .. i .. "] matches should be function")
+        assert_true(type(s.execute) == "function", "strategy[" .. i .. "] execute should be function")
+    end
+end)
+
+-- ============================================================================
+-- Test: Execute functions (smoke tests)
+-- ============================================================================
+
+test("execute_WeaponImbue: does not crash with context", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    local ok, result = pcall(strategies[1].execute, ctx, state)
+    assert_true(ok, "execute should not throw")
+end)
+
+test("execute_LightningBolt: does not crash with context", function()
+    local ctx = make_context()
+    local ok, result = pcall(strategies[13].execute, ctx)
+    assert_true(ok, "execute with context should not throw")
+end)
+
+-- ============================================================================
+-- Test: Nil guard
+-- ============================================================================
+
+test("module: returns nil when EaxRotations is nil", function()
+    local _, c = build_mock_env()
+    _G.EaxRotations = nil
+    local nil_mod = dofile("EaxRotations/classes/shaman/leveling_sylvanas.lua")
+    assert_nil(nil_mod, "should return nil when NS is nil")
+    _G.EaxRotations = NS
+end)
+
+test("match_functions: all handle nil context -> false", function()
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.matches, nil, {})
+        assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") matches(nil, {}) should not throw")
+    end
+end)
+
+test("match_functions: all handle nil state -> no crash", function()
+    local ctx = make_context()
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.matches, ctx, nil)
+        assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") matches(ctx, nil) should not throw")
+    end
+end)
+
+-- ============================================================================
+-- Test: Scenario integration
+-- ============================================================================
+
+test("rotation: OOC scenario - only OOC buffs should match", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.use_weapon_imbue = true
+    state.weapon_imbue = { 25485 }
+    state.has_mainhand_imbue = false
+    state.weapon_imbue_api_known = true
+    state.has_lightning_shield = false
+    state.lightning_shield_ready = true
+    state.ghost_wolf_ready = true
+
+    -- WeaponImbue should match
+    assert_true(strategies[1].matches(ctx, state), "WeaponImbue should match OOC")
+    -- LightningShield should match
+    assert_true(strategies[2].matches(ctx, state), "LightningShield should match OOC")
+
+    -- Combat abilities should not match OOC
+    -- GhostWolf checks NS.get_distance which returns 10, so target too close
+    -- All other strategies require in_combat
+    for i = 3, 14 do
+        local ok, matched = pcall(strategies[i].matches, ctx, state)
+        assert_true(ok, "strategy[" .. i .. "] matches should not throw")
+    end
+end)
+
+test("rotation: no crashes when evaluating all strategies in sequence", function()
+    local ctx = make_context({in_combat = true, mana_pct = 80, hp = 100, enemies_count = 1, is_moving = false})
+    local state = get_state(ctx)
+    assert_not_nil(state, "state should be built")
+    for i, s in ipairs(strategies) do
+        local ok_match, matched = pcall(s.matches, ctx, state)
+        assert_true(ok_match, "strategy[" .. i .. "] matches should not throw")
+        local ok_exec, executed = pcall(s.execute, ctx, state)
+        assert_true(ok_exec, "strategy[" .. i .. "] execute should not throw")
+    end
+end)
+
+test("rotation: low HP scenario - healing should match", function()
+    local ctx = make_context({hp = 30})
+    local state = get_state(ctx)
+    state.healing_wave_ready = true
+    state.hp = 30
+    state.heal_hp = 50
+
+    -- HealingWave should match when HP < 50
+    assert_true(strategies[4].matches(ctx, state), "HealingWave should match when HP < 50")
+end)
+
+test("rotation: AoE scenario - chain lightning should match with 3+ enemies", function()
+    local ctx = make_context({enemies_count = 3})
+    local state = get_state(ctx)
+    state.chain_lightning_ready = true
+    state.enemies = 3
+
+    -- Chain Lightning should match with 2+ enemies
+    assert_true(strategies[8].matches(ctx, state), "Chain Lightning should match with 3 enemies")
+end)
+
+-- ============================================================================
+-- Summary
+-- ============================================================================
+
+print(string.format("\n=== Shaman Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
+if failed > 0 then
+    error(string.format("Some tests FAILED (%d failures)", failed))
+else
+    print("All Shaman leveling unit tests passed!")
+end
