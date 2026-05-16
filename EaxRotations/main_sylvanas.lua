@@ -66,17 +66,17 @@ end
 
 local function find_enemy_target(me, selected)
     local selected_ok = valid_enemy(me, selected)
-    if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:target] find_enemy_target selected=" .. tostring(selected ~= nil) .. " valid=" .. tostring(selected_ok)) end
+    trace("target:selected", "[EaxRotations:target] selected=" .. tostring(selected ~= nil) .. " valid=" .. tostring(selected_ok), 2000)
     if selected_ok then
         trace("target:selected_ok", "target selected=valid_enemy", 1000)
         return selected
     end
     local focus = NS.GetFocus and NS.GetFocus() or nil
     local focus_ok = valid_enemy(me, focus)
-    if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:target] find_enemy_target focus=" .. tostring(focus ~= nil) .. " valid=" .. tostring(focus_ok)) end
+    trace("target:focus", "[EaxRotations:target] focus=" .. tostring(focus ~= nil) .. " valid=" .. tostring(focus_ok), 2000)
     trace("target:pick", "target pick selected=" .. tostring(selected ~= nil) .. " selected_ok=" .. tostring(selected_ok) .. " focus=" .. tostring(focus ~= nil) .. " focus_ok=" .. tostring(focus_ok), 500)
     if focus_ok then return focus end
-    if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:target] find_enemy_target NO VALID TARGET - selected invalid, focus invalid or missing") end
+    trace("target:no_valid", "[EaxRotations:target] NO VALID TARGET - selected invalid, focus invalid or missing", 2000)
     return nil  -- Never auto-acquire enemies; only cast on selected or focus target
 end
 
@@ -418,10 +418,10 @@ local function run_list(name, list, options, context)
                     local executed = safe(strategy.execute, context, state) == true
                     trace("strategy:" .. tostring(name) .. ":" .. sname .. ":exec", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " execute=" .. tostring(executed), 700)
                     if executed then
-                        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:strategy] FIRED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname) end
+                        trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":fired", "[EaxRotations:strategy] FIRED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
                         return true
                     else
-                        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:strategy] MATCHED but execute FAILED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname) end
+                        trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":failed", "[EaxRotations:strategy] MATCHED but execute FAILED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
                     end
                 end
             end
@@ -430,25 +430,25 @@ local function run_list(name, list, options, context)
         end
     end
     trace("list:" .. tostring(name) .. ":none", "list " .. tostring(name) .. " finished without action", 700)
-    if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:strategy] " .. tostring(name) .. " list finished - NO strategies fired (checked " .. tostring(#list) .. " entries)") end
+    trace("strategy:" .. tostring(name) .. ":no_fires", "[EaxRotations:strategy] " .. tostring(name) .. " list finished - NO strategies fired (checked " .. tostring(#list) .. " entries)", 2000)
     return false
 end
 
 function M.on_rotation_update()
     local context = build_context()
     if not context then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:update] EXIT: build_context returned nil - no player object?") end
+        trace("update:no_context", "[EaxRotations:update] EXIT: build_context returned nil - no player object?", 2000)
         trace("update:no_context", "on_rotation_update stop: no context", 1000)
         return false
     end
-    if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:update] in_combat=" .. tostring(context.in_combat) .. " has_valid_enemy_target=" .. tostring(context.has_valid_enemy_target) .. " combat_state_known=" .. tostring(context.combat_state_known) .. " hp=" .. tostring(context.hp) .. " gcd=" .. tostring(context.gcd_remains) .. " level=" .. tostring(context.player_level) .. " is_leveling=" .. tostring(context.is_leveling)) end
+    trace("update:vars", "[EaxRotations:update] in_combat=" .. tostring(context.in_combat) .. " has_valid_enemy_target=" .. tostring(context.has_valid_enemy_target) .. " combat_state_known=" .. tostring(context.combat_state_known) .. " hp=" .. tostring(context.hp) .. " gcd=" .. tostring(context.gcd_remains) .. " level=" .. tostring(context.player_level) .. " is_leveling=" .. tostring(context.is_leveling), 2000)
     if not (context.in_combat or context.has_valid_enemy_target) then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:gate] BLOCKED: not in_combat AND no valid enemy target. combat_state_known=" .. tostring(context.combat_state_known) .. " has_target=" .. tostring(context.has_target)) end
+        trace("gate:blocked", "[EaxRotations:gate] BLOCKED: not in_combat AND no valid enemy target. combat_state_known=" .. tostring(context.combat_state_known) .. " has_target=" .. tostring(context.has_target), 2000)
         -- Only run OOC manager when there's no valid enemy target (even if combat_state_known is false)
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:gate] EXIT: OOC path - in_combat=false, has_enemy=false, trying ooc_manager=" .. tostring(ooc_manager ~= nil)) end
+        trace("gate:ooc_path", "[EaxRotations:gate] EXIT: OOC path - in_combat=false, has_enemy=false, trying ooc_manager=" .. tostring(ooc_manager ~= nil), 2000)
         trace("gate:ooc", "gate OOC: in_combat=false has_enemy=false ooc_manager=" .. tostring(ooc_manager ~= nil), 500)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
-            if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:gate] OOC manager fired successfully") end
+            trace("gate:ooc_fired", "[EaxRotations:gate] OOC manager fired successfully", 2000)
             trace("gate:ooc_fired", "OOC manager executed", 500)
             return true
         end
@@ -475,16 +475,16 @@ function M.on_rotation_update()
     local class_key = config and config.class_key
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
         trace("update:middleware_fired", "on_rotation_update fired middleware class_key=" .. tostring(class_key), 500)
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:update] MIDDLEWARE FIRED - BLOCKING playstyle rotation. class_key=" .. tostring(class_key) .. " active=" .. tostring(active)) end
+        trace("update:middleware_fired", "[EaxRotations:update] MIDDLEWARE FIRED - BLOCKING playstyle rotation. class_key=" .. tostring(class_key) .. " active=" .. tostring(active), 2000)
         return true
     end
-    if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:update] running playstyle=" .. tostring(active) .. " list_count=" .. tostring(registry and registry.playstyles and registry.playstyles[active] and #registry.playstyles[active] or 0) .. " options=" .. tostring(registry and registry.options and registry.options[active] ~= nil)) end
+    trace("update:running_playstyle", "[EaxRotations:update] running playstyle=" .. tostring(active) .. " list_count=" .. tostring(registry and registry.playstyles and registry.playstyles[active] and #registry.playstyles[active] or 0) .. " options=" .. tostring(registry and registry.options and registry.options[active] ~= nil), 2000)
     local fired = run_list(tostring(active), registry and registry.playstyles[active], registry and registry.options[active], context)
     trace("update:done", "on_rotation_update finished active=" .. tostring(active) .. " fired=" .. tostring(fired), 500)
     if fired then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:update] playstyle=" .. tostring(active) .. " FIRED a strategy") end
+        trace("update:playstyle_fired", "[EaxRotations:update] playstyle=" .. tostring(active) .. " FIRED a strategy", 2000)
     else
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[EaxRotations:update] playstyle=" .. tostring(active) .. " finished WITHOUT firing any strategy") end
+        trace("update:playstyle_idle", "[EaxRotations:update] playstyle=" .. tostring(active) .. " finished WITHOUT firing any strategy", 2000)
         trace_no_action(active, context, "strategies_blocked")
     end
     return fired
