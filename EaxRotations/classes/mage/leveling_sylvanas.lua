@@ -19,6 +19,11 @@ local ICE_BARRIER_BUFF = { 27134, 13033, 13032, 13031, 11426 }
 local MANA_SHIELD_BUFF = { 27142, 13008, 13007, 13006, 13005, 13003, 8495, 8494, 8492, 1463 }
 local POLYMORPH_IDS = { 12826, 12825, 12824, 118 }
 
+-- Mana gem conjure spells (newest → oldest rank)
+local CONJURE_MANA_GEM_SPELLS = { 27101, 10054, 10053, 3552, 759 }
+-- Mana gem item IDs (highest → lowest rank) — using correct TBC item IDs
+local MANA_GEM_ITEM_IDS = { 22147, 5523, 5521, 5513, 5514 }
+
 local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
 
 local EMPTY_SETTINGS = {}
@@ -61,6 +66,20 @@ local function safe_debuff_remains(unit, ids)
     return 0
 end
 
+--- Safe item ready check wrapper — pcall protects against nil/throwing NS.is_item_ready
+local function safe_is_item_ready(item_id)
+    if not NS.is_item_ready then return false end
+    local ok, ready = pcall(NS.is_item_ready, item_id)
+    return ok and ready
+end
+
+--- Safe item use wrapper — pcall protects against nil/throwing NS.use_item_by_id
+local function safe_use_item(item_id)
+    if not NS.use_item_by_id then return false end
+    local ok, used = pcall(NS.use_item_by_id, item_id)
+    return ok and used
+end
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -90,6 +109,29 @@ local function build_state(context)
     leveling_state.use_scorch = settings.leveling_scorch_use ~= false
     leveling_state.use_interrupt = settings.use_interrupt ~= false
     leveling_state.use_fire_blast = settings.leveling_fire_blast_use ~= false
+
+    -- Mana gem state
+    leveling_state.use_mana_gem = settings.use_mana_gem ~= false
+    leveling_state.mana_gem_threshold = settings.mana_gem_mana_pct or 70
+
+    -- Check if conjure mana gem spell is learned
+    leveling_state.conjure_gem_ready = false
+    for _, spell_id in ipairs(CONJURE_MANA_GEM_SPELLS) do
+        local ok_e, exists = pcall(NS.spell_exists, spell_id)
+        if ok_e and exists then
+            leveling_state.conjure_gem_ready = true
+            break
+        end
+    end
+
+    -- Check if any mana gem item is available in inventory
+    leveling_state.mana_gem_available = false
+    for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
+        if safe_is_item_ready(item_id) then
+            leveling_state.mana_gem_available = true
+            break
+        end
+    end
 
     -- Spell readiness (each returns false if spell not learned, errors caught via pcall)
     leveling_state.frostbolt_ready = spell_is_ready(SPELLS.Frostbolt, context.target)
@@ -246,6 +288,30 @@ local function wand_matches(context, state)
 end
 
 -- ============================================================================
+-- Mana gem match functions
+-- ============================================================================
+
+local function conjure_gem_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if state.in_combat then return false end
+    if not state.conjure_gem_ready then return false end
+    -- Only conjure if we don't already have a gem
+    if state.mana_gem_available then return false end
+    return true
+end
+
+local function use_mana_gem_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.use_mana_gem then return false end
+    if not state.mana_gem_available then return false end
+    if state.mana_pct >= (state.mana_gem_threshold or 70) then return false end
+    return true
+end
+
+-- ============================================================================
 -- Execute functions
 -- ============================================================================
 
@@ -258,6 +324,26 @@ local function frost_nova_execute()
     return NS.try_cast and NS.try_cast(SPELLS.FrostNova, nil, "[LEVELING] Frost Nova") or false
 end
 
+local function conjure_gem_execute()
+    -- Conjure the highest rank mana gem (spell resolution handled by spell exists check)
+    for _, spell_id in ipairs(CONJURE_MANA_GEM_SPELLS) do
+        if NS.spell_exists and NS.spell_exists(spell_id) then
+            return NS.try_cast and NS.try_cast(spell_id, NS.PLAYER_UNIT, "[LEVELING] Conjure Mana Gem") or false
+        end
+    end
+    return false
+end
+
+local function use_mana_gem_execute()
+    -- Try the highest rank gem first, fall back to lower ranks
+    for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
+        if safe_is_item_ready(item_id) then
+            return safe_use_item(item_id)
+        end
+    end
+    return false
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -267,6 +353,11 @@ local strategies = {
     { name = "ArcaneIntellect",
       matches = arcane_intellect_matches,
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[LEVELING] Arcane Intellect") or false end },
+
+    -- Pre-combat: conjure mana gem if missing
+    { name = "ConjureManaGem",
+      matches = conjure_gem_matches,
+      execute = conjure_gem_execute },
 
     -- Pull / CC
     { name = "Polymorph",
@@ -317,6 +408,11 @@ local strategies = {
     { name = "Frostbolt",
       matches = frostbolt_matches,
       execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Frostbolt, context.target, "[LEVELING] Frostbolt") or false end },
+
+    -- Mana recovery: use mana gem before resorting to wand
+    { name = "UseManaGem",
+      matches = use_mana_gem_matches,
+      execute = use_mana_gem_execute },
 
     -- Wand fallback (threshold controlled by schema setting)
     { name = "Wand",
