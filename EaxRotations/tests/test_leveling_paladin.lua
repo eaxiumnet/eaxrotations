@@ -882,6 +882,249 @@ test("rotation: low HP scenario - flash_light should match", function()
 end)
 
 -- ============================================================================
+-- Edge Case: Seal priority boundaries
+-- ============================================================================
+
+test("edge_seal: Command preferred over Blood and Righteousness", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.seal_command_ready = true
+    state.seal_blood_ready = true
+    state.seal_righteousness_ready = true
+    assert_true(strategies[12].matches(ctx, state), "Command ready should match")
+end)
+
+test("edge_seal: Blood fallback when Command not ready", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.seal_command_ready = false
+    state.seal_blood_ready = true
+    state.seal_righteousness_ready = true
+    assert_true(strategies[12].matches(ctx, state), "Blood ready should match when Command not ready")
+end)
+
+test("edge_seal: Righteousness fallback when Command and Blood not ready", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.seal_command_ready = false
+    state.seal_blood_ready = false
+    state.seal_righteousness_ready = true
+    assert_true(strategies[12].matches(ctx, state), "Righteousness ready should match when others not ready")
+end)
+
+test("edge_seal: no seal ready returns false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.seal_command_ready = false
+    state.seal_blood_ready = false
+    state.seal_righteousness_ready = false
+    assert_false(strategies[12].matches(ctx, state), "no seal ready should not match")
+end)
+
+-- ============================================================================
+-- Edge Case: Consecration enemy count boundaries
+-- ============================================================================
+
+test("edge_consecration: exactly 2 enemies -> true", function()
+    local ctx = make_context({enemies_count = 2, is_moving = false})
+    local state = get_state(ctx)
+    state.consecration_ready = true
+    state.enemies = 2
+    state.is_moving = false
+    assert_true(strategies[11].matches(ctx, state), "exactly 2 enemies should match")
+end)
+
+test("edge_consecration: exactly 1 enemy -> false", function()
+    local ctx = make_context({enemies_count = 1, is_moving = false})
+    local state = get_state(ctx)
+    state.consecration_ready = true
+    state.enemies = 1
+    state.is_moving = false
+    assert_false(strategies[11].matches(ctx, state), "exactly 1 enemy should not match")
+end)
+
+-- ============================================================================
+-- Edge Case: HP boundaries for survival spells
+-- ============================================================================
+
+test("edge_flash_light: HP exactly 60 -> true", function()
+    local ctx = make_context({hp = 60})
+    local state = get_state(ctx)
+    state.flash_light_ready = true
+    state.hp = 60
+    assert_true(strategies[3].matches(ctx, state), "HP exactly 60 should match (<= check)")
+end)
+
+test("edge_flash_light: HP exactly 61 -> false", function()
+    local ctx = make_context({hp = 100})
+    local state = get_state(ctx)
+    state.flash_light_ready = true
+    state.hp = 61
+    assert_false(strategies[3].matches(ctx, state), "HP exactly 61 should not match")
+end)
+
+test("edge_divine_shield: HP exactly 20 -> true", function()
+    local ctx = make_context({hp = 20})
+    local state = get_state(ctx)
+    state.divine_shield_ready = true
+    state.hp = 20
+    assert_true(strategies[4].matches(ctx, state), "HP exactly 20 should match (<= check)")
+end)
+
+test("edge_divine_shield: HP exactly 21 -> false", function()
+    local ctx = make_context({hp = 50})
+    local state = get_state(ctx)
+    state.divine_shield_ready = true
+    state.hp = 21
+    assert_false(strategies[4].matches(ctx, state), "HP exactly 21 should not match")
+end)
+
+test("edge_lay_on_hands: HP exactly 15 -> true", function()
+    local ctx = make_context({hp = 15})
+    local state = get_state(ctx)
+    state.lay_on_hands_ready = true
+    state.hp = 15
+    assert_true(strategies[5].matches(ctx, state), "HP exactly 15 should match (<= check)")
+end)
+
+test("edge_lay_on_hands: HP exactly 16 -> false", function()
+    local ctx = make_context({hp = 50})
+    local state = get_state(ctx)
+    state.lay_on_hands_ready = true
+    state.hp = 16
+    assert_false(strategies[5].matches(ctx, state), "HP exactly 16 should not match")
+end)
+
+-- ============================================================================
+-- Edge Case: Hammer of Wrath target HP boundaries
+-- ============================================================================
+
+test("edge_hammer_wrath: target HP exactly 20 -> true", function()
+    local ctx = make_context()
+    ctx.target.get_health_percentage = function() return 20 end
+    local state = get_state(ctx)
+    state.hammer_wrath_ready = true
+    assert_true(strategies[8].matches(ctx, state), "target HP exactly 20 should match (<= check)")
+end)
+
+test("edge_hammer_wrath: target HP exactly 21 -> false", function()
+    local ctx = make_context()
+    ctx.target.get_health_percentage = function() return 21 end
+    local state = get_state(ctx)
+    state.hammer_wrath_ready = true
+    assert_false(strategies[8].matches(ctx, state), "target HP exactly 21 should not match")
+end)
+
+-- ============================================================================
+-- Edge Case: Hammer of Justice enemy count boundary
+-- ============================================================================
+
+test("edge_hammer_justice: exactly 2 enemies -> true", function()
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.hammer_justice_ready = true
+    state.enemies = 2
+    assert_true(strategies[6].matches(ctx, state), "exactly 2 enemies should match")
+end)
+
+test("edge_hammer_justice: exactly 1 enemy -> false", function()
+    local ctx = make_context({enemies_count = 1})
+    local state = get_state(ctx)
+    state.hammer_justice_ready = true
+    state.enemies = 1
+    assert_false(strategies[6].matches(ctx, state), "exactly 1 enemy should not match")
+end)
+
+-- ============================================================================
+-- Edge Case: Exorcism movement boundary
+-- ============================================================================
+
+test("edge_exorcism: stationary -> true", function()
+    local ctx = make_context({is_moving = false})
+    local state = get_state(ctx)
+    state.exorcism_ready = true
+    state.is_moving = false
+    assert_true(strategies[10].matches(ctx, state), "stationary should match")
+end)
+
+test("edge_exorcism: moving -> false", function()
+    local ctx = make_context({is_moving = true})
+    local state = get_state(ctx)
+    state.exorcism_ready = true
+    state.is_moving = true
+    assert_false(strategies[10].matches(ctx, state), "moving should not match")
+end)
+
+-- ============================================================================
+-- Edge Case: Buff API safety (nil/throwing NS.buff_up in build_state)
+-- ============================================================================
+
+test("edge_buff: NS.buff_up nil in build_state returns false for all buffs", function()
+    local ctx = make_context({in_combat = false})
+    local saved = NS.buff_up
+    NS.buff_up = nil
+    local state = get_state(ctx)
+    assert_false(state.has_blessing_might, "has_blessing_might false when NS.buff_up nil")
+    assert_false(state.has_devotion_aura, "has_devotion_aura false when NS.buff_up nil")
+    NS.buff_up = saved
+end)
+
+test("edge_buff: NS.buff_up throws in build_state does not crash", function()
+    local ctx = make_context({in_combat = false})
+    local saved = NS.buff_up
+    NS.buff_up = function() error("mock crash") end
+    local state = get_state(ctx)
+    assert_false(state.has_blessing_might, "has_blessing_might false when NS.buff_up throws")
+    assert_false(state.has_devotion_aura, "has_devotion_aura false when NS.buff_up throws")
+    NS.buff_up = saved
+end)
+
+-- ============================================================================
+-- Edge Case: API crash safety (nil/throwing NS.spell_ready, nil NS.try_cast)
+-- ============================================================================
+
+test("edge_api: NS.spell_ready nil in build_state returns false for all ready fields", function()
+    local ctx = make_context()
+    local saved = NS.spell_ready
+    NS.spell_ready = nil
+    local state = get_state(ctx)
+    assert_false(state.blessing_might_ready, "blessing_might_ready false when NS.spell_ready nil")
+    assert_false(state.judgement_ready, "judgement_ready false when NS.spell_ready nil")
+    NS.spell_ready = saved
+end)
+
+test("edge_api: NS.spell_ready throws in build_state returns false for all ready fields", function()
+    local ctx = make_context()
+    local saved = NS.spell_ready
+    NS.spell_ready = function() error("mock crash") end
+    local state = get_state(ctx)
+    assert_false(state.blessing_might_ready, "blessing_might_ready false when NS.spell_ready throws")
+    assert_false(state.judgement_ready, "judgement_ready false when NS.spell_ready throws")
+    NS.spell_ready = saved
+end)
+
+test("edge_api: NS.try_cast nil does not crash execute functions", function()
+    local saved = NS.try_cast
+    NS.try_cast = nil
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.execute, make_context())
+        assert_true(ok, "strategy[" .. i .. "] execute should not throw with nil NS.try_cast")
+    end
+    NS.try_cast = saved
+end)
+
+-- ============================================================================
+-- Edge Case: Rotation crash safety (nil context for execute)
+-- ============================================================================
+
+test("edge_rotation_crash: all execute functions handle nil context -> no crash", function()
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.execute, nil)
+        assert_true(ok, "strategy[" .. i .. "] execute(nil) should not throw")
+    end
+end)
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 
