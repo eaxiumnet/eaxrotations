@@ -1016,6 +1016,488 @@ test("rotation: low mana scenario - wand should match", function()
 end)
 
 -- ============================================================================
+-- Edge Case: Polymorph boundaries
+-- ============================================================================
+
+test("edge_polymorph: target HP exactly at threshold (40) should not match", function()
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 4000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 40 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 40
+    assert_false(strategies[2].matches(ctx, state), "HP at exactly 40 should not match (40 >= 40)")
+end)
+
+test("edge_polymorph: target HP just below threshold (39) should match", function()
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 3900 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 39 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 40
+    assert_true(strategies[2].matches(ctx, state), "HP at 39 should match (< 40)")
+end)
+
+test("edge_polymorph: debuff remains at exactly 10 boundary should not match", function()
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 2000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 20 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 40
+    local saved_debuff = NS.debuff_remains
+    NS.debuff_remains = function() return 10 end
+    assert_false(strategies[2].matches(ctx, state), "debuff at exactly 10s should not match (10 >= 10 is true, returns false)")
+    NS.debuff_remains = saved_debuff
+end)
+
+test("edge_polymorph: debuff remains at 9 should match", function()
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 2000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 20 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 40
+    local saved_debuff = NS.debuff_remains
+    NS.debuff_remains = function() return 9 end
+    assert_true(strategies[2].matches(ctx, state), "debuff at 9s should match (< 10)")
+    NS.debuff_remains = saved_debuff
+end)
+
+test("edge_polymorph: not ready returns false", function()
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 2000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 20 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = false
+    state.polymorph_hp = 40
+    assert_false(strategies[2].matches(ctx, state), "polymorph not ready should not match")
+end)
+
+test("edge_polymorph: NS.debuff_remains nil does not crash", function()
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 2000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 20 end,
+    }
+    local saved_debuff = NS.debuff_remains
+    NS.debuff_remains = nil
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 40
+    local ok, result = pcall(strategies[2].matches, ctx, state)
+    assert_true(ok, "NS.debuff_remains nil should not throw")
+    NS.debuff_remains = saved_debuff
+end)
+
+-- ============================================================================
+-- Edge Case: Counterspell resilience
+-- ============================================================================
+
+test("edge_counterspell: is_casting throws error should not crash", function()
+    local ctx = make_context()
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() error("simulated throw from is_casting") end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 80 end,
+    }
+    local state = get_state(ctx)
+    state.counterspell_ready = true
+    state.use_interrupt = true
+    local ok, result = pcall(strategies[3].matches, ctx, state)
+    assert_true(ok, "is_casting throw should be caught by pcall in counterspell_matches")
+end)
+
+test("edge_counterspell: no target returns false", function()
+    local ctx = make_context({target = nil})
+    local state = get_state(ctx)
+    state.counterspell_ready = true
+    state.target = nil
+    state.use_interrupt = true
+    assert_false(strategies[3].matches(ctx, state), "no target should return false")
+end)
+
+test("edge_counterspell: interrupt disabled returns false", function()
+    local ctx = make_context()
+    ctx.target.is_casting = function() return true end
+    local state = get_state(ctx)
+    state.counterspell_ready = true
+    state.use_interrupt = false
+    assert_false(strategies[3].matches(ctx, state), "interrupt disabled should return false")
+end)
+
+-- ============================================================================
+-- Edge Case: Buff API resilience (build_state)
+-- ============================================================================
+
+test("edge_buff: NS.buff_up nil in build_state returns false for all buffs", function()
+    local ctx = make_context({in_combat = false})
+    local saved_buff_up = NS.buff_up
+    NS.buff_up = nil
+    local state = get_state(ctx)
+    assert_false(state.has_ai, "has_ai should be false when NS.buff_up nil")
+    assert_false(state.has_molten_armor, "has_molten_armor should be false")
+    assert_false(state.has_ice_barrier, "has_ice_barrier should be false")
+    assert_false(state.has_mana_shield, "has_mana_shield should be false")
+    NS.buff_up = saved_buff_up
+end)
+
+test("edge_buff: NS.buff_up throws in build_state is caught by pcall", function()
+    local ctx = make_context({in_combat = false})
+    local saved_buff_up = NS.buff_up
+    NS.buff_up = function() error("simulated throw from NS.buff_up") end
+    local ok, state = pcall(get_state, ctx)
+    assert_true(ok, "NS.buff_up throw should be caught - build_state should not crash")
+    if ok and state then
+        assert_false(state.has_ai, "has_ai should be false when NS.buff_up throws")
+        assert_false(state.has_molten_armor, "has_molten_armor should be false")
+        assert_false(state.has_ice_barrier, "has_ice_barrier should be false")
+        assert_false(state.has_mana_shield, "has_mana_shield should be false")
+    end
+    NS.buff_up = saved_buff_up
+end)
+
+-- ============================================================================
+-- Edge Case: Frost Nova distance boundary
+-- ============================================================================
+
+test("edge_frost_nova: target at exactly 10 yards should match", function()
+    local ctx = make_context()
+    ctx.target.get_distance = function(other) return 10 end
+    local state = get_state(ctx)
+    state.frost_nova_ready = true
+    assert_true(strategies[6].matches(ctx, state), "target at exactly 10 yards should match (dist <= 10)")
+end)
+
+test("edge_frost_nova: target at 11 yards should not match", function()
+    local ctx = make_context()
+    ctx.target.get_distance = function(other) return 11 end
+    local state = get_state(ctx)
+    state.frost_nova_ready = true
+    assert_false(strategies[6].matches(ctx, state), "target at 11 yards should not match (dist > 10)")
+end)
+
+-- ============================================================================
+-- Edge Case: Blizzard enemy count boundary
+-- ============================================================================
+
+test("edge_blizzard: exactly 2 enemies does not match", function()
+    local ctx = make_context({enemies_count = 2, is_moving = false})
+    local state = get_state(ctx)
+    state.blizzard_ready = true
+    state.enemies = 2
+    state.is_moving = false
+    assert_false(strategies[7].matches(ctx, state), "exactly 2 enemies should not match (< 3)")
+end)
+
+test("edge_blizzard: exactly 3 enemies matches", function()
+    local ctx = make_context({enemies_count = 3, is_moving = false})
+    local state = get_state(ctx)
+    state.blizzard_ready = true
+    state.enemies = 3
+    state.is_moving = false
+    assert_true(strategies[7].matches(ctx, state), "exactly 3 enemies should match (>= 3)")
+end)
+
+-- ============================================================================
+-- Edge Case: Movement restrictions
+-- ============================================================================
+
+test("edge_movement: frostbolt while moving does not match", function()
+    local ctx = make_context({is_moving = true, mana_pct = 80})
+    local state = get_state(ctx)
+    state.frostbolt_ready = true
+    state.is_moving = true
+    state.mana_pct = 80
+    assert_false(strategies[12].matches(ctx, state), "frostbolt while moving should not match")
+end)
+
+test("edge_movement: scorch while moving does not match", function()
+    local ctx = make_context({is_moving = true, mana_pct = 80})
+    local state = get_state(ctx)
+    state.scorch_ready = true
+    state.use_scorch = true
+    state.is_moving = true
+    state.mana_pct = 80
+    assert_false(strategies[10].matches(ctx, state), "scorch while moving should not match")
+end)
+
+test("edge_movement: arcane missiles while moving does not match", function()
+    local ctx = make_context({is_moving = true, mana_pct = 80})
+    local state = get_state(ctx)
+    state.arcane_missiles_ready = true
+    state.use_arcane_missiles = true
+    state.is_moving = true
+    state.mana_pct = 80
+    assert_false(strategies[11].matches(ctx, state), "arcane missiles while moving should not match")
+end)
+
+test("edge_movement: blizzard while moving does not match", function()
+    local ctx = make_context({is_moving = true, enemies_count = 4})
+    local state = get_state(ctx)
+    state.blizzard_ready = true
+    state.enemies = 4
+    state.is_moving = true
+    assert_false(strategies[7].matches(ctx, state), "blizzard while moving should not match")
+end)
+
+test("edge_movement: fire blast (instant) still works while moving", function()
+    local ctx = make_context({is_moving = true})
+    local state = get_state(ctx)
+    state.fire_blast_ready = true
+    state.use_fire_blast = true
+    state.is_moving = true
+    assert_true(strategies[9].matches(ctx, state), "fire blast (instant) should work while moving")
+end)
+
+-- ============================================================================
+-- Edge Case: Wand threshold boundary
+-- ============================================================================
+
+test("edge_wand: mana exactly at threshold (30) should not match", function()
+    local ctx = make_context({mana_pct = 30})
+    local state = get_state(ctx)
+    state.mana_pct = 30
+    state.wand_threshold = 30
+    state.wand_learned = true
+    assert_false(strategies[13].matches(ctx, state), "mana exactly at threshold should not match (mana >= threshold)")
+end)
+
+test("edge_wand: wand not learned returns false even at low mana", function()
+    local ctx = make_context({mana_pct = 10})
+    local state = get_state(ctx)
+    state.mana_pct = 10
+    state.wand_threshold = 30
+    state.wand_learned = false
+    assert_false(strategies[13].matches(ctx, state), "wand not learned should return false")
+end)
+
+-- ============================================================================
+-- Edge Case: API resilience (nil/throwing NS functions)
+-- ============================================================================
+
+test("edge_api: NS.spell_ready nil in build_state should not crash", function()
+    local saved = NS.spell_ready
+    NS.spell_ready = nil
+    local ctx = make_context()
+    local ok, state = pcall(get_state, ctx)
+    assert_true(ok, "NS.spell_ready nil should not crash build_state")
+    if ok and state then
+        assert_false(state.frostbolt_ready, "frostbolt should not be ready when NS.spell_ready nil")
+        assert_false(state.fire_blast_ready, "fire_blast should not be ready")
+    end
+    NS.spell_ready = saved
+end)
+
+test("edge_api: NS.spell_ready throws in build_state should not crash", function()
+    local saved = NS.spell_ready
+    NS.spell_ready = function() error("simulated throw in NS.spell_ready") end
+    local ctx = make_context()
+    local ok, state = pcall(get_state, ctx)
+    assert_true(ok, "NS.spell_ready throw should not crash build_state (wrapped in spell_is_ready pcall)")
+    if ok and state then
+        assert_false(state.frostbolt_ready, "frostbolt should not be ready when NS.spell_ready throws")
+    end
+    NS.spell_ready = saved
+end)
+
+test("edge_api: NS.try_cast nil does not crash execute", function()
+    local saved = NS.try_cast
+    NS.try_cast = nil
+    local ctx = make_context()
+    local ok, result = pcall(strategies[12].execute, ctx)  -- Frostbolt execute
+    assert_true(ok, "NS.try_cast nil should not crash execute")
+    NS.try_cast = saved
+end)
+
+test("edge_api: NS.try_cast nil does not crash execute with nil context", function()
+    local saved = NS.try_cast
+    NS.try_cast = nil
+    local ok, result = pcall(strategies[12].execute, nil)  -- Frostbolt execute
+    assert_true(ok, "NS.try_cast nil with nil context should not crash")
+    NS.try_cast = saved
+end)
+
+test("edge_api: NS.spell_exists nil in build_state should not crash", function()
+    local saved = NS.spell_exists
+    NS.spell_exists = nil
+    local ctx = make_context()
+    local ok, state = pcall(get_state, ctx)
+    assert_true(ok, "NS.spell_exists nil should not crash build_state")
+    if ok and state then
+        assert_false(state.wand_learned, "wand not learned when NS.spell_exists nil")
+    end
+    NS.spell_exists = saved
+end)
+
+-- ============================================================================
+-- Edge Case: All disabled
+-- ============================================================================
+
+test("edge_all_disabled: all toggles off, only wand matches", function()
+    local ctx = make_context({
+        in_combat = true,
+        mana_pct = 10,
+        hp = 30,
+        enemies_count = 4,
+        is_moving = false,
+    })
+    ctx.settings.leveling_fire_blast_use = false
+    ctx.settings.leveling_scorch_use = false
+    ctx.settings.leveling_arcane_missiles_use = false
+    ctx.settings.use_interrupt = false
+    ctx.me.has_buff = function(id) return false end
+    local state = get_state(ctx)
+
+    -- Set all spell readiness to true
+    state.frostbolt_ready = true
+    state.fire_blast_ready = true
+    state.scorch_ready = true
+    state.arcane_missiles_ready = true
+    state.frost_nova_ready = true
+    state.blizzard_ready = true
+    state.polymorph_ready = true
+    state.counterspell_ready = true
+    state.evocation_ready = true
+    state.ice_barrier_ready = true
+    state.mana_shield_ready = true
+    state.ai_ready = true
+
+    -- Verify each toggle-gated strategy returns false
+    assert_false(strategies[2].matches(ctx, state), "polymorph disabled OOC with low HP target")
+    assert_false(strategies[3].matches(ctx, state), "counterspell disabled")
+    assert_false(strategies[9].matches(ctx, state), "fire_blast disabled")
+    assert_false(strategies[10].matches(ctx, state), "scorch disabled")
+    assert_false(strategies[11].matches(ctx, state), "arcane_missiles disabled")
+
+    -- But wand should still match (no toggle gate)
+    state.wand_threshold = 30
+    state.wand_learned = true
+    assert_true(strategies[13].matches(ctx, state), "wand should still match when mana low")
+end)
+
+-- ============================================================================
+-- Edge Case: Rotation crash safety
+-- ============================================================================
+
+test("edge_rotation_crash: all match functions handle nil context -> false", function()
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.matches, nil, {})
+        assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") matches(nil, {}) should not throw")
+    end
+end)
+
+test("edge_rotation_crash: all match functions handle nil state -> no crash", function()
+    local ctx = make_context()
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.matches, ctx, nil)
+        assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") matches(ctx, nil) should not throw")
+    end
+end)
+
+test("edge_rotation_crash: all execute functions handle nil context -> false", function()
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.execute, nil)
+        assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") execute(nil) should not throw")
+    end
+end)
+
+-- ============================================================================
+-- Edge Case: Settings custom thresholds
+-- ============================================================================
+
+test("edge_settings: custom polymorph_hp=60 means 55 HP target matches", function()
+    local ctx = make_context({in_combat = false})
+    ctx.settings.leveling_polymorph_hp = 60
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 5500 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 55 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 60
+    assert_true(strategies[2].matches(ctx, state), "HP 55 < 60 threshold should match")
+end)
+
+test("edge_settings: custom wand_threshold=15 means 15% mana does not wand", function()
+    local ctx = make_context({mana_pct = 15})
+    ctx.settings.leveling_wand_threshold = 15
+    local state = get_state(ctx)
+    state.mana_pct = 15
+    state.wand_threshold = 15
+    state.wand_learned = true
+    assert_false(strategies[13].matches(ctx, state), "wand at threshold 15 should not match (mana >= threshold)")
+end)
+
+test("edge_settings: custom wand_threshold=15 means 14% mana does wand", function()
+    local ctx = make_context({mana_pct = 14})
+    ctx.settings.leveling_wand_threshold = 15
+    local state = get_state(ctx)
+    state.mana_pct = 14
+    state.wand_threshold = 15
+    state.wand_learned = true
+    assert_true(strategies[13].matches(ctx, state), "wand at 14 < 15 threshold should match")
+end)
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 

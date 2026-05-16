@@ -5,6 +5,8 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local leveling = require("shared/leveling_sylvanas")
+if not leveling then return nil end
 local SPELLS = NS.MageSpells or {}
 
 -- ============================================================================
@@ -17,8 +19,7 @@ local ICE_BARRIER_BUFF = { 27134, 13033, 13032, 13031, 11426 }
 local MANA_SHIELD_BUFF = { 27142, 13008, 13007, 13006, 13005, 13003, 8495, 8494, 8492, 1463 }
 local POLYMORPH_IDS = { 12826, 12825, 12824, 118 }
 
--- Wand spell ID (Shoot)
-local WAND_SPELL_ID = 5019
+local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
 
 local EMPTY_SETTINGS = {}
 local leveling_state = {}
@@ -45,6 +46,21 @@ local function spell_is_ready(action, target, opts)
     return ok and ready
 end
 
+--- Safe buff check wrapper — pcall protects against nil/throwing NS.buff_up
+local function safe_buff_up(unit, ids)
+    if not unit or not NS.buff_up then return false end
+    local ok, has_buff = pcall(NS.buff_up, unit, ids)
+    return ok and has_buff
+end
+
+--- Safe debuff remains wrapper — pcall protects against nil/throwing NS.debuff_remains
+local function safe_debuff_remains(unit, ids)
+    if not unit or not NS.debuff_remains then return 0 end
+    local ok, remains = pcall(NS.debuff_remains, unit, ids)
+    if ok and type(remains) == "number" then return remains end
+    return 0
+end
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -54,10 +70,10 @@ local function build_state(context)
     local settings = context.settings or EMPTY_SETTINGS
     local me = context.me
 
-    leveling_state.has_ai = me and NS.buff_up and NS.buff_up(me, ARCANE_INTELLECT_BUFF) or false
-    leveling_state.has_molten_armor = me and NS.buff_up and NS.buff_up(me, MOLTEN_ARMOR_BUFF) or false
-    leveling_state.has_ice_barrier = me and NS.buff_up and NS.buff_up(me, ICE_BARRIER_BUFF) or false
-    leveling_state.has_mana_shield = me and NS.buff_up and NS.buff_up(me, MANA_SHIELD_BUFF) or false
+    leveling_state.has_ai = safe_buff_up(me, ARCANE_INTELLECT_BUFF)
+    leveling_state.has_molten_armor = safe_buff_up(me, MOLTEN_ARMOR_BUFF)
+    leveling_state.has_ice_barrier = safe_buff_up(me, ICE_BARRIER_BUFF)
+    leveling_state.has_mana_shield = safe_buff_up(me, MANA_SHIELD_BUFF)
 
     leveling_state.in_combat = context.in_combat or false
     leveling_state.mana_pct = context.mana_pct or 100
@@ -151,8 +167,8 @@ local function polymorph_matches(context, state)
     -- Don't polymorph targets below HP threshold (too dangerous to pull)
     local ok, hp = pcall(function() return state.target:get_health_percentage() end)
     if ok and hp and hp >= (state.polymorph_hp or 40) then return false end
-    local remains = NS.debuff_remains and NS.debuff_remains(state.target, POLYMORPH_IDS) or 0
-    if remains > 10 then return false end
+    local remains = safe_debuff_remains(state.target, POLYMORPH_IDS)
+    if remains >= 10 then return false end
     return state.polymorph_ready
 end
 
@@ -234,12 +250,7 @@ end
 -- ============================================================================
 
 local function execute_wand(context)
-    if not context or not context.target then return false end
-    if core and core.input and core.input.cast_target_spell then
-        core.input.cast_target_spell(WAND_SPELL_ID, context.target)
-        return true
-    end
-    return false
+    return leveling.execute_wand(context)
 end
 
 local function frost_nova_execute()
