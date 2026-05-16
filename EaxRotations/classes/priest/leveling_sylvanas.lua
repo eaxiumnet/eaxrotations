@@ -34,8 +34,8 @@ end
 
 local function has_buff(buff_ids)
     if not buff_ids then return false end
-    local me = NS.get_local_player()
-    if not me then return false end
+    local ok, me = pcall(NS.get_local_player)
+    if not ok or not me then return false end
     local ids = type(buff_ids) == "table" and buff_ids or { buff_ids }
     for _, id in ipairs(ids) do
         local ok, result = pcall(function()
@@ -292,7 +292,10 @@ local strategies = {
     {
         name = "Wand",
         matches = wand_matches_fn,
-        execute = function(context) return leveling.execute_wand(context) end,
+        execute = function(context)
+            if not context then return false end
+            return leveling.execute_wand(context)
+        end,
     },
 }
 
