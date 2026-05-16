@@ -5,6 +5,8 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local leveling = require("shared/leveling_sylvanas")
+if not leveling then return nil end
 local SPELLS = NS.WarlockSpells or {}
 
 -- ============================================================================
@@ -20,10 +22,32 @@ local IMMOLATE_IDS = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local CURSE_OF_AGONY_IDS = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local HEALTH_FUNNEL_IDS = { 27259, 11695, 11694, 11693, 755, 3699, 3700 }
 
--- Wand spell ID (Shoot)
-local WAND_SPELL_ID = 5019
+local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
 
 local EMPTY_SETTINGS = {}
+
+-- ============================================================================
+-- Safe API wrappers (pcall-protected against nil/throwing NS functions)
+-- ============================================================================
+
+local function safe_buff_up(unit, buff_ids)
+    if not unit or not NS.buff_up then return false end
+    local ok, result = pcall(NS.buff_up, unit, buff_ids)
+    return ok and result
+end
+
+local function safe_is_spell_ready(spell_ids, target, opts)
+    if not NS.spell_ready then return false end
+    local ok, ready = pcall(NS.spell_ready, spell_ids, target, opts)
+    return ok and ready
+end
+
+local function safe_debuff_remains(unit, debuff_ids)
+    if not unit or not NS.debuff_remains then return 0 end
+    local ok, remains = pcall(NS.debuff_remains, unit, debuff_ids)
+    if not ok or not remains then return 0 end
+    return remains
+end
 local leveling_state = {}
 
 -- ============================================================================
@@ -48,7 +72,7 @@ local function build_state(context)
     local me = context.me
     local pet = context.pet
 
-    leveling_state.has_fel_armor = me and NS.buff_up and NS.buff_up(me, FEL_ARMOR_BUFF) or false
+    leveling_state.has_fel_armor = safe_buff_up(me, FEL_ARMOR_BUFF)
     leveling_state.in_combat = context.in_combat or false
     leveling_state.mana_pct = context.mana_pct or 100
     leveling_state.hp = context.hp or 100
@@ -67,17 +91,18 @@ local function build_state(context)
     leveling_state.use_curse_of_agony = settings.leveling_use_curse_of_agony ~= false
 
     -- Spell readiness (each returns false if spell not learned)
-    leveling_state.shadow_bolt_ready = NS.spell_ready and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
-    leveling_state.corruption_ready = NS.spell_ready and NS.spell_ready(SPELLS.Corruption, context.target) or false
-    leveling_state.immolate_ready = NS.spell_ready and NS.spell_ready(SPELLS.Immolate, context.target) or false
-    leveling_state.curse_of_agony_ready = NS.spell_ready and NS.spell_ready(SPELLS.CurseOfAgony, context.target) or false
-    leveling_state.life_tap_ready = NS.spell_ready and NS.spell_ready(SPELLS.LifeTap, nil, { skip_range = true }) or false
-    leveling_state.fear_ready = NS.spell_ready and NS.spell_ready(SPELLS.Fear, context.target) or false
-    leveling_state.drain_soul_ready = NS.spell_ready and NS.spell_ready(SPELLS.DrainSoul, context.target) or false    leveling_state.death_coil_ready = NS.spell_ready and NS.spell_ready(SPELLS.DeathCoil, context.target) or false
-    leveling_state.health_funnel_ready = NS.spell_ready and NS.spell_ready(SPELLS.HealthFunnel, nil, { skip_range = true }) or false
-    leveling_state.fel_armor_ready = NS.spell_ready and NS.spell_ready(SPELLS.FelArmor, nil, { skip_range = true }) or false
-    leveling_state.healthstone_ready = NS.spell_ready and NS.spell_ready(SPELLS.CreateHealthstone, nil, { skip_range = true }) or false
-    leveling_state.spell_lock_ready = NS.spell_ready and NS.spell_ready(SPELLS.SpellLock, context.target) or false
+    leveling_state.shadow_bolt_ready = safe_is_spell_ready(SPELLS.ShadowBolt, context.target)
+    leveling_state.corruption_ready = safe_is_spell_ready(SPELLS.Corruption, context.target)
+    leveling_state.immolate_ready = safe_is_spell_ready(SPELLS.Immolate, context.target)
+    leveling_state.curse_of_agony_ready = safe_is_spell_ready(SPELLS.CurseOfAgony, context.target)
+    leveling_state.life_tap_ready = safe_is_spell_ready(SPELLS.LifeTap, nil, { skip_range = true })
+    leveling_state.fear_ready = safe_is_spell_ready(SPELLS.Fear, context.target)
+    leveling_state.drain_soul_ready = safe_is_spell_ready(SPELLS.DrainSoul, context.target)
+    leveling_state.death_coil_ready = safe_is_spell_ready(SPELLS.DeathCoil, context.target)
+    leveling_state.health_funnel_ready = safe_is_spell_ready(SPELLS.HealthFunnel, nil, { skip_range = true })
+    leveling_state.fel_armor_ready = safe_is_spell_ready(SPELLS.FelArmor, nil, { skip_range = true })
+    leveling_state.healthstone_ready = safe_is_spell_ready(SPELLS.CreateHealthstone, nil, { skip_range = true })
+    leveling_state.spell_lock_ready = safe_is_spell_ready(SPELLS.SpellLock, context.target)
 
     -- Wand readiness
     leveling_state.wand_learned = NS.spell_exists and NS.spell_exists(WAND_SPELL_ID) or false
@@ -140,7 +165,7 @@ local function fear_matches(context, state)
     -- Fear when overwhelmed (multiple enemies)
     if state.enemies < 2 then return false end
     -- Don't re-fear if already feared
-    local remains = NS.debuff_remains and NS.debuff_remains(state.target, FEAR_IDS) or 0
+    local remains = safe_debuff_remains(state.target, FEAR_IDS)
     if remains > 8 then return false end
     return state.fear_ready
 end
@@ -170,7 +195,7 @@ local function corruption_matches(context, state)
     if not state.use_corruption then return false end
     if not state.in_combat then return false end
     -- Refresh only if not active or about to expire
-    local remains = NS.debuff_remains and NS.debuff_remains(state.target, CORRUPTION_IDS) or 0
+    local remains = safe_debuff_remains(state.target, CORRUPTION_IDS)
     if remains > 4 then return false end
     return state.corruption_ready
 end
@@ -183,7 +208,7 @@ local function immolate_matches(context, state)
     if not state.in_combat then return false end
     if state.is_moving then return false end
     -- Refresh only if not active or about to expire
-    local remains = NS.debuff_remains and NS.debuff_remains(state.target, IMMOLATE_IDS) or 0
+    local remains = safe_debuff_remains(state.target, IMMOLATE_IDS)
     if remains > 4 then return false end
     return state.immolate_ready
 end
@@ -195,7 +220,7 @@ local function curse_of_agony_matches(context, state)
     if not state.use_curse_of_agony then return false end
     if not state.in_combat then return false end
     -- Refresh only if not active or about to expire
-    local remains = NS.debuff_remains and NS.debuff_remains(state.target, CURSE_OF_AGONY_IDS) or 0
+    local remains = safe_debuff_remains(state.target, CURSE_OF_AGONY_IDS)
     if remains > 4 then return false end
     return state.curse_of_agony_ready
 end
@@ -240,12 +265,7 @@ end
 -- ============================================================================
 
 local function execute_wand(context)
-    if not context or not context.target then return false end
-    if core and core.input and core.input.cast_target_spell then
-        core.input.cast_target_spell(WAND_SPELL_ID, context.target)
-        return true
-    end
-    return false
+    return leveling.execute_wand(context)
 end
 
 -- ============================================================================
@@ -266,21 +286,21 @@ local strategies = {
     -- Interrupt
     { name = "SpellLock",
       matches = spell_lock_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.SpellLock, context.target, "[LEVELING] Spell Lock") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.SpellLock, context.target, "[LEVELING] Spell Lock") or false end },
 
     -- Pet sustain
     { name = "HealthFunnel",
       matches = health_funnel_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.HealthFunnel, context.pet, "[LEVELING] Health Funnel") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.HealthFunnel, context.pet, "[LEVELING] Health Funnel") or false end },
 
     -- CC / survival
     { name = "Fear",
       matches = fear_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.Fear, context.target, "[LEVELING] Fear") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.Fear, context.target, "[LEVELING] Fear") or false end },
 
     { name = "DeathCoil",
       matches = death_coil_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.DeathCoil, context.target, "[LEVELING] Death Coil") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.DeathCoil, context.target, "[LEVELING] Death Coil") or false end },
 
     -- Mana
     { name = "LifeTap",
@@ -290,25 +310,25 @@ local strategies = {
     -- DoTs
     { name = "Corruption",
       matches = corruption_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.Corruption, context.target, "[LEVELING] Corruption") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.Corruption, context.target, "[LEVELING] Corruption") or false end },
 
     { name = "Immolate",
       matches = immolate_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.Immolate, context.target, "[LEVELING] Immolate") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.Immolate, context.target, "[LEVELING] Immolate") or false end },
 
     { name = "CurseOfAgony",
       matches = curse_of_agony_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.CurseOfAgony, context.target, "[LEVELING] Curse of Agony") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.CurseOfAgony, context.target, "[LEVELING] Curse of Agony") or false end },
 
     -- Execute / low mana filler
     { name = "DrainSoul",
       matches = drain_soul_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.DrainSoul, context.target, "[LEVELING] Drain Soul") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.DrainSoul, context.target, "[LEVELING] Drain Soul") or false end },
 
     -- Main filler
     { name = "ShadowBolt",
       matches = shadow_bolt_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.ShadowBolt, context.target, "[LEVELING] Shadow Bolt") or false end },
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.ShadowBolt, context.target, "[LEVELING] Shadow Bolt") or false end },
 
     -- Wand fallback (threshold controlled by schema setting)
     { name = "Wand",
