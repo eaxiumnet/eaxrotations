@@ -1,13 +1,5 @@
--- Readability notes:
---   What: early plugin metadata and class load gate.
---   When: runs before the package loads.
---   Why: prevents partial state for unsupported players.
---   Safety: keep tiny and free of combat work.
+-- early plugin metadata and class load gate.
 
--- Decision notes:
---   Header is intentionally conservative: if class/player data is missing, decline load instead of starting partial runtime.
---   Spec detection is advisory; actual playstyle remains user-selectable through schema settings.
---   No heavy requires belong here because Sylvanas calls this before the framework exists.
 -- ============================================================================
 -- EaxRotations - Header File
 -- Project Sylvanas API - Script Registration
@@ -16,7 +8,7 @@
 local plugin = {}
 
 plugin["name"] = "EaxRotations"
-plugin["version"] = "1.0.0"
+plugin["version"] = "1.0.22"
 plugin["author"] = "Eax"
 plugin["load"] = true
 

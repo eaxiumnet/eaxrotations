@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Runtime Helper: Out-of-Combat Manager
 -- ============================================================================
--- Readability notes:
---   What: conservative OOC self-buff, pet summon, and optional food/flask upkeep.
---   When: called by main_sylvanas.lua after context construction and before combat logic.
---   Why: common pre-combat upkeep should not be copied into every class module.
---   Safety: never casts in combat, throttles to 1s, and respects healer mana floors.
-
 local _G = _G
 local NS = _G.EaxRotations
 
@@ -14,6 +8,8 @@ local M = {}
 
 local type, tostring = type, tostring
 local EMPTY = {}
+local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
+if not _data_ok or type(TBC) ~= "table" then TBC = { BUFFS = {} } end
 
 local _registered = false
 local _last_check = -1000
@@ -28,52 +24,65 @@ local CLASS = NS and NS.CLASS_ID or {
 -- Buff ID lists are static n-tables. Numeric indices remain contiguous so the
 -- existing NS.buff_remains(ids) helper can consume them without allocation.
 local BUFFS = {
-    battle_shout = { n = 6, 25289, 2048, 11551, 11550, 11549, 6673 },
+    battle_shout = { n = 8, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 },
     commanding_shout = { n = 1, 469 },
-    aspect_hawk = { n = 7, 27044, 25296, 14322, 14321, 14320, 14319, 13165 },
-    mage_armor = { n = 3, 27125, 22783, 6117 },
+    aspect_hawk = { n = 8, 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 },
+    mage_armor = { n = 4, 27125, 22783, 22782, 6117 },
     molten_armor = { n = 1, 30482 },
-    arcane_intellect = { n = 6, 27126, 10157, 10156, 1461, 1459, 23028 },
+    arcane_intellect = { n = 8, 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 },
     righteous_fury = { n = 1, 25780 },
-    inner_fire = { n = 6, 25431, 10952, 10951, 588, 7128, 602 },
-    power_word_fortitude = { n = 6, 25389, 10938, 10937, 1245, 1244, 1243 },
-    water_shield = { n = 1, 33736 },
-    lightning_shield = { n = 7, 25469, 10432, 10431, 945, 325, 324, 905 },
-    mark_of_the_wild = { n = 7, 26990, 9885, 9884, 5234, 6756, 1126, 21849 },
-    thorns = { n = 6, 26992, 9910, 9756, 8914, 782, 467 },
-    fel_armor = { n = 1, 28189 },
-    demon_armor = { n = 6, 27260, 11735, 11734, 706, 687, 696 },
+    inner_fire = { n = 7, 25431, 10952, 10951, 1006, 602, 7128, 588 },
+    power_word_fortitude = { n = 7, 25389, 10938, 10937, 2791, 1245, 1244, 1243 },
+    water_shield = { n = 3, 33736, 24398, 23575 },
+    lightning_shield = { n = 9, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 },
+    mark_of_the_wild = { n = 11, 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 },
+    thorns = { n = 7, 26992, 9910, 9756, 8914, 1075, 782, 467 },
+    fel_armor = { n = 2, 28189, 28176 },
+    demon_armor = { n = 8, 27260, 11735, 11734, 11733, 1086, 706, 687, 696 },
 }
 
 local DEFAULT_BUFFS_BY_CLASS = {
     [CLASS.WARRIOR] = {
-        { key = "battle_shout", label = "Battle Shout", buff = BUFFS.battle_shout, spell = { 25289, 2048, 11551, 11550, 11549, 6673 } },
+        { key = "battle_shout", label = "Battle Shout", buff = BUFFS.battle_shout, spell = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 } },
     },
     [CLASS.HUNTER] = {
-        { key = "aspect_hawk", label = "Aspect of the Hawk", buff = BUFFS.aspect_hawk, spell = { 27044, 25296, 14322, 14321, 14320, 14319, 13165 } },
+        { key = "aspect_hawk", label = "Aspect of the Hawk", buff = BUFFS.aspect_hawk, spell = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 } },
     },
     [CLASS.MAGE] = {
-        { key = "mage_armor", label = "Mage Armor", buff = BUFFS.mage_armor, spell = { 27125, 22783, 6117 } },
-        { key = "arcane_intellect", label = "Arcane Intellect", buff = BUFFS.arcane_intellect, spell = { 27126, 10157, 10156, 1461, 1459 } },
+        { key = "mage_armor", label = "Mage Armor", buff = BUFFS.mage_armor, spell = { 27125, 22783, 22782, 6117 } },
+        { key = "arcane_intellect", label = "Arcane Intellect", buff = BUFFS.arcane_intellect, spell = { 27126, 10157, 10156, 1461, 1460, 1459 } },
     },
     [CLASS.PALADIN] = {
         { key = "righteous_fury", label = "Righteous Fury", buff = BUFFS.righteous_fury, spell = 25780, opt_in = true },
     },
     [CLASS.PRIEST] = {
-        { key = "inner_fire", label = "Inner Fire", buff = BUFFS.inner_fire, spell = { 25431, 10952, 10951, 588 } },
-        { key = "power_word_fortitude", label = "Power Word: Fortitude", buff = BUFFS.power_word_fortitude, spell = { 25389, 10938, 10937, 1245, 1244, 1243 } },
+        { key = "inner_fire", label = "Inner Fire", buff = BUFFS.inner_fire, spell = { 25431, 10952, 10951, 1006, 602, 7128, 588 } },
+        { key = "power_word_fortitude", label = "Power Word: Fortitude", buff = BUFFS.power_word_fortitude, spell = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 } },
     },
     [CLASS.SHAMAN] = {
-        { key = "water_shield", label = "Water Shield", buff = BUFFS.water_shield, spell = 33736 },
-        { key = "lightning_shield", label = "Lightning Shield", buff = BUFFS.lightning_shield, spell = { 25469, 10432, 10431, 945, 325, 324 }, opt_in = true },
+        {
+            key = "water_shield",
+            label = "Water Shield",
+            buff = BUFFS.water_shield,
+            spell = { name = "Water Shield", ids = { 33736, 24398 }, levels = { 66, 60 }, power_type = "none" },
+            min_level = 60,
+        },
+        {
+            key = "lightning_shield",
+            label = "Lightning Shield",
+            buff = BUFFS.lightning_shield,
+            spell = { name = "Lightning Shield", ids = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, levels = { 70, 62, 52, 44, 36, 28, 20, 14, 1 } },
+            opt_in = true,
+            default_below_level = 60,
+        },
     },
     [CLASS.WARLOCK] = {
-        { key = "fel_armor", label = "Fel Armor", buff = BUFFS.fel_armor, spell = 28189 },
-        { key = "demon_armor", label = "Demon Armor", buff = BUFFS.demon_armor, spell = { 27260, 11735, 11734, 706, 687 }, fallback = true },
+        { key = "fel_armor", label = "Fel Armor", buff = BUFFS.fel_armor, spell = { 28189, 28176 } },
+        { key = "demon_armor", label = "Demon Armor", buff = BUFFS.demon_armor, spell = { 27260, 11735, 11734, 11733, 1086, 706, 687 }, fallback = true },
     },
     [CLASS.DRUID] = {
-        { key = "mark_of_the_wild", label = "Mark of the Wild", buff = BUFFS.mark_of_the_wild, spell = { 26990, 9885, 9884, 5234, 6756, 1126 } },
-        { key = "thorns", label = "Thorns", buff = BUFFS.thorns, spell = { 26992, 9910, 9756, 8914, 782, 467 }, opt_in = true },
+        { key = "mark_of_the_wild", label = "Mark of the Wild", buff = BUFFS.mark_of_the_wild, spell = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 } },
+        { key = "thorns", label = "Thorns", buff = BUFFS.thorns, spell = { 26992, 9910, 9756, 8914, 1075, 782, 467 }, opt_in = true },
     },
 }
 
@@ -82,7 +91,14 @@ local PET_SUMMON_BY_CLASS = {
     [CLASS.WARLOCK] = { key = "warlock_summon_imp", label = "Summon Imp", spell = 688, cooldown = 10 },
 }
 
-local FOOD_BUFFS = { n = 6, 19705, 24799, 24800, 24801, 25661, 33254 }
+local FOOD_BUFFS = { n = 0 }
+do
+    local food_buffs = (TBC.BUFFS and TBC.BUFFS.food) or EMPTY
+    for i = 1, #food_buffs do
+        FOOD_BUFFS.n = FOOD_BUFFS.n + 1
+        FOOD_BUFFS[FOOD_BUFFS.n] = food_buffs[i]
+    end
+end
 
 local HEALING_PLAYSTYLES = {
     holy = true,
@@ -124,6 +140,16 @@ local function get_class_id(me)
     local get_class = safe_field(me, "get_class")
     local class_id = get_class and safe(get_class, me) or nil
     return type(class_id) == "number" and class_id or nil
+end
+
+local function get_player_level(me)
+    local get_effective_level = safe_field(me, "get_effective_level")
+    local level = get_effective_level and safe(get_effective_level, me) or nil
+    if type(level) ~= "number" then
+        local get_level = safe_field(me, "get_level")
+        level = get_level and safe(get_level, me) or nil
+    end
+    return type(level) == "number" and level or 70
 end
 
 local function get_spell(entry)
@@ -188,10 +214,16 @@ local function below_healer_mana_floor(context, settings)
     return type(mana) == "number" and mana < threshold
 end
 
-local function should_handle_buff(settings, entry)
+local function should_handle_buff(settings, entry, player_level)
     if not entry then return false end
-    if get_setting(settings, "ooc_buff_" .. entry.key, nil) == false then return false end
-    if entry.opt_in and get_setting(settings, "ooc_buff_" .. entry.key, false) ~= true then return false end
+    local explicit = get_setting(settings, "ooc_buff_" .. entry.key, nil)
+    if explicit == false then return false end
+    if entry.min_level and player_level < entry.min_level then return false end
+    if entry.max_level and player_level > entry.max_level then return false end
+    if entry.opt_in and explicit ~= true then
+        if entry.default_below_level and player_level < entry.default_below_level then return true end
+        return false
+    end
     return true
 end
 
@@ -201,12 +233,17 @@ local function try_self_buffs(context, settings, me, class_id)
     local entries = DEFAULT_BUFFS_BY_CLASS[class_id]
     if type(entries) ~= "table" then return false end
     local threshold = get_setting(settings, "ooc_buff_threshold", 30)
+    local player_level = get_player_level(me)
 
     for i = 1, #entries do
         local entry = entries[i]
-        if should_handle_buff(settings, entry) then
+        if should_handle_buff(settings, entry, player_level) then
             local ids = reset_work_ids(entry.buff)
-            local remains = NS and NS.buff_remains and NS.buff_remains(me, ids) or 0
+            local remains = NS and NS.buff_remains and NS.buff_remains(me, ids)
+            if remains == nil then
+                -- buff API unavailable, skip to avoid recast spam
+                remains = threshold + 1
+            end
             if remains <= threshold then
                 local spell = get_spell(entry)
                 if spell and NS and NS.try_cast and NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true }) then
@@ -222,12 +259,19 @@ local function try_pet_summon(settings, me, class_id)
     if not enabled(settings, "ooc_summon_pet", true) then return false end
     local entry = PET_SUMMON_BY_CLASS[class_id]
     if not entry then return false end
+    -- Check if pet already exists (multi-layer detection for broken API builds)
     if NS and NS.GetPet and NS.GetPet() then return false end
+    if me and me.has_pet then
+        local ok, has = pcall(function() return me:has_pet() end)
+        if ok and has then return false end
+    end
     local spell = get_spell(entry)
     return spell and NS and NS.try_cast and NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, expected_cooldown = entry.cooldown }) == true or false
 end
 
 local function try_food_flask(settings, me)
+    -- Skip if consumable_manager handles this
+    if settings.use_auto_consumables ~= false and (settings.use_food ~= false or settings.use_flasks ~= false) then return false end
     if get_setting(settings, "use_food_flask", false) ~= true then return false end
     if NS and NS.has_player_buff and NS.has_player_buff(FOOD_BUFFS) then return false end
 

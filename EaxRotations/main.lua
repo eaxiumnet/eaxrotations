@@ -1,13 +1,5 @@
--- Readability notes:
---   What: bootstrap for shared runtime, UI, and class loading.
---   When: runs once after the load gate.
---   Why: makes startup order explicit.
---   Safety: only add files with clear dependency order.
+-- bootstrap for shared runtime, UI, and class loading.
 
--- Decision notes:
---   Bootstrap stays explicit because Sylvanas only loads header.lua and main.lua; internal load-order tables are documentation only.
---   Menu widgets are created once, then synced to NS.settings during update so render code does not allocate combat state.
---   Rotation execution is delegated to main_sylvanas.lua so startup, menu, and combat concerns stay separate.
 -- ============================================================================
 -- EaxRotations - Main File
 -- Project Sylvanas API - Rotation Execution
@@ -37,6 +29,7 @@ end
 -- ============================================================================
 
 core.log("[EaxRotations] Initializing framework for " .. plugin_info.player_class_name)
+core.log("[EaxRotations] Version " .. tostring(plugin_info.version or "unknown") .. " loaded")
 
 -- Load core framework components in dependency order (matches load_order_sylvanas.lua)
 -- The runtime only loads header.lua + main.lua; SYLVANAS_API_LOAD_ORDER is NOT auto-processed.
@@ -44,44 +37,56 @@ core.log("[EaxRotations] Initializing framework for " .. plugin_info.player_clas
 local framework_core = require("core_sylvanas")          -- order 10 (creates _G.EaxRotations namespace)
 framework_core.core = core
 framework_core.izi = izi
-local framework_helpers = require("helpers_sylvanas")     -- order 10.5 (NS.import_helpers)
-local explain_helpers = require("explain_helpers_sylvanas") -- order 10.7 (NS.explain_spell_gates, NS.explain_context_gates)
+local runtime_generation = framework_core.runtime_generation
+
+local function load_modules(modules)
+    for i = 1, #modules do
+        require(modules[i])
+    end
+end
+
+load_modules({
+    "helpers_sylvanas",
+    "explain_helpers_sylvanas",
+})
+
 local optimizer = require("optimizer")                   -- order 11 (DecisionCache)
-local combat_log_parser = require("shared/combat_log_parser_sylvanas")  -- order 12 (CLEU-based damage tracking)
-local dashboard = require("dashboard_sylvanas")           -- order 13 (combat overlay)
-local debug_log = require("debug_log_sylvanas")           -- order 14 (debug log frame)
-local api_probe = require("api_probe_sylvanas")           -- order 14.5 (API probe diagnostic)
-local sim_constants = require("sim_constants_sylvanas")    -- order 15 (sim-derived constants)
-local gear_sets = require("gear_sets_sylvanas")            -- order 15.5 (TBC set item IDs + bonus spell IDs)
-local mf_tick = require("shared/mf_tick_compute_sylvanas")  -- order 16 (MF tick computation)
-local execute_phase = require("shared/execute_phase_sylvanas")  -- order 17 (execute phase gating)
-local dot_refresh = require("shared/dot_refresh_sylvanas")      -- order 18 (DoT refresh logic)
 
--- Tier 2-4 Gap Analysis Features
--- PvP Core Foundation
-local dr_tracker = require("shared/dr_tracker_sylvanas")              -- DR tracking
-local enemy_cd_tracker = require("shared/enemy_cd_tracker_sylvanas")  -- Enemy CD tracking
-local arena_priority = require("shared/arena_priority_sylvanas")      -- Arena target priority
-local pvp_burst = require("shared/pvp_burst_window_sylvanas")          -- Burst window scoring
+load_modules({
+    -- Runtime services
+    "shared/combat_log_parser_sylvanas",
+    "api_probe_sylvanas",
+    "shared/aura_probe_sylvanas",
 
--- Rotation Infrastructure
-local strategy_factory = require("shared/strategy_factory_sylvanas")  -- Strategy factory
-local custom_rotation = require("shared/custom_rotation_sylvanas")      -- Custom rotation engine
+    -- Data and pure helpers
+    "sim_constants_sylvanas",
+    "gear_sets_sylvanas",
+    "shared/mf_tick_compute_sylvanas",
+    "shared/execute_phase_sylvanas",
+    "shared/dot_refresh_sylvanas",
+    "shared/force_command_sylvanas",
 
--- Settings & Profiles
-local profile_manager = require("shared/profile_manager_sylvanas")      -- Profile management
+    -- PvP support
+    "shared/dr_tracker_sylvanas",
+    "shared/enemy_cd_tracker_sylvanas",
+    "shared/arena_priority_sylvanas",
+    "shared/pvp_burst_window_sylvanas",
 
--- Metrics, Gear, Swing
-local combat_stats = require("shared/combat_stats_sylvanas")            -- Combat statistics
-local gear_score = require("shared/gear_score_sylvanas")                -- Gear score
-local swing_timer = require("shared/swing_timer_sylvanas")              -- Enhanced swing timer
-local weapon_imbue = require("shared/weapon_imbue_sylvanas")            -- Weapon imbue tracking
+    -- Rotation and profile support
+    "shared/strategy_factory_sylvanas",
+    "shared/custom_rotation_sylvanas",
+    "shared/profile_manager_sylvanas",
 
--- UX/Optimization
-local spell_validation = require("shared/spell_validation_sylvanas")    -- Spell validation
-local talent_inference = require("shared/talent_inference_sylvanas")    -- Talent inference
-local idle_suggestion = require("shared/idle_suggestion_sylvanas")      -- Idle suggestions
-local benchmarks = require("shared/benchmarks_sylvanas")                -- Performance benchmarks
+    -- Metrics and utility support
+    "shared/combat_stats_sylvanas",
+    "shared/gear_score_sylvanas",
+    "shared/swing_timer_sylvanas",
+    "shared/weapon_imbue_sylvanas",
+    "shared/spell_validation_sylvanas",
+    "shared/talent_inference_sylvanas",
+    "shared/idle_suggestion_sylvanas",
+    "shared/benchmarks_sylvanas",
+})
 
 local framework_main = require("main_sylvanas")           -- Dispatcher; class modules register below
 
@@ -146,6 +151,11 @@ local schema_widget_last_values = {}
 local section_headers = {}
 -- [PROBE] Guard flag for one-shot API probe trigger from menu checkbox
 local _api_probe_triggered = false
+local _aura_dump_triggered = false
+local _last_playstyle_log = nil
+local _last_enabled_log = nil
+local _last_disabled_log_ms = -10000
+local _last_sync_error_ms = -10000
 
 -- Shared toggles live as keybind widgets so the main menu and Control Panel
 -- use the exact same menu element. Schema checkboxes with these keys are
@@ -205,7 +215,7 @@ local function create_schema_widget(def)
     if not def or not def.key or not def.type then
         return nil
     end
-    if QUICK_TOGGLE_SETTING_KEYS[def.key] then
+    if def.key == "playstyle" or QUICK_TOGGLE_SETTING_KEYS[def.key] then
         return nil
     end
 
@@ -242,24 +252,57 @@ local function create_schema_widget(def)
     elseif def.type == "dropdown" then
         local option_labels = {}
         local option_values = {}
+        local option_values_by_label = {}
         local selected_index = 1
 
         for index, option in ipairs(def.options or EMPTY_TABLE) do
-            option_labels[index] = option.text or tostring(option.value)
-            option_values[index] = option.value
+            local label = option.text or tostring(option.value)
+            local value = option.value
+            option_labels[index] = label
+            option_values[index] = value
+            option_values_by_label[label] = value
+            option_values_by_label[tostring(label):lower()] = value
+            option_values_by_label[tostring(value)] = value
+            option_values_by_label[tostring(value):lower()] = value
             if option.value == stored_value then
                 selected_index = index
             end
         end
 
         widget.option_values = option_values
+        widget.option_values_by_label = option_values_by_label
         widget.control = core.menu.combobox(selected_index, def.key)
+        if widget.control and widget.control.set_items then
+            pcall(function() widget.control:set_items(option_labels) end)
+        end
         widget.render = function()
             widget.control:render(widget.label, option_labels, widget.tooltip)
         end
         widget.sync = function()
-            local index = widget.control and widget.control:get()
-            return widget.option_values[index]
+            if not widget.control then return nil end
+            local ok, raw_value = pcall(function() return widget.control:get() end)
+            if ok and type(raw_value) == "number" then
+                return widget.option_values[raw_value] or widget.option_values[raw_value + 1]
+            end
+            if ok and raw_value ~= nil then
+                return widget.option_values_by_label[tostring(raw_value)] or widget.option_values_by_label[tostring(raw_value):lower()]
+            end
+            ok, raw_value = pcall(function()
+                return widget.control.get_value and widget.control:get_value() or nil
+            end)
+            if ok and type(raw_value) == "number" then
+                return widget.option_values[raw_value] or widget.option_values[raw_value + 1]
+            end
+            if ok and raw_value ~= nil then
+                return widget.option_values_by_label[tostring(raw_value)] or widget.option_values_by_label[tostring(raw_value):lower()]
+            end
+            ok, raw_value = pcall(function()
+                return widget.control.get_selected_text and widget.control:get_selected_text() or nil
+            end)
+            if ok and raw_value ~= nil then
+                return widget.option_values_by_label[tostring(raw_value)] or widget.option_values_by_label[tostring(raw_value):lower()]
+            end
+            return nil
         end
     end
 
@@ -317,9 +360,28 @@ initialize_schema_menu()
 -- MENU SETUP (IZI SDK Style)
 -- ============================================================================
 
+local function get_playstyle_index(value)
+    local wanted = tostring(value or ""):lower()
+    for i = 1, #playstyle_keys do
+        if tostring(playstyle_keys[i]):lower() == wanted then
+            return i
+        end
+    end
+    return 1
+end
+
+local function get_initial_playstyle_index()
+    local selected = framework_core and framework_core.get_setting and (
+        framework_core.get_setting("playstyle", nil)
+        or framework_core.get_setting("active_playstyle", nil)
+    ) or nil
+    return get_playstyle_index(selected or (class_config and class_config.default_playstyle) or playstyle_keys[1])
+end
+
 local menu_elements = {
     main_tree = core.menu.tree_node(),
     quick_toggles_tree = core.menu.tree_node(),
+    playstyle_combo = core.menu.combobox(get_initial_playstyle_index(), "eaxrotations_active_playstyle_combo"),
     enable_script_check = core.menu.keybind(7, true, "eax_rotation_enabled_keybind"),
     healing_toggle = core.menu.keybind(7, true, "eax_healing_enabled_keybind"),
     damage_toggle = core.menu.keybind(7, true, "eax_damage_enabled_keybind"),
@@ -330,15 +392,12 @@ local menu_elements = {
     threat_drop_toggle = core.menu.keybind(7, true, "eax_threat_drop_enabled_keybind"),
     debug_mode_check = core.menu.checkbox(false, "debug_mode"),
     verbose_trace_check = core.menu.checkbox(false, "verbose_trace"),
-    -- NOTE: playstyle combo is removed — the schema dropdown (key="playstyle") in Class Settings
-    -- already handles playstyle selection AND syncs active_playstyle every frame.
-    -- A second combo here caused a dual-dropdown conflict where both widgets
-    -- fought over active_playstyle, with the schema dropdown winning because
-    -- it syncs second in the loop. Users should use the schema dropdown only.
     settings_tree = core.menu.tree_node(),
     diagnostics_tree = core.menu.tree_node(),
+    dashboard_check = core.menu.checkbox(false, "show_dashboard"),
     debug_log_check = core.menu.checkbox(false, "show_debug_log"),
     api_probe_check = core.menu.checkbox(false, "run_api_probe"),
+    aura_dump_check = core.menu.checkbox(false, "dump_player_auras"),
     -- [#4] Pre-allocated header widgets — created ONCE, not every render frame.
     -- core.menu.header() returns a new widget each call; creating inside render_menu()
     -- leaked instances every frame. Now stored and reused.
@@ -349,6 +408,16 @@ local menu_elements = {
     header_dc_not_loaded = core.menu.header(),
     header_probe_summary = core.menu.header(),
 }
+
+local dashboard_module = nil
+local debug_log_module = nil
+
+local function load_optional_module(path, label)
+    local ok, module = pcall(require, path)
+    if ok and module then return module end
+    core.log_error("[EaxRotations] Failed to load " .. label .. ": " .. tostring(module))
+    return nil
+end
 
 -- section_headers is declared above (before initialize_schema_menu() call)
 
@@ -413,6 +482,11 @@ local quick_toggle_defs = {
 
 local function get_keybind_toggle_state(control, default)
     if not control then return default end
+    local key_ok, key_code = pcall(function() return control:get_key_code() end)
+    if key_ok then
+        if key_code == 7 then return default end
+        if key_code == 999 then return false end
+    end
     local ok, value = pcall(function() return control:get_toggle_state() end)
     if ok and type(value) == "boolean" then return value end
     ok, value = pcall(function() return control:get_state() end)
@@ -439,8 +513,25 @@ local function sync_quick_toggles()
     end
 end
 
+local function sync_playstyle_control()
+    if not (framework_core and framework_core.set_setting and menu_elements.playstyle_combo) then return end
+    local ok, index = pcall(function() return menu_elements.playstyle_combo:get() end)
+    if not ok or type(index) ~= "number" then return end
+    local value = playstyle_keys[index] or playstyle_keys[index + 1] or playstyle_keys[1]
+    if type(value) ~= "string" or value == "" then return end
+    framework_core.set_setting("playstyle", value)
+    framework_core.set_setting("active_playstyle", value)
+    if _last_playstyle_log ~= value then
+        _last_playstyle_log = value
+        core.log("[EaxRotations] Active playstyle: " .. tostring(value))
+    end
+end
+
 local function render_quick_toggles()
     menu_elements.quick_toggles_tree:render("Quick Toggles", function()
+        if menu_elements.playstyle_combo and #playstyle_options > 0 then
+            menu_elements.playstyle_combo:render("Playstyle", playstyle_options, "Select active Warlock rotation.")
+        end
         for _, def in ipairs(quick_toggle_defs) do
             def.control:render(def.label, def.tooltip)
         end
@@ -448,19 +539,27 @@ local function render_quick_toggles()
 end
 
 local function on_control_panel_render()
+    if framework_core.runtime_generation ~= runtime_generation then return {} end
     local control_panel_elements = {}
 
     for _, def in ipairs(quick_toggle_defs) do
         local label = format("[Eax] %s (%s) ", def.label, get_keybind_name(def.control))
+        local inserted = false
         if control_panel_helper and control_panel_helper.insert_toggle_ then
-            control_panel_helper:insert_toggle_(control_panel_elements, label, def.control, false)
-        else
+            local ok, result = pcall(function()
+                return control_panel_helper:insert_toggle_(control_panel_elements, label, def.control, false, true)
+            end)
+            inserted = ok and result == true
+        end
+        if not inserted then
             control_panel_elements[#control_panel_elements + 1] = {
                 name = label,
                 keybind = def.control,
             }
         end
     end
+
+
 
     return control_panel_elements
 end
@@ -470,13 +569,15 @@ end
 -- ============================================================================
 
 local function render_menu()
+    if framework_core.runtime_generation ~= runtime_generation then return end
     -- [#5] All subtrees rendered INSIDE main_tree so they appear as children,
     -- not orphaned top-level trees floating independently.
     menu_elements.main_tree:render("EaxRotations", function()
         local active_playstyle = framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle") or "unknown"
 
         -- [#4] Use pre-allocated header instead of core.menu.header() per frame
-        menu_elements.header_class_info:render(plugin_info.player_class_name .. " / " .. tostring(active_playstyle), MENU_COLORS.yellow)
+        local rotation_state = framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) ~= false
+        menu_elements.header_class_info:render(plugin_info.player_class_name .. " / " .. tostring(active_playstyle) .. " / " .. (rotation_state and "ENABLED" or "DISABLED"), rotation_state and MENU_COLORS.green or MENU_COLORS.red)
 
         render_quick_toggles()
 
@@ -506,6 +607,7 @@ local function render_menu()
             menu_elements.header_debugging_note:render("Debugging is off by default for FPS.", MENU_COLORS.white)
             menu_elements.debug_mode_check:render("Debug Mode", "Show detailed debug output")
             menu_elements.verbose_trace_check:render("Verbose Trace", "Log decision checks, context, and no-action frames")
+            menu_elements.dashboard_check:render("Show Dashboard", "Toggle the rotation dashboard window on/off")
             menu_elements.debug_log_check:render("Show Debug Log", "Toggle the debug log window on/off")
 
             -- API Probe button: checkbox triggers a one-shot probe run
@@ -517,6 +619,15 @@ local function render_menu()
                 end
             else
                 _api_probe_triggered = false  -- reset when user unchecks
+            end
+            menu_elements.aura_dump_check:render("Dump Player Auras", "Check to log local-player auras and Lightning Shield ID checks once.")
+            if menu_elements.aura_dump_check and menu_elements.aura_dump_check:get_state() then
+                if not _aura_dump_triggered then
+                    _aura_dump_triggered = true
+                    if NS.dump_player_auras then NS.dump_player_auras() end
+                end
+            else
+                _aura_dump_triggered = false
             end
             -- Show last probe summary if available
             if NS.get_api_probe_results then
@@ -543,39 +654,107 @@ end
 -- ============================================================================
 
 local function on_update()
+    -- One-shot heartbeat: logs exactly once to confirm this callback fires
+    if not _on_update_heartbeat_logged then
+        _on_update_heartbeat_logged = true
+        core.log("[EaxRotations:main] HEARTBEAT: on_update callback is firing! runtime_gen=" .. tostring(runtime_generation) .. " core_gen=" .. tostring(framework_core.runtime_generation))
+    end
+    if framework_core.runtime_generation ~= runtime_generation then
+        local now_s = NS and NS.time_now and NS.time_now() or 0
+        if now_s - (_last_gen_mismatch_log or 0) > 3 then
+            core.log("[EaxRotations:main] EXIT: runtime_generation mismatch (local=" .. tostring(runtime_generation) .. " core=" .. tostring(framework_core.runtime_generation) .. ")")
+            _last_gen_mismatch_log = now_s
+        end
+        return
+    end
+    local player = core.object_manager and core.object_manager.get_local_player()
+    if not player then
+        if not _guard2_logged then
+            _guard2_logged = true
+            core.log("[EaxRotations:main] GUARD-2: get_local_player returned nil -- BLOCKED")
+        end
+        return
+    end
+    local alive_ok, alive = pcall(function() return player:is_alive() end)
+    if alive_ok and alive == false then
+        if not _guard3_logged then
+            _guard3_logged = true
+            core.log("[EaxRotations:main] GUARD-3: player not alive -- BLOCKED")
+        end
+        return
+    end
+
     if control_panel_helper and control_panel_helper.on_update then
-        control_panel_helper:on_update(menu_elements)
+        local cp_ok, cp_err = pcall(function() control_panel_helper:on_update(menu_elements) end)
+        if not cp_ok then
+            local now_ms = core.game_time and core.game_time() or 0
+            if now_ms - _last_sync_error_ms > 5000 then
+                _last_sync_error_ms = now_ms
+                core.log_warning("[EaxRotations] Control panel update failed: " .. tostring(cp_err))
+            end
+        end
     end
 
     -- Sync menu-backed settings even when rotation execution is disabled.
     local debug_mode = menu_elements.debug_mode_check and menu_elements.debug_mode_check:get_state() or false
     local verbose_trace = menu_elements.verbose_trace_check and menu_elements.verbose_trace_check:get_state() or false
+    local show_dashboard = menu_elements.dashboard_check and menu_elements.dashboard_check:get_state() or false
     local show_debug_log = menu_elements.debug_log_check and menu_elements.debug_log_check:get_state() or false
     sync_quick_toggles()
+    sync_playstyle_control()
 
     if framework_core and framework_core.set_setting then
         framework_core.set_setting("debug_mode", debug_mode)
         framework_core.set_setting("debug_system", verbose_trace)
         framework_core.set_setting("log_context", verbose_trace)
 
-        -- Sync debug log window visibility
-        if NS.SetDebugLogVisible and NS.IsDebugLogVisible then
-            if NS.IsDebugLogVisible() ~= show_debug_log then
-                NS.SetDebugLogVisible(show_debug_log)
+        -- Optional UI windows stay unloaded until explicitly enabled.
+        if show_dashboard and not dashboard_module then
+            dashboard_module = load_optional_module("dashboard_sylvanas", "dashboard")
+        end
+        if dashboard_module and dashboard_module.is_visible and dashboard_module.is_visible() ~= show_dashboard then
+            if show_dashboard and dashboard_module.show then
+                dashboard_module.show()
+            elseif not show_dashboard and dashboard_module.hide then
+                dashboard_module.hide()
             end
+        end
+
+        if show_debug_log and not debug_log_module then
+            debug_log_module = load_optional_module("debug_log_sylvanas", "debug log")
+        end
+        if debug_log_module and debug_log_module.is_visible and debug_log_module.is_visible() ~= show_debug_log then
+            if debug_log_module.set_visible then debug_log_module.set_visible(show_debug_log) end
         end
 
         -- [#11] Only sync settings that actually changed since last frame.
         -- Avoids 30-60+ redundant set_setting calls per frame for unchanged checkboxes/sliders.
         for key, widget in pairs(schema_widgets) do
-            local value = widget.sync and widget.sync()
+            local sync_ok, value = pcall(function()
+                return widget.sync and widget.sync() or nil
+            end)
+            if not sync_ok then
+                local now_ms = core.game_time and core.game_time() or 0
+                if now_ms - _last_sync_error_ms > 5000 then
+                    _last_sync_error_ms = now_ms
+                    core.log_warning("[EaxRotations] Setting sync failed for " .. tostring(key) .. ": " .. tostring(value))
+                end
+                value = nil
+            end
             if value ~= nil then
                 local last_val = schema_widget_last_values[key]
                 if value ~= last_val then
                     schema_widget_last_values[key] = value
                     framework_core.set_setting(key, value)
-                    if key == "playstyle" and type(value) == "string" then
+                end
+                if key == "playstyle" and type(value) == "string" then
+                    local active_value = framework_core.get_setting and framework_core.get_setting("active_playstyle", nil) or nil
+                    if active_value ~= value then
                         framework_core.set_setting("active_playstyle", value)
+                    end
+                    if _last_playstyle_log ~= value then
+                        _last_playstyle_log = value
+                        core.log("[EaxRotations] Active playstyle: " .. tostring(value))
                     end
                 end
             end
@@ -583,7 +762,17 @@ local function on_update()
     end
 
     -- Check if script is enabled after menu settings are synchronized.
-    if framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) == false then
+    local rotation_enabled = not (framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) == false)
+    if _last_enabled_log ~= rotation_enabled then
+        _last_enabled_log = rotation_enabled
+        core.log("[EaxRotations] Rotation " .. (rotation_enabled and "ENABLED" or "DISABLED"))
+    end
+    if not rotation_enabled then
+        if not _guard4_logged then
+            _guard4_logged = true
+            core.log("[EaxRotations:main] GUARD-4: rotation_disabled -- BLOCKED")
+            core.log_warning("[EaxRotations] Rotation disabled by quick toggle")
+        end
         return
     end
 
@@ -591,11 +780,19 @@ local function on_update()
     -- reject a selected target before the dispatcher evaluated player:get_target().
     local me = framework_core and framework_core.GetPlayer and framework_core.GetPlayer() or nil
     if not me then
+        if not _guard5_logged then
+            _guard5_logged = true
+            core.log("[EaxRotations:main] GUARD-5: GetPlayer returned nil -- BLOCKED")
+        end
         return -- No player unit available
     end
     -- Guard against stale/invalid player objects (loading screens, death, zone transitions)
     local player_valid = pcall(function() return me:is_valid() end)
     if not player_valid then
+        if not _guard6_logged then
+            _guard6_logged = true
+            core.log("[EaxRotations:main] GUARD-6: is_valid() pcall failed -- BLOCKED")
+        end
         return -- Player object is garbage-collected / invalid
     end
 
@@ -606,15 +803,25 @@ local function on_update()
 
     -- Auto-run API probe once on first valid frame (player exists + spell book ready)
     if NS.maybe_auto_run_api_probe then
-        NS.maybe_auto_run_api_probe()
+        local probe_ok, probe_err = pcall(NS.maybe_auto_run_api_probe)
+        if not probe_ok then
+            core.log_error("[EaxRotations:main] AuraProbe CRASHED: " .. tostring(probe_err))
+        end
     end
 
     -- Execute rotation via framework
+    if not _post_guards_logged then
+        _post_guards_logged = true
+        core.log("[EaxRotations:main] ALL-GUARDS-PASSED: reached dispatcher block")
+    end
     if framework_main and framework_main.on_rotation_update then
+        if debug_mode then core.log("[EaxRotations:main] CALLING on_rotation_update") end
         local success, err = pcall(framework_main.on_rotation_update)
-        if not success and debug_mode then
+        if not success then
             core.log_error("[EaxRotations] Rotation error: " .. tostring(err))
         end
+    else
+        if debug_mode then core.log("[EaxRotations:main] SKIP: framework_main=" .. tostring(framework_main ~= nil) .. " on_rotation_update=" .. tostring(framework_main and framework_main.on_rotation_update ~= nil)) end
     end
 end
 
@@ -622,7 +829,7 @@ end
 -- REGISTER CALLBACKS
 -- ============================================================================
 
-core.register_on_update_callback(on_update)
+framework_core.register_on_update_callback(on_update)
 core.register_on_render_menu_callback(render_menu)
 core.register_on_render_control_panel_callback(on_control_panel_render)
 

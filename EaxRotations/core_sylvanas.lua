@@ -1,18 +1,11 @@
--- Readability notes:
---   What: shared runtime for settings, spell safety, aura helpers, healing scans, and strategy registration.
---   When: loaded once by main.lua before any class module.
---   Why: class files stay readable and do not duplicate fragile Project Sylvanas API checks.
---   Safety: helpers are nil-safe; failed checks return false instead of crashing the rotation.
+-- shared runtime for settings, spell safety, aura helpers, healing scans, and strategy registration.
 
--- Decision notes:
---   Boundary: raw Project Sylvanas API calls are centralized here so class/spec files stay small and nil-safe.
---   Failure mode: helpers fail closed; a missing object, stale unit, or absent API returns false/nil instead of crashing combat.
---   Performance: hot-path helpers cache through local upvalues and reusable buffers because update callbacks run many times per second.
 local _G = _G
 local core = _G.core or {}
 local NS = _G.EaxRotations or {}
 _G.EaxRotations = NS
 NS.core = core
+NS.runtime_generation = (NS.runtime_generation or 0) + 1
 
 local type, pairs, ipairs, tostring = type, pairs, ipairs, tostring
 local format = string.format
@@ -26,6 +19,10 @@ if not _buff_db_ok or type(BUFF_DB) ~= "table" then BUFF_DB = {} end
 -- Used as a final fallback when the engine cooldown APIs return 0
 -- (prevents tick-level retry spam for spells whose cooldowns aren't tracked).
 local _last_cast_id = nil; local _last_cast_time = 0
+local _last_action_exec = {} -- action_name -> timestamp for min_interval gating
+local _last_spell_cast = {} -- spell_id -> timestamp for cast/cooldown diagnostics
+local _core_trace_times = {}
+local _last_gcd_log = 0 -- throttle for spell_ready GCD log spam
 
 -- Spell ID resolver cache: avoids repeated is_spell_learned() calls.
 -- Keys are colon-joined rank ID lists; values are { id=resolved_id, ts=timestamp }.
@@ -42,6 +39,8 @@ NS.class_middleware = NS.class_middleware or {}
 NS.POWER_MANA, NS.POWER_RAGE, NS.POWER_FOCUS, NS.POWER_ENERGY = 0, 1, 2, 3
 NS.CLASS_ID = NS.CLASS_ID or { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11 }
 NS.current_context = NS.current_context or nil
+NS._manual_item_cooldowns = NS._manual_item_cooldowns or {}
+NS._last_item_use = NS._last_item_use or {}
 
 local _settings_cache = {}
 local _settings_cache_last_update = 0
@@ -136,6 +135,23 @@ function NS.log(msg) emit("log", "[EaxRotations] ", msg) end
 function NS.log_warning(msg) emit("log_warning", "[EaxRotations WARNING] ", msg) end
 function NS.log_error(msg) emit("log_error", "[EaxRotations ERROR] ", msg) end
 
+local function core_trace(key, msg, interval_ms)
+    local now = 0
+    if type(core.game_time) == "function" then
+        local v = safe(core.game_time)
+        if type(v) == "number" then now = v end
+    end
+    if now == 0 and type(core.time) == "function" then
+        local v = safe(core.time)
+        if type(v) == "number" then now = v * 1000 end
+    end
+    local interval = interval_ms or 500
+    local last = _core_trace_times[key] or -100000
+    if now - last < interval then return end
+    _core_trace_times[key] = now
+    NS.log("[CASTDBG] " .. tostring(msg))
+end
+
 function NS.GetPlayer()
     -- If we have a cached player, check that it's still valid (not garbage-collected)
     if NS.PLAYER_UNIT then
@@ -165,6 +181,17 @@ function NS.GetPet()
     local pet = get_pet and safe(get_pet, player) or nil
     if pet and NS.unit_alive and NS.unit_alive(pet) then return pet end
     return nil
+end
+
+NS.get_pet = NS.GetPet
+
+function NS.has_pet()
+    return NS.GetPet() ~= nil
+end
+
+function NS.get_pet_hp()
+    local pet = NS.GetPet()
+    return pet and NS.unit_health_pct(pet) or 100
 end
 
 NS.EQUIPMENT_SLOTS = NS.EQUIPMENT_SLOTS or {
@@ -220,6 +247,58 @@ function NS.is_item_equipped(item_ids)
     return false
 end
 
+function NS.is_item_ready(item_id)
+    if type(item_id) ~= "number" or item_id <= 0 then return false end
+    local manual_cd = NS._manual_item_cooldowns and NS._manual_item_cooldowns[item_id] or nil
+    local last_used = NS._last_item_use and NS._last_item_use[item_id] or nil
+    if type(manual_cd) == "number" and type(last_used) == "number" and manual_cd > 0 then
+        if (NS.time_now() - last_used) < manual_cd then return false end
+    end
+    local player = NS.GetPlayer()
+    local get_item_cooldown = safe_field(player, "get_item_cooldown")
+    if not get_item_cooldown then return true end
+    local cooldown = safe(get_item_cooldown, player, item_id)
+    return type(cooldown) ~= "number" or cooldown <= 0
+end
+
+function NS.register_item_manual_cooldown(item_id, cooldown)
+    if type(item_id) ~= "number" or item_id <= 0 then return false end
+    NS._manual_item_cooldowns[item_id] = type(cooldown) == "number" and cooldown > 0 and cooldown or 1
+    return true
+end
+
+function NS.use_item_by_id(item_id, target)
+    if type(item_id) ~= "number" or item_id <= 0 then return false end
+    if NS.is_item_ready and NS.is_item_ready(item_id) == false then return false end
+    local input = core and core.input or nil
+    local used = false
+    if target and NS.not_same_unit(target, NS.GetPlayer()) and type(input and input.use_item_target) == "function" then
+        used = safe(input.use_item_target, item_id, target) == true
+    elseif type(input and input.use_item) == "function" then
+        used = safe(input.use_item, item_id) == true
+    end
+    if used then NS._last_item_use[item_id] = NS.time_now() end
+    return used
+end
+
+NS.use_item = NS.use_item_by_id
+
+function NS.has_item(item_id)
+    if type(item_id) ~= "number" or item_id <= 0 then return false end
+    local inventory = core and core.inventory or nil
+    local get_items_in_bag = inventory and inventory.get_items_in_bag
+    if type(get_items_in_bag) ~= "function" then return false end
+    for bag_id = 0, 4 do
+        local items = safe(get_items_in_bag, bag_id)
+        if type(items) == "table" then
+            for i = 1, #items do
+                if item_id_from_slot_info(items[i]) == item_id then return true end
+            end
+        end
+    end
+    return false
+end
+
 function NS.count_equipped_set(item_ids)
     if type(item_ids) ~= "table" then return 0 end
     local wanted = {}
@@ -258,27 +337,38 @@ end
 function NS.GetFocus()
     local player = NS.GetPlayer()
     if not player then return nil end
+    local function valid_focus(unit)
+        if not unit or not NS.unit_alive(unit) then return false end
+        return safe_field(unit, "is_valid")
+            or safe_field(unit, "get_health_percentage")
+            or safe_field(unit, "can_attack")
+            or safe_field(unit, "is_enemy_with")
+            or safe_field(unit, "get_position")
+    end
     -- Try core.input.get_focus() first (documented API)
     if core and core.input then
         local get_focus = safe_field(core.input, "get_focus")
         if get_focus then
             local focus = safe(get_focus)
-            if focus and NS.unit_alive(focus) then return focus end
+            if valid_focus(focus) then return focus end
         end
     end
     -- Try player method
     local get_focus = safe_field(player, "get_focus")
     local focus = get_focus and safe(get_focus, player) or nil
-    if focus and NS.unit_alive(focus) then return focus end
+    if valid_focus(focus) then return focus end
     -- Try object manager
     local object_manager = core and core.object_manager or nil
+    local object_focus = object_manager and safe_field(object_manager, "get_focus")
+    focus = object_focus and safe(object_focus) or nil
+    if valid_focus(focus) then return focus end
     local get_focus_target = object_manager and safe_field(object_manager, "get_focus_target")
     focus = get_focus_target and safe(get_focus_target) or nil
-    if focus and NS.unit_alive(focus) then return focus end
+    if valid_focus(focus) then return focus end
     -- Try IZI fallback
     local izi = NS.izi
     focus = izi and izi.focus and safe(izi.focus) or nil
-    if focus and NS.unit_alive(focus) then return focus end
+    if valid_focus(focus) then return focus end
     return nil
 end
 
@@ -358,6 +448,7 @@ end
 
 function NS.set_setting(key, value)
     NS.settings[key] = value
+    _settings_cache[key] = value
 end
 
 function NS.refresh_settings_cache()
@@ -372,7 +463,7 @@ function NS.GetCurrentContext()
 end
 
 -- ============================================================================
--- Sticky Spell Anti-Flicker System (Sonah-inspired)
+-- Sticky Spell Anti-Flicker System
 -- ============================================================================
 local _sticky = { spell_id = nil, spell_name = nil, set_time = 0, min_duration = 0.3, priority = 0 }
 
@@ -422,7 +513,7 @@ function NS.sticky_spell_reset()
 end
 
 -- ============================================================================
--- Cooldown Suggestion Registry (Sonah-inspired)
+-- Cooldown Suggestion Registry
 -- ============================================================================
 NS.cooldown_registry = {}
 
@@ -496,7 +587,11 @@ end
 function NS.register_on_update_callback(callback)
     local fn = core.register_on_update_callback
     if type(fn) ~= "function" or type(callback) ~= "function" then return false end
-    return safe(fn, callback) ~= false
+    local generation = NS.runtime_generation
+    return safe(fn, function(...)
+        if generation ~= NS.runtime_generation then return false end
+        return callback(...)
+    end) ~= false
 end
 
 function NS.register_on_spell_cast(callback)
@@ -541,15 +636,60 @@ function NS._fire_combat_end(context)
     end
 end
 
+--- Create a spell action object.
+-- Accepts two formats:
+--   Old: NS.spell_action({id1, id2, ...}, "Name")
+--   New: NS.spell_action({ name="Name", ids={...}, levels={...}, cast_time=n, cooldown=n, power_cost=n, power_type="...", school="..." })
+-- @param id table|number - Spell IDs (array) or a rich config table
+-- @param label string|nil - Spell name (only used in old format)
+-- @return table - Spell object with _meta metadata
 function NS.spell_action(id, label)
-    local ids = type(id) == "table" and id or { id }
-    local spell = { _meta = { id = id, ids = ids, label = label or tostring(id) } }
+    local spell
+    -- Detect rich format: single table arg with an "ids" or "name" key
+    if type(id) == "table" and (id.ids or id.name) and not id[1] then
+        local cfg = id
+        local ids = type(cfg.ids) == "table" and cfg.ids or (cfg.id and { cfg.id } or {})
+        local name = cfg.name or tostring(cfg.ids or cfg.id or "")
+        spell = {
+            _meta = {
+                id = cfg.ids or cfg.id,
+                ids = ids,
+                label = name,
+                levels = cfg.levels,
+                cast_time = cfg.cast_time or 0,
+                cooldown = cfg.cooldown or 0,
+                power_cost = cfg.power_cost or 0,
+                power_type = cfg.power_type or "mana",
+                school = cfg.school or "physical",
+            }
+        }
+    else
+        -- Old format
+        local ids = type(id) == "table" and id or { id }
+        local lbl = label or tostring(id)
+        spell = { _meta = { id = id, ids = ids, label = lbl } }
+    end
+
+    -- Add methods
     function spell:id()
         if NS.get_spell_id then return NS.get_spell_id(self._meta.id) end
         if type(self._meta.id) == "table" then return self._meta.id[1] end
         return self._meta.id
     end
-    function spell:GetSpellPowerCost() return 0, NS.POWER_MANA end
+    function spell:GetSpellPowerCost()
+        if self._meta.power_cost and self._meta.power_type then
+            return self._meta.power_cost, self._meta.power_type == "mana" and NS.POWER_MANA or 0
+        end
+        return 0, NS.POWER_MANA
+    end
+    function spell:GetSpellRank()
+        return self._meta.levels and #self._meta.levels or nil
+    end
+    function spell:GetSpellLevel()
+        local levels = self._meta.levels
+        if levels and #levels > 0 then return levels[1] end
+        return nil
+    end
     function spell:IsExists() return NS.is_spell_learned(self) end
     function spell:IsReady(unit) return NS.spell_ready(self, unit or NS.GetTarget()) end
     function spell:IsInRange(unit) return NS.is_spell_in_range(self, unit or NS.GetTarget()) end
@@ -562,12 +702,12 @@ local function collect_ids(spell, out)
     if type(spell) == "number" then
         out[#out + 1] = spell
     elseif type(spell) == "table" then
-        if type(spell.id) == "function" then
+        if spell._meta then collect_ids(spell._meta.id, out)
+        elseif type(spell.id) == "function" then
             local id = safe(spell.id, spell)
             if type(id) == "number" then out[#out + 1] = id
             elseif type(id) == "table" then collect_ids(id, out) end
         elseif type(spell.id) == "number" then out[#out + 1] = spell.id
-        elseif spell._meta then collect_ids(spell._meta.id, out)
         elseif type(spell.spell_id) == "number" then out[#out + 1] = spell.spell_id end
         for i = 1, #spell do if type(spell[i]) == "number" then out[#out + 1] = spell[i] end end
     end
@@ -580,6 +720,49 @@ local _api_health_calls = 0
 local _api_health_hits = 0
 local _api_health_broken = false
 local _api_health_warned = false
+
+local function player_level_fallback()
+    local player = NS.GetPlayer and NS.GetPlayer() or nil
+    local get_effective_level = safe_field(player, "get_effective_level")
+    local level = get_effective_level and safe(get_effective_level, player) or nil
+    if type(level) ~= "number" then
+        local get_level = safe_field(player, "get_level")
+        level = get_level and safe(get_level, player) or nil
+    end
+    return type(level) == "number" and level or 70
+end
+
+local function fallback_spell_id(spell, ids)
+    if type(ids) ~= "table" or #ids == 0 then return nil end
+    local meta = type(spell) == "table" and spell._meta or nil
+    local levels = meta and meta.levels or nil
+    if type(levels) == "table" and #levels > 0 then
+        local player_level = player_level_fallback()
+        for i = 1, #ids do
+            local required_level = levels[i]
+            if type(required_level) == "number" and player_level >= required_level then
+                return ids[i]
+            end
+        end
+    end
+    return ids[#ids]
+end
+
+local function spell_cache_key(spell, ids)
+    local key = table.concat(ids, ":")
+    local meta = type(spell) == "table" and spell._meta or nil
+    if meta and type(meta.levels) == "table" then
+        key = key .. "|levels=" .. table.concat(meta.levels, ":")
+    end
+    return key
+end
+
+local function spell_label(spell, fallback)
+    if type(spell) == "table" and spell._meta and spell._meta.label then
+        return spell._meta.label
+    end
+    return tostring(fallback or spell or "?")
+end
 
 function NS.spell_id_is_known(spell_id)
     if type(spell_id) ~= "number" then return false end
@@ -604,7 +787,7 @@ function NS.spell_id_is_known(spell_id)
             _api_health_broken = true
             if not _api_health_warned then
                 _api_health_warned = true
-                NS.log_warning("spell_book.is_spell_learned returned false for ALL " .. tostring(_api_health_calls) .. " calls. Treating all spell IDs as known (API fallback).")
+                NS.log_warning("spell_book.is_spell_learned returned false for ALL " .. tostring(_api_health_calls) .. " calls. Using level-safe rank IDs (API fallback).")
             end
         end
     end
@@ -618,7 +801,7 @@ function NS.get_spell_id(spell)
     local ids = collect_ids(spell, {})
     if #ids == 0 then return nil end
     -- Build cache key from sorted unique IDs to handle any input shape consistently
-    local cache_key = table.concat(ids, ":")
+    local cache_key = spell_cache_key(spell, ids)
     local cached = _spell_id_cache[cache_key]
     if cached then
         local now = NS.time_now and NS.time_now() or 0
@@ -627,16 +810,23 @@ function NS.get_spell_id(spell)
         end
     end
     if core.spell_book then
-        for i = 1, #ids do
-            if NS.spell_id_is_known(ids[i]) then
-                _spell_id_cache[cache_key] = { id = ids[i], ts = NS.time_now and NS.time_now() or 0 }
-                return ids[i]
+        if _api_health_broken then
+            local fallback_id = fallback_spell_id(spell, ids)
+            _spell_id_cache[cache_key] = { id = fallback_id, ts = NS.time_now and NS.time_now() or 0 }
+            return fallback_id
+        else
+            for i = 1, #ids do
+                if NS.spell_id_is_known(ids[i]) then
+                    _spell_id_cache[cache_key] = { id = ids[i], ts = NS.time_now and NS.time_now() or 0 }
+                    return ids[i]
+                end
+                if _api_health_broken then break end
             end
         end
     end
-    -- Cache negative result too (fallback to first ID)
-    _spell_id_cache[cache_key] = { id = ids[1], ts = NS.time_now and NS.time_now() or 0 }
-    return ids[1]
+    local fallback_id = fallback_spell_id(spell, ids)
+    _spell_id_cache[cache_key] = { id = fallback_id, ts = NS.time_now and NS.time_now() or 0 }
+    return fallback_id
 end
 
 function NS.refresh_spell_cache()
@@ -820,9 +1010,20 @@ local function has_resource(spell)
                 local current = power(player, cost_type)
                 if current < cost then
                     -- Some TBC builds expose mana percent but not absolute mana
-                    -- through get_power(0). Do not false-block casters when the
-                    -- percentage API proves they have mana.
-                    if not (cost_type == NS.POWER_MANA and current == 0 and NS.mana_pct(player) > 0) then
+                    -- through get_power(0). Only bypass when the percentage-based
+                    -- cost check confirms sufficient mana.
+                    if cost_type == NS.POWER_MANA and current == 0 then
+                        local mana = NS.mana_pct(player)
+                        if mana > 0 then
+                            -- Also enforce cost_percent when available (e.g. spells costing % base mana)
+                            local pct = c.cost_percent or 0
+                            if pct > 0 and mana < pct then
+                                return false
+                            end
+                        else
+                            return false
+                        end
+                    else
                         return false
                     end
                 end
@@ -835,18 +1036,22 @@ end
 function NS.is_spell_in_range(spell, target)
     if not target then return true end
     local id = NS.get_spell_id(spell)
-    local label = (spell and spell._meta and spell._meta.label) or tostring(id)
+    local label = spell_label(spell, id)
     local fn = core.spell_book and core.spell_book.is_spell_in_range
     local ok = id and safe(fn, id, target, NS.GetPlayer())
     if ok == true then return true end
     -- API returned false (engine says out-of-range) or nil (API unavailable).
-    -- If _api_health_broken or the function returned nil, distrust the API
-    -- (it may be a stub returning false) and fall back to distance check.
+    -- Several Project Sylvanas builds expose this function but return false as
+    -- a stub for every spell, so any non-true result must use distance fallback.
     if ok == nil and not _api_diag_logged[label .. "_range_nil"] then
         _api_diag_logged[label .. "_range_nil"] = true
         NS.log("[DIAG] " .. label .. " is_spell_in_range returned nil (API unavailable) — using distance fallback. spell_id=" .. tostring(id))
     end
-    if _api_health_broken or ok == nil then
+    if ok == false and not _api_diag_logged[label .. "_range_false"] then
+        _api_diag_logged[label .. "_range_false"] = true
+        NS.log("[DIAG] " .. label .. " is_spell_in_range returned false — using distance fallback because this API is stubbed on some Sylvanas builds. spell_id=" .. tostring(id))
+    end
+    if _api_health_broken or ok ~= true then
         if _api_health_broken and ok == false and not _api_diag_logged[label .. "_range_stub"] then
             _api_diag_logged[label .. "_range_stub"] = true
             NS.log("[DIAG] " .. label .. " is_spell_in_range returned false but _api_health_broken=true — distrusting stub. spell_id=" .. tostring(id))
@@ -870,85 +1075,244 @@ NS.spell_in_range = NS.is_spell_in_range
 function NS.spell_ready(spell, target, opts)
     opts = opts or EMPTY
     local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-    local label = (spell and spell._meta and spell._meta.label) or "?"
+    local label = spell_label(spell)
     if not NS.spell_exists(spell) then
+        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: spell_exists=false (spell id=" .. tostring(spell) .. ")") end
+        core_trace("ready:" .. label .. ":exists", label .. " ready=false reason=spell_exists_false", 700)
         if debug then NS.log("[DEBUG] " .. label .. " blocked: spell_exists=false") end
         return false
     end
-    if not opts.skip_gcd and NS.gcd_remains() > 0 then
-        if debug then NS.log("[DEBUG] " .. label .. " blocked: gcd=" .. tostring(NS.gcd_remains())) end
+    local gcd = NS.gcd_remains()
+    if not opts.skip_gcd and gcd > 0 then
+        if (NS.time_now() - _last_gcd_log) > 1 then
+            if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: gcd=" .. tostring(gcd)) end
+            _last_gcd_log = NS.time_now()
+        end
+        core_trace("ready:" .. label .. ":gcd", label .. " ready=false reason=gcd gcd=" .. tostring(gcd), 300)
+        if debug then NS.log("[DEBUG] " .. label .. " blocked: gcd=" .. tostring(gcd)) end
         return false
     end
     local cd = NS.cooldown_remains(spell, opts.expected_cooldown)
     if cd > 0 then
+        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: cooldown=" .. tostring(cd)) end
+        core_trace("ready:" .. label .. ":cd", label .. " ready=false reason=cooldown cd=" .. tostring(cd), 700)
         if debug then NS.log("[DEBUG] " .. label .. " blocked: cd=" .. tostring(cd)) end
         return false
     end
     if not has_resource(spell) then
+        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: no_resource (mana=" .. tostring(NS.mana_pct and NS.mana_pct(NS.GetPlayer()) or "?") .. ")") end
+        core_trace("ready:" .. label .. ":resource", label .. " ready=false reason=no_resource mana=" .. tostring(NS.mana_pct and NS.mana_pct(NS.GetPlayer()) or "?"), 700)
         if debug then NS.log("[DEBUG] " .. label .. " blocked: no_resource") end
         return false
     end
     if not opts.skip_range and target and NS.not_same_unit(target, NS.GetPlayer()) and not NS.is_spell_in_range(spell, target) then
+        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: out_of_range") end
+        core_trace("ready:" .. label .. ":range", label .. " ready=false reason=out_of_range target=" .. tostring(target ~= nil), 700)
         if debug then NS.log("[DEBUG] " .. label .. " blocked: out_of_range") end
         return false
     end
+    core_trace("ready:" .. label .. ":ok", label .. " ready=true target=" .. tostring(target ~= nil) .. " skip_range=" .. tostring(opts.skip_range == true), 700)
     if debug then NS.log("[DEBUG] " .. label .. " ready") end
     return true
 end
 
+local function mark_spell_cast(id)
+    _last_cast_id = id
+    _last_cast_time = NS.time_now()
+    _last_spell_cast[id] = _last_cast_time
+end
+
+local function izi_spell_for(id)
+    local izi = NS and NS.izi or nil
+    local spell_factory = izi and izi.spell
+    if type(spell_factory) ~= "function" then return nil end
+    local ok, spell_obj = pcall(spell_factory, id)
+    if ok then return spell_obj end
+    return nil
+end
+
+local function cast_unit_spell(id, target, label, reason)
+    local izi_spell = izi_spell_for(id)
+    if izi_spell and type(izi_spell.cast_safe) == "function" then
+        local ok, result = pcall(function()
+            return izi_spell:cast_safe(target, reason or label)
+        end)
+        if ok and result ~= false and result ~= nil then
+            core_trace("try:" .. tostring(id) .. ":izi_ok", "try_cast " .. tostring(label) .. " izi cast_safe ok id=" .. tostring(id) .. " result=" .. tostring(result), 300)
+            return true
+        end
+        core_trace("try:" .. tostring(id) .. ":izi_false", "try_cast " .. tostring(label) .. " izi cast_safe failed ok=" .. tostring(ok) .. " result=" .. tostring(result), 300)
+    end
+
+    local cast = core.input and core.input.cast_target_spell
+    if type(cast) ~= "function" then
+        core_trace("try:" .. tostring(id) .. ":cast_missing", "try_cast " .. tostring(label) .. " failed: no IZI cast and core.input.cast_target_spell missing", 700)
+        return false
+    end
+    local result = safe(cast, id, target)
+    if result == false then
+        core_trace("try:" .. tostring(id) .. ":cast_false", "try_cast " .. tostring(label) .. " failed: core cast_target_spell returned false id=" .. tostring(id), 300)
+        return false
+    end
+    core_trace("try:" .. tostring(id) .. ":core_ok", "try_cast " .. tostring(label) .. " core cast_target_spell called id=" .. tostring(id) .. " result=" .. tostring(result), 300)
+    return true
+end
+
+local function cast_position_spell(id, position, label, reason)
+    local izi_spell = izi_spell_for(id)
+    if izi_spell and type(izi_spell.cast_safe) == "function" then
+        local ok, result = pcall(function()
+            return izi_spell:cast_safe(position, reason or label)
+        end)
+        if ok and result ~= false and result ~= nil then
+            core_trace("pos:" .. tostring(id) .. ":izi_ok", "try_cast_position " .. tostring(label) .. " izi cast_safe ok id=" .. tostring(id) .. " result=" .. tostring(result), 300)
+            return true
+        end
+        core_trace("pos:" .. tostring(id) .. ":izi_false", "try_cast_position " .. tostring(label) .. " izi cast_safe failed ok=" .. tostring(ok) .. " result=" .. tostring(result), 300)
+    end
+
+    local cast = core.input and core.input.cast_position_spell
+    if type(cast) ~= "function" then
+        core_trace("pos:" .. tostring(id) .. ":cast_missing", "try_cast_position " .. tostring(label) .. " failed: no IZI cast and core.input.cast_position_spell missing", 700)
+        return false
+    end
+    local result = safe(cast, id, position)
+    if result == false then
+        core_trace("pos:" .. tostring(id) .. ":cast_false", "try_cast_position " .. tostring(label) .. " failed: core cast_position_spell returned false", 300)
+        return false
+    end
+    core_trace("pos:" .. tostring(id) .. ":core_ok", "try_cast_position " .. tostring(label) .. " core cast_position_spell called id=" .. tostring(id) .. " result=" .. tostring(result), 300)
+    return true
+end
+
 function NS.try_cast(spell, unit, reason, opts)
+    opts = opts or EMPTY
     local id = NS.get_spell_id(spell)
+    local label = spell_label(spell, id)
     local target = unit
     if not target then
         target = NS.GetPlayer()
-        if not target then return false end
+        if not target then
+            core_trace("try:" .. label .. ":no_target", "try_cast " .. label .. " failed: no target/player id=" .. tostring(id) .. " reason=" .. tostring(reason), 700)
+            return false
+        end
     end
-    if not id then return false end
+    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    if not id then
+        core_trace("try:nil_id", "try_cast failed: no spell id label=" .. tostring(label) .. " reason=" .. tostring(reason), 700)
+        return false
+    end
+    core_trace("try:" .. tostring(id) .. ":enter", "try_cast enter id=" .. tostring(id) .. " label=" .. tostring(label) .. " target=" .. tostring(target ~= nil) .. " reason=" .. tostring(reason), 300)
+    if debug then core.log("[EaxRotations:try_cast] ATTEMPT id=" .. tostring(id) .. " label=" .. label .. " has_target=" .. tostring(target ~= nil)) end
     -- Sticky spell anti-flicker: skip if same spell was cast within 0.3s
     if _last_cast_id == id then
         local elapsed = NS.time_now() - _last_cast_time
         if elapsed < 0.3 then
+            core_trace("try:" .. tostring(id) .. ":sticky", "try_cast " .. tostring(label) .. " blocked: same_spell_anti_flicker elapsed=" .. tostring(elapsed), 200)
             return false
         end
     end
-    if not NS.spell_ready(spell, target, opts) then return false end
-    -- Update sticky spell tracker
+    local min_interval = opts.min_interval
+    if type(min_interval) == "number" and min_interval > 0 then
+        local last_cast = _last_spell_cast[id]
+        local elapsed = last_cast and (NS.time_now() - last_cast) or nil
+        if elapsed and elapsed < min_interval then
+            core_trace("try:" .. tostring(id) .. ":min_interval", "try_cast " .. tostring(label) .. " blocked: min_interval=" .. tostring(min_interval) .. " elapsed=" .. tostring(elapsed), 500)
+            return false
+        end
+    end
+    if not NS.spell_ready(spell, target, opts) then
+        core_trace("try:" .. tostring(id) .. ":not_ready", "try_cast " .. tostring(label) .. " failed: spell_ready=false id=" .. tostring(id), 300)
+        if debug then core.log("[EaxRotations:try_cast] FAILED: spell_ready=false id=" .. tostring(id) .. " label=" .. label .. " gcd=" .. tostring(NS.gcd_remains and NS.gcd_remains() or 0) .. " on_gcd=" .. tostring(NS.gcd_remains and NS.gcd_remains() > 0 or false)) end
+        return false
+    end
     NS.sticky_spell_should_override(id, reason or "unknown", 0)
     if NS.get_setting("use_spell_queue", false) then
         local queue_ok, spell_queue = pcall(require, "common/modules/spell_queue")
         local queue_spell = queue_ok and spell_queue and spell_queue.queue_spell or nil
         if type(queue_spell) == "function" then
             local queued = safe(queue_spell, id, target)
-            if queued == false then return false end
-            _last_cast_id = id; _last_cast_time = NS.time_now()
-            if reason then NS.log(reason) end
+            if queued == false then
+                core_trace("try:" .. tostring(id) .. ":queue_false", "try_cast " .. tostring(label) .. " failed: queue_spell returned false", 300)
+                return false
+            end
+            mark_spell_cast(id)
+            core_trace("try:" .. tostring(id) .. ":queued", "try_cast " .. tostring(label) .. " queued id=" .. tostring(id) .. " result=" .. tostring(queued), 300)
+            if reason and debug then NS.log(reason) end
+            if debug then core.log("[EaxRotations:try_cast] SUCCESS (queued) id=" .. tostring(id) .. " label=" .. label) end
             return true
+        else
+            core_trace("try:" .. tostring(id) .. ":queue_missing", "try_cast " .. tostring(label) .. " spell_queue enabled but queue function missing; falling back direct", 700)
         end
     end
-    local cast = core.input and core.input.cast_target_spell
-    if type(cast) ~= "function" then return false end
-    local result = safe(cast, id, target)
-    if result == false then return false end
+    if not cast_unit_spell(id, target, label, reason) then
+        if debug then core.log("[EaxRotations:try_cast] FAILED: cast_unit_spell returned false id=" .. tostring(id) .. " label=" .. label) end
+        return false
+    end
     -- Record cast time for manual cooldown fallback
-    _last_cast_id = id; _last_cast_time = NS.time_now()
-    if reason then NS.log(reason) end
+    mark_spell_cast(id)
+    if reason and debug then NS.log(reason) end
+    if debug then core.log("[EaxRotations:try_cast] SUCCESS (direct) id=" .. tostring(id) .. " label=" .. label) end
     return true
 end
 
 function NS.try_cast_position(spell, position, range_target, reason, opts)
+    opts = opts or EMPTY
     local id = NS.get_spell_id(spell)
-    if not id or not position then return false end
-    if not NS.spell_ready(spell, range_target, opts) then return false end
-    local cast = core.input and core.input.cast_position_spell
-    if type(cast) ~= "function" then return false end
-    local result = safe(cast, id, position)
-    if result == false then return false end
-    _last_cast_id = id; _last_cast_time = NS.time_now()
-    if reason then NS.log(reason) end
+    local label = spell_label(spell, id)
+    if not id or not position then
+        core_trace("pos:" .. tostring(label) .. ":bad_input", "try_cast_position failed: id=" .. tostring(id) .. " position=" .. tostring(position ~= nil), 700)
+        return false
+    end
+    if not NS.spell_ready(spell, range_target, opts) then
+        core_trace("pos:" .. tostring(id) .. ":not_ready", "try_cast_position " .. tostring(label) .. " failed: spell_ready=false id=" .. tostring(id), 300)
+        return false
+    end
+    if not cast_position_spell(id, position, label, reason) then return false end
+    mark_spell_cast(id)
+    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    if reason and debug then NS.log(reason) end
     return true
 end
 
 NS.cast_position = NS.try_cast_position
+
+function NS.cancel_spells()
+    local fn = core.input and core.input.cancel_spells
+    if type(fn) ~= "function" then return false end
+    return safe(fn) ~= false
+end
+
+function NS.cancel_buff(buff_otr)
+    local fn = core.input and core.input.cancel_buff
+    if type(fn) ~= "function" then return false end
+    return safe(fn, buff_otr) ~= false
+end
+
+function NS.get_totem_info(slot)
+    local player = NS.GetPlayer()
+    if player then
+        local get_totem_info = safe_field(player, "get_totem_info")
+        if get_totem_info then
+            local ok, have, name, start_time, duration, spell_id = pcall(get_totem_info, player, slot)
+            if ok then
+                return {
+                    have_totem = have == true,
+                    totem_name = name,
+                    start_time = start_time,
+                    duration = duration,
+                    spell_id = spell_id,
+                }
+            end
+        end
+    end
+
+    local fn = core.spell_book and core.spell_book.get_totem_info
+    if type(fn) ~= "function" then return nil end
+    local info = safe(fn, slot)
+    if type(info) == "table" then return info end
+    return nil
+end
 
 local function unit_alive_inner(unit)
     if not unit then return false end
@@ -1035,7 +1399,15 @@ function NS.buff_up(unit, ids)
         local id = list[i]
         if safe(safe_field(unit, "has_buff"), unit, id) or safe(safe_field(unit, "buff_up"), unit, id) then return true end
     end
-    return aura_data(unit, ids, "buff") ~= nil
+    local aura = aura_data(unit, ids, "buff")
+    if aura == nil then
+        local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+        if debug and #list > 0 then
+            local id_str = table.concat(list, ",")
+            NS.log("[DIAG] buff_up(" .. id_str .. ") all checks failed: has_buff=false, buff_up=false, aura_data=nil")
+        end
+    end
+    return aura ~= nil
 end
 
 local _izi_dirty_buffs = {}
@@ -1187,6 +1559,106 @@ function NS.get_debuff_stacks(unit, ids)
 end
 
 function NS.has_player_buff(ids) return NS.buff_up(NS.GetPlayer(), ids) end
+
+local function aura_field(aura, ...)
+    if type(aura) ~= "table" then return nil end
+    for i = 1, select("#", ...) do
+        local key = select(i, ...)
+        local value = aura[key]
+        if value ~= nil then return value end
+    end
+    return nil
+end
+
+local function aura_id(aura)
+    return tonumber(aura_field(aura, "buff_id", "spell_id", "aura_id", "id", "spellId", "spellID"))
+end
+
+local function aura_name(aura)
+    return aura_field(aura, "buff_name", "name", "spell_name", "aura_name") or "?"
+end
+
+local function aura_remaining(aura)
+    local remaining = tonumber(aura_field(aura, "remaining", "remains", "remaining_ms"))
+    if remaining and remaining > 0 then return remaining end
+    local expire_time = tonumber(aura_field(aura, "expire_time", "expiration_time", "expires"))
+    if expire_time and expire_time > 0 then return expire_time - NS.game_time_ms() end
+    return 0
+end
+
+local function aura_stacks(aura)
+    return tonumber(aura_field(aura, "stacks", "count", "applications")) or 0
+end
+
+local function dump_aura_table(label, auras, watch_ids)
+    if type(auras) ~= "table" then
+        NS.log("[AURA] " .. label .. ": unavailable (" .. tostring(auras) .. ")")
+        return false
+    end
+
+    local count = auras.n or #auras
+    NS.log("[AURA] " .. label .. ": count=" .. tostring(count))
+    local matched = false
+    for i = 1, count do
+        local aura = auras[i]
+        local id = aura_id(aura)
+        local name = aura_name(aura)
+        local stacks = aura_stacks(aura)
+        local remaining = aura_remaining(aura)
+        local is_match = id and watch_ids and watch_ids[id] == true
+        if is_match then matched = true end
+        NS.log(string.format("[AURA] %s[%d]%s id=%s name=%s stacks=%s remains_ms=%s active=%s",
+            label,
+            i,
+            is_match and " MATCH" or "",
+            tostring(id),
+            tostring(name),
+            tostring(stacks),
+            tostring(remaining),
+            tostring(aura_field(aura, "is_active"))))
+    end
+    return matched
+end
+
+--- Dumps local-player aura data and direct buff checks for debugging ID/API mismatches.
+-- Call from the Diagnostics menu or from code: NS.dump_player_auras({324, 325})
+function NS.dump_player_auras(watch_ids)
+    local me = NS.GetPlayer and NS.GetPlayer() or nil
+    if not me then NS.log("[AURA] No local player found"); return false end
+
+    local ids = collect_ids(watch_ids or { 25472, 25469, 10432, 10431, 10430, 8134, 8133, 8132, 945, 905, 325, 324 }, {})
+    local watch = {}
+    for i = 1, #ids do watch[ids[i]] = true end
+
+    NS.log("=== PLAYER AURA DUMP ===")
+    NS.log("[AURA] watch_ids=" .. table.concat(ids, ","))
+    NS.log("[AURA] NS.buff_up(watch_ids)=" .. tostring(NS.buff_up(me, ids)))
+
+    for i = 1, #ids do
+        local id = ids[i]
+        local has_buff = safe(safe_field(me, "has_buff"), me, id)
+        local buff_up_value = safe(safe_field(me, "buff_up"), me, id)
+        local buff_data = safe(safe_field(me, "get_buff_data"), me, id)
+        local aura_data_value = safe(safe_field(me, "get_aura_data"), me, id)
+        NS.log(string.format("[AURA] check id=%d has_buff=%s buff_up=%s get_buff_data=%s get_aura_data=%s buff_name=%s aura_name=%s",
+            id,
+            tostring(has_buff),
+            tostring(buff_up_value),
+            tostring(buff_data ~= nil and buff_data.is_active ~= false),
+            tostring(aura_data_value ~= nil and aura_data_value.is_active ~= false),
+            tostring(type(buff_data) == "table" and aura_name(buff_data) or "?"),
+            tostring(type(aura_data_value) == "table" and aura_name(aura_data_value) or "?")))
+    end
+
+    local buffs = safe(safe_field(me, "get_buffs"), me)
+    local auras = safe(safe_field(me, "get_auras"), me)
+    local buff_match = dump_aura_table("get_buffs", buffs, watch)
+    local aura_match = dump_aura_table("get_auras", auras, watch)
+
+    NS.log("[AURA] get_buffs_match=" .. tostring(buff_match) .. " get_auras_match=" .. tostring(aura_match))
+    NS.log("=== END PLAYER AURA DUMP ===")
+    return true
+end
 
 local function unit_distance(a, b)
     if not a then return 999 end
@@ -1444,8 +1916,18 @@ function NS.is_hostile_unit(me, target)
     if target_enemy_with and safe(target_enemy_with, target, me) == true then return true end
     local is_valid_enemy = safe_field(target, "is_valid_enemy")
     if is_valid_enemy and safe(is_valid_enemy, target) == true then return true end
+    local get_reaction = safe_field(target, "get_reaction") or safe_field(target, "reaction")
+    if get_reaction then
+        local reaction = safe(get_reaction, target)
+        if type(reaction) == "number" and reaction < 4 then return true end
+    end
+    local get_reaction_to = safe_field(target, "get_reaction_to")
+    if get_reaction_to then
+        local reaction = safe(get_reaction_to, target, me)
+        if type(reaction) == "number" and reaction < 4 then return true end
+    end
     if saw_negative then return false end
-    return can_attack == nil and me_enemy_with == nil and target_can_attack == nil and target_enemy_with == nil and is_valid_enemy == nil
+    return can_attack == nil and me_enemy_with == nil and target_can_attack == nil and target_enemy_with == nil and is_valid_enemy == nil and get_reaction == nil and get_reaction_to == nil
 end
 
 local function pick_enemy_from_list(me, list, limit, best, best_distance)
@@ -1903,7 +2385,12 @@ NS.rotation_registry = registry
 function registry:set_class_config(config)
     self.class_config = config
     if config and config.default_playstyle and NS.get_setting("active_playstyle") == nil then
-        NS.set_setting("active_playstyle", config.default_playstyle)
+        local selected_playstyle = NS.get_setting("playstyle", nil)
+        if type(selected_playstyle) == "string" and selected_playstyle ~= "" then
+            NS.set_setting("active_playstyle", selected_playstyle)
+        else
+            NS.set_setting("active_playstyle", config.default_playstyle)
+        end
     end
 end
 
@@ -1917,7 +2404,7 @@ function NS.register_class_middleware(class_key, strategies)
     NS.class_middleware[class_key] = strategies or EMPTY
 end
 
--- Unified strategy registry (Flux AIO pattern)
+-- Unified strategy registry
 -- Combines middleware + playstyle strategies into a single priority-ordered dispatch list.
 -- Entries are sorted descending by priority so higher numbers run first.
 NS.unified_registry = NS.unified_registry or {}
@@ -2028,6 +2515,7 @@ end
 local function target_for(context, action)
     if action.target == "self" then return NS.GetPlayer() end
     if action.target == "pet" then return NS.GetPet() end
+    if action.target == "cc_target" then return context and context.cc_target or nil end
     return action.unit or context.target
 end
 
@@ -2058,6 +2546,13 @@ function NS.action_matches(context, action)
         if debug then NS.log("[DEBUG] " .. name .. " blocked: setting=" .. tostring(action.setting)) end
         return false
     end
+    if action.min_interval then
+        local last = _last_action_exec[name]
+        if last and (NS.time_now() - last) < action.min_interval then
+            if debug then NS.log("[DEBUG] " .. name .. " blocked: min_interval=" .. tostring(action.min_interval) .. "s (last=" .. tostring(NS.time_now() - last) .. "s ago)") end
+            return false
+        end
+    end
     if action.combat and not context.in_combat then
         if debug then NS.log("[DEBUG] " .. name .. " blocked: combat_required") end
         return false
@@ -2081,6 +2576,14 @@ function NS.action_matches(context, action)
     end
     if action.target_min_hp and (context.target_hp or 100) < action.target_min_hp then
         if debug then NS.log("[DEBUG] " .. name .. " blocked: target_min_hp=" .. tostring(context.target_hp)) end
+        return false
+    end
+    if action.min_level and (context.player_level or 70) < action.min_level then
+        if debug then NS.log("[DEBUG] " .. name .. " blocked: min_level=" .. tostring(context.player_level)) end
+        return false
+    end
+    if action.max_level and (context.player_level or 70) > action.max_level then
+        if debug then NS.log("[DEBUG] " .. name .. " blocked: max_level=" .. tostring(context.player_level)) end
         return false
     end
     if action.min_ttd then
@@ -2176,9 +2679,16 @@ function NS.action_matches(context, action)
             return false
         end
     end
-    if action.target ~= "self" and action.requires_target ~= false and not context.has_valid_enemy_target then
-        if debug then NS.log("[DEBUG] " .. name .. " blocked: no_valid_target") end
-        return false
+    if action.target ~= "self" and action.requires_target ~= false then
+        if action.target == "cc_target" then
+            if not context.cc_target then
+                if debug then NS.log("[DEBUG] " .. name .. " blocked: no_cc_target") end
+                return false
+            end
+        elseif not context.has_valid_enemy_target then
+            if debug then NS.log("[DEBUG] " .. name .. " blocked: no_valid_target") end
+            return false
+        end
     end
     local target = target_for(context, action)
     if action.target_not_player and target then
@@ -2244,18 +2754,22 @@ function NS.action_execute(context, action, prefix)
     local target = target_for(context, action)
     local opts = { skip_range = action.target == "self" or action.skip_range, skip_gcd = action.skip_gcd }
     local reason = format("%s %s", prefix or "[EAX]", action.name or "Action")
+    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
 
     if action.position then
         if action.skip_gcd then
             local id = NS.get_spell_id(action.spell)
             local position = position_for(context, action)
             if not id or not position then return false end
-            local cast = core.input and core.input.cast_position_spell
-            if type(cast) ~= "function" then return false end
-            local result = safe(cast, id, position)
-            if result == false then return false end
-            _last_cast_id = id; _last_cast_time = NS.time_now()
-            NS.log(reason)
+            -- Anti-flicker: skip if same spell was cast within 0.3s
+            if _last_cast_id == id then
+                local elapsed = NS.time_now() - _last_cast_time
+                if elapsed < 0.3 then return false end
+            end
+            if not cast_position_spell(id, position, action.name or tostring(id), reason) then return false end
+            mark_spell_cast(id)
+            _last_action_exec[action.name] = NS.time_now()
+            if debug then NS.log(reason) end
             return true
         end
         if not NS.spell_exists(action.spell) then return false end
@@ -2273,18 +2787,23 @@ function NS.action_execute(context, action, prefix)
         local id = NS.get_spell_id(action.spell)
         target = target or NS.GetPlayer()
         if not id or not target then return false end
-        local cast = core.input and core.input.cast_target_spell
-        if type(cast) ~= "function" then return false end
-        local result = safe(cast, id, target)
-        if result == false then return false end
-        _last_cast_id = id; _last_cast_time = NS.time_now()
-        NS.log(reason)
+        -- Anti-flicker: skip if same spell was cast within 0.3s
+        if _last_cast_id == id then
+            local elapsed = NS.time_now() - _last_cast_time
+            if elapsed < 0.3 then return false end
+        end
+        if not cast_unit_spell(id, target, action.name or tostring(id), reason) then return false end
+        mark_spell_cast(id)
+        _last_action_exec[action.name] = NS.time_now()
+        if debug then NS.log(reason) end
         return true
     end
 
     if not NS.spell_exists(action.spell) then return false end
     if NS.gcd_remains() > 0 then return false end
-    return NS.try_cast(action.spell, target, reason, opts)
+    local ok = NS.try_cast(action.spell, target, reason, opts)
+    if ok then _last_action_exec[action.name] = NS.time_now() end
+    return ok
 end
 
 NS.health_pct = NS.unit_health_pct
@@ -2317,4 +2836,97 @@ else
 end
 
 NS.log("Core runtime loaded")
+
+--- Dump all available player information to the log.
+-- Call from anywhere: NS.dump_player_info()
+function NS.dump_player_info()
+    local me = NS.GetPlayer and NS.GetPlayer() or nil
+    if not me then NS.log("[DUMP] No local player found"); return end
+
+    local function sf(obj, key)
+        local ok, v = pcall(function() return obj[key] end)
+        return ok and v or nil
+    end
+
+    NS.log("=== PLAYER DUMP ===")
+    NS.log("Name: " .. tostring(sf(me, "get_name") and me:get_name() or "?"))
+    NS.log("Level: " .. tostring(sf(me, "get_level") and me:get_level() or "?"))
+    NS.log("Race: " .. tostring(sf(me, "get_race") and me:get_race() or "?"))
+    NS.log("Class: " .. tostring(sf(me, "get_class") and me:get_class() or "?"))
+    NS.log("Gender: " .. tostring(sf(me, "get_gender") and me:get_gender() or "?"))
+    NS.log("HP: " .. tostring(sf(me, "get_health_percentage") and math.floor(me:get_health_percentage()) or "?") .. "%")
+    NS.log("Mana: " .. tostring(sf(me, "get_mana_percentage") and math.floor(me:get_mana_percentage()) or "?") .. "%")
+    NS.log("Power: " .. tostring(sf(me, "get_power") and me:get_power(0) or "?"))
+    NS.log("MaxPower: " .. tostring(sf(me, "get_max_power") and me:get_max_power(0) or "?"))
+    NS.log("XP: " .. tostring(sf(me, "get_xp") and me:get_xp() or "?"))
+    NS.log("MapID: " .. tostring(core.get_map_id and core.get_map_id() or "?"))
+    NS.log("MapName: " .. tostring(core.get_map_name and core.get_map_name() or "?"))
+    NS.log("Zone: " .. tostring(core.get_zone_text and core.get_zone_text() or "?"))
+    NS.log("SubZone: " .. tostring(core.get_subzone_text and core.get_subzone_text() or "?"))
+    NS.log("InCombat: " .. tostring(sf(me, "is_in_combat") and me:is_in_combat() or "?"))
+    NS.log("IsAlive: " .. tostring(sf(me, "is_alive") and me:is_alive() or "?"))
+    NS.log("IsMounted: " .. tostring(sf(me, "is_mounted") and me:is_mounted() or "?"))
+    NS.log("IsFlying: " .. tostring(sf(me, "is_flying") and me:is_flying() or "?"))
+    NS.log("IsStealthed: " .. tostring(sf(me, "is_stealthed") and me:is_stealthed() or "?"))
+    NS.log("IsMainMenuOpen: " .. tostring(core.is_main_menu_open and core.is_main_menu_open() or "?"))
+    NS.log("GameVersion: " .. tostring(core.get_exact_game_version and core.get_exact_game_version() or core.get_game_version and core.get_game_version() or "?"))
+    NS.log("Region: " .. tostring(core.get_game_region and core.get_game_region() or "?"))
+    NS.log("Ping: " .. tostring(core.get_ping and core.get_ping() or "?") .. "ms")
+    NS.log("Build: " .. tostring(core.get_build and core.get_build() or "?"))
+
+    -- Target info
+    local target = sf(me, "get_target") and me:get_target() or nil
+    if target then
+        NS.log("--- Target ---")
+        NS.log("TargetName: " .. tostring(sf(target, "get_name") and target:get_name() or "?"))
+        NS.log("TargetLevel: " .. tostring(sf(target, "get_level") and target:get_level() or "?"))
+        NS.log("TargetHP: " .. tostring(sf(target, "get_health_percentage") and math.floor(target:get_health_percentage()) or "?") .. "%")
+        NS.log("TargetDist: " .. tostring(sf(me, "get_distance") and me:get_distance(target) and math.floor(me:get_distance(target)) or "?") .. "yd")
+        NS.log("TargetCreatureType: " .. tostring(sf(target, "get_creature_type") and target:get_creature_type() or "?"))
+    end
+
+    -- Learned spells (sample first 50)
+    NS.log("--- Learned Spells (up to 50) ---")
+    local sb = core.spell_book
+    local count = 0
+    if sb and type(sb.iterate_spells) == "function" then
+        local ok, iter = pcall(sb.iterate_spells)
+        if ok and type(iter) == "table" then
+            for i = 1, #iter do
+                if count >= 50 then break end
+                count = count + 1
+                NS.log("  Spell " .. tostring(count) .. ": " .. tostring(iter[i]))
+            end
+        end
+    end
+    if count == 0 then
+        -- Try is_spell_learned on common spell IDs
+        local common = { 3044, 13163, 2643, 883, 5384, 1499, 1130, 3045, 982, 1978, 34120 }
+        for i = 1, #common do
+            if count >= 50 then break end
+            local known = pcall(sb.is_spell_learned, common[i]) and sb.is_spell_learned(common[i]) or false
+            NS.log("  SpellID " .. tostring(common[i]) .. ": " .. tostring(known))
+            count = count + 1
+        end
+    end
+
+    -- Talents (if available)
+    NS.log("--- Talents ---")
+    if type(sb.get_talent_info) == "function" then
+        local ok2, talents = pcall(sb.get_talent_info)
+        if ok2 and type(talents) == "table" then
+            for i = 1, math.min(#talents, 20) do
+                local t = talents[i]
+                if t then
+                    NS.log("  Talent: " .. tostring(t.name or t.id or "?") .. " rank " .. tostring(t.rank or t.currentRank or "?"))
+                end
+            end
+        end
+    else
+        NS.log("  (talent API unavailable)")
+    end
+
+    NS.log("=== END DUMP ===")
+end
+
 return NS
