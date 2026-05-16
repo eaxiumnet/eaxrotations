@@ -1,14 +1,5 @@
--- Readability notes:
---   What: Hunter menu schema.
---   When: main.lua renders class settings.
---   Why: user controls are declarative and easy to audit.
---   Safety: all settings have defaults; missing widgets are handled by main.lua guards.
---   Performance: this file returns static data; widgets are built once by main.lua.
+-- Hunter menu schema.
 
--- Decision notes:
---   Schema files are data-only so menu construction can happen once in main.lua.
---   Defaults stay conservative; unsafe automation should require an explicit user setting.
---   Keys should stay stable because users may have saved profiles using these exact identifiers.
 return {
     {
         name = "General",
@@ -17,6 +8,7 @@ return {
                 header = "Rotation",
                 settings = {
                     { key = "playstyle", type = "dropdown", label = "Playstyle", default = "beast_mastery", options = {
+                            { text = "Leveling", value = "leveling" },
                             { text = "Beast Mastery", value = "beast_mastery" },
                             { text = "Marksmanship", value = "marksmanship" },
                             { text = "Survival", value = "survival" },
@@ -57,11 +49,59 @@ return {
                 },
             },
             {
-                header = "Utility",
+                header = "Pet",
                 settings = {
-                    { key = "use_misdirection", type = "checkbox", label = "Misdirection", default = true },
+                    { key = "auto_mend_pet", type = "checkbox", label = "Mend Pet", default = true },
+                    { key = "mend_pet_hp", type = "slider", label = "Mend Pet HP", min = 0, max = 100, default = 50 },
+                    { key = "auto_revive_pet", type = "checkbox", label = "Revive Pet", default = true },
+                    { key = "auto_call_pet", type = "checkbox", label = "Call Pet", default = true },
+                    { key = "auto_hunters_mark", type = "checkbox", label = "Hunter's Mark", default = true },
+                },
+            },	            {
+	                header = "Cooldowns",
+	                settings = {
+	                    { key = "use_readiness", type = "checkbox", label = "Readiness (reset CDs)", default = true },
+	                },
+	            },
+	            {
+	                header = "Utility",
+	                settings = {
+	                    { key = "use_misdirection", type = "checkbox", label = "Misdirection", default = true },
                     { key = "misdirection_pull_window", type = "slider", label = "Misdirection Window (s)", min = 1, max = 10, default = 6 },
                     { key = "misdirection_on_focus", type = "checkbox", label = "Misdirection on Focus", default = true },
+                },
+            },
+        },
+    },
+    {
+        name = "Leveling",
+        sections = {
+            {
+                header = "Leveling Settings",
+                settings = {
+                    { key = "leveling_wand_threshold", type = "slider", label = "Wand Mana %", min = 0, max = 100, default = 30 },
+                    { key = "leveling_mend_pet_hp", type = "slider", label = "Mend Pet HP %", min = 0, max = 100, default = 50 },
+                },
+            },
+        },
+    },
+    {
+        name = "Consumables",
+        sections = {
+            {
+                header = "Auto Consumables",
+                settings = {
+                    { key = "use_auto_consumables", type = "checkbox", label = "Enable Auto Consumables", default = true },
+                    { key = "use_flasks", type = "checkbox", label = "Use Flasks", default = false },
+                    { key = "use_elixirs", type = "checkbox", label = "Use Elixirs", default = false },
+                    { key = "use_food", type = "checkbox", label = "Use Food", default = false },
+                    { key = "use_combat_potions", type = "checkbox", label = "Combat Potions", default = true },
+                    { key = "use_weapon_buffs", type = "checkbox", label = "Weapon Buffs", default = false },
+                    { key = "use_drums", type = "checkbox", label = "Drums", default = false },
+                    { key = "use_healthstones", type = "checkbox", label = "Healthstones", default = true },
+                    { key = "use_mana_potions", type = "checkbox", label = "Mana Potions", default = true },
+                    { key = "mana_potion_threshold", type = "slider", label = "Mana Potion at %", min = 0, max = 100, default = 40 },
+                    { key = "health_potion_threshold", type = "slider", label = "Health Potion at %", min = 0, max = 100, default = 35 },
                 },
             },
         },

@@ -18,6 +18,26 @@ local HUNTERS_MARK_IDS = { 14325, 14324, 14323, 14322, 1130 }
 local context_allowed = leveling.create_context_guard()
 local leveling_state = {}
 
+-- Safe wrappers for API resilience (pcall protection for tests)
+local function safe_buff_up(unit, ids)
+    if not unit or not NS.buff_up then return false end
+    local ok, result = pcall(NS.buff_up, unit, ids)
+    return ok and result or false
+end
+
+local function safe_spell_ready(spell, target, opts)
+    if not NS.spell_ready then return false end
+    local ok, result = pcall(NS.spell_ready, spell, target, opts)
+    return ok and result or false
+end
+
+local function safe_debuff_remains(unit, ids)
+    if not unit or not NS.debuff_remains then return 0 end
+    local ok, result = pcall(NS.debuff_remains, unit, ids)
+    if ok and type(result) == "number" then return result end
+    return 0
+end
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -28,23 +48,23 @@ local function build_state(context)
     leveling.build_common_state(context, leveling_state)
 
     -- Buffs
-    leveling_state.has_aspect_hawk = context.me and NS.buff_up and NS.buff_up(context.me, ASPECT_HAWK_BUFF) or false
+    leveling_state.has_aspect_hawk = safe_buff_up(context.me, ASPECT_HAWK_BUFF)
 
     -- Settings
     leveling_state.serpent_sting_use = settings.leveling_serpent_sting_use ~= false
     leveling_state.hunters_mark_use = settings.leveling_hunters_mark_use ~= false
 
     -- Spell readiness
-    leveling_state.serpent_sting_ready = NS.spell_ready and NS.spell_ready(SPELLS.SerpentSting, context.target) or false
-    leveling_state.hunters_mark_ready = NS.spell_ready and NS.spell_ready(SPELLS.HuntersMark, context.target) or false
-    leveling_state.arcane_shot_ready = NS.spell_ready and NS.spell_ready(SPELLS.ArcaneShot, context.target) or false
-    leveling_state.steady_shot_ready = NS.spell_ready and NS.spell_ready(SPELLS.SteadyShot, context.target) or false
-    leveling_state.multi_shot_ready = NS.spell_ready and NS.spell_ready(SPELLS.MultiShot, context.target) or false
-    leveling_state.mend_pet_ready = NS.spell_ready and NS.spell_ready(SPELLS.MendPet, nil, { skip_range = true }) or false
-    leveling_state.call_pet_ready = NS.spell_ready and NS.spell_ready(SPELLS.CallPet, nil, { skip_range = true }) or false
-    leveling_state.aspect_hawk_ready = NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheHawk, nil, { skip_range = true }) or false
-    leveling_state.feign_death_ready = NS.spell_ready and NS.spell_ready(SPELLS.FeignDeath, nil, { skip_range = true }) or false
-    leveling_state.freezing_trap_ready = NS.spell_ready and NS.spell_ready(SPELLS.FreezingTrap, context.target) or false
+    leveling_state.serpent_sting_ready = safe_spell_ready(SPELLS.SerpentSting, context.target)
+    leveling_state.hunters_mark_ready = safe_spell_ready(SPELLS.HuntersMark, context.target)
+    leveling_state.arcane_shot_ready = safe_spell_ready(SPELLS.ArcaneShot, context.target)
+    leveling_state.steady_shot_ready = safe_spell_ready(SPELLS.SteadyShot, context.target)
+    leveling_state.multi_shot_ready = safe_spell_ready(SPELLS.MultiShot, context.target)
+    leveling_state.mend_pet_ready = safe_spell_ready(SPELLS.MendPet, nil, { skip_range = true })
+    leveling_state.call_pet_ready = safe_spell_ready(SPELLS.CallPet, nil, { skip_range = true })
+    leveling_state.aspect_hawk_ready = safe_spell_ready(SPELLS.AspectOfTheHawk, nil, { skip_range = true })
+    leveling_state.feign_death_ready = safe_spell_ready(SPELLS.FeignDeath, nil, { skip_range = true })
+    leveling_state.freezing_trap_ready = safe_spell_ready(SPELLS.FreezingTrap, context.target)
 
     -- Pet HP
     if context.pet then
@@ -76,7 +96,7 @@ local function hunters_mark_matches(context, state)
     if not state.hunters_mark_use then return false end
     if state.in_combat then return false end
     -- Don't reapply if already marked
-    local remains = NS.debuff_remains and NS.debuff_remains(state.target, HUNTERS_MARK_IDS) or 0
+    local remains = safe_debuff_remains(state.target, HUNTERS_MARK_IDS)
     if remains > 30 then return false end
     return state.hunters_mark_ready
 end
@@ -113,8 +133,8 @@ local function serpent_sting_matches(context, state)
     if not state.target then return false end
     if not state.serpent_sting_use then return false end
     if not state.in_combat then return false end
-    local remains = NS.debuff_remains and NS.debuff_remains(state.target, SERPENT_STING_IDS) or 0
-    if remains > 4 then return false end
+    local remains = safe_debuff_remains(state.target, SERPENT_STING_IDS)
+    if remains >= 4 then return false end
     return state.serpent_sting_ready
 end
 
@@ -168,17 +188,26 @@ local strategies = {
 
     { name = "HuntersMark",
       matches = hunters_mark_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.HuntersMark, context.target, "[LEVELING] Hunter's Mark") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.HuntersMark, context.target, "[LEVELING] Hunter's Mark") or false
+      end },
 
     -- Pet sustain
     { name = "MendPet",
       matches = mend_pet_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.MendPet, context.pet, "[LEVELING] Mend Pet") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.MendPet, context.pet, "[LEVELING] Mend Pet") or false
+      end },
 
     -- Survival
     { name = "FreezingTrap",
       matches = freezing_trap_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.FreezingTrap, context.target, "[LEVELING] Freezing Trap") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.FreezingTrap, context.target, "[LEVELING] Freezing Trap") or false
+      end },
 
     { name = "FeignDeath",
       matches = feign_death_matches,
@@ -187,19 +216,31 @@ local strategies = {
     -- Damage
     { name = "SerpentSting",
       matches = serpent_sting_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.SerpentSting, context.target, "[LEVELING] Serpent Sting") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.SerpentSting, context.target, "[LEVELING] Serpent Sting") or false
+      end },
 
     { name = "ArcaneShot",
       matches = arcane_shot_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.ArcaneShot, context.target, "[LEVELING] Arcane Shot") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.ArcaneShot, context.target, "[LEVELING] Arcane Shot") or false
+      end },
 
     { name = "MultiShot",
       matches = multi_shot_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.MultiShot, context.target, "[LEVELING] Multi-Shot") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.MultiShot, context.target, "[LEVELING] Multi-Shot") or false
+      end },
 
     { name = "SteadyShot",
       matches = steady_shot_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.SteadyShot, context.target, "[LEVELING] Steady Shot") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.SteadyShot, context.target, "[LEVELING] Steady Shot") or false
+      end },
 }
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
