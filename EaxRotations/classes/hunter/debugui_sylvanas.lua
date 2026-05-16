@@ -1,13 +1,5 @@
--- Readability notes:
---   What: optional Hunter debug facade.
---   When: load_order loads hunter support modules or a user enables verbose tracing.
---   Why: keeps debug logging centralized without depending on UI widgets.
---   Safety: functions are no-ops unless explicitly enabled.
+-- optional Hunter debug facade.
 
--- Decision notes:
---   Playstyle files are ordered priority lists: earlier strategies must be more urgent or more time-sensitive.
---   Matches functions explain when an action is allowed; execute functions only perform the already-gated cast.
---   Role logic follows TBC expectations and avoids post-TBC spells, speculative target swaps, and impossible casts.
 local NS = _G.EaxRotations
 if not NS then return nil end
 

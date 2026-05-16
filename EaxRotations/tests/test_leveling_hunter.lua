@@ -842,6 +842,434 @@ test("rotation: low HP scenario - feign_death should match", function()
 end)
 
 -- ============================================================================
+-- Edge Case: Aspect management — buff states, not ready, boundary
+-- ============================================================================
+
+test("edge_aspect: has buff with ready up should not rematch", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_aspect_hawk = true
+    state.aspect_hawk_ready = true
+    assert_false(strategies[1].matches(ctx, state), "already has aspect hawk should not match even if ready")
+end)
+
+test("edge_aspect: in combat should never apply aspect", function()
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.has_aspect_hawk = false
+    state.aspect_hawk_ready = true
+    assert_false(strategies[1].matches(ctx, state), "in combat should not match aspect hawk")
+end)
+
+test("edge_aspect: not ready does not match", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_aspect_hawk = false
+    state.aspect_hawk_ready = false
+    assert_false(strategies[1].matches(ctx, state), "not ready should not match aspect")
+end)
+
+test("edge_aspect: nil context false", function()
+    assert_false(strategies[1].matches(nil, {}), "nil context returns false")
+end)
+
+test("edge_aspect: nil state false", function()
+    local ctx = make_context()
+    assert_false(strategies[1].matches(ctx, nil), "nil state returns false")
+end)
+
+-- ============================================================================
+-- Edge Case: Pet management — HP boundaries, dead pet, pcall failure
+-- ============================================================================
+
+test("edge_pet: mend_pet HP at exactly 60 boundary (not > 60, so should match)", function()
+    local ctx = make_context()
+    ctx.pet = { get_health_percentage = function() return 60 end }
+    local state = get_state(ctx)
+    state.mend_pet_ready = true
+    state.pet_hp = 60
+    assert_true(strategies[4].matches(ctx, state), "pet HP = 60 should match (not > 60)")
+end)
+
+test("edge_pet: mend_pet HP at 61 just above boundary", function()
+    local ctx = make_context()
+    ctx.pet = { get_health_percentage = function() return 61 end }
+    local state = get_state(ctx)
+    state.mend_pet_ready = true
+    state.pet_hp = 61
+    assert_false(strategies[4].matches(ctx, state), "pet HP = 61 should NOT match (> 60)")
+end)
+
+test("edge_pet: mend_pet HP = 0 (dead pet) should match", function()
+    local ctx = make_context()
+    ctx.pet = { get_health_percentage = function() return 0 end }
+    local state = get_state(ctx)
+    state.mend_pet_ready = true
+    state.pet_hp = 0
+    assert_true(strategies[4].matches(ctx, state), "pet HP = 0 should match (needs mend)")
+end)
+
+test("edge_pet: mend_pet no pet should not match", function()
+    local ctx = make_context({pet = nil})
+    local state = get_state(ctx)
+    state.mend_pet_ready = true
+    state.pet_hp = 100
+    assert_false(strategies[4].matches(ctx, state), "no pet should not match mend_pet")
+end)
+
+test("edge_pet: call_pet already has pet should not match", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.call_pet_ready = true
+    assert_false(strategies[2].matches(ctx, state), "already have pet should not match CallPet")
+end)
+
+test("edge_pet: pet HP pcall failure returns default 100", function()
+    local ctx = make_context()
+    ctx.pet = {}
+    local state = get_state(ctx)
+    assert_eq(state.pet_hp, 100, "pet with no get_health_percentage defaults to 100")
+end)
+
+-- ============================================================================
+-- Edge Case: Debuff refresh boundaries
+-- ============================================================================
+
+test("edge_debuff: serpent_sting remains at exactly 4 boundary should not refresh", function()
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 4 end
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    state.serpent_sting_use = true
+    assert_false(strategies[7].matches(ctx, state), "remains = 4 should NOT match (4 >= 4 means DoT still active)")
+    NS.debuff_remains = saved
+end)
+
+test("edge_debuff: serpent_sting remains at 3 should refresh", function()
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 3 end
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    state.serpent_sting_use = true
+    assert_true(strategies[7].matches(ctx, state), "remains = 3 should match")
+    NS.debuff_remains = saved
+end)
+
+test("edge_debuff: hunters_mark remains at exactly 30 boundary should not reapply", function()
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 30 end
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.hunters_mark_ready = true
+    state.hunters_mark_use = true
+    assert_true(strategies[3].matches(ctx, state), "remains = 30 should match (> 30 is false, so 30 stays)")
+    NS.debuff_remains = saved
+end)
+
+test("edge_debuff: hunters_mark remains at 31 should not reapply", function()
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 31 end
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.hunters_mark_ready = true
+    state.hunters_mark_use = true
+    assert_false(strategies[3].matches(ctx, state), "remains = 31 should NOT match (> 30)")
+    NS.debuff_remains = saved
+end)
+
+-- ============================================================================
+-- Edge Case: Trap / AoE boundaries
+-- ============================================================================
+
+test("edge_aoe: freezing_trap with exactly 2 enemies matches", function()
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.freezing_trap_ready = true
+    state.enemies = 2
+    assert_true(strategies[5].matches(ctx, state), "freezing_trap with 2 enemies should match")
+end)
+
+test("edge_aoe: freezing_trap with exactly 1 enemy does not match", function()
+    local ctx = make_context({enemies_count = 1})
+    local state = get_state(ctx)
+    state.freezing_trap_ready = true
+    state.enemies = 1
+    assert_false(strategies[5].matches(ctx, state), "freezing_trap with 1 enemy should NOT match")
+end)
+
+test("edge_aoe: multi_shot with exactly 2 enemies matches", function()
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.multi_shot_ready = true
+    state.enemies = 2
+    assert_true(strategies[9].matches(ctx, state), "multi_shot with 2 enemies should match")
+end)
+
+test("edge_aoe: multi_shot with 1 enemy does not match", function()
+    local ctx = make_context({enemies_count = 1})
+    local state = get_state(ctx)
+    state.multi_shot_ready = true
+    state.enemies = 1
+    assert_false(strategies[9].matches(ctx, state), "multi_shot with 1 enemy should NOT match")
+end)
+
+-- ============================================================================
+-- Edge Case: Feign Death boundaries
+-- ============================================================================
+
+test("edge_feign: HP exactly at 30 boundary should match", function()
+    local ctx = make_context({hp = 30})
+    local state = get_state(ctx)
+    state.feign_death_ready = true
+    state.hp = 30
+    assert_true(strategies[6].matches(ctx, state), "hp = 30 should match (not > 30)")
+end)
+
+test("edge_feign: HP = 31 just above boundary should not match", function()
+    local ctx = make_context({hp = 31})
+    local state = get_state(ctx)
+    state.feign_death_ready = true
+    state.hp = 31
+    assert_false(strategies[6].matches(ctx, state), "hp = 31 should NOT match (> 30)")
+end)
+
+test("edge_feign: HP = 0 (just barely alive) should match", function()
+    local ctx = make_context({hp = 0})
+    local state = get_state(ctx)
+    state.feign_death_ready = true
+    state.hp = 0
+    assert_true(strategies[6].matches(ctx, state), "hp = 0 should match")
+end)
+
+-- ============================================================================
+-- Edge Case: Movement / Steady Shot
+-- ============================================================================
+
+test("edge_movement: steady_shot while stationary matches", function()
+    local ctx = make_context({is_moving = false})
+    local state = get_state(ctx)
+    state.steady_shot_ready = true
+    state.is_moving = false
+    assert_true(strategies[10].matches(ctx, state), "steady_shot stationary should match")
+end)
+
+test("edge_movement: steady_shot while moving does not match", function()
+    local ctx = make_context({is_moving = true})
+    local state = get_state(ctx)
+    state.steady_shot_ready = true
+    state.is_moving = true
+    assert_false(strategies[10].matches(ctx, state), "steady_shot moving should NOT match")
+end)
+
+test("edge_movement: arcane_shot still works while moving (no movement restriction)", function()
+    local ctx = make_context({is_moving = true})
+    local state = get_state(ctx)
+    state.arcane_shot_ready = true
+    state.is_moving = true
+    assert_true(strategies[8].matches(ctx, state), "arcane_shot works while moving")
+end)
+
+-- ============================================================================
+-- Edge Case: Throwing API resilience — NS.buff_up, NS.debuff_remains, NS.spell_ready
+-- ============================================================================
+
+test("edge_api: NS.buff_up is nil in aspect_hawk build_state", function()
+    local saved = NS.buff_up
+    NS.buff_up = nil
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    assert_false(state.has_aspect_hawk, "nil NS.buff_up should produce false has_aspect_hawk")
+    NS.buff_up = saved
+end)
+
+test("edge_api: NS.buff_up throws in build_state", function()
+    local saved = NS.buff_up
+    NS.buff_up = function() error("simulated throw") end
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    assert_false(state.has_aspect_hawk, "throwing NS.buff_up should produce false has_aspect_hawk")
+    NS.buff_up = saved
+end)
+
+test("edge_api: NS.debuff_remains is nil in serpent_sting_matches", function()
+    local saved = NS.debuff_remains
+    NS.debuff_remains = nil
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    state.serpent_sting_use = true
+    local ok, result = pcall(strategies[7].matches, ctx, state)
+    assert_true(ok, "nil NS.debuff_remains should not throw")
+    NS.debuff_remains = saved
+end)
+
+test("edge_api: NS.debuff_remains throws in serpent_sting_matches", function()
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() error("simulated throw") end
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    state.serpent_sting_use = true
+    local ok, result = pcall(strategies[7].matches, ctx, state)
+    assert_true(ok, "throwing NS.debuff_remains should not crash")
+    NS.debuff_remains = saved
+end)
+
+test("edge_api: NS.debuff_remains nil in hunters_mark_matches", function()
+    local saved = NS.debuff_remains
+    NS.debuff_remains = nil
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.hunters_mark_ready = true
+    state.hunters_mark_use = true
+    local ok, result = pcall(strategies[3].matches, ctx, state)
+    assert_true(ok, "nil NS.debuff_remains in hunters_mark should not throw")
+    NS.debuff_remains = saved
+end)
+
+test("edge_api: NS.spell_ready nil in build_state", function()
+    local saved = NS.spell_ready
+    NS.spell_ready = nil
+    local ctx = make_context()
+    local state = get_state(ctx)
+    assert_false(state.serpent_sting_ready, "nil NS.spell_ready should produce false ready")
+    assert_false(state.arcane_shot_ready, "nil NS.spell_ready should produce false ready")
+    NS.spell_ready = saved
+end)
+
+test("edge_api: NS.spell_ready throws in build_state", function()
+    local saved = NS.spell_ready
+    NS.spell_ready = function() error("simulated throw") end
+    local ctx = make_context()
+    local ok, state = pcall(get_state, ctx)
+    assert_true(ok, "throwing NS.spell_ready should not crash build_state")
+    NS.spell_ready = saved
+end)
+
+test("edge_api: NS.try_cast nil in execute functions", function()
+    local saved = NS.try_cast
+    NS.try_cast = nil
+    local ok, result = pcall(strategies[1].execute)
+    assert_true(ok, "nil NS.try_cast should not crash execute")
+    NS.try_cast = saved
+end)
+
+-- ============================================================================
+-- Edge Case: All-spells-unavailable scenario
+-- ============================================================================
+
+test("edge_all_disabled: all ready fields false, match functions still return false", function()
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.serpent_sting_ready = false
+    state.arcane_shot_ready = false
+    state.steady_shot_ready = false
+    state.multi_shot_ready = false
+    state.freezing_trap_ready = false
+    state.feign_death_ready = false
+    state.mend_pet_ready = false
+    for i = 4, 10 do
+        local ok, matched = pcall(strategies[i].matches, ctx, state)
+        assert_true(ok, "strategy[" .. i .. "] matches should not throw")
+        assert_false(matched, "strategy[" .. i .. "] should not match when not ready")
+    end
+end)
+
+-- ============================================================================
+-- Edge Case: Full rotation crash safety — all values nil/empty
+-- ============================================================================
+
+test("edge_rotation_crash: all match functions return false with nil context and nil state", function()
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.matches, nil, nil)
+        assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") matches(nil, nil) should not throw")
+        assert_false(result, "strategy[" .. i .. "] should return false with nil arguments")
+    end
+end)
+
+test("edge_rotation_crash: all execute functions handle nil context", function()
+    for i, s in ipairs(strategies) do
+        local ok, result = pcall(s.execute, nil)
+        assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") execute(nil) should not throw")
+    end
+end)
+
+-- ============================================================================
+-- Edge Case: Settings toggle edge cases
+-- ============================================================================
+
+test("edge_settings: serpent_sting disabled via settings", function()
+    local ctx = make_context()
+    ctx.settings.leveling_serpent_sting_use = false
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    assert_false(strategies[7].matches(ctx, state), "disabled serpent sting should not match")
+end)
+
+test("edge_settings: hunters_mark disabled via settings", function()
+    local ctx = make_context({in_combat = false})
+    ctx.settings.leveling_hunters_mark_use = false
+    local state = get_state(ctx)
+    state.hunters_mark_ready = true
+    state.hunters_mark_use = false
+    assert_false(strategies[3].matches(ctx, state), "disabled hunters mark should not match")
+end)
+
+test("edge_settings: both serpent_sting and hunters_mark default to true when settings absent", function()
+    local ctx = make_context({settings = {}})
+    local state = get_state(ctx)
+    assert_true(state.serpent_sting_use, "default serpent_sting_use should be true")
+    assert_true(state.hunters_mark_use, "default hunters_mark_use should be true")
+end)
+
+-- ============================================================================
+-- Edge Case: Ranged/melee switching — target distance extremes
+-- ============================================================================
+
+test("edge_range: all damage matches work when target in melee range", function()
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    state.serpent_sting_use = true
+    state.arcane_shot_ready = true
+    state.steady_shot_ready = true
+    state.multi_shot_ready = true
+    state.is_moving = false
+    state.enemies = 1
+    io.stderr:write("DEBUG state.in_combat=" .. tostring(state.in_combat) .. "\\n")
+    io.stderr:write("DEBUG state.target=" .. tostring(state.target) .. "\\n")
+    io.stderr:write("DEBUG state.serpent_sting_use=" .. tostring(state.serpent_sting_use) .. "\\n")
+    io.stderr:write("DEBUG state.serpent_sting_ready=" .. tostring(state.serpent_sting_ready) .. "\\n")
+    io.stderr:write("DEBUG state.hp=" .. tostring(state.hp) .. "\\n")
+    local match_ok, match_r = pcall(strategies[7].matches, ctx, state)
+    io.stderr:write("DEBUG pcall match_ok=" .. tostring(match_ok) .. " match_r=" .. tostring(match_r) .. "\\n")
+    assert_true(match_r, "serpent sting works at melee range")
+    assert_true(strategies[8].matches(ctx, state), "arcane shot works at melee range")
+    assert_true(strategies[10].matches(ctx, state), "steady shot works at melee range")
+end)
+
+test("edge_range: utility matches work when target in melee range", function()
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.freezing_trap_ready = true
+    state.enemies = 2
+    state.feign_death_ready = true
+    state.hp = 20
+    assert_true(strategies[5].matches(ctx, state), "freezing trap works at melee range")
+    assert_true(strategies[6].matches(ctx, state), "feign death works at any range")
+end)
+
+test("edge_range: execute functions do not crash at any target distance", function()
+    local ctx = make_context()
+    for i = 3, 10 do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "strategy[" .. i .. "] execute at range should not throw")
+    end
+end)
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 

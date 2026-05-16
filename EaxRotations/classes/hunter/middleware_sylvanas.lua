@@ -1,17 +1,8 @@
--- Readability notes:
---   What: Hunter shared middleware.
---   When: dispatcher runs it before the selected playstyle.
---   Why: threat tools, Viper Sting, Freezing Trap, and aspect management are centralized
---        instead of duplicated in every spec.
+-- Hunter shared middleware.
 
--- Decision notes:
---   Middleware owns class-wide reactions such as interrupts, defensive checks, utility,
---   and recovery actions.
---   A middleware row should return true only when it actually performs work;
---   otherwise playstyle priorities must continue.
---   Safety gates are repeated here when the action can disrupt combat flow or break CC.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local aspect_manager = require("shared/aspect_manager_sylvanas")
 local SPELLS = NS.HunterSpells or {}
@@ -59,7 +50,7 @@ local strategies = {
             if target_hp < hp_threshold then return false end
 
             -- Check for Viper Sting debuff overlap
-            local VS_DEBUFF_IDS = { 3034, 14276, 14277, 14278, 14279, 25810 }
+            local VS_DEBUFF_IDS = { 27018, 14280, 14279, 3034 }
             for _, id in ipairs(VS_DEBUFF_IDS) do
                 if NS.debuff_up and NS.debuff_up(target, id) then
                     -- Viper Sting already on target, check remaining duration
@@ -118,7 +109,7 @@ local strategies = {
             if enemy_count < 2 then return false end
 
             -- Don't trap if target is already frozen (Freezing Trap debuff = 3355)
-            local FREEZING_TRAP_DEBUFF = { 3355, 22458, 26362 }
+            local FREEZING_TRAP_DEBUFF = { 14309, 14308, 3355 }
             local target = context.target
             if target then
                 for _, id in ipairs(FREEZING_TRAP_DEBUFF) do
@@ -311,6 +302,9 @@ local strategies = {
             return NS.try_cast(SPELLS.HuntersMark, context.target, "[HUNTER] Hunter's Mark")
         end,
     },
+
+    -- Auto-consumable usage
+    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("hunter", strategies)

@@ -1,13 +1,5 @@
--- Readability notes:
---   What: lightweight Hunter shot timing state.
---   When: Hunter rotations ask whether a casted shot should be delayed.
---   Why: Steady Shot should not repeatedly clip Auto Shot when timing data exists.
---   Safety: if swing data is unavailable, the tracker permits casting instead of blocking the rotation.
+-- lightweight Hunter shot timing state.
 
--- Decision notes:
---   Playstyle files are ordered priority lists: earlier strategies must be more urgent or more time-sensitive.
---   Matches functions explain when an action is allowed; execute functions only perform the already-gated cast.
---   Role logic follows TBC expectations and avoids post-TBC spells, speculative target swaps, and impossible casts.
 local NS = _G.EaxRotations
 if not NS then return nil end
 
