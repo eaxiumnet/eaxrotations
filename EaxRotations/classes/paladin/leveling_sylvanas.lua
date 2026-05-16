@@ -22,6 +22,22 @@ local context_allowed = leveling.create_context_guard()
 local leveling_state = {}
 
 -- ============================================================================
+-- Safe API wrappers
+-- ============================================================================
+
+local function spell_is_ready(action, target, opts)
+    if not NS.spell_ready then return false end
+    local ok, ready = pcall(NS.spell_ready, action, target, opts)
+    return ok and ready
+end
+
+local function safe_buff_up(unit, buff_ids)
+    if not unit or not NS.buff_up then return false end
+    local ok, result = pcall(NS.buff_up, unit, buff_ids)
+    return ok and result
+end
+
+-- ============================================================================
 -- State builder
 -- ============================================================================
 
@@ -31,24 +47,24 @@ local function build_state(context)
     leveling.build_common_state(context, leveling_state)
 
     -- Buffs
-    leveling_state.has_blessing_might = context.me and NS.buff_up and NS.buff_up(context.me, BLESSING_MIGHT_BUFF) or false
-    leveling_state.has_devotion_aura = context.me and NS.buff_up and NS.buff_up(context.me, DEVOTION_AURA_BUFF) or false
+    leveling_state.has_blessing_might = safe_buff_up(context.me, BLESSING_MIGHT_BUFF)
+    leveling_state.has_devotion_aura = safe_buff_up(context.me, DEVOTION_AURA_BUFF)
 
     -- Spell readiness
-    leveling_state.blessing_might_ready = NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfMight, nil, { skip_range = true }) or false
-    leveling_state.devotion_aura_ready = NS.spell_ready and NS.spell_ready(SPELLS.DevotionAura, nil, { skip_range = true }) or false
-    leveling_state.seal_righteousness_ready = NS.spell_ready and NS.spell_ready(SPELLS.SealRighteousness, nil, { skip_range = true }) or false
-    leveling_state.seal_command_ready = NS.spell_ready and NS.spell_ready(SPELLS.SealCommand, nil, { skip_range = true }) or false
-    leveling_state.seal_blood_ready = NS.spell_ready and NS.spell_ready(SPELLS.SealBlood, nil, { skip_range = true }) or false
-    leveling_state.judgement_ready = NS.spell_ready and NS.spell_ready(SPELLS.Judgement, context.target) or false
-    leveling_state.consecration_ready = NS.spell_ready and NS.spell_ready(SPELLS.Consecration, context.target) or false
-    leveling_state.hammer_wrath_ready = NS.spell_ready and NS.spell_ready(SPELLS.HammerOfWrath, context.target) or false
-    leveling_state.crusader_strike_ready = NS.spell_ready and NS.spell_ready(SPELLS.CrusaderStrike, context.target) or false
-    leveling_state.hammer_justice_ready = NS.spell_ready and NS.spell_ready(SPELLS.HammerOfJustice, context.target) or false
-    leveling_state.exorcism_ready = NS.spell_ready and NS.spell_ready(SPELLS.Exorcism, context.target) or false
-    leveling_state.divine_shield_ready = NS.spell_ready and NS.spell_ready(SPELLS.DivineShield, nil, { skip_range = true }) or false
-    leveling_state.lay_on_hands_ready = NS.spell_ready and NS.spell_ready(SPELLS.LayOnHands, nil, { skip_range = true }) or false
-    leveling_state.flash_light_ready = NS.spell_ready and NS.spell_ready(SPELLS.FlashOfLight, context.me) or false
+    leveling_state.blessing_might_ready = spell_is_ready(SPELLS.BlessingOfMight, nil, { skip_range = true })
+    leveling_state.devotion_aura_ready = spell_is_ready(SPELLS.DevotionAura, nil, { skip_range = true })
+    leveling_state.seal_righteousness_ready = spell_is_ready(SPELLS.SealRighteousness, nil, { skip_range = true })
+    leveling_state.seal_command_ready = spell_is_ready(SPELLS.SealCommand, nil, { skip_range = true })
+    leveling_state.seal_blood_ready = spell_is_ready(SPELLS.SealBlood, nil, { skip_range = true })
+    leveling_state.judgement_ready = spell_is_ready(SPELLS.Judgement, context.target)
+    leveling_state.consecration_ready = spell_is_ready(SPELLS.Consecration, context.target)
+    leveling_state.hammer_wrath_ready = spell_is_ready(SPELLS.HammerOfWrath, context.target)
+    leveling_state.crusader_strike_ready = spell_is_ready(SPELLS.CrusaderStrike, context.target)
+    leveling_state.hammer_justice_ready = spell_is_ready(SPELLS.HammerOfJustice, context.target)
+    leveling_state.exorcism_ready = spell_is_ready(SPELLS.Exorcism, context.target)
+    leveling_state.divine_shield_ready = spell_is_ready(SPELLS.DivineShield, nil, { skip_range = true })
+    leveling_state.lay_on_hands_ready = spell_is_ready(SPELLS.LayOnHands, nil, { skip_range = true })
+    leveling_state.flash_light_ready = spell_is_ready(SPELLS.FlashOfLight, context.me)
 
     return leveling_state
 end
@@ -181,7 +197,10 @@ local strategies = {
     -- Survival
     { name = "FlashOfLight",
       matches = flash_light_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.FlashOfLight, context.me, "[LEVELING] Flash of Light") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.FlashOfLight, context.me, "[LEVELING] Flash of Light") or false
+      end },
 
     { name = "DivineShield",
       matches = divine_shield_matches,
@@ -189,33 +208,54 @@ local strategies = {
 
     { name = "LayOnHands",
       matches = lay_on_hands_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.LayOnHands, context.me, "[LEVELING] Lay on Hands") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.LayOnHands, context.me, "[LEVELING] Lay on Hands") or false
+      end },
 
     -- CC
     { name = "HammerOfJustice",
       matches = hammer_justice_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.HammerOfJustice, context.target, "[LEVELING] Hammer of Justice") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.HammerOfJustice, context.target, "[LEVELING] Hammer of Justice") or false
+      end },
 
     -- Damage
     { name = "Judgement",
       matches = judgement_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.Judgement, context.target, "[LEVELING] Judgement") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.Judgement, context.target, "[LEVELING] Judgement") or false
+      end },
 
     { name = "HammerOfWrath",
       matches = hammer_wrath_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.HammerOfWrath, context.target, "[LEVELING] Hammer of Wrath") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.HammerOfWrath, context.target, "[LEVELING] Hammer of Wrath") or false
+      end },
 
     { name = "CrusaderStrike",
       matches = crusader_strike_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.CrusaderStrike, context.target, "[LEVELING] Crusader Strike") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.CrusaderStrike, context.target, "[LEVELING] Crusader Strike") or false
+      end },
 
     { name = "Exorcism",
       matches = exorcism_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.Exorcism, context.target, "[LEVELING] Exorcism") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.Exorcism, context.target, "[LEVELING] Exorcism") or false
+      end },
 
     { name = "Consecration",
       matches = consecration_matches,
-      execute = function(context) return NS.try_cast and NS.try_cast(SPELLS.Consecration, context.target, "[LEVELING] Consecration") or false end },
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.Consecration, context.target, "[LEVELING] Consecration") or false
+      end },
 
     -- Seal (lowest priority - always keep up)
     { name = "Seal",
