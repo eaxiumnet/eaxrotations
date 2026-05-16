@@ -119,6 +119,7 @@ local function conflagrate_matches(context, action, state)
 end
 
 local function shadowburn_matches(context, action, state)
+    if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     if not NS.is_execute_phase(context.target_hp, SHADOWBURN_HP_PCT) then return false end
     return NS.action_matches(context, action)
 end
@@ -215,6 +216,7 @@ local function shadow_ward_matches(context, action, state)
 end
 
 local function create_healthstone_matches(context, action, state)
+    if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     if context.in_combat then return false end
     if context.has_valid_enemy_target then return false end
     return NS.action_matches(context, action)
