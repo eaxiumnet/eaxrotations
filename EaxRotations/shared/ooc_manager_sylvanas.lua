@@ -41,6 +41,12 @@ local BUFFS = {
     demon_armor = { n = 8, 27260, 11735, 11734, 11733, 1086, 706, 687, 696 },
 }
 
+-- Combined buff tables for mutually exclusive pairs.
+-- Without these, Fel Armor ↔ Demon Armor (and Water Shield ↔ Lightning Shield)
+-- toggle endlessly because each entry only checks its own buff IDs.
+local ALL_WARLOCK_ARMOR = { n = 10, 28189, 28176, 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
+local ALL_SHAMAN_SHIELDS = { n = 12, 33736, 24398, 23575, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
+
 local DEFAULT_BUFFS_BY_CLASS = {
     [CLASS.WARRIOR] = {
         { key = "battle_shout", label = "Battle Shout", buff = BUFFS.battle_shout, spell = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 } },
@@ -63,22 +69,22 @@ local DEFAULT_BUFFS_BY_CLASS = {
         {
             key = "water_shield",
             label = "Water Shield",
-            buff = BUFFS.water_shield,
+            buff = ALL_SHAMAN_SHIELDS,
             spell = { name = "Water Shield", ids = { 33736, 24398 }, levels = { 66, 60 }, power_type = "none" },
             min_level = 60,
         },
         {
             key = "lightning_shield",
             label = "Lightning Shield",
-            buff = BUFFS.lightning_shield,
+            buff = ALL_SHAMAN_SHIELDS,
             spell = { name = "Lightning Shield", ids = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, levels = { 70, 62, 52, 44, 36, 28, 20, 14, 1 } },
             opt_in = true,
             default_below_level = 60,
         },
     },
     [CLASS.WARLOCK] = {
-        { key = "fel_armor", label = "Fel Armor", buff = BUFFS.fel_armor, spell = { 28189, 28176 } },
-        { key = "demon_armor", label = "Demon Armor", buff = BUFFS.demon_armor, spell = { 27260, 11735, 11734, 11733, 1086, 706, 687 }, fallback = true },
+        { key = "fel_armor", label = "Fel Armor", buff = ALL_WARLOCK_ARMOR, spell = { 28189, 28176 } },
+        { key = "demon_armor", label = "Demon Armor", buff = ALL_WARLOCK_ARMOR, spell = { 27260, 11735, 11734, 11733, 1086, 706, 687 }, fallback = true },
     },
     [CLASS.DRUID] = {
         { key = "mark_of_the_wild", label = "Mark of the Wild", buff = BUFFS.mark_of_the_wild, spell = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 } },

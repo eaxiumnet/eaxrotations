@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **v1.0.23** — Fix Fel Armor ↔ Demon Armor / Water Shield ↔ Lightning Shield mutual exclusion toggle in OOC manager by using combined buff-ID tables so each entry detects the other's buff.
 - Added Wago-backed non-runtime audits for TBC spell/item IDs, archive triage, static behavior risks, and Lua/Markdown-only release contents.
 - Expanded shared TBC ID data with central racials, common CC, Druid utility, and Hunter utility/spell coverage.
 - Moved class-file direct Sylvanas API calls behind shared `NS` helpers for cancel and totem access.
