@@ -32,6 +32,7 @@ local _last_error_time = 0
 local _trace_times = {}
 
 local function trace(key, message, interval_ms)
+    if not NS.get_setting("debug_system", false) then return end
     local now = NS.game_time_ms and NS.game_time_ms() or 0
     local interval = interval_ms or 500
     local last = _trace_times[key] or -100000

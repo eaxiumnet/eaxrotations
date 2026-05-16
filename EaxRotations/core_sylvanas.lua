@@ -136,6 +136,8 @@ function NS.log_warning(msg) emit("log_warning", "[EaxRotations WARNING] ", msg)
 function NS.log_error(msg) emit("log_error", "[EaxRotations ERROR] ", msg) end
 
 local function core_trace(key, msg, interval_ms)
+    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    if not debug then return end
     local now = 0
     if type(core.game_time) == "function" then
         local v = safe(core.game_time)
