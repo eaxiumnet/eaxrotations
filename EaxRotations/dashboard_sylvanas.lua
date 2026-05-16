@@ -1,13 +1,5 @@
--- Readability notes:
---   What: render/menu helper.
---   When: runs from render or menu callbacks.
---   Why: keeps UI separate from combat decisions.
---   Safety: do not cast spells or mutate combat flow from render code.
+-- render/menu helper.
 
--- Decision notes:
---   This support module keeps side effects explicit and routes runtime-sensitive work through NS helpers.
---   Comments emphasize intent and constraints so future edits preserve behavior without adding frame-costly checks.
---   When API data is missing, callers should skip unsafe work rather than guessing.
 -- ============================================================================
 -- EaxRotations Dashboard Module
 -- Combat overlay using core.menu.window API
@@ -397,11 +389,13 @@ local function get_target_info()
     local me = NS.GetPlayer and NS.GetPlayer() or nil
     if target and me then
         if target.get_threat_situation then
-            threat_situation = safe_object_call(target, "get_threat_situation", 0, me) or 0
+            local raw = safe_object_call(target, "get_threat_situation", 0, me)
+            threat_situation = (type(raw) == "number" and raw) or 0
         end
         if target.get_threat_percentage then
-            threat = safe_object_call(target, "get_threat_percentage", 0, me) or 0
-        elseif threat_situation and threat_situation > 0 then
+            local raw_pct = safe_object_call(target, "get_threat_percentage", 0, me)
+            threat = (type(raw_pct) == "number" and raw_pct) or 0
+        elseif type(threat_situation) == "number" and threat_situation > 0 then
             threat = (threat_situation / 3) * 100
         end
     end
@@ -606,7 +600,7 @@ local function calculate_content_height(res, target, cooldowns, buffs, debuffs, 
         if target.ttd > 0 or (target.max_range and target.max_range < 1000) then
             height = height + 12
         end
-        if target.threat and target.threat > 0 then
+        if target.threat and type(target.threat) == "number" and target.threat > 0 then
             height = height + 24
         end
     end
@@ -659,6 +653,7 @@ local function update_dashboard(context)
 
     local function render_bar(width, height, bar_color)
         if width < 1 then width = 1 end
+        bar_color = bar_color or RENDER_COLORS.bar_bg
         local bar_min = vec2.new(0, 0)
         local bar_max_vec = vec2.new(width, height)
         dashboard_window:render_rect_filled(bar_min, bar_max_vec, RENDER_COLORS.bar_bg, 0)
@@ -1004,15 +999,17 @@ local function update_dashboard(context)
 
         -- [#enhancement] Threat Bar: uses threat_situation for coloring, combat-gated
         local in_combat = context and context.in_combat
-        if in_combat and target.threat and target.threat > 0 then
+        if in_combat and target.threat and type(target.threat) == "number" and target.threat > 0 then
             local threat_pct = target.threat
+            threat_pct = (type(threat_pct) == "number" and threat_pct) or 0
             local threat_capped = threat_pct > 130 and 130 or threat_pct
             local threat_bar_width = bar_max * (threat_capped / 130)
 
             local threat_color = RENDER_COLORS.threat_low
-            if target.threat_situation >= 3 then
+            local threat_sit = (type(target.threat_situation) == "number" and target.threat_situation) or 0
+            if threat_sit >= 3 then
                 threat_color = RENDER_COLORS.threat_high
-            elseif target.threat_situation >= 2 then
+            elseif threat_sit >= 2 then
                 threat_color = RENDER_COLORS.threat_medium
             end
 
@@ -1061,7 +1058,14 @@ local function render_dashboard()
         enums.window_enums.window_cross_visuals.BLUE_THEME,
         enums.window_enums.window_behaviour_flags.ALWAYS_AUTO_RESIZE,
         function()
-            update_dashboard(NS.GetCurrentContext and NS.GetCurrentContext() or nil)
+            local ok = pcall(function()
+                update_dashboard(NS.GetCurrentContext and NS.GetCurrentContext() or nil)
+            end)
+            if not ok then
+                -- Dashboard render error suppressed (pcall caught it).
+                -- Core issue: Sylvanas API returns tables for get_threat_situation/get_threat_percentage.
+                -- Fixed on disk (type guards), but if old code loaded, pcall prevents crash flood.
+            end
         end
     )
 end
