@@ -443,7 +443,7 @@ test("mage match: target:get_distance throws error", function()
     state.in_combat = true
     state.target = ctx.target
     -- frost_nova_matches calls target:get_distance with pcall
-    local ok, result = pcall(mage_strategies[6].matches, ctx, state)
+    local ok, result = pcall(mage_strategies[8].matches, ctx, state)
     assert_true(ok, "should not throw")
     assert_false(result, "should return false when get_distance throws")
 end)
@@ -467,7 +467,7 @@ test("mage match: nil context.me in frost_nova (me check)", function()
     state.frost_nova_ready = true
     state.in_combat = true
     state.target = ctx.target
-    local ok, result = pcall(mage_strategies[6].matches, ctx, state)
+    local ok, result = pcall(mage_strategies[8].matches, ctx, state)
     assert_true(ok, "nil context.me should not throw")
     assert_false(result, "should return false without me")
 end)
@@ -479,21 +479,21 @@ test("mage match: mana_pct extremes (0 and 100)", function()
     local state0 = mage_get_state(ctx0)
     state0.wand_threshold = 30
     state0.wand_learned = true
-    assert_true(mage_strategies[13].matches(ctx0, state0), "wand matches at mana_pct 0")
+    assert_true(mage_strategies[15].matches(ctx0, state0), "wand matches at mana_pct 0")
 
     -- Mana 100: wand should not match
     local ctx100 = make_context({mana_pct = 100})
     local state100 = mage_get_state(ctx100)
     state100.wand_threshold = 30
     state100.wand_learned = true
-    assert_false(mage_strategies[13].matches(ctx100, state100), "wand does not match at mana_pct 100")
+    assert_false(mage_strategies[15].matches(ctx100, state100), "wand does not match at mana_pct 100")
 
     -- Mana exactly at threshold: should not match (>=)
     local ctx30 = make_context({mana_pct = 30})
     local state30 = mage_get_state(ctx30)
     state30.wand_threshold = 30
     state30.wand_learned = true
-    assert_false(mage_strategies[13].matches(ctx30, state30), "wand does not match at mana_pct == threshold")
+    assert_false(mage_strategies[15].matches(ctx30, state30), "wand does not match at mana_pct == threshold")
 end)
 
 test("mage match: enemies_count extremes (0, large)", function()
@@ -501,7 +501,7 @@ test("mage match: enemies_count extremes (0, large)", function()
     local ctx0 = make_context({enemies_count = 0})
     local state0 = mage_get_state(ctx0)
     state0.blizzard_ready = true
-    assert_false(mage_strategies[7].matches(ctx0, state0), "blizzard does not match with 0 enemies")
+    assert_false(mage_strategies[8].matches(ctx0, state0), "blizzard does not match with 0 enemies")
 end)
 
 test("mage match: hp extremes (0, 100)", function()
@@ -511,7 +511,7 @@ test("mage match: hp extremes (0, 100)", function()
     state0.mana_shield_ready = true
     state0.hp = 0
     state0.has_mana_shield = false
-    assert_true(mage_strategies[4].matches(ctx0, state0), "mana shield matches at hp 0")
+    assert_true(mage_strategies[5].matches(ctx0, state0), "mana shield matches at hp 0")
 
     -- HP 100: mana shield should not match
     local ctx100 = make_context({hp = 100})
@@ -519,7 +519,7 @@ test("mage match: hp extremes (0, 100)", function()
     state100.mana_shield_ready = true
     state100.hp = 100
     state100.has_mana_shield = false
-    assert_false(mage_strategies[4].matches(ctx100, state100), "mana shield does not match at hp 100")
+    assert_false(mage_strategies[5].matches(ctx100, state100), "mana shield does not match at hp 100")
 end)
 
 -- ============================================================================
@@ -543,12 +543,12 @@ test("mage execute: all strategies handle no args gracefully", function()
 end)
 
 test("mage execute: wand handles nil context.target", function()
-    local ok, result = pcall(mage_strategies[13].execute, {target = nil})
+    local ok, result = pcall(mage_strategies[15].execute, {target = nil})
     assert_true(ok, "execute with nil target should not throw")
 end)
 
 test("mage execute: wand handles nil context entirely", function()
-    local ok, result = pcall(mage_strategies[13].execute, nil)
+    local ok, result = pcall(mage_strategies[15].execute, nil)
     assert_true(ok, "execute with nil context should not throw")
 end)
 
@@ -568,7 +568,7 @@ end)
 test("mage execute: wand works when core.input is nil", function()
     local saved = _G.core.input
     _G.core.input = nil
-    local ok, result = pcall(mage_strategies[13].execute, make_context())
+    local ok, result = pcall(mage_strategies[15].execute, make_context())
     assert_true(ok, "wand execute should not throw when core.input is nil")
     _G.core.input = saved
 end)
@@ -576,7 +576,7 @@ end)
 test("mage execute: frost_nova works when NS.try_cast is nil", function()
     local saved = NS2.try_cast
     NS2.try_cast = nil
-    local ok, result = pcall(mage_strategies[6].execute)
+    local ok, result = pcall(mage_strategies[8].execute)
     assert_true(ok, "frost_nova execute should not throw when NS.try_cast is nil")
     NS2.try_cast = saved
 end)
