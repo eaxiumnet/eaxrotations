@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **v1.0.25** — Add Soul Shard reagent check (`has_item(6265)`) to Shadowburn and CreateHealthstone in destruction rotation.
 - **v1.0.24** — Gate [ROTDBG] and [CASTDBG] debug log spam behind `debug_system` setting; add Soul Shard reagent check to SoulFire in destruction rotation.
 - **v1.0.23** — Fix Fel Armor ↔ Demon Armor / Water Shield ↔ Lightning Shield mutual exclusion toggle in OOC manager by using combined buff-ID tables so each entry detects the other's buff.
 - Added Wago-backed non-runtime audits for TBC spell/item IDs, archive triage, static behavior risks, and Lua/Markdown-only release contents.
