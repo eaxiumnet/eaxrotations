@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **v1.0.28** — Bump all remaining per-cycle `[ROTDBG]` traces in `main_sylvanas.lua` from 500-1000ms to 2000ms: per-strategy `:blocked`, `:match`, `:exec` (was 700-1000ms), plus `target:pick`, `context:summary`, `gate:ooc`, `playstyle:active` (was 500ms). Debug output now ~10-15 lines/2s instead of 50+/frame.
 - **v1.0.27** — Rate-limit `[EaxRotations:main] CALLING on_rotation_update` in `main.lua` to 1 per 2 seconds (was: every frame).
 - **v1.0.26** — Convert 46 per-frame `[DEBUG] blocked:` NS.log messages in `action_matches()` to rate-limited `core_trace()` (2s throttle). Debug log is now readable when enabled.
 - **v1.0.25** — Add Soul Shard reagent check (`has_item(6265)`) to Shadowburn and CreateHealthstone in destruction rotation.

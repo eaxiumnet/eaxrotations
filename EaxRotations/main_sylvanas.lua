@@ -74,7 +74,7 @@ local function find_enemy_target(me, selected)
     local focus = NS.GetFocus and NS.GetFocus() or nil
     local focus_ok = valid_enemy(me, focus)
     trace("target:focus", "[EaxRotations:target] focus=" .. tostring(focus ~= nil) .. " valid=" .. tostring(focus_ok), 2000)
-    trace("target:pick", "target pick selected=" .. tostring(selected ~= nil) .. " selected_ok=" .. tostring(selected_ok) .. " focus=" .. tostring(focus ~= nil) .. " focus_ok=" .. tostring(focus_ok), 500)
+    trace("target:pick", "target pick selected=" .. tostring(selected ~= nil) .. " selected_ok=" .. tostring(selected_ok) .. " focus=" .. tostring(focus ~= nil) .. " focus_ok=" .. tostring(focus_ok), 2000)
     if focus_ok then return focus end
     trace("target:no_valid", "[EaxRotations:target] NO VALID TARGET - selected invalid, focus invalid or missing", 2000)
     return nil  -- Never auto-acquire enemies; only cast on selected or focus target
@@ -259,7 +259,7 @@ local function build_context()
         " moving=" .. tostring(_context.is_moving) ..
         " casting=" .. tostring(_context.is_casting) ..
         " channeling=" .. tostring(_context.is_channeling),
-        500)
+        2000)
     return _context
 end
 
@@ -391,7 +391,7 @@ local function run_list(name, list, options, context)
         trace("list:" .. tostring(name) .. ":missing", "list " .. tostring(name) .. " missing type=" .. type(list), 1000)
         return false
     end
-    trace("list:" .. tostring(name) .. ":start", "list " .. tostring(name) .. " start count=" .. tostring(#list), 500)
+    trace("list:" .. tostring(name) .. ":start", "list " .. tostring(name) .. " start count=" .. tostring(#list), 2000)
     local state = context
     if options and options.get_state then
         state = safe(options.get_state, context) or context
@@ -407,16 +407,16 @@ local function run_list(name, list, options, context)
             local sname = tostring(strategy.name or i)
             local allowed, allow_reason, category = strategy_allowed(strategy, name, context.active_playstyle, context)
             if not allowed then
-                trace("strategy:" .. tostring(name) .. ":" .. sname .. ":blocked", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " blocked category=" .. tostring(category) .. " reason=" .. tostring(allow_reason), 1000)
+                trace("strategy:" .. tostring(name) .. ":" .. sname .. ":blocked", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " blocked category=" .. tostring(category) .. " reason=" .. tostring(allow_reason), 2000)
             elseif type(strategy.execute) ~= "function" then
                 NS.log_warning(name .. " strategy " .. tostring(strategy.name or i) .. " missing execute")
             else
                 local ok = true
                 if type(strategy.matches) == "function" then ok = safe(strategy.matches, context, state) == true end
-                trace("strategy:" .. tostring(name) .. ":" .. sname .. ":match", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " category=" .. tostring(category) .. " match=" .. tostring(ok), 700)
+                trace("strategy:" .. tostring(name) .. ":" .. sname .. ":match", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " category=" .. tostring(category) .. " match=" .. tostring(ok), 2000)
                 if ok then
                     local executed = safe(strategy.execute, context, state) == true
-                    trace("strategy:" .. tostring(name) .. ":" .. sname .. ":exec", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " execute=" .. tostring(executed), 700)
+                    trace("strategy:" .. tostring(name) .. ":" .. sname .. ":exec", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " execute=" .. tostring(executed), 2000)
                     if executed then
                         trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":fired", "[EaxRotations:strategy] FIRED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
                         return true
@@ -429,7 +429,7 @@ local function run_list(name, list, options, context)
             trace("strategy:" .. tostring(name) .. ":" .. tostring(i) .. ":bad", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] invalid type=" .. type(strategy), 1000)
         end
     end
-    trace("list:" .. tostring(name) .. ":none", "list " .. tostring(name) .. " finished without action", 700)
+    trace("list:" .. tostring(name) .. ":none", "list " .. tostring(name) .. " finished without action", 2000)
     trace("strategy:" .. tostring(name) .. ":no_fires", "[EaxRotations:strategy] " .. tostring(name) .. " list finished - NO strategies fired (checked " .. tostring(#list) .. " entries)", 2000)
     return false
 end
@@ -446,7 +446,7 @@ function M.on_rotation_update()
         trace("gate:blocked", "[EaxRotations:gate] BLOCKED: not in_combat AND no valid enemy target. combat_state_known=" .. tostring(context.combat_state_known) .. " has_target=" .. tostring(context.has_target), 2000)
         -- Only run OOC manager when there's no valid enemy target (even if combat_state_known is false)
         trace("gate:ooc_path", "[EaxRotations:gate] EXIT: OOC path - in_combat=false, has_enemy=false, trying ooc_manager=" .. tostring(ooc_manager ~= nil), 2000)
-        trace("gate:ooc", "gate OOC: in_combat=false has_enemy=false ooc_manager=" .. tostring(ooc_manager ~= nil), 500)
+        trace("gate:ooc", "gate OOC: in_combat=false has_enemy=false ooc_manager=" .. tostring(ooc_manager ~= nil), 2000)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             trace("gate:ooc_fired", "[EaxRotations:gate] OOC manager fired successfully", 2000)
             trace("gate:ooc_fired", "OOC manager executed", 500)
@@ -471,16 +471,16 @@ function M.on_rotation_update()
         NS.set_setting("active_playstyle", active)
     end
     context.active_playstyle = active
-    trace("playstyle:active", "playstyle requested=" .. tostring(requested_playstyle) .. " source=" .. tostring(active_source) .. " active=" .. tostring(active), 500)
+    trace("playstyle:active", "playstyle requested=" .. tostring(requested_playstyle) .. " source=" .. tostring(active_source) .. " active=" .. tostring(active), 2000)
     local class_key = config and config.class_key
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
-        trace("update:middleware_fired", "on_rotation_update fired middleware class_key=" .. tostring(class_key), 500)
+        trace("update:middleware_fired", "on_rotation_update fired middleware class_key=" .. tostring(class_key), 2000)
         trace("update:middleware_fired", "[EaxRotations:update] MIDDLEWARE FIRED - BLOCKING playstyle rotation. class_key=" .. tostring(class_key) .. " active=" .. tostring(active), 2000)
         return true
     end
     trace("update:running_playstyle", "[EaxRotations:update] running playstyle=" .. tostring(active) .. " list_count=" .. tostring(registry and registry.playstyles and registry.playstyles[active] and #registry.playstyles[active] or 0) .. " options=" .. tostring(registry and registry.options and registry.options[active] ~= nil), 2000)
     local fired = run_list(tostring(active), registry and registry.playstyles[active], registry and registry.options[active], context)
-    trace("update:done", "on_rotation_update finished active=" .. tostring(active) .. " fired=" .. tostring(fired), 500)
+    trace("update:done", "on_rotation_update finished active=" .. tostring(active) .. " fired=" .. tostring(fired), 2000)
     if fired then
         trace("update:playstyle_fired", "[EaxRotations:update] playstyle=" .. tostring(active) .. " FIRED a strategy", 2000)
     else
