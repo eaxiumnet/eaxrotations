@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **v1.0.27** — Rate-limit `[EaxRotations:main] CALLING on_rotation_update` in `main.lua` to 1 per 2 seconds (was: every frame).
 - **v1.0.26** — Convert 46 per-frame `[DEBUG] blocked:` NS.log messages in `action_matches()` to rate-limited `core_trace()` (2s throttle). Debug log is now readable when enabled.
 - **v1.0.25** — Add Soul Shard reagent check (`has_item(6265)`) to Shadowburn and CreateHealthstone in destruction rotation.
 - **v1.0.24** — Gate [ROTDBG] and [CASTDBG] debug log spam behind `debug_system` setting; add Soul Shard reagent check to SoulFire in destruction rotation.
