@@ -815,7 +815,13 @@ local function on_update()
         core.log("[EaxRotations:main] ALL-GUARDS-PASSED: reached dispatcher block")
     end
     if framework_main and framework_main.on_rotation_update then
-        if debug_mode then core.log("[EaxRotations:main] CALLING on_rotation_update") end
+        if debug_mode then
+            local _now_ms = core.game_time() or 0
+            if not _last_calling_log_time or (_now_ms - _last_calling_log_time) > 2000 then
+                _last_calling_log_time = _now_ms
+                core.log("[EaxRotations:main] CALLING on_rotation_update")
+            end
+        end
         local success, err = pcall(framework_main.on_rotation_update)
         if not success then
             core.log_error("[EaxRotations] Rotation error: " .. tostring(err))
