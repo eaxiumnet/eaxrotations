@@ -2,8 +2,8 @@
 
 **Repo**: https://github.com/eaxiumnet/eax-tbc-classic-rotations  
 **Local Path**: `C:\newbot\scripts`  
-**Last Updated**: 2026-04-09  
-**Specs**: 29 TBC Classic class specializations  
+**Last Updated**: 2026-05-21  
+**Specs**: 29 TBC Classic class specializations (all 29 completed)  
 **Pattern Compliance**: 99% menu guards, 95% API caching, 100% banned API compliance
 
 ---
@@ -903,6 +903,215 @@ core.register_on_render_menu_callback(menu.on_menu_render)
 init()
 ```
 
+### Pattern 11: Aura Points — buff_points / debuff_points
+
+**Purpose**: Read variable values (`points`) from aura data — e.g., absorb remaining on shields, Holy Shield charges, or any buff/debuff with numeric state beyond stacks.
+
+**API (core_sylvanas.lua, lines ~3130-3170)**:
+```lua
+--- Returns the points array from buff aura data.
+--- Useful for variable-value buffs like absorb shields.
+---@param unit game_object The unit to check.
+---@param ids table Array of spell IDs (highest rank first).
+---@return number[]|nil points The points array from active buff data, or nil.
+function NS.buff_points(unit, ids)
+    if not unit then return nil end
+    local data = aura_data(unit, ids, "buff")
+    if not data then return nil end
+    local points = data.points
+    if type(points) == "table" then return points end
+    return nil
+end
+
+--- Returns the points array from debuff aura data.
+---@param unit game_object The unit to check.
+---@param ids table Array of spell IDs.
+---@return number[]|nil points The points array from active debuff data, or nil.
+function NS.debuff_points(unit, ids)
+    if not unit then return nil end
+    local data = aura_data(unit, ids, "debuff")
+    if not data then return nil end
+    local points = data.points
+    if type(points) == "table" then return points end
+    return nil
+end
+```
+
+**Example — Holy Shield charges (protection_sylvanas.lua)**:
+```lua
+local HOLY_SHIELD_BUFF = { 27179, 27178, 27177, 20925 }
+
+-- In build_state():
+prot_state.holy_shield_charges = 0
+if prot_state.has_holy_shield and type(NS.buff_points) == "function" then
+    local pts = NS.buff_points(me, HOLY_SHIELD_BUFF)
+    prot_state.holy_shield_charges = (pts and pts[1]) or 0
+end
+
+-- In strategy matches (skip refresh if charges remain):
+local charges = state.holy_shield_charges or 0
+if charges > 2 then return false end  -- Still has meaningful charges
+```
+
+**Notes**:
+- `points` is an array of numbers — `points[1]` is typically the primary variable value
+- Always nil-guard the result: `(pts and pts[1]) or 0`
+- Falls through to nil if no matching aura found
+- Distinct from `get_buff_stacks()` — stacks are integer counts, points are arbitrary numeric values
+- Used by: protection_sylvanas.lua (Holy Shield), healing_sylvanas.lua (PW:S absorb)
+
+### Pattern 12: PW:S Absorb Tracking (healing + discipline)
+
+**Purpose**: Prevent overwriting a healthy Power Word: Shield by tracking the remaining absorb value via `NS.buff_points`.
+
+**Helper — healing_sylvanas.lua**:
+```lua
+local POWER_WORD_SHIELD_BUFF_IDS = { 25348, 25347, 25346, 25345, 25344,
+                                      25343, 25342, 25341, 25340, 25339,
+                                      25338, 25337, 25336, 25335, 25334, 25333 }
+
+local function pws_absorb_remaining(unit)
+    if not unit then return 0 end
+    if type(NS.buff_points) ~= "function" then
+        -- Fallback: buff_points not yet available (core loaded after this module)
+        -- has_pws(unit) checks NS.buff_up on POWER_WORD_SHIELD_BUFF_IDS (local helper)
+        return has_pws(unit) and 1 or 0
+    end
+    local points = NS.buff_points(unit, POWER_WORD_SHIELD_BUFF_IDS)
+    if not points then return 0 end
+    return points[1] or 0
+end
+
+-- Export for cross-spec use
+NS.PriestHealing.pws_absorb_remaining = pws_absorb_remaining
+```
+
+**Consumer — discipline_sylvanas.lua (emergency_pws_matches)**:
+```lua
+-- Import healing module
+local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
+
+local function emergency_pws_matches(context, s)
+    if not s.lowest then return false end
+    if (s.lowest.effective_hp or 100) > (context.settings.discipline_pws_hp or 35) then return false end
+    if s.lowest.has_weakened_soul then return false end
+    if not s.pws_ready then return false end
+    -- Respect existing absorb: don't overwrite a healthy PW:S shield
+    if Healing.pws_absorb_remaining then
+        local absorb = Healing.pws_absorb_remaining(s.lowest.unit)
+        -- Threshold 200 (~16% of a fresh ~1265 absorb): shield is nearly depleted
+        if absorb > 200 then return false end
+    end
+    return NS.action_matches(context, EMERGENCY_PWS_ACTION)
+end
+```
+
+**Design rationale**:
+- **200 threshold**: TBC PW:S (rank 12, spell ID 25348) absorbs ~1265 base; with +healing bonus, a fresh shield is 1500-2000. At 200 remaining, the shield is nearly depleted (10-16%) and safe to refresh.
+- **Nil-guard on `Healing.pws_absorb_remaining`**: If the healing module hasn't loaded (rare, core-load-order edge case), the absorb check is skipped and PW:S proceeds as before — no regression.
+- **Fallback in pws_absorb_remaining**: If `NS.buff_points` isn't available, returns `has_pws(unit) and 1 or 0`. Since 1 ≤ 200, PW:S would still cast, matching old behavior.
+
+### Pattern 13: Smart Innervate Targeting (balance + resto)
+
+**Purpose**: Prefer low-mana healer-class party members over self for Innervate, falling back to self when no healer needs it. Ported from Resto spec to Balance spec.
+
+**Shared constant — HEALER_CLASS_IDS**:
+```lua
+-- Healer class IDs for Innervate priority: Paladin(2), Priest(5), Shaman(7), Druid(11)
+-- Present in both balance_sylvanas.lua and resto_sylvanas.lua
+local HEALER_CLASS_IDS = { [2] = true, [5] = true, [7] = true, [11] = true }
+```
+
+**State field**:
+```lua
+local balance_state = {
+    -- ... other fields ...
+    innervate_target = nil,  -- game_object: best Innervate target (healer or self)
+}
+```
+
+**Party scan in build_state()** (balance_sylvanas.lua):
+```lua
+-- Smart Innervate target: prefer low-mana healers, fall back to self
+local healer_mana_floor = (context.settings and context.settings.balance_innervate_mana) or 30
+if context.in_combat and context.is_group and context.me and NS.GetPartyMembers then
+    local party = NS.GetPartyMembers()
+    if party and type(party) == "table" then
+        for _, u in ipairs(party) do
+            if u then
+                local is_self = NS.same_unit and NS.same_unit(u, context.me)
+                if not is_self then
+                    -- pcall-safe class check
+                    local class_id = nil
+                    if NS.safe_field then
+                        local getter = NS.safe_field(u, "get_class")
+                        if getter then
+                            local ok, val = pcall(getter, u)
+                            if ok and type(val) == "number" then class_id = val end
+                        end
+                    end
+                    if class_id and HEALER_CLASS_IDS[class_id] then
+                        local mana = NS.mana_pct(u)
+                        if mana <= (healer_mana_floor + 5) then
+                            balance_state.innervate_target = u
+                            break  -- First low-mana healer wins
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+-- Fallback: cast on self if own mana is low
+if not balance_state.innervate_target then
+    if (balance_state.mana_pct or 100) <= healer_mana_floor then
+        balance_state.innervate_target = context.me
+    end
+end
+```
+
+**Split strategy — InnervateHealer + InnervateSelf**:
+```lua
+-- Strategy: InnervateHealer (prefer healer)
+{
+    name = "InnervateHealer",
+    matches = function(context, state)
+        if not context.in_combat then return false end
+        if not state.innervate_target then return false end
+        -- Only match if target is NOT self (healer found)
+        if context.me and NS.same_unit and NS.same_unit(state.innervate_target, context.me) then
+            return false
+        end
+        return NS.spell_ready(LOCAL_SPELLS.Innervate, state.innervate_target)
+    end,
+    execute = function(_, state)
+        return NS.try_cast(LOCAL_SPELLS.Innervate, state.innervate_target, "[BALANCE] Innervate → healer")
+    end,
+},
+-- Strategy: InnervateSelf (fallback)
+{
+    name = "InnervateSelf",
+    matches = function(context, state)
+        if not context.in_combat then return false end
+        if not state.innervate_target then return false end
+        -- Only match if target IS self
+        if not context.me or not NS.same_unit or not NS.same_unit(state.innervate_target, context.me) then
+            return false
+        end
+        return NS.spell_ready(LOCAL_SPELLS.Innervate, context.me)
+    end,
+    execute = function(context)
+        return NS.try_cast(LOCAL_SPELLS.Innervate, context.me, "[BALANCE] Innervate self")
+    end,
+},
+```
+
+**Performance notes**:
+- Party scan runs every tick in `build_state()`, but is gated behind `context.in_combat` and `context.is_group` — zero overhead in solo play
+- Uses `break` after finding first matching healer ("first low-mana healer wins") — no full party iteration when target found early
+- pcall-guarded `unit:get_class()` prevents crashes on invalid unit objects
+- `NS.mana_pct()` nil-safe (returns nil for invalid units, handled by `<=` returning false)
+
 ---
 
 ## Menu Item Reference
@@ -1005,6 +1214,9 @@ menu.auto_trinkets                -- Auto-use trinkets
 | Squared distance | 80% | Hunter archive files | Legacy code only |
 | Static table reuse | 100% | None | Perfect compliance |
 | Buff/debuff checks | 100% | None | Widely used |
+| Aura points (buff_points) | 100% | None | 3 specs (protection, healing, discipline) |
+| PW:S absorb tracking | 100% | None | healing + discipline cross-spec |
+| Smart Innervate targeting | 100% | None | balance + resto (healer-class party scan) |
 | Banned APIs | 100% | None | Perfect compliance |
 | No TOC files | 100% | None | Perfect compliance |
 
@@ -1021,6 +1233,11 @@ menu.auto_trinkets                -- Auto-use trinkets
 | `EAX<Class><Spec>/libraries/spell_resolver.lua` | Spell ID resolution | 50-100 |
 | `EAX<Class><Spec>/libraries/combat_context.lua` | Throttled context builder | 100-200 |
 | `EAX<Class><Spec>/libraries/middleware_manager.lua` | Middleware integration | 100-200 |
+| `EaxRotations/core_sylvanas.lua` | Core NS helpers (buff_points, debuff_points, etc.) | 5000+ |
+| `EaxRotations/classes/priest/healing_sylvanas.lua` | Priest healing helpers (pws_absorb_remaining, etc.) | 100+ |
+| `EaxRotations/classes/priest/discipline_sylvanas.lua` | Priest Discipline spec (absorbs, PW:S) | 500+ |
+| `EaxRotations/classes/druid/balance_sylvanas.lua` | Druid Balance spec (Innervate targeting, SP breakpoints) | 300+ |
+| `EaxRotations/classes/paladin/protection_sylvanas.lua` | Paladin Protection spec (Holy Shield charges) | 200+ |
 | `api/core.lua` | Core Sylvanas API | 4374 |
 | `api/common/izi_sdk.lua` | High-level SDK | 1681 |
 | `api/common/modules/spell_queue.lua` | Spell queueing | 200+ |
