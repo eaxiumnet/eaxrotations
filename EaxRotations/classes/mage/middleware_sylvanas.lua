@@ -1,20 +1,13 @@
--- Readability notes:
---   What: Mage shared middleware.
---   When: dispatcher runs it before the selected playstyle.
---   Why: threat tools are centralized instead of duplicated in every spec.
---   Safety: threat drops require group combat and an ally within 40 yards; never solo.
+-- Mage shared middleware.
 
--- Decision notes:
---   Middleware owns class-wide reactions such as interrupts, defensive checks, utility, and recovery actions.
---   A middleware row should return true only when it actually performs work; otherwise playstyle priorities must continue.
---   Safety gates are repeated here when the action can disrupt combat flow or break crowd control.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local SPELLS = NS.MageSpells or {}
 local MAGE_ARMOR_BUFFS = { 27125, 22783, 22782, 6117 }
 local MOLTEN_ARMOR_BUFFS = { 30482 }
-local ARCANE_INTELLECT_BUFFS = { 27126, 10157, 10156, 1461, 1460, 1459 }
+local ARCANE_INTELLECT_BUFFS = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
 
 local function player_unit(context)
     return context.me or NS.GetPlayer()
@@ -166,15 +159,12 @@ local strategies = {
         execute = function(context)
             -- Try Mana Emerald first, then Ruby, then Citrine
             local me = context.me or NS.GetPlayer()
+            local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
             local function try_item(item_id, label)
                 if NS.is_item_ready and NS.is_item_ready(item_id) then
-                    local item_use = core.input and core.input.use_item_by_id
-                    if item_use then
-                        local ok = pcall(item_use, item_id, me)
-                        if ok then
-                            NS.log("[MAGE] " .. label .. " - Mana: " .. tostring(math.floor(context.mana_pct or 0)) .. "%")
-                            return true
-                        end
+                    if NS.use_item_by_id and NS.use_item_by_id(item_id, me) then
+                        if debug then NS.log("[MAGE] " .. label .. " - Mana: " .. tostring(math.floor(context.mana_pct or 0)) .. "%") end
+                        return true
                     end
                 end
                 return false
@@ -198,7 +188,7 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             -- Check self for curse debuff
-            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23464, 23463, 23230, 23229, 23270, 23364, 23363, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 17406, 1499, 1500, 1513, 1514, 1515 }
+            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23230, 23229, 23364, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 1499, 1513, 1515 }
             if NS.debuff_up(me, curse_debuffs) then return true end
             -- Scan party members for curse
             local GetNumGroupMembers = _G.GetNumGroupMembers
@@ -212,7 +202,7 @@ local strategies = {
         execute = function(context)
             local me = context.me or NS.GetPlayer()
             -- Determine target: self has curse? use self. else find party member with curse.
-            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23464, 23463, 23230, 23229, 23270, 23364, 23363, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 17406, 1499, 1500, 1513, 1514, 1515 }
+            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23230, 23229, 23364, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 1499, 1513, 1515 }
             local target = nil
             if NS.debuff_up(me, curse_debuffs) then
                 target = me
@@ -235,6 +225,9 @@ local strategies = {
             return false
         end,
     },
+
+    -- Auto-consumable usage
+    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("mage", strategies)

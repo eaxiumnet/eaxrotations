@@ -1,30 +1,9 @@
 -- ============================================================================
 -- Shared Helper: Find Dead Party Ally
 -- ============================================================================
--- Readability notes:
---   What: pure helper for locating a dead party ally.
---   When: resurrection or recovery logic needs a safe target.
---   Why: party scanning is shared and easier to verify outside live combat.
---   Safety: dependencies are injected and missing unit data returns nil.
 -- Pure function extracted from core_sylvanas.lua for reuse in tests.
 -- All NS/api/ dependencies are injected via the deps table for testability.
 --
--- Usage (production):
---   local scan = require("shared/find_dead_party_ally_sylvanas")
---   local dead_ally = scan.find_dead_party_ally({
---     get_player = NS.GetPlayer,
---     collect_healing_units = NS.collect_healing_units,
---   })
---
--- Usage (test — dofile pattern):
---   dofile("EaxRotations/shared/find_dead_party_ally_sylvanas.lua")
---   local find = _G.FindDeadPartyAlly.find_dead_party_ally
--- ============================================================================
-
--- Decision notes:
---   Shared helpers stay pure or dependency-injected where practical so class files can reuse them safely.
---   Inputs are plain tables/numbers instead of live game objects unless a caller explicitly passes adapters.
---   Keeping this logic outside playstyles makes edge cases testable without a Sylvanas runtime.
 local ipairs = ipairs
 local M = {}
 

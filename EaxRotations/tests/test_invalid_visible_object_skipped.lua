@@ -1,13 +1,5 @@
--- Readability notes:
---   What: regression test for stale game objects in the visible object list.
---   When: object_manager returns an object that throws on method-field access.
---   Why: one invalid object must not abort the rotation before a valid target can cast.
---   Safety: uses local stubs only.
+-- regression test for stale game objects in the visible object list.
 
--- Decision notes:
---   Tests use local stubs instead of a live Sylvanas client so API-bound behavior remains reproducible.
---   Each case protects one previous failure mode or role rule; keep assertions narrow and descriptive.
---   No test should call real input/cast APIs because regression runs must be safe outside the game.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local casts = {}

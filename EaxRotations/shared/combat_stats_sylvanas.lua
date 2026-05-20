@@ -1,17 +1,9 @@
 -- ============================================================================
 -- Shared Helper: Combat Statistics Tracker
 -- ============================================================================
--- Readability notes:
---   What: tracks combat quality metrics: APM, downtime, DoT uptime, cooldown usage.
---   When: post-combat analysis and real-time quality feedback.
---   Why: helps players improve rotation efficiency.
---   Safety: throttled updates, no per-frame allocations.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
 
 -- Session data
 local session_data = {

@@ -1,17 +1,12 @@
 -- ============================================================================
 -- Shared Helper: Enemy Cooldown Tracker
 -- ============================================================================
--- Readability notes:
---   What: tracks enemy major cooldowns from observed spell casts for TBC Arena.
---   When: PvP situations where knowing enemy defensive/offensive availability matters.
---   Why: enables smarter burst windows, CC chains, and defensive reactions.
---   Safety: uses spell cast callbacks, GUID validation, expiry cleanup.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
 
 local EMPTY = {}
+local initialized = false
 
 local function now()
     return NS and NS.time_now and NS.time_now() or 0
@@ -343,6 +338,8 @@ end
 -- Initialize: register spell cast callback
 function M.init()
     if not NS then return end
+    if initialized then return end
+    initialized = true
     
     -- Register on spell cast callback
     -- Signature: function(spell_id, target, data)

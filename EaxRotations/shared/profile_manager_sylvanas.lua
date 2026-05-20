@@ -1,17 +1,9 @@
 -- ============================================================================
 -- Shared Helper: Profile Manager
 -- ============================================================================
--- Readability notes:
---   What: save/load multiple setting profiles per character.
---   When: user wants to switch between different rotation configurations.
---   Why: enables quick switching between PvE/PvP/Leveling profiles.
---   Safety: no combat profile switching, file I/O via NS wrappers only.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
 
 local PROFILES_FILE = "eaxrotations/profiles.json"
 

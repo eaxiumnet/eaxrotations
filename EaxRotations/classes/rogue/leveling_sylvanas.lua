@@ -8,10 +8,6 @@ if not NS then return nil end
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 
--- ============================================================================
--- API caching
--- ============================================================================
-local _core_time = core.time
 local _format = string.format
 
 -- ============================================================================

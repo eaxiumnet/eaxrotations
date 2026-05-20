@@ -1,14 +1,3 @@
--- Readability notes:
---   What: render/menu helper.
---   When: runs from render or menu callbacks.
---   Why: keeps UI separate from combat decisions.
---   Safety: do not cast spells or mutate combat flow from render code.
---   Performance: ProfileUI rows are built once from schema data instead of rebuilt per frame.
-
--- Decision notes:
---   This support module keeps side effects explicit and routes runtime-sensitive work through NS helpers.
---   Comments emphasize intent and constraints so future edits preserve behavior without adding frame-costly checks.
---   When API data is missing, callers should skip unsafe work rather than guessing.
 -- EaxRotations Sylvanas ProfileUI builder.
 -- Converts the class schema table into the profile UI format consumed by the menu.
 

@@ -2368,6 +2368,75 @@ local function cast_position_spell(id, position, label, reason)
     return true
 
 end
+-- ============================================================================
+-- Central Cast Guard -- consolidate all pre-cast checks
+-- ============================================================================
+
+--- Validates that a spell can be cast by running ALL pre-cast guards.
+--- Returns true if all checks pass.
+--- Replaces inline anti-flicker, min_interval, and reagent checks scattered
+--- across try_cast / action_execute / spell_ready.
+---@param spell number|table The spell ID or izi spell object.
+---@param unit game_object|nil The target unit.
+---@param reason string|nil Human-readable reason for logging.
+---@param opts table|nil Options table (skip_range, skip_gcd, expected_cooldown, min_interval).
+---@return boolean ok True if all guards pass.
+function NS.evaluate_cast(spell, unit, reason, opts)
+    opts = opts or EMPTY
+    local id = NS.get_spell_id(spell)
+    if not id then
+        core_trace("eval:nil_id", "evaluate_cast failed: no spell id", 700)
+        return false
+    end
+    local label = spell_label(spell, id)
+    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    local target = unit or NS.GetPlayer()
+
+    -- 1. Standard spell readiness (exists + GCD + cooldown + resource + range)
+    if not NS.spell_ready(spell, target, opts) then
+        core_trace("eval:" .. tostring(id) .. ":not_ready", "evaluate_cast " .. label .. " blocked: spell_ready=false", 300)
+        if debug then
+            core_trace("eval:" .. tostring(id) .. ":failed_ready", "[EaxRotations:evaluate_cast] " .. label .. " blocked: spell_ready=false", 2000)
+        end
+        return false
+    end
+
+    -- 2. Anti-flicker: skip if same spell was cast within 0.3s
+    if _last_cast_id == id then
+        local elapsed = NS.time_now() - _last_cast_time
+        if elapsed < 0.3 then
+            core_trace("eval:" .. tostring(id) .. ":sticky", "evaluate_cast " .. label .. " blocked: anti_flicker elapsed=" .. tostring(elapsed), 200)
+            return false
+        end
+    end
+
+    -- 3. Min interval check
+    local min_interval = opts.min_interval
+    if type(min_interval) == "number" and min_interval > 0 then
+        local last_cast = _last_spell_cast[id]
+        local elapsed = last_cast and (NS.time_now() - last_cast) or nil
+        if elapsed and elapsed < min_interval then
+            core_trace("eval:" .. tostring(id) .. ":min_interval", "evaluate_cast " .. label .. " blocked: min_interval=" .. tostring(min_interval) .. " elapsed=" .. tostring(elapsed), 500)
+            return false
+        end
+    end
+
+    -- 4. Reagent guard
+    -- Lazily loaded on demand; no hard-dependency on the module.
+    local reagent_ok, reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
+    if reagent_ok and reagent_guard and reagent_guard.check_reagent then
+        if not reagent_guard.check_reagent(id) then
+            if debug then
+                core.log("[EaxRotations:evaluate_cast] " .. label .. " blocked: missing reagent (spell_id=" .. tostring(id) .. ")")
+            end
+            core_trace("eval:" .. tostring(id) .. ":reagent", "evaluate_cast " .. label .. " blocked: missing reagent", 500)
+            return false
+        end
+    end
+
+    return true
+end
+
 
 
 
@@ -2409,45 +2478,9 @@ function NS.try_cast(spell, unit, reason, opts)
 
     if debug then core_trace("try:" .. tostring(id) .. ":attempt", "[EaxRotations:try_cast] ATTEMPT id=" .. tostring(id) .. " label=" .. label .. " has_target=" .. tostring(target ~= nil), 2000) end
 
-    -- Sticky spell anti-flicker: skip if same spell was cast within 0.3s
+    -- Central cast guard: runs spell_ready, anti-flicker, min_interval, reagent
 
-    if _last_cast_id == id then
-
-        local elapsed = NS.time_now() - _last_cast_time
-
-        if elapsed < 0.3 then
-
-            core_trace("try:" .. tostring(id) .. ":sticky", "try_cast " .. tostring(label) .. " blocked: same_spell_anti_flicker elapsed=" .. tostring(elapsed), 200)
-
-            return false
-
-        end
-
-    end
-
-    local min_interval = opts.min_interval
-
-    if type(min_interval) == "number" and min_interval > 0 then
-
-        local last_cast = _last_spell_cast[id]
-
-        local elapsed = last_cast and (NS.time_now() - last_cast) or nil
-
-        if elapsed and elapsed < min_interval then
-
-            core_trace("try:" .. tostring(id) .. ":min_interval", "try_cast " .. tostring(label) .. " blocked: min_interval=" .. tostring(min_interval) .. " elapsed=" .. tostring(elapsed), 500)
-
-            return false
-
-        end
-
-    end
-
-    if not NS.spell_ready(spell, target, opts) then
-
-        core_trace("try:" .. tostring(id) .. ":not_ready", "try_cast " .. tostring(label) .. " failed: spell_ready=false id=" .. tostring(id), 300)
-
-        if debug then core_trace("try:" .. tostring(id) .. ":failed_ready", "[EaxRotations:try_cast] FAILED: spell_ready=false id=" .. tostring(id) .. " label=" .. label .. " gcd=" .. tostring(NS.gcd_remains and NS.gcd_remains() or 0) .. " on_gcd=" .. tostring(NS.gcd_remains and NS.gcd_remains() > 0 or false), 2000) end
+    if not NS.evaluate_cast(spell, unit, reason, opts) then
 
         return false
 
@@ -2455,19 +2488,29 @@ function NS.try_cast(spell, unit, reason, opts)
 
     NS.sticky_spell_should_override(id, reason or "unknown", 0)
 
-    if NS.get_setting("use_spell_queue", false) then
+    -- Select cast backend: auto (IZI->core fallthrough), direct (core only), queue (spell_queue module)
+
+    local cast_backend = NS.get_setting("cast_backend", "auto")
+
+    -- Backward compat: old use_spell_queue=true maps to queue
+
+    if cast_backend == "auto" and NS.get_setting("use_spell_queue", false) then
+
+        cast_backend = "queue"
+
+    end
+
+    if cast_backend == "queue" then
 
         local queue_ok, spell_queue = pcall(require, "common/modules/spell_queue")
 
-        local queue_spell = queue_ok and spell_queue and spell_queue.queue_spell or nil
+        if queue_ok and spell_queue and type(spell_queue.queue_spell_target) == "function" then
 
-        if type(queue_spell) == "function" then
-
-            local queued = safe(queue_spell, id, target)
+            local queued = spell_queue:queue_spell_target(id, target, 1, label, false)
 
             if queued == false then
 
-                core_trace("try:" .. tostring(id) .. ":queue_false", "try_cast " .. tostring(label) .. " failed: queue_spell returned false", 300)
+                core_trace("try:" .. tostring(id) .. ":queue_false", "try_cast " .. tostring(label) .. " failed: queue_spell_target returned false", 300)
 
                 return false
 
@@ -2485,9 +2528,41 @@ function NS.try_cast(spell, unit, reason, opts)
 
         else
 
-            core_trace("try:" .. tostring(id) .. ":queue_missing", "try_cast " .. tostring(label) .. " spell_queue enabled but queue function missing; falling back direct", 700)
+            core_trace("try:" .. tostring(id) .. ":queue_missing", "try_cast " .. tostring(label) .. " cast_backend=queue but spell_queue unavailable; falling back auto", 700)
 
         end
+
+    elseif cast_backend == "direct" then
+
+        local cast = core.input and core.input.cast_target_spell
+
+        if type(cast) ~= "function" then
+
+            core_trace("try:" .. tostring(id) .. ":direct_missing", "try_cast " .. tostring(label) .. " cast_backend=direct but core.input.cast_target_spell missing", 700)
+
+            return false
+
+        end
+
+        local result = safe(cast, id, target)
+
+        if result == false then
+
+            core_trace("try:" .. tostring(id) .. ":direct_false", "try_cast " .. tostring(label) .. " cast_backend=direct cast_target_spell returned false", 300)
+
+            return false
+
+        end
+
+        mark_spell_cast(id)
+
+        core_trace("try:" .. tostring(id) .. ":direct_ok", "try_cast " .. tostring(label) .. " direct cast called id=" .. tostring(id) .. " result=" .. tostring(result), 300)
+
+        if reason and debug then NS.log(reason) end
+
+        if debug then core_trace("try:" .. tostring(id) .. ":direct_ok", "[EaxRotations:try_cast] SUCCESS (direct) id=" .. tostring(id) .. " label=" .. label, 2000) end
+
+        return true
 
     end
 
@@ -3045,6 +3120,57 @@ end
 
 
 
+--- Returns the points array from buff aura data for variable-value tracking.
+--- `buff.points` contains variable values from aura data (e.g. absorb remaining
+--- for Power Word: Shield, remaining charges for Holy Shield).
+--- Returns the array on success, nil if buff not found.
+---
+--- Usage:
+---   local points = NS.buff_points(unit, POWER_WORD_SHIELD_BUFF_IDS)
+---   local absorb_remaining = points and points[1] or 0
+---@param unit game_object The unit to check.
+---@param ids table Array of spell IDs (highest rank first).
+---@return number[]|nil points The points array from active buff data, or nil.
+function NS.buff_points(unit, ids)
+
+    if not unit then return nil end
+
+    local data = aura_data(unit, ids, "buff")
+
+    if not data then return nil end
+
+    local points = data.points
+
+    if type(points) == "table" then return points end
+
+    return nil
+
+end
+
+
+
+--- Returns the points array from debuff aura data.
+---@param unit game_object The unit to check.
+---@param ids table Array of spell IDs.
+---@return number[]|nil points The points array from active debuff data, or nil.
+function NS.debuff_points(unit, ids)
+
+    if not unit then return nil end
+
+    local data = aura_data(unit, ids, "debuff")
+
+    if not data then return nil end
+
+    local points = data.points
+
+    if type(points) == "table" then return points end
+
+    return nil
+
+end
+
+
+
 function NS.debuff_remains(unit, ids)
 
     if not unit then return 0 end
@@ -3118,6 +3244,9 @@ end
 
 
 function NS.has_player_buff(ids) return NS.buff_up(NS.GetPlayer(), ids) end
+
+-- Alias: NS.has_buff is used by middleware and shared helpers but was never defined
+NS.has_buff = NS.buff_up
 
 
 
@@ -4673,7 +4802,7 @@ function NS.find_dead_party_ally()
 
             get_player = NS.GetPlayer,
 
-            collect_healing_units = NS.collect_healing_units,
+            collect_healing_units = NS.GetPartyMembers,
 
         })
 
@@ -5682,9 +5811,9 @@ function NS.dump_player_info()
 
     NS.log("MapName: " .. tostring(core.get_map_name and core.get_map_name() or "?"))
 
-    NS.log("Zone: " .. tostring(core.get_zone_text and core.get_zone_text() or "?"))
+    NS.log("Zone: " .. tostring(pcall(core.get_zone_text) and core.get_zone_text() or "?"))
 
-    NS.log("SubZone: " .. tostring(core.get_subzone_text and core.get_subzone_text() or "?"))
+    NS.log("SubZone: " .. tostring(pcall(core.get_subzone_text) and core.get_subzone_text() or "?"))
 
     NS.log("InCombat: " .. tostring(sf(me, "is_in_combat") and me:is_in_combat() or "?"))
 

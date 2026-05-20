@@ -7,6 +7,8 @@ local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
+local _core_time = NS.time_now or (NS.core and NS.core.time) or (rawget(_G, "core") and _G.core.time) or function() return 0 end
+
 -- ============================================================================
 -- Debuff & Buff ID tables
 -- ============================================================================
@@ -20,7 +22,7 @@ local SEED_OF_CORRUPTION_DEBUFF = { 27285 }  -- the DoT that triggers the explos
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
 local SOULSHATTER_BUFF       = { 29858 }
 
-local DOT_REFRESH_WINDOW = 3.0   -- refresh within last 3s (pandemic window equivalent)
+local DOT_REFRESH_WINDOW = 1.5   -- refresh within last 1.5s per Research Angle 1 (clip <1.5s)
 local EXECUTE_HP = 25           -- Drain Soul execute threshold
 local LIFE_TAP_SAFETY_HP = 35   -- don't Life Tap below this HP%
 
@@ -51,6 +53,8 @@ local LOCAL_SPELLS = {
     BloodFury       = NS.spell_action({ 33697, 20572 }, "BloodFury"),
     Berserking      = NS.spell_action({ 20554, 26297 }, "Berserking"),
     ArcaneTorrent   = NS.spell_action({ 25046 }, "ArcaneTorrent"),
+    CreateSoulstone = NS.spell_action({ 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
+    Shoot           = NS.spell_action({ 5019 }, "Shoot"),
 }
 
 local BLOODLUST_LOWER_RATIO = 1.04      -- More aggressive upgrade threshold during Bloodlust/Heroism
@@ -104,7 +108,10 @@ local aff_state = {
     pet_mana = 100,
     -- Items
     mana_potion_id = nil,
-    amplify_curse_ready = false,    -- Snapshot state (spell damage when DoT was applied — persisted across build_state calls)
+    amplify_curse_ready = false,
+    -- Soulstone / Wand
+    has_soulstone = false,
+    wand_learned = false,    -- Snapshot state (spell damage when DoT was applied — persisted across build_state calls)
     spell_damage = 0,
     snapshot_ua_dmg = 0,
     snapshot_corruption_dmg = 0,
@@ -172,12 +179,17 @@ local function build_state(context)
 	        if aff_state.siphon_remains <= 0 then aff_state.snapshot_siphon_dmg = 0 end
 	        if aff_state.immolate_remains <= 0 then aff_state.snapshot_immolate_dmg = 0 end
 	    end
-	    -- Items
-	    aff_state.mana_potion_id = nil
-	    for _, id in ipairs(MANA_POTION_IDS) do
-	        if NS.is_item_ready and NS.is_item_ready(id) then aff_state.mana_potion_id = id; break end
-	    end
-	    return aff_state
+    -- Items
+    aff_state.mana_potion_id = nil
+    for _, id in ipairs(MANA_POTION_IDS) do
+        if NS.is_item_ready and NS.is_item_ready(id) then aff_state.mana_potion_id = id; break end
+    end
+    -- Soulstone buff check (pre-combat self-buff)
+    local me = context.me
+    aff_state.has_soulstone = me and NS.has_player_buff and NS.has_player_buff({ 27239, 20758, 20757, 20753, 20754 }) or false
+    -- Wand (Shoot) spell readiness
+    aff_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
+    return aff_state
 	end
 
 	-- ============================================================================
@@ -617,7 +629,7 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             -- Throttle: only check every 30s to avoid recast spam when buff API is unavailable
-            local now = core.time()
+            local now = _core_time()
             if _fel_armor_last_check and now - _fel_armor_last_check < 30 then return false end
             _fel_armor_last_check = now
             -- Skip if Fel Armor buff is already active
@@ -674,6 +686,39 @@ local strategies = {
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, "[AFFL PvP] Shadow Ward")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 25. Soulstone (pre-combat self-buff)
+    -- ------------------------------------------------------------------------
+    {
+        name = "SelfSoulstone",
+        matches = function(context, state)
+            if context.in_combat then return false end
+            if state.has_soulstone then return false end
+            return NS.spell_ready(LOCAL_SPELLS.CreateSoulstone, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function()
+            return NS.try_cast(LOCAL_SPELLS.CreateSoulstone, NS.PLAYER_UNIT, "[AFFL] Create Soulstone (self-buff)")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 26. Wand (Shoot) — mana conservation fallback
+    -- ------------------------------------------------------------------------
+    {
+        name = "Wand",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if not state.wand_learned then return false end
+            local wand_threshold = context.settings and context.settings.aff_wand_mana or 15
+            if state.mana_pct >= wand_threshold then return false end
+            if not context.has_valid_enemy_target then return false end
+            return NS.spell_ready(LOCAL_SPELLS.Shoot, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(LOCAL_SPELLS.Shoot, context.target, "[AFFL] Wand (mana conservation)")
         end,
     },
 }

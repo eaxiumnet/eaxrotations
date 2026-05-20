@@ -1,8 +1,4 @@
--- Readability notes:
---   What: static regression checks for global Control Panel quick toggles.
---   When: run with lua from the repository root.
---   Why: prevents duplicate menu widgets and un-gated toggle states from returning.
---   Safety: file-content assertions only; no Project Sylvanas runtime is needed.
+-- static regression checks for global Control Panel quick toggles.
 
 local function assert_true(v, label)
     if not v then error(label or "assert_true failed", 2) end

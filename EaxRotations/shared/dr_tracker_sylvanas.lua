@@ -1,17 +1,11 @@
 -- ============================================================================
 -- Shared Helper: DR Tracker (Diminishing Returns)
 -- ============================================================================
--- Readability notes:
---   What: tracks Diminishing Returns per target GUID and DR category for TBC Arena.
---   When: PvP situations where CC duration reduction and immunity matter.
---   Why: accurate DR state enables smarter CC chains and avoids wasted casts.
---   Safety: uses spell cast callbacks, validates GUIDs, expires old entries.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
 
-local EMPTY = {}
+local initialized = false
 
 local function now()
     return NS and NS.time_now and NS.time_now() or 0
@@ -246,6 +240,8 @@ end
 -- Initialize: register spell cast callback if available
 function M.init()
     if not NS then return end
+    if initialized then return end
+    initialized = true
     
     -- Register on spell cast callback if Sylvanas exposes it
     -- Signature: function(spell_id, target, data)
@@ -279,7 +275,6 @@ end
 
 if NS then
     NS.DRTracker = M
-    -- Auto-init if NS is ready
     M.init()
 end
 

@@ -1,11 +1,6 @@
 -- ============================================================================
 -- Shared Helper: DoT Refresh Logic (APL Formula)
 -- ============================================================================
--- Readability notes:
---   What: pure DoT refresh-window math.
---   When: DoT classes decide whether an existing debuff should be refreshed.
---   Why: casted and instant DoTs need consistent timing without duplicating formulas.
---   Safety: this module has no game API dependency and is unit-testable.
 -- Pure function implementing the APL's haste-aware DoT refresh formula:
 --   dotRemaining < refresh_window AND remainingTime >= refresh_window + dotBaseDuration
 --
@@ -14,7 +9,6 @@
 --
 -- No NS/api/ dependencies — safe for unit testing.
 --
--- Usage (production — via NS namespace):
 --   local should_refresh_dot = NS.should_refresh_dot
 --   local spell_cast_time = NS.spell_cast_time
 --   -- Casted DoT (haste-aware):
@@ -28,10 +22,6 @@
 --   ...same as above...
 -- ============================================================================
 
--- Decision notes:
---   Shared helpers stay pure or dependency-injected where practical so class files can reuse them safely.
---   Inputs are plain tables/numbers instead of live game objects unless a caller explicitly passes adapters.
---   Keeping this logic outside playstyles makes edge cases testable without a Sylvanas runtime.
 local M = {}
 
 --- Determine whether a DoT should be refreshed using the APL formula.
@@ -76,7 +66,6 @@ function M.is_dot_active(dot_remaining, threshold)
 end
 
 -- ============================================================================
--- Registration: make available via NS namespace for production code
 -- ============================================================================
 local _G = _G
 if _G.EaxRotations then

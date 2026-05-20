@@ -1,16 +1,10 @@
--- Readability notes:
---   What: shared combat log parser and rolling buffer.
---   When: loaded once by the EaxRotations runtime.
---   Why: keeps combat-log queries and meter-style summaries in one place.
---   Safety: nil-guard callback data and avoid hard dependencies on optional fields.
+-- shared combat log parser and rolling buffer.
 
 local core = _G.core
 
 local M = {}
 
 local WINDOW_SECONDS = 60
-local EMPTY = {}
-
 local entries = {}
 local head = 1
 local tail = 0

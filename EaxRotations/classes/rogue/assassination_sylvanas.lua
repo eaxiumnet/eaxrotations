@@ -1,36 +1,519 @@
--- Readability notes:
---   What: Rogue Assassination priority list.
---   When: dispatcher runs this playstyle when selected.
---   Why: action rows show what is cast, why it is gated, and when it is allowed.
---   Safety: all rows use shared spell/resource/range/form checks before casting.
+-- TBC Rogue Assassination priority list with Mutilate CP building,
 
--- Decision notes:
---   Playstyle files are ordered priority lists: earlier strategies must be more urgent or more time-sensitive.
---   Matches functions explain when an action is allowed; execute functions only perform the already-gated cast.
---   Role logic follows TBC expectations and avoids post-TBC spells, speculative target swaps, and impossible casts.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.RogueSpells or {}
 
-local ACTIONS = {
-    { name = "Stealth", spell = SPELLS.Stealth, target = "self", kind = "buff", buff = { 1787, 1786, 1785, 1784 }, ooc = true, requires_target = false },
-    { name = "Garrote", spell = SPELLS.Garrote, requires_buff = { 1787, 1786, 1785, 1784 }, requires_behind = true, min_energy = 50, debuff = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }, refresh = 3 },
-    { name = "SliceAndDice", spell = SPELLS.SliceAndDice, target = "self", kind = "buff", buff = { 6774, 5171 }, min_combo = 2, min_energy = 25, requires_target = false },
-    { name = "Rupture", spell = SPELLS.Rupture, min_combo = 4, min_energy = 25, debuff = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, refresh = 3 },
-    { name = "Mutilate", spell = SPELLS.Mutilate, requires_behind = true, min_energy = 60 },
-    { name = "Eviscerate", spell = SPELLS.Eviscerate, min_combo = 5, min_energy = 35 },
+-- ============================================================================
+-- Buff & Debuff ID tables
+-- ============================================================================
+local STEALTH_BUFF     = { 1787, 1786, 1785, 1784 }
+local SLICE_DICE_BUFF  = { 6774, 5171 }
+local FIND_WEAKNESS_BUFF = { 31235, 31234, 31233 }  -- debuff on target after finisher
+local RUPTURE_DEBUFF   = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
+local GARROTE_DEBUFF   = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
+local DEADLY_POISON_DEBUFF = { 27187, 27186, 26968, 26967, 25349, 25347, 11354, 11356, 11353, 11355, 2819, 2837, 2818, 2835 }
+local CRIPPLING_POISON_DEBUFF = { 3408, 3409, 11201, 11202 }
+local WOUND_POISON_DEBUFF   = { 27283, 13230, 13229, 13228, 13220 }  -- Wound Poison (healing reduction, DB2-vetted)
+
+local DOT_REFRESH_WINDOW = 3
+local SND_REFRESH_WINDOW = 3     -- Slice and Dice refresh when < 3s remains
+local ENERGY_TICK = 20           -- Energy gained per tick (2s)
+local ENERGY_MUTILATE_COST = 60  -- Mutilate base cost
+local ENERGY_FINISHER_COST = 35  -- Envenom/Eviscerate cost
+local ENERGY_LOW_BUILDER = 40    -- Pool energy below 40 instead of builder
+local ENERGY_LOW_FINISHER = 25   -- Pool energy below 25 instead of finisher
+
+
+
+-- Healthstone / health potion IDs
+local HEALING_ITEM_IDS = { 22829, 22793, 13447, 22105, 22104, 22103, 5512, 5511, 118, 858 }
+
+-- ============================================================================
+-- State builder (pre-allocated)
+-- ============================================================================
+local assassin_state = {
+    stealth_active = false,
+    slice_dice_active = false,
+    snd_remains = 0,
+    snd_needs_refresh = false,
+    rupture_remains = 0,
+    garrote_remains = 0,
+    dp_stacks = 0,
+    dp_remains = 0,
+    target_poisoned = false,
+    combo = 0,
+    energy = 0,
+    energy_low = false,
+    energy_pool_finisher = false,
+    hp_pct = 100,
+    find_weakness_active = false,
+    has_cold_blood = false,
+    healing_item_id = nil,
 }
 
-local strategies = {}
-for i = 1, #ACTIONS do
-    local action = ACTIONS[i]
-    strategies[#strategies + 1] = {
-        name = action.name,
-        matches = function(context) return NS.action_matches(context, action) end,
-        execute = function(context) return NS.action_execute(context, action, "[ASSASSINATION]") end,
-    }
+local function build_state(context)
+    local target = context.target
+    -- Buffs
+    assassin_state.stealth_active = NS.has_player_buff(STEALTH_BUFF)
+    assassin_state.slice_dice_active = NS.has_player_buff(SLICE_DICE_BUFF)
+    -- SnD refresh tracking: re-cast when < 3s remains for 100% uptime
+    if assassin_state.slice_dice_active and type(NS.buff_remains) == "function" then
+        local r = NS.buff_remains(NS.PLAYER_UNIT, SLICE_DICE_BUFF)
+        assassin_state.snd_remains = (r ~= nil and r >= 0) and r or 999
+    else
+        assassin_state.snd_remains = 0
+    end
+    assassin_state.snd_needs_refresh = assassin_state.slice_dice_active and assassin_state.snd_remains <= SND_REFRESH_WINDOW
+    assassin_state.has_cold_blood = NS.has_player_buff({ 14177 })
+    -- Debuffs on target
+    if target then
+        assassin_state.rupture_remains = NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
+        assassin_state.garrote_remains = NS.debuff_remains and NS.debuff_remains(target, GARROTE_DEBUFF) or 0
+        assassin_state.dp_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, DEADLY_POISON_DEBUFF) or 0
+        assassin_state.dp_remains = NS.debuff_remains and NS.debuff_remains(target, DEADLY_POISON_DEBUFF) or 0
+        assassin_state.target_poisoned = assassin_state.dp_stacks > 0
+            or (NS.has_target_debuff and NS.has_target_debuff(target, CRIPPLING_POISON_DEBUFF))
+            or (NS.has_target_debuff and NS.has_target_debuff(target, WOUND_POISON_DEBUFF))
+        assassin_state.find_weakness_active = NS.has_target_debuff and NS.has_target_debuff(target, FIND_WEAKNESS_BUFF)
+    else
+        assassin_state.rupture_remains = 0
+        assassin_state.garrote_remains = 0
+        assassin_state.dp_stacks = 0
+        assassin_state.dp_remains = 0
+        assassin_state.find_weakness_active = false
+    end
+    -- Resources
+    assassin_state.combo = context.combo or 0
+    assassin_state.energy = context.energy or 0
+    assassin_state.energy_low = assassin_state.energy < ENERGY_LOW_BUILDER
+    assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
+    assassin_state.hp_pct = context.hp or 100
+    -- Healing item
+    assassin_state.healing_item_id = nil
+    for _, id in ipairs(HEALING_ITEM_IDS) do
+        if NS.is_item_ready and NS.is_item_ready(id) then
+            assassin_state.healing_item_id = id
+            break
+        end
+    end
+    return assassin_state
 end
 
-NS.rotation_registry:register("assassination", strategies, { get_state = function(context) return context end })
-NS.log("Rogue assassination rotation registered")
-return strategies
+local function assassination_leveling_builder_matches(context, state)
+    local target = context.target
+    if not target then return false end
+    if state.energy < 45 then return false end
+    local level = context.player_level or 70
+    if not context.is_leveling and level >= 50 then return false end
+    if level >= 50 and NS.spell_exists and NS.spell_exists(SPELLS.Mutilate) then return false end
+    return NS.spell_ready(SPELLS.SinisterStrike, target)
+end
+
+-- ============================================================================
+-- Strategies (priority order: survival → cooldowns → finishers → builders → PvP)
+-- ============================================================================
+local strategies = {
+
+    -- ------------------------------------------------------------------------
+    -- 1. Evasion (oh-shit)
+    -- ------------------------------------------------------------------------
+    {
+        name = "EvasionDefense",
+        matches = function(context)
+            local hp = context.settings and context.settings.assassin_evasion_hp or 25
+            if (context.hp or 100) > hp then return false end
+            return NS.spell_ready(SPELLS.Evasion, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Evasion, NS.PLAYER_UNIT, "[ASSASS] Evasion defense")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 2. Cloak of Shadows (magic oh-shit)
+    -- ------------------------------------------------------------------------
+    {
+        name = "CloakOfShadows",
+        matches = function(context)
+            local hp = context.settings and context.settings.assassin_clos_hp or 30
+            if (context.hp or 100) > hp then return false end
+            return NS.spell_ready(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, "[ASSASS] Cloak of Shadows")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 3. Healing Item
+    -- ------------------------------------------------------------------------
+    {
+        name = "HealingItem",
+        matches = function(_, state)
+            if state.hp_pct > 35 then return false end
+            return state.healing_item_id ~= nil
+        end,
+        execute = function(_, state)
+            if NS.use_item_by_id then NS.use_item_by_id(state.healing_item_id) end
+            return true
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 4. Vanish (threat drop / reopen)
+    -- ------------------------------------------------------------------------
+    {
+        name = "VanishReopen",
+        matches = function(context)
+            if not context.in_combat then return false end
+            if context.threat_pct and context.threat_pct < 90 then return false end
+            return NS.spell_ready(SPELLS.Vanish, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Vanish, NS.PLAYER_UNIT, "[ASSASS] Vanish (threat/reopen)")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 5. Kick (interrupt priority)
+    -- ------------------------------------------------------------------------
+    {
+        name = "KickInterrupt",
+        matches = function(context)
+            local target = context.target
+            if not target then return false end
+            if not target:is_casting() then return false end
+            return NS.spell_ready(SPELLS.Kick, target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Kick, context.target, "[ASSASS] Kick interrupt")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 6. Cold Blood + Envenom (burst finisher)
+    -- ------------------------------------------------------------------------
+    {
+        name = "ColdBloodEnvenom",
+        matches = function(context, state)
+            if not (context.settings and context.settings.assassin_cold_blood_auto) then return false end
+            if state.energy_pool_finisher then return false end  -- pool energy below 25
+            if state.combo < 5 then return false end
+            local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
+            if state.dp_stacks < min_stacks then return false end
+            if state.has_cold_blood then return false end  -- already active
+            -- Cold Blood first (off-GCD, use SPELLS table)
+            if not NS.spell_ready(SPELLS.ColdBlood, NS.PLAYER_UNIT, { skip_range = true }) then return false end
+            return NS.spell_ready(SPELLS.Envenom, context.target)
+        end,
+        execute = function(context)
+            if NS.try_cast(SPELLS.ColdBlood, NS.PLAYER_UNIT, "[ASSASS] Cold Blood pre-Envenom") then
+                return true  -- cast CB this GCD, Envenom next
+            end
+            return false
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 7. Envenom (finisher — DP stacks consumed)
+    -- ------------------------------------------------------------------------
+    {
+        name = "EnvenomFinisher",
+        matches = function(context, state)
+            if state.energy_pool_finisher then return false end  -- pool energy below 25
+            if state.combo < 4 then return false end
+            local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
+            if state.dp_stacks < min_stacks then return false end
+            -- If Cold Blood is up, use it with Envenom
+            return NS.spell_ready(SPELLS.Envenom, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Envenom, context.target,
+                string.format("[ASSASS] Envenom at %d CP / %d DP stacks", context.combo or 0, assassin_state.dp_stacks))
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 8. Slice and Dice (100% uptime, refresh when < 3s remains)
+    -- Research: "Must maintain Slice and Dice at 100% uptime; re-cast when < 3s remains."
+    -- ------------------------------------------------------------------------
+    {
+        name = "SliceAndDice",
+        matches = function(context, state)
+            -- Refresh when about to drop (< 3s) even if active
+            if state.slice_dice_active and not state.snd_needs_refresh then return false end
+            if state.combo < 2 then return false end
+            return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function(context, state)
+            local tag = state.slice_dice_active
+                and string.format("[ASSASS] Slice and Dice refresh (%.1fs)", state.snd_remains)
+                or "[ASSASS] Slice and Dice"
+            return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, tag)
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 9. Rupture (bleed finisher — only on long-lived targets)
+    -- Research: "Use only when TTD > 12s."
+    -- ------------------------------------------------------------------------
+    {
+        name = "RuptureBleed",
+        matches = function(context, state)
+            if state.energy_pool_finisher then return false end  -- pool energy below 25
+            if state.combo < 4 then return false end
+            if state.rupture_remains > DOT_REFRESH_WINDOW then return false end
+            -- Bleed-immune targets can't be ruptured
+            if context.target_bleed_immune then return false end
+            -- Only on long-lived targets (TTD > 12s)
+            if context.ttd and context.ttd > 0 and context.ttd < 12 then return false end
+            return NS.spell_ready(SPELLS.Rupture, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Rupture, context.target, "[ASSASS] Rupture")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 10. Kidney Shot (CC / interrupt)
+    -- ------------------------------------------------------------------------
+    {
+        name = "KidneyShotCC",
+        matches = function(context, state)
+            if state.combo < 3 then return false end
+            if not context.is_pvp then return false end
+            -- Don't DR stun if already stunned recently
+            if context.target_dr_stun and context.target_dr_stun > 0 then return false end
+            return NS.spell_ready(SPELLS.KidneyShot, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.KidneyShot, context.target, "[ASSASS PvP] Kidney Shot")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 11. Thistle Tea (energy burst)
+    -- ------------------------------------------------------------------------
+    {
+        name = "ThistleTea",
+        matches = function(context, state)
+            if not (context.settings and context.settings.assassin_thistle_tea) then return false end
+            if state.energy > 40 then return false end  -- don't waste
+            if state.combo > 3 then return false end  -- better to pool for finisher
+            return NS.spell_ready(SPELLS.ThistleTea, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function()
+            return NS.try_cast(SPELLS.ThistleTea, NS.PLAYER_UNIT, "[ASSASS] Thistle Tea")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 12. Shiv (Deadly Poison refresh — energy-gated)
+    -- ------------------------------------------------------------------------
+    {
+        name = "ShivRefresh",
+        matches = function(context, state)
+            local target = context.target
+            if not target then return false end
+            if state.energy_low then return false end  -- pool energy instead
+            -- Only Shiv if DP is about to drop and we care about stacks
+            if state.dp_remains > 3 then return false end
+            if state.dp_stacks >= 5 then return false end  -- already max
+            return NS.spell_ready(SPELLS.Shiv, target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Shiv, context.target, "[ASSASS] Shiv (DP refresh)")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 13. Mutilate (primary CP builder — requires poison + behind target)
+    -- Research: "+50% damage against poisoned targets, behind-target requirement."
+    -- Energy gate: pool below 40 energy (Research floor).
+    -- ------------------------------------------------------------------------
+    {
+        name = "LevelingSinisterStrike",
+        matches = assassination_leveling_builder_matches,
+        execute = function(context)
+            return NS.try_cast(SPELLS.SinisterStrike, context.target, "[ASSASS] Sinister Strike leveling")
+        end,
+    },
+    {
+        name = "Mutilate",
+        matches = function(context, state)
+            if state.energy_low then return false end  -- pool energy below 40
+            -- Must be behind target
+            if NS.is_behind_target and not NS.is_behind_target(context.target) then return false end
+            -- Must have poison on target for +50% damage bonus
+            if not state.target_poisoned then return false end
+            return NS.spell_ready(SPELLS.Mutilate, context.target)
+        end,
+        execute = function(context, state)
+            local tag = state.target_poisoned
+                and "[ASSASS] Mutilate (poisoned)"
+                or "[ASSASS] Mutilate"
+            return NS.try_cast(SPELLS.Mutilate, context.target, tag)
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 13b. Sinister Strike (fallback when Mutilate isn't usable)
+    -- Triggers when: poison-immune target, can't get behind, or target unpoisoned
+    -- ------------------------------------------------------------------------
+    {
+        name = "SinisterStrikeFallback",
+        matches = function(context, state)
+            -- Only active when Mutilate is learned but can't be used
+            local level = context.player_level or 70
+            if level < 50 or not (NS.spell_exists and NS.spell_exists(SPELLS.Mutilate)) then return false end
+            -- Only as fallback — skip if Mutilate CAN be used (poisoned + behind)
+            if state.target_poisoned and (not NS.is_behind_target or NS.is_behind_target(context.target)) then return false end
+            if state.energy_low then return false end  -- pool energy below 40
+            return NS.spell_ready(SPELLS.SinisterStrike, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.SinisterStrike, context.target, "[ASSASS] Sinister Strike (Mutilate fallback)")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 14. Eviscerate (fallback finisher)
+    -- ------------------------------------------------------------------------
+    {
+        name = "EviscerateFallback",
+        matches = function(context, state)
+            if state.energy_pool_finisher then return false end  -- pool energy below 25
+            if state.combo < 5 then return false end
+            -- Only eviscerate if we can't Envenom or Rupture
+            return NS.spell_ready(SPELLS.Eviscerate, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Eviscerate, context.target, "[ASSASS] Eviscerate")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 15. Expose Armor (if no warrior)
+    -- ------------------------------------------------------------------------
+    {
+        name = "ExposeArmor",
+        matches = function(context, state)
+            local target = context.target
+            if not target then return false end
+            if state.combo < 3 then return false end
+            if context.has_sunder then return false end
+            return NS.spell_ready(SPELLS.ExposeArmor, target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.ExposeArmor, context.target, "[ASSASS] Expose Armor")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 16. Deadly Throw (ranged finisher)
+    -- ------------------------------------------------------------------------
+    {
+        name = "DeadlyThrow",
+        matches = function(context, state)
+            if state.combo < 3 then return false end
+            -- Use when target is fleeing or at range
+            return NS.spell_ready(SPELLS.DeadlyThrow, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.DeadlyThrow, context.target, "[ASSASS] Deadly Throw")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- PvP Section
+    -- ------------------------------------------------------------------------
+    {
+        name = "PvP_Blind",
+        matches = function(context)
+            if not context.is_pvp then return false end
+            return NS.spell_ready(SPELLS.Blind, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Blind, context.target, "[ASSASS PvP] Blind")
+        end,
+    },
+    {
+        name = "PvP_SprintGapClose",
+        matches = function(context)
+            if not context.is_pvp then return false end
+            if context.dist_to_target and context.dist_to_target < 15 then return false end
+            return NS.spell_ready(SPELLS.Sprint, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function()
+            return NS.try_cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[ASSASS PvP] Sprint gap close")
+        end,
+    },
+    {
+        name = "PvP_CheapShotOpen",
+        matches = function(context, state)
+            if not state.stealth_active then return false end
+            if not context.is_pvp then return false end
+            return NS.spell_ready(SPELLS.CheapShot, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.CheapShot, context.target, "[ASSASS PvP] Cheap Shot opener")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 20. Stealth (out of combat)
+    -- ------------------------------------------------------------------------
+    {
+        name = "Stealth",
+        matches = function(context, state)
+            if context.in_combat then return false end
+            if state.stealth_active then return false end
+            return NS.spell_ready(SPELLS.Stealth, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function()
+            return NS.try_cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[ASSASS] Stealth")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 21. Garrote opener (from stealth)
+    -- ------------------------------------------------------------------------
+    {
+        name = "GarroteOpen",
+        requires_buff = { 1787, 1786, 1785, 1784 },
+        requires_behind = true,
+        matches = function(context, state)
+            if not state.stealth_active then return false end
+            if context.is_pvp then return false end  -- CheapShot better in PvP
+            if NS.is_behind_target and not NS.is_behind_target(context.target) then return false end
+            return NS.spell_ready(SPELLS.Garrote, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Garrote, context.target, "[ASSASS] Garrote opener")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 22. Feint (AoE damage reduction / threat drop)
+    -- ------------------------------------------------------------------------
+    {
+        name = "FeintAoE",
+        matches = function(context, state)
+            -- Threat drop: cast when threat is high regardless of HP/AoE
+            if context.threat_pct and context.threat_pct > 90 then
+                return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
+            end
+            -- AoE damage reduction: cast when taking AoE damage and HP low
+            if state.hp_pct > 60 then return false end
+            if not context.aoe_damage_incoming then return false end
+            return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function()
+            return NS.try_cast(SPELLS.Feint, NS.PLAYER_UNIT, "[ASSASS] Feint")
+        end,
+    },
+}
+
+NS.rotation_registry:register("assassination", strategies, { get_state = build_state })
+return { strategies = strategies, build_state = build_state }

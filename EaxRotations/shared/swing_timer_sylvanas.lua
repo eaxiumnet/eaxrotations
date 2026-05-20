@@ -1,17 +1,11 @@
 -- ============================================================================
 -- Shared Helper: Swing Timer Enhancement
 -- ============================================================================
--- Readability notes:
---   What: enhanced auto-attack swing timing with reset detection and weaving hints.
---   When: for classes that care about swing timing (Warriors, Hunters).
---   Why: optimal weaving between abilities maximizes DPS.
---   Safety: uses Sylvanas swing APIs, no unsafe calls.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
 
-local EMPTY = {}
+local initialized = false
 
 -- Swing state tracking
 local swing_state = {
@@ -227,6 +221,8 @@ end
 -- Initialize
 function M.init()
     if not NS then return end
+    if initialized then return end
+    initialized = true
     
     -- Register spell cast callback for swing resets
     -- Signature: function(spell_id, target, data)
@@ -236,10 +232,7 @@ function M.init()
                 M.record_spell_cast(spell_id)
             end
         end)
-    end
-    
-    -- Also hook via core if available (uses data table signature)
-    if core and core.register_on_spell_cast_callback then
+    elseif core and core.register_on_spell_cast_callback then
         core.register_on_spell_cast_callback(function(data)
             if data and data.spell_id then
                 M.record_spell_cast(data.spell_id)

@@ -1,17 +1,9 @@
 -- ============================================================================
 -- Shared Helper: PvP Burst Window Scoring
 -- ============================================================================
--- Readability notes:
---   What: calculates burst opportunity score based on target state and cooldowns.
---   When: PvP decisions about when to commit offensive cooldowns.
---   Why: prevents wasting burst on bad targets or at bad times.
---   Safety: uses cached state, nil-guards all dependencies.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
 
 -- Scoring constants
 local SCORE = {

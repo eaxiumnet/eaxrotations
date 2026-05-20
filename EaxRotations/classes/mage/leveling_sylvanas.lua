@@ -74,9 +74,9 @@ local function safe_is_item_ready(item_id)
 end
 
 --- Safe item use wrapper — pcall protects against nil/throwing NS.use_item_by_id
-local function safe_use_item(item_id)
+local function safe_use_item(item_id, label)
     if not NS.use_item_by_id then return false end
-    local ok, used = pcall(NS.use_item_by_id, item_id)
+    local ok, used = pcall(NS.use_item_by_id, item_id, label)
     return ok and used
 end
 
@@ -338,7 +338,7 @@ local function use_mana_gem_execute()
     -- Try the highest rank gem first, fall back to lower ranks
     for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
         if safe_is_item_ready(item_id) then
-            return safe_use_item(item_id)
+            return safe_use_item(item_id, "[LEVELING] Use Mana Gem")
         end
     end
     return false

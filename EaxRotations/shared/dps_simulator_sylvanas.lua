@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Helper: DPS Simulator
 -- ============================================================================
--- Readability notes:
---   What: real-time rotation simulator for Sylvanas playstyles.
---   When: compare theorycraft, estimate cast flow, or sanity-check tuning.
---   Why: provide deterministic DPS/HPS and uptime estimates from class spell tables.
---   Safety: no game API calls are required; all inputs are plain Lua tables.
-
 local M = {}
 
 local floor = math.floor
@@ -50,7 +44,7 @@ local AURAS = {
     serpent_sting = { kind = "debuff", duration = 15, tick = 3, ids = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 } },
     bestial_wrath = { kind = "buff", duration = 18, ids = { 19574 } },
     rapid_fire = { kind = "buff", duration = 15, ids = { 3045 } },
-    aspect_hawk = { kind = "buff", duration = 9999, ids = { 38121, 27045, 25296, 14320, 14319, 14318, 13165 } },
+    aspect_hawk = { kind = "buff", duration = 9999, ids = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 } },
     aspect_viper = { kind = "buff", duration = 9999, ids = { 34074 } },
 }
 

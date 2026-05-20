@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Test: SimC APL Parser
 -- ============================================================================
--- Readability notes:
---   What: unit tests for the SimC APL parser (shared/apl_parser.lua)
---   When: run as a standalone Lua script from the project root
---   Why: validates tokenizer, parser, generator, and end-to-end APL parsing
---   Safety: pure Lua, no game API dependencies, fully deterministic
-
 local assert_true, assert_eq
 do
     local passed, failed = 0, 0

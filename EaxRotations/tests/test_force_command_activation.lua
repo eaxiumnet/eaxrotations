@@ -10,11 +10,15 @@ _G.EaxRotations = NS
 _G.os = { time = function() return (_G._test_now or 0) end }
 
 local force = dofile("EaxRotations/shared/force_command_sylvanas.lua")
+assert_true(type(NS.force_burst_active) == "function", "namespace burst accessor should be registered")
+assert_true(type(NS.force_defensive_active) == "function", "namespace defensive accessor should be registered")
+assert_true(type(NS.force_gap_active) == "function", "namespace gap accessor should be registered")
 
 -- Test 1: Activate burst command
 _G._test_now = 100
 assert_true(force.activate("burst"), "activate burst should return true")
 assert_true(force.is_active("burst"), "burst should be active immediately")
+assert_true(NS.force_burst_active(), "namespace burst accessor should reflect active command")
 
 -- Test 2: Invalid command fails
 _G._test_now = 100

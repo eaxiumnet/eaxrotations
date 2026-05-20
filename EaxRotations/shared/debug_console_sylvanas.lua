@@ -1,8 +1,4 @@
--- Readability notes:
---   What: compact on-screen debug console.
---   When: render callback, one lightweight pass per frame.
---   Why: shows live rotation state without opening the full dashboard.
---   Safety: read-only rendering; all game data comes through NS helpers.
+-- compact on-screen debug console.
 
 local _G = _G
 local NS = _G.EaxRotations
@@ -10,6 +6,7 @@ if not NS then return end
 
 local color = require("common/color")
 local vec2 = require("common/geometry/vector_2")
+local sdf = require("shared/sdf_render_sylvanas")
 
 local M = {}
 
@@ -166,10 +163,12 @@ local function get_debuff_summary(context)
     return "n/a"
 end
 
-local function draw_row(gfx, top_left, width, label, value, row_status, spell_id)
+local function draw_row(top_left, width, label, value, row_status, spell_id)
     local row_color = status_color(row_status)
-    gfx.rect_2d_filled(top_left, width, CONSOLE_ROW_HEIGHT, color.new(14, 14, 18, 220), 3)
-    gfx.rect_2d_filled(vec2.new(top_left.x, top_left.y), 4, CONSOLE_ROW_HEIGHT, row_color, 3)
+    -- Use SDF smooth rect for row background
+    sdf.smooth_rect(top_left.x, top_left.y, width, CONSOLE_ROW_HEIGHT, color.new(14, 14, 18, 220), 3, 1)
+    -- Status indicator bar (left accent)
+    sdf.smooth_rect(top_left.x, top_left.y, 4, CONSOLE_ROW_HEIGHT, row_color, 2, 1)
 
     local text_x = top_left.x + CONSOLE_PADDING
     if spell_id and NS.izi and type(NS.izi.draw_spell_icon) == "function" then
@@ -180,7 +179,7 @@ local function draw_row(gfx, top_left, width, label, value, row_status, spell_id
         warned_missing_izi = true
     end
 
-    gfx.text_2d(label .. ": " .. tostring(value), vec2.new(text_x, top_left.y + 2), 11, row_color, false)
+    sdf.text(label .. ": " .. tostring(value), text_x, top_left.y + 3, 11, row_color)
 end
 
 local function update_last_cast(spell_id, data)
@@ -232,14 +231,16 @@ local function render_console()
     local top = screen.y - CONSOLE_MARGIN - (CONSOLE_HEADER_HEIGHT + (CONSOLE_ROW_HEIGHT * 4))
     local bg_height = CONSOLE_HEADER_HEIGHT + (CONSOLE_ROW_HEIGHT * 4)
 
-    gfx.rect_2d_filled(vec2.new(left, top), CONSOLE_WIDTH, bg_height, THEME.bg, 4)
-    gfx.rect_2d(vec2.new(left, top), CONSOLE_WIDTH, bg_height, THEME.border, 1, 4)
-    gfx.text_2d("Debug Console  [F9]", vec2.new(left + CONSOLE_PADDING, top + 4), 12, THEME.text, false)
+    -- Drop shadow behind console
+    sdf.drop_shadow(left - 4, top - 4, CONSOLE_WIDTH + 8, bg_height + 8, { 0, 0, 0, 100 }, 3, 3, 8, 12, 2)
+    -- SDF border rect for console background with border
+    sdf.border_rect(left, top, CONSOLE_WIDTH, bg_height, THEME.bg, THEME.border, 4, 1, 1)
+    sdf.text("Debug Console  [F9]", left + CONSOLE_PADDING, top + 4, 12, THEME.text)
 
-    draw_row(gfx, vec2.new(left, top + CONSOLE_HEADER_HEIGHT), CONSOLE_WIDTH, "Playstyle", playstyle, state_color)
-    draw_row(gfx, vec2.new(left, top + CONSOLE_HEADER_HEIGHT + CONSOLE_ROW_HEIGHT), CONSOLE_WIDTH, "Strategy", strategy, strategy_status)
-    draw_row(gfx, vec2.new(left, top + CONSOLE_HEADER_HEIGHT + (CONSOLE_ROW_HEIGHT * 2)), CONSOLE_WIDTH, "State", "CP " .. tostring(combo_points) .. " | Energy " .. tostring(energy) .. " | " .. debuff_summary, state_color)
-    draw_row(gfx, vec2.new(left, top + CONSOLE_HEADER_HEIGHT + (CONSOLE_ROW_HEIGHT * 3)), CONSOLE_WIDTH, "Last Cast", last_cast_summary, last_cast.status or strategy_status, last_cast.spell_id)
+    draw_row(vec2.new(left, top + CONSOLE_HEADER_HEIGHT), CONSOLE_WIDTH, "Playstyle", playstyle, state_color)
+    draw_row(vec2.new(left, top + CONSOLE_HEADER_HEIGHT + CONSOLE_ROW_HEIGHT), CONSOLE_WIDTH, "Strategy", strategy, strategy_status)
+    draw_row(vec2.new(left, top + CONSOLE_HEADER_HEIGHT + (CONSOLE_ROW_HEIGHT * 2)), CONSOLE_WIDTH, "State", "CP " .. tostring(combo_points) .. " | Energy " .. tostring(energy) .. " | " .. debuff_summary, state_color)
+    draw_row(vec2.new(left, top + CONSOLE_HEADER_HEIGHT + (CONSOLE_ROW_HEIGHT * 3)), CONSOLE_WIDTH, "Last Cast", last_cast_summary, last_cast.status or strategy_status, last_cast.spell_id)
 end
 
 function M.show()

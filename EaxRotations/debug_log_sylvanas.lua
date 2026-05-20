@@ -1,13 +1,5 @@
--- Readability notes:
---   What: diagnostic helper.
---   When: runs when debug output is enabled.
---   Why: makes failures understandable for users and maintainers.
---   Safety: throttle repeated output and avoid work when debug is off.
+-- diagnostic helper.
 
--- Decision notes:
---   This support module keeps side effects explicit and routes runtime-sensitive work through NS helpers.
---   Comments emphasize intent and constraints so future edits preserve behavior without adding frame-costly checks.
---   When API data is missing, callers should skip unsafe work rather than guessing.
 -- ============================================================================
 -- EaxRotations Debug Log Frame
 -- Visual debug output using core.menu.window API

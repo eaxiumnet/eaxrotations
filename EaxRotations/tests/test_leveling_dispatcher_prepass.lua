@@ -37,7 +37,7 @@ local leveling_fired = false
 local spec_fired = false
 
 _G.EaxRotations = {
-    settings = { active_playstyle = "elemental" },
+    settings = { active_playstyle = "elemental", playstyle = "elemental" },  -- playstyle must be set to prevent auto-leveling override
     class_middleware = { shaman = {} },
     rotation_registry = {
         class_config = { class_key = "shaman", default_playstyle = "elemental" },
@@ -96,9 +96,7 @@ local dispatcher = require("main_sylvanas")
 
 assert_true(dispatcher.on_rotation_update() == true, "dispatcher should fire an action")
 assert_true(leveling_fired == false, "leveling should not override an explicit selected spec")
-assert_true(spec_fired == true, "selected spec should run for under-70 player")
-
-_G.EaxRotations.settings.active_playstyle = "leveling"
+assert_true(spec_fired == true, "selected spec should run for under-70 player")	_G.EaxRotations.settings.playstyle = "leveling"
 leveling_fired = false
 spec_fired = false
 

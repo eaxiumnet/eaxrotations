@@ -1,15 +1,8 @@
--- Readability notes:
---   What: Priest shared middleware.
---   When: dispatcher runs it before the selected playstyle.
---   Why: threat tools, dispels, and party utility are centralized instead of duplicated.
---   Safety: threat drops require group combat and an ally within 40 yards; never solo.
+-- Priest shared middleware.
 
--- Decision notes:
---   Middleware owns class-wide reactions such as interrupts, defensive checks, utility, and recovery actions.
---   A middleware row should return true only when it actually performs work; otherwise playstyle priorities must continue.
---   Safety gates are repeated here when the action can disrupt combat flow or break crowd control.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 
@@ -26,9 +19,9 @@ local function has_magic_debuff_on_unit(unit)
     -- Common magic debuff IDs in TBC
     local MAGIC_DEBUFFS = {
         -- Curses
-        [1010] = true, [1014] = true, [1018] = true, [1022] = true,
+        [1010] = true, [1014] = true, [1022] = true,
         -- Magic DoTs
-        [589] = true, [594] = true, [983] = true, [6074] = true,
+        [589] = true, [594] = true, [6074] = true,
         -- Magic CC
         [118] = true, [12824] = true, [12825] = true, [12826] = true,
         -- Magic debuffs from bosses
@@ -48,8 +41,8 @@ local function has_disease_debuff_on_unit(unit)
     
     -- Common disease debuff IDs in TBC
     local DISEASE_IDS = {
-        [3237] = true, [3238] = true, [3239] = true, [3240] = true, [3241] = true, [3242] = true,
-        [3243] = true, [3244] = true, [3245] = true, [3246] = true, [3247] = true, [3248] = true,
+        [3237] = true, [3238] = true, [3240] = true, [3242] = true,
+        [3243] = true, [3245] = true, [3246] = true, [3247] = true, [3248] = true,
     }
     
     for id, _ in pairs(DISEASE_IDS) do
@@ -316,6 +309,9 @@ local strategies = {
             return NS.try_cast(fade_id, context.me, "[PRIEST] Fade (Enhanced)", { skip_range = true })
         end,
     },
+
+    -- Auto-consumable usage
+    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("priest", strategies)

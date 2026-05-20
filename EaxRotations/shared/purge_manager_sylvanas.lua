@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Helper: Purge Manager
 -- ============================================================================
--- Readability notes:
---   What: Auto-purge enemy magic buffs when enabled.
---   When: Shaman detects magic buffs on enemy target.
---   Why: Automates offensive dispel for important enemy buffs.
---   Safety: Checks spell cooldown and range before casting.
---
 -- Pattern: Check enemy for magic buffs, cast Purge if found.
 -- Supports both standalone API calls and NS.action_matches/execute middleware.
 -- ============================================================================
@@ -16,7 +10,7 @@ local _G = _G
 local NS = _G.EaxRotations
 
 -- Purge spell IDs by rank (newest first)
-local PURGE_IDS = { 8012, 370, 372 }
+local PURGE_IDS = { 8012, 370 }
 
 -- Common purgeable magic buff spell IDs (TBC)
 -- Organized by category for readability
@@ -44,17 +38,16 @@ local PURGEABLE_BUFFS = {
     -- Mark of the Wild (Druid)
     [1126] = true, [5232] = true, [6756] = true, [5234] = true, [8907] = true, [8910] = true,
     -- Power Word: Fortitude (Priest)
-    [1243] = true, [1244] = true, [1245] = true, [1246] = true, [1247] = true,
-    [2791] = true, [10290] = true, [1032] = true, [1033] = true, [1034] = true,
-    [25389] = true, [25390] = true,
+    [1243] = true, [1244] = true, [1245] = true,
+    [2791] = true, [10937] = true, [10938] = true,
+    [25389] = true,
     -- Arcane Intellect (Mage)
-    [1459] = true, [1470] = true, [1471] = true, [1472] = true, [168] = true,
-    [7300] = true, [7301] = true, [230] = true, [231] = true, [232] = true,
+    [1459] = true, [1460] = true, [1461] = true, [168] = true,
+    [7300] = true, [7301] = true,
     [10156] = true, [10157] = true,
     -- Blessing of Might (Paladin)
-    [19740] = true, [19741] = true, [19742] = true, [19743] = true, [19744] = true,
-    [19745] = true, [19834] = true, [19835] = true, [19836] = true, [19837] = true,
-    [19838] = true, [19839] = true,
+    [19740] = true, [19834] = true, [19835] = true, [19836] = true, [19837] = true,
+    [19838] = true, [25291] = true, [27140] = true,
     -- Blessing of Wisdom (Paladin)
     [19742] = true, [19850] = true, [19852] = true, [19853] = true,
     [19854] = true, [25291] = true,
@@ -63,8 +56,8 @@ local PURGEABLE_BUFFS = {
     -- Blessing of Salvation (Paladin)
     [1038] = true, [25895] = true,
     -- Inner Fire (Priest)
-    [588] = true, [602] = true, [1006] = true, [17053] = true, [17054] = true,
-    [25431] = true, [25433] = true,
+    [588] = true, [602] = true, [1006] = true,
+    [10951] = true, [10952] = true, [25431] = true,
     -- Divine Spirit (Priest)
     [14752] = true, [14818] = true, [14819] = true, [27681] = true,
     -- Arcane Brilliance (Mage)
@@ -78,9 +71,8 @@ local PURGEABLE_BUFFS = {
     -- Fel Armor (Warlock)
     [28176] = true, [28189] = true,
     -- Demon Armor (Warlock)
-    [687] = true, [696] = true, [702] = true, [1105] = true, [1106] = true,
-    [1088] = true, [1089] = true, [1179] = true, [1180] = true, [1178] = true,
-    [28177] = true, [28178] = true,
+    [687] = true, [696] = true, [706] = true, [1086] = true,
+    [11733] = true, [11734] = true, [11735] = true, [27260] = true,
     -- Ice Armor (Mage)
     [7302] = true, [7320] = true, [10219] = true, [10220] = true, [27124] = true,
 }

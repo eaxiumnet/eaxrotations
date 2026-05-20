@@ -2,16 +2,6 @@
 -- Shaman Healing Utilities (EaxRotations)
 -- Party/raid scanning and healing utilities for Restoration Shaman
 -- ============================================================================
--- Readability notes:
---   What: Restoration Shaman triage and heal recommendation helpers.
---   When: restoration_sylvanas asks for emergency, single-target, or group-heal decisions.
---   Why: Chain Heal, Lesser Healing Wave, Healing Wave, and shields need context-aware selection.
---   Safety: missing group/API data is guarded and defaults avoid invalid casts.
-
--- Decision notes:
---   Healing helpers scan and decorate targets once per frame so multiple strategies share the same triage data.
---   Effective HP uses incoming heals and absorbs when the API exposes them; this avoids sniping heals already covered.
---   Target data is intentionally nil-tolerant because party/raid objects can disappear during zoning, death, or range changes.
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then

@@ -25,6 +25,7 @@ local color = require("common/color")
 local vec2 = require("common/geometry/vector_2")
 local enums = require("common/enums")
 local icons = require("common/utility/icons_helper")
+local sdf = require("shared/sdf_render_sylvanas")
 
 local DASHBOARD_WINDOW_ID = "EaxRotationsDashboard"
 local FRAME_WIDTH = 170
@@ -214,10 +215,13 @@ local function render_tooltip_at_mouse(text)
 
     local bg_min = vec2.new(tooltip_x, tooltip_y)
     local bg_max = vec2.new(tooltip_x + 200, tooltip_y + 30)
-    dashboard_window:render_rect_filled(bg_min, bg_max, RENDER_COLORS.tooltip_bg, 2)
-    dashboard_window:render_rect(bg_min, bg_max, RENDER_COLORS.tooltip_border, 1)
 
-    dashboard_window:add_menu_element_pos_offset(vec2.new(tooltip_x + 5, tooltip_y + 8))
+    -- Drop shadow behind tooltip
+    sdf.drop_shadow(tooltip_x - 3, tooltip_y - 3, 206, 36, { 0, 0, 0, 80 }, 2, 2, 6, 10, 1)
+    -- SDF border rect for tooltip
+    sdf.border_rect(tooltip_x, tooltip_y, 200, 30, RENDER_COLORS.tooltip_bg, RENDER_COLORS.tooltip_border, 4, 1, 1)
+
+    dashboard_window:add_menu_element_pos_offset(vec2.new(tooltip_x + 8, tooltip_y + 8))
     dashboard_window:add_text_on_dynamic_pos(THEME.text, text)
     dashboard_window:draw_next_dynamic_widget_on_new_line()
 end

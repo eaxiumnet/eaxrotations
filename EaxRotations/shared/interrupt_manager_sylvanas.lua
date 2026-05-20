@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Helper: Interrupt Manager
 -- ============================================================================
--- Readability notes:
---   What: class-agnostic interrupt strategy factory for Sylvanas rotations.
---   When: class middleware registers one or more TBC interrupt spells.
---   Why: cast checks, setting gates, and timing thresholds should be identical.
---   Safety: no target scans, no per-frame table allocation, and all APIs are nil-guarded.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
@@ -84,9 +78,9 @@ local function current_cast_spell_id(target)
     return type(id) == "number" and id or nil
 end
 
--- TBC Priority Interrupt Spell List (Flux-style spell ID priority)
+-- TBC Priority Interrupt Spell List
 -- Higher number = higher priority (interrupt these first)
--- From Flux shaman middleware: heals=10, CC=9, Poly=9, Fear=9, big damage=8
+-- Priority scale: heals=10, CC=9, Poly=9, Fear=9, big damage=8
 local PRIORITY_INTERRUPT_SPELLS = {
     -- Heals (Priority 10)
     [2054] = 10, [2055] = 10, [6063] = 10, [6064] = 10, [25210] = 10, [25213] = 10, -- Heal
@@ -121,7 +115,7 @@ function M.interrupt_priority(spell_id)
     return 1
 end
 
---- Get spell-level interrupt priority (Flux-style).
+--- Get spell-level interrupt priority.
 -- @param spell_id number - Spell ID being cast
 -- @return number - Priority 1-10 (higher = interrupt first)
 function M.spell_interrupt_priority(spell_id)

@@ -1,19 +1,8 @@
 -- ============================================================================
--- Priest Holy Rotation (strict local api/ production port)
 -- ============================================================================
--- Readability notes:
---   What: Holy Priest priority list for emergency shields, HoTs, group healing, and direct heals.
---   When: dispatcher selects the Holy playstyle for a Priest healer.
---   Why: priorities mirror healer decision-making instead of pretending healing is a fixed rotation.
---   Safety: spell existence, mana, effective HP, and target validity are checked before casting.
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return end
-
--- Decision notes:
---   Playstyle files are ordered priority lists: earlier strategies must be more urgent or more time-sensitive.
---   Matches functions explain when an action is allowed; execute functions only perform the already-gated cast.
---   Role logic follows TBC expectations and avoids post-TBC spells, speculative target swaps, and impossible casts.
 
 local load_player = NS.GetPlayer()
 
@@ -40,6 +29,7 @@ local Healing = load_healing_helpers()
 local format = string.format
 -- ipairs unused in holy (no ipairs iteration needed)
 local tostring = tostring
+local EMPTY_SETTINGS = {}
 
 -- ============================================================================
 -- IMPORT SHARED RANK TABLES + UTILITIES (from class_sylvanas.lua)
@@ -58,6 +48,40 @@ local HOLY_CONCENTRATION_BUFF = { 34753, 34754, 34859, 34860 }
 -- WEAKENED_SOUL_DEBUFF removed: unused (holy uses state.lowest.has_weakened_soul from Healing scan)
 local SHADOW_WORD_PAIN_DEBUFF = { 589, 594, 970, 992, 2767, 10892, 10893, 25367, 25368 }
 local HOLY_FIRE_DOT_DEBUFF = { 14914, 15262, 15263, 15264, 15265, 15266, 15267, 15261, 25384 }
+
+-- FrostByte feature constants
+-- ============================================================================
+-- Fade buff IDs (all ranks)
+local FADE_BUFF = { 25429, 10942, 10941, 9592, 9579, 9578, 586 }
+
+-- Healthstone item IDs (TBC, best to worst)
+local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+
+-- Karazhan encounter map ID
+local KARAZHAN_MAP_ID = 532
+
+-- Pushback detection for Greater Heal (Frostbyte v0.5.0 style)
+-- Tracks recent damage taken to gate long-cast heals during pushback
+--- Checks if the player is taking damage or in pushback using available API.
+--- Uses fallback detection when standard enemy scanner isn't exposed.
+---@param context table The combat context.
+---@return boolean has_pushback True if pushback is likely active.
+local function _check_pushback(context)
+    if not (context and context.me) then return false end
+    local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(8) or {}
+    for _, enemy in ipairs(enemies) do
+        if enemy then
+            local ok, is_casting = pcall(function() return enemy:is_casting() end)
+            if ok and is_casting then return true end
+            local ok2, can_atk = pcall(function()
+                if context.me.can_attack then return enemy:can_attack(context.me) end
+                return false
+            end)
+            if ok2 and can_atk then return true end
+        end
+    end
+    return false
+end
 
 -- [PRE-ALLOC] Heal rank option tables — created once at load time, not per-frame in execute().
 -- Avoids Lua 5.1 GC pressure from repeated inline table creation in combat path.
@@ -81,6 +105,17 @@ local holy_state = {
     has_inner_focus = false,
     swp_remaining = 0,
     holy_fire_remaining = 0,
+    -- FrostByte feature state
+    healthstone_ready = false,
+    healthstone_id = nil,
+    has_fade_buff = false,
+    fade_ready = false,
+    encounter_id = 0,
+    lightwell_ready = false,
+    shadowfiend_ready = false,
+    dispel_magic_ready = false,
+    cure_disease_ready = false,
+    abolish_disease_ready = false,
 }
 -- Shared helpers from core_sylvanas.lua
 local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_control_locked, has_player_buff = NS.import_helpers(
@@ -92,6 +127,7 @@ local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_co
 -- is_same_unit removed: unused in holy (no unit comparison needed)
 
 local function build_holy_state(context)
+    context.settings = context.settings or EMPTY_SETTINGS
     local aoe_hp = context.settings.holy_aoe_hp or 80
     local lowest_entry = nil
     local tank_entry = nil
@@ -100,6 +136,11 @@ local function build_holy_state(context)
     local damaged_count = 0
 
     local player = NS.GetPlayer()
+    if not player then return holy_state end
+    -- Mounted bail: healer should not queue buffs/heals while mounted
+    if player.is_mounted and player:is_mounted() then
+        return holy_state
+    end
     context.player_control_locked = player_control_locked()
     context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
     context.hp = health_pct(NS.PLAYER_UNIT)
@@ -129,15 +170,169 @@ local function build_holy_state(context)
     holy_state.tank = tank_entry
     holy_state.tank_hp = tank_hp
     holy_state.group_damaged_count = damaged_count
+    -- Subgroup count for Prayer of Healing: in raids, only count your own party
+    if Healing.count_subgroup_below_hp then
+        holy_state.subgroup_damaged_count = Healing.count_subgroup_below_hp(aoe_hp)
+    else
+        holy_state.subgroup_damaged_count = damaged_count
+    end
     holy_state.surge_of_light = has_player_buff(SURGE_OF_LIGHT_BUFF)
     holy_state.clearcasting = has_player_buff(HOLY_CONCENTRATION_BUFF)
+    -- FrostByte: Healthstone scanning
+    holy_state.healthstone_id = nil
+    holy_state.healthstone_ready = false
+    if NS.is_item_ready then
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            local ok, ready = pcall(NS.is_item_ready, id)
+            if ok and ready then
+                holy_state.healthstone_id = id
+                holy_state.healthstone_ready = true
+                break
+            end
+        end
+    end
+
+    -- FrostByte: Fade state
+    holy_state.has_fade_buff = has_player_buff(FADE_BUFF)
+    holy_state.fade_ready = spell_exists(SPELLS.Fade) and spell_ready(SPELLS.Fade)
+
+    -- FrostByte: Encounter ID for Karazhan reactions
+    holy_state.encounter_id = (NS.core and NS.core.get_map_id and NS.core.get_map_id()) or 0
+
     holy_state.pom_ready = spell_exists(SPELLS.PrayerofMending) and spell_ready(SPELLS.PrayerofMending, (tank_entry and tank_entry.unit) or NS.PLAYER_UNIT)
     holy_state.coh_ready = spell_exists(SPELLS.CircleofHealing) and spell_ready(SPELLS.CircleofHealing, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.has_inner_focus = has_player_buff(INNER_FOCUS_BUFF)
     holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
     holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
+    holy_state.lightwell_ready = spell_exists(SPELLS.Lightwell) and spell_ready(SPELLS.Lightwell, NS.PLAYER_UNIT)
+    holy_state.shadowfiend_ready = spell_exists(SPELLS.Shadowfiend) and spell_ready(SPELLS.Shadowfiend, NS.PLAYER_UNIT)
+    holy_state.dispel_magic_ready = spell_exists(SPELLS.DispelMagic) and spell_ready(SPELLS.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+    holy_state.cure_disease_ready = spell_exists(SPELLS.CureDisease) and spell_ready(SPELLS.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+    holy_state.abolish_disease_ready = spell_exists(SPELLS.AbolishDisease) and spell_ready(SPELLS.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
 
     return holy_state
+end
+
+local function holy_idle_damage_enabled(context)
+    local settings = context and context.settings or EMPTY_SETTINGS
+    if settings.holy_dps_when_idle == true then return true end
+    return context and (context.is_solo == true or context.is_leveling == true)
+end
+
+-- ============================================================================
+-- FrostByte Feature: StopCast
+-- Mid-cast cancellation: if a higher-priority target emerges during a long cast,
+-- interrupt the current cast to switch to the higher-priority target.
+-- ============================================================================
+local function stop_cast_matches(context, state)
+    if not context.in_combat then return false end
+    if context.player_control_locked then return false end
+    -- Only fire if player is currently casting
+    if not context.me then return false end
+    local ok, is_casting = pcall(function() return context.me:is_casting() end)
+    if not ok or not is_casting then return false end
+    -- Someone is critically low and we're casting something else — interrupt
+    if not state.lowest then return false end
+    if state.lowest_hp < 30 then
+        return true
+    end
+    -- If tank dropped below safe zone during cast, stop and heal them
+    if state.tank and state.tank_hp < 50 then
+        return true
+    end
+    return false
+end
+
+-- ============================================================================
+-- FrostByte Feature: PreHeal
+-- Pre-cast Greater Heal when tank is about to take predictable damage.
+-- Timed to land just after the damage hits.
+-- ============================================================================
+local function pre_heal_matches(context, state)
+    if not context.in_combat then return false end
+    if context.player_control_locked or context.is_moving then return false end
+    if not state.tank then return false end
+    -- Tank HP should be in the "pre-heal" range: healthy enough to survive
+    -- the cast, but damage is incoming
+    if state.tank_hp < 60 or state.tank_hp > 95 then return false end
+    -- Check for incoming damage: enemy casting
+    if not _check_pushback(context) then return false end
+    -- Don't pre-heal if already casting
+    if context.me then
+        local ok, casting = pcall(function() return context.me:is_casting() end)
+        if ok and casting then return false end
+    end
+    return spell_exists(SPELLS.GreaterHeal) and spell_ready(SPELLS.GreaterHeal, state.tank.unit)
+end
+
+-- ============================================================================
+-- FrostByte Feature: Fade
+-- Auto-use Fade when player has aggro and Fade is ready.
+-- ============================================================================
+local function fade_matches(context, state)
+    if not context.in_combat then return false end
+    if context.player_control_locked then return false end
+    if state.has_fade_buff then return false end
+    if not state.fade_ready then return false end
+    -- Check if enemies are targeting the player
+    local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(20) or {}
+    for _, enemy in ipairs(enemies) do
+        if enemy and enemy.is_valid and enemy:is_valid() and enemy.is_alive and enemy:is_alive() then
+            local ok, target = pcall(function() return enemy:get_target() end)
+            if ok and target and context.me and target == context.me then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- ============================================================================
+-- FrostByte Feature: Healthstone
+-- Auto-use healthstone below HP threshold, off-GCD.
+-- ============================================================================
+local function healthstone_matches_frostbyte(context, state)
+    if not state.healthstone_ready then return false end
+    local hs_hp = (context.settings and context.settings.holy_healthstone_hp) or 35
+    if context.hp > hs_hp then return false end
+    return true
+end
+
+-- ============================================================================
+-- FrostByte Feature: MountedProtection
+-- Safety net: prevent actions while mounted.
+-- build_holy_state returns early when mounted, but this strategy acts as
+-- an additional guard at the strategy evaluation level.
+-- ============================================================================
+local function mounted_protection_matches(context, state)
+    if not context.me then return false end
+    -- build_holy_state already returns early when mounted (state is empty),
+    -- so other strategies won't fire. This is a named safety net.
+    if context.me.is_mounted and context.me:is_mounted() then
+        return true
+    end
+    return false
+end
+
+-- ============================================================================
+-- FrostByte Feature: EncounterReactions
+-- React to specific Karazhan encounter mechanics:
+-- Netherspite: avoid long casts during Nether Breath
+-- Maiden: cleanse/heal through Repentance
+-- Moroes: heal Garrote targets quickly
+-- ============================================================================
+local function encounter_reactions_matches(context, state)
+    if not context.in_combat then return false end
+    if state.encounter_id ~= KARAZHAN_MAP_ID then return false end
+    -- Netherspite: player control locked (Nether Breath fear) — dispel/prepare
+    if context.player_control_locked then
+        return state.tank_hp < 80
+    end
+    -- Maiden / Moroes: tank taking heavy damage
+    if state.tank and state.tank_hp < 45 then
+        return true
+    end
+    return false
 end
 
 local strategies = {
@@ -220,7 +415,9 @@ local strategies = {
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
             if context.settings.holy_use_poh == false then return false end
-            return state.group_damaged_count >= (context.settings.holy_aoe_count or 3)
+            -- Use subgroup count for PoH (only counts your party in raids)
+            local poh_count = state.subgroup_damaged_count or state.group_damaged_count
+            return poh_count >= (context.settings.holy_aoe_count or 3)
         end,
         execute = function(context, state)
             local chosen_spell, spell_label = cast_best_heal_rank(PRAYER_OF_HEALING_RANKS, NS.PLAYER_UNIT, context, "PoH", HOLY_OPTS_POH)
@@ -235,6 +432,8 @@ local strategies = {
             if context.player_control_locked or context.is_moving then return false end
             if not state.clearcasting then return false end
             if not state.lowest then return false end
+            -- Pushback gate: skip long-cast heals when taking damage
+            if _check_pushback(context) then return false end
             return state.lowest_hp < 95
         end,
         execute = function(context, state)
@@ -262,11 +461,29 @@ local strategies = {
         end,
     },
     {
+        name = "Lightwell",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked then return false end
+            if context.settings.holy_use_lightwell == false then return false end
+            if not state.lightwell_ready then return false end
+            -- Only place Lightwell when raid HP is under sustained pressure (3+ injured)
+            return state.group_damaged_count >= (context.settings.holy_aoe_count or 3)
+        end,
+        execute = function()
+            return try_cast(SPELLS.Lightwell, NS.PLAYER_UNIT, "[HOLY] Lightwell (raid sustain)")
+        end,
+    },
+    {
         name = "GreaterHeal",
         matches = function(context, state)
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
             if not state.lowest then return false end
+            -- Pushback gate: skip GH when taking damage, fallback to FH
+            if _check_pushback(context) then return false end
+            -- Mana conservation: drop GH below 30% mana, use FH+Renew only
+            if context.mana_pct < (context.settings.holy_gh_mana_floor or 30) then return false end
             local flash_hp = context.settings.holy_flash_heal_hp or 50
             local renew_hp = context.settings.holy_renew_hp or 90
             return state.lowest_hp < renew_hp and state.lowest_hp >= flash_hp
@@ -284,6 +501,8 @@ local strategies = {
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
             if not state.lowest then return false end
+            -- Mana conservation: drop direct heals below 15% mana, Renew only
+            if context.mana_pct < (context.settings.holy_fh_mana_floor or 15) then return false end
             return state.lowest_hp < (context.settings.holy_flash_heal_hp or 50)
         end,
         execute = function(context, state)
@@ -294,13 +513,107 @@ local strategies = {
         end,
     },
     {
+        name = "DesperatePrayer",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked then return false end
+            if context.settings.holy_use_desperate_prayer == false then return false end
+            if context.hp > (context.settings.holy_desp_prayer_hp or 30) then return false end
+            if not spell_exists(SPELLS.DesperatePrayer) or not spell_ready(SPELLS.DesperatePrayer, NS.PLAYER_UNIT) then return false end
+            return true
+        end,
+        execute = function()
+            return try_cast(SPELLS.DesperatePrayer, NS.PLAYER_UNIT, "[HOLY] Desperate Prayer")
+        end,
+    },
+    {
+        name = "Shadowfiend",
+        is_gcd_gated = false,
+        is_burst = true,
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked then return false end
+            if not context.settings.use_shadowfiend then
+                if context.settings.use_shadowfiend == nil and context.settings.use_cooldowns == false then return false end
+            end
+            if not state.shadowfiend_ready then return false end
+            -- Mana floor gate: only use Shadowfiend when mana is actually low
+            return context.mana_pct < (context.settings.shadowfiend_mana_threshold or 30)
+        end,
+        execute = function()
+            return try_cast(SPELLS.Shadowfiend, nil, "[HOLY] Shadowfiend (mana regen)", { skip_range = true })
+        end,
+    },
+    {
+        name = "DispelMagic",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked then return false end
+            if context.settings.use_party_dispel == false then return false end
+            if not state.dispel_magic_ready then return false end
+            if context.mana_pct < (context.settings.party_dispel_mana_floor or 30) then return false end
+            -- Dispel dangerous magic debuffs on tank first, then lowest ally
+            if not state.tank and not state.lowest then return false end
+            local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
+            -- Gate: only dispel if the target has a harmful magic effect (Healing module tracks this)
+            if Healing.has_dangerous_dispel then
+                return Healing.has_dangerous_dispel(target)
+            end
+            return true
+        end,
+        execute = function(_, state)
+            local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
+            return try_cast(SPELLS.DispelMagic, target, "[HOLY] Dispel Magic")
+        end,
+    },
+    {
+        name = "CureDisease",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked then return false end
+            if not state.cure_disease_ready then return false end
+            if context.mana_pct < (context.settings.party_dispel_mana_floor or 30) then return false end
+            if not state.lowest then return false end
+            -- Gate: only cure if the target actually has a disease
+            if Healing.has_disease then
+                return Healing.has_disease((state.tank and state.tank.unit) or state.lowest.unit)
+            end
+            return true
+        end,
+        execute = function(_, state)
+            local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
+            return try_cast(SPELLS.CureDisease, target, "[HOLY] Cure Disease")
+        end,
+    },
+    {
+        name = "AbolishDisease",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked then return false end
+            if not state.abolish_disease_ready then return false end
+            if context.mana_pct < (context.settings.party_dispel_mana_floor or 30) then return false end
+            -- Abolish Disease is pre-emptive: use on tank pre-combat or during disease-heavy encounters
+            return state.tank ~= nil and not state.cure_disease_ready
+        end,
+        execute = function(_, state)
+            return try_cast(SPELLS.AbolishDisease, state.tank.unit, "[HOLY] Abolish Disease (preventive)")
+        end,
+    },
+    {
         name = "RenewTank",
         matches = function(context, state)
             if context.player_control_locked then return false end
             if not state.tank then return false end
             if not spell_exists(SPELLS.Renew) or not spell_ready(SPELLS.Renew, state.tank.unit) then return false end
             if not context.in_combat and context.settings.holy_prepull_renew == false then return false end
-            if state.tank.has_renew then return false end
+
+            -- Refresh timing gate: only refresh if < 3s remaining (avoid wasted ticks)
+            -- Use explicit nil-check to avoid Lua 0-falsy edge case with renew_remains
+            local tank_renew = state.tank.renew_remains
+            if tank_renew == nil then
+                tank_renew = (state.tank.has_renew and 999 or 0)
+            end
+            if tank_renew > 3 then return false end
 
             local threshold = context.settings.holy_renew_hp or 90
             if state.tank.effective_hp > threshold and context.in_combat then
@@ -319,8 +632,16 @@ local strategies = {
             if not context.in_combat then return false end
             if context.player_control_locked then return false end
             if not state.lowest then return false end
-            if state.lowest.has_renew then return false end
             if not spell_exists(SPELLS.Renew) or not spell_ready(SPELLS.Renew, state.lowest.unit) then return false end
+
+            -- Refresh timing gate: only refresh if < 3s remaining (avoid wasted ticks)
+            -- Use explicit nil-check to avoid Lua 0-falsy edge case with renew_remains
+            local lowest_renew = state.lowest.renew_remains
+            if lowest_renew == nil then
+                lowest_renew = (state.lowest.has_renew and 999 or 0)
+            end
+            if lowest_renew > 3 then return false end
+
             return state.lowest_hp < (context.settings.holy_renew_hp or 90)
         end,
         execute = function(_, state)
@@ -346,10 +667,10 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if context.player_control_locked then return false end
-            if not context.settings.holy_dps_when_idle then return false end
+            if not holy_idle_damage_enabled(context) then return false end
             if not context.has_valid_enemy_target then return false end
             if state.lowest_hp < (context.settings.holy_renew_hp or 90) then return false end
-            if context.mana_pct < (context.settings.holy_dps_mana_floor or 70) then return false end
+            if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
             if state.swp_remaining > 0 then return false end
             return spell_exists(SPELLS.ShadowWordPain) and spell_ready(SPELLS.ShadowWordPain, context.target)
         end,
@@ -362,10 +683,10 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
-            if not context.settings.holy_dps_when_idle then return false end
+            if not holy_idle_damage_enabled(context) then return false end
             if not context.has_valid_enemy_target then return false end
             if state.lowest_hp < (context.settings.holy_renew_hp or 90) then return false end
-            if context.mana_pct < (context.settings.holy_dps_mana_floor or 70) then return false end
+            if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 45 or 70)) then return false end
             if state.holy_fire_remaining > 0 then return false end
             return spell_exists(SPELLS.HolyFire) and spell_ready(SPELLS.HolyFire, context.target)
         end,
@@ -378,14 +699,100 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
-            if not context.settings.holy_dps_when_idle then return false end
+            if not holy_idle_damage_enabled(context) then return false end
             if not context.has_valid_enemy_target then return false end
             if state.lowest_hp < (context.settings.holy_renew_hp or 90) then return false end
-            if context.mana_pct < (context.settings.holy_dps_mana_floor or 70) then return false end
+            if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
             return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
         end,
         execute = function(context)
             return try_cast(SPELLS.Smite, context.target, "[HOLY] Idle Smite")
+        end,
+    },
+    -- Mana < 5%: wand/auto-attack only — all spells forbidden (Research resource floor)
+    {
+        name = "ManaBelow5Wand",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked then return false end
+            if context.mana_pct >= 5 then return false end
+            -- Still allow Desperate Prayer if we're about to die
+            if context.hp < 15 and state.lowest and state.lowest.is_player then return false end
+            return context.has_valid_enemy_target
+        end,
+        execute = function()
+            -- Wand if auto-shoot is not active; otherwise do nothing (auto-attack handles itself)
+            if NS.start_auto_attack then
+                return NS.start_auto_attack()
+            end
+            return false
+        end,
+    },
+    -- FrostByte Feature: StopCast
+    {
+        name = "StopCast",
+        matches = stop_cast_matches,
+        execute = function()
+            if NS.stop_casting then
+                return NS.stop_casting()
+            end
+            -- Fallback: cancel current form/cast via spell book
+            if NS.cancel_current_cast then
+                return NS.cancel_current_cast()
+            end
+            return false
+        end,
+    },
+    -- FrostByte Feature: PreHeal
+    {
+        name = "PreHeal",
+        matches = pre_heal_matches,
+        execute = function(context, state)
+            local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit) or NS.PLAYER_UNIT
+            local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "PreHeal GH", HOLY_OPTS_GH)
+            if not chosen_spell then return false end
+            return try_cast(chosen_spell, target, format("[HOLY] %s (PreHeal) %.0f%%", spell_label, state.tank_hp or 0))
+        end,
+    },
+    -- FrostByte Feature: Fade
+    {
+        name = "Fade",
+        matches = fade_matches,
+        execute = function(_, state)
+            return try_cast(SPELLS.Fade, nil, "[HOLY] Fade (aggro drop)", { skip_range = true })
+        end,
+    },
+    -- FrostByte Feature: Healthstone
+    {
+        name = "Healthstone",
+        matches = healthstone_matches_frostbyte,
+        execute = function(_, state)
+            if state.healthstone_id and state.healthstone_ready then
+                if NS.use_item_by_id then
+                    return NS.use_item_by_id(state.healthstone_id)
+                end
+                return try_cast(state.healthstone_id, nil, "[HOLY] Healthstone", { skip_range = true })
+            end
+            return false
+        end,
+    },
+    -- FrostByte Feature: MountedProtection
+    {
+        name = "MountedProtection",
+        matches = mounted_protection_matches,
+        execute = function()
+            return true  -- No-op: mount check is handled in build_holy_state
+        end,
+    },
+    -- FrostByte Feature: EncounterReactions
+    {
+        name = "EncounterReactions",
+        matches = encounter_reactions_matches,
+        execute = function(context, state)
+            local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit) or NS.PLAYER_UNIT
+            local chosen_spell, spell_label = cast_best_heal_rank(FLASH_HEAL_RANKS, target, context, "Encounter FH", HOLY_OPTS_FH)
+            if not chosen_spell then return false end
+            return try_cast(chosen_spell, target, format("[HOLY] %s (Encounter) %.0f%%", spell_label, (state.tank_hp or state.lowest_hp or 0)))
         end,
     },
 }

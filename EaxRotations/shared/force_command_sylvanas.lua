@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Helper: Force Command System
 -- ============================================================================
--- Readability notes:
---   What: Manual override keybinds for burst, defensive, and gap-closer abilities.
---   When: User presses a keybind to force a specific action bypassing normal rotation logic.
---   Why: Allows manual control for clutch moments without disabling the rotation entirely.
---   Safety: Commands are timed (3-5s window) and self-clearing to prevent stuck states.
---
 -- Pattern: Control-panel keybinds (not slash commands) that set timed flags.
 -- When active, middleware checks bypass normal `matches()` checks.
 --
@@ -104,6 +98,15 @@ end
 -- Register with EaxRotations namespace if available
 if _G.EaxRotations then
     _G.EaxRotations.ForceCommand = M
+    _G.EaxRotations.force_burst_active = function()
+        return M.is_active("burst")
+    end
+    _G.EaxRotations.force_defensive_active = function()
+        return M.is_active("defensive")
+    end
+    _G.EaxRotations.force_gap_active = function()
+        return M.is_active("gap")
+    end
 end
 
 return M

@@ -1,15 +1,8 @@
--- Readability notes:
---   What: Warrior shared middleware.
---   When: dispatcher runs it before the selected playstyle.
---   Why: threat tools are centralized instead of duplicated in every spec.
---   Safety: threat drops require group combat and an ally within 40 yards; never solo.
+-- Warrior shared middleware.
 
--- Decision notes:
---   Middleware owns class-wide reactions such as interrupts, defensive checks, utility, and recovery actions.
---   A middleware row should return true only when it actually performs work; otherwise playstyle priorities must continue.
---   Safety gates are repeated here when the action can disrupt combat flow or break crowd control.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
@@ -201,11 +194,9 @@ local strategies = {
             end
 
             if should_dequeue then
-                -- Use core.input.cast_target_spell with spell ID 0 or a stopcast mechanism to dequeue
-                -- Heroic Strike dequeue via cancel form / stopcast
-                local stop_fn = core.input and core.input.stop_targeting
-                if stop_fn then pcall(stop_fn) end
-                NS.log("[WARRIOR] HS Dequeue - " .. reason)
+                if NS.cancel_spells then NS.cancel_spells() end
+                local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+                if debug then NS.log("[WARRIOR] HS Dequeue - " .. reason) end
                 return true
             end
 
@@ -339,8 +330,7 @@ local strategies = {
             return false
         end,
         execute = function(context)
-            -- API probe: try to cancel buff via available APIs
-            -- This is best-effort; may not work on all Sylvanas versions
+            local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
             
             local PWS_IDS = { 17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218, 27623 }
             local BOP_IDS = { 1022, 5599, 10278 }
@@ -348,22 +338,9 @@ local strategies = {
             -- Try to cancel PW:S first
             for _, id in ipairs(PWS_IDS) do
                 if NS.has_buff and context.me and NS.has_buff(context.me, id) then
-                    -- Try cancel via core.input if available
-                    if core and core.input and core.input.cancel_buff then
-                        local ok = pcall(function() core.input.cancel_buff(id) end)
-                        if ok then
-                            NS.log("[WARRIOR] Cancelled PW:S")
-                            return true
-                        end
-                    end
-                    
-                    -- Try cancel via spell_book if available
-                    if core and core.spell_book and core.spell_book.cancel_buff then
-                        local ok = pcall(function() core.spell_book.cancel_buff(id) end)
-                        if ok then
-                            NS.log("[WARRIOR] Cancelled PW:S via spell_book")
-                            return true
-                        end
+                    if NS.cancel_buff and NS.cancel_buff(id) then
+                        if debug then NS.log("[WARRIOR] Cancelled PW:S") end
+                        return true
                     end
                 end
             end
@@ -371,20 +348,9 @@ local strategies = {
             -- Try to cancel BoP
             for _, id in ipairs(BOP_IDS) do
                 if NS.has_buff and context.me and NS.has_buff(context.me, id) then
-                    if core and core.input and core.input.cancel_buff then
-                        local ok = pcall(function() core.input.cancel_buff(id) end)
-                        if ok then
-                            NS.log("[WARRIOR] Cancelled BoP")
-                            return true
-                        end
-                    end
-                    
-                    if core and core.spell_book and core.spell_book.cancel_buff then
-                        local ok = pcall(function() core.spell_book.cancel_buff(id) end)
-                        if ok then
-                            NS.log("[WARRIOR] Cancelled BoP via spell_book")
-                            return true
-                        end
+                    if NS.cancel_buff and NS.cancel_buff(id) then
+                        if debug then NS.log("[WARRIOR] Cancelled BoP") end
+                        return true
                     end
                 end
             end
@@ -439,6 +405,9 @@ local strategies = {
             return cast_defensive_stance(context)
         end,
     },
+
+    -- Auto-consumable usage
+    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("warrior", strategies)

@@ -1,13 +1,4 @@
--- Readability notes:
---   What: regression tests for equipped-item and set-bonus helper APIs.
---   When: run with lua from the repository root.
---   Why: item and tier-set logic must use one nil-safe equipment path before rotations depend on it.
---   Safety: uses local item/player stubs only; no real inventory or item use APIs are called.
-
--- Decision notes:
---   Sylvanas documents equipped items as slot_info tables, but live builds may expose
---   item_id, entry, id, or an item object with get_item_id(). The helper accepts all
---   observed shapes so class logic does not duplicate fragile slot parsing.
+-- regression tests for equipped-item and set-bonus helper APIs.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 

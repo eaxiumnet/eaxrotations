@@ -1,17 +1,9 @@
 -- ============================================================================
 -- Shared Helper: In-Combat Buff Refresh with Urgency Colors
 -- ============================================================================
--- Readability notes:
---   What: proactive buff refresh tracking with urgency levels (green/yellow/red).
---   When: class rotations need to refresh buffs before they expire.
---   Why: maintains buff uptime by refreshing in a pandemic window instead of reactively.
---   Safety: pure helpers for time math; API calls only in urgency_color() and get_urgency().
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
 
 -- Default urgency thresholds (seconds remaining)
 M.thresholds = {
@@ -146,7 +138,6 @@ M.TBC_BUFF_DURATIONS = {
 }
 
 -- ============================================================================
--- Export to NS namespace for production use
 -- ============================================================================
 
 if NS then

@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Helper: Combat Replay (Sylvanas)
 -- ============================================================================
--- Readability notes:
---   What: captures a compact 60s combat replay for rotation debugging.
---   When: pre-tick snapshots during combat, frozen when combat ends.
---   Why: lets developers inspect recent state without a full combat log parser.
---   Safety: nil-guards all unit access and reuses fixed buffers to avoid churn.
-
 local _G = _G
 local core = _G.core or {}
 local NS = _G.EaxRotations

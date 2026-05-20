@@ -1,17 +1,26 @@
--- Readability notes:
---   What: Warlock shared middleware.
---   When: dispatcher runs it before the selected playstyle.
---   Why: threat tools are centralized instead of duplicated in every spec.
---   Safety: threat drops require group combat and an ally within 40 yards; never solo.
+-- Warlock shared middleware.
 
--- Decision notes:
---   Middleware owns class-wide reactions such as interrupts, defensive checks, utility, and recovery actions.
---   A middleware row should return true only when it actually performs work; otherwise playstyle priorities must continue.
---   Safety gates are repeated here when the action can disrupt combat flow or break crowd control.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
+if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = {} } end
 local SPELLS = NS.WarlockSpells or {}
+local HEALTHSTONE_ITEMS = (TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 19010, 19009, 19008, 19007, 19006, 19005, 19004, 5510, 5509, 5511, 5512 }
+local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
+local HEALING_POTION_ITEMS = {
+    TBC_POTIONS.crystal_healing or 33934,
+    TBC_POTIONS.auchenai_healing or 32947,
+    TBC_POTIONS.super_healing or 22829,
+    TBC_POTIONS.super_rejuvenation or 22850,
+    TBC_POTIONS.major_healing or 13446,
+    TBC_POTIONS.greater_healing or 1710,
+    TBC_POTIONS.healing or 929,
+    TBC_POTIONS.lesser_healing or 858,
+}
+local SOULSTONE_ITEMS = { 22116, 16896, 16895, 16893, 16892, 5232 }
+local SOUL_SHARD_ITEM = 6265  -- TBC soul shard reagent
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("warlock", "SpellLock", SPELLS),
@@ -90,11 +99,9 @@ local strategies = {
         end,
         execute = function(context)
             -- Try Healthstone first (item-based, has CD)
-            -- Healthstone items: 190005 (Healthstone - Fel), 190006 (Healthstone - Master), 190007 (Healthstone - Major)
-            local healthstone_ids = { 190005, 190006, 190007, 22116, 18892, 11766 }
             local used_item = false
             if NS.use_item and context.me then
-                for _, item_id in ipairs(healthstone_ids) do
+                for _, item_id in ipairs(HEALTHSTONE_ITEMS) do
                     if NS.use_item(item_id, context.me) then
                         used_item = true
                         break
@@ -104,9 +111,8 @@ local strategies = {
             if used_item then return true end
 
             -- Fallback: Healing Potion if no Healthstone used
-            local potion_ids = { 18707, 17182, 39213, 13446, 5665 }
             if NS.use_item and context.me then
-                for _, item_id in ipairs(potion_ids) do
+                for _, item_id in ipairs(HEALING_POTION_ITEMS) do
                     if NS.use_item(item_id, context.me) then
                         return true
                     end
@@ -234,11 +240,12 @@ local strategies = {
             if context.in_combat then return false end
             if settings.auto_create_healthstone == false then return false end
             -- Check if we already have a Healthstone (item check)
-            local hs_items = { 190005, 190006, 190007, 22116, 18892, 11766 }
             if NS.has_item then
-                for _, id in ipairs(hs_items) do
+                for _, id in ipairs(HEALTHSTONE_ITEMS) do
                     if NS.has_item(id) then return false end
                 end
+                -- Require at least one soul shard to create
+                if not NS.has_item(SOUL_SHARD_ITEM) then return false end
             end
             local spell = { id = { 27230, 11730, 11729, 6202, 6201, 5699 }, name = "CreateHealthstone" }
             return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
@@ -263,11 +270,12 @@ local strategies = {
             local ss_buffs = { 27238, 20756, 20755, 20752, 693 }
             if NS.has_player_buff and NS.has_player_buff(ss_buffs) then return false end
             -- Check if we have a Soulstone item in inventory
-            local ss_items = { 190008, 20766, 20765, 16896, 16895, 16893, 5232 }
             if NS.has_item then
-                for _, id in ipairs(ss_items) do
+                for _, id in ipairs(SOULSTONE_ITEMS) do
                     if NS.has_item(id) then return false end
                 end
+                -- Require at least one soul shard to create
+                if not NS.has_item(SOUL_SHARD_ITEM) then return false end
             end
             local spell = { id = { 27238, 20756, 20755, 20752, 693 }, name = "CreateSoulstone" }
             return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
@@ -276,6 +284,9 @@ local strategies = {
             return NS.try_cast({ id = { 27238, 20756, 20755, 20752, 693 }, name = "CreateSoulstone" }, context.me, "[WARLOCK] Create Soulstone", { skip_range = true })
         end,
     },
+
+    -- Auto-consumable usage
+    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("warlock", strategies)

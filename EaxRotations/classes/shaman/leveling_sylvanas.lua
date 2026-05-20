@@ -139,7 +139,7 @@ end
 local function mainhand_has_imbue()
     local item = get_equipped_item(MAIN_HAND_SLOT)
     if not item then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] mainhand: NO item in slot 16") end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] mainhand: NO item in slot 16") end
         return false, false
     end
     if item.item_has_enchant then
@@ -154,11 +154,11 @@ local function mainhand_has_imbue()
             ench_charges = ch_ok and tostring(ch_v) or "err"
         end
         if NS.get_setting and NS.get_setting("debug_system", false) then
-            core.log("[IMBUEDIAG] mainhand: api_ok=" .. tostring(ok) .. " has_ench=" .. tostring(result) .. " ench_id=" .. ench_id .. " exp=" .. ench_exp .. " charges=" .. ench_charges)
+            NS.log("[IMBUEDIAG] mainhand: api_ok=" .. tostring(ok) .. " has_ench=" .. tostring(result) .. " ench_id=" .. ench_id .. " exp=" .. ench_exp .. " charges=" .. ench_charges)
         end
         if ok then return result == true, true end
     else
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] mainhand: item_has_enchant API MISSING on item object") end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] mainhand: item_has_enchant API MISSING on item object") end
     end
     return false, false
 end
@@ -242,9 +242,9 @@ function shaman_leveling.build_state(context)
                     oh_exp = ok3 and tostring(r3) or "err"
                 end
             end
-            core.log("[IMBUEDIAG] offhand: item_exists=true has_enchant=" .. oh_has .. " ench_id=" .. oh_id .. " exp=" .. oh_exp)
+            NS.log("[IMBUEDIAG] offhand: item_exists=true has_enchant=" .. oh_has .. " ench_id=" .. oh_id .. " exp=" .. oh_exp)
         else
-            core.log("[IMBUEDIAG] offhand: NO item in slot 17")
+            NS.log("[IMBUEDIAG] offhand: NO item in slot 17")
         end
     end
 
@@ -276,28 +276,28 @@ end
 --- Main-hand weapon imbue - maintain OOC
 local weapon_imbue_matches = function(context, state)
     if not state then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] match: no state") end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: no state") end
         return false
     end
     if state.in_combat then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] match: in_combat=" .. tostring(state.in_combat) .. " -> skip") end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: in_combat=" .. tostring(state.in_combat) .. " -> skip") end
         return false
     end
     if not state.use_weapon_imbue then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] match: use_weapon_imbue=false -> skip") end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: use_weapon_imbue=false -> skip") end
         return false
     end
     if not state.weapon_imbue then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] match: no weapon_imbue selected -> skip") end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: no weapon_imbue selected -> skip") end
         return false
     end
     if state.has_mainhand_imbue then
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] match: has_mainhand_imbue=true -> already OK, skip") end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: has_mainhand_imbue=true -> already OK, skip") end
         return false
     end
     if not state.weapon_imbue_api_known then
         local retry_ok = can_retry_unknown_imbue(state)
-        if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] match: api_known=false retry_ok=" .. tostring(retry_ok) .. " retry_ms=" .. tostring(IMBUE_REFRESH_UNKNOWN_MS)) end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: api_known=false retry_ok=" .. tostring(retry_ok) .. " retry_ms=" .. tostring(IMBUE_REFRESH_UNKNOWN_MS)) end
         if not retry_ok then return false end
     end
     local ready = spell_ready(state.weapon_imbue, get_player(), { skip_range = true })
@@ -305,7 +305,7 @@ local weapon_imbue_matches = function(context, state)
         local spell_name = (state.weapon_imbue and state.weapon_imbue.name) or "nil"
         local ids_raw = (state.weapon_imbue and state.weapon_imbue.ids) or nil
         local spell_ids = (ids_raw and type(ids_raw) == "table" and table.concat(ids_raw, ",")) or "nil"
-        core.log("[IMBUEDIAG] match: ready=" .. tostring(ready) .. " spell=" .. tostring(spell_name) .. " ids={" .. spell_ids .. "}")
+        NS.log("[IMBUEDIAG] match: ready=" .. tostring(ready) .. " spell=" .. tostring(spell_name) .. " ids={" .. spell_ids .. "}")
     end
     return ready
 end
@@ -461,19 +461,19 @@ local strategies = {
       matches = weapon_imbue_matches,
       execute = function(context, state)
           if not state then
-              if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] execute: no state -> skip") end
+              if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] execute: no state -> skip") end
               return false
           end
           local spell_name = (state.weapon_imbue and state.weapon_imbue.name) or "nil"
           local cast_ok = try_cast(state.weapon_imbue, nil, "[LEVELING] Weapon Imbue", { skip_range = true })
           if NS.get_setting and NS.get_setting("debug_system", false) then
-              core.log("[IMBUEDIAG] execute: try_cast(" .. spell_name .. ")=" .. tostring(cast_ok) .. " target=nil")
+              NS.log("[IMBUEDIAG] execute: try_cast(" .. spell_name .. ")=" .. tostring(cast_ok) .. " target=nil")
           end
           if cast_ok then
               runtime.last_imbue_ms = state.now_ms
               return true
           end
-          if NS.get_setting and NS.get_setting("debug_system", false) then core.log("[IMBUEDIAG] execute: try_cast FAILED") end
+          if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] execute: try_cast FAILED") end
           return false
       end },
 

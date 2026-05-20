@@ -25,6 +25,9 @@ Run these checks from the repository root before shipping changes:
 ```powershell
 Get-ChildItem -Path EaxRotations -Recurse -File -Filter '*.lua' | ForEach-Object { luac -p $_.FullName }
 Get-ChildItem -Path EaxRotations/tests -Filter 'test_*.lua' | Sort-Object Name | ForEach-Object { lua $_.FullName }
+lua EaxRotations/tools/audit_online_tbc_ids.lua
+lua EaxRotations/tools/audit_static_behavior.lua
+lua EaxRotations/tools/triage_archive_spell_ids.lua
 rg --files EaxRotations -g '!*.lua' -g '!*.md'
 ```
 

@@ -1,13 +1,5 @@
--- Readability notes:
---   What: smoke test for API-probe compatibility aliases.
---   When: api_probe_sylvanas checks the runtime boundary.
---   Why: missing aliases made the probe report false failures after the rebuild.
---   Safety: all objects are local stubs and no spell cast is issued.
+-- smoke test for API-probe compatibility aliases.
 
--- Decision notes:
---   Tests use local stubs instead of a live Sylvanas client so API-bound behavior remains reproducible.
---   Each case protects one previous failure mode or role rule; keep assertions narrow and descriptive.
---   No test should call real input/cast APIs because regression runs must be safe outside the game.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
 local target = {

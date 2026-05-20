@@ -1,13 +1,5 @@
--- Readability notes:
---   What: regression test for Fade, Feign Death, Cower, and Soulshatter gating.
---   When: run from the repository root with lua.
---   Why: threat drops must never fire while solo or around unrelated friendly units.
---   Safety: uses a local API stub only; no game input is called.
+-- regression test for Fade, Feign Death, Cower, and Soulshatter gating.
 
--- Decision notes:
---   Tests use local stubs instead of a live Sylvanas client so API-bound behavior remains reproducible.
---   Each case protects one previous failure mode or role rule; keep assertions narrow and descriptive.
---   No test should call real input/cast APIs because regression runs must be safe outside the game.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
 local now = 0

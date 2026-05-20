@@ -1,17 +1,9 @@
 -- ============================================================================
 -- Shared Helper: Custom Rotation Engine
 -- ============================================================================
--- Readability notes:
---   What: user-defined priority lists with conditional casting.
---   When: when users want custom rotations beyond built-in playstyles.
---   Why: allows advanced users to define their own spell priorities.
---   Safety: validates conditions, no arbitrary Lua execution, uses NS casting helpers.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
 
 -- Get setting safely
 local function get_setting(context, key, default)
