@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Helper: Strategy Factory
 -- ============================================================================
--- Readability notes:
---   What: factory functions for creating standard strategy tables with less boilerplate.
---   When: defining new playstyle strategies or middleware strategies.
---   Why: reduces copy-paste errors and ensures consistent structure.
---   Safety: pure functions, returns tables ready for registration.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

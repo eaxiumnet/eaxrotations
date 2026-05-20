@@ -41,6 +41,7 @@ local SHADOWBURN_HP_PCT = 20
 local DRAIN_LIFE_HP_THRESHOLD = 40
 local MANA_LIFE_TAP_THRESHOLD = 35
 local DARK_PACT_MANA_THRESHOLD = 45
+local MANA_ITEM_IDS = { 20520, 12662 }  -- Dark Rune, Demonic Rune
 
 -- build_state: compute per-update aura and timing state once for all strategies
 local function build_state(context)
@@ -58,7 +59,18 @@ local function build_state(context)
         has_shadow_ward = me and NS.buff_up(me, SHADOW_WARD_BUFF) or false,
         hp = context.hp or 100,
         mana_pct = context.mana_pct or 100,
+        mana_gem_id = nil,
+        mana_gem_ready = false,
     }
+    -- Find ready mana item
+    state.mana_gem_id = nil
+    for _, id in ipairs(MANA_ITEM_IDS) do
+        if NS.is_item_ready and NS.is_item_ready(id) then
+            state.mana_gem_id = id
+            break
+        end
+    end
+    state.mana_gem_ready = state.mana_gem_id ~= nil
     return state
 end
 
@@ -89,7 +101,7 @@ local ACTIONS = {
     { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
     -- AoE
     { name = "SeedOfCorruption", spell = SeedOfCorruption, position = "target", enemy_count = 3 },
-    { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 3, not_moving = true },
+    { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true },
     { name = "Hellfire", spell = Hellfire, position = "self", enemy_count = 4, not_moving = true },
     -- CC / Emergency
     { name = "DeathCoil", spell = SPELLS.DeathCoil, max_hp = 35, cooldown = 120 },
@@ -120,7 +132,8 @@ end
 
 local function shadowburn_matches(context, action, state)
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
-    if not NS.is_execute_phase(context.target_hp, SHADOWBURN_HP_PCT) then return false end
+    local hp_threshold = (context.settings and context.settings.destro_shadowburn_hp) or SHADOWBURN_HP_PCT
+    if not NS.is_execute_phase(context.target_hp, hp_threshold) then return false end
     return NS.action_matches(context, action)
 end
 
@@ -313,6 +326,43 @@ for i = 1, #ACTIONS do
         end,
     }
 end
+
+-- ============================================================================
+-- FrostByte parity strategies (inserted at correct priority positions)
+-- ============================================================================
+
+-- ManaGem: auto-use mana items when mana is low
+-- Insert at position 7 (after DarkPact=6, before DrainLife=7)
+table.insert(strategies, 7, {
+    name = "ManaGem",
+    matches = function(context, state)
+        local threshold = (context.settings and context.settings.destro_mana_gem_threshold) or 35
+        if (state.mana_pct or 100) > threshold then return false end
+        return state.mana_gem_ready or false
+    end,
+    execute = function(context, state)
+        local id = state and state.mana_gem_id
+        if id and NS.use_item_by_id then
+            NS.use_item_by_id(id)
+            return true
+        end
+        return false
+    end,
+})
+
+-- Soulshatter: threat dump
+-- Insert at position 24 (after Hellfire=22 shift by ManaGem=1, before DeathCoil=23 shift by ManaGem=1)
+-- Original position after AoE (SeedOfCorruption=20, RainOfFire=21, Hellfire=22), before emergency (DeathCoil=23, Fear=24)
+table.insert(strategies, 24, {
+    name = "Soulshatter",
+    matches = function(context, state)
+        if not context.in_combat then return false end
+        return NS.spell_ready(SPELLS.Soulshatter, NS.PLAYER_UNIT, { skip_range = true })
+    end,
+    execute = function()
+        return NS.try_cast(SPELLS.Soulshatter, NS.PLAYER_UNIT, "[DESTRUCTION] Soulshatter")
+    end,
+})
 
 NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
 NS.log("Warlock destruction rotation registered (build_state, explicit strategies, Backlash/Backdraft, execute, AoE, defensives, utility)")

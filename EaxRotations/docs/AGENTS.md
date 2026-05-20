@@ -12,6 +12,7 @@ do not belong here.
 | --- | --- |
 | `README_Sylvanas_API_Edition.md` | Current overview, load path, API boundary, and test baseline |
 | `api_boundary.md` | API boundary and Eax branding rules |
+| `SOURCE_BASELINE_MATRIX.md` | Current external/archive source comparison and implementation queue |
 | `AGENTS.md` | This docs-subtree policy |
 
 ## Update Rules

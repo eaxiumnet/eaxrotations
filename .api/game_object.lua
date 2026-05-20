@@ -12,6 +12,7 @@
 ---@field duration number
 ---@field type integer
 ---@field caster game_object
+---@field points number[]                              -- variable values from aura data (e.g. absorb remaining for shields)
 
 ---@class loss_of_control_info
 ---@field valid boolean
@@ -271,8 +272,14 @@
 ---@field get_creator_object fun(self: game_object): game_object
 ---Returns a table containing the loss of control info for the game object.
 ---@field get_loss_of_control_info fun(self: game_object): loss_of_control_info
----Returns a table phase id
----@field get_unit_phase fun(): number
+---Returns the phase reason for this unit relative to the local player.
+--- -1 = same phase (no reason / equivalent to UnitPhaseReason returning nil)
+---  0 = Phasing (different phase)
+---  1 = Sharding (different shard)
+---  2 = WarMode (different war mode)
+---  3 = ChromieTime (Timewalking Campaign)
+---  4 = TimerunningHwt
+---@field get_unit_phase fun(self: game_object): number
 ---Returns whether the item in the specified slot has an enchant.
 ---@field item_has_enchant fun(self: game_object): boolean
 ---Returns the expiration time (in seconds) of the enchant on the item in the specified slot.
@@ -303,6 +310,8 @@
 ---@field get_unit_ranged_damage fun(self: game_object): unit_ranged_damage_data
 ---Returns the armor value of the game object.
 ---@field get_armor fun(self: game_object): number
+---Returns the current state flags bitfield of the game object.
+---@field get_state_flags fun(self: game_object): integer
 ---Returns whatever the npc is tap denied for the localplayer (grey healthbar)
 ---@field is_tap_denied fun(self: game_object): number
 

@@ -1,17 +1,9 @@
 -- ============================================================================
 -- Shared Helper: Idle Suggestion
 -- ============================================================================
--- Readability notes:
---   What: suggests the next best action when player is idle (not casting).
---   When: dashboard display for "what to do next" guidance.
---   Why: helps players understand rotation priority when waiting.
---   Safety: display only, never auto-casts, uses throttled updates.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
 
 -- Last suggestion cache
 local last_suggestion = {

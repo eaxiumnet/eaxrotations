@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Helper: Performance Benchmarks
 -- ============================================================================
--- Readability notes:
---   What: expected DPS/HPS values for class/spec/gear tier comparisons.
---   When: post-combat performance analysis.
---   Why: helps players understand how they're performing vs expectations.
---   Safety: static data tables, no runtime API dependency.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

@@ -1,41 +1,261 @@
--- Readability notes:
---   What: Warlock spell table, playstyle config, and child module loader.
---   When: main.lua loads the active player's class module.
---   Why: every spec shares one audited spell map and one safe require path.
---   Safety: child module failures are logged instead of crashing startup.
+-- Warlock spell table, playstyle config, and child module loader.
 
--- Decision notes:
---   Class module is the single spell map and playstyle registry for this class.
---   Spell IDs are ranked newest-to-oldest so runtime resolution can pick the best learned TBC rank.
---   Child modules load with pcall so one broken playstyle logs cleanly instead of preventing the whole class from loading.
 local NS = _G.EaxRotations
 if not NS then return nil end
-local enums = require("common/enums")
-if type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
+local cl = require("shared/class_loader_sylvanas")
+local load_child = cl.create_loader("warlock", "Warlock")
+local enums = cl.get_enums()
 local player = NS.GetPlayer()
 if not player or player:get_class() ~= enums.class_id.WARLOCK then return nil end
 
 local SPELLS = {
-Conflagrate = NS.spell_action({ 17962 }, "Conflagrate"),
-    Corruption = NS.spell_action({ 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
-    CurseOfAgony = NS.spell_action({ 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfDoom"),
-    CurseOfDoom = NS.spell_action({ 30910, 603 }, "CurseOfDoom"),
-    DeathCoil = NS.spell_action({ 6789, 17928, 17924, 17923 }, "DeathCoil"),
-    DeathCoil = NS.spell_action({ 6789, 17927, 27223 }, "DeathCoil"),
-    FelArmor = NS.spell_action({ 28189, 28176 }, "FelArmor"),
-    Immolate = NS.spell_action({ 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
-    Incinerate = NS.spell_action({ 32231, 29722 }, "Incinerate"),
-    LifeTap = NS.spell_action({ 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
-    HowlofTerror = NS.spell_action({ 17928, 5484 }, "HowlofTerror"),
-    SeedOfCorruption = NS.spell_action({ 27243 }, "SeedOfCorruption"),
-    ShadowBolt = NS.spell_action({ 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
-    Shadowburn = NS.spell_action({ 30546, 27263, 18871, 18870, 18869, 18868, 18867, 17877 }, "Shadowburn"),
-    SiphonLife = NS.spell_action({ 30911, 27264, 18881, 18880, 18879, 18265 }, "SiphonLife"),
-    Soulshatter = NS.spell_action(29858, "Soulshatter"),
-    UnstableAffliction = NS.spell_action({ 30405, 30404, 30108 }, "UnstableAffliction"),
-    SummonFelguard = NS.spell_action({ 30146 }, "SummonFelguard"),
-    HealthFunnel = NS.spell_action({ 27259, 11695, 11694, 11693, 755, 3699, 3700 }, "HealthFunnel"),
-    ShadowWard = NS.spell_action({ 28610 }, "ShadowWard"),
+    Conflagrate = NS.spell_action({
+        name = "Conflagrate",
+        ids = {30912, 27266, 18932, 18931, 18930, 17962},
+        levels = {70, 65, 60, 54, 48, 40},
+        cast_time = 0,
+        cooldown = 10,
+        power_cost = 0,
+        power_type = "mana",
+        school = "fire",
+    }),
+    Corruption = NS.spell_action({
+        name = "Corruption",
+        ids = {27216, 25311, 11672, 11671, 7648, 6223, 6222, 172},
+        levels = {65, 60, 54, 44, 34, 24, 14, 4},
+        cast_time = 2.0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    CurseOfAgony = NS.spell_action({
+        name = "CurseOfAgony",
+        ids = {27218, 11713, 11712, 11711, 6217, 1014, 980},
+        levels = {67, 58, 48, 38, 28, 18, 8},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    CurseElements = NS.spell_action({ 27228, 11722, 11721, 1490 }, "CurseElements"),
+    CurseOfExhaustion = NS.spell_action({ 18223 }, "CurseOfExhaustion"),
+    CurseExhaustion = NS.spell_action({ 18223 }, "CurseExhaustion"),
+    CurseOfDoom = NS.spell_action({
+        name = "CurseOfDoom",
+        ids = {30910, 603},
+        levels = {70, 60},
+        cast_time = 0,
+        cooldown = 60,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    CurseOfTongues = NS.spell_action({
+        name = "CurseOfTongues",
+        ids = {11719, 1714},
+        levels = {50, 26},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    CurseTongues = NS.spell_action({ 11719, 1714 }, "CurseTongues"),
+    CreateHealthstone = NS.spell_action({ 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone"),
+    CreateSoulstone = NS.spell_action({ 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
+    DarkPact = NS.spell_action({
+        name = "DarkPact",
+        ids = {27265, 18938, 18937, 18220},
+        levels = {70, 60, 50, 40},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "none",
+        school = "shadow",
+    }),
+    DeathCoil = NS.spell_action({
+        name = "DeathCoil",
+        ids = {27223, 17926, 17925, 6789},
+        levels = {68, 58, 50, 42},
+        cast_time = 0,
+        cooldown = 120,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    FelArmor = NS.spell_action({
+        name = "FelArmor",
+        ids = {28189, 28176},
+        levels = {69, 62},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    Fear = NS.spell_action({
+        name = "Fear",
+        ids = {6215, 6213, 5782},
+        levels = {56, 32, 8},
+        cast_time = 1.5,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    Immolate = NS.spell_action({
+        name = "Immolate",
+        ids = {27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348},
+        levels = {69, 60, 60, 50, 40, 30, 20, 10, 1},
+        cast_time = 2.0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "fire",
+    }),
+    Incinerate = NS.spell_action({
+        name = "Incinerate",
+        ids = {32231, 29722},
+        levels = {70, 64},
+        cast_time = 2.5,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "fire",
+    }),
+    DrainLife = NS.spell_action({
+        name = "DrainLife",
+        ids = {27220, 27219, 11700, 11699, 7651, 709, 699, 689},
+        levels = {69, 62, 54, 46, 38, 30, 22, 14},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    DrainSoul = NS.spell_action({
+        name = "DrainSoul",
+        ids = {27217, 11675, 8289, 8288, 1120},
+        levels = {67, 52, 38, 24, 10},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    LifeTap = NS.spell_action({
+        name = "LifeTap",
+        ids = {27222, 11689, 11688, 11687, 1456, 1455, 1454},
+        levels = {68, 56, 46, 36, 26, 16, 6},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "none",
+        school = "shadow",
+    }),
+    HowlofTerror = NS.spell_action({
+        name = "HowlofTerror",
+        ids = {17928, 5484},
+        levels = {54, 40},
+        cast_time = 1.5,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    SeedOfCorruption = NS.spell_action({
+        name = "SeedOfCorruption",
+        ids = {27243},
+        levels = {70},
+        cast_time = 2.0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    ShadowBolt = NS.spell_action({
+        name = "ShadowBolt",
+        ids = {27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686},
+        levels = {69, 60, 60, 52, 44, 36, 28, 20, 12, 6, 1},
+        cast_time = 3.0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    Shadowburn = NS.spell_action({
+        name = "Shadowburn",
+        ids = {30546, 27263, 18871, 18870, 18869, 18868, 18867, 17877},
+        levels = {70, 63, 56, 48, 40, 32, 24, 20},
+        cast_time = 0,
+        cooldown = 15,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    SpellLock = NS.spell_action({ 24259, 19647 }, "SpellLock"),
+    SiphonLife = NS.spell_action({
+        name = "SiphonLife",
+        ids = {30911, 27264, 18881, 18880, 18879, 18265},
+        levels = {70, 63, 58, 48, 38, 30},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    Soulshatter = NS.spell_action({
+        name = "Soulshatter",
+        ids = {29858},
+        levels = {66},
+        cast_time = 0,
+        cooldown = 300,
+        power_cost = 0,
+        power_type = "none",
+        school = "shadow",
+    }),
+    UnstableAffliction = NS.spell_action({
+        name = "UnstableAffliction",
+        ids = {30405, 30404, 30108},
+        levels = {70, 60, 50},
+        cast_time = 1.5,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    SummonFelguard = NS.spell_action({
+        name = "SummonFelguard",
+        ids = {30146},
+        levels = {50},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
+    HealthFunnel = NS.spell_action({
+        name = "HealthFunnel",
+        ids = {27259, 11695, 11694, 11693, 3700, 3699, 3698, 755},
+        levels = {67, 60, 52, 44, 36, 28, 20, 12},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "none",
+        school = "shadow",
+    }),
+    ShadowWard = NS.spell_action({
+        name = "ShadowWard",
+        ids = {28610, 11740, 11739, 6229},
+        levels = {60, 52, 42, 32},
+        cast_time = 0,
+        cooldown = 30,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
     FelDomination = NS.spell_action({ 18708 }, "FelDomination"),
 }
 NS.WarlockSpells = SPELLS
@@ -45,6 +265,7 @@ local config = {
     class_name = "Warlock",
     default_playstyle = "affliction",
     playstyles = {
+        { name = "leveling", display_name = "Leveling" },
         { name = "affliction", display_name = "Affliction" },
         { name = "demonology", display_name = "Demonology" },
         { name = "destruction", display_name = "Destruction" },
@@ -52,13 +273,8 @@ local config = {
 }
 NS.rotation_registry:set_class_config(config)
 
-local function load_child(name)
-    local ok, result = pcall(require, "classes/warlock/" .. name)
-    if not ok then NS.log_warning("Warlock module skipped: " .. tostring(name) .. " -> " .. tostring(result)) end
-    return ok and result or nil
-end
-
 load_child("middleware_sylvanas")
+load_child("leveling_sylvanas")
 load_child("affliction_sylvanas")
 load_child("demonology_sylvanas")
 load_child("destruction_sylvanas")

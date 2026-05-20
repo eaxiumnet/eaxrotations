@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Helper: Arena Priority System
 -- ============================================================================
--- Readability notes:
---   What: arena target selection scoring - determines kill target and CC target.
---   When: arena PvP for intelligent target prioritization.
---   Why: proper target selection dramatically improves arena effectiveness.
---   Safety: uses throttled enemy scans, nil-guards all unit access.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

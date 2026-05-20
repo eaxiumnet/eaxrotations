@@ -1,15 +1,8 @@
--- Readability notes:
---   What: Paladin shared middleware.
---   When: dispatcher runs it before the selected playstyle.
---   Why: threat tools are centralized instead of duplicated in every spec.
---   Safety: threat drops require group combat and an ally within 40 yards; never solo.
+-- Paladin shared middleware.
 
--- Decision notes:
---   Middleware owns class-wide reactions such as interrupts, defensive checks, utility, and recovery actions.
---   A middleware row should return true only when it actually performs work; otherwise playstyle priorities must continue.
---   Safety gates are repeated here when the action can disrupt combat flow or break crowd control.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local SPELLS = NS.PaladinSpells or {}
 local REAGENT_SYMBOL_OF_KINGS = 21177
@@ -544,6 +537,9 @@ local strategies = {
             return false
         end,
     },
+
+    -- Auto-consumable usage
+    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("paladin", strategies)

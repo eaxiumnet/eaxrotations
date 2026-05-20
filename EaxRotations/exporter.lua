@@ -1,13 +1,5 @@
--- Readability notes:
---   What: runtime module.
---   When: loaded by bootstrap or tests when required.
---   Why: keeps related behavior in one auditable file.
---   Safety: use NS helpers, guard nil values, and avoid hot-path allocations.
+-- runtime module.
 
--- Decision notes:
---   This support module keeps side effects explicit and routes runtime-sensitive work through NS helpers.
---   Comments emphasize intent and constraints so future edits preserve behavior without adding frame-costly checks.
---   When API data is missing, callers should skip unsafe work rather than guessing.
 -- EaxRotations Exporter
 -- Exports rotation strategies to JSON for Go simulator optimization
 -- Usage: local exporter = require("exporter")
@@ -179,7 +171,7 @@ function exporter.export_rotation(playstyle_name)
       conditions = {},
       buffs = {},
       resources = {},
-      version = "1.0.0",
+      version = "1.0.15",
       author = "EaxRotations",
       exported_at = math.floor(NS.time_now() or 0)
    }
@@ -238,13 +230,13 @@ end
 --- Export to JSON string
 function exporter.to_json(rotation_or_rotations)
    local export_data = {
-      export_version = "1.0.0",
+      export_version = "1.0.15",
       exported_at = math.floor(NS.time_now() or 0),
       source_addon = "Sylvanas",
       game_version = "2.5.4",
       rotations = type(rotation_or_rotations) == "table" and rotation_or_rotations[1] and rotation_or_rotations or {rotation_or_rotations},
       metadata = {
-         exporter_version = "1.0.0",
+         exporter_version = "1.0.15",
          export_reason = "optimization"
       }
    }

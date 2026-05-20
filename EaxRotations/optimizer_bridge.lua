@@ -1,13 +1,5 @@
--- Readability notes:
---   What: runtime module.
---   When: loaded by bootstrap or tests when required.
---   Why: keeps related behavior in one auditable file.
---   Safety: use NS helpers, guard nil values, and avoid hot-path allocations.
+-- runtime module.
 
--- Decision notes:
---   This support module keeps side effects explicit and routes runtime-sensitive work through NS helpers.
---   Comments emphasize intent and constraints so future edits preserve behavior without adding frame-costly checks.
---   When API data is missing, callers should skip unsafe work rather than guessing.
 -- ============================================================================
 -- Optimizer Bridge - Export/Import for rotation optimization
 -- ============================================================================
@@ -177,7 +169,7 @@ function NS.export_rotation(class, spec, settings)
     -- Build RotationExport structure
     local export = {
         api_version = 1,
-        export_version = "1.0",
+        export_version = "1.0.15",
         source_addon = "EaxRotations",
         addon_version = "Sylvanas-API",
         game_version = "TBC",

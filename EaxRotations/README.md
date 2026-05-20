@@ -1,6 +1,6 @@
 # EaxRotations
 
-**Version:** 2.0.0-Tier4 | **Updated:** 2026-05-11 | **Status:** Production Ready
+**Version:** 1.0.15 | **Updated:** 2026-05-16 | **Status:** Stable
 
 EaxRotations is a comprehensive TBC Classic rotation framework for Project Sylvanas. It is built around a shared combat engine, class modules, playstyle priority lists, defensive middleware, role-aware settings, and regression tests.
 
@@ -41,6 +41,27 @@ When a gate fails, the rotation should skip the action instead of forcing an inv
 | Shaman | Elemental, Enhancement, Restoration | ranged DPS, melee DPS, healing, totems |
 | Warlock | Affliction, Demonology, Destruction | ranged DPS, pet utility, curses |
 | Warrior | Arms, Fury, Kebab, Protection | melee DPS, tank, PvP utility |
+
+---
+
+## Spec Depth (2026-05-15 Deep Upgrade)
+
+All 10 previously thin specs have been upgraded with 20-40 strategy entries each, matching the current deep-spec baseline:
+
+| Spec | Lines | TBC Mechanics | PvP |
+|---|---|---|---|
+| Druid Resto | 369 | Lifebloom rolling, Swiftmend triage, Tree of Life, Innervate, Tranquility, dispels | ✅ Cyclone, Roots, Nature's Grasp |
+| Druid Bear | 736 | Mangle/Lacerate/Swipe threat, rage optimization, Frenzied Regen, Barkskin/Survival Instincts | ✅ Bash, Feral Charge interrupt |
+| Druid Cat | 679 | Powershift energy, Rip/Rake snapshotting, Shred positional, Tiger's Fury, Berserk | ✅ Pounce, Maim, Dash |
+| Druid Balance | 352 | Starfire/Wrath cycling, Nature's Grace, Force of Nature, Hurricane, Moonkin Form | ✅ Cyclone, Roots, Nature's Grasp |
+| Paladin Holy | 679 | Smart heal (FoL/HL/Holy Shock), Divine Favor/Illumination, Cleanse, Blessing of Light/Sacrifice | ✅ BoP, BoF, HoJ |
+| Paladin Retribution | 402 | Seal/Judgement cycling, Crusader Strike, seal twisting, Hammer of Wrath execute, Consecration | ✅ Repentance, HoJ, BoF |
+| Rogue Assassination | 421 | Mutilate CP builder, Envenom DP burst, Cold Blood, Shiv, Find Weakness, poisons | ✅ Blind, Sprint, Cheap Shot |
+| Rogue Subtlety | 359 | Shadowstep burst, Hemorrhage debuff, Premeditation, Ghostly Strike, Preparation reset | ✅ CS>KS chain, Shadowstep open |
+| Warrior Arms | 476 | Mortal Strike, Slam weaving, Sweeping Strikes, stance dance, Overpower, Execute | ✅ Intercept, Disarm, Spell Reflect |
+| Warlock Affliction | 472 | Multi-DoT pandemic, UA dispel protection, Nightfall proc, Drain Soul execute, Seed AoE | ✅ Fear, Howl, CoEx, CoT |
+
+**Previously deep specs** (unchanged, already production): Hunter BM/MM/Survival, Mage Arcane/Fire/Frost, Priest Shadow/Discipline/Smite/Holy, Rogue Combat, Shaman Elemental/Enhancement/Resto, Warlock Demo/Destruction, Warrior Fury/Kebab/Protection.
 
 ---
 
@@ -609,6 +630,17 @@ Get-ChildItem -Path EaxRotations -Recurse -File |
 
 The file-type command should print nothing for a release package.
 
+Run the non-runtime data and behavior audits:
+
+```powershell
+lua EaxRotations/tools/audit_online_tbc_ids.lua
+lua EaxRotations/tools/audit_static_behavior.lua
+lua EaxRotations/tools/compare_archive_spell_ids.lua
+lua EaxRotations/tools/triage_archive_spell_ids.lua
+```
+
+The audit reports are written to `EaxRotations/docs/`.
+
 ---
 
 ## Current Quality Baseline
@@ -702,6 +734,18 @@ EaxRotations is meant to be understandable by users who want to inspect or tune 
 - Added strategy factory
 - Added custom rotation framework
 - Updated class middleware (Hunter, Rogue, Priest, Warrior, Shaman)
+
+### v1.0.3 - Spell ID Audit Fixes
+
+- Fixed 6 critical spell ID bugs across Warlock Affliction/Destruction and Warrior Fury/Protection
+- Immolate debuff IDs corrected (removed 3 non-Immolate spells, added 2 missing ranks)
+- DrainLife spell IDs corrected (Drain Soul IDs replaced with correct Drain Life IDs)
+- Prot Demo Shout/Thunder Clap debuff IDs corrected to match registry
+- Fury Battle Shout buff detection expanded from 3 ranks to all 8 TBC ranks
+- All spell IDs cross-validated against class registry and test regression assertions
+
+### v1.0.2
+- Fixed Hunter Aspect of the Hawk rank IDs to prevent repeated Hawk recasts.
 
 ### v1.1.0
 - Initial middleware framework

@@ -1,17 +1,9 @@
 -- ============================================================================
 -- Shared Helper: Talent Inference
 -- ============================================================================
--- Readability notes:
---   What: infers talent build from known spells since Sylvanas lacks GetTalentInfo().
---   When: rotation needs to adapt to talent choices.
---   Why: enables talent-aware rotation branching without direct talent API.
---   Safety: uses spell learn check, cached results.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
 
 -- Talent inference tables
 -- Maps "signature spells" to talent presence

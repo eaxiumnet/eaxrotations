@@ -1,20 +1,11 @@
--- Readability notes:
---   What: runtime module.
---   When: loaded by bootstrap or tests when required.
---   Why: keeps related behavior in one auditable file.
---   Safety: use NS helpers, guard nil values, and avoid hot-path allocations.
+-- runtime module.
 
--- Decision notes:
---   This support module keeps side effects explicit and routes runtime-sensitive work through NS helpers.
---   Comments emphasize intent and constraints so future edits preserve behavior without adding frame-costly checks.
---   When API data is missing, callers should skip unsafe work rather than guessing.
 -- ============================================================================
 -- EaxRotations - Project Sylvanas API
 -- Build Configuration for api/ native API layer
 -- ============================================================================
 
 -- This file documents the load order for the Project Sylvanas API build.
-
 
 -- IMPORTANT: Load order is critical - dependencies must load before dependents
 

@@ -1,13 +1,5 @@
--- Readability notes:
---   What: role-focused regressions for healer scans, load order, and tank/AoE priorities.
---   When: run with lua from the repository root.
---   Why: guards fixes from API/docs/guide review.
---   Safety: local stubs only; no game input APIs are called.
+-- role-focused regressions for healer scans, load order, and tank/AoE priorities.
 
--- Decision notes:
---   Tests use local stubs instead of a live Sylvanas client so API-bound behavior remains reproducible.
---   Each case protects one previous failure mode or role rule; keep assertions narrow and descriptive.
---   No test should call real input/cast APIs because regression runs must be safe outside the game.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;api/?/?/?.lua;" .. package.path
 
 local function assert_true(v, label)

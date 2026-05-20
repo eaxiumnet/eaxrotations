@@ -1365,14 +1365,16 @@
 -- Enqueue Render (delayed render action queue)
 --------------------------------------------------------------------------------
 
+---@alias izi_render_layer "world"|"overlay"
+
 ---@class izi_enqueue_render
 --- Enqueue a render callback that persists across frames.
 --- Callable: izi.enqueue_render(fn, timespan, layer?, delay?, ...)
----@field enqueue fun(fn: fun(...: any): nil, timespan: number, layer?: "world"|"overlay", delay?: number, ...: any): nil
+---@field enqueue fun(fn: fun(...: any): nil, timespan: number, layer: izi_render_layer|nil, delay: number|nil, ...: any): nil
 ---@field clear_world fun(): nil @ Clear all pending world-layer actions
 ---@field clear_overlay fun(): nil @ Clear all pending overlay-layer actions
 ---@field clear_all fun(): nil @ Clear all pending actions
----@overload fun(fn: fun(...: any): nil, timespan: number, layer?: "world"|"overlay", delay?: number, ...: any): nil
+---@overload fun(fn: fun(...: any): nil, timespan: number, layer: izi_render_layer|nil, delay: number|nil, ...: any): nil
 
 ---@class izi_api
 ---@field enqueue_render izi_enqueue_render Delayed render action queue (callable)

@@ -6,11 +6,13 @@ local function assert_not_nil(v, label) if v == nil then error(label or "assert_
 
 local now = 0
 local target = { is_in_melee_range = function() return true end, is_player = function() return false end,
+    get_level = function() return 72 end, get_effective_level = function() return 72 end, get_classification = function() return 1 end,
     time_to_die = function() return 60 end, get_time_to_death = function() return 60 end }
 local player = {
     get_target = function() return target end,
     is_in_combat = function() return true end,
     is_alive = function() return true end, is_valid = function() return true end,
+    get_level = function() return 64 end, get_effective_level = function() return 64 end,
     gcd_remains = function() return 0 end, get_power = function() return 80 end,
     is_moving = function() return false end, is_casting = function() return false end,
     is_channeling = function() return false end, get_distance = function() return 5 end,
@@ -20,6 +22,7 @@ local player = {
 _G.core = {
     time = function() return now / 1000 end,
     game_time = function() now = now + 200; return now end,
+    get_instance_type = function() return "party" end,
     log = function() end, log_warning = function() end, log_error = function() end,
     object_manager = {
         get_local_player = function() return player end,
@@ -84,5 +87,14 @@ assert_not_nil(ctx.force_gap, "force_gap")
 assert_not_nil(ctx.has_breakable_cc_nearby, "has_breakable_cc_nearby")
 assert_not_nil(ctx.target_is_player, "target_is_player")
 assert_not_nil(ctx.target_is_boss, "target_is_boss")
+assert_not_nil(ctx.player_level, "player_level")
+assert_true(ctx.player_level == 64, "player_level should come from player API")
+assert_true(ctx.is_leveling == true, "is_leveling should be true below 70")
+assert_true(ctx.target_level == 72, "target_level should come from target API")
+assert_true(ctx.target_level_delta == 8, "target_level_delta")
+assert_true(ctx.target_classification == 1, "target_classification")
+assert_true(ctx.instance_type == "party", "instance_type")
+assert_true(ctx.is_dungeon == true, "is_dungeon")
+assert_true(ctx.is_solo == false, "is_solo")
 
 print("PASS context_completeness")

@@ -1,17 +1,9 @@
 -- ============================================================================
 -- Shared Helper: Spell Validation
 -- ============================================================================
--- Readability notes:
---   What: validates that required/optional spells are learned on startup.
---   When: plugin load, class/spec switch, talent changes.
---   Why: early warning when rotation requires spells that aren't available.
---   Safety: read-only validation, no casting attempts.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
 
 -- Validation results cache
 local validation_cache = {}

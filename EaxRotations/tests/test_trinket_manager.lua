@@ -1,13 +1,4 @@
--- Readability notes:
---   What: trinket manager strategy matching regression test.
---   When: run with lua from the repository root.
---   Why: confirms offensive/defensive trinket matching, cooldown gating, and HP thresholds.
---   Safety: no game input APIs are called; all dependencies are mocked.
-
--- Decision notes:
---   Tests use local stubs instead of a live Sylvanas client so API-bound behavior remains reproducible.
---   Each case protects one previous failure mode or role rule; keep assertions narrow and descriptive.
---   No test should call real input/cast APIs because regression runs must be safe outside the game.
+-- trinket manager strategy matching regression test.
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_false(v, label) if v then error(label or "assert_false failed: expected false", 2) end end

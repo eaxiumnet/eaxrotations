@@ -1,13 +1,5 @@
--- Readability notes:
---   What: runtime module.
---   When: loaded by bootstrap or tests when required.
---   Why: keeps related behavior in one auditable file.
---   Safety: use NS helpers, guard nil values, and avoid hot-path allocations.
+-- runtime module.
 
--- Decision notes:
---   This support module keeps side effects explicit and routes runtime-sensitive work through NS helpers.
---   Comments emphasize intent and constraints so future edits preserve behavior without adding frame-costly checks.
---   When API data is missing, callers should skip unsafe work rather than guessing.
 -- ============================================================================
 -- EaxRotations - Decision Cache (Project Sylvanas API)
 -- State tracking layer for rotation invalidation: detects combat/cast/resource changes

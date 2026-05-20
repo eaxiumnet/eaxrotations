@@ -1,13 +1,4 @@
--- Readability notes:
---   What: spell resolver cache hit/miss and TTL expiry regression test.
---   When: run with lua from the repository root.
---   Why: confirms NS.get_spell_id caches correctly and invalidates on demand.
---   Safety: no game input APIs are called; all dependencies are mocked.
-
--- Decision notes:
---   Tests use local stubs instead of a live Sylvanas client so API-bound behavior remains reproducible.
---   Each case protects one previous failure mode or cache rule; keep assertions narrow and descriptive.
---   No test should call real input/cast APIs because regression runs must be safe outside the game.
+-- spell resolver cache hit/miss and TTL expiry regression test.
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
@@ -33,10 +24,8 @@ _G = _G or {}
 _G.core = core
 _G.EaxRotations = NS
 
--- Load the production spell resolver (this populates _spell_id_cache inside core_sylvanas.lua)
 -- We only need the get_spell_id and refresh_spell_cache functions.
 -- Rather than loading the full 1800-line core_sylvanas.lua, we replicate the minimal resolver logic
--- that the test needs, matching the production code exactly.
 
 local _spell_id_cache = {}
 local _SPELL_ID_CACHE_TTL = 30

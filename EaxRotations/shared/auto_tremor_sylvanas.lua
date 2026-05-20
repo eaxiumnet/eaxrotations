@@ -1,14 +1,8 @@
 -- ============================================================================
 -- Shared Helper: Auto Tremor Totem
 -- ============================================================================
--- Readability notes:
---   What: Auto-drops Tremor Totem when targeting fear/charm/sleep casting bosses.
---   When: Shaman targets specific NPCs known to cast fear effects.
---   Why: Prevents manual Tremor Totem timing; auto-reacts to encounter start.
---   Safety: Checks totem state before casting to avoid redundant drops.
---
--- Pattern: 17 NPC IDs from Flux shaman middleware (Nightbane, Archimonde, etc.)
--- IDs verified against TBC encounter journal and Flux AIO source.
+-- Pattern: 17 TBC fear-capable encounter NPC IDs (Nightbane, Archimonde, etc.)
+-- IDs verified against TBC encounter data and in-game behavior references.
 -- ============================================================================
 
 local M = {}
@@ -43,7 +37,7 @@ local FEAR_CASTER_IDS = {
 }
 
 -- Tremor Totem spell IDs by rank (newest first)
-local TREMOR_TOTEM_IDS = { 8143, 8144, 8145, 8146 }
+local TREMOR_TOTEM_IDS = { 8143, 8145, 8146 }
 
 --- Check if target is a known fear-casting boss.
 -- @param target table - Unit object from object manager

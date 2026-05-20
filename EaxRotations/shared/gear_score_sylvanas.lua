@@ -1,17 +1,11 @@
 -- ============================================================================
 -- Shared Helper: Gear Score Calculator
 -- ============================================================================
--- Readability notes:
---   What: calculates gear quality score based on equipped items.
---   When: dashboard display and parse readiness checks.
---   Why: helps users understand gear quality and potential performance.
---   Safety: API probing, approximate scoring without full item data.
-
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-
-local EMPTY = {}
+local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
+if not _data_ok or type(TBC) ~= "table" then TBC = { BUFFS = {} } end
 
 -- Inventory slots to check (using NS.EQUIPMENT_SLOTS constants)
 local INVENTORY_SLOTS = {
@@ -199,27 +193,9 @@ function M.get_consumable_status(context)
         scrolls = false,
     }
     
-    -- Check for flask (flask buff IDs) - TBC only
-    local FLASK_IDS = {
-        [17626] = true, [17627] = true, [17628] = true, [17629] = true, -- TBC flasks
-    }
-    
-    -- Check for food buff
-    local FOOD_IDS = {
-        [18191] = true, [18192] = true, [18193] = true, [18194] = true,
-        [24799] = true, [24800] = true, [24801] = true, [33257] = true,
-    }
-    
-    -- Check for weapon buff (oils/sharpening stones)
-    local WEAPON_BUFF_IDS = {
-        [25123] = true, -- Wizard Oil
-        [25122] = true, -- Mana Oil
-        [16138] = true, -- Consecrated Sharpening Stone
-        [28421] = true, -- Adamantite Weightstone
-    }
-    
+    local buffs = TBC.BUFFS or {}
     if NS.has_buff then
-        for id, _ in pairs(FLASK_IDS) do
+        for _, id in ipairs(buffs.flasks or {}) do
             if NS.has_buff(me, id) then
                 status.flask = true
                 status.score = status.score + 25
@@ -227,20 +203,37 @@ function M.get_consumable_status(context)
             end
         end
         
-        for id, _ in pairs(FOOD_IDS) do
+        for _, id in ipairs(buffs.food or {}) do
             if NS.has_buff(me, id) then
                 status.food = true
                 status.score = status.score + 15
                 break
             end
         end
-        
-        for id, _ in pairs(WEAPON_BUFF_IDS) do
+
+        for _, id in ipairs(buffs.battle_elixirs or {}) do
             if NS.has_buff(me, id) then
-                status.weapon_buff = true
+                status.battle_elixir = true
                 status.score = status.score + 10
                 break
             end
+        end
+
+        for _, id in ipairs(buffs.guardian_elixirs or {}) do
+            if NS.has_buff(me, id) then
+                status.guardian_elixir = true
+                status.score = status.score + 10
+                break
+            end
+        end
+    end
+
+    local weapon = NS and NS.WeaponImbueManager
+    if type(weapon) == "table" and type(weapon.get_status) == "function" then
+        local ok, weapon_status = pcall(weapon.get_status)
+        if ok and type(weapon_status) == "table" and (weapon_status.mh_imbue or weapon_status.oh_imbue) then
+            status.weapon_buff = true
+            status.score = status.score + 10
         end
     end
     

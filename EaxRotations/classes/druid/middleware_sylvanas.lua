@@ -1,15 +1,8 @@
--- Readability notes:
---   What: Druid shared middleware.
---   When: dispatcher runs it before the selected playstyle.
---   Why: threat tools are centralized instead of duplicated in every spec.
---   Safety: threat drops require group combat and an ally within 40 yards; never solo.
+-- Druid shared middleware.
 
--- Decision notes:
---   Middleware owns class-wide reactions such as interrupts, defensive checks, utility, and recovery actions.
---   A middleware row should return true only when it actually performs work; otherwise playstyle priorities must continue.
---   Safety gates are repeated here when the action can disrupt combat flow or break crowd control.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 
@@ -89,8 +82,8 @@ local strategies = {
 
             -- Check healing potion
             if settings.use_healing_potion and context.hp and context.hp <= (settings.healing_potion_hp or 35) then
-                if NS.is_item_ready and NS.is_item_ready(39213) then return true end
-                if NS.is_item_ready and NS.is_item_ready(23720) then return true end
+                if NS.is_item_ready and NS.is_item_ready(22829) then return true end
+                if NS.is_item_ready and NS.is_item_ready(22850) then return true end
             end
 
             return false
@@ -98,12 +91,13 @@ local strategies = {
         execute = function(context)
             local settings = context.settings or {}
             local stance = context.stance
+            local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
 
             -- Try healthstone first
             if settings.use_healthstone and context.hp and context.hp <= (settings.healthstone_hp or 30) then
                 if NS.is_item_ready and NS.is_item_ready(22103) then
                     if NS.use_item_by_id and NS.use_item_by_id(22103, context.me) then
-                        NS.log("[DRUID] Healthstone - HP: " .. tostring(math.floor(context.hp or 0)) .. "%")
+                        if debug then NS.log("[DRUID] Healthstone - HP: " .. tostring(math.floor(context.hp or 0)) .. "%") end
                         -- Reshift back to form if needed
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
@@ -118,9 +112,9 @@ local strategies = {
 
             -- Try healing potion
             if settings.use_healing_potion and context.hp and context.hp <= (settings.healing_potion_hp or 35) then
-                if NS.is_item_ready and NS.is_item_ready(39213) then
-                    if NS.use_item_by_id and NS.use_item_by_id(39213, context.me) then
-                        NS.log("[DRUID] Super Healing Potion - HP: " .. tostring(math.floor(context.hp or 0)) .. "%")
+                if NS.is_item_ready and NS.is_item_ready(22829) then
+                    if NS.use_item_by_id and NS.use_item_by_id(22829, context.me) then
+                        if debug then NS.log("[DRUID] Super Healing Potion - HP: " .. tostring(math.floor(context.hp or 0)) .. "%") end
                         -- Reshift back to form if needed
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
@@ -131,9 +125,9 @@ local strategies = {
                         return true
                     end
                 end
-                if NS.is_item_ready and NS.is_item_ready(23720) then
-                    if NS.use_item_by_id and NS.use_item_by_id(23720, context.me) then
-                        NS.log("[DRUID] Major Healing Potion - HP: " .. tostring(math.floor(context.hp or 0)) .. "%")
+                if NS.is_item_ready and NS.is_item_ready(22850) then
+                    if NS.use_item_by_id and NS.use_item_by_id(22850, context.me) then
+                        if debug then NS.log("[DRUID] Super Rejuvenation Potion - HP: " .. tostring(math.floor(context.hp or 0)) .. "%") end
                         -- Reshift back to form if needed
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
@@ -162,10 +156,10 @@ local strategies = {
             -- Check self for curse or poison
             local me = context.me or NS.GetPlayer()
             -- Curse debuffs (common ones)
-            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23464, 23463 }
+            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427 }
             if me and NS.debuff_up(me, curse_debuffs) then return true end
             -- Poison debuffs
-            local poison_debuffs = { 13218, 13219, 13222, 13223, 13225, 13227, 13228, 13229, 13230, 13231, 13235, 13237, 13238, 13240, 13241, 23232, 23233, 23234, 23235, 23236, 23237 }
+            local poison_debuffs = { 13218, 13219, 13222, 13223, 13225, 13227, 13228, 13229, 13230, 13235, 13237, 13238, 13240, 13241, 23232, 23233, 23235, 23236, 23237 }
             if me and NS.debuff_up(me, poison_debuffs) then return true end
             -- Scan party members
             local GetNumGroupMembers = _G.GetNumGroupMembers
@@ -180,8 +174,8 @@ local strategies = {
         execute = function(context)
             local me = context.me or NS.GetPlayer()
             -- Determine best dispel: Remove Curse if curse found, Abolish Poison if only poison
-            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23464, 23463 }
-            local poison_debuffs = { 13218, 13219, 13222, 13223, 13225, 13227, 13228, 13229, 13230, 13231, 13235, 13237, 13238, 13240, 13241, 23232, 23233, 23234, 23235, 23236, 23237 }
+            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427 }
+            local poison_debuffs = { 13218, 13219, 13222, 13223, 13225, 13227, 13228, 13229, 13230, 13235, 13237, 13238, 13240, 13241, 23232, 23233, 23235, 23236, 23237 }
             local target = nil
             local use_remove_curse = false
             local use_abolish_poison = false
@@ -245,13 +239,13 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_self_buffs == false then return false end
-            local motw_buffs = { 26991, 9885, 9884, 8907, 5234, 1126 }
+            local motw_buffs = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }
             if NS.has_player_buff and NS.has_player_buff(motw_buffs) then return false end
-            local spell = { id = { 26991, 9885, 9884, 8907, 5234, 1126 }, name = "MarkOfTheWild" }
+            local spell = { id = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, name = "MarkOfTheWild" }
             return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
         end,
         execute = function(context)
-            return NS.try_cast({ id = { 26991, 9885, 9884, 8907, 5234, 1126 }, name = "MarkOfTheWild" }, context.me, "[DRUID] Mark of the Wild", { skip_range = true })
+            return NS.try_cast({ id = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, name = "MarkOfTheWild" }, context.me, "[DRUID] Mark of the Wild", { skip_range = true })
         end,
     },
 
@@ -263,13 +257,13 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_self_buffs == false then return false end
-            local thorns_buffs = { 26992, 9910, 467, 782 }
+            local thorns_buffs = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
             if NS.has_player_buff and NS.has_player_buff(thorns_buffs) then return false end
-            local spell = { id = { 26992, 9910, 467, 782 }, name = "Thorns" }
+            local spell = { id = { 26992, 9910, 9756, 8914, 1075, 782, 467 }, name = "Thorns" }
             return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
         end,
         execute = function(context)
-            return NS.try_cast({ id = { 26992, 9910, 467, 782 }, name = "Thorns" }, context.me, "[DRUID] Thorns", { skip_range = true })
+            return NS.try_cast({ id = { 26992, 9910, 9756, 8914, 1075, 782, 467 }, name = "Thorns" }, context.me, "[DRUID] Thorns", { skip_range = true })
         end,
     },
 
@@ -292,6 +286,9 @@ local strategies = {
             return NS.try_cast({ id = { 9634, 5487 }, name = "BearForm" }, context.me, "[DRUID] Bear Form", { skip_range = true })
         end,
     },
+
+    -- Auto-consumable usage
+    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("druid", strategies)

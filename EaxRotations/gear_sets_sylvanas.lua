@@ -1,8 +1,4 @@
--- Readability notes:
---   What: TBC armor/weapon set item IDs and set-bonus spell IDs.
---   When: loaded once during bootstrap so class rotations can query equipped set pieces.
---   Why: set-aware rotation tuning needs one audited source of item IDs instead of per-spec hardcoding.
---   Safety: this file is data-heavy by design; runtime helpers are nil-safe and never cast or use items.
+-- TBC armor/weapon set item IDs and set-bonus spell IDs.
 
 local _G = _G
 local NS = _G.EaxRotations or {}

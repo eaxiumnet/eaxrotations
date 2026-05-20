@@ -1,12 +1,6 @@
 -- ============================================================================
 -- Shared Runtime Helper: TBC Trinket Manager
 -- ============================================================================
--- Readability notes:
---   What: nil-safe automated TBC on-use trinket handling for EaxRotations.
---   When: registered by core_sylvanas.lua after NS helpers are available.
---   Why: offensive/defensive trinket usage is cross-class cooldown behavior.
---   Safety: inventory and item-use APIs are guarded; cooldown checks fail closed.
-
 local _G = _G
 local NS = _G.EaxRotations
 
@@ -41,6 +35,12 @@ local TRINKETS = {
     [34473] = { name = "Commendation of Kael'thas", kind = TRINKET_KIND_DEFENSIVE, cooldown = 120 },
     [32658] = { name = "Badge of Tenacity", kind = TRINKET_KIND_DEFENSIVE, cooldown = 120 },
 }
+
+if NS and NS.register_item_manual_cooldown then
+    for item_id, entry in pairs(TRINKETS) do
+        NS.register_item_manual_cooldown(item_id, entry.cooldown or DEFAULT_ITEM_COOLDOWN)
+    end
+end
 
 local _registered = false
 local _last_used = {}
@@ -189,18 +189,20 @@ local function trinket_ready(me, slot, item_id, entry)
     if not item_id or not entry then return false end
     if item_cooldown_remaining(me, slot, item_id, entry) > 0 then return false end
 
-    local core = (NS and NS.core) or _G.core
-    local is_item_ready = core and core.spell_book and core.spell_book.is_item_ready
-    local ready = safe(is_item_ready, item_id)
-    if ready == false then return false end
+    if NS and NS.is_item_ready and NS.is_item_ready(item_id) == false then return false end
     return true
 end
 
 local function use_slot(slot, item_id, entry)
-    local core = (NS and NS.core) or _G.core
-    local use_item = core and core.input and core.input.use_item
-    if type(use_item) ~= "function" then return false end
-    local result = safe(use_item, slot)
+    local result
+    if NS and NS.use_item_by_id then
+        result = NS.use_item_by_id(item_id)
+    else
+        local core = (NS and NS.core) or _G.core
+        local use_item = core and core.input and core.input.use_item
+        if type(use_item) ~= "function" then return false end
+        result = safe(use_item, item_id)
+    end
     if result == false then return false end
 
     _last_used[tostring(slot) .. ":" .. tostring(item_id)] = now_seconds()

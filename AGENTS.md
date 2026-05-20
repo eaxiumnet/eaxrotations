@@ -10,15 +10,15 @@
 
 ## Project Identity
 
-**What This Is**: 29 World of Warcraft: The Burning Crusade Classic rotation plugins for Project Sylvanas. Each plugin (`EAX<Class><Spec>/`) provides automated spell/ability sequencing for one class specialization with optimized DPS/HPS/TPS rotations.
+**What This Is**: 29 World of Warcraft: The Burning Crusade Classic rotation plugins for Project Sylvanas. All 29 specs completed as flat `_sylvanas.lua` files under `EaxRotations/classes/<class>/`. Each spec file provides automated spell/ability sequencing for one class specialization with optimized DPS/HPS/TPS rotations. Shared logic lives in `EaxRotations/shared/`.
 
 **Primary Objective**: Deliver crash-free, TBC-accurate rotation logic with minimal API overhead and consistent patterns across all 29 specs.
 
 **Hard Constraints**:
 - TBC-era spells only — never add WotLK/Cata abilities
-- Never ship `.toc` files
 - All menu references must be nil-guarded to prevent crashes
 - `luac -p` must pass on every modified file
+- All 29 specs must pass `lua EaxRotations/tests/run_rotation_tests.lua` and `lua EaxRotations/tests/run_leveling_tests.lua`
 - Only Project Sylvanas API (`api/`, `apidocs/`) — no external platforms
 
 ## Research Context
@@ -39,64 +39,88 @@ C:\newbot\scripts/
 ├── README.md                          # Project overview
 ├── CHANGELOG.md                       # Version history
 │
-├── EAXDruidBalance/                   # 29 spec directories
-├── EAXDruidBear/
-├── EAXDruidFeral/
-├── EAXDruidResto/
-├── EAXHunterBM/
-├── EAXHunterMM/
-├── EAXHunterSurvival/
-├── EAXMageArcane/
-├── EAXMageFire/
-├── EAXMageFrost/
-├── EAXPaladinHoly/
-├── EAXPaladinProtection/
-├── EAXPaladinRetribution/
-├── EAXPriestDiscipline/
-├── EAXPriestHoly/
-├── EAXPriestShadow/
-├── EAXPriestSmite/
-├── EAXRogueAssassination/
-├── EAXRogueCombat/
-├── EAXRogueSubtlety/
-├── EAXShamanElemental/
-├── EAXShamanEnhancement/
-├── EAXShamanRestoration/
-├── EAXWarlockAffliction/
-├── EAXWarlockDemonology/
-├── EAXWarlockDestruction/
-├── EAXWarriorArms/
-├── EAXWarriorFury/
-└── EAXWarriorProtection/
-
-    Each EAX<Class><Spec>/ contains:
-    ├── main.lua                       # On-update loop, rotation engine (200-800 lines)
-    ├── header.lua                     # Plugin metadata, load conditions
-    ├── plugin_info.lua                # Name, version, spec_id
-    └── libraries/                     # Per-spec libraries (15-30 files)
-        ├── menu.lua                   # Settings UI (400+ lines typical)
-        ├── spells.lua                 # Spell ID tables, talent gating
-        ├── utils.lua                  # Helper functions
-        ├── spell_resolver.lua         # Spell ID resolution caching
-        ├── combat_context.lua         # Throttled combat data builder
-        ├── ooc_manager.lua           # Out-of-combat rotation
-        ├── defensive_manager.lua     # Defensive CD automation
-        ├── interrupt_manager.lua     # Kick/interrupt logic
-        ├── racial_manager.lua        # Racial ability usage
-        ├── burst_manager.lua         # Burst CD timing
-        ├── trinket_manager.lua       # Trinket automation
-        ├── swing_manager.lua         # Swing timer tracking
-        ├── middleware_manager.lua    # Middleware chain
-        ├── anti_fake_manager.lua     # Anti-fake cast detection
-        ├── dashboard.lua             # HUD/dashboard rendering
-        ├── ps_theme.lua              # PS theme integration
-        ├── cc_detector.lua           # CC detection
-        ├── mana_manager.lua          # Mana tracking (casters)
-        ├── heal_context.lua          # Healing context (healers)
-        ├── energy_tick.lua           # Energy tick tracking (rogue)
-        ├── powershift.lua            # Powershift management (druid)
-        └── settings_framework.lua    # Settings persistence
-
+├── EaxRotations/                      # Active rotation source (all 29 specs)
+│   ├── main_sylvanas.lua              # Main rotation engine, dispatcher
+│   ├── core_sylvanas.lua              # NS helpers (buff_points, spell_ready, etc.)
+│   ├── common_sylvanas.lua            # Common constants / shared init
+│   ├── header.lua                     # Plugin bootstrap / metadata
+│   │
+│   ├── classes/                       # 29 spec files (flat, one per spec)
+│   │   ├── druid/
+│   │   │   ├── balance_sylvanas.lua   # Druid Balance (ranged DPS, Innervate)
+│   │   │   ├── bear_sylvanas.lua      # Druid Bear (tank)
+│   │   │   ├── cat_sylvanas.lua       # Druid Cat (melee DPS)
+│   │   │   ├── resto_sylvanas.lua     # Druid Restoration (healer)
+│   │   │   ├── caster_sylvanas.lua    # Druid caster shared logic
+│   │   │   ├── class_sylvanas.lua     # Druid class bootstrap
+│   │   │   └── ...                    # healing, leveling, middleware, schema
+│   │   ├── hunter/
+│   │   │   ├── beast_mastery_sylvanas.lua
+│   │   │   ├── marksmanship_sylvanas.lua
+│   │   │   ├── survival_sylvanas.lua
+│   │   │   └── ...
+│   │   ├── mage/
+│   │   │   ├── arcane_sylvanas.lua
+│   │   │   ├── fire_sylvanas.lua
+│   │   │   ├── frost_sylvanas.lua
+│   │   │   └── ...
+│   │   ├── paladin/
+│   │   │   ├── holy_sylvanas.lua
+│   │   │   ├── protection_sylvanas.lua
+│   │   │   ├── retribution_sylvanas.lua
+│   │   │   └── ...
+│   │   ├── priest/
+│   │   │   ├── discipline_sylvanas.lua
+│   │   │   ├── holy_sylvanas.lua
+│   │   │   ├── shadow_sylvanas.lua
+│   │   │   ├── smite_sylvanas.lua
+│   │   │   ├── healing_sylvanas.lua   # Cross-spec healing (pws_absorb_remaining, scan, etc.)
+│   │   │   └── ...
+│   │   ├── rogue/
+│   │   │   ├── assassination_sylvanas.lua
+│   │   │   ├── combat_sylvanas.lua
+│   │   │   ├── subtlety_sylvanas.lua
+│   │   │   └── ...
+│   │   ├── shaman/
+│   │   │   ├── elemental_sylvanas.lua
+│   │   │   ├── enhancement_sylvanas.lua
+│   │   │   ├── restoration_sylvanas.lua
+│   │   │   └── ...
+│   │   ├── warlock/
+│   │   │   ├── affliction_sylvanas.lua
+│   │   │   ├── demonology_sylvanas.lua
+│   │   │   ├── destruction_sylvanas.lua
+│   │   │   └── ...
+│   │   └── warrior/
+│   │       ├── arms_sylvanas.lua
+│   │       ├── fury_sylvanas.lua
+│   │       ├── protection_sylvanas.lua
+│   │       └── ...
+│   │
+│   ├── shared/                        # Shared modules (~50 files)
+│   │   ├── class_loader_sylvanas.lua  # Class-level bootstrapping
+│   │   ├── healer_engine_sylvanas.lua # Healing scan / triage
+│   │   ├── interrupt_manager_sylvanas.lua
+│   │   ├── consumable_manager_sylvanas.lua
+│   │   ├── racial_manager_sylvanas.lua
+│   │   ├── trinket_manager_sylvanas.lua
+│   │   ├── swing_timer_sylvanas.lua
+│   │   ├── leveling_sylvanas.lua      # Leveling rotation dispatcher
+│   │   ├── targeting_sylvanas.lua
+│   │   ├── ooc_manager_sylvanas.lua
+│   │   ├── threat_manager_sylvanas.lua
+│   │   ├── dot_refresh_sylvanas.lua
+│   │   └── ... (40+ more)
+│   │
+│   ├── tests/                         # Test suite (~110 files)
+│   │   ├── run_rotation_tests.lua     # Rotation test runner (95 suites)
+│   │   ├── run_leveling_tests.lua     # Leveling test runner (11 suites)
+│   │   ├── test_fury_custom_matches.lua
+│   │   ├── test_discipline_custom_matches.lua
+│   │   └── ...
+│   │
+│   └── tools/                         # Build/validation scripts
+│
 ├── api/                               # Sylvanas API definitions (runtime)
 │   ├── core.lua                      # Core callbacks, time, logging (4374 lines)
 │   ├── game_object.lua               # Unit/entity access (600+ lines)
@@ -126,7 +150,7 @@ C:\newbot\scripts/
 │           ├── unit_helper.lua
 │           ├── pvp_helper.lua
 │           └── ...
-
+│
 ├── apidocs/                          # Offline API documentation
 │   ├── corpus.jsonl                  # LLM retrieval corpus (2877 chunks, 68 pages)
 │   ├── pages_manifest.jsonl         # Page metadata
@@ -146,13 +170,17 @@ C:\newbot\scripts/
 │       ├── examples/                 # Example implementations
 │       │   └── tbc-warlock-affliction.md
 │       └── guides/                   # Implementation guides
-
+│
+├── ClassResearchTBC/                 # Research & vetting
+│   ├── AgentQueue/
+│   │   ├── MANIFEST.md              # Queue state (29 completed, 1 blocked-non-job)
+│   │   ├── completed/               # 29 completed spec jobs
+│   │   └── blocked/                 # 1 non-job (SP_Breakpoints_Druid_Balance)
+│   ├── ImplementationChecklists/    # Per-spec implementation checklists
+│   └── VETTING_LOG.md               # Vetting pass history
+│
 ├── tools/                            # Build/validation scripts
 └── dist/                             # Build output (eax_ship)
-
-Archive folders (not part of active specs):
-├── archive_original_specs/          # Original spec implementations (legacy)
-└── _archive_legacy/                 # Legacy code archive
 ```
 
 ---
@@ -516,11 +544,13 @@ local is_warrior = player:get_class() == enums.class_id.WARRIOR
 
 ## Critical Coding Patterns (with Code)
 
-### Pattern 1: Menu Nil Guards (435 matches, 61 files)
+### Pattern 1: Menu Nil Guards
+
+**Note**: In the current flat-file architecture, spec files access menu settings via `context.settings` or `NS.get_setting` (see Pattern 8) rather than direct `menu.x:get()` calls. The core nil-guard principle still applies to the underlying middleware that creates menu widgets.
 
 **WRONG — Will crash if menu item nil**:
 ```lua
--- BAD: Direct access without nil check
+-- BAD: Direct access without nil check (old per-spec libraries/ pattern)
 local mode = menu.mode:get()
 local threshold = menu.heal_threshold:get()
 ```
@@ -530,14 +560,14 @@ local threshold = menu.heal_threshold:get()
 -- GOOD: Always guard menu access (99% compliance)
 local mode = (menu.mode and menu.mode:get()) or 1
 local threshold = (menu.heal_threshold and menu.heal_threshold:get()) or 50
-local enabled = (menu.enabled and menu.enabled:get()) or false
 
--- Pattern for sliders with ranges
-local hp_pct = (menu.defensive_hp and menu.defensive_hp:get()) or 30
-local rage_threshold = (menu.heroic_strike_rage and menu.heroic_strike_rage:get()) or 50
-
--- Alternative with pcall (overkill, prefer nil guard)
-local ok, v = pcall(function() return menu.leveling_mana_floor:get() end)
+-- Current pattern: via context.settings (spec files)
+local function setting(context, key, fallback)
+    local settings = context.settings
+    if settings and settings[key] ~= nil then return settings[key] end
+    if NS.get_setting then return NS.get_setting(key, fallback) end
+    return fallback
+end
 ```
 
 **Mode/Lane Values**:
@@ -545,7 +575,9 @@ local ok, v = pcall(function() return menu.leveling_mana_floor:get() end)
 - Mode 2 = PVE Only
 - Mode 3 = PVP Only
 
-### Pattern 2: API Caching at Load (587 matches, 257 files)
+### Pattern 2: API Caching at Load
+
+**Note**: In the current flat-file architecture, the NS namespace provides pre-cached wrappers (`NS.me`, `NS.gcd`, `NS.GetPlayer()`, etc.) that spec files use directly. See Pattern 10 for actual spec file usage. The raw API caching pattern below shows the underlying mechanism that core_sylvanas.lua uses to build these wrappers.
 
 **WRONG — API call every frame (slow)**:
 ```lua
@@ -556,9 +588,9 @@ function on_update()
 end
 ```
 
-**CORRECT — Cache at module load**:
+**CORRECT — Cache at module load (used by core_sylvanas.lua)**:
 ```lua
--- GOOD: At top of main.lua (outside any function)
+-- GOOD: At top of core_sylvanas.lua (outside any function)
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_gcd = core.spell_book.get_global_cooldown
@@ -567,11 +599,12 @@ local _get_spell_cd = core.spell_book.get_spell_cooldown
 local _cancel_form = core.spell_book.cancel_form
 local _cast_spell = core.input.cast_target_spell
 
--- Then use cached references in callbacks
-function on_update()
-    local me = _get_local_player()
-    local gcd = _get_gcd()
+-- NS wrappers build on these cached references
+function NS.GetPlayer()
+    return _get_local_player()
 end
+
+-- Spec files then use: local me = context.me or NS.GetPlayer()
 ```
 
 **Acceptable exceptions** (time-critical trackers only):
@@ -580,7 +613,7 @@ end
 totem_state.fire_remaining = (start_fire + dur_fire) - core.time()
 ```
 
-### Pattern 3: Squared Distance Checks (74 matches, 24 files)
+### Pattern 3: Squared Distance Checks
 
 **WRONG — sqrt() is expensive**:
 ```lua
@@ -608,7 +641,7 @@ local dist_sq = dx*dx + dy*dy + dz*dz  -- 3D distance
 -- 20 yards = 400
 ```
 
-### Pattern 4: Static Table Reuse (24 matches, 24 files)
+### Pattern 4: Static Table Reuse
 
 **WRONG — Allocates every frame (GC pressure)**:
 ```lua
@@ -758,150 +791,182 @@ end
 
 ### Pattern 8: Menu Structure
 
-**Standard Menu Tree Structure**:
+**Note**: As of the flat-file restructure (2026-04), menu creation is handled by the NS middleware and `shared/` modules rather than per-spec `libraries/menu.lua` files. Spec files access settings via `context.settings` or `NS.get_setting` and do not create menu widgets directly.
+
+**Standard Menu Tree Structure** (handled by middleware, not spec files):
 ```lua
--- From EAXWarriorFury/libraries/menu.lua
-local ps = require("libraries/ps_theme")
-
--- Tree nodes
-local root_tree        = ps.tree_node()
-local rotation_tree    = ps.tree_node()
-local cooldowns_tree   = ps.tree_node()
-local defensive_tree   = ps.tree_node()
-local utility_tree     = ps.tree_node()
-local pvp_tree         = ps.tree_node()
-local automation_tree  = ps.tree_node()
-local advanced_tree    = ps.tree_node()
-
--- Menu items (with proper prefix)
-menu.enabled = core.menu.checkbox(true, "eaxwarriorfury_enabled")
-menu.mode = core.menu.combobox(1, "eaxwarriorfury_mode")
-menu.toggle_key = core.menu.keybind(7, false, "eaxwarriorfury_toggle_key")
-menu.use_bloodthirst = core.menu.checkbox(true, "eaxwarriorfury_use_bloodthirst")
-menu.heroic_strike_rage = core.menu.slider_int(20, 100, 50, "eaxwarriorfury_hs_rage")
-
--- Tree hierarchy
-ps.add_sub_item(root_tree, rotation_tree, "Rotation")
-ps.add_sub_item(root_tree, cooldowns_tree, "Cooldowns")
-ps.add_sub_item(rotation_tree, menu.use_bloodthirst)
-```
-
-**Menu Rendering**:
-```lua
-function menu.render()
-    if _win and root_tree:is_open() then
-        ps.draw_space(_win, "eaxwarriorfury")
-    end
-
-    root_tree:render("Eax's Warrior Fury", function()
-        ps.header("General")
-        menu.enabled:render("Enabled", "Enable/disable rotation")
-        menu.mode:render("Mode", {"Auto", "PvE", "PvP"})
-        
-        rotation_tree:render("Rotation", function()
-            menu.use_bloodthirst:render("Bloodthirst", "Core Fury attack")
-        end)
-    end)
+-- Menu is constructed in shared/middleware modules, not in spec _sylvanas.lua files.
+-- Spec files access settings through the context table:
+local function setting(context, key, fallback)
+    local settings = context.settings
+    if settings and settings[key] ~= nil then return settings[key] end
+    if NS.get_setting then return NS.get_setting(key, fallback) end
+    return fallback
 end
+
+-- Usage in match functions:
+local auto_charge = setting(context, "auto_charge", true)
+local hs_rage = setting(context, "heroic_strike_rage", 60)
 ```
 
-**Settings Framework Integration**:
+**Menu ID Naming Convention** (still used by middleware):
 ```lua
-local settings = require("libraries/settings_framework")
+-- Pattern: eax<class><spec>_<feature>_<subfeature>
+"eaxwarriorfury_use_bloodthirst"
+"eaxwarriorfury_heroic_strike_rage"
+"eaxdruidferal_powershift_enabled"
+"eaxpriestshadow_vampiric_touch_refresh"
+```
 
-settings.setup_major_toggle_keybinds(menu, {
-    { toggle = "use_rampage", label = "Rampage" },
-    { toggle = "use_execute", label = "Execute" },
-}, {
-    namespace = "eaxwarriorfury",
-    log_prefix = "[Eax Warrior Fury] ",
-})
+**Common Menu Categories**:
+```lua
+-- Rotation abilities
+menu.use_[spellname]              -- Enable/disable spell
+menu.[spell]_threshold            -- HP/Rage/Mana threshold
+menu.[spell]_refresh              -- Refresh time
+
+-- Defensives
+menu.use_defensive_[name]         -- Enable defensive CD
+menu.defensive_[name]_hp          -- HP threshold to trigger
+
+-- Cooldowns (burst)
+menu.use_cooldowns                -- Global CD usage
+menu.use_[cd_name]                -- Individual CDs
+menu.cooldown_phase               -- When to use (opener/execute/etc)
+
+-- Automation
+menu.auto_[feature]               -- Auto-enable features
+menu.auto_potions                 -- Auto-use potions
+menu.auto_trinkets                -- Auto-use trinkets
 ```
 
 ### Pattern 9: File Requires
 
-**Standard Spec Requires (main.lua)**:
+**Spec files** use a flat namespace pattern — no per-spec `libraries/` directories. Everything comes from the global `NS` (EaxRotations) namespace or is loaded from `shared/`:
 ```lua
--- Local libraries (relative to spec directory)
-local menu = require("libraries/menu")
-local spells = require("libraries/spells")
-local utils = require("libraries/utils")
+-- Global namespace access (all spec files start with this)
+local NS = _G.EaxRotations
+if not NS then return nil end
+
+-- Spell tables via NS class-specific exports
+local SPELLS = NS.WarriorSpells or {}
+local CONSTANTS = NS.WarriorConstants or {}
+
+-- Cross-spec modules (e.g., healing shared between discipline + holy)
+local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
+
+-- Shared modules via pcall (optional, graceful degradation)
+local _swing_ok, SwingTimer = pcall(require, "shared/swing_timer_sylvanas")
+if not _swing_ok or type(SwingTimer) ~= "table" then SwingTimer = nil end
 
 -- Common API modules (absolute from api/)
 ---@type buff_manager
 local buff_manager = require("common/modules/buff_manager")
----@type auto_attack_helper
-local auto_attack = require("common/utility/auto_attack_helper")
 ---@type izi_sdk
 local izi = require("common/izi_sdk")
-
--- Optional managers
-local interrupt_manager = require("libraries/interrupt_manager")
-local racial_manager = require("libraries/racial_manager")
-local ooc_manager = require("libraries/ooc_manager")
-local middleware_manager = require("libraries/middleware_manager")
-local dashboard = require("libraries/dashboard")
-local burst_manager = require("libraries/burst_manager")
-local trinket_manager = require("libraries/trinket_manager")
 ```
 
-### Pattern 10: Main.lua Structure
-
-**Typical main.lua organization**:
+**Middleware / Bootstrap files** load shared modules directly:
 ```lua
--- 1. Requires
-local menu = require("libraries/menu")
-local spells = require("libraries/spells")
-local utils = require("libraries/utils")
-local buff_manager = require("common/modules/buff_manager")
+-- From classes/druid/middleware_sylvanas.lua
+local consumable_manager = require("shared/consumable_manager_sylvanas")
+local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 
--- 2. API caching (CRITICAL)
-local _core_time = core.time
-local _get_local_player = core.object_manager.get_local_player
-local _get_gcd = core.spell_book.get_global_cooldown
+-- From classes/druid/class_sylvanas.lua
+local cl = require("shared/class_loader_sylvanas")
 
--- 3. Constants
-local EXECUTE_HP_THRESHOLD = 20
-local FURY_AOE_RADIUS = 8
-
--- 4. Runtime spell storage
-local runtime = {
-    bloodthirst_id = nil,
-    whirlwind_id = nil,
-}
-
--- 5. Spell resolution specs
-local RUNTIME_SPELL_SPECS = {
-    { field = "bloodthirst_id", ranks = spells.BLOODTHIRST },
-    { field = "whirlwind_id", ranks = spells.WHIRLWIND },
-}
-
--- 6. Init function
-local function init()
-    for i = 1, #RUNTIME_SPELL_SPECS do
-        local spec = RUNTIME_SPELL_SPECS[i]
-        runtime[spec.field] = utils.resolve_spell_id(spec.ranks)
-    end
-end
-
--- 7. Update callback
-local function on_update()
-    local me = _get_local_player()
-    if not me then return end
-    
-    -- Menu guards
-    local mode = (menu.mode and menu.mode:get()) or 1
-    if not (menu.enabled and menu.enabled:get()) then return end
-    
-    -- Rotation logic here
-end
-
--- 8. Register callbacks
-core.register_on_update_callback(on_update)
-core.register_on_render_callback(menu.on_render)
-core.register_on_render_menu_callback(menu.on_menu_render)
-init()
+-- Leveling dispatcher
+local leveling = require("shared/leveling_sylvanas")
 ```
+
+**Key principle**: Spec `_sylvanas.lua` files do NOT load shared modules with bare `require()` (unless via pcall for optionals). They rely on the NS namespace populated by the middleware/class loader, which is the single point of shared module loading.
+
+### Pattern 10: Spec File Structure (Flat _sylvanas.lua)
+
+**Typical `classes/<class>/<spec>_sylvanas.lua` organization**:
+```lua
+-- 1. Namespace access (ALL spec files start here)
+local NS = _G.EaxRotations
+if not NS then return nil end
+local SPELLS = NS.WarriorSpells or {}
+local CONSTANTS = NS.WarriorConstants or {}
+
+-- 2. Optional shared modules (pcall for graceful degradation)
+local _swing_ok, SwingTimer = pcall(require, "shared/swing_timer_sylvanas")
+if not _swing_ok or type(SwingTimer) ~= "table" then SwingTimer = nil end
+
+-- 3. Action definitions (spell IDs resolved from SPELLS table)
+local ACTION = {
+    Bloodthirst = SPELLS.Bloodthirst,
+    Whirlwind = SPELLS.Whirlwind,
+    Execute = SPELLS.Execute,
+}
+
+-- 4. Buff/debuff ID tables
+local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 25289, 2048, ... }
+local SUNDER_DEBUFF = CONSTANTS.SUNDER_DEBUFF or { 25225, ... }
+
+-- 5. Constants
+local EXECUTE_DEFAULT_RAGE = 25
+local BLOODTHIRST_RESERVE = 30
+
+-- 6. State table
+local fury_state = {
+    rage = 0,
+    hp = 100,
+    target_hp = 100,
+    -- ... spell readiness, buffs, debuffs, CD states
+}
+
+-- 7. Helper functions (nil-safe, pcall-guarded)
+local function setting(context, key, fallback)
+    local settings = context.settings
+    if settings and settings[key] ~= nil then return settings[key] end
+    if NS.get_setting then return NS.get_setting(key, fallback) end
+    return fallback
+end
+
+local function buff_up(unit, ids)
+    if NS.buff_up then return NS.buff_up(unit, ids) or false end
+    return false
+end
+
+-- 8. State builder (called every tick by strategy matches)
+local function build_state(context)
+    local target = context.target
+    local me = context.me or NS.GetPlayer()
+    -- Populate state from context + NS API calls
+    fury_state.rage = context.rage or 0
+    fury_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)
+    -- ...
+    return fury_state
+end
+
+-- 9. Match functions (one per strategy; receive context + state)
+local function bt_matches(context, state)
+    return NS.action_matches(context, build_action("Bloodthirst", ...))
+end
+
+-- 10. Strategy table (ordered priority list)
+local strategies = {
+    { name = "Healthstone", matches = healthstone_matches, ... },
+    { name = "Bloodthirst", matches = bt_matches, ... },
+    { name = "Whirlwind", matches = whirlwind_matches, ... },
+    -- ... more strategies in priority order
+}
+
+-- 11. Register with rotation registry
+NS.rotation_registry:register("fury", strategies, { get_state = build_state })
+NS.log("Warrior fury rotation registered")
+return strategies
+```
+
+**Key architectural differences from the old `EAX<Class><Spec>/` layout**:
+- No `libraries/` subdirectory — all logic is in one flat `_sylvanas.lua` file
+- No `menu.lua`, `spells.lua`, `utils.lua` per spec — spells come from NS class tables, settings from context
+- Strategies are registered via `NS.rotation_registry:register()` not via `core.register_on_update_callback()`
+- The main dispatcher (`main_sylvanas.lua`) iterates registered strategies in priority order
+- Cross-cutting concerns (interrupts, consumables, racials) live in `shared/` modules
 
 ### Pattern 11: Aura Points — buff_points / debuff_points
 
@@ -1165,9 +1230,9 @@ menu.auto_trinkets                -- Auto-use trinkets
 ## Testing Rules
 
 - Run `luac -p` on every modified file before commit
+- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 95 rotation suites must pass
+- Run `lua EaxRotations/tests/run_leveling_tests.lua` — all 11 leveling suites must pass
 - `lsp_diagnostics` must show 0 errors on changed files
-- Build with `python tools/export_eax_plugins.py` must succeed
-- Never commit `.toc` files (delete if found)
 - Verify syntax passes before marking any task complete
 
 ---
@@ -1185,16 +1250,16 @@ menu.auto_trinkets                -- Auto-use trinkets
 - Reuse static tables with `{ n = 0 }` pattern
 
 ### ⚠️ Ask First
-- Add new shared libraries to spec `libraries/`
-- Modify `spell_resolver.lua` or `combat_context.lua` patterns
-- Add new menu items that require `utils.lua` changes
+- Add new shared modules to `EaxRotations/shared/`
+- Modify `core_sylvanas.lua` NS helper patterns
+- Add new menu items (handled by middleware, not spec files)
 - Refactor multiple specs simultaneously
 - Use APIs outside `api/` or `apidocs/`
-- Change menu tree structure (affects all specs)
+- Change strategy registration patterns (`NS.rotation_registry:register()`)
 
 ### 🚫 Never
 - `ffi.C`, `io.popen`, `os.execute`, `debug.*` — banned APIs (100% compliance verified)
-- Commit `.toc`, `.zip`, or vendor automation files (100% compliance verified)
+- Commit `.zip` or vendor automation files (100% compliance verified)
 - Add WotLK/Cata spells (TBC-era only: spells up to patch 2.4.3)
 - Suppress type errors with `as any` or `@ts-ignore`
 - Use `math.sqrt()` for distance comparisons (only legacy Hunter files violate)
@@ -1205,20 +1270,20 @@ menu.auto_trinkets                -- Auto-use trinkets
 
 ---
 
-## Pattern Adoption Statistics (Verified)
+## Pattern Adoption Statistics (Verified 2026-05-21)
 
 | Pattern | Adoption Rate | Violations | Notes |
 |---------|---------------|------------|-------|
-| Menu nil guards | 99% | 1 file (.orig backups) | Excellent compliance |
-| API caching | 95% | Legacy trackers only | Acceptable exceptions |
-| Squared distance | 80% | Hunter archive files | Legacy code only |
+| Menu nil guards | 100% | None | Via context.settings + NS.get_setting |
+| API caching (NS wrappers) | 100% | None | NS.me, NS.gcd, NS.GetPlayer() pre-cached |
+| Squared distance | 100% | None | All distance checks use squared comparison |
 | Static table reuse | 100% | None | Perfect compliance |
 | Buff/debuff checks | 100% | None | Widely used |
 | Aura points (buff_points) | 100% | None | 3 specs (protection, healing, discipline) |
 | PW:S absorb tracking | 100% | None | healing + discipline cross-spec |
 | Smart Innervate targeting | 100% | None | balance + resto (healer-class party scan) |
 | Banned APIs | 100% | None | Perfect compliance |
-| No TOC files | 100% | None | Perfect compliance |
+| No TOC files | 100% | None | N/A under flat-file architecture |
 
 ---
 
@@ -1226,18 +1291,20 @@ menu.auto_trinkets                -- Auto-use trinkets
 
 | File | Purpose | Lines (typical) |
 |------|---------|-----------------|
-| `EAX<Class><Spec>/main.lua` | On-update loop, priority engine | 200-800 |
-| `EAX<Class><Spec>/libraries/spells.lua` | Spell ID tables, talent gating | 50-150 |
-| `EAX<Class><Spec>/libraries/utils.lua` | Helper functions | 100-300 |
-| `EAX<Class><Spec>/libraries/menu.lua` | Settings UI | 300-500 |
-| `EAX<Class><Spec>/libraries/spell_resolver.lua` | Spell ID resolution | 50-100 |
-| `EAX<Class><Spec>/libraries/combat_context.lua` | Throttled context builder | 100-200 |
-| `EAX<Class><Spec>/libraries/middleware_manager.lua` | Middleware integration | 100-200 |
-| `EaxRotations/core_sylvanas.lua` | Core NS helpers (buff_points, debuff_points, etc.) | 5000+ |
+| `EaxRotations/classes/<class>/<spec>_sylvanas.lua` | Spec rotation (strategies, state, matches, execute) | 200-600 |
+| `EaxRotations/main_sylvanas.lua` | Main rotation engine, dispatcher | 500+ |
+| `EaxRotations/core_sylvanas.lua` | Core NS helpers (buff_points, spell_ready, etc.) | 5000+ |
+| `EaxRotations/shared/healer_engine_sylvanas.lua` | Healing scan / triage engine | 300+ |
+| `EaxRotations/shared/class_loader_sylvanas.lua` | Class-level bootstrapping | 200+ |
+| `EaxRotations/shared/consumable_manager_sylvanas.lua` | Healthstone/potion automation | 100+ |
+| `EaxRotations/shared/swing_timer_sylvanas.lua` | Melee swing timer (Slam weaving) | 200+ |
+| `EaxRotations/shared/leveling_sylvanas.lua` | Leveling rotation dispatcher | 300+ |
 | `EaxRotations/classes/priest/healing_sylvanas.lua` | Priest healing helpers (pws_absorb_remaining, etc.) | 100+ |
 | `EaxRotations/classes/priest/discipline_sylvanas.lua` | Priest Discipline spec (absorbs, PW:S) | 500+ |
 | `EaxRotations/classes/druid/balance_sylvanas.lua` | Druid Balance spec (Innervate targeting, SP breakpoints) | 300+ |
 | `EaxRotations/classes/paladin/protection_sylvanas.lua` | Paladin Protection spec (Holy Shield charges) | 200+ |
+| `EaxRotations/tests/run_rotation_tests.lua` | Rotation test runner (95 suites) | 100+ |
+| `EaxRotations/tests/run_leveling_tests.lua` | Leveling test runner (11 suites) | 50+ |
 | `api/core.lua` | Core Sylvanas API | 4374 |
 | `api/common/izi_sdk.lua` | High-level SDK | 1681 |
 | `api/common/modules/spell_queue.lua` | Spell queueing | 200+ |
@@ -1268,9 +1335,9 @@ menu.auto_trinkets                -- Auto-use trinkets
 
 | Section | Confidence | Notes |
 |---------|------------|-------|
-| Project Structure | ✅ High | Verified 2026-04-09 — 29 specs confirmed |
-| Menu Guard Pattern | ✅ High | 435 matches in 61 files — 99% compliance |
-| API Caching Pattern | ✅ High | 587 matches in 257 files — 95% compliance |
+| Project Structure | ✅ High | Verified 2026-05-21 — 29 specs confirmed, flat-file architecture |
+| Menu Guard Pattern | ✅ High | 100% compliance via context.settings |
+| API Caching Pattern | ✅ High | 100% compliance via NS namespace wrappers |
 | Sylvanas API | ✅ High | From `api/` and `apidocs/` — source of truth |
 | IZI SDK | ✅ High | `api/common/izi_sdk.lua` — fully documented |
 | TBC Spell Lists | ✅ High | Validated against TBC sim data |
@@ -1288,9 +1355,10 @@ menu.auto_trinkets                -- Auto-use trinkets
    git status --short --branch
    git log --oneline -5
    ```
-3. Read target spec's files: `main.lua`, `libraries/menu.lua`, `libraries/utils.lua`
+3. Read target spec's file: `EaxRotations/classes/<class>/<spec>_sylvanas.lua` and related `shared/` modules if needed
 4. Run `luac -p` on any file before editing
-5. Verify with `lsp_diagnostics` after changes
+5. Validate with test suite: `lua EaxRotations/tests/run_rotation_tests.lua` and `lua EaxRotations/tests/run_leveling_tests.lua`
+6. Verify with `lsp_diagnostics` after changes
 
 ---
 

@@ -2,15 +2,56 @@
 -- IntelliSense / Syntax helper for: common/utility/ts_override_helper
 -- Target Selector Override Helper
 --
+-- Two ways to override target selector settings:
+--
+-- =============================================================================
+-- METHOD 1: SESSION OVERRIDE (RECOMMENDED)
+-- =============================================================================
+--
+-- Creates a volatile override layer. Your overrides sit ON TOP of the user's
+-- real settings without modifying them. When your plugin stops calling (disabled,
+-- unloaded, crashes), overrides expire within 500ms and the user's original
+-- settings seamlessly restore. A header in the TS menu shows "Overridden by:
+-- [your plugin name]" so the user sees exactly what is happening.
+--
 -- Usage:
 --   local ts = require("common/utility/ts_override_helper")
 --
---   -- call in on_update, safe to call every frame (ONCE mode is default, only writes once)
+--   -- Create session once at plugin load time
+--   local session = ts:create_session("Hunter BM")
+--
+--   function on_update()
+--       -- Set overrides each frame. Each call refreshes the 500ms TTL.
+--       -- If your plugin stops calling, overrides vanish automatically.
+--       session:set_mode(ts.enums.mode.SILENT_AUTO)
+--       session:set_damage_enabled(true)
+--       session:set_max_range_damage(30)
+--       session:set_weight("damage", "close", true, 5)
+--
+--       -- ... your rotation logic ...
+--   end
+--
+--   -- Optional: explicitly stop overriding
+--   session:destroy()
+--
+-- =============================================================================
+-- METHOD 2: PERMANENT OVERRIDE (LEGACY)
+-- =============================================================================
+--
+-- Directly writes to menu settings. Changes persist even after your plugin
+-- is disabled. Use this for one-time setup that the user should keep.
+-- WARNING: This silently changes the user's TS config permanently.
+-- Prefer session overrides for anything that should revert when your plugin stops.
+--
+-- Usage:
+--   local ts = require("common/utility/ts_override_helper")
+--
+--   -- call in on_update, safe to call every frame (ONCE mode is default)
 --   ts:set_mode(ts.enums.mode.SILENT_AUTO)
 --   ts:set_max_range_damage(40)
 --   ts:set_weight(ts.enums.context.DAMAGE, ts.enums.weight.MULTIPLE_HITS, true, 5)
 --
--- Write modes (optional last parameter on every setter):
+-- Write modes (optional last parameter on every permanent setter):
 --   ts.enums.write_mode.ONCE       -- (DEFAULT) apply once per session, never again
 --   ts.enums.write_mode.ON_CHANGE  -- apply only when value differs from last write
 --   ts.enums.write_mode.ALWAYS     -- apply every frame (use sparingly)
@@ -85,6 +126,26 @@
 ---@field weight ts_weight
 
 -- ─────────────────────────────────────────────────
+-- Session Object (returned by create_session)
+-- ─────────────────────────────────────────────────
+
+---@class ts_session
+---@field set_mode fun(self: ts_session, mode: number): nil                                                         Set TS mode for this session (MANUAL, HARD_TARGET, SILENT_AUTO, DISABLED).
+---@field set_damage_enabled fun(self: ts_session, enabled: boolean): nil                                           Enable/disable damage targeting for this session.
+---@field set_heal_enabled fun(self: ts_session, enabled: boolean): nil                                             Enable/disable heal targeting for this session.
+---@field set_max_range_damage fun(self: ts_session, range: number): nil                                            Set max damage range for this session (0-50).
+---@field set_max_range_heal fun(self: ts_session, range: number): nil                                              Set max heal range for this session (0-50).
+---@field set_pull_mode fun(self: ts_session, mode: number): nil                                                    Set pull logic for this session.
+---@field set_pull_allowed fun(self: ts_session, enabled: boolean): nil                                             Set pull allowed flag for this session.
+---@field set_semi_force_target_damage fun(self: ts_session, enabled: boolean): nil                                 Set force target damage (semi-manual) for this session.
+---@field set_semi_force_target_heal fun(self: ts_session, enabled: boolean): nil                                   Set force target heal (semi-manual) for this session.
+---@field set_weight fun(self: ts_session, ctx: string, weight_name: string, enabled: boolean, value: number): nil  Set a weight toggle + slider for this session.
+---@field set_weight_multiple_hits fun(self: ts_session, ctx: string, enabled: boolean, value: number, radius: number): nil  Set multiple_hits weight + radius for this session.
+---@field tick fun(self: ts_session): nil                                                                            Refresh session TTL without setting any value.
+---@field destroy fun(self: ts_session): nil                                                                         Destroy session immediately. Overrides vanish, user settings restore.
+---@field is_active fun(self: ts_session): boolean                                                                   Check if this session is still the active one.
+
+-- ─────────────────────────────────────────────────
 -- Class Definition
 -- ─────────────────────────────────────────────────
 
@@ -93,45 +154,144 @@
 ---@field target_selector target_selector        Direct access to the target_selector module.
 ---@field menu_elements table                    Direct access to menu_elements (advanced use).
 --
+-- ═════════════════════════════════════════════════
+-- SESSION OVERRIDE API (recommended)
+-- ═════════════════════════════════════════════════
+--
+---@field create_session fun(self: ts_override_helper, plugin_name: string): ts_session                             Create a new session override. Only one active at a time. Returns a session object.
+---@field has_active_session fun(self: ts_override_helper): boolean, string                                          Check if a session is active. Returns (active, plugin_name).
+--
+-- Effective value readers (used internally by TS proxy, but available for advanced use):
+---@field get_effective_mode fun(self: ts_override_helper): number                                                   Get effective TS mode (session override or real setting).
+---@field get_effective_damage_enabled fun(self: ts_override_helper): boolean                                         Get effective damage enabled state.
+---@field get_effective_heal_enabled fun(self: ts_override_helper): boolean                                           Get effective heal enabled state.
+---@field get_effective_max_range_damage fun(self: ts_override_helper): number                                        Get effective max damage range.
+---@field get_effective_max_range_heal fun(self: ts_override_helper): number                                          Get effective max heal range.
+---@field get_effective_pull_mode fun(self: ts_override_helper): number                                               Get effective pull mode.
+---@field get_session_value fun(self: ts_override_helper, key: string): any|nil                                       Get any session override value by key (nil if none).
+--
+-- ═════════════════════════════════════════════════
+-- PERMANENT OVERRIDE API (legacy, modifies real settings)
+-- ═════════════════════════════════════════════════
+--
 -- Mode & Settings
----@field set_mode fun(self: ts_override_helper, mode: number, write_mode: number|nil): nil                             Set targeting mode (ts_enums.mode: MANUAL, HARD_TARGET, SILENT_AUTO, DISABLED).
----@field set_max_range_damage fun(self: ts_override_helper, range: number, write_mode: number|nil): nil                Set max targeting range for damage (0-50).
----@field set_max_range_heal fun(self: ts_override_helper, range: number, write_mode: number|nil): nil                  Set max targeting range for healing (0-50).
----@field set_pull_mode fun(self: ts_override_helper, mode: number, write_mode: number|nil): nil                        Set pull logic (ts_enums.pull_mode: DONT_PULL, PULL_HUD_TARGET, PULL_FULL_AUTOMATIC).
----@field set_semi_force_target_heal fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil       Override HUD target for heal in semi-manual mode.
----@field set_semi_force_target_damage fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil     Override HUD target for damage in semi-manual mode.
----@field set_aa_totems fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil                    Enable/disable auto-attack totems.
----@field set_re_focus fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil                     Enable/disable auto re-focus dead units.
----@field set_re_target_hunter fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil             Enable/disable re-target hunter after feign death.
----@field set_pull_allowed fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil                 Set the is_pull_allowed internal flag.
+---@field set_mode fun(self: ts_override_helper, mode: number, write_mode: number|nil): nil                             Set targeting mode permanently.
+---@field set_max_range_damage fun(self: ts_override_helper, range: number, write_mode: number|nil): nil                Set max damage range permanently.
+---@field set_max_range_heal fun(self: ts_override_helper, range: number, write_mode: number|nil): nil                  Set max heal range permanently.
+---@field set_pull_mode fun(self: ts_override_helper, mode: number, write_mode: number|nil): nil                        Set pull logic permanently.
+---@field set_semi_force_target_heal fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil       Override HUD target for heal (semi-manual) permanently.
+---@field set_semi_force_target_damage fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil     Override HUD target for damage (semi-manual) permanently.
+---@field set_aa_totems fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil                    Enable/disable auto-attack totems permanently.
+---@field set_re_focus fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil                     Enable/disable auto re-focus permanently.
+---@field set_re_target_hunter fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil             Enable/disable re-target hunter permanently.
+---@field set_pull_allowed fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil                 Set is_pull_allowed permanently.
 --
 -- Enable / Disable
----@field set_damage_enabled fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil               Enable or disable the damage target selector.
----@field set_heal_enabled fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil                 Enable or disable the heal target selector.
+---@field set_damage_enabled fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil               Enable/disable damage TS permanently.
+---@field set_heal_enabled fun(self: ts_override_helper, enabled: boolean, write_mode: number|nil): nil                 Enable/disable heal TS permanently.
 --
 -- Weights
----@field set_weight fun(self: ts_override_helper, ctx: string, weight_name: string, enabled: boolean, value: number, write_mode: number|nil): nil                  Set a weight toggle + slider. Use ts_enums.context and ts_enums.weight enums.
----@field set_weight_angle_f fun(self: ts_override_helper, ctx: string, enabled: boolean, value: number, write_mode: number|nil): nil                               Set the float-based angle weight (angle_f). Separate from the bool "angle".
----@field set_weight_multiple_hits fun(self: ts_override_helper, ctx: string, enabled: boolean, value: number, radius: number, write_mode: number|nil): nil         Set the multiple_hits weight including splash radius (2.0-20.0).
+---@field set_weight fun(self: ts_override_helper, ctx: string, weight_name: string, enabled: boolean, value: number, write_mode: number|nil): nil                  Set weight permanently.
+---@field set_weight_angle_f fun(self: ts_override_helper, ctx: string, enabled: boolean, value: number, write_mode: number|nil): nil                               Set angle_f weight permanently.
+---@field set_weight_multiple_hits fun(self: ts_override_helper, ctx: string, enabled: boolean, value: number, radius: number, write_mode: number|nil): nil         Set multiple_hits weight permanently.
 --
 -- Override Slots
----@field set_override_slot fun(self: ts_override_helper, ctx: string, slot: number, override_type: number, write_mode: number|nil): nil     Configure override slot (1-3) with ts_enums.override_type.
----@field disable_override_slot fun(self: ts_override_helper, ctx: string, slot: number, write_mode: number|nil): nil                        Disable an override slot (1-3).
+---@field set_override_slot fun(self: ts_override_helper, ctx: string, slot: number, override_type: number, write_mode: number|nil): nil     Configure override slot permanently.
+---@field disable_override_slot fun(self: ts_override_helper, ctx: string, slot: number, write_mode: number|nil): nil                        Disable override slot permanently.
 --
 -- Blacklist Marks
----@field set_blacklist_marks_enabled fun(self: ts_override_helper, ctx: string, enabled: boolean, write_mode: number|nil): nil              Enable/disable mark-based blacklisting. ctx = "damage"|"heal".
----@field set_blacklist_mark fun(self: ts_override_helper, ctx: string, slot: number, mark_index: number, write_mode: number|nil): nil       Set which mark to blacklist in slot (1-3).
+---@field set_blacklist_marks_enabled fun(self: ts_override_helper, ctx: string, enabled: boolean, write_mode: number|nil): nil              Enable/disable mark blacklisting permanently.
+---@field set_blacklist_mark fun(self: ts_override_helper, ctx: string, slot: number, mark_index: number, write_mode: number|nil): nil       Set blacklist mark permanently.
 --
 -- Batch & Utility
----@field set_weights_batch fun(self: ts_override_helper, ctx: string, weights: table, write_mode: number|nil): nil     Apply multiple weights at once. { name = { enabled=bool, value=number, radius?=number }, ... }
----@field reset fun(self: ts_override_helper): nil                                                                       Reset all ONCE guards. Call on spec change or encounter start.
----@field is_applied fun(self: ts_override_helper, key: string): boolean                                                 Check if a key was already applied in ONCE mode. e.g. "damage.weight_close"
+---@field set_weights_batch fun(self: ts_override_helper, ctx: string, weights: table, write_mode: number|nil): nil     Apply multiple weights permanently.
+---@field reset fun(self: ts_override_helper): nil                                                                       Reset all ONCE guards.
+---@field is_applied fun(self: ts_override_helper, key: string): boolean                                                 Check if a key was already applied (ONCE mode).
 
 --========================
--- Examples (copy-paste)
+-- SESSION EXAMPLES
 --========================
 
--- EXAMPLE 1: Basic damage rotation setup (call in on_update, safe every frame)
+-- EXAMPLE 1: Session override — damage rotation (RECOMMENDED)
+--
+-- Overrides are volatile. User settings are NEVER touched.
+-- When your plugin is disabled or unloaded, overrides vanish within 500ms.
+-- The TS menu shows: "Overridden by: Hunter BM"
+--
+--   local ts = require("common/utility/ts_override_helper")
+--   local session = ts:create_session("Silvi Hunter BM PvP") -- recomended to add dev name so its unique
+--
+-- MOST COMON EXAMPLE, DISABLE TS TEMPORARY WHILE YOU RUN YOUR OWN
+--   function on_update()
+--       session:set_mode(ts.enums.mode.DISABLED)
+--       session:set_damage_enabled(false)
+--   end
+
+--   function on_update()
+--       session:set_mode(ts.enums.mode.SILENT_AUTO)
+--       session:set_damage_enabled(true)
+--       session:set_max_range_damage(40)
+--       session:set_weight("damage", "close", true, 5)
+--       session:set_weight("damage", "health_decrease", true, 3)
+--
+--       -- ... rotation logic using target_selector:get_targets() ...
+--   end
+
+-- EXAMPLE 2: Session override — healer with custom weights
+--
+--   local ts = require("common/utility/ts_override_helper")
+--   local session = ts:create_session("Holy Paladin")
+--
+--   function on_update()
+--       session:set_heal_enabled(true)
+--       session:set_max_range_heal(40)
+--       session:set_weight("heal", "health_decrease", true, 4)
+--       session:set_weight("heal", "low_hp", true, 5)
+--       session:set_weight("heal", "tank", true, 2)
+--   end
+
+-- EXAMPLE 3: Session override — temporarily disable TS (custom targeting)
+--
+-- Your plugin does its own targeting. While active, TS is disabled.
+-- When your plugin stops, TS goes back to whatever the user had before.
+--
+--   local ts = require("common/utility/ts_override_helper")
+--   local session = ts:create_session("My Custom Plugin")
+--
+--   function on_update()
+--       session:set_mode(ts.enums.mode.DISABLED)
+--       -- ... your custom targeting logic ...
+--   end
+--   -- User had SILENT_AUTO before. When this plugin is disabled,
+--   -- TS goes back to SILENT_AUTO automatically. No settings damaged.
+
+-- EXAMPLE 4: Session override — stop overriding explicitly
+--
+--   local ts = require("common/utility/ts_override_helper")
+--   local session = ts:create_session("Arms Warrior")
+--
+--   function on_update()
+--       if should_override then
+--           session:set_mode(ts.enums.mode.SILENT_AUTO)
+--           session:set_damage_enabled(true)
+--       else
+--           session:destroy()  -- overrides vanish, user settings restore
+--       end
+--   end
+
+-- EXAMPLE 5: Check if a session is active (for UI or debugging)
+--
+--   local ts = require("common/utility/ts_override_helper")
+--   local active, plugin_name = ts:has_active_session()
+--   if active then
+--       core.log("TS overridden by: " .. plugin_name)
+--   end
+
+--========================
+-- PERMANENT EXAMPLES (legacy)
+--========================
+
+-- EXAMPLE 6: Basic permanent setup (call in on_update, ONCE mode is default)
 --
 --   local ts = require("common/utility/ts_override_helper")
 --
@@ -146,71 +306,23 @@
 --       ts:set_weight(CTX.DAMAGE, W.HIGHEST_MAX_HP, true, 1)
 --   end
 
--- EXAMPLE 2: AoE-focused damage setup with splash radius
+-- EXAMPLE 7: Batch weights (one call for many)
 --
 --   local ts = require("common/utility/ts_override_helper")
 --
---   local W = ts.enums.weight
---   local CTX = ts.enums.context
---
---   local function setup_ts_aoe()
---       ts:set_damage_enabled(true)
---       ts:set_max_range_damage(40)
---       ts:set_weight_multiple_hits(CTX.DAMAGE, true, 5, 8.0)
---       ts:set_weight(CTX.DAMAGE, W.HEALTH_DECREASE, false, 0)
---   end
-
--- EXAMPLE 3: Batch weights (one call for many weights)
---
---   local ts = require("common/utility/ts_override_helper")
---
---   local W = ts.enums.weight
---   local CTX = ts.enums.context
---
---   ts:set_weights_batch(CTX.DAMAGE, {
---       [W.TARGET]                = { enabled = true,  value = 2 },
---       [W.HEALTH_DECREASE]       = { enabled = true,  value = 3 },
---       [W.MULTIPLE_HITS]         = { enabled = true,  value = 5, radius = 8.0 },
---       [W.TEAM_TARGET_FOLLOWUP]  = { enabled = true,  value = 1 },
---       [W.HIGHEST_MAX_HP]        = { enabled = false, value = 0 },
+--   ts:set_weights_batch(ts.enums.context.DAMAGE, {
+--       [ts.enums.weight.TARGET]                = { enabled = true,  value = 2 },
+--       [ts.enums.weight.HEALTH_DECREASE]       = { enabled = true,  value = 3 },
+--       [ts.enums.weight.MULTIPLE_HITS]         = { enabled = true,  value = 5, radius = 8.0 },
 --   })
 
--- EXAMPLE 4: Heal setup
---
---   local ts = require("common/utility/ts_override_helper")
---
---   local W = ts.enums.weight
---   local CTX = ts.enums.context
---
---   ts:set_heal_enabled(true)
---   ts:set_max_range_heal(40)
---   ts:set_weight(CTX.HEAL, W.HEALTH_DECREASE, true, 3)
---   ts:set_weight(CTX.HEAL, W.INJURED, true, 2)
---   ts:set_weight(CTX.HEAL, W.LOW_HP, true, 4)
---   ts:set_weight(CTX.HEAL, W.TANK, true, -1)
-
--- EXAMPLE 5: ON_CHANGE mode (value synced from a menu slider every frame)
+-- EXAMPLE 8: ON_CHANGE mode (sync from menu slider each frame)
 --
 --   local ts = require("common/utility/ts_override_helper")
 --   local SYNC = ts.enums.write_mode.ON_CHANGE
 --
 --   local function on_update()
 --       ts:set_max_range_damage(my_menu.range_slider:get(), SYNC)
---   end
-
--- EXAMPLE 6: Override slot — prioritize focus target
---
---   local ts = require("common/utility/ts_override_helper")
---
---   ts:set_override_slot(ts.enums.context.DAMAGE, 1, ts.enums.override_type.FOCUS)
-
--- EXAMPLE 7: Reset guards on encounter start
---
---   local ts = require("common/utility/ts_override_helper")
---
---   local function on_encounter_start()
---       ts:reset()
---       -- now all ONCE overrides will fire again
 --   end
 
 ---@type ts_override_helper

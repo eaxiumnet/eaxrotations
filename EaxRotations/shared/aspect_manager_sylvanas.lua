@@ -1,37 +1,30 @@
 -- ============================================================================
 -- Shared Helper: Aspect Manager (Hunter)
 -- ============================================================================
--- Readability notes:
---   What: Manages Hunter aspect swapping between Hawk and Viper based on mana.
---   When: Combat rotation needs the correct aspect for current mana state.
---   Why: Prevents mana starvation and maximises DPS by auto-swapping aspects.
---   Safety: Never swaps if mounted; only swaps when the correct aspect is not active.
---   Hysteresis: viper_start (default 10%) triggers Viper; viper_end (default 30%) triggers Hawk.
---
 -- Pattern: Aspect priorities are Hawk (DPS) > Viper (mana regen).
 --   - Switch to Viper when mana drops below viper_start threshold
 --   - Switch back to Hawk when mana recovers above viper_end threshold
 --   - Hysteresis prevents rapid aspect flip-flopping
 --
 -- TBC Aspect spell IDs:
---   Aspect of the Hawk: 13161, 14318, 14319, 14320, 25296, 27045, 38121 (rank 7 TBC)
+--   Aspect of the Hawk: 13165, 14318, 14319, 14320, 14321, 14322, 25296, 27044 (rank 8 TBC)
 --   Aspect of the Viper: 34074 (TBC-only, single rank)
 --   Aspect of the Cheetah: 5118
 --   Aspect of the Pack: 13159
 --   Aspect of the Monkey: 13163
 --   Aspect of the Beast: 13161
 -- ============================================================================
--- NOTE: Aspect of the Hawk shares spell ID 13161 with Aspect of the Beast
--- in some data sources. The Hawk rank chain uses IDs 13165, 14318, 14319,
--- 14320, 25296, 27045, 38121 (TBC). Viper is 34074 (TBC-only).
+-- NOTE: Aspect of the Hawk rank 1 is 13165. Aspect of the Beast is 13161.
+-- The Hawk rank chain uses IDs 13165, 14318, 14319, 14320, 14321,
+-- 14322, 25296, 27044 (TBC). Viper is 34074 (TBC-only).
 -- ============================================================================
 
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
 
--- Aspect of the Hawk spell IDs by rank (newest first, TBC rank 7 = 38121)
-local HAWK_IDS = { 38121, 27045, 25296, 14320, 14319, 14318, 13165 }
+-- Aspect of the Hawk spell IDs by rank (newest first, TBC rank 8 = 27044)
+local HAWK_IDS = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 
 -- Aspect of the Viper spell ID (TBC-only, single rank)
 local VIPER_ID = 34074

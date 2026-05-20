@@ -2,16 +2,6 @@
 -- Priest Healing Utilities (EaxRotations)
 -- Shared healing target scanning for Holy and Discipline playstyles
 -- ============================================================================
--- Readability notes:
---   What: shared Priest healing scan, triage, and spell recommendation helpers.
---   When: Holy and Discipline need to decide who should receive the next heal.
---   Why: Priest has a wide toolkit, so target scoring lives outside the strategy list.
---   Safety: missing party data, aura data, or API methods produce safe fallback decisions.
-
--- Decision notes:
---   Healing helpers scan and decorate targets once per frame so multiple strategies share the same triage data.
---   Effective HP uses incoming heals and absorbs when the API exposes them; this avoids sniping heals already covered.
---   Target data is intentionally nil-tolerant because party/raid objects can disappear during zoning, death, or range changes.
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then
@@ -23,7 +13,6 @@ local enums = require("common/enums")
 if type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
 local load_player = NS.GetPlayer()
 if not load_player or load_player:get_class() ~= enums.class_id.PRIEST then return end
-
 
 local math_floor = math.floor
 local ipairs = ipairs
@@ -38,11 +27,11 @@ local scan_frame = 0
 
 NS.PriestHealing = {}
 
-local WEAKENED_SOUL_DEBUFF_IDS = { 6788, 6789, 6790, 6791, 6792, 6793, 25368 }
+local WEAKENED_SOUL_DEBUFF_IDS = { 6788 }
 local RENEW_BUFF_IDS = { 139, 6074, 6075, 6076, 6077, 6078, 10927, 10928, 10929, 25315, 25221, 25222 }
-local POWER_WORD_SHIELD_BUFF_IDS = { 17, 592, 600, 602, 1006, 5573, 10060, 11419, 12479, 12480, 12481, 12482, 12483, 14768, 15363, 17000, 17004, 17191, 25218, 25219, 25368, 25369, 25370, 25371, 25375, 32744 }
+local POWER_WORD_SHIELD_BUFF_IDS = { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }
 -- Shared helpers from core_sylvanas.lua
-local buff_up, debuff_up, predict_effective_deficit = NS.import_helpers("buff_up", "debuff_up", "predict_effective_deficit")
+local buff_up, debuff_up, predict_effective_deficit, buff_remains = NS.import_helpers("buff_up", "debuff_up", "predict_effective_deficit", "buff_remains")
 
 local function has_weakened_soul(unit)
     if not unit then return true end
@@ -60,6 +49,22 @@ local function has_renew(unit)
     return false
 end
 
+--- Returns remaining seconds on Renew, or 0 if not present.
+--- Used to avoid early refresh (wasted ticks) per Research divergence table.
+local function renew_remains(unit)
+    if not unit then return 0 end
+    if type(buff_remains) ~= "function" then
+        -- Fallback: if buff_remains isn't available, use has_renew as binary
+        return has_renew(unit) and 999 or 0
+    end
+    local longest = 0
+    for _, buff_id in ipairs(RENEW_BUFF_IDS) do
+        local r = buff_remains(unit, buff_id)
+        if r and r > longest then longest = r end
+    end
+    return longest
+end
+
 local function has_pws(unit)
     if not unit then return false end
     for _, buff_id in ipairs(POWER_WORD_SHIELD_BUFF_IDS) do
@@ -68,8 +73,27 @@ local function has_pws(unit)
     return false
 end
 
+--- Returns the remaining absorb amount on a Power Word: Shield buff.
+--- Uses buff.points[1] which contains the absorb remaining value.
+--- Returns 0 if no PW:S buff is present.
+---@param unit game_object The unit to check.
+---@return number absorb_remaining The absorb remaining on the shield, or 0.
+local function pws_absorb_remaining(unit)
+    if not unit then return 0 end
+    if type(NS.buff_points) ~= "function" then
+        -- Fallback: buff_points not yet available (core loaded after this module)
+        return has_pws(unit) and 1 or 0
+    end
+    local points = NS.buff_points(unit, POWER_WORD_SHIELD_BUFF_IDS)
+    if not points then return 0 end
+    return points[1] or 0
+end
+
+NS.PriestHealing.pws_absorb_remaining = pws_absorb_remaining
+
 NS.PriestHealing.has_weakened_soul = has_weakened_soul
 NS.PriestHealing.has_renew = has_renew
+NS.PriestHealing.renew_remains = renew_remains
 NS.PriestHealing.has_pws = has_pws
 
 NS.PriestHealing.predict_effective_deficit = predict_effective_deficit
@@ -92,6 +116,7 @@ local function scan_healing_targets()
 
     healing_targets_count = build_healing_entries(healing_targets, function(entry, unit)
         entry.has_renew = has_renew(unit)
+        entry.renew_remains = renew_remains(unit)
         entry.has_pws = has_pws(unit)
         entry.has_weakened_soul = has_weakened_soul(unit)
     end)
@@ -127,6 +152,37 @@ NS.PriestHealing.is_in_raid = is_in_raid
 NS.PriestHealing.is_in_party = is_in_party
 NS.PriestHealing.PARTY_UNITS = PARTY_UNITS
 NS.PriestHealing.RAID_UNITS = RAID_UNITS
+
+--- Counts injured units in the player's subgroup only.
+--- In a raid, Prayer of Healing only heals the caster's party (subgroup).
+--- This prevents wasting mana when other raid groups are hurt but yours isn't.
+---@param threshold number HP threshold (0-100) to count as injured.
+---@return integer count Number of injured subgroup members.
+local function count_subgroup_below_hp(threshold)
+    local entries, count = scan_healing_targets()
+    if count == 0 or not entries then return 0 end
+    local in_raid = is_in_raid()
+    local injured = 0
+    for i = 1, count do
+        local entry = entries[i]
+        if entry and entry.effective_hp and entry.effective_hp < threshold then
+            -- In a raid, only count party members (your subgroup).
+            -- In a party, all valid members are in your group.
+            if not in_raid then
+                injured = injured + 1
+            else
+                -- pcall guard: is_party_member may not exist on all game object APIs
+                local ok, is_pm = pcall(function() return entry.unit and entry.unit:is_party_member() end)
+                if ok and is_pm then
+                    injured = injured + 1
+                end
+            end
+        end
+    end
+    return injured
+end
+
+NS.PriestHealing.count_subgroup_below_hp = count_subgroup_below_hp
 
 NS.log("Healing utilities loaded")
 return NS.PriestHealing

@@ -50,6 +50,8 @@ local SERPENT_STING_DEBUFF = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 
 local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { 34074 }
 
+local SERPENT_STING_REFRESH_SEC = 1.5
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -61,12 +63,16 @@ local mm_state = {
     pet_hp_pct = 100,
     has_hunters_mark = false,
     has_serpent_sting = false,
+    serpent_sting_remains = 0,
     has_aspect_hawk = false,
     has_aspect_viper = false,
     mend_pet_ready = false,
     hunters_mark_ready = false,
     rapid_fire_ready = false,
     aimed_shot_prepull_ready = false,
+    aimed_shot_ready = false,
+    silencing_shot_ready = false,
+    target_is_casting = false,
     kill_command_ready = false,
     multi_shot_ready = false,
     steady_shot_ready = false,
@@ -96,12 +102,16 @@ local function build_state(context)
     mm_state.pet_hp_pct = mm_state.pet_alive and pet.get_health_percentage and pet:get_health_percentage() or 100
     mm_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
     mm_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
+    mm_state.serpent_sting_remains = target and NS.debuff_remains(target, SERPENT_STING_DEBUFF) or 0
     mm_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
     mm_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
     mm_state.mend_pet_ready = me and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     mm_state.hunters_mark_ready = target and NS.spell_ready(SPELLS.HuntersMark, target) or false
     mm_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
     mm_state.aimed_shot_prepull_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
+    mm_state.aimed_shot_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
+    mm_state.silencing_shot_ready = target and NS.spell_ready(SPELLS.SilencingShot, target, { expected_cooldown = 20 }) or false
+    mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
     mm_state.kill_command_ready = target and NS.spell_ready(SPELLS.KillCommand, target, { expected_cooldown = 5 }) or false
     mm_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
     mm_state.steady_shot_ready = target and NS.spell_ready(SPELLS.SteadyShot, target) or false
@@ -137,13 +147,15 @@ local KILL_COMMAND_ACTION = { name = "KillCommand", spell = SPELLS.KillCommand, 
 local MULTI_SHOT_ACTION = { name = "MultiShot", spell = SPELLS.MultiShot, cooldown = 10 }
 local STEADY_SHOT_ACTION = { name = "SteadyShot", spell = SPELLS.SteadyShot, not_moving = true }
 local ARCANE_SHOT_ACTION = { name = "ArcaneShot", spell = SPELLS.ArcaneShot, cooldown = 6 }
-local SERPENT_STING_ACTION = { name = "SerpentSting", spell = SPELLS.SerpentSting, debuff = SERPENT_STING_DEBUFF, refresh = 3 }
+local SERPENT_STING_ACTION = { name = "SerpentSting", spell = SPELLS.SerpentSting, debuff = SERPENT_STING_DEBUFF, refresh = 1.5 }
 local ASPECT_HAWK_ACTION = { name = "AspectOfTheHawk", spell = SPELLS.AspectOfTheHawk, target = "self", kind = "buff", buff = ASPECT_HAWK_BUFF, requires_target = false, min_interval = 60 }
 local ASPECT_VIPER_ACTION = { name = "AspectOfTheViper", spell = SPELLS.AspectOfTheViper, target = "self", kind = "buff", buff = ASPECT_VIPER_BUFF, requires_target = false, min_interval = 30 }
 local CALL_PET_ACTION = { name = "CallPet", spell = SPELLS.CallPet, target = "self", requires_target = false }
 local REVIVE_PET_ACTION = { name = "RevivePet", spell = SPELLS.RevivePet, target = "self", requires_target = false }
 local FEIGN_DEATH_ACTION = { name = "FeignDeath", spell = SPELLS.FeignDeath, target = "self", cooldown = 30, requires_target = false }
 local FREEZING_TRAP_ACTION = { name = "FreezingTrap", spell = SPELLS.FreezingTrap, target = "self", cooldown = 30, requires_target = false }
+local SILENCING_SHOT_ACTION = { name = "SilencingShot", spell = SPELLS.SilencingShot, combat = true, cooldown = 20 }
+local IN_COMBAT_AIMED_SHOT_ACTION = { name = "AimedShotCombat", spell = SPELLS.AimedShot, combat = true, not_moving = true, cooldown = 6 }
 local VIPER_STING_ACTION = { name = "ViperSting", spell = SPELLS.ViperSting, cooldown = 8 }	local BESTIAL_WRATH_ACTION = { name = "BestialWrath", spell = SPELLS.BestialWrath, target = "pet", combat = true, cooldown = 120, requires_target = false }
 	local READINESS_ACTION = { name = "Readiness", spell = SPELLS.Readiness, target = "self", combat = true, cooldown = 180, requires_target = false, setting = "use_readiness" }
 	
@@ -185,6 +197,8 @@ end
 
 local function multi_shot_matches(context, s)
     if not s.multi_shot_ready then return false end
+    if context.has_breakable_cc_nearby then return false end
+    if (s.mana_pct or 100) < 15 then return false end
     return can_cast_before_auto(context, MULTI_SHOT_ACTION, MULTI_SHOT_CAST_MS)
 end
 
@@ -195,17 +209,23 @@ end
 
 local function arcane_shot_matches(context, s)
     if not s.arcane_shot_ready then return false end
+    if (s.mana_pct or 100) < 20 then return false end
     return NS.action_matches(context, ARCANE_SHOT_ACTION)
 end
 
 local function serpent_sting_matches(context, s)
-    if s.has_serpent_sting then return false end
+    if s.has_serpent_sting and s.serpent_sting_remains > SERPENT_STING_REFRESH_SEC then return false end
     if not s.serpent_sting_ready then return false end
     return NS.action_matches(context, SERPENT_STING_ACTION)
 end
 
 local function aspect_hawk_matches(context, s)
     if s.has_aspect_hawk then return false end
+    -- Only switch from Viper to Hawk when mana has recovered above viper_end threshold
+    if s.has_aspect_viper then
+        local viper_end = (context.settings and context.settings.mana_viper_end) or 30
+        if (s.mana_pct or 100) <= viper_end then return false end
+    end
     return NS.action_matches(context, ASPECT_HAWK_ACTION)
 end
 
@@ -242,15 +262,31 @@ local function freezing_trap_matches(context, s)
     return NS.action_matches(context, FREEZING_TRAP_ACTION)
 end
 
+local function silencing_shot_matches(context, s)
+    if not s.in_combat then return false end
+    if not s.target_is_casting then return false end
+    if not s.silencing_shot_ready then return false end
+    return NS.action_matches(context, SILENCING_SHOT_ACTION)
+end
+
+local function in_combat_aimed_shot_matches(context, s)
+    if not s.in_combat then return false end
+    if not s.aimed_shot_ready then return false end
+    if (s.mana_pct or 100) < 20 then return false end
+    return can_cast_before_auto(context, IN_COMBAT_AIMED_SHOT_ACTION, AIMED_SHOT_CAST_MS)
+end
+
 local function viper_sting_matches(context, s)
     if not s.viper_sting_ready then return false end
     return NS.action_matches(context, VIPER_STING_ACTION)
-end	local function bestial_wrath_matches(context, s)
-	    if not s.in_combat then return false end
-	    if not s.pet_alive then return false end
-	    if not s.bestial_wrath_ready then return false end
-	    return NS.action_matches(context, BESTIAL_WRATH_ACTION)
-	end
+end
+
+local function bestial_wrath_matches(context, s)
+    if not s.in_combat then return false end
+    if not s.pet_alive then return false end
+    if not s.bestial_wrath_ready then return false end
+    return NS.action_matches(context, BESTIAL_WRATH_ACTION)
+end
 
 	local function readiness_matches(context, s)
 	    if not cooldowns_enabled(context) then return false end
@@ -288,6 +324,8 @@ local strategies = {
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return execute_action(context, HUNTERS_MARK_ACTION, "[MARKSMANSHIP]") end },	    { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return execute_action(context, RAPID_FIRE_ACTION, "[MARKSMANSHIP]") end },
 	    { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) return execute_action(context, BESTIAL_WRATH_ACTION, "[MARKSMANSHIP]") end },
 	    { name = "Readiness", matches = readiness_matches, execute = function(context) return execute_action(context, READINESS_ACTION, "[MARKSMANSHIP]") end },
+    { name = "SilencingShot", matches = silencing_shot_matches, execute = function(context) return execute_action(context, SILENCING_SHOT_ACTION, "[MARKSMANSHIP]") end },
+    { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if execute_action(context, IN_COMBAT_AIMED_SHOT_ACTION, "[MARKSMANSHIP]") then record_manual_shot() return true end return false end },
     { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if execute_action(context, AIMED_SHOT_PREPULL_ACTION, "[MARKSMANSHIP]") then record_manual_shot() return true end return false end },
     { name = "KillCommand", matches = kill_command_matches, execute = function(context) return execute_action(context, KILL_COMMAND_ACTION, "[MARKSMANSHIP]") end },
     { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return execute_action(context, FEIGN_DEATH_ACTION, "[MARKSMANSHIP]") end },

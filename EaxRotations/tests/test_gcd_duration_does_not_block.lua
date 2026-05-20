@@ -1,13 +1,5 @@
--- Readability notes:
---   What: regression test for GCD duration vs GCD remaining.
---   When: spell_ready checks whether a spell can be attempted.
---   Why: get_global_cooldown() returns duration, so using it as remaining time blocks every spell.
---   Safety: uses stubs only and never sends a real cast.
+-- regression test for GCD duration vs GCD remaining.
 
--- Decision notes:
---   Tests use local stubs instead of a live Sylvanas client so API-bound behavior remains reproducible.
---   Each case protects one previous failure mode or role rule; keep assertions narrow and descriptive.
---   No test should call real input/cast APIs because regression runs must be safe outside the game.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
 local target = { is_alive = function() return true end, is_valid = function() return true end }

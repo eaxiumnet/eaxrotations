@@ -1,13 +1,6 @@
 -- ============================================================================
 -- Shared Runtime Helper: TBC Racial Manager
 -- ============================================================================
--- Readability notes:
---   What: nil-safe automated racial usage for Project Sylvanas rotations.
---   When: registered by core_sylvanas.lua after shared NS helpers are available.
---   Why: racial cooldown rules are cross-class behavior and should not be copied
---        into every class middleware file.
---   Safety: every game/API access is guarded; missing race data disables itself.
-
 local _G = _G
 local NS = _G.EaxRotations
 

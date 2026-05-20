@@ -1,11 +1,6 @@
 -- ============================================================================
 -- Shared Helper: Mind Flay Tick Computation
 -- ============================================================================
--- Readability notes:
---   What: pure Mind Flay channel/tick/clip state computation.
---   When: Shadow-style rotations evaluate whether to keep channeling or clip.
---   Why: channel math is subtle and should be tested independently from live units.
---   Safety: accepts injected timing values and does not call game APIs.
 -- Pure function extracted from shadow_sylvanas.lua build_shadow_state.
 -- Computes MF channel state (channeling, ticks, clip signal) from injectable
 -- API-like parameters. No NS/api/ dependencies — safe for unit testing.
@@ -16,7 +11,6 @@
 --
 -- Clipping gate: mf_ticks >= 2 AND mf_ticks < 3 AND priority spell ready
 --
--- Usage (production — shadow_sylvanas.lua):
 --   local mf_tick = require("shared/mf_tick_compute")  -- or NS.compute_mf_channel_state
 --   local mf_channeling, mf_ticks = mf_tick.compute_channel_state(me, NS.game_time_ms(), mf_ids)
 --   local should_clip = mf_tick.should_clip_mf(mf_channeling, mf_ticks, vt_clip_threshold, mb_ready, swd_ready, vt_remaining, swp_remaining)
@@ -27,10 +21,6 @@
 --   ...same as above...
 -- ============================================================================
 
--- Decision notes:
---   Shared helpers stay pure or dependency-injected where practical so class files can reuse them safely.
---   Inputs are plain tables/numbers instead of live game objects unless a caller explicitly passes adapters.
---   Keeping this logic outside playstyles makes edge cases testable without a Sylvanas runtime.
 local floor = math.floor
 local ipairs = ipairs
 
@@ -105,7 +95,6 @@ function M.should_clip_mf(mf_channeling, mf_ticks, vt_clip_threshold, mb_ready, 
 end
 
 -- ============================================================================
--- Registration: make available via NS namespace for production code
 -- ============================================================================
 local _G = _G
 if _G.EaxRotations then

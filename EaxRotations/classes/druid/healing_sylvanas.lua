@@ -1,13 +1,5 @@
--- Readability notes:
---   What: shared druid healing helpers for resto/off-heal playstyles.
---   When: load_order can load this file before or alongside druid spec modules.
---   Why: keeps Lifebloom/Rejuvenation/Regrowth/Healing Touch triage readable and nil-safe.
---   Safety: no cast is attempted here; callers decide whether to execute returned recommendations.
+-- shared druid healing helpers for resto/off-heal playstyles.
 
--- Decision notes:
---   Healing helpers scan and decorate targets once per frame so multiple strategies share the same triage data.
---   Effective HP uses incoming heals and absorbs when the API exposes them; this avoids sniping heals already covered.
---   Target data is intentionally nil-tolerant because party/raid objects can disappear during zoning, death, or range changes.
 local NS = _G.EaxRotations
 if not NS then return nil end
 
@@ -96,6 +88,9 @@ function M.recommend(context)
 end
 
 function M.try_heal(context)
+    -- Mounted bail: healer should not queue heals while mounted
+    local me = context and context.me or NS.GetPlayer()
+    if me and me.is_mounted and me:is_mounted() then return false end
     local rec = M.recommend(context)
     if not rec then return false end
     return NS.try_cast(rec.spell, rec.target, "[DRUID HEAL] " .. rec.reason)

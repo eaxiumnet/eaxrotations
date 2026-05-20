@@ -7,25 +7,16 @@
 --   - Self-dispel (Cure Poison / Cure Disease)
 -- ============================================================================
 
--- Readability notes:
---   What: Shaman shared middleware.
---   When: dispatcher runs it before the selected playstyle.
---   Why: threat tools are centralized instead of duplicated in every spec.
---   Safety: threat drops require group combat and an ally within 40 yards; never solo.
-
--- Decision notes:
---   Middleware owns class-wide reactions such as interrupts, defensive checks, utility, and recovery actions.
---   A middleware row should return true only when it actually performs work; otherwise playstyle priorities must continue.
---   Safety gates are repeated here when the action can disrupt combat flow or break crowd control.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local auto_tremor = require("shared/auto_tremor_sylvanas")
 local purge_manager = require("shared/purge_manager_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 -- Cure Poison IDs by rank (newest first) - TBC spell IDs
-local CURE_POISON_IDS = { 5264, 10295, 10296, 10297 }
+local CURE_POISON_IDS = { 526 }
 -- Cure Disease IDs by rank (newest first) - TBC spell IDs
 local CURE_DISEASE_IDS = { 528, 10298, 10299 }
 
@@ -38,7 +29,7 @@ local function has_poison_debuff()
         [2818] = true, [2819] = true, [11397] = true, [11398] = true, [11399] = true, [11400] = true,
         [25347] = true, [26975] = true, [27282] = true, -- Deadly Poison
         [3408] = true, [3409] = true, [8995] = true, [8996] = true, [11366] = true,
-        [11367] = true, [11368] = true, [11369] = true, [25349] = true, [26967] = true, [27283] = true, -- Crippling Poison
+        [11367] = true, [11368] = true, [25349] = true, [26967] = true, [27283] = true, -- Crippling Poison
     }
     local me = NS.PLAYER_UNIT
     if not me then return false end
@@ -54,8 +45,8 @@ local function has_disease_debuff()
     if not NS.has_debuff then return false end
     -- Common disease debuff IDs in TBC
     local DISEASE_IDS = {
-        [3237] = true, [3238] = true, [3239] = true, [3240] = true, [3241] = true, [3242] = true,
-        [3243] = true, [3244] = true, [3245] = true, [3246] = true, [3247] = true, [3248] = true,
+        [3237] = true, [3238] = true, [3240] = true, [3242] = true,
+        [3243] = true, [3245] = true, [3246] = true, [3247] = true, [3248] = true,
         [3329] = true, [3330] = true, [3331] = true, [3332] = true, [3333] = true, [3334] = true,
     }
     local me = NS.PLAYER_UNIT
@@ -194,7 +185,9 @@ local strategies = {
         end,
     },
 
-}
+    -- Auto-consumable usage
+    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
+}
 NS.register_class_middleware("shaman", strategies)
 return strategies

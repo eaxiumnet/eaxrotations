@@ -1,0 +1,36 @@
+ID,DisplayName_lang,DisplayNameShort_lang,Flags,RangeMin_0,RangeMin_1,RangeMax_0,RangeMax_1
+1,"Self Only",Self,0,0,0,0,0
+2,"Combat Range",Combat,1,0,0,5,5
+3,"Twenty yards",Short,0,0,0,20,20
+4,"Medium Range",Medium,0,0,0,30,30
+5,"Long Range",Long,0,0,0,40,40
+6,"Vision Range",Vision,0,0,0,100,100
+7,"Ten yards","Very Short",0,0,0,10,10
+8,"Min Range 10, 20",Short,0,10,10,20,20
+9,"Medium Range",Medium,0,10,10,30,30
+10,10-40,Long,0,10,10,40,40
+11,"Fifteen yards",Shorter,0,0,0,15,15
+12,"Interact Range",Interact,0,0,0,5,5
+13,"Anywhere - Unlimited","Anywhere - Unlimited",0,0,0,50000,50000
+14,"Extra Long Range","Extra Long",0,0,0,60,60
+34,"Twenty-Five yards",Medium-Short,0,0,0,25,25
+35,"Medium-Long Range",Medium-Long,0,0,0,35,35
+36,"Longer Range",Longer,0,0,0,45,45
+37,"Extended Range",Extended,0,0,0,50,50
+38,"Min-Range 10, 25","Extra Medium",0,10,10,25,25
+54,"Monster Shoot","Monster Shoot Range",0,5,5,30,30
+74,"Ranged Weapon",Ranged,2,0,0,30,30
+94,Sting,Sting,0,8,8,40,40
+95,Charge,Charge,0,8,8,25,25
+96,Trap,Trap,0,0,0,2,2
+114,"Hunter Range",Hunter,2,0,0,35,35
+134,"Tower 80",Tower,0,0,0,80,80
+135,"Tower 100",Tower,0,0,0,100,100
+136,Thirty-to-80,Thirty-to-80,0,30,30,80,80
+137,"Eight yards","Very Short",0,0,0,8,8
+138,"Long Range Hunter Shoot","Hunter Long",0,5,5,45,45
+140,"Six yards","Six yards",0,0,0,7,7
+141,"Seven yards","Seven yards",0,0,0,7,7
+151,"Long Range Hunter Shoot","Hunter 45",0,5,5,45,45
+155,"Hunter Range (Long)","Hunter (Long)",0,4.01000022888,4.01000022888,35,35
+157,Ninety,Ninety,0,0,0,90,90

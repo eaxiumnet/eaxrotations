@@ -17,6 +17,7 @@
 ---@field ptr buff                                 -- raw buff pointer
 ---@field buff_name string                         -- name of the aura
 ---@field buff_type number                         -- type of the aura
+---@field points number[]                          -- variable values from aura data (e.g. absorb remaining for shields)
 
 ---@class buff_manager_cache_data
 ---@field buff_id number
@@ -27,6 +28,7 @@
 ---@field ptr buff
 ---@field buff_name string
 ---@field buff_type number
+---@field points number[]                          -- variable values from aura data (e.g. absorb remaining for shields)
 ---@field is_undefined boolean
 ---@field is_active boolean
 ---@field stacks number

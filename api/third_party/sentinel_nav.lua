@@ -1,0 +1,98 @@
+
+-- Sentinel Navigation Client - Third Party Plugin API
+-- Third-party plugin by external developer (not internal PS team).
+-- API based on v0.0.5 (02/2026) and may be outdated.
+-- For full documentation, see: docs/dev/api/sentinel-navigation
+
+-- Usage:
+-- local client = _G.SentinelNavClient and _G.SentinelNavClient.client
+-- if not client then return end
+-- client:move_to({ x = -8900, y = 560, z = 94 }, function(ok, reason) end)
+
+---@class sentinel_nav_progress
+---@field percent number                               -- progress from 0 to 1
+---@field waypoints_remaining number                   -- waypoints left
+---@field total_waypoints number                       -- total waypoints in path
+---@field current_index number                         -- current waypoint index
+
+---@class sentinel_nav_route_data
+---@field waypoints vec3[]                             -- ordered waypoints for full route
+---@field visit_order integer[]                        -- 1-based visitation order
+---@field leg_boundaries integer[]                     -- waypoint indices where legs start
+---@field leg_distances number[]                       -- distance of each leg
+---@field total_distance number                        -- total route distance
+
+---@class sentinel_nav_event_bus
+---@field on fun(self: sentinel_nav_event_bus, event: string, callback: function, opts?: table): integer
+---@field once fun(self: sentinel_nav_event_bus, event: string, callback: function, opts?: table): integer
+---@field on_pattern fun(self: sentinel_nav_event_bus, pattern: string, callback: function, opts?: table): integer
+---@field off fun(self: sentinel_nav_event_bus, id: integer)
+---@field off_owner fun(self: sentinel_nav_event_bus, owner: table)
+---@field pause fun(self: sentinel_nav_event_bus)
+---@field resume fun(self: sentinel_nav_event_bus)
+
+---@class sentinel_nav_client
+--- Pathfinds to the target and starts navigation.
+---@field move_to fun(self: sentinel_nav_client, target: vec3, callback?: fun(success: boolean, reason?: string), opts?: table)
+--- Follows a direct single-waypoint path to the target without pathfinding.
+---@field move_direct fun(self: sentinel_nav_client, target: vec3, callback?: fun(success: boolean, reason?: string))
+--- Follows a precomputed list of waypoints.
+---@field follow_path fun(self: sentinel_nav_client, waypoints: vec3[], callback?: fun(success: boolean, reason?: string))
+--- Plans a TSP route through the given nodes. Planning only, does not execute.
+---@field plan_route fun(self: sentinel_nav_client, nodes: vec3[], callback?: fun(success: boolean, data?: sentinel_nav_route_data), opts?: table)
+--- Replans the active destination path.
+---@field replan fun(self: sentinel_nav_client, reason?: string)
+--- Reachability probe without starting movement.
+---@field validate_destination fun(self: sentinel_nav_client, target: vec3, callback: fun(reachable: boolean, reason?: string, distance?: number))
+--- Stops movement and resets active navigation state.
+---@field stop fun(self: sentinel_nav_client)
+--- Returns top-level state: "idle", "navigating", "arrived", "failed".
+---@field get_state fun(self: sentinel_nav_client): string
+--- Returns dot-joined hierarchical state (e.g. "navigating.recovering.strafing").
+---@field get_full_state fun(self: sentinel_nav_client): string
+--- Returns true only while top-level state is "navigating".
+---@field is_moving fun(self: sentinel_nav_client): boolean
+--- Returns the current navigation destination.
+---@field get_destination fun(self: sentinel_nav_client): vec3|nil
+--- Returns the current list of waypoints being followed.
+---@field get_current_path fun(self: sentinel_nav_client): vec3[]|nil
+--- Returns the index of the waypoint currently being approached.
+---@field get_path_index fun(self: sentinel_nav_client): number
+--- Returns a progress snapshot.
+---@field get_progress fun(self: sentinel_nav_client): sentinel_nav_progress
+--- Returns corridor widths per waypoint.
+---@field get_corridor_widths fun(self: sentinel_nav_client): number[]|nil
+--- Returns true when the server connection flag is up.
+---@field is_server_available fun(self: sentinel_nav_client): boolean
+--- Server health ping.
+---@field health_check fun(self: sentinel_nav_client, callback: fun(ok: boolean))
+--- Navmesh height at position.
+---@field get_height fun(self: sentinel_nav_client, pos: vec3, callback: function)
+--- Height at current player position.
+---@field get_player_height fun(self: sentinel_nav_client, callback: function)
+--- Multi-layer heights at XY position.
+---@field get_all_heights fun(self: sentinel_nav_client, pos: vec3, callback: function, opts?: table)
+--- Multi-layer heights at player position.
+---@field get_player_all_heights fun(self: sentinel_nav_client, callback: function, opts?: table)
+--- Subscribe to a legacy event ("state_change", "arrived", "stuck", "failed").
+---@field on fun(self: sentinel_nav_client, event: string, callback: function)
+--- Unsubscribe from a legacy event.
+---@field off fun(self: sentinel_nav_client, event: string, callback: function)
+--- Returns the EventBus instance for granular event subscriptions.
+---@field get_event_bus fun(self: sentinel_nav_client): sentinel_nav_event_bus
+--- Returns the Blackboard instance (advanced).
+---@field get_blackboard fun(self: sentinel_nav_client): table
+--- Builds path options from current config.
+---@field get_path_opts fun(self: sentinel_nav_client, extra?: table): table
+--- Builds path options with corridor fields.
+---@field get_corridor_opts fun(self: sentinel_nav_client, extra?: table): table
+--- Writes movement/obstacle/navigation config. Note: UI syncs config every frame, consumer overrides may be overwritten.
+---@field update_config fun(self: sentinel_nav_client, overrides: table)
+
+---@class sentinel_nav_global
+---@field client sentinel_nav_client|nil               -- live getter for the shared singleton client
+---@field create fun(config?: table): sentinel_nav_client -- returns the shared client, config is ignored
+---@field ui table                                     -- UI orchestrator module
+---@field JSON table                                   -- JSON utility module
+---@field Helpers table                                -- general helper utility module
+---@field VERSION string                               -- current plugin version

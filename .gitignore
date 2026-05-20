@@ -46,3 +46,7 @@ Sonah/
 
 # Packaging policy
 *.toc
+
+# Backup / archive directories
+_backup_*/
+_edit_*.py

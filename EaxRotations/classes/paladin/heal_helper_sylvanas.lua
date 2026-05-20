@@ -2,16 +2,6 @@
 -- Paladin Healing Utilities (EaxRotations)
 -- Party/raid scanning and healing utilities for Holy Paladin
 -- ============================================================================
--- Readability notes:
---   What: Holy Paladin target selection and heal choice helpers.
---   When: holy_sylvanas asks for the best party member and spell to heal with.
---   Why: healing code is separated from the priority list so the rotation stays readable.
---   Safety: all unit/API reads are guarded and unresolved data falls back to conservative values.
-
--- Decision notes:
---   Healing helpers scan and decorate targets once per frame so multiple strategies share the same triage data.
---   Effective HP uses incoming heals and absorbs when the API exposes them; this avoids sniping heals already covered.
---   Target data is intentionally nil-tolerant because party/raid objects can disappear during zoning, death, or range changes.
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then
@@ -209,6 +199,11 @@ local function select_heal(context, state, target)
     if not context or not target then return nil end
 
     if context.is_moving then return nil end
+    -- Mounted bail: healer should not queue heals while mounted
+    if NS.GetPlayer and NS.GetPlayer() then
+        local me = NS.GetPlayer()
+        if me.is_mounted and me:is_mounted() then return nil end
+    end
 
     local bonus_healing = 0
     local deficit = target.effective_deficit or target.deficit or 0

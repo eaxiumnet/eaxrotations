@@ -44,7 +44,7 @@ return {
                 settings = {
                     { key = "aspect_hawk", type = "checkbox", label = "Aspect of the Hawk", default = true },
                     { key = "aspect_viper", type = "checkbox", label = "Aspect of the Viper", default = true },
-                    { key = "mana_viper_start", type = "slider", label = "Viper On Mana (%)", min = 0, max = 100, default = 10 },
+                    { key = "mana_viper_start", type = "slider", label = "Viper On Mana (%)", min = 0, max = 100, default = 20 },
                     { key = "mana_viper_end", type = "slider", label = "Viper Off Mana (%)", min = 0, max = 100, default = 30 },
                 },
             },

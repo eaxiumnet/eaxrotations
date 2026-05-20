@@ -71,6 +71,15 @@ local function find_enemy_target(me, selected)
         trace("target:selected_ok", "target selected=valid_enemy", 1000)
         return selected
     end
+    -- IZI-selected target fallback (for scripts that use the IZI target helper)
+    if not selected then
+        local izi_target = NS.izi and NS.izi.target and NS.izi.target()
+        if izi_target then
+            local izi_ok = valid_enemy(me, izi_target)
+            trace("target:izi", "[EaxRotations:target] izi_target=" .. tostring(izi_target ~= nil) .. " valid=" .. tostring(izi_ok), 2000)
+            if izi_ok then return izi_target end
+        end
+    end
     local focus = NS.GetFocus and NS.GetFocus() or nil
     local focus_ok = valid_enemy(me, focus)
     trace("target:focus", "[EaxRotations:target] focus=" .. tostring(focus ~= nil) .. " valid=" .. tostring(focus_ok), 2000)
@@ -224,6 +233,26 @@ local function build_context()
     _context.is_battleground = instance_type == "pvp"
     _context.is_group = _context.is_dungeon or _context.is_raid or (NS.is_in_party and NS.is_in_party() or false)
     _context.is_solo = not _context.is_group
+    -- Tank-alive detection for Rebirth safety gating
+    local tank_alive = true
+    if _context.is_group then
+        local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+        if party then
+            for _, u in ipairs(party) do
+                if u then
+                    local ok, is_tank = pcall(function() return u.is_tank and u:is_tank() end)
+                    if ok and is_tank then
+                        local ok2, alive = pcall(function() return u.is_alive and u:is_alive() end)
+                        if ok2 and not alive then
+                            tank_alive = false
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    _context.tank_alive = tank_alive
     _context.settings = NS.settings or {}
     _context.ttd = ttd or 999
     _context.force_burst = NS.force_burst_active and NS.force_burst_active() or false

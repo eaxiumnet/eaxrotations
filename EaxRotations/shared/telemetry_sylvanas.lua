@@ -1,8 +1,4 @@
--- Readability notes:
---   What: stores compact telemetry for recent encounters.
---   When: updated during combat, summarized after combat ends.
---   Why: gives lightweight DPS and spell-usage history without external I/O.
---   Safety: nil-guards all optional settings and avoids network or banned APIs.
+-- stores compact telemetry for recent encounters.
 
 local _G = _G
 local core = _G.core or {}

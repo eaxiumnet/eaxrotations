@@ -1,0 +1,580 @@
+Class,Tree,TierID,ColumnIndex,TalentID,RankSpellIDs,RankSpellNames,UsageTag,PlaystyleTags,PrereqTalent0,RequiredSpellID
+Druid,Feral Combat,0,1,796,16934;16935;16936;16937;16938,Ferocity;Ferocity;Ferocity;Ferocity;Ferocity,utility-or-rank,utility,0,0
+Druid,Feral Combat,0,2,795,16858;16859;16860;16861;16862,Feral Aggression;Feral Aggression;Feral Aggression;Feral Aggression;Feral Aggression,utility-or-rank,utility,0,0
+Druid,Feral Combat,1,0,799,16947;16948;16949,Feral Instinct;Feral Instinct;Feral Instinct,talent-passive,utility,0,0
+Druid,Feral Combat,1,1,797,16940;16941,Brutal Impact;Brutal Impact,utility-or-rank,utility,0,0
+Druid,Feral Combat,1,2,794,16929;16930;16931,Thick Hide;Thick Hide;Thick Hide,utility-or-rank,utility,0,0
+Druid,Feral Combat,2,0,807,17002;24866,Feral Swiftness;Feral Swiftness,utility-or-rank,utility,0,0
+Druid,Feral Combat,2,1,804,16979,Feral Charge,utility-or-rank,utility,0,0
+Druid,Feral Combat,2,2,798,16942;16943;16944,Sharpened Claws;Sharpened Claws;Sharpened Claws,utility-or-rank,utility,0,0
+Druid,Feral Combat,3,0,802,16966;16968,Shredding Attacks;Shredding Attacks,damage,single-target,0,0
+Druid,Feral Combat,3,1,803,16972;16974;16975,Predatory Strikes;Predatory Strikes;Predatory Strikes,damage,single-target,0,0
+Druid,Feral Combat,3,2,801,37116;37117,Primal Fury;Primal Fury,talent-passive,utility,798,0
+Druid,Feral Combat,4,0,805,16998;16999,Savage Fury;Savage Fury,talent-passive,utility,0,0
+Druid,Feral Combat,4,2,1162,16857,Faerie Fire (Feral),utility-or-rank,utility,0,0
+Druid,Feral Combat,4,3,1792,33872;33873,Nurturing Instinct;Nurturing Instinct,talent-passive,utility,0,0
+Druid,Feral Combat,5,1,808,17003;17004;17005;17006;24894,Heart of the Wild;Heart of the Wild;Heart of the Wild;Heart of the Wild;Heart of the Wild,utility-or-rank,utility,803,0
+Druid,Feral Combat,5,2,1794,33853;33855;33856,Survival of the Fittest;Survival of the Fittest;Survival of the Fittest,utility-or-rank,utility,0,0
+Druid,Feral Combat,6,0,1793,33851;33852;33957,Primal Tenacity;Primal Tenacity;Primal Tenacity,utility-or-rank,utility,0,0
+Druid,Feral Combat,6,1,809,17007,Leader of the Pack,utility-or-rank,utility,0,0
+Druid,Feral Combat,6,2,1798,34297;34300,Improved Leader of the Pack;Improved Leader of the Pack,talent-passive,utility,809,0
+Druid,Feral Combat,7,2,1795,33859;33866;33867;33868;33869,Predatory Instincts;Predatory Instincts;Predatory Instincts;Predatory Instincts;Predatory Instincts,talent-passive,utility,0,0
+Druid,Feral Combat,8,1,1796,33917,Mangle,damage,single-target,809,0
+Druid,Restoration,0,1,821,17050;17051;17053;17054;17055,Improved Mark of the Wild;Improved Mark of the Wild;Improved Mark of the Wild;Improved Mark of the Wild;Improved Mark of the Wild,talent-passive,utility,0,0
+Druid,Restoration,0,2,822,17056;17058;17059;17060;17061,Furor;Furor;Furor;Furor;Furor,utility-or-rank,utility,0,0
+Druid,Restoration,1,0,824,17069;17070;17071;17072;17073,Naturalist;Naturalist;Naturalist;Naturalist;Naturalist,utility-or-rank,utility,0,0
+Druid,Restoration,1,1,823,17063;17065;17066;17067;17068,Nature's Focus;Nature's Focus;Nature's Focus;Nature's Focus;Nature's Focus,talent-passive,utility,0,0
+Druid,Restoration,1,2,826,16833;16834;16835,Natural Shapeshifter;Natural Shapeshifter;Natural Shapeshifter,utility-or-rank,utility,0,0
+Druid,Restoration,2,0,829,17106;17107;17108,Intensity;Intensity;Intensity,utility-or-rank,utility,0,0
+Druid,Restoration,2,1,841,17118;17119;17120;17121;17122,Subtlety;Subtlety;Subtlety;Subtlety;Subtlety,talent-passive,utility,0,0
+Druid,Restoration,2,2,827,16864,Omen of Clarity,utility-or-rank,utility,0,0
+Druid,Restoration,3,1,843,24968;24969;24970;24971;24972,Tranquil Spirit;Tranquil Spirit;Tranquil Spirit;Tranquil Spirit;Tranquil Spirit,utility-or-rank,utility,0,0
+Druid,Restoration,3,2,830,17111;17112;17113,Improved Rejuvenation;Improved Rejuvenation;Improved Rejuvenation,healing,healing,0,0
+Druid,Restoration,4,0,831,17116,Nature's Swiftness,utility-or-rank,utility,829,0
+Druid,Restoration,4,1,828,17104;24943;24944;24945;24946,Gift of Nature;Gift of Nature;Gift of Nature;Gift of Nature;Gift of Nature,utility-or-rank,utility,0,0
+Druid,Restoration,4,3,842,17123;17124,Improved Tranquility;Improved Tranquility,talent-passive,utility,0,0
+Druid,Restoration,5,0,1788,33879;33880,Empowered Touch;Empowered Touch,talent-passive,utility,0,0
+Druid,Restoration,5,2,825,17074;17075;17076;17077;17078,Improved Regrowth;Improved Regrowth;Improved Regrowth;Improved Regrowth;Improved Regrowth,healing,healing,830,0
+Druid,Restoration,6,0,1797,34151;34152;34153,Living Spirit;Living Spirit;Living Spirit,utility-or-rank,utility,0,0
+Druid,Restoration,6,1,844,18562,Swiftmend,utility-or-rank,utility,828,0
+Druid,Restoration,6,2,1790,33881;33882;33883,Natural Perfection;Natural Perfection;Natural Perfection,utility-or-rank,utility,0,0
+Druid,Restoration,7,1,1789,33886;33887;33888;33889;33890,Empowered Rejuvenation;Empowered Rejuvenation;Empowered Rejuvenation;Empowered Rejuvenation;Empowered Rejuvenation,healing,healing,0,0
+Druid,Restoration,8,1,1791,33891,Tree of Life,utility-or-rank,utility,1789,0
+Druid,Balance,0,0,762,16814;16815;16816;16817;16818,Starlight Wrath;Starlight Wrath;Starlight Wrath;Starlight Wrath;Starlight Wrath,damage,single-target,0,0
+Druid,Balance,0,1,761,16689,Nature's Grasp,utility-or-rank,utility,0,339
+Druid,Balance,0,2,921,17245;17247;17248;17249,Improved Nature's Grasp;Improved Nature's Grasp;Improved Nature's Grasp;Improved Nature's Grasp,talent-passive,utility,761,0
+Druid,Balance,1,0,787,16918;16919;16920,Control of Nature;Control of Nature;Control of Nature,utility-or-rank,utility,0,0
+Druid,Balance,1,1,1822,35363;35364,Focused Starlight;Focused Starlight,talent-passive,utility,0,0
+Druid,Balance,1,2,763,16821;16822,Improved Moonfire;Improved Moonfire,talent-passive,utility,0,0
+Druid,Balance,2,0,782,16836;16839;16840,Brambles;Brambles;Brambles,utility-or-rank,utility,0,0
+Druid,Balance,2,2,788,5570,Insect Swarm,utility-or-rank,utility,0,0
+Druid,Balance,2,3,764,16819;16820,Nature's Reach;Nature's Reach,utility-or-rank,utility,0,0
+Druid,Balance,3,1,792,16909;16910;16911;16912;16913,Vengeance;Vengeance;Vengeance;Vengeance;Vengeance,utility-or-rank,utility,1822,0
+Druid,Balance,3,2,784,16850;16923;16924,Celestial Focus;Celestial Focus;Celestial Focus,talent-passive,utility,0,0
+Druid,Balance,4,0,1782,33589;33590;33591,Lunar Guidance;Lunar Guidance;Lunar Guidance,talent-passive,utility,0,0
+Druid,Balance,4,1,789,16880,Nature's Grace,utility-or-rank,utility,0,0
+Druid,Balance,4,2,783,16845;16846;16847,Moonglow;Moonglow;Moonglow,utility-or-rank,utility,0,0
+Druid,Balance,5,1,790,16896;16897;16899;16900;16901,Moonfury;Moonfury;Moonfury;Moonfury;Moonfury,talent-passive,utility,789,0
+Druid,Balance,5,2,1783,33592;33596,Balance of Power;Balance of Power,talent-passive,utility,0,0
+Druid,Balance,6,0,1784,33597;33599;33956,Dreamstate;Dreamstate;Dreamstate,utility-or-rank,utility,0,0
+Druid,Balance,6,1,793,24858,Moonkin Form,utility-or-rank,state-maintenance,0,0
+Druid,Balance,6,2,1785,33600;33601;33602,Improved Faerie Fire;Improved Faerie Fire;Improved Faerie Fire,talent-passive,utility,0,0
+Druid,Balance,7,1,1786,33603;33604;33605;33606;33607,Wrath of Cenarius;Wrath of Cenarius;Wrath of Cenarius;Wrath of Cenarius;Wrath of Cenarius,damage,single-target,0,0
+Druid,Balance,8,1,1787,33831,Force of Nature,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,0,1,1382,19552;19553;19554;19555;19556,Improved Aspect of the Hawk;Improved Aspect of the Hawk;Improved Aspect of the Hawk;Improved Aspect of the Hawk;Improved Aspect of the Hawk,talent-passive,state-maintenance,0,0
+Hunter,Beast Mastery,0,2,1389,19583;19584;19585;19586;19587,Endurance Training;Endurance Training;Endurance Training;Endurance Training;Endurance Training,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,1,0,1624,35029;35030,Focused Fire;Focused Fire,talent-passive,utility,0,0
+Hunter,Beast Mastery,1,1,1381,19549;19550;19551,Improved Aspect of the Monkey;Improved Aspect of the Monkey;Improved Aspect of the Monkey,talent-passive,state-maintenance,0,0
+Hunter,Beast Mastery,1,2,1395,19609;19610;19612,Thick Hide;Thick Hide;Thick Hide,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,1,3,1625,24443;19575,Improved Revive Pet;Improved Revive Pet,talent-passive,utility,0,0
+Hunter,Beast Mastery,2,0,1384,19559;19560,Pathfinding;Pathfinding,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,2,1,1391,19596,Bestial Swiftness,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,2,2,1396,19616;19617;19618;19619;19620,Unleashed Fury;Unleashed Fury;Unleashed Fury;Unleashed Fury;Unleashed Fury,talent-passive,utility,0,0
+Hunter,Beast Mastery,3,1,1385,19572;19573,Improved Mend Pet;Improved Mend Pet,talent-passive,utility,0,0
+Hunter,Beast Mastery,3,2,1393,19598;19599;19600;19601;19602,Ferocity;Ferocity;Ferocity;Ferocity;Ferocity,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,4,0,1388,19578;20895,Spirit Bond;Spirit Bond,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,4,1,1387,19577,Intimidation,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,4,3,1390,19590;19592,Bestial Discipline;Bestial Discipline,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,5,0,1799,34453;34454,Animal Handler;Animal Handler,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,5,2,1397,19621;19622;19623;19624;19625,Frenzy;Frenzy;Frenzy;Frenzy;Frenzy,utility-or-rank,utility,1393,0
+Hunter,Beast Mastery,6,0,1800,34455;34459;34460,Ferocious Inspiration;Ferocious Inspiration;Ferocious Inspiration,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,6,1,1386,19574,Bestial Wrath,damage,single-target,1387,0
+Hunter,Beast Mastery,6,2,1801,34462;34464;34465,Catlike Reflexes;Catlike Reflexes;Catlike Reflexes,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,7,2,1802,34466;34467;34468;34469;34470,Serpent's Swiftness;Serpent's Swiftness;Serpent's Swiftness;Serpent's Swiftness;Serpent's Swiftness,utility-or-rank,utility,0,0
+Hunter,Beast Mastery,8,1,1803,34692,The Beast Within,utility-or-rank,utility,1386,0
+Hunter,Survival,0,0,1623,24293;24294;24295,Monster Slaying;Monster Slaying;Monster Slaying,utility-or-rank,utility,0,0
+Hunter,Survival,0,1,1301,19151;19152;19153,Humanoid Slaying;Humanoid Slaying;Humanoid Slaying,utility-or-rank,utility,0,0
+Hunter,Survival,0,2,1820,19498;19499;19500,Hawk Eye;Hawk Eye;Hawk Eye,utility-or-rank,utility,0,0
+Hunter,Survival,0,3,1621,19159;19160,Savage Strikes;Savage Strikes,damage,single-target,0,0
+Hunter,Survival,1,0,1304,19184;19387;19388,Entrapment;Entrapment;Entrapment,pvp-control,pvp,0,0
+Hunter,Survival,1,1,1311,19295;19297;19298;19301;19300,Deflection;Deflection;Deflection;Deflection;Deflection,utility-or-rank,utility,0,0
+Hunter,Survival,1,2,1305,19228;19232;19233,Improved Wing Clip;Improved Wing Clip;Improved Wing Clip,talent-passive,utility,0,0
+Hunter,Survival,2,0,1306,19239;19245,Clever Traps;Clever Traps,pvp-control,pvp,0,0
+Hunter,Survival,2,1,1622,19255;19256;19257;19258;19259,Survivalist;Survivalist;Survivalist;Survivalist;Survivalist,utility-or-rank,utility,0,0
+Hunter,Survival,2,2,1308,19263,Deterrence,utility-or-rank,utility,0,0
+Hunter,Survival,3,0,1322,19376;19377,Trap Mastery;Trap Mastery,pvp-control,pvp,0,0
+Hunter,Survival,3,1,1310,19290;19294;24283,Surefooted;Surefooted;Surefooted,utility-or-rank,utility,0,0
+Hunter,Survival,3,3,1309,19286;19287,Improved Feign Death;Improved Feign Death,talent-passive,utility,0,0
+Hunter,Survival,4,0,1810,34494;34496,Survival Instincts;Survival Instincts,talent-passive,utility,0,0
+Hunter,Survival,4,1,1321,19370;19371;19373,Killer Instinct;Killer Instinct;Killer Instinct,talent-passive,utility,0,0
+Hunter,Survival,4,2,1312,19306,Counterattack,utility-or-rank,utility,1308,0
+Hunter,Survival,5,0,1809,34491;34492;34493,Resourcefulness;Resourcefulness;Resourcefulness,utility-or-rank,utility,0,0
+Hunter,Survival,5,2,1303,19168;19180;19181;24296;24297,Lightning Reflexes;Lightning Reflexes;Lightning Reflexes;Lightning Reflexes;Lightning Reflexes,utility-or-rank,utility,0,0
+Hunter,Survival,6,0,1811,34497;34498;34499,Thrill of the Hunt;Thrill of the Hunt;Thrill of the Hunt,utility-or-rank,utility,0,0
+Hunter,Survival,6,1,1325,19386,Wyvern Sting,utility-or-rank,utility,1321,0
+Hunter,Survival,6,2,1812,34500;34502;34503,Expose Weakness;Expose Weakness;Expose Weakness,utility-or-rank,utility,1303,0
+Hunter,Survival,7,1,1813,34506;34507;34508;34838;34839,Master Tactician;Master Tactician;Master Tactician;Master Tactician;Master Tactician,utility-or-rank,utility,0,0
+Hunter,Survival,8,1,1814,23989,Readiness,utility-or-rank,utility,1813,0
+Hunter,Marksmanship,0,1,1341,19407;19412;19413;19414;19415,Improved Concussive Shot;Improved Concussive Shot;Improved Concussive Shot;Improved Concussive Shot;Improved Concussive Shot,damage,single-target,0,0
+Hunter,Marksmanship,0,2,1344,19426;19427;19429;19430;19431,Lethal Shots;Lethal Shots;Lethal Shots;Lethal Shots;Lethal Shots,damage,single-target,0,0
+Hunter,Marksmanship,1,1,1343,19421;19422;19423;19424;19425,Improved Hunter's Mark;Improved Hunter's Mark;Improved Hunter's Mark;Improved Hunter's Mark;Improved Hunter's Mark,talent-passive,utility,0,0
+Hunter,Marksmanship,1,2,1342,19416;19417;19418;19419;19420,Efficiency;Efficiency;Efficiency;Efficiency;Efficiency,utility-or-rank,utility,0,0
+Hunter,Marksmanship,2,0,1818,34950;34954,Go for the Throat;Go for the Throat,utility-or-rank,utility,0,0
+Hunter,Marksmanship,2,1,1346,19454;19455;19456;19457;19458,Improved Arcane Shot;Improved Arcane Shot;Improved Arcane Shot;Improved Arcane Shot;Improved Arcane Shot,damage,single-target,0,0
+Hunter,Marksmanship,2,2,1345,19434,Aimed Shot,damage,single-target,0,0
+Hunter,Marksmanship,2,3,1819,34948;34949,Rapid Killing;Rapid Killing,utility-or-rank,utility,0,0
+Hunter,Marksmanship,3,1,1348,19464;19465;19466;19467;19468,Improved Stings;Improved Stings;Improved Stings;Improved Stings;Improved Stings,talent-passive,utility,0,0
+Hunter,Marksmanship,3,2,1349,19485;19487;19488;19489;19490,Mortal Shots;Mortal Shots;Mortal Shots;Mortal Shots;Mortal Shots,damage,single-target,1345,0
+Hunter,Marksmanship,4,0,1351,35100;35102;35103,Concussive Barrage;Concussive Barrage;Concussive Barrage,utility-or-rank,utility,0,0
+Hunter,Marksmanship,4,1,1353,19503,Scatter Shot,damage,single-target,0,0
+Hunter,Marksmanship,4,2,1347,19461;19462;24691,Barrage;Barrage;Barrage,utility-or-rank,utility,0,0
+Hunter,Marksmanship,5,0,1804,34475;34476,Combat Experience;Combat Experience,utility-or-rank,utility,0,0
+Hunter,Marksmanship,5,3,1362,19507;19508;19509;19510;19511,Ranged Weapon Specialization;Ranged Weapon Specialization;Ranged Weapon Specialization;Ranged Weapon Specialization;Ranged Weapon Specialization,talent-passive,utility,0,0
+Hunter,Marksmanship,6,0,1806,34482;34483;34484,Careful Aim;Careful Aim;Careful Aim,utility-or-rank,utility,0,0
+Hunter,Marksmanship,6,1,1361,19506,Trueshot Aura,damage,single-target,1353,0
+Hunter,Marksmanship,6,2,1821,35104;35110;35111,Improved Barrage;Improved Barrage;Improved Barrage,talent-passive,utility,1347,0
+Hunter,Marksmanship,7,1,1807,34485;34486;34487;34488;34489,Master Marksman;Master Marksman;Master Marksman;Master Marksman;Master Marksman,utility-or-rank,utility,0,0
+Hunter,Marksmanship,8,1,1808,34490,Silencing Shot,damage,single-target,1807,0
+Mage,Fire,0,1,26,11069;12338;12339;12340;12341,Improved Fireball;Improved Fireball;Improved Fireball;Improved Fireball;Improved Fireball,damage,single-target,0,0
+Mage,Fire,0,2,30,11103;12357;12358;12359;12360,Impact;Impact;Impact;Impact;Impact,utility-or-rank,utility,0,0
+Mage,Fire,1,0,34,11119;11120;12846;12847;12848,Ignite;Ignite;Ignite;Ignite;Ignite,utility-or-rank,utility,0,0
+Mage,Fire,1,1,28,11100;12353,Flame Throwing;Flame Throwing,utility-or-rank,utility,0,0
+Mage,Fire,1,2,27,11078;11080;12342,Improved Fire Blast;Improved Fire Blast;Improved Fire Blast,damage,single-target,0,0
+Mage,Fire,2,0,1141,18459;18460,Incineration;Incineration,utility-or-rank,utility,0,0
+Mage,Fire,2,1,31,11108;12349;12350,Improved Flamestrike;Improved Flamestrike;Improved Flamestrike,damage,single-target,0,0
+Mage,Fire,2,2,29,11366,Pyroblast,damage,single-target,0,0
+Mage,Fire,2,3,23,11083;12351,Burning Soul;Burning Soul,utility-or-rank,utility,0,0
+Mage,Fire,3,0,25,11095;12872;12873,Improved Scorch;Improved Scorch;Improved Scorch,talent-passive,utility,0,0
+Mage,Fire,3,1,24,11094;13043,Molten Shields;Molten Shields,healing,healing,0,0
+Mage,Fire,3,3,1639,29074;29075;29076,Master of Elements;Master of Elements;Master of Elements,utility-or-rank,utility,0,0
+Mage,Fire,4,0,1730,31638;31639;31640,Playing with Fire;Playing with Fire;Playing with Fire,utility-or-rank,utility,0,0
+Mage,Fire,4,1,33,11115;11367;11368,Critical Mass;Critical Mass;Critical Mass,utility-or-rank,utility,0,0
+Mage,Fire,4,2,32,11113,Blast Wave,damage,single-target,29,0
+Mage,Fire,5,0,1731,31641;31642,Blazing Speed;Blazing Speed,utility-or-rank,utility,0,0
+Mage,Fire,5,2,35,11124;12378;12398;12399;12400,Fire Power;Fire Power;Fire Power;Fire Power;Fire Power,talent-passive,utility,0,0
+Mage,Fire,6,0,1733,34293;34295;34296,Pyromaniac;Pyromaniac;Pyromaniac,utility-or-rank,utility,0,0
+Mage,Fire,6,1,36,11129,Combustion,utility-or-rank,utility,33,0
+Mage,Fire,6,2,1732,31679;31680,Molten Fury;Molten Fury,talent-passive,utility,0,0
+Mage,Fire,7,2,1734,31656;31657;31658;31659;31660,Empowered Fireball;Empowered Fireball;Empowered Fireball;Empowered Fireball;Empowered Fireball,damage,single-target,0,0
+Mage,Fire,8,1,1735,31661,Dragon's Breath,utility-or-rank,utility,36,0
+Mage,Frost,0,0,70,11189;28332,Frost Warding;Frost Warding,utility-or-rank,utility,0,0
+Mage,Frost,0,1,37,11070;12473;16763;16765;16766,Improved Frostbolt;Improved Frostbolt;Improved Frostbolt;Improved Frostbolt;Improved Frostbolt,damage,single-target,0,0
+Mage,Frost,0,2,1649,29438;29439;29440,Elemental Precision;Elemental Precision;Elemental Precision,talent-passive,utility,0,0
+Mage,Frost,1,0,73,11207;12672;15047;15052;15053,Ice Shards;Ice Shards;Ice Shards;Ice Shards;Ice Shards,utility-or-rank,utility,0,0
+Mage,Frost,1,1,38,11071;12496;12497,Frostbite;Frostbite;Frostbite,utility-or-rank,utility,0,0
+Mage,Frost,1,2,62,11165;12475,Improved Frost Nova;Improved Frost Nova,talent-passive,utility,0,0
+Mage,Frost,1,3,65,11175;12569;12571,Permafrost;Permafrost;Permafrost,utility-or-rank,utility,0,0
+Mage,Frost,2,0,61,11151;12952;12953,Piercing Ice;Piercing Ice;Piercing Ice,utility-or-rank,utility,0,0
+Mage,Frost,2,1,69,12472,Icy Veins,utility-or-rank,utility,0,0
+Mage,Frost,2,3,63,11185;12487;12488,Improved Blizzard;Improved Blizzard;Improved Blizzard,talent-passive,multi-target,0,0
+Mage,Frost,3,0,741,16757;16758,Arctic Reach;Arctic Reach,utility-or-rank,utility,0,0
+Mage,Frost,3,1,66,11160;12518;12519,Frost Channeling;Frost Channeling;Frost Channeling,utility-or-rank,utility,0,0
+Mage,Frost,3,2,67,11170;12982;12983;12984;12985,Shatter;Shatter;Shatter;Shatter;Shatter,utility-or-rank,utility,62,0
+Mage,Frost,4,0,1736,31667;31668;31669,Frozen Core;Frozen Core;Frozen Core,utility-or-rank,utility,0,0
+Mage,Frost,4,1,72,11958,Cold Snap,utility-or-rank,utility,0,0
+Mage,Frost,4,2,64,11190;12489;12490,Improved Cone of Cold;Improved Cone of Cold;Improved Cone of Cold,talent-passive,utility,0,0
+Mage,Frost,5,0,1737,31670;31672,Ice Floes;Ice Floes,utility-or-rank,utility,0,0
+Mage,Frost,5,2,68,11180;28592;28593;28594;28595,Winter's Chill;Winter's Chill;Winter's Chill;Winter's Chill;Winter's Chill,utility-or-rank,utility,0,0
+Mage,Frost,6,1,71,11426,Ice Barrier,utility-or-rank,utility,72,0
+Mage,Frost,6,2,1738,31674;31675;31676;31677;31678,Arctic Winds;Arctic Winds;Arctic Winds;Arctic Winds;Arctic Winds,utility-or-rank,utility,0,0
+Mage,Frost,7,1,1740,31682;31683;31684;31685;31686,Empowered Frostbolt;Empowered Frostbolt;Empowered Frostbolt;Empowered Frostbolt;Empowered Frostbolt,damage,single-target,0,0
+Mage,Frost,8,1,1741,31687,Summon Water Elemental,utility-or-rank,utility,0,0
+Mage,Arcane,0,0,74,11210;12592,Arcane Subtlety;Arcane Subtlety,talent-passive,utility,0,0
+Mage,Arcane,0,1,76,11222;12839;12840;12841;12842,Arcane Focus;Arcane Focus;Arcane Focus;Arcane Focus;Arcane Focus,talent-passive,utility,0,0
+Mage,Arcane,0,2,80,11237;12463;12464;16769;16770,Improved Arcane Missiles;Improved Arcane Missiles;Improved Arcane Missiles;Improved Arcane Missiles;Improved Arcane Missiles,talent-passive,utility,0,0
+Mage,Arcane,1,0,78,6057;6085,Wand Specialization;Wand Specialization,talent-passive,utility,0,0
+Mage,Arcane,1,1,1650,29441;29444;29445;29446;29447,Magic Absorption;Magic Absorption;Magic Absorption;Magic Absorption;Magic Absorption,utility-or-rank,utility,0,0
+Mage,Arcane,1,2,75,11213;12574;12575;12576;12577,Arcane Concentration;Arcane Concentration;Arcane Concentration;Arcane Concentration;Arcane Concentration,utility-or-rank,utility,0,0
+Mage,Arcane,2,0,82,11247;12606,Magic Attunement;Magic Attunement,utility-or-rank,utility,0,0
+Mage,Arcane,2,1,81,11242;12467;12469,Arcane Impact;Arcane Impact;Arcane Impact,utility-or-rank,utility,0,0
+Mage,Arcane,2,3,85,28574,Arcane Fortitude,utility-or-rank,utility,0,0
+Mage,Arcane,3,0,83,11252;12605,Improved Mana Shield;Improved Mana Shield,healing,healing,0,0
+Mage,Arcane,3,1,88,11255;12598,Improved Counterspell;Improved Counterspell,pvp-control,pvp,0,0
+Mage,Arcane,3,3,1142,18462;18463;18464,Arcane Meditation;Arcane Meditation;Arcane Meditation,utility-or-rank,utility,0,0
+Mage,Arcane,4,0,1724,31569;31570,Improved Blink;Improved Blink,talent-passive,utility,0,0
+Mage,Arcane,4,1,86,12043,Presence of Mind,damage,single-target,0,0
+Mage,Arcane,4,3,77,11232;12500;12501;12502;12503,Arcane Mind;Arcane Mind;Arcane Mind;Arcane Mind;Arcane Mind,damage,single-target,0,0
+Mage,Arcane,5,0,1726,31574;31575,Prismatic Cloak;Prismatic Cloak,utility-or-rank,utility,0,0
+Mage,Arcane,5,1,421,15058;15059;15060,Arcane Instability;Arcane Instability;Arcane Instability,utility-or-rank,utility,86,0
+Mage,Arcane,5,2,1725,31571;31572;31573,Arcane Potency;Arcane Potency;Arcane Potency,utility-or-rank,utility,75,0
+Mage,Arcane,6,0,1727,31579;31582;31583,Empowered Arcane Missiles;Empowered Arcane Missiles;Empowered Arcane Missiles,talent-passive,utility,0,0
+Mage,Arcane,6,1,87,12042,Arcane Power,talent-passive,utility,421,0
+Mage,Arcane,6,2,1826,35578;35581,Spell Power;Spell Power,talent-passive,utility,0,0
+Mage,Arcane,7,1,1728,31584;31585;31586;31587;31588,Mind Mastery;Mind Mastery;Mind Mastery;Mind Mastery;Mind Mastery,damage,single-target,0,0
+Mage,Arcane,8,1,1729,31589,Slow,utility-or-rank,utility,0,0
+Paladin,Retribution,0,1,1401,20042;20045;20046;20047;20048,Improved Blessing of Might;Improved Blessing of Might;Improved Blessing of Might;Improved Blessing of Might;Improved Blessing of Might,talent-passive,utility,0,0
+Paladin,Retribution,0,2,1407,20101;20102;20103;20104;20105,Benediction;Benediction;Benediction;Benediction;Benediction,utility-or-rank,utility,0,0
+Paladin,Retribution,1,0,1631,25956;25957,Improved Judgement;Improved Judgement,damage,single-target,0,0
+Paladin,Retribution,1,1,1464,20335;20336;20337,Improved Seal of the Crusader;Improved Seal of the Crusader;Improved Seal of the Crusader,damage,single-target;state-maintenance,0,0
+Paladin,Retribution,1,2,1403,20060;20061;20062;20063;20064,Deflection;Deflection;Deflection;Deflection;Deflection,utility-or-rank,utility,0,0
+Paladin,Retribution,2,0,1633,9452;26016;26021,Vindication;Vindication;Vindication,utility-or-rank,utility,0,0
+Paladin,Retribution,2,1,1411,20117;20118;20119;20120;20121,Conviction;Conviction;Conviction;Conviction;Conviction,utility-or-rank,utility,0,0
+Paladin,Retribution,2,2,1481,20375,Seal of Command,damage,single-target;state-maintenance,0,0
+Paladin,Retribution,2,3,1634,26022;26023;44414,Pursuit of Justice;Pursuit of Justice;Pursuit of Justice,utility-or-rank,utility,0,0
+Paladin,Retribution,3,0,1632,9799;25988,Eye for an Eye;Eye for an Eye,utility-or-rank,utility,0,0
+Paladin,Retribution,3,2,1405,20091;20092,Improved Retribution Aura;Improved Retribution Aura,talent-passive,utility,0,0
+Paladin,Retribution,3,3,1755,31866;31867;31868,Crusade;Crusade;Crusade,utility-or-rank,utility,0,0
+Paladin,Retribution,4,0,1410,20111;20112;20113,Two-Handed Weapon Specialization;Two-Handed Weapon Specialization;Two-Handed Weapon Specialization,talent-passive,utility,0,0
+Paladin,Retribution,4,2,1409,20218,Sanctity Aura,utility-or-rank,utility,0,0
+Paladin,Retribution,4,3,1756,31869;31870,Improved Sanctity Aura;Improved Sanctity Aura,talent-passive,utility,1409,0
+Paladin,Retribution,5,1,1402,20049;20056;20057;20058;20059,Vengeance;Vengeance;Vengeance;Vengeance;Vengeance,utility-or-rank,utility,1411,0
+Paladin,Retribution,5,2,1758,31876;31877;31878,Sanctified Judgement;Sanctified Judgement;Sanctified Judgement,damage,single-target,0,0
+Paladin,Retribution,6,0,1761,32043;35396;35397,Sanctified Seals;Sanctified Seals;Sanctified Seals,damage,single-target;state-maintenance,0,0
+Paladin,Retribution,6,1,1441,20066,Repentance,utility-or-rank,utility,0,0
+Paladin,Retribution,6,2,1757,31871;31872;31873,Divine Purpose;Divine Purpose;Divine Purpose,utility-or-rank,utility,0,0
+Paladin,Retribution,7,1,1759,31879;31880;31881;31882;31883,Fanaticism;Fanaticism;Fanaticism;Fanaticism;Fanaticism,utility-or-rank,utility,1441,0
+Paladin,Retribution,8,1,1823,35395,Crusader Strike,damage,single-target,0,0
+Paladin,Holy,0,1,1450,20262;20263;20264;20265;20266,Divine Strength;Divine Strength;Divine Strength;Divine Strength;Divine Strength,utility-or-rank,utility,0,0
+Paladin,Holy,0,2,1449,20257;20258;20259;20260;20261,Divine Intellect;Divine Intellect;Divine Intellect;Divine Intellect;Divine Intellect,utility-or-rank,utility,0,0
+Paladin,Holy,1,1,1432,20205;20206;20207;20209;20208,Spiritual Focus;Spiritual Focus;Spiritual Focus;Spiritual Focus;Spiritual Focus,talent-passive,utility,0,0
+Paladin,Holy,1,2,1463,20224;20225;20330;20331;20332,Improved Seal of Righteousness;Improved Seal of Righteousness;Improved Seal of Righteousness;Improved Seal of Righteousness;Improved Seal of Righteousness,damage,single-target;state-maintenance,0,0
+Paladin,Holy,2,0,1444,20237;20238;20239,Healing Light;Healing Light;Healing Light,healing,healing,0,0
+Paladin,Holy,2,1,1435,31821,Aura Mastery,talent-passive,utility,0,0
+Paladin,Holy,2,2,1443,20234;20235,Improved Lay on Hands;Improved Lay on Hands,talent-passive,utility,0,0
+Paladin,Holy,2,3,1628,9453;25836,Unyielding Faith;Unyielding Faith,utility-or-rank,utility,0,0
+Paladin,Holy,3,1,1461,20210;20212;20213;20214;20215,Illumination;Illumination;Illumination;Illumination;Illumination,utility-or-rank,utility,0,0
+Paladin,Holy,3,2,1446,20244;20245,Improved Blessing of Wisdom;Improved Blessing of Wisdom,talent-passive,utility,0,0
+Paladin,Holy,4,0,1742,31822;31823;31824,Pure of Heart;Pure of Heart;Pure of Heart,utility-or-rank,utility,0,0
+Paladin,Holy,4,1,1433,20216,Divine Favor,utility-or-rank,utility,1461,0
+Paladin,Holy,4,2,1465,20359;20360;20361,Sanctified Light;Sanctified Light;Sanctified Light,utility-or-rank,utility,0,0
+Paladin,Holy,5,0,1743,31825;31826,Purifying Power;Purifying Power,talent-passive,utility,0,0
+Paladin,Holy,5,2,1627,5923;5924;5925;5926;25829,Holy Power;Holy Power;Holy Power;Holy Power;Holy Power,talent-passive,utility,0,0
+Paladin,Holy,6,0,1745,31833;31835;31836,Light's Grace;Light's Grace;Light's Grace,utility-or-rank,utility,0,0
+Paladin,Holy,6,1,1502,20473,Holy Shock,utility-or-rank,utility,1433,0
+Paladin,Holy,6,2,1744,31828;31829;31830,Blessed Life;Blessed Life;Blessed Life,utility-or-rank,utility,0,0
+Paladin,Holy,7,1,1746,31837;31838;31839;31840;31841,Holy Guidance;Holy Guidance;Holy Guidance;Holy Guidance;Holy Guidance,talent-passive,utility,0,0
+Paladin,Holy,8,1,1747,31842,Divine Illumination,utility-or-rank,utility,0,0
+Paladin,Protection,0,1,1422,20138;20139;20140;20141;20142,Improved Devotion Aura;Improved Devotion Aura;Improved Devotion Aura;Improved Devotion Aura;Improved Devotion Aura,talent-passive,utility,0,0
+Paladin,Protection,0,2,1421,20127;20130;20135;20136;20137,Redoubt;Redoubt;Redoubt;Redoubt;Redoubt,utility-or-rank,utility,0,0
+Paladin,Protection,1,0,1630,20189;20192;20193,Precision;Precision;Precision,talent-passive,utility,0,0
+Paladin,Protection,1,1,1425,20174;20175,Guardian's Favor;Guardian's Favor,utility-or-rank,utility,0,0
+Paladin,Protection,1,3,1423,20143;20144;20145;20146;20147,Toughness;Toughness;Toughness;Toughness;Toughness,utility-or-rank,utility,0,0
+Paladin,Protection,2,0,1442,20217,Blessing of Kings,utility-or-rank,utility,0,0
+Paladin,Protection,2,1,1501,20468;20469;20470,Improved Righteous Fury;Improved Righteous Fury;Improved Righteous Fury,tanking,tanking,0,0
+Paladin,Protection,2,2,1424,20148;20149;20150,Shield Specialization;Shield Specialization;Shield Specialization,healing,healing,1421,0
+Paladin,Protection,2,3,1629,20096;20097;20098;20099;20100,Anticipation;Anticipation;Anticipation;Anticipation;Anticipation,utility-or-rank,utility,0,0
+Paladin,Protection,3,0,1748,31844;31845,Stoicism;Stoicism,utility-or-rank,utility,0,0
+Paladin,Protection,3,1,1521,20487;20488;20489,Improved Hammer of Justice;Improved Hammer of Justice;Improved Hammer of Justice,talent-passive,utility,0,0
+Paladin,Protection,3,2,1626,20254;20255;20256,Improved Concentration Aura;Improved Concentration Aura;Improved Concentration Aura,talent-passive,utility,0,0
+Paladin,Protection,4,0,1749,31846;31847,Spell Warding;Spell Warding,utility-or-rank,utility,0,0
+Paladin,Protection,4,1,1431,20911,Blessing of Sanctuary,utility-or-rank,utility,0,0
+Paladin,Protection,4,2,1426,20177;20179;20181;20180;20182,Reckoning;Reckoning;Reckoning;Reckoning;Reckoning,utility-or-rank,utility,0,0
+Paladin,Protection,5,0,1750,31848;31849,Sacred Duty;Sacred Duty,utility-or-rank,utility,0,0
+Paladin,Protection,5,2,1429,20196;20197;20198;20199;20200,One-Handed Weapon Specialization;One-Handed Weapon Specialization;One-Handed Weapon Specialization;One-Handed Weapon Specialization;One-Handed Weapon Specialization,talent-passive,utility,0,0
+Paladin,Protection,6,0,1829,41021;41026,Improved Holy Shield;Improved Holy Shield,healing,healing,1430,0
+Paladin,Protection,6,1,1430,20925,Holy Shield,healing,healing,1431,0
+Paladin,Protection,6,2,1751,31850;31851;31852;31853;31854,Ardent Defender;Ardent Defender;Ardent Defender;Ardent Defender;Ardent Defender,utility-or-rank,utility,0,0
+Paladin,Protection,7,2,1753,31858;31859;31860;31861;31862,Combat Expertise;Combat Expertise;Combat Expertise;Combat Expertise;Combat Expertise,utility-or-rank,utility,0,0
+Paladin,Protection,8,1,1754,31935,Avenger's Shield,healing,healing,1430,0
+Priest,Discipline,0,1,342,14522;14788;14789;14790;14791,Unbreakable Will;Unbreakable Will;Unbreakable Will;Unbreakable Will;Unbreakable Will,utility-or-rank,utility,0,0
+Priest,Discipline,0,2,345,14524;14525;14526;14527;14528,Wand Specialization;Wand Specialization;Wand Specialization;Wand Specialization;Wand Specialization,talent-passive,utility,0,0
+Priest,Discipline,1,0,352,14523;14784;14785;14786;14787,Silent Resolve;Silent Resolve;Silent Resolve;Silent Resolve;Silent Resolve,utility-or-rank,utility,0,0
+Priest,Discipline,1,1,344,14749;14767,Improved Power Word: Fortitude;Improved Power Word: Fortitude,talent-passive,utility,0,0
+Priest,Discipline,1,2,343,14748;14768;14769,Improved Power Word: Shield;Improved Power Word: Shield;Improved Power Word: Shield,healing,healing,0,0
+Priest,Discipline,1,3,321,14531;14774,Martyrdom;Martyrdom,utility-or-rank,utility,0,0
+Priest,Discipline,2,0,1769,33167;33171;33172,Absolution;Absolution;Absolution,utility-or-rank,utility,0,0
+Priest,Discipline,2,1,348,14751,Inner Focus,talent-passive,utility,0,0
+Priest,Discipline,2,2,347,14521;14776;14777,Meditation;Meditation;Meditation,utility-or-rank,utility,0,0
+Priest,Discipline,3,0,346,14747;14770;14771,Improved Inner Fire;Improved Inner Fire;Improved Inner Fire,talent-passive,utility,0,0
+Priest,Discipline,3,1,341,14520;14780;14781;14782;14783,Mental Agility;Mental Agility;Mental Agility;Mental Agility;Mental Agility,utility-or-rank,utility,0,0
+Priest,Discipline,3,3,350,14750;14772,Improved Mana Burn;Improved Mana Burn,pvp-control,pvp,0,0
+Priest,Discipline,4,1,1201,18551;18552;18553;18554;18555,Mental Strength;Mental Strength;Mental Strength;Mental Strength;Mental Strength,utility-or-rank,utility,0,0
+Priest,Discipline,4,2,351,14752,Divine Spirit,utility-or-rank,utility,347,0
+Priest,Discipline,4,3,1770,33174;33182,Improved Divine Spirit;Improved Divine Spirit,talent-passive,utility,351,0
+Priest,Discipline,5,0,1771,33186;33190,Focused Power;Focused Power,talent-passive,utility,0,0
+Priest,Discipline,5,2,1202,18544;18547;18548;18549;18550,Force of Will;Force of Will;Force of Will;Force of Will;Force of Will,utility-or-rank,utility,0,0
+Priest,Discipline,6,0,1858,45234;45243;45244,Focused Will;Focused Will;Focused Will,talent-passive,utility,0,0
+Priest,Discipline,6,1,322,10060,Power Infusion,talent-passive,utility,1201,0
+Priest,Discipline,6,2,1773,33201;33202;33203;33204;33205,Reflective Shield;Reflective Shield;Reflective Shield;Reflective Shield;Reflective Shield,healing,healing,0,0
+Priest,Discipline,7,1,1772,34908;34909;34910;34911;34912,Enlightenment;Enlightenment;Enlightenment;Enlightenment;Enlightenment,utility-or-rank,utility,0,0
+Priest,Discipline,8,1,1774,33206,Pain Suppression,utility-or-rank,utility,0,0
+Priest,Holy,0,0,410,14913;15012,Healing Focus;Healing Focus,healing,healing,0,0
+Priest,Holy,0,1,406,14908;15020;17191,Improved Renew;Improved Renew;Improved Renew,healing,healing,0,0
+Priest,Holy,0,2,401,14889;15008;15009;15010;15011,Holy Specialization;Holy Specialization;Holy Specialization;Holy Specialization;Holy Specialization,talent-passive,utility,0,0
+Priest,Holy,1,1,411,27900;27901;27902;27903;27904,Spell Warding;Spell Warding;Spell Warding;Spell Warding;Spell Warding,utility-or-rank,utility,0,0
+Priest,Holy,1,2,1181,18530;18531;18533;18534;18535,Divine Fury;Divine Fury;Divine Fury;Divine Fury;Divine Fury,talent-passive,utility,0,0
+Priest,Holy,2,0,442,15237,Holy Nova,utility-or-rank,multi-target,0,0
+Priest,Holy,2,1,1636,27811;27815;27816,Blessed Recovery;Blessed Recovery;Blessed Recovery,utility-or-rank,utility,0,0
+Priest,Holy,2,3,361,14892;15362;15363,Inspiration;Inspiration;Inspiration,utility-or-rank,utility,0,0
+Priest,Holy,3,0,1635,27789;27790,Holy Reach;Holy Reach,utility-or-rank,utility,0,0
+Priest,Holy,3,1,408,14912;15013;15014,Improved Healing;Improved Healing;Improved Healing,healing,healing,0,0
+Priest,Holy,3,2,403,14909;15017,Searing Light;Searing Light,utility-or-rank,utility,1181,0
+Priest,Holy,4,0,413,14911;15018,Healing Prayers;Healing Prayers,healing,healing,0,0
+Priest,Holy,4,1,1561,20711,Spirit of Redemption,utility-or-rank,utility,0,0
+Priest,Holy,4,2,402,14901;15028;15029;15030;15031,Spiritual Guidance;Spiritual Guidance;Spiritual Guidance;Spiritual Guidance;Spiritual Guidance,talent-passive,utility,0,0
+Priest,Holy,5,0,1766,33150;33154,Surge of Light;Surge of Light,utility-or-rank,utility,0,0
+Priest,Holy,5,2,404,14898;15349;15354;15355;15356,Spiritual Healing;Spiritual Healing;Spiritual Healing;Spiritual Healing;Spiritual Healing,healing,healing,0,0
+Priest,Holy,6,0,1768,34753;34859;34860,Holy Concentration;Holy Concentration;Holy Concentration,utility-or-rank,utility,0,0
+Priest,Holy,6,1,1637,724,Lightwell,utility-or-rank,utility,1561,0
+Priest,Holy,6,2,1765,33142;33145;33146,Blessed Resilience;Blessed Resilience;Blessed Resilience,utility-or-rank,utility,0,0
+Priest,Holy,7,1,1767,33158;33159;33160;33161;33162,Empowered Healing;Empowered Healing;Empowered Healing;Empowered Healing;Empowered Healing,healing,healing,0,0
+Priest,Holy,8,1,1815,34861,Circle of Healing,healing,healing,0,0
+Priest,Shadow,0,1,465,15270;15335;15336;15337;15338,Spirit Tap;Spirit Tap;Spirit Tap;Spirit Tap;Spirit Tap,utility-or-rank,utility,0,0
+Priest,Shadow,0,2,464,15268;15323;15324;15325;15326,Blackout;Blackout;Blackout;Blackout;Blackout,utility-or-rank,utility,0,0
+Priest,Shadow,1,0,466,15318;15272;15320,Shadow Affinity;Shadow Affinity;Shadow Affinity,utility-or-rank,utility,0,0
+Priest,Shadow,1,1,482,15275;15317,Improved Shadow Word: Pain;Improved Shadow Word: Pain,damage,single-target,0,0
+Priest,Shadow,1,2,463,15260;15327;15328;15329;15330,Shadow Focus;Shadow Focus;Shadow Focus;Shadow Focus;Shadow Focus,talent-passive,utility,0,0
+Priest,Shadow,2,0,542,15392;15448,Improved Psychic Scream;Improved Psychic Scream,talent-passive,utility,0,0
+Priest,Shadow,2,1,481,15273;15312;15313;15314;15316,Improved Mind Blast;Improved Mind Blast;Improved Mind Blast;Improved Mind Blast;Improved Mind Blast,damage,single-target,0,0
+Priest,Shadow,2,2,501,15407,Mind Flay,damage,single-target,0,0
+Priest,Shadow,3,1,483,15274;15311,Improved Fade;Improved Fade,talent-passive,utility,0,0
+Priest,Shadow,3,2,881,17322;17323,Shadow Reach;Shadow Reach,utility-or-rank,utility,0,0
+Priest,Shadow,3,3,461,15257;15331;15332;15333;15334,Shadow Weaving;Shadow Weaving;Shadow Weaving;Shadow Weaving;Shadow Weaving,utility-or-rank,utility,0,0
+Priest,Shadow,4,0,541,15487,Silence,pvp-control,pvp,542,0
+Priest,Shadow,4,1,484,15286,Vampiric Embrace,utility-or-rank,utility,0,0
+Priest,Shadow,4,2,1638,27839;27840,Improved Vampiric Embrace;Improved Vampiric Embrace,talent-passive,utility,484,0
+Priest,Shadow,4,3,1777,33213;33214;33215,Focused Mind;Focused Mind;Focused Mind,damage,single-target,0,0
+Priest,Shadow,5,0,1781,14910;33371,Shadow Resilience;Shadow Resilience,utility-or-rank,utility,0,0
+Priest,Shadow,5,2,462,15259;15307;15308;15309;15310,Darkness;Darkness;Darkness;Darkness;Darkness,utility-or-rank,utility,0,0
+Priest,Shadow,6,1,521,15473,Shadowform,utility-or-rank,state-maintenance,484,0
+Priest,Shadow,6,2,1778,33221;33222;33223;33224;33225,Shadow Power;Shadow Power;Shadow Power;Shadow Power;Shadow Power,talent-passive,utility,0,0
+Priest,Shadow,7,2,1816,33191;33192;33193;33194;33195,Misery;Misery;Misery;Misery;Misery,utility-or-rank,utility,0,0
+Priest,Shadow,8,1,1779,34914,Vampiric Touch,utility-or-rank,utility,521,0
+Rogue,Combat,0,0,203,13741;13793;13792,Improved Gouge;Improved Gouge;Improved Gouge,talent-passive,utility,0,0
+Rogue,Combat,0,1,201,13732;13863,Improved Sinister Strike;Improved Sinister Strike,damage,single-target,0,0
+Rogue,Combat,0,2,186,13712;13788;13789;13790;13791,Lightning Reflexes;Lightning Reflexes;Lightning Reflexes;Lightning Reflexes;Lightning Reflexes,utility-or-rank,utility,0,0
+Rogue,Combat,1,0,1827,14165;14166;14167,Improved Slice and Dice;Improved Slice and Dice;Improved Slice and Dice,talent-passive,utility,0,0
+Rogue,Combat,1,1,187,13713;13853;13854;13855;13856,Deflection;Deflection;Deflection;Deflection;Deflection,utility-or-rank,utility,0,0
+Rogue,Combat,1,2,181,13705;13832;13843;13844;13845,Precision;Precision;Precision;Precision;Precision,talent-passive,utility,0,0
+Rogue,Combat,2,0,204,13742;13872,Endurance;Endurance,utility-or-rank,utility,0,0
+Rogue,Combat,2,1,301,14251,Riposte,utility-or-rank,utility,187,0
+Rogue,Combat,2,3,222,13743;13875,Improved Sprint;Improved Sprint,talent-passive,utility,0,0
+Rogue,Combat,3,0,206,13754;13867,Improved Kick;Improved Kick,talent-passive,utility,0,0
+Rogue,Combat,3,1,182,13706;13804;13805;13806;13807,Dagger Specialization;Dagger Specialization;Dagger Specialization;Dagger Specialization;Dagger Specialization,talent-passive,utility,0,0
+Rogue,Combat,3,2,221,13715;13848;13849;13851;13852,Dual Wield Specialization;Dual Wield Specialization;Dual Wield Specialization;Dual Wield Specialization;Dual Wield Specialization,talent-passive,utility,181,0
+Rogue,Combat,4,0,184,13709;13800;13801;13802;13803,Mace Specialization;Mace Specialization;Mace Specialization;Mace Specialization;Mace Specialization,talent-passive,utility,0,0
+Rogue,Combat,4,1,223,13877,Blade Flurry,utility-or-rank,utility,0,0
+Rogue,Combat,4,2,242,13960;13961;13962;13963;13964,Sword Specialization;Sword Specialization;Sword Specialization;Sword Specialization;Sword Specialization,talent-passive,utility,0,0
+Rogue,Combat,4,3,183,13707;13966;13967;13968;13969,Fist Weapon Specialization;Fist Weapon Specialization;Fist Weapon Specialization;Fist Weapon Specialization;Fist Weapon Specialization,talent-passive,utility,0,0
+Rogue,Combat,5,0,1706,31124;31126,Blade Twisting;Blade Twisting,utility-or-rank,utility,0,0
+Rogue,Combat,5,1,1703,30919;30920,Weapon Expertise;Weapon Expertise,utility-or-rank,utility,223,0
+Rogue,Combat,5,2,1122,18427;18428;18429,Aggression;Aggression;Aggression,utility-or-rank,utility,0,0
+Rogue,Combat,6,0,1705,31122;31123,Vitality;Vitality,utility-or-rank,utility,0,0
+Rogue,Combat,6,1,205,13750,Adrenaline Rush,utility-or-rank,utility,0,0
+Rogue,Combat,6,2,1707,31130;31131,Nerves of Steel;Nerves of Steel,utility-or-rank,utility,0,0
+Rogue,Combat,7,2,1825,35541;35550;35551;35552;35553,Combat Potency;Combat Potency;Combat Potency;Combat Potency;Combat Potency,utility-or-rank,utility,0,0
+Rogue,Combat,8,1,1709,32601,Surprise Attacks,utility-or-rank,utility,205,0
+Rogue,Assassination,0,0,276,14162;14163;14164,Improved Eviscerate;Improved Eviscerate;Improved Eviscerate,talent-passive,utility,0,0
+Rogue,Assassination,0,1,272,14144;14148,Remorseless Attacks;Remorseless Attacks,utility-or-rank,utility,0,0
+Rogue,Assassination,0,2,270,14138;14139;14140;14141;14142,Malice;Malice;Malice;Malice;Malice,utility-or-rank,utility,0,0
+Rogue,Assassination,1,0,273,14156;14160;14161,Ruthlessness;Ruthlessness;Ruthlessness,utility-or-rank,utility,0,0
+Rogue,Assassination,1,1,274,14158;14159,Murder;Murder,utility-or-rank,utility,0,0
+Rogue,Assassination,1,3,277,13733;13865;13866,Puncturing Wounds;Puncturing Wounds;Puncturing Wounds,utility-or-rank,utility,0,0
+Rogue,Assassination,2,0,281,14179,Relentless Strikes,damage,single-target,0,0
+Rogue,Assassination,2,1,278,14168;14169,Improved Expose Armor;Improved Expose Armor,talent-passive,utility,0,0
+Rogue,Assassination,2,2,269,14128;14132;14135;14136;14137,Lethality;Lethality;Lethality;Lethality;Lethality,utility-or-rank,utility,270,0
+Rogue,Assassination,3,1,682,16513;16514;16515;16719;16720,Vile Poisons;Vile Poisons;Vile Poisons;Vile Poisons;Vile Poisons,utility-or-rank,dispel-cleanse;state-maintenance,0,0
+Rogue,Assassination,3,2,268,14113;14114;14115;14116;14117,Improved Poisons;Improved Poisons;Improved Poisons;Improved Poisons;Improved Poisons,talent-passive,dispel-cleanse;state-maintenance,0,0
+Rogue,Assassination,4,0,1721,31208;31209,Fleet Footed;Fleet Footed,utility-or-rank,utility,0,0
+Rogue,Assassination,4,1,280,14177,Cold Blood,utility-or-rank,utility,0,0
+Rogue,Assassination,4,2,279,14174;14175;14176,Improved Kidney Shot;Improved Kidney Shot;Improved Kidney Shot,pvp-control,pvp,0,0
+Rogue,Assassination,4,3,1762,31244;31245,Quick Recovery;Quick Recovery,utility-or-rank,utility,0,0
+Rogue,Assassination,5,1,283,14186;14190;14193;14194;14195,Seal Fate;Seal Fate;Seal Fate;Seal Fate;Seal Fate,damage,single-target;state-maintenance,280,0
+Rogue,Assassination,5,2,1715,31226;31227,Master Poisoner;Master Poisoner,utility-or-rank,dispel-cleanse;state-maintenance,0,0
+Rogue,Assassination,6,1,382,14983,Vigor,utility-or-rank,utility,0,0
+Rogue,Assassination,6,2,1723,31380;31382;31383;31384;31385,Deadened Nerves;Deadened Nerves;Deadened Nerves;Deadened Nerves;Deadened Nerves,utility-or-rank,utility,0,0
+Rogue,Assassination,7,2,1718,31233;31239;31240;31241;31242,Find Weakness;Find Weakness;Find Weakness;Find Weakness;Find Weakness,utility-or-rank,utility,0,0
+Rogue,Assassination,8,1,1719,1329,Mutilate,utility-or-rank,utility,382,0
+Rogue,Subtlety,0,1,241,13958;13970;13971;13972;13973,Master of Deception;Master of Deception;Master of Deception;Master of Deception;Master of Deception,utility-or-rank,utility,0,0
+Rogue,Subtlety,0,2,261,14057;14072;14073;14074;14075,Opportunity;Opportunity;Opportunity;Opportunity;Opportunity,utility-or-rank,utility,0,0
+Rogue,Subtlety,1,0,1700,30892;30893,Sleight of Hand;Sleight of Hand,utility-or-rank,utility,0,0
+Rogue,Subtlety,1,1,262,14076;14094,Dirty Tricks;Dirty Tricks,utility-or-rank,utility,0,0
+Rogue,Subtlety,1,2,244,13975;14062;14063;14064;14065,Camouflage;Camouflage;Camouflage;Camouflage;Camouflage,utility-or-rank,utility,0,0
+Rogue,Subtlety,2,0,245,13976;13979;13980,Initiative;Initiative;Initiative,utility-or-rank,utility,0,0
+Rogue,Subtlety,2,1,303,14278,Ghostly Strike,damage,single-target,0,0
+Rogue,Subtlety,2,2,263,14079;14080;14081,Improved Ambush;Improved Ambush;Improved Ambush,talent-passive,utility,0,0
+Rogue,Subtlety,3,0,246,13983;14070;14071,Setup;Setup;Setup,utility-or-rank,utility,0,0
+Rogue,Subtlety,3,1,247,13981;14066,Elusiveness;Elusiveness,utility-or-rank,utility,0,0
+Rogue,Subtlety,3,2,1123,14171;14172;14173,Serrated Blades;Serrated Blades;Serrated Blades,utility-or-rank,utility,0,0
+Rogue,Subtlety,4,0,1701,30894;30895,Heightened Senses;Heightened Senses,utility-or-rank,utility,0,0
+Rogue,Subtlety,4,1,284,14185,Preparation,utility-or-rank,utility,0,0
+Rogue,Subtlety,4,2,265,14082;14083,Dirty Deeds;Dirty Deeds,utility-or-rank,utility,0,0
+Rogue,Subtlety,4,3,681,16511,Hemorrhage,utility-or-rank,utility,1123,0
+Rogue,Subtlety,5,0,1713,31221;31222;31223,Master of Subtlety;Master of Subtlety;Master of Subtlety,talent-passive,utility,0,0
+Rogue,Subtlety,5,2,1702,30902;30903;30904;30905;30906,Deadliness;Deadliness;Deadliness;Deadliness;Deadliness,utility-or-rank,utility,0,0
+Rogue,Subtlety,6,0,1711,31211;31212;31213,Enveloping Shadows;Enveloping Shadows;Enveloping Shadows,utility-or-rank,utility,0,0
+Rogue,Subtlety,6,1,381,14183,Premeditation,utility-or-rank,utility,284,0
+Rogue,Subtlety,6,2,1722,31228;31229;31230,Cheat Death;Cheat Death;Cheat Death,utility-or-rank,utility,0,0
+Rogue,Subtlety,7,1,1712,31216;31217;31218;31219;31220,Sinister Calling;Sinister Calling;Sinister Calling;Sinister Calling;Sinister Calling,damage,single-target,381,0
+Rogue,Subtlety,8,1,1714,36554,Shadowstep,utility-or-rank,utility,0,0
+Shaman,Elemental,0,1,564,16039;16109;16110;16111;16112,Convection;Convection;Convection;Convection;Convection,utility-or-rank,utility,0,0
+Shaman,Elemental,0,2,563,16035;16105;16106;16107;16108,Concussion;Concussion;Concussion;Concussion;Concussion,utility-or-rank,utility,0,0
+Shaman,Elemental,1,0,572,16043;16130,Earth's Grasp;Earth's Grasp,utility-or-rank,utility,0,0
+Shaman,Elemental,1,1,1640,28996;28997;28998,Elemental Warding;Elemental Warding;Elemental Warding,utility-or-rank,utility,0,0
+Shaman,Elemental,1,2,561,16038;16160;16161,Call of Flame;Call of Flame;Call of Flame,utility-or-rank,utility,0,0
+Shaman,Elemental,2,0,574,16164,Elemental Focus,talent-passive,utility,0,0
+Shaman,Elemental,2,1,575,16040;16113;16114;16115;16116,Reverberation;Reverberation;Reverberation;Reverberation;Reverberation,utility-or-rank,utility,0,0
+Shaman,Elemental,2,2,562,16041;16117;16118;16119;16120,Call of Thunder;Call of Thunder;Call of Thunder;Call of Thunder;Call of Thunder,utility-or-rank,utility,0,0
+Shaman,Elemental,3,0,567,16086;16544,Improved Fire Totems;Improved Fire Totems,talent-passive,state-maintenance,0,0
+Shaman,Elemental,3,1,1642,29062;29064;29065,Eye of the Storm;Eye of the Storm;Eye of the Storm,utility-or-rank,utility,0,0
+Shaman,Elemental,3,3,1645,30160;29179;29180,Elemental Devastation;Elemental Devastation;Elemental Devastation,utility-or-rank,utility,0,0
+Shaman,Elemental,4,0,1641,28999;29000,Storm Reach;Storm Reach,utility-or-rank,utility,0,0
+Shaman,Elemental,4,1,565,16089,Elemental Fury,talent-passive,utility,0,0
+Shaman,Elemental,4,3,1682,30664;30665;30666;30667;30668,Unrelenting Storm;Unrelenting Storm;Unrelenting Storm;Unrelenting Storm;Unrelenting Storm,utility-or-rank,utility,0,0
+Shaman,Elemental,5,0,1685,30672;30673;30674,Elemental Precision;Elemental Precision;Elemental Precision,talent-passive,utility,0,0
+Shaman,Elemental,5,2,721,16578;16579;16580;16581;16582,Lightning Mastery;Lightning Mastery;Lightning Mastery;Lightning Mastery;Lightning Mastery,talent-passive,utility,562,0
+Shaman,Elemental,6,1,573,16166,Elemental Mastery,talent-passive,utility,565,0
+Shaman,Elemental,6,2,1683,30669;30670;30671,Elemental Shields;Elemental Shields;Elemental Shields,healing,healing,0,0
+Shaman,Elemental,7,1,1686,30675;30678;30679;30680;30681,Lightning Overload;Lightning Overload;Lightning Overload;Lightning Overload;Lightning Overload,utility-or-rank,utility,0,0
+Shaman,Elemental,8,1,1687,30706,Totem of Wrath,damage,single-target;state-maintenance,1686,0
+Shaman,Restoration,0,1,586,16182;16226;16227;16228;16229,Improved Healing Wave;Improved Healing Wave;Improved Healing Wave;Improved Healing Wave;Improved Healing Wave,healing,healing,0,0
+Shaman,Restoration,0,2,593,16179;16214;16215;16216;16217,Tidal Focus;Tidal Focus;Tidal Focus;Tidal Focus;Tidal Focus,talent-passive,utility,0,0
+Shaman,Restoration,1,0,589,16184;16209,Improved Reincarnation;Improved Reincarnation,talent-passive,utility,0,0
+Shaman,Restoration,1,1,581,16176;16235;16240,Ancestral Healing;Ancestral Healing;Ancestral Healing,healing,healing,0,0
+Shaman,Restoration,1,2,595,16173;16222;16223;16224;16225,Totemic Focus;Totemic Focus;Totemic Focus;Totemic Focus;Totemic Focus,talent-passive,state-maintenance,0,0
+Shaman,Restoration,2,0,583,16180;16196;16198,Nature's Guidance;Nature's Guidance;Nature's Guidance,talent-passive,utility,0,0
+Shaman,Restoration,2,1,587,16181;16230;16232;16233;16234,Healing Focus;Healing Focus;Healing Focus;Healing Focus;Healing Focus,healing,healing,0,0
+Shaman,Restoration,2,2,582,16189,Totemic Mastery,talent-passive,state-maintenance,0,0
+Shaman,Restoration,2,3,1646,29187;29189;29191,Healing Grace;Healing Grace;Healing Grace,healing,healing,0,0
+Shaman,Restoration,3,1,588,16187;16205;16206;16207;16208,Restorative Totems;Restorative Totems;Restorative Totems;Restorative Totems;Restorative Totems,utility-or-rank,state-maintenance,0,0
+Shaman,Restoration,3,2,594,16194;16218;16219;16220;16221,Tidal Mastery;Tidal Mastery;Tidal Mastery;Tidal Mastery;Tidal Mastery,talent-passive,utility,0,0
+Shaman,Restoration,4,0,1648,29206;29205;29202,Healing Way;Healing Way;Healing Way,healing,healing,0,0
+Shaman,Restoration,4,2,591,16188,Nature's Swiftness,utility-or-rank,utility,0,0
+Shaman,Restoration,4,3,1695,30864;30865;30866,Focused Mind;Focused Mind;Focused Mind,damage,single-target,0,0
+Shaman,Restoration,5,2,592,16178;16210;16211;16212;16213,Purification;Purification;Purification;Purification;Purification,utility-or-rank,utility,0,0
+Shaman,Restoration,6,1,590,16190,Mana Tide Totem,utility-or-rank,state-maintenance,588,0
+Shaman,Restoration,6,2,1699,30881;30883;30884;30885;30886,Nature's Guardian;Nature's Guardian;Nature's Guardian;Nature's Guardian;Nature's Guardian,utility-or-rank,utility,0,0
+Shaman,Restoration,7,1,1696,30867;30868;30869,Nature's Blessing;Nature's Blessing;Nature's Blessing,utility-or-rank,utility,0,0
+Shaman,Restoration,7,2,1697,30872;30873,Improved Chain Heal;Improved Chain Heal,healing,multi-target;healing,0,0
+Shaman,Restoration,8,1,1698,974,Earth Shield,healing,healing,1696,0
+Shaman,Enhancement,0,1,614,17485;17486;17487;17488;17489,Ancestral Knowledge;Ancestral Knowledge;Ancestral Knowledge;Ancestral Knowledge;Ancestral Knowledge,talent-passive,utility,0,0
+Shaman,Enhancement,0,2,612,16253;16298;16299;16300;16301,Shield Specialization;Shield Specialization;Shield Specialization;Shield Specialization;Shield Specialization,healing,healing,0,0
+Shaman,Enhancement,1,0,609,16258;16293,Guardian Totems;Guardian Totems,utility-or-rank,state-maintenance,0,0
+Shaman,Enhancement,1,1,613,16255;16302;16303;16304;16305,Thundering Strikes;Thundering Strikes;Thundering Strikes;Thundering Strikes;Thundering Strikes,damage,single-target,0,0
+Shaman,Enhancement,1,2,605,16262;16287,Improved Ghost Wolf;Improved Ghost Wolf,talent-passive,utility,0,0
+Shaman,Enhancement,1,3,607,16261;16290;16291,Improved Lightning Shield;Improved Lightning Shield;Improved Lightning Shield,healing,healing,0,0
+Shaman,Enhancement,2,0,610,16259;16295,Enhancing Totems;Enhancing Totems,utility-or-rank,state-maintenance,0,0
+Shaman,Enhancement,2,2,617,43338,Shamanistic Focus,talent-passive,utility,0,0
+Shaman,Enhancement,2,3,601,16254;16271;16272;16273;16274,Anticipation;Anticipation;Anticipation;Anticipation;Anticipation,utility-or-rank,utility,0,0
+Shaman,Enhancement,3,1,602,16256;16281;16282;16283;16284,Flurry;Flurry;Flurry;Flurry;Flurry,utility-or-rank,utility,613,0
+Shaman,Enhancement,3,2,615,16252;16306;16307;16308;16309,Toughness;Toughness;Toughness;Toughness;Toughness,utility-or-rank,utility,0,0
+Shaman,Enhancement,4,0,1647,29192;29193,Improved Weapon Totems;Improved Weapon Totems,talent-passive,state-maintenance,0,0
+Shaman,Enhancement,4,1,616,16268,Spirit Weapons,utility-or-rank,utility,0,0
+Shaman,Enhancement,4,2,611,16266;29079;29080,Elemental Weapons;Elemental Weapons;Elemental Weapons,utility-or-rank,utility,0,0
+Shaman,Enhancement,5,0,1691,30812;30813;30814,Mental Quickness;Mental Quickness;Mental Quickness,utility-or-rank,utility,0,0
+Shaman,Enhancement,5,3,1643,29082;29084;29086;29087;29088,Weapon Mastery;Weapon Mastery;Weapon Mastery;Weapon Mastery;Weapon Mastery,talent-passive,utility,0,0
+Shaman,Enhancement,6,0,1692,30816;30818;30819,Dual Wield Specialization;Dual Wield Specialization;Dual Wield Specialization,talent-passive,utility,1690,0
+Shaman,Enhancement,6,1,1690,30798,Dual Wield,utility-or-rank,utility,616,0
+Shaman,Enhancement,6,2,901,17364,Stormstrike,damage,single-target,611,0
+Shaman,Enhancement,7,1,1689,30802;30808;30809;30810;30811,Unleashed Rage;Unleashed Rage;Unleashed Rage;Unleashed Rage;Unleashed Rage,utility-or-rank,utility,0,0
+Shaman,Enhancement,8,1,1693,30823,Shamanistic Rage,utility-or-rank,utility,0,0
+Warlock,Destruction,0,1,944,17793;17796;17801;17802;17803,Improved Shadow Bolt;Improved Shadow Bolt;Improved Shadow Bolt;Improved Shadow Bolt;Improved Shadow Bolt,damage,single-target,0,0
+Warlock,Destruction,0,2,941,17778;17779;17780;17781;17782,Cataclysm;Cataclysm;Cataclysm;Cataclysm;Cataclysm,utility-or-rank,utility,0,0
+Warlock,Destruction,1,1,943,17788;17789;17790;17791;17792,Bane;Bane;Bane;Bane;Bane,utility-or-rank,utility,0,0
+Warlock,Destruction,1,2,982,18119;18120;18121;18122;18123,Aftermath;Aftermath;Aftermath;Aftermath;Aftermath,utility-or-rank,utility,0,0
+Warlock,Destruction,2,0,983,18126;18127,Improved Firebolt;Improved Firebolt,damage,single-target,0,0
+Warlock,Destruction,2,1,984,18128;18129,Improved Lash of Pain;Improved Lash of Pain,talent-passive,utility,0,0
+Warlock,Destruction,2,2,981,18130;18131;18132;18133;18134,Devastation;Devastation;Devastation;Devastation;Devastation,utility-or-rank,utility,0,0
+Warlock,Destruction,2,3,963,17877,Shadowburn,utility-or-rank,utility,0,0
+Warlock,Destruction,3,0,985,18135;18136,Intensity;Intensity,utility-or-rank,utility,0,0
+Warlock,Destruction,3,1,964,17917;17918,Destructive Reach;Destructive Reach,utility-or-rank,utility,0,0
+Warlock,Destruction,3,3,965,17927;17929;17930,Improved Searing Pain;Improved Searing Pain;Improved Searing Pain,talent-passive,utility,0,0
+Warlock,Destruction,4,0,986,18096;18073,Pyroclasm;Pyroclasm,utility-or-rank,utility,985,0
+Warlock,Destruction,4,1,961,17815;17833;17834;17835;17836,Improved Immolate;Improved Immolate;Improved Immolate;Improved Immolate;Improved Immolate,talent-passive,utility,0,0
+Warlock,Destruction,4,2,967,17959,Ruin,utility-or-rank,utility,981,0
+Warlock,Destruction,5,0,1679,30299;30301;30302,Nether Protection;Nether Protection;Nether Protection,utility-or-rank,utility,0,0
+Warlock,Destruction,5,2,966,17954;17955;17956;17957;17958,Emberstorm;Emberstorm;Emberstorm;Emberstorm;Emberstorm,utility-or-rank,utility,0,0
+Warlock,Destruction,6,0,1817,34935;34938;34939,Backlash;Backlash;Backlash,utility-or-rank,utility,0,0
+Warlock,Destruction,6,1,968,17962,Conflagrate,utility-or-rank,utility,961,0
+Warlock,Destruction,6,2,1678,30293;30295;30296,Soul Leech;Soul Leech;Soul Leech,utility-or-rank,utility,0,0
+Warlock,Destruction,7,1,1677,30288;30289;30290;30291;30292,Shadow and Flame;Shadow and Flame;Shadow and Flame;Shadow and Flame;Shadow and Flame,utility-or-rank,utility,0,0
+Warlock,Destruction,8,1,1676,30283,Shadowfury,talent-passive,utility,1677,0
+Warlock,Affliction,0,1,1005,18174;18175;18176;18177;18178,Suppression;Suppression;Suppression;Suppression;Suppression,utility-or-rank,utility,0,0
+Warlock,Affliction,0,2,1003,17810;17811;17812;17813;17814,Improved Corruption;Improved Corruption;Improved Corruption;Improved Corruption;Improved Corruption,damage,single-target,0,0
+Warlock,Affliction,1,0,1006,18179;18180,Improved Curse of Weakness;Improved Curse of Weakness,damage,single-target;dispel-cleanse,0,0
+Warlock,Affliction,1,1,1101,18213;18372,Improved Drain Soul;Improved Drain Soul,talent-passive,utility,0,0
+Warlock,Affliction,1,2,1007,18182;18183,Improved Life Tap;Improved Life Tap,talent-passive,utility,0,0
+Warlock,Affliction,1,3,1004,17804;17805,Soul Siphon;Soul Siphon,utility-or-rank,utility,0,0
+Warlock,Affliction,2,0,1284,18827;18829,Improved Curse of Agony;Improved Curse of Agony,damage,single-target;dispel-cleanse,0,0
+Warlock,Affliction,2,1,1001,17783;17784;17785;17786;17787,Fel Concentration;Fel Concentration;Fel Concentration;Fel Concentration;Fel Concentration,utility-or-rank,utility,0,0
+Warlock,Affliction,2,2,1061,18288,Amplify Curse,damage,single-target;dispel-cleanse,0,0
+Warlock,Affliction,3,0,1021,18218;18219,Grim Reach;Grim Reach,utility-or-rank,utility,0,0
+Warlock,Affliction,3,1,1002,18094;18095,Nightfall;Nightfall,utility-or-rank,utility,0,0
+Warlock,Affliction,3,3,1764,32381;32382;32383,Empowered Corruption;Empowered Corruption;Empowered Corruption,damage,single-target,0,0
+Warlock,Affliction,4,0,1763,32385;32387;32392;32393;32394,Shadow Embrace;Shadow Embrace;Shadow Embrace;Shadow Embrace;Shadow Embrace,utility-or-rank,utility,0,0
+Warlock,Affliction,4,1,1041,18265,Siphon Life,utility-or-rank,utility,0,0
+Warlock,Affliction,4,2,1081,18223,Curse of Exhaustion,damage,single-target;dispel-cleanse,1061,0
+Warlock,Affliction,5,1,1042,18271;18272;18273;18274;18275,Shadow Mastery;Shadow Mastery;Shadow Mastery;Shadow Mastery;Shadow Mastery,talent-passive,utility,1041,0
+Warlock,Affliction,6,1,1669,30060;30061;30062;30063;30064,Contagion;Contagion;Contagion;Contagion;Contagion,utility-or-rank,utility,0,0
+Warlock,Affliction,6,2,1022,18220,Dark Pact,utility-or-rank,utility,0,0
+Warlock,Affliction,7,0,1668,30054;30057,Improved Howl of Terror;Improved Howl of Terror,talent-passive,utility,0,0
+Warlock,Affliction,7,2,1667,32477;32483;32484,Malediction;Malediction;Malediction,utility-or-rank,utility,0,0
+Warlock,Affliction,8,1,1670,30108,Unstable Affliction,utility-or-rank,utility,1669,0
+Warlock,Demonology,0,0,1221,18692;18693,Improved Healthstone;Improved Healthstone,healing,healing,0,0
+Warlock,Demonology,0,1,1222,18694;18695;18696,Improved Imp;Improved Imp;Improved Imp,talent-passive,utility,0,0
+Warlock,Demonology,0,2,1223,18697;18698;18699;18700;18701,Demonic Embrace;Demonic Embrace;Demonic Embrace;Demonic Embrace;Demonic Embrace,utility-or-rank,utility,0,0
+Warlock,Demonology,1,0,1224,18703;18704,Improved Health Funnel;Improved Health Funnel,healing,healing,0,0
+Warlock,Demonology,1,1,1225,18705;18706;18707,Improved Voidwalker;Improved Voidwalker;Improved Voidwalker,talent-passive,utility,0,0
+Warlock,Demonology,1,2,1242,18731;18743;18744,Fel Intellect;Fel Intellect;Fel Intellect,utility-or-rank,utility,0,0
+Warlock,Demonology,2,0,1243,18754;18755;18756,Improved Sayaad;Improved Sayaad;Improved Sayaad,talent-passive,utility,0,0
+Warlock,Demonology,2,1,1226,18708,Fel Domination,utility-or-rank,utility,0,0
+Warlock,Demonology,2,2,1241,18748;18749;18750,Fel Stamina;Fel Stamina;Fel Stamina,utility-or-rank,utility,0,0
+Warlock,Demonology,2,3,1671,30143;30144;30145,Demonic Aegis;Demonic Aegis;Demonic Aegis,utility-or-rank,utility,0,0
+Warlock,Demonology,3,1,1227,18709;18710,Master Summoner;Master Summoner,utility-or-rank,utility,1226,0
+Warlock,Demonology,3,2,1262,18769;18770;18771;18772;18773,Unholy Power;Unholy Power;Unholy Power;Unholy Power;Unholy Power,talent-passive,utility,0,0
+Warlock,Demonology,4,0,1283,18821;18822,Improved Subjugate Demon;Improved Subjugate Demon,talent-passive,utility,0,0
+Warlock,Demonology,4,1,1281,18788,Demonic Sacrifice,utility-or-rank,utility,0,0
+Warlock,Demonology,4,3,1261,18767;18768,Master Conjuror;Master Conjuror,utility-or-rank,utility,0,0
+Warlock,Demonology,5,0,1681,30326;30327;30328,Mana Feed;Mana Feed;Mana Feed,utility-or-rank,utility,0,0
+Warlock,Demonology,5,2,1244,23785;23822;23823;23824;23825,Master Demonologist;Master Demonologist;Master Demonologist;Master Demonologist;Master Demonologist,utility-or-rank,utility,1262,0
+Warlock,Demonology,6,0,1680,30319;30320;30321,Demonic Resilience;Demonic Resilience;Demonic Resilience,utility-or-rank,utility,0,0
+Warlock,Demonology,6,1,1282,19028,Soul Link,utility-or-rank,utility,1281,0
+Warlock,Demonology,6,2,1263,35691;35692;35693,Demonic Knowledge;Demonic Knowledge;Demonic Knowledge,talent-passive,utility,0,0
+Warlock,Demonology,7,1,1673,30242;30245;30246;30247;30248,Demonic Tactics;Demonic Tactics;Demonic Tactics;Demonic Tactics;Demonic Tactics,utility-or-rank,utility,0,0
+Warlock,Demonology,8,1,1672,30146,Summon Felguard,utility-or-rank,utility,0,0
+Warrior,Arms,0,0,124,12282;12663;12664,Improved Heroic Strike;Improved Heroic Strike;Improved Heroic Strike,damage,single-target,0,0
+Warrior,Arms,0,1,130,16462;16463;16464;16465;16466,Deflection;Deflection;Deflection;Deflection;Deflection,utility-or-rank,utility,0,0
+Warrior,Arms,0,2,127,12286;12658;12659,Improved Rend;Improved Rend;Improved Rend,talent-passive,utility,0,0
+Warrior,Arms,1,0,126,12285;12697,Improved Charge;Improved Charge,talent-passive,utility,0,0
+Warrior,Arms,1,1,641,12300;12959;12960;12961;12962,Iron Will;Iron Will;Iron Will;Iron Will;Iron Will,utility-or-rank,utility,0,0
+Warrior,Arms,1,2,128,12287;12665;12666,Improved Thunder Clap;Improved Thunder Clap;Improved Thunder Clap,talent-passive,utility,0,0
+Warrior,Arms,2,0,131,12290;12963,Improved Overpower;Improved Overpower,talent-passive,utility,0,0
+Warrior,Arms,2,1,137,12296,Anger Management,utility-or-rank,utility,0,0
+Warrior,Arms,2,2,121,12834;12849;12867,Deep Wounds;Deep Wounds;Deep Wounds,utility-or-rank,utility,0,0
+Warrior,Arms,3,1,136,12163;12711;12712;12713;12714,Two-Handed Weapon Specialization;Two-Handed Weapon Specialization;Two-Handed Weapon Specialization;Two-Handed Weapon Specialization;Two-Handed Weapon Specialization,talent-passive,utility,0,0
+Warrior,Arms,3,2,662,16493;16494,Impale;Impale,utility-or-rank,utility,121,0
+Warrior,Arms,4,0,132,12700;12781;12783;12784;12785,Poleaxe Specialization;Poleaxe Specialization;Poleaxe Specialization;Poleaxe Specialization;Poleaxe Specialization,talent-passive,utility,0,0
+Warrior,Arms,4,1,133,12292,Death Wish,utility-or-rank,utility,0,0
+Warrior,Arms,4,2,125,12284;12701;12702;12703;12704,Mace Specialization;Mace Specialization;Mace Specialization;Mace Specialization;Mace Specialization,talent-passive,utility,0,0
+Warrior,Arms,4,3,123,12281;12812;12813;12814;12815,Sword Specialization;Sword Specialization;Sword Specialization;Sword Specialization;Sword Specialization,talent-passive,utility,0,0
+Warrior,Arms,5,0,134,29888;29889,Improved Intercept;Improved Intercept,talent-passive,utility,0,0
+Warrior,Arms,5,2,129,12289;12668;23695,Improved Hamstring;Improved Hamstring;Improved Hamstring,pvp-control,pvp,0,0
+Warrior,Arms,5,3,1662,29723;29724;29725,Improved Disciplines;Improved Disciplines;Improved Disciplines,talent-passive,utility,0,0
+Warrior,Arms,6,0,1664,29836;29859,Blood Frenzy;Blood Frenzy,utility-or-rank,utility,0,0
+Warrior,Arms,6,1,135,12294,Mortal Strike,damage,single-target,133,0
+Warrior,Arms,6,2,1663,29834;29838,Second Wind;Second Wind,utility-or-rank,utility,0,0
+Warrior,Arms,7,1,1824,35446;35448;35449;35450;35451,Improved Mortal Strike;Improved Mortal Strike;Improved Mortal Strike;Improved Mortal Strike;Improved Mortal Strike,damage,single-target,135,0
+Warrior,Arms,8,1,1661,29623,Endless Rage,utility-or-rank,utility,0,0
+Warrior,Protection,0,0,142,12301;12818,Improved Bloodrage;Improved Bloodrage,talent-passive,utility,0,0
+Warrior,Protection,0,1,141,12295;12676;12677,Tactical Mastery;Tactical Mastery;Tactical Mastery,talent-passive,utility,0,0
+Warrior,Protection,0,2,138,12297;12750;12751;12752;12753,Anticipation;Anticipation;Anticipation;Anticipation;Anticipation,utility-or-rank,utility,0,0
+Warrior,Protection,1,1,1601,12298;12724;12725;12726;12727,Shield Specialization;Shield Specialization;Shield Specialization;Shield Specialization;Shield Specialization,healing,healing,0,0
+Warrior,Protection,1,2,140,12299;12761;12762;12763;12764,Toughness;Toughness;Toughness;Toughness;Toughness,utility-or-rank,utility,0,0
+Warrior,Protection,2,0,153,12975,Last Stand,utility-or-rank,utility,0,0
+Warrior,Protection,2,1,145,12945,Improved Shield Block,healing,healing,1601,0
+Warrior,Protection,2,2,147,12797;12799;12800,Improved Revenge;Improved Revenge;Improved Revenge,tanking,tanking,0,0
+Warrior,Protection,2,3,144,12303;12788;12789,Defiance;Defiance;Defiance,utility-or-rank,utility,0,0
+Warrior,Protection,3,0,146,12308;12810;12811,Improved Sunder Armor;Improved Sunder Armor;Improved Sunder Armor,tanking,tanking,0,0
+Warrior,Protection,3,1,151,12313;12804;12807,Improved Disarm;Improved Disarm;Improved Disarm,talent-passive,utility,0,0
+Warrior,Protection,3,2,143,12302;12765,Improved Taunt;Improved Taunt,tanking,tanking,0,0
+Warrior,Protection,4,0,150,12312;12803,Improved Shield Wall;Improved Shield Wall,healing,healing,0,0
+Warrior,Protection,4,1,152,12809,Concussion Blow,utility-or-rank,utility,0,0
+Warrior,Protection,4,2,149,12311;12958,Improved Shield Bash;Improved Shield Bash,healing,healing,0,0
+Warrior,Protection,5,0,1654,29598;29599;29600,Shield Mastery;Shield Mastery;Shield Mastery,healing,healing,0,0
+Warrior,Protection,5,2,702,16538;16539;16540;16541;16542,One-Handed Weapon Specialization;One-Handed Weapon Specialization;One-Handed Weapon Specialization;One-Handed Weapon Specialization;One-Handed Weapon Specialization,talent-passive,utility,0,0
+Warrior,Protection,6,0,1652,29593;29594;29595,Improved Defensive Stance;Improved Defensive Stance;Improved Defensive Stance,talent-passive,state-maintenance,0,0
+Warrior,Protection,6,1,148,23922,Shield Slam,healing,healing,152,0
+Warrior,Protection,6,2,1660,29787;29790;29792,Focused Rage;Focused Rage;Focused Rage,talent-passive,utility,0,0
+Warrior,Protection,7,1,1653,29140;29143;29144;29145;29146,Vitality;Vitality;Vitality;Vitality;Vitality,utility-or-rank,utility,0,0
+Warrior,Protection,8,1,1666,20243,Devastate,tanking,tanking,0,0
+Warrior,Fury,0,1,158,12321;12835;12836;12837;12838,Booming Voice;Booming Voice;Booming Voice;Booming Voice;Booming Voice,utility-or-rank,utility,0,0
+Warrior,Fury,0,2,157,12320;12852;12853;12855;12856,Cruelty;Cruelty;Cruelty;Cruelty;Cruelty,utility-or-rank,utility,0,0
+Warrior,Fury,1,1,161,12324;12876;12877;12878;12879,Improved Demoralizing Shout;Improved Demoralizing Shout;Improved Demoralizing Shout;Improved Demoralizing Shout;Improved Demoralizing Shout,talent-passive,utility,0,0
+Warrior,Fury,1,2,159,12322;12999;13000;13001;13002,Unbridled Wrath;Unbridled Wrath;Unbridled Wrath;Unbridled Wrath;Unbridled Wrath,damage,single-target,0,0
+Warrior,Fury,2,0,166,12329;12950;20496,Improved Cleave;Improved Cleave;Improved Cleave,talent-passive,multi-target,0,0
+Warrior,Fury,2,1,160,12323,Piercing Howl,utility-or-rank,utility,0,0
+Warrior,Fury,2,2,661,16487;16489;16492,Blood Craze;Blood Craze;Blood Craze,utility-or-rank,utility,0,0
+Warrior,Fury,2,3,154,12318;12857;12858;12860;12861,Commanding Presence;Commanding Presence;Commanding Presence;Commanding Presence;Commanding Presence,utility-or-rank,utility,0,0
+Warrior,Fury,3,0,1581,23584;23585;23586;23587;23588,Dual Wield Specialization;Dual Wield Specialization;Dual Wield Specialization;Dual Wield Specialization;Dual Wield Specialization,talent-passive,utility,0,0
+Warrior,Fury,3,1,1542,20502;20503,Improved Execute;Improved Execute,damage,single-target,0,0
+Warrior,Fury,3,2,155,12317;13045;13046;13047;13048,Enrage;Enrage;Enrage;Enrage;Enrage,utility-or-rank,utility,0,0
+Warrior,Fury,4,0,168,12862;12330,Improved Slam;Improved Slam,talent-passive,utility,0,0
+Warrior,Fury,4,1,165,12328,Sweeping Strikes,damage,single-target;multi-target,0,0
+Warrior,Fury,4,3,1543,20504;20505,Weapon Mastery;Weapon Mastery,talent-passive,utility,0,0
+Warrior,Fury,5,0,1541,20500;20501,Improved Berserker Rage;Improved Berserker Rage,talent-passive,utility,0,0
+Warrior,Fury,5,2,156,12319;12971;12972;12973;12974,Flurry;Flurry;Flurry;Flurry;Flurry,utility-or-rank,utility,155,0
+Warrior,Fury,6,0,1657,29590;29591;29592,Precision;Precision;Precision,talent-passive,utility,0,0
+Warrior,Fury,6,1,167,23881,Bloodthirst,damage,single-target,165,0
+Warrior,Fury,6,2,1655,29721;29776,Improved Whirlwind;Improved Whirlwind,damage,single-target;multi-target,0,0
+Warrior,Fury,7,2,1658,29759;29760;29761;29762;29763,Improved Berserker Stance;Improved Berserker Stance;Improved Berserker Stance;Improved Berserker Stance;Improved Berserker Stance,talent-passive,state-maintenance,0,0
+Warrior,Fury,8,1,1659,29801,Rampage,utility-or-rank,utility,167,0
