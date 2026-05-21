@@ -56,6 +56,10 @@ local WRATH_ACTION           = { name = "Wrath", spell = SPELLS.Wrath, not_movin
 local MOONFIRE_ACTION        = { name = "Moonfire", spell = SPELLS.Moonfire, position = "target", min_mana = 10 }
 local INSECT_SWARM_ACTION    = { name = "InsectSwarm", spell = SPELLS.InsectSwarm, position = "target", min_mana = 10 }
 
+-- SP breakpoints for DoT value gating (from Research.md: 800 = GCD-positive threshold)
+local INSECT_SWARM_MIN_SP_DEFAULT = 800
+local MOONFIRE_MIN_SP_DEFAULT = 800
+
 -- ============================================================================
 -- State builder (pre-allocated, no GC in combat)
 -- ============================================================================
@@ -70,6 +74,7 @@ local balance_state = {
     enemy_count = 1,
     target_ttd = 999,
     innervate_target = nil,
+    spell_damage = 0,
 }
 
 local function build_state(context)
@@ -100,6 +105,8 @@ local function build_state(context)
             break
         end
     end
+    -- SP-aware DoT gating: falls back through context (middleware) then to 0
+    balance_state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
     -- Smart Innervate target: prefer other healers at low mana, fall back to self
     balance_state.innervate_target = nil
     local healer_mana_floor = (context.settings and context.settings.balance_innervate_mana) or 30
@@ -350,6 +357,9 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             local settings = context.settings or {}
             if settings.balance_use_insect_swarm == false then return false end
+            -- SP-aware gating: skip Insect Swarm when spell damage is below GCD-positive threshold
+            local min_sp = settings.balance_insect_swarm_min_sp or INSECT_SWARM_MIN_SP_DEFAULT
+            if (state.spell_damage or 0) < min_sp then return false end
             if (state.mana_pct or context.mana or context.mana_pct or 100) < 10 then return false end
             if NS.should_refresh_dot then
                 if not NS.should_refresh_dot(state.insect_remains, 1.5, state.target_ttd, 12) then return false end
@@ -371,6 +381,10 @@ local strategies = {
         matches = function(context, state)
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
+            -- SP-aware gating: skip Moonfire when spell damage is below GCD-positive threshold
+            local settings = context.settings or {}
+            local min_sp = settings.balance_moonfire_min_sp or MOONFIRE_MIN_SP_DEFAULT
+            if (state.spell_damage or 0) < min_sp then return false end
             if (state.mana_pct or context.mana or context.mana_pct or 100) < 10 then return false end
             if NS.should_refresh_dot then
                 if not NS.should_refresh_dot(state.moonfire_remains, 1.5, state.target_ttd, 12) then return false end

@@ -103,7 +103,7 @@ local ctx_is_refresh = {
     has_valid_enemy_target = true,
     ttd = 60,
 }
-assert_true(insect_swarm.matches(ctx_is_refresh, { insect_remains = 1 }), "InsectSwarm should match when debuff needs refresh")
+assert_true(insect_swarm.matches(ctx_is_refresh, { insect_remains = 1, spell_damage = 800 }), "InsectSwarm should match when debuff needs refresh")
 
 -- No target -> should return false
 assert_false(insect_swarm.matches({}, {}), "InsectSwarm should not match when target is nil")
@@ -131,7 +131,7 @@ local ctx_mf_refresh = {
     has_valid_enemy_target = true,
     ttd = 60,
 }
-assert_true(moonfire.matches(ctx_mf_refresh, { moonfire_remains = 1 }), "Moonfire should match when debuff needs refresh")
+assert_true(moonfire.matches(ctx_mf_refresh, { moonfire_remains = 1, spell_damage = 800 }), "Moonfire should match when debuff needs refresh")
 
 -- ============================================================================
 -- Faerie Fire: only when debuff absent/expiring (> 4 sec) and spell ready
