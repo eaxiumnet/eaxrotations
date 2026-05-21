@@ -62,6 +62,8 @@ return {
                     { key = "balance_hurricane_targets", type = "slider", label = "Hurricane Targets", min = 2, max = 6, default = 3 },
                     { key = "balance_auto_dispel", type = "checkbox", label = "Auto Dispel", default = false },
                     { key = "balance_mana_potion", type = "slider", label = "Mana Potion Mana%", min = 0, max = 100, default = 25 },
+                    { key = "balance_insect_swarm_min_sp", type = "slider", label = "Insect Swarm Min SP", min = 0, max = 2000, default = 800 },
+                    { key = "balance_moonfire_min_sp", type = "slider", label = "Moonfire Min SP", min = 0, max = 2000, default = 800 },
                 },
             },
             {

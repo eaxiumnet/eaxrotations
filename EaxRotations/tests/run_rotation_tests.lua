@@ -146,6 +146,11 @@ local tests = {
     "test_holy_priest_frostbyte_gaps.lua",
     "test_discipline_frostbyte_gaps.lua",
     "test_protection_frostbyte_gaps.lua",
+    "test_arena_priority.lua",
+    "test_benchmark.lua",
+    "test_burst_window.lua",
+    "test_dispatcher_tick.lua",
+    "test_dr_tracker.lua",
 }
 
 local function quote(path)
