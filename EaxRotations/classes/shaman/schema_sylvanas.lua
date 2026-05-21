@@ -191,6 +191,7 @@ return {
                     { key = "elemental_mana_low_pct", type = "slider", label = "Mana Low (% switch to lower Lightning Bolt)", min = 10, max = 50, default = 30 },
                     { key = "elemental_mana_conserve_pct", type = "slider", label = "Mana Conserve (% no Chain Lightning)", min = 5, max = 30, default = 15 },
                     { key = "elemental_mana_emergency_pct", type = "slider", label = "Mana Emergency (% all spells off)", min = 0, max = 15, default = 5 },
+                    { key = "elemental_flame_shock_min_sp", type = "slider", label = "Flame Shock Min Spell Damage", min = 0, max = 2000, default = 400 },
                 },
             },
             {
