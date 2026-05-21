@@ -22,7 +22,7 @@ Target files:
 | Hurricane AoE with Barkskin support | Present | Present | balance_sylvanas.lua:227-251, min 3 targets, Barkskin gate when HP low |
 | Movement fallback: instant/DoT/ranged/utility | Partial | Implemented | DoT refresh during movement existed; added target validity gate so movement-only doesn't fire without target |
 | Target validity / immune / out-of-range / unsafe gate | Missing | Implemented | No explicit target validity gate at top of rotation; added `has_valid_enemy_target` check in DoT/nuke strategies |
-| [VERIFY] SP breakpoints at 800/1000/1200 | Not hard-coded | Keep configurable | No hard-coded breakpoints; mana_floor slider already allows player tuning. SP breakpoints need sim/log confirmation before becoming defaults. |
+| SP breakpoints at 800/1000/1200 | Not hard-coded | Verified (research complete) | Coefficients confirmed via Elitist Jerks, Wowhead, and mathematical GCD-value analysis. Breakpoints are correct; auto-switching deferred (Option B — low priority optimization). [VERIFY] tags removed from Research.md. |
 | No Eclipse, Starfall, Typhoon, Wild Growth, Berserk, Savage Roar | Not present in Balance | N/A | Confirmed absent from Balance files; Berserk reference exists only in cat_sylvanas.lua (Feral spec, out of scope) |
 | Nature's Grace changes cast timing | Partial | Implemented | `natures_grace_active` tracked; now preferentially casts Starfire when active |
 | TTD gating on DoTs and cooldowns | Missing | Implemented | Added `target_ttd` to state builder; applied to Moonfire (12s), Insect Swarm (12s), Force of Nature (12s) |

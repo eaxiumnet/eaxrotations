@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.17 - 2026-05-21
+
+- Druid Balance: SP breakpoint research completed — TBC spell coefficients verified (Starfire ~1.0, Wrath ~0.571/0.671, Moonfire ~0.15 direct + ~0.52 DoT, Insect Swarm ~0.76) against Elitist Jerks, Wowhead, and wowsims sources.
+- Druid Balance: 800/1000/1200 SP breakpoints confirmed — these thresholds are DoT GCD-value decisions, not Starfire vs Wrath filler preference; Starfire wins at all SP levels on mana efficiency and crit synergy.
+- Docs: all three `[VERIFY]` tags in `Research.md` Angle 4 resolved to `verified`.
+- Docs: `SP_Breakpoints_Druid_Balance.md` blocker file rewritten with comprehensive coefficient analysis, corrected mathematical proof, and deferred-implementation recommendation (Option B).
+- Docs: `Druid_Balance_CHECKLIST.md` SP breakpoint row updated to verified status.
+
+## 1.0.16 - 2026-05-21
+
+- Druid Balance: smart Innervate targeting — party scan identifies healer-class units (Paladin/Priest/Shaman/Druid) and picks the lowest-effective-HP target for InnervateHealer strategy; InnervateSelf fallback when no suitable healer found.
+- Druid Balance: Hurricane Barkskin automation — Hurricane now defers when Barkskin is ready (not on cooldown), letting PreHurricaneBarkskin handle the Barkskin→Hurricane sequence for 20% damage reduction synergy.
+- Discipline: PW:S absorb tracking via `Healing.pws_absorb_remaining` — skips PW:S recast when remaining absorb exceeds 200 (prevents wasting mana and triggering Weakened Soul unnecessarily).
+- Core: `NS.buff_points`/`NS.debuff_points` read the `points` array from aura data, enabling variable-value tracking (Holy Shield charges, PW:S absorb remaining, etc.).
+- Tests: fixed `test_balance_custom_matches.lua` Hurricane cooldown mock for Barkskin-ready deferral logic.
+- Docs: AGENTS.md updated with Patterns 11–13 (buff_points, PW:S absorb tracking, smart Innervate targeting); all stale per-spec library references cleaned up for flat-file architecture.
+- Queue: 001_Druid_Balance moved from `blocked/` to `completed/` (2 of 3 blockers resolved); remaining SP breakpoints tracked in `SP_Breakpoints_Druid_Balance.md`.
+- All 106 regression suites (95 rotation + 11 leveling) pass with zero failures.
+
 ## 1.0.15 - 2026-05-16
 
 - Improved TBC spell and aura coverage for racials, common crowd control, Druid utility, and Hunter abilities.

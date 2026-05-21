@@ -52,4 +52,7 @@ Verification run 2026-05-21: full re-verification across all 29 specs — 31/31 
 Unblocking run 2026-05-21: Druid Balance (001) moved from blocked to completed — Hurricane Barkskin automation confirmed already implemented, Innervate smart healer scanning ported from Resto spec. SP breakpoints deferred to `blocked/SP_Breakpoints_Druid_Balance.md` as standalone tracked task. All 29 specs now completed.
 
 Blocked tasks (non-job):
-- `blocked/SP_Breakpoints_Druid_Balance.md` — SP breakpoints (800/1000/1200) for Druid Balance; needs wowsims/tbc + combat log evidence.
+- *(none)*
+
+Deferred tasks (research complete; implementation low-priority optimization):
+- `deferred/SP_Breakpoints_Druid_Balance.md` — SP breakpoints (800/1000/1200) for Druid Balance; coefficients verified, breakpoints confirmed, implementation deferred per Option B recommendation.

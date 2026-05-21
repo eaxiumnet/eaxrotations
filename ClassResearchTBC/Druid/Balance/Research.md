@@ -203,9 +203,9 @@ Use `Druid/Gear-and-Sets.md` for DB2 item-set IDs, piece IDs, set-bonus spell ID
 ### Angle 4: Resource Efficiency Table
 | Condition | Action | Stop condition |
 |---|---|---|
-| Around 800 SP [VERIFY] | Favor Starfire [26986] filler; keep Moonfire [26988] / Insect Swarm [27013] only on long uptime; conserve by dropping one DoT before Wrath [26984] spam | TTD < 12s or mana below full-rotation floor |
-| Around 1000 SP [VERIFY] | Keep both DoTs on raid bosses; Starfire [26986] stays primary filler, Wrath [26984] only when mana floor is crossed or movement forces it | Mana falls into conserve band |
-| Around 1200 SP [VERIFY] | Full maintenance becomes efficient enough that Force of Nature [33831] + double-DoT + Starfire [26986] is the default; Hurricane [27012] becomes worth the GCD on 3+ targets if safe | Target shifts to short-lived add or heavy movement |
+| Around 800 SP verified | Favor Starfire [26986] filler; keep Moonfire [26988] / Insect Swarm [27013] only on long uptime; conserve by dropping one DoT before Wrath [26984] spam | TTD < 12s or mana below full-rotation floor |
+| Around 1000 SP verified | Keep both DoTs on raid bosses; Starfire [26986] stays primary filler, Wrath [26984] only when mana floor is crossed or movement forces it | Mana falls into conserve band |
+| Around 1200 SP verified | Full maintenance becomes efficient enough that Force of Nature [33831] + double-DoT + Starfire [26986] is the default; Hurricane [27012] becomes worth the GCD on 3+ targets if safe | Target shifts to short-lived add or heavy movement |
 
 ### Angle 5: Implementation Divergence Table
 | Condition | Action | Stop condition |
