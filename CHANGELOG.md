@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **v1.0.30** — Add SP-aware DoT gating to all caster specs: Elemental Shaman Flame Shock (400 SP default, `elemental_flame_shock_min_sp` slider), Destruction Warlock Immolate (400 SP default, `destro_immolate_min_sp` slider), Balance Druid Insect Swarm + Moonfire (800 SP default, dual `balance_insect_swarm_min_sp` / `balance_moonfire_min_sp` sliders). All use `NS.get_spell_damage()` → `context.spell_damage` → 0 fallback pattern matching Shadow Priest/Affliction. Schemas updated with per-spec sliders (0–2000 range). Includes test fix for balance_custom_matches mock states and captures the earlier 5 PvP Tier 2 test additions (106→111 suites). Completes the deferred SP breakpoint research from `SP_Breakpoints_Druid_Balance.md`.
 - **v1.0.29** — Add [IMBUEDIAG] debug instrumentation to shaman leveling rotation: log enchant detection (item_has_enchant, enchant_id, expiration, charges), weapon_imbue_matches flow (rejection reasons, spell ready state), try_cast results, and off-hand weapon enchant state. Fix nil crash in spell_ids log. Remove dead OFF_HAND_SLOT constant.
 - **v1.0.28** — Bump all remaining per-cycle `[ROTDBG]` traces in `main_sylvanas.lua` from 500-1000ms to 2000ms: per-strategy `:blocked`, `:match`, `:exec` (was 700-1000ms), plus `target:pick`, `context:summary`, `gate:ooc`, `playstyle:active` (was 500ms). Debug output now ~10-15 lines/2s instead of 50+/frame.
 - **v1.0.27** — Rate-limit `[EaxRotations:main] CALLING on_rotation_update` in `main.lua` to 1 per 2 seconds (was: every frame).
