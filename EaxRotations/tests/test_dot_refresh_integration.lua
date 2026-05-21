@@ -6,6 +6,9 @@ _G.EaxRotations = NS
 
 pcall(dofile, "EaxRotations/shared/dot_refresh.lua")
 local DR = _G.DotRefresh or {}
+-- Wire NS registration (mirrors dot_refresh_sylvanas.lua)
+NS.should_refresh_dot = DR.should_refresh_dot
+NS.is_dot_active = DR.is_dot_active
 
 -- Test 1: dot remaining below refresh window, target lives long enough
 local r1 = DR.should_refresh_dot(0.5, 1.5, 60, 18)
