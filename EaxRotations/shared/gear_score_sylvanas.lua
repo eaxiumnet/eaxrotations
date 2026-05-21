@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper that calculates gear score and weak slots
+-- When: On demand during profile or character inspection
+-- Why: Summarize equipped item quality for tuning and reporting
+-- Safety: Uses slot constants, nil-guards missing items, and keeps estimates conservative
+-- ============================================================================
 -- Shared Helper: Gear Score Calculator
 -- ============================================================================
 local M = {}

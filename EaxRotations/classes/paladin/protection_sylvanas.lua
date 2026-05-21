@@ -1,5 +1,12 @@
 -- Paladin Protection priority list with holy threat, uncrushable logic, and seal/aura management.
 
+-- ============================================================================
+-- What: Paladin Protection priority with holy threat and seal/aura management.
+-- When: Evaluated every tick.
+-- Why: Priority-list early exit keeps tanking decisions fast and predictable.
+-- Safety: Nil-guarded state; conservative thresholds; NS.* helpers only.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}

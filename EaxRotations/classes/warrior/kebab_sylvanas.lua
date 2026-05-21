@@ -1,6 +1,10 @@
 -- ============================================================================
 -- Kebab Warrior Rotation (Project Sylvanas API)
 -- ============================================================================
+-- What: TBC dual-wield Arms ("Kebab") rotation with fast swings, Mortal Strike, and Whirlwind
+-- When: Per tick
+-- Why: Dual-wield rage flow and stance rules differ from standard two-hander Arms
+-- Safety: pcall-safe helper imports; nil-guarded weapon and stance checks; pre-allocated fallback tables
 -- "Kebab" = Dual-Wield Arms — a TBC live-play variant of Arms that uses
 -- one-handed weapons in both hands instead of a single two-hander.
 --

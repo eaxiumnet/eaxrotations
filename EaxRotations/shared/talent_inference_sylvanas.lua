@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper that infers class talents and primary spec from learned spells
+-- When: On demand with cached refreshes
+-- Why: Detect likely builds without requiring manual spec entry
+-- Safety: Uses cached results, nil-safe spell checks, and conservative fallbacks
+-- ============================================================================
 -- Shared Helper: Talent Inference
 -- ============================================================================
 local M = {}

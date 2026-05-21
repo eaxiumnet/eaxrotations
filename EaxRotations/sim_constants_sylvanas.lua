@@ -1,4 +1,10 @@
 -- runtime module.
+-- ============================================================================
+-- What: Derived TBC combat constants extracted from simulator outputs
+-- When: Loaded at startup for threshold and cap calculations
+-- Why: Keep rotation math aligned with validated simulation data
+-- Safety: Read-only constants only; values should be regenerated rather than edited by hand
+-- ============================================================================
 
 -- ============================================================================
 -- Sim-Derived Constants

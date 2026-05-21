@@ -1,5 +1,16 @@
 -- shared runtime for settings, spell safety, aura helpers, healing scans, and strategy registration.
-
+-- ============================================================================
+-- What: EaxRotations core runtime for NS.* helpers, aura data, healing scans, and strategy registration
+-- When: Loaded once at plugin startup by main.lua
+-- Why: Centralize risky API calls for nil safety and cache hot references for performance
+-- Safety: API calls are cached at load, pcall guards are used, and graceful fallbacks avoid crashes
+-- ============================================================================
+-- ============================================================================
+-- What: EaxRotations core runtime — NS.* API boundary, aura helpers, healing scans, strategy registry
+-- When: Loaded once at plugin startup by main.lua
+-- Why: Centralizes risky API calls for nil safety; caches refs for performance
+-- Safety: All API cached at module load; pcall guards; graceful fallbacks; no raw API calls
+-- ============================================================================
 
 
 local _G = _G

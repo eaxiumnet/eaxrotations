@@ -1,4 +1,10 @@
 -- Shaman leveling rotation.
+-- ============================================================================
+-- What: TBC Shaman leveling rotation for solo questing with shields, imbues, and totem upkeep
+-- When: Per tick
+-- Why: Leveling needs shared context guards plus safe maintenance logic for weak gear states
+-- Safety: Context guard required; pcall-safe spell checks; nil-guarded lookups; conservative fallback timers
+-- ============================================================================
 -- Auto-activates in solo/leveling context or when playstyle = "leveling".
 -- Uses shared leveling module for context guard, wand, and common helpers.
 

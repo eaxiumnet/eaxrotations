@@ -1,5 +1,12 @@
 -- TBC Retribution Paladin priority module for the Sylvanas dispatcher.
 
+-- ============================================================================
+-- What: TBC Retribution Paladin priority with seals, judgements, and burst.
+-- When: Evaluated every tick.
+-- Why: Priority-list early exit keeps DPS decisions fast and predictable.
+-- Safety: pcall-gated TBC data; nil-guarded helpers; conservative defaults.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 

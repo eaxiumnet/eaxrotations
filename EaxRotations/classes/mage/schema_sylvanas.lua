@@ -1,5 +1,12 @@
 -- Mage menu schema.
 
+-- ============================================================================
+-- What: Mage menu schema.
+-- When: Load time.
+-- Why: Define settings, sections, and conservative defaults.
+-- Safety: Static data only; no runtime logic.
+-- ============================================================================
+
 return {
     {
         name = "General",

@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper that estimates DPS from rotation inputs
+-- When: On demand during offline analysis and tuning
+-- Why: Compare strategy output without live combat dependencies
+-- Safety: Pure calculations, conservative assumptions, and nil-safe inputs
+-- ============================================================================
 -- Shared Helper: DPS Simulator
 -- ============================================================================
 local M = {}

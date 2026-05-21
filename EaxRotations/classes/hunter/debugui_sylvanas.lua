@@ -1,5 +1,12 @@
 -- optional Hunter debug facade.
 
+-- ============================================================================
+-- What: Optional Hunter debug facade for logging snapshots and state
+-- When: Loaded once; used only when debug output is enabled
+-- Why: Keeps debug-only logging separate from combat logic
+-- Safety: No combat actions; NS.log only; disabled by default
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 

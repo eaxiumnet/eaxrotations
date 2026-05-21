@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper that builds consistent strategy wrappers
+-- When: At strategy creation time and during load-time wiring
+-- Why: Keep spell, target, and debug behavior uniform across specs
+-- Safety: Nil-guards settings and targets, with conservative match defaults
+-- ============================================================================
 -- Shared Helper: Strategy Factory
 -- ============================================================================
 local M = {}

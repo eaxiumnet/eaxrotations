@@ -2,6 +2,13 @@
 -- Designed for solo/leveling play, from level 1 to 70.
 -- Handles unlearned spells gracefully via NS.spell_ready checks.
 
+-- ============================================================================
+-- What: Paladin leveling priority with seal, aura, and solo fallback logic.
+-- When: Evaluated every tick.
+-- Why: Fast priority path keeps leveling behavior simple and reliable.
+-- Safety: Unlearned spells are guarded; settings and helpers use conservative defaults.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}

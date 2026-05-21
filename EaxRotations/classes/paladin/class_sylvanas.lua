@@ -1,5 +1,12 @@
 -- Paladin spell table, playstyle config, and child module loader.
 
+-- ============================================================================
+-- What: Paladin spell table, playstyle config, and child module loader.
+-- When: Load time.
+-- Why: Centralize class registration and child module wiring.
+-- Safety: Class check returns cleanly; NS.* helpers only; graceful degradation.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local cl = require("shared/class_loader_sylvanas")

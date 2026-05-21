@@ -1,5 +1,12 @@
 -- Druid Bearpriority list for TBC tanking.
 
+-- ============================================================================
+-- What: TBC Druid Bear tank priority list with Mangle, Lacerate, Swipe, and survival cooldowns
+-- When: Evaluated every tick via main_sylvanas.lua dispatcher
+-- Why: Early-exit priority list keeps threat and defense checks cheap
+-- Safety: Nil-guarded settings; NS.* wrappers; pcall optional shared data; conservative defaults
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")

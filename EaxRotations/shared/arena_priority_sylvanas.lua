@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper that scores kill and CC targets in arena
+-- When: On demand during target selection
+-- Why: Prioritize the right enemy for pressure or crowd control
+-- Safety: Nil-guards unit reads, reuses buffers, and defaults conservatively
+-- ============================================================================
 -- Shared Helper: Arena Priority System
 -- ============================================================================
 local M = {}

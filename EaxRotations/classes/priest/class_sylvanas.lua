@@ -1,4 +1,10 @@
 -- Priest spell table, playstyle config, and child module loader.
+-- ============================================================================
+-- What: Priest spell table and playstyle loader
+-- When: Load time
+-- Why: Registers priest spells and loads child modules by class
+-- Safety: Class check on load, shared loader pattern, no runtime combat logic
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

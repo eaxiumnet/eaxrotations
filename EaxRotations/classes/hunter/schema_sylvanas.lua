@@ -1,5 +1,12 @@
 -- Hunter menu schema.
 
+-- ============================================================================
+-- What: Hunter menu schema for playstyle, rotation, and class settings
+-- When: Loaded once to build the class settings UI
+-- Why: Keeps Hunter options explicit and auditable in one place
+-- Safety: Static data only; conservative defaults; no runtime casts or API calls
+-- ============================================================================
+
 return {
     {
         name = "General",

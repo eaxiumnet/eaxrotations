@@ -1,5 +1,12 @@
 -- Druid shared middleware.
 
+-- ============================================================================
+-- What: Druid shared middleware for forms, consumables, interrupts, and recovery
+-- When: Runs before playstyle strategies each tick
+-- Why: Shared behaviors avoid duplication across Druid playstyles
+-- Safety: Returns cleanly when form, target, or settings do not permit action; uses NS.* wrappers and nil guards
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")

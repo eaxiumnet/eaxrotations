@@ -1,4 +1,10 @@
 -- Shaman menu schema.
+-- ============================================================================
+-- What: TBC Shaman settings schema for rotation, enhancement, and healing controls
+-- When: Load time
+-- Why: Defines user-facing options consumed by class, middleware, and playstyle files
+-- Safety: Conservative defaults; explicit toggles and dropdowns avoid unsafe automation
+-- ============================================================================
 
 return {
     {

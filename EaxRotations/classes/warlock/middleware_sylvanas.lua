@@ -1,4 +1,10 @@
 -- Warlock shared middleware.
+-- ============================================================================
+-- What: TBC Warlock middleware for interrupts, threat drops, defensives, and consumables
+-- When: Per tick
+-- Why: Shared recovery and survival logic should run before playstyle-specific priorities
+-- Safety: Settings and targets are nil-guarded; optional modules load conservatively; item use is checked before cast
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

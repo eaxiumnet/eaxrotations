@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for detecting and managing temporary weapon enchants
+-- When: On demand during buff checks and weapon state queries
+-- Why: Keep imbue-dependent logic accurate across both weapon slots
+-- Safety: Probes API availability, nil-guards equipment lookups, and falls back safely
+-- ============================================================================
 -- Shared Helper: Weapon Imbue Manager
 -- Uses GetWeaponEnchantInfo() (TBC API from wow_api_clone.lua)
 --   + item:item_has_enchant() via equipped item slots

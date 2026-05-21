@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared combat session tracker for metrics and DoT uptime
+-- When: On combat start, cast, tick, and combat end events
+-- Why: Capture session statistics for tuning and debugging
+-- Safety: Session state is reset cleanly and defaults stay conservative
+-- ============================================================================
 -- Shared Helper: Combat Statistics Tracker
 -- ============================================================================
 local M = {}

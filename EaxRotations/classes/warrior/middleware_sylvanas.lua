@@ -1,4 +1,10 @@
 -- Warrior shared middleware.
+-- ============================================================================
+-- What: TBC Warrior middleware for defensives, self-buffs, and interrupt support
+-- When: Per tick
+-- Why: Shared survival logic should execute before individual playstyle priorities
+-- Safety: Settings and player lookup are nil-guarded; optional modules load conservatively; stance changes are gated
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

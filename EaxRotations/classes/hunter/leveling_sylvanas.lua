@@ -2,6 +2,13 @@
 -- Designed for solo/leveling play, from level 1 to 70.
 -- Handles unlearned spells gracefully via NS.spell_ready checks.
 
+-- ============================================================================
+-- What: Hunter leveling priority list for solo questing and pet-supported play
+-- When: Evaluated by the leveling dispatcher in solo or leveling context
+-- Why: Centralizes low-level shot, pet, and aspect decisions for predictable leveling
+-- Safety: Context guard and spell checks are nil-safe; conservative fallback behavior
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}

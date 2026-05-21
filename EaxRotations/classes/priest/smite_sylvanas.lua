@@ -1,5 +1,11 @@
 -- ============================================================================
 -- Priest Smite DPS Rotation
+-- ============================================================================
+-- What: TBC Priest Smite DPS rotation with shadow utility
+-- When: Per tick
+-- Why: Maintains offensive cadence while preserving self-defense and mana gates
+-- Safety: Load-time class gating, nil-guarded buff/debuff checks, conservative mana/threat thresholds
+-- ============================================================================
 -- Holy DPS with Shadow Weaving/Misery utility via SW:P
 -- Holy Fire Weave optimization, Surge of Light procs
 -- ============================================================================

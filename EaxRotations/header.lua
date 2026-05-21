@@ -1,5 +1,16 @@
 -- early plugin metadata and class load gate.
-
+-- ============================================================================
+-- What: Bootstrap gate that validates the player exists and the class is supported
+-- When: Loaded first by the Sylvanas runtime before other framework code
+-- Why: Fail fast on partial state and skip unsupported classes safely
+-- Safety: Nil-guarded API checks and enum fallback if common/enums is missing
+-- ============================================================================
+-- ============================================================================
+-- What: EaxRotations bootstrap gate — validates player exists and class is supported
+-- When: Loaded first by Sylvanas runtime; runs before any other framework code
+-- Why: Fail-fast prevents crashes from partial state; class filter avoids loading unsupported modules
+-- Safety: Nil-guarded API call; enum fallback if common/enums missing
+-- ============================================================================
 -- ============================================================================
 -- EaxRotations - Header File
 -- Project Sylvanas API - Script Registration

@@ -1,4 +1,10 @@
 -- Warlock menu schema.
+-- ============================================================================
+-- What: TBC Warlock settings schema for rotation, survival, pet, consumable, and leveling controls
+-- When: Load time
+-- Why: Exposes the playstyle and safety knobs consumed by the rotation files
+-- Safety: Conservative defaults; explicit toggles keep risky automation opt-in
+-- ============================================================================
 
 return {
     {

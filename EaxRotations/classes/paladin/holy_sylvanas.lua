@@ -1,5 +1,12 @@
 -- Paladin Holy group-healing playstyle with TBC healing, blessings, dispels, mana, and PvP utility.
 
+-- ============================================================================
+-- What: Paladin Holy group-healing with blessings, dispels, mana, and PvP utility.
+-- When: Evaluated every tick.
+-- Why: Priority-list early exit keeps healing decisions fast and predictable.
+-- Safety: NS.PaladinHealing fallback; pcall-gated TBC data; nil-guarded settings.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}

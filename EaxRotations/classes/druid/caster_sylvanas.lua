@@ -1,5 +1,12 @@
 -- Druid Caster priority list.
 
+-- ============================================================================
+-- What: TBC Druid caster-form priority list for Moonfire, Wrath, Starfire, and Innervate
+-- When: Evaluated every tick via main_sylvanas.lua dispatcher
+-- Why: Separate caster-form list keeps off-form utility and damage decisions readable
+-- Safety: Nil-guarded settings; NS.* wrappers; safe fallbacks for missing spell data
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}

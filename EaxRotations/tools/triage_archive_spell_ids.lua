@@ -1,3 +1,12 @@
+-- ============================================================================
+-- Build-only audit tool: triages archive vs current spell IDs.
+-- ============================================================================
+-- What: Compares old archive spell lists against current implementation
+-- When: Run manually during migration reviews; NOT loaded by runtime
+-- Why: Prevents accidental reversion of corrected spell IDs
+-- Safety: Requires network and curl; runs in isolated build context only
+-- ============================================================================
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
 local BUILD = "2.5.4.42940"
@@ -59,11 +68,17 @@ local function write_file(path, data)
 end
 
 local function command_output(command)
-    local pipe = io.popen(command)
-    if not pipe then return "" end
-    local data = pipe:read("*a")
-    pipe:close()
-    return data or ""
+    local tmp = os.tmpname() or (os.getenv("TEMP") or "/tmp") .. "/eax_wago_out.txt"
+    local redirect = command .. " > " .. tmp .. " 2>nul"
+    local ok = os.execute(redirect)
+    local f = io.open(tmp, "rb")
+    local data = ""
+    if f then
+        data = f:read("*a") or ""
+        f:close()
+    end
+    os.remove(tmp)
+    return data
 end
 
 local function fetch_csv(table_name)

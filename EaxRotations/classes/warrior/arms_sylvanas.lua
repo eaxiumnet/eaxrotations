@@ -1,4 +1,10 @@
 -- Warrior Arms priority list for TBC Sylvanas rotations.
+-- ============================================================================
+-- What: TBC Warrior Arms rotation with stance dancing, rage pooling, and Slam weaving
+-- When: Per tick
+-- Why: Arms priorities depend on swing timing, execute phase, and debuff upkeep
+-- Safety: Optional swing timer uses pcall; helpers are nil-guarded; rage thresholds stay conservative
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

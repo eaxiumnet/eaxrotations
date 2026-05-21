@@ -1,4 +1,10 @@
 -- Rogue shared middleware.
+-- ============================================================================
+-- What: Rogue shared middleware for emergency defensives and consumables
+-- When: Per tick
+-- Why: Keeps survivability tools and Thistle Tea separate from spec priorities
+-- Safety: Settings nil-guards, pcall on class/spell lookups, item availability checks
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

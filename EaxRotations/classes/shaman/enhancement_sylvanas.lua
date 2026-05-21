@@ -1,4 +1,10 @@
 -- Shaman Enhancement rotation - FrostByte feature port v2.0.
+-- ============================================================================
+-- What: TBC Shaman Enhancement rotation with weapon imbues, totem twisting, and shield swapping
+-- When: Per tick
+-- Why: High-frequency totem and weapon timing needs cached state for stable priority decisions
+-- Safety: Totem/object scans are throttled; optional modules use pcall; nil-guarded NS/core lookups; conservative refresh timers
+-- ============================================================================
 -- Features: per-slot weapon buffs, smart shield auto-swap, totem twisting
 -- with Fire Nova cycle, shock priority, randomized interrupts, Ghost Wolf OOC
 

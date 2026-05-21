@@ -1,4 +1,10 @@
 -- TBC Warlock Affliction priority list with multi-DoT cycling, Nightfall procs, and execute drain.
+-- ============================================================================
+-- What: TBC Warlock Affliction multi-DoT rotation with curses, drains, and execute handling
+-- When: Per tick
+-- Why: Refresh windows and proc tracking need cached state to keep DoTs stable
+-- Safety: Spell IDs are ordered newest-to-oldest; optional data uses pcall; timers and lookups are nil-guarded
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

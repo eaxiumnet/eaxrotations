@@ -1,5 +1,12 @@
 -- Hunter Beast Mastery — FrostByte Parity (1-70)
 -- Auto-shot timer, pet mgmt, dynamic aspects, stings, threat, pull modes, melee, AoE
+
+-- ============================================================================
+-- What: Hunter Beast Mastery priority list with auto-shot timing, pet control, and pull modes
+-- When: Evaluated every tick via main_sylvanas.lua dispatcher
+-- Why: Priority-list early-exit keeps ranged, pet, and threat checks efficient
+-- Safety: Nil-guarded settings; NS.* wrappers; pcall optional shared helpers; conservative fallback behavior
+-- ============================================================================
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}

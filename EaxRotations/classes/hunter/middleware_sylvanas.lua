@@ -1,5 +1,12 @@
 -- Hunter shared middleware.
 
+-- ============================================================================
+-- What: Hunter shared middleware for interrupts, threat drop, pet, and utility logic
+-- When: Runs before playstyle strategies each tick
+-- Why: Shared behaviors avoid duplication across Hunter playstyles
+-- Safety: Returns cleanly when conditions do not permit action; uses NS.* wrappers and nil guards
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")

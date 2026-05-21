@@ -1,5 +1,12 @@
 -- Hunter Survival priority list.
 
+-- ============================================================================
+-- What: Hunter Survival priority list with traps, shots, and ranged control tools
+-- When: Evaluated every tick via main_sylvanas.lua dispatcher
+-- Why: Priority-list early-exit keeps control and damage checks efficient
+-- Safety: Nil-guarded settings; NS.* wrappers; optional clip tracker; conservative fallback behavior
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}

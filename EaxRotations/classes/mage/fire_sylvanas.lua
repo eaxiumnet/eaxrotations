@@ -1,5 +1,12 @@
 -- Mage Fire priority list.
 
+-- ============================================================================
+-- What: TBC Mage Fire priority with Scorch stacks, AoE, and mana gem usage.
+-- When: Evaluated every tick.
+-- Why: Priority-list early exit keeps combat decisions fast and predictable.
+-- Safety: All settings nil-guarded; spell checks are gated; conservative defaults.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}

@@ -65,17 +65,8 @@ function M.is_dot_active(dot_remaining, threshold)
     return (dot_remaining or 0) > (threshold or 0)
 end
 
--- ============================================================================
--- ============================================================================
+-- Standalone test fallback
 local _G = _G
-if _G.EaxRotations then
-    _G.EaxRotations.should_refresh_dot = M.should_refresh_dot
-    _G.EaxRotations.is_dot_active = M.is_dot_active
-end
-
--- ============================================================================
--- Global fallback: make available via _G for unit tests (dofile pattern)
--- ============================================================================
 _G.DotRefresh = M
 
 return M

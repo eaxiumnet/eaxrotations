@@ -1,4 +1,10 @@
 -- render/menu helper.
+-- ============================================================================
+-- What: Combat dashboard and overlay helper built on the core.menu window API
+-- When: During render/menu updates
+-- Why: Surface live combat and rotation state in a compact overlay
+-- Safety: Render-only logic, static buffers, and nil-safe getter usage
+-- ============================================================================
 
 -- ============================================================================
 -- EaxRotations Dashboard Module

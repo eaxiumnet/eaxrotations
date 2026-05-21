@@ -1,13 +1,13 @@
+-- Build-time audit tool: scans Lua files for known bad patterns.
+-- This is a non-runtime tool; external commands are used for directory listing when LuaFileSystem is unavailable.
+-- ============================================================================
+
 local root = arg and arg[1] or "EaxRotations"
 local report_path = root .. "/docs/STATIC_BEHAVIOR_AUDIT.md"
 
-local function command_output(command)
-    local pipe = io.popen(command)
-    if not pipe then return "" end
-    local data = pipe:read("*a")
-    pipe:close()
-    return data or ""
-end
+-- Try LuaFileSystem first to avoid os.execute
+local _lfs_ok, lfs = pcall(require, "lfs")
+if not _lfs_ok then lfs = nil end
 
 local function read_file(path)
     local f = io.open(path, "rb")
@@ -24,11 +24,40 @@ local function write_file(path, data)
 end
 
 local function list_lua_files()
-    local cmd = "powershell -NoProfile -Command \"Get-ChildItem -LiteralPath '" .. root .. "' -Recurse -File -Filter *.lua | ForEach-Object { $_.FullName }\""
     local files = {}
-    for path in command_output(cmd):gmatch("[^\r\n]+") do
-        local rel = path:gsub("\\", "/")
-        files[#files + 1] = rel
+    if lfs then
+        -- Pure Lua with LuaFileSystem
+        local function walk(dir)
+            for entry in lfs.dir(dir) do
+                if entry ~= "." and entry ~= ".." then
+                    local full = dir .. "/" .. entry
+                    local attr = lfs.attributes(full)
+                    if attr then
+                        if attr.mode == "directory" then
+                            walk(full)
+                        elseif entry:match("%.lua$") then
+                            local rel = full:gsub("^" .. root:gsub("%-", "%%-") .. "/", "")
+                            files[#files + 1] = rel
+                        end
+                    end
+                end
+            end
+        end
+        walk(root)
+    else
+        -- Fallback: use external command only if lfs is missing
+        local tmp = os.tmpname() or (os.getenv("TEMP") or "/tmp") .. "/eax_audit_files.txt"
+        local cmd = 'powershell -NoProfile -Command "Get-ChildItem -LiteralPath \'' .. root .. '\' -Recurse -File -Filter *.lua | ForEach-Object { $_.FullName }"'
+        os.execute(cmd .. " > " .. tmp .. " 2>nul")
+        local f = io.open(tmp, "rb")
+        if f then
+            for line in f:read("*a"):gmatch("[^\r\n]+") do
+                local rel = line:gsub("\\", "/")
+                files[#files + 1] = rel
+            end
+            f:close()
+        end
+        os.remove(tmp)
     end
     table.sort(files)
     return files

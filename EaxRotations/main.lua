@@ -1,4 +1,10 @@
 -- bootstrap for shared runtime, UI, and class loading.
+-- ============================================================================
+-- What: EaxRotations bootstrap that loads shared runtime, UI, and class modules
+-- When: At startup while the plugin initializes
+-- Why: Establish the framework in dependency order before any class logic runs
+-- Safety: Requires are explicit, load order is controlled, and module availability is checked conservatively
+-- ============================================================================
 
 -- ============================================================================
 -- EaxRotations - Main File

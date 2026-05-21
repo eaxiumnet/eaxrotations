@@ -1,4 +1,8 @@
 -- ============================================================================
+-- What: TBC Priest Holy healing rotation and FrostByte utility actions
+-- When: Per tick
+-- Why: Priority healing with shared scan state and preallocated options keeps triage fast
+-- Safety: Nil-guarded NS helpers, pcall on optional modules/items, conservative defaults
 -- ============================================================================
 local _G = _G
 local NS = _G.EaxRotations

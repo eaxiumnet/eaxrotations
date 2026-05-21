@@ -1,4 +1,10 @@
 -- Priest leveling priority list
+-- ============================================================================
+-- What: Priest leveling rotation for solo questing and wand fallback
+-- When: Per tick
+-- Why: Uses shared leveling flow to keep the solo rotation simple and safe
+-- Safety: pcall around spell and buff helpers, disabled Sap by default, nil-guarded target checks
+-- ============================================================================
 -- Designed for solo/leveling play, from level 1 to 70
 -- Handles unlearned spells gracefully via NS.spell_ready checks
 -- Uses wand/Shoot as fallback when out of mana

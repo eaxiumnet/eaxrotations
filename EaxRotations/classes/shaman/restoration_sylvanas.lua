@@ -1,4 +1,10 @@
 -- Shaman Restoration group-healing playstyle.
+-- ============================================================================
+-- What: TBC Shaman Restoration healing rotation with shields, mana tools, and totem upkeep
+-- When: Per tick
+-- Why: Healing triage depends on cached shield, cooldown, and totem state
+-- Safety: Local timers are cached; NS/core helpers are nil-guarded; conservative defaults when APIs fail
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

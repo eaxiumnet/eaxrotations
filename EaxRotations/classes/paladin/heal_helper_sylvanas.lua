@@ -1,6 +1,8 @@
 -- ============================================================================
--- Paladin Healing Utilities (EaxRotations)
--- Party/raid scanning and healing utilities for Holy Paladin
+-- What: Paladin healing utilities for party and raid scanning.
+-- When: Load time and scan ticks.
+-- Why: Centralize healing target selection and helper logic.
+-- Safety: Graceful nil returns; NS.* helpers; no hard failures.
 -- ============================================================================
 local _G = _G
 local NS = _G.EaxRotations

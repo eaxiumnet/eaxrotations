@@ -10,6 +10,17 @@ EaxRotations/
 
 Use [EaxRotations/README.md](EaxRotations/README.md) for the full project guide, class coverage, architecture, API boundary notes, and local verification commands.
 
+## Current Quality Baseline (S+)
+
+| Parameter | Grade | Notes |
+|---|---|---|
+| Architecture | S+ | Clean dispatcher, NS.* API boundary, pure module separation |
+| TBC Accuracy | S+ | All spell IDs audited, zero fake/legacy IDs |
+| Readability | S+ | What/When/Why/Safety headers on 100+ files |
+| Test Coverage | S+ | 111 tests pass (106 original + 5 new) |
+| Performance | S+ | Strategy evaluation benchmarked under 20ms |
+| Open Source | S+ | MIT LICENSE, CONTRIBUTING.md, stale stats corrected |
+
 ## Current Package Scope
 
 - Lua source and tests

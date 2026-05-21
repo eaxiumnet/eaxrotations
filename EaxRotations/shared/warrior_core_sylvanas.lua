@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for warrior stance, opener, shout, and rage logic
+-- When: Loaded once and consulted during per-tick combat decisions
+-- Why: Centralize warrior-specific shared behavior for all specs
+-- Safety: Nil-guards stance/target checks, conservative defaults, and NS.* helpers
+-- ============================================================================
 -- Shared Helper: Warrior Core
 -- Stance management, aggro opener, shout handling, rage utilities
 -- ============================================================================

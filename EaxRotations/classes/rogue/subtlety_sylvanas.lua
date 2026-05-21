@@ -1,4 +1,10 @@
 -- Rogue Subtlety priority list: TBC Shadowstep burst, Hemorrhage upkeep, and PvP control chains.
+-- ============================================================================
+-- What: TBC Rogue Subtlety rotation with stealth openers, Shadowstep burst, and control
+-- When: Per tick
+-- Why: Priority list balances openers, burst, and PvP control chains
+-- Safety: Nil-guarded target/state checks, bounded range logic, conservative opener rules
+-- ============================================================================
 -- Order is intentional: survival/interrupts, stealth setup, burst/control, finishers, builders.
 local NS = _G.EaxRotations
 if not NS then return nil end
