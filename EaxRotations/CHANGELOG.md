@@ -7,7 +7,7 @@
 - Improved Warrior buff-cancel and Shaman totem handling through safer shared helpers.
 - Cleaned the release package so it contains only Lua source and Markdown documentation.
 - Added audit documentation for spell IDs, archive comparisons, and static behavior checks.
-- Verified release health: Lua syntax passes, all 84 regression suites pass, online TBC ID audit passes, and package file-type checks pass.
+- Verified release health: Lua syntax passes, all 106 regression suites pass, online TBC ID audit passes, and package file-type checks pass.
 
 ## 1.0.14 - 2026-05-15
 

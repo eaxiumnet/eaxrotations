@@ -6,9 +6,7 @@ EaxRotations is a comprehensive TBC Classic rotation framework for Project Sylva
 
 The package is intended to be readable, auditable, and practical for community use. Release contents should be Markdown documentation and Lua source/tests only.
 
----
-
-## What It Does
+**Stats:** ~273 Lua files, 29 class playstyles, 106 regression tests, ~72,000 lines of Lua.
 
 EaxRotations automates class rotation decisions through Project Sylvanas APIs. It does not blindly press buttons. Every action is expected to pass shared gates before a cast is attempted:
 
@@ -647,8 +645,8 @@ The audit reports are written to `EaxRotations/docs/`.
 
 The current project is expected to pass:
 
-- Lua syntax checks across all Lua files (40 files)
-- All 40 regression tests
+- Lua syntax checks across all Lua files (~273 files)
+- All 106 regression tests (95 rotation + 11 leveling)
 - API lint tests
 - resource-gating tests
 - middleware match tests
@@ -674,7 +672,7 @@ The current project is expected to pass:
 Before publishing a community build:
 
 - [ ] run syntax checks (all files pass `luac -p`)
-- [ ] run all Lua tests (40 tests pass)
+- [ ] run all Lua tests (106 tests pass)
 - [ ] confirm only Markdown and Lua files are included
 - [ ] scan public documentation for stale internal wording
 - [ ] test at least one DPS, one tank, and one healer profile in game
