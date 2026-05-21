@@ -1,4 +1,10 @@
 -- Warlock spell table, playstyle config, and child module loader.
+-- ============================================================================
+-- What: TBC Warlock spell table and class bootstrap for all warlock playstyles
+-- When: Load time
+-- Why: Centralizes spell objects and child registration before strategy files load
+-- Safety: Class check gates loading; shared loader handles children; nil-guarded player lookup
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

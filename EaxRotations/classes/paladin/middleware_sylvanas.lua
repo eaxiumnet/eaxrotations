@@ -1,5 +1,12 @@
 -- Paladin shared middleware.
 
+-- ============================================================================
+-- What: Cross-playstyle paladin middleware.
+-- When: Before strategies each tick.
+-- Why: Shared defensives, interrupts, and utility stay in one place.
+-- Safety: Nil-guarded settings; clean false returns; NS.* helpers only.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")

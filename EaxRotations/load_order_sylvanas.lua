@@ -1,4 +1,10 @@
 -- runtime module.
+-- ============================================================================
+-- What: Documentation-only file describing the API/load order for Sylvanas modules
+-- When: At build/doc review time, not during live rotation logic
+-- Why: Preserve dependency ordering notes without keeping a live runtime table
+-- Safety: Comment-only documentation, so it has no runtime side effects
+-- ============================================================================
 
 -- ============================================================================
 -- EaxRotations - Project Sylvanas API

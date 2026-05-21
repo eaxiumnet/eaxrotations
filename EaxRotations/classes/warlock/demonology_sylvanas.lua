@@ -1,4 +1,10 @@
 -- Warlock Demonology priority list.
+-- ============================================================================
+-- What: TBC Warlock Demonology priority list with pet, survivability, and spell readiness tracking
+-- When: Per tick
+-- Why: Demonology priorities depend on cached pet state and defensive readiness
+-- Safety: Pet access uses pcall; helper checks are nil-guarded; conservative defaults when state is missing
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

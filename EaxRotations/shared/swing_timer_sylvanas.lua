@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper that tracks weapon swing timers and weaving windows
+-- When: Updated periodically from on_update and spell-cast events
+-- Why: Avoid clipping swings while enabling safer melee/caster weaving
+-- Safety: Nil-guards swing data, reuses state tables, and keeps timing conservative
+-- ============================================================================
 -- Shared Helper: Swing Timer Enhancement
 -- ============================================================================
 local M = {}

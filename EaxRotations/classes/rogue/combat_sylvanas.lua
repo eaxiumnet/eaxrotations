@@ -1,4 +1,10 @@
 -- Rogue Combat priority list.
+-- ============================================================================
+-- What: TBC Rogue Combat rotation with energy pooling and cooldown alignment
+-- When: Per tick
+-- Why: Maintains SnD, Rupture, and burst timing while avoiding energy waste
+-- Safety: Cached state tables, no per-tick allocations in hot path, conservative spend/pool gates
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

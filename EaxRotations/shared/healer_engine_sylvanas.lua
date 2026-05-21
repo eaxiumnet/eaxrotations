@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared healer engine for stop-cast, pre-heal, and target scoring
+-- When: Per tick during healing decisions
+-- Why: Reduce overheal and choose better heal targets
+-- Safety: Throttled cancel checks, nil-guarded targets, and conservative thresholds
+-- ============================================================================
 -- Shared Helper: Healer Engine
 -- Stop-cast (overheal prevention), pre-heal (proactive), target scoring
 -- ============================================================================

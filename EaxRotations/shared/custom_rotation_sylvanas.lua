@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for custom rotation profiles and condition execution
+-- When: On tick while evaluating custom profiles
+-- Why: Let data-driven profiles drive actions without bespoke class code
+-- Safety: Validates profiles, nil-guards settings/spells/targets, and falls back safely
+-- ============================================================================
 -- Shared Helper: Custom Rotation Engine
 -- ============================================================================
 local M = {}

@@ -1,4 +1,10 @@
 -- Warlock Destruction priority list.
+-- ============================================================================
+-- What: TBC Warlock Destruction priority list for nukes, AoE, and emergency survivability
+-- When: Per tick
+-- Why: Build-once state keeps burst, armor, and execute choices cheap and predictable
+-- Safety: Buff scans and readiness checks are nil-guarded; optional spell data falls back conservatively
+-- ============================================================================
 
 --
 local NS = _G.EaxRotations

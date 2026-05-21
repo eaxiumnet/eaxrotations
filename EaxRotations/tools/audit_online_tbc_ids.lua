@@ -1,3 +1,12 @@
+-- ============================================================================
+-- Build-only audit tool: validates TBC spell IDs against wago.tools DB2 CSV.
+-- ============================================================================
+-- What: Fetches official spell data from wago.tools and checks against codebase
+-- When: Run manually before release; NOT loaded by runtime
+-- Why: Ensures all spell IDs in the repo match TBC 2.5.4 DB2
+-- Safety: Requires network and curl; runs in isolated build context only
+-- ============================================================================
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
 local BUILD = "2.5.4.42940"
@@ -10,11 +19,17 @@ local function fail(msg)
 end
 
 local function command_output(command)
-    local pipe = io.popen(command)
-    if not pipe then return nil end
-    local data = pipe:read("*a")
-    local ok = pipe:close()
-    if ok == nil then return nil end
+    local tmp = os.tmpname() or (os.getenv("TEMP") or "/tmp") .. "/eax_wago_out.txt"
+    local redirect = command .. " > " .. tmp .. " 2>nul"
+    local ok = os.execute(redirect)
+    local f = io.open(tmp, "rb")
+    local data = nil
+    if f then
+        data = f:read("*a")
+        f:close()
+    end
+    os.remove(tmp)
+    if ok ~= true and ok ~= 0 then return nil end
     return data
 end
 

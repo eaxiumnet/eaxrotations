@@ -1,4 +1,10 @@
 -- Rogue leveling rotation.
+-- ============================================================================
+-- What: Rogue leveling rotation for solo questing and stealth openers
+-- When: Per tick
+-- Why: Uses shared leveling state so solo combat stays simple and predictable
+-- Safety: pcall around spell and buff helpers, disabled Sap by default, nil-guarded target checks
+-- ============================================================================
 -- Auto-activates in solo/leveling context or when playstyle = "leveling".
 -- Uses shared leveling module for context guard, wand, and common helpers.
 

@@ -1,4 +1,10 @@
 -- Shaman Elemental priority list.
+-- ============================================================================
+-- What: TBC Shaman Elemental priority list for Lightning Bolt, shocks, and totem support
+-- When: Per tick
+-- Why: Mana thresholds and debuff windows drive the ranged DPS priority order
+-- Safety: Fallback spell tables; nil-guarded state queries; conservative mana defaults
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

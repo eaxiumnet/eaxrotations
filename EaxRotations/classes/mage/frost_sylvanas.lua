@@ -1,5 +1,12 @@
 -- Mage Frost priority list.
 
+-- ============================================================================
+-- What: TBC Mage Frost priority with control, defensive, and burst logic.
+-- When: Evaluated every tick.
+-- Why: Priority-list early exit keeps combat decisions fast and predictable.
+-- Safety: All settings nil-guarded; shared data is pcall-gated; conservative fallbacks.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}

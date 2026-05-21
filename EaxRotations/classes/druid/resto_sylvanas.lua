@@ -1,5 +1,12 @@
 -- TBC Restoration Druid priority list for group healing, HoT rolling, dispels, mana, forms, and light PvP.
 
+-- ============================================================================
+-- What: TBC Restoration Druid priority list for healing, HoTs, dispels, mana, and light PvP
+-- When: Evaluated every tick via main_sylvanas.lua dispatcher
+-- Why: Priority-list early-exit keeps triage and HoT maintenance fast
+-- Safety: Nil-guarded settings; NS.* wrappers; shared healing helpers; conservative defaults
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}

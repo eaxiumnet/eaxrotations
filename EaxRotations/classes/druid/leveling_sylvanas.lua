@@ -3,6 +3,13 @@
 -- Uses shared leveling module for context guard, wand, and common helpers.
 -- Designed for caster-form solo leveling (Moonfire, Wrath, Starfire, Insect Swarm).
 
+-- ============================================================================
+-- What: Druid leveling rotation for solo caster-form questing
+-- When: Evaluated on leveling/solo context by shared leveling dispatcher
+-- Why: Centralizes Moonfire/Wrath/Starfire decisions for early leveling
+-- Safety: Context guard and spell checks are nil-safe; conservative fallback behavior
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 

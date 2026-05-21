@@ -1,4 +1,10 @@
 -- TBC Rogue Assassination priority list with Mutilate CP building,
+-- ============================================================================
+-- What: TBC Rogue Assassination rotation with Mutilate, poison upkeep, and finisher priority
+-- When: Per tick
+-- Why: Keeps deadly poison stacks and finisher timing aligned for sustained damage
+-- Safety: Pre-allocated state, nil-guarded target/item checks, conservative energy thresholds
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

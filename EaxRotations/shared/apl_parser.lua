@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper that parses SimC APL text into native strategy tables
+-- When: On demand during profile import / APL parsing
+-- Why: Convert SimulationCraft actions into rotation definitions without manual translation
+-- Safety: Validates tokens, preserves defaults, and nil-guards malformed config
+-- ============================================================================
 -- Shared Helper: SimC APL Parser
 -- ============================================================================
 -- Usage:

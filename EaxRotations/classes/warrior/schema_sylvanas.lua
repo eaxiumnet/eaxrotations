@@ -1,4 +1,10 @@
 -- Warrior menu schema.
+-- ============================================================================
+-- What: TBC Warrior settings schema for rotations, PvP defensives, tactician weaving, and leveling
+-- When: Load time
+-- Why: Defines the user-facing controls consumed by all warrior playstyles
+-- Safety: Conservative defaults; explicit toggles keep risky automation opt-in
+-- ============================================================================
 
 return {
     {

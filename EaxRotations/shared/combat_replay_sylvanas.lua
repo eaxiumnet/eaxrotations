@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for recording and replaying combat events
+-- When: On event callbacks and replay/debug inspection
+-- Why: Preserve fight flow for analysis and rotation debugging
+-- Safety: Bounded state, nil-guarded lookups, and conservative fallbacks
+-- ============================================================================
 -- Shared Helper: Combat Replay (Sylvanas)
 -- ============================================================================
 local _G = _G

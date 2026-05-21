@@ -1,5 +1,12 @@
 -- lightweight Hunter shot timing state.
 
+-- ============================================================================
+-- What: Lightweight Hunter shot timing state for clip and auto-shot tracking
+-- When: Loaded once, then updated by shot events and checks
+-- Why: Centralizes timing state so marksmanship and survival can share it
+-- Safety: NS time helpers only; static table reuse; conservative defaults when timing is unknown
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 

@@ -1,5 +1,16 @@
 -- update dispatcher for class middleware and selected playstyle strategies.
-
+-- ============================================================================
+-- What: EaxRotations update dispatcher that runs middleware and playstyle priorities
+-- When: Every tick during the on_update callback
+-- Why: First-successful-action-wins keeps rotation behavior predictable and fast
+-- Safety: Error logging is rate-limited, transitions are throttled, and middleware gates strategies
+-- ============================================================================
+-- ============================================================================
+-- What: EaxRotations update dispatcher — middleware then playstyle priority list
+-- When: Every tick (~20-50ms throttle) during on_update callback
+-- Why: First-successful-action-wins keeps rotation predictable and fast
+-- Safety: Error handler rate-limits logs; combat transitions throttled; middleware checks before strategies
+-- ============================================================================
 local NS = _G.EaxRotations
 if not NS then return nil end
 

@@ -1,4 +1,10 @@
 -- Warlock leveling priority list.
+-- ============================================================================
+-- What: TBC Warlock leveling rotation for solo questing, pet support, and wand fallback
+-- When: Per tick
+-- Why: Leveling needs shared context guards plus safe spell gating for unlearned ranks
+-- Safety: pcall-protected helpers; nil-guarded buffs/debuffs; conservative defaults for missing spells
+-- ============================================================================
 -- Designed for solo/leveling play, from level 1 to 70.
 -- Handles unlearned spells gracefully via NS.spell_ready checks.
 -- Uses wand/Shoot as fallback when out of mana.

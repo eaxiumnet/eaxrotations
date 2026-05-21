@@ -1,4 +1,10 @@
 -- Rogue menu schema.
+-- ============================================================================
+-- What: Rogue settings schema for combat, subtlety, assassination, and leveling
+-- When: Load time
+-- Why: Centralizes configurable thresholds and toggles for rogue playstyles
+-- Safety: Static defaults only, no runtime API calls
+-- ============================================================================
 
 return {
     {

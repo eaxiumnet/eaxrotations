@@ -1,4 +1,10 @@
 -- Warrior Protection priority list.
+-- ============================================================================
+-- What: TBC Warrior Protection rotation for threat, mitigation, and emergency control
+-- When: Per tick
+-- Why: Tank priorities need cached debuff stacks, stance, and defensive readiness
+-- Safety: Nil-guarded state build; conservative thresholds; test assertions preserved for regression coverage
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

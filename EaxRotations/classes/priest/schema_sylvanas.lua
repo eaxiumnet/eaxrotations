@@ -1,4 +1,10 @@
 -- Priest menu schema.
+-- ============================================================================
+-- What: Priest settings schema for healing, shadow, and leveling
+-- When: Load time
+-- Why: Defines user-facing options for all priest playstyles in one place
+-- Safety: Static defaults only, no runtime API calls
+-- ============================================================================
 
 return {
     {

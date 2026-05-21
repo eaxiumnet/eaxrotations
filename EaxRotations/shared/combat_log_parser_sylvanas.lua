@@ -1,5 +1,12 @@
 -- shared combat log parser and rolling buffer.
 
+-- ============================================================================
+-- What: Shared combat log parser with a rolling event buffer
+-- When: On combat-log event delivery
+-- Why: Normalize raw log lines for downstream tracking and replay modules
+-- Safety: Ignores malformed lines, uses bounded buffering, and keeps defaults conservative
+-- ============================================================================
+
 local core = _G.core
 
 local M = {}

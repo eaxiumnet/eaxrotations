@@ -2,6 +2,10 @@
 -- Shaman Healing Utilities (EaxRotations)
 -- Party/raid scanning and healing utilities for Restoration Shaman
 -- ============================================================================
+-- What: TBC Shaman healing utilities for party scanning and triage support
+-- When: Per tick
+-- Why: Restoration decisions reuse a cached scan so multiple queries stay cheap and consistent
+-- Safety: Per-frame cache; import helpers are nil-guarded; unit and dispel checks fail closed
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then

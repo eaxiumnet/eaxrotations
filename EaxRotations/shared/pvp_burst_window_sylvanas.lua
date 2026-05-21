@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper that scores PvP burst windows
+-- When: On demand during target evaluation
+-- Why: Identify when offensive cooldowns are likely to land effectively
+-- Safety: Nil-guards HP/CD/buff checks and uses conservative scoring thresholds
+-- ============================================================================
 -- Shared Helper: PvP Burst Window Scoring
 -- ============================================================================
 local M = {}

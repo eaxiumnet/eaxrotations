@@ -1,5 +1,12 @@
 -- TBC Balance Druid priority list with Starfire/Wrath cycling,
 
+-- ============================================================================
+-- What: TBC Druid Balance priority list with Starfire/Wrath cycling, Nature's Grace, Hurricane
+-- When: Evaluated every tick via main_sylvanas.lua dispatcher
+-- Why: Priority-list early-exit keeps evaluation fast
+-- Safety: All settings nil-guarded; API via NS.* wrappers; pcall optional TBC data; conservative defaults
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}

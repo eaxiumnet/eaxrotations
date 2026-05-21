@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for warlock immunity checks, Soulshatter, Life Tap, and sustain
+-- When: Loaded once and used during per-tick combat logic
+-- Why: Centralize warlock-specific utility and resource handling
+-- Safety: Nil-guards targets/items, conservative school checks, and NS.* helpers
+-- ============================================================================
 -- Shared Helper: Warlock Core
 -- Fire/shadow immunity detection, Soulshatter, cast-cancel, Life Tap, sustain
 -- ============================================================================

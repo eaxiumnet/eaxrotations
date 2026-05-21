@@ -1,5 +1,12 @@
 -- Paladin menu schema.
 
+-- ============================================================================
+-- What: Paladin menu schema.
+-- When: Load time.
+-- Why: Define settings, sections, and conservative defaults.
+-- Safety: Static data only; no runtime logic.
+-- ============================================================================
+
 return {
     {
         name = "General",

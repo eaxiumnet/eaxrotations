@@ -1,6 +1,10 @@
 -- ============================================================================
 -- Shaman Middleware: Tier 1 Gap Analysis Features
 -- ============================================================================
+-- What: TBC Shaman middleware for tremor, purge, and self-dispel support
+-- When: Per tick
+-- Why: Shared maintenance actions belong above individual playstyles so they can fire consistently
+-- Safety: Context and target are nil-guarded; optional modules are required conservatively; dispels check before acting
 -- Features Added:
 --   - Auto Tremor Totem (fear bosses)
 --   - Purge dispel (enemy magic buffs)

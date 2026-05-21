@@ -1,5 +1,11 @@
 -- ============================================================================
 -- Priest Healing Utilities (EaxRotations)
+-- ============================================================================
+-- What: Priest healing triage helpers for Holy and Discipline
+-- When: Per tick
+-- Why: Shared subgroup scans and absorb tracking avoid duplicated healer logic
+-- Safety: Unit nil-checks, pcall guards, cached tables, fallback behavior when optional NS helpers missing
+-- ============================================================================
 -- Shared healing target scanning for Holy and Discipline playstyles
 -- ============================================================================
 local _G = _G

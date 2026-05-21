@@ -1,4 +1,10 @@
 -- Priest shared middleware.
+-- ============================================================================
+-- What: Priest shared middleware for dispels, threat drop, and survivability
+-- When: Per tick
+-- Why: Consolidates party dispel, disease cleanup, and emergency utility across priest playstyles
+-- Safety: Settings nil-guards, pcall on class/spell/item checks, conservative mana thresholds
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

@@ -3,6 +3,13 @@
 -- Handles unlearned spells gracefully via NS.spell_ready checks.
 -- Uses wand/Shoot as fallback when out of mana.
 
+-- ============================================================================
+-- What: Mage leveling priority with solo fallback casting and wand support.
+-- When: Evaluated every tick.
+-- Why: Fast priority path keeps leveling behavior simple and reliable.
+-- Safety: Unlearned spells are guarded; settings and helpers use conservative defaults.
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local leveling = require("shared/leveling_sylvanas")

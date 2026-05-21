@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for tracking enemy cooldown usage from spell casts
+-- When: On spell-cast events and cooldown queries
+-- Why: Decide when enemy defensives or offensives are likely available
+-- Safety: GUID nil-guards, unknown-state returns nil, and state tables stay bounded
+-- ============================================================================
 -- Shared Helper: Enemy Cooldown Tracker
 -- ============================================================================
 local M = {}

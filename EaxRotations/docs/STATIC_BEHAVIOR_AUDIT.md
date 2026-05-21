@@ -9,40 +9,9 @@ This is a non-runtime scan for patterns that have previously caused bad in-game 
 | `fake_or_known_bad_ids` | high | 0 | Known bad/fake IDs should not appear in production code. |
 | `legacy_lightning_shield_aliases` | high | 0 | Old Lightning Shield aliases caused recast spam and should remain out of current Shaman production files. |
 | `noncentral_consumable_lists` | medium | 0 | Consumable item lists should prefer shared/tbc_data_sylvanas.lua. |
-| `direct_core_in_class_files` | low | 18 | Class/spec files should usually use the NS boundary, with explicit exceptions for simple cached helpers/tests. |
+| `direct_core_in_class_files` | low | 0 | Class/spec files should usually use the NS boundary, with explicit exceptions for simple cached helpers/tests. |
 | `todo_markers` | low | 0 | TODO/FIXME markers should be reviewed before release. |
 
 ## Findings
 
-### EaxRotations/classes/hunter/beast_mastery_sylvanas.lua
-- Rule: `direct_core_in_class_files` (low)
-- core. at line 90
-- core. at line 92
-- core. at line 93
-- core. at line 331
-- core. at line 341
-- core. at line 394
-- core. at line 403
-- core. at line 435
-
-### EaxRotations/classes/priest/holy_sylvanas.lua
-- Rule: `direct_core_in_class_files` (low)
-- core. at line 200
-- core. at line 200
-
-### EaxRotations/classes/shaman/enhancement_sylvanas.lua
-- Rule: `direct_core_in_class_files` (low)
-- core. at line 13
-- core. at line 13
-- core. at line 14
-- core. at line 14
-
-### EaxRotations/classes/shaman/restoration_sylvanas.lua
-- Rule: `direct_core_in_class_files` (low)
-- core. at line 12
-- core. at line 12
-
-### EaxRotations/classes/warlock/affliction_sylvanas.lua
-- Rule: `direct_core_in_class_files` (low)
-- core. at line 10
-- core. at line 10
+No static behavior findings.

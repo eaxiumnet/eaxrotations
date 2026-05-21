@@ -1,4 +1,10 @@
 -- Priest Discipline group-healing priority list.
+-- ============================================================================
+-- What: TBC Priest Discipline healing and support rotation
+-- When: Per tick
+-- Why: Priority triage, shield management, and idle damage are centralized for consistency
+-- Safety: Context.settings defaults, pcall on optional item/spell checks, shared healing helper guards
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

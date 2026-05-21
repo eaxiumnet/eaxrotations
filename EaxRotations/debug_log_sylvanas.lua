@@ -1,4 +1,10 @@
 -- diagnostic helper.
+-- ============================================================================
+-- What: Debug log frame used for visual runtime diagnostics
+-- When: During render/menu updates and debug events
+-- Why: Show internal state and trace output without affecting combat logic
+-- Safety: Render-only output, visibility toggles, and nil-safe logging paths
+-- ============================================================================
 
 -- ============================================================================
 -- EaxRotations Debug Log Frame

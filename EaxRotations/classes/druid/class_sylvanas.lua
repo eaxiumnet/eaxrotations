@@ -1,5 +1,12 @@
 -- Druid spell table, playstyle config, and child module loader.
 
+-- ============================================================================
+-- What: Druid class registration, spell tables, and child module loader
+-- When: Loaded once at plugin startup
+-- Why: Centralizes Druid spell data and child-module registration
+-- Safety: Spell tables newest-to-oldest; pcall child loads; missing modules fail gracefully
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local cl = require("shared/class_loader_sylvanas")

@@ -1,4 +1,10 @@
 -- Priest Shadow priority list with Mind Flay channel clipping control.
+-- ============================================================================
+-- What: TBC Priest Shadow rotation with Mind Flay clipping and DoT cycling
+-- When: Per tick
+-- Why: Snapshot-aware DoT refresh and channel clipping maximize damage
+-- Safety: Per-target cast lockouts, nil-guarded target checks, conservative refresh windows
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

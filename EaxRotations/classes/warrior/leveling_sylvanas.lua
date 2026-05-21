@@ -1,4 +1,10 @@
 -- Warrior leveling rotation.
+-- ============================================================================
+-- What: TBC Warrior leveling rotation for solo questing and basic combat helpers
+-- When: Per tick
+-- Why: Leveling combines shared context handling with warrior-specific readiness checks
+-- Safety: pcall-safe casts and buffs; nil-guarded context/state; conservative defaults for missing data
+-- ============================================================================
 -- Auto-activates in solo/leveling context or when playstyle = "leveling".
 -- Uses shared leveling module for context guard and common helpers.
 

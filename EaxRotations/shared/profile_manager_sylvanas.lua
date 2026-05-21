@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for loading, saving, copying, and switching profiles
+-- When: On demand during profile management actions
+-- Why: Persist character-specific rotation setups across sessions
+-- Safety: Uses in-memory cache, nil-guards file state, and keeps writes conservative
+-- ============================================================================
 -- Shared Helper: Profile Manager
 -- ============================================================================
 local M = {}

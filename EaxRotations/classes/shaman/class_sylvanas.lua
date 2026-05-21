@@ -1,4 +1,10 @@
 -- Shaman spell table, playstyle config, and child module loader.
+-- ============================================================================
+-- What: TBC Shaman spell table and class bootstrap for all shaman playstyles
+-- When: Load time
+-- Why: Centralizes spell objects and child registration before playstyle modules load
+-- Safety: Class check gates loading; shared loader handles children; nil-guarded player lookup
+-- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end

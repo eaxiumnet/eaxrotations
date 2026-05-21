@@ -1,5 +1,12 @@
 -- Hunter Marksmanship priority list.
 
+-- ============================================================================
+-- What: Hunter Marksmanship priority list with Aimed Shot, Multi-Shot, and clip control
+-- When: Evaluated every tick via main_sylvanas.lua dispatcher
+-- Why: Priority-list early-exit keeps ranged timing and clip checks efficient
+-- Safety: Nil-guarded settings; NS.* wrappers; optional clip tracker; conservative fallback behavior
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}

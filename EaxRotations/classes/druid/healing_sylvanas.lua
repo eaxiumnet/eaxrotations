@@ -1,5 +1,12 @@
 -- shared druid healing helpers for resto/off-heal playstyles.
 
+-- ============================================================================
+-- What: Shared Druid healing helpers for Resto and off-heal playstyles
+-- When: Loaded once, then reused by healing strategies
+-- Why: Shared helper keeps healing scans and aura checks reusable
+-- Safety: Nil-guarded unit checks; NS.* wrappers; static tables reused; conservative fallbacks
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 

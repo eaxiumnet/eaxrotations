@@ -1,4 +1,10 @@
 -- Warrior Fury priority list — FrostByte v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
+-- ============================================================================
+-- What: TBC Warrior Fury rotation with rage pooling, Slam weaving, and debuff upkeep
+-- When: Per tick
+-- Why: Fury needs cached combat state and swing timing to keep rage spenders aligned
+-- Safety: Optional swing timer uses pcall; helpers are nil-guarded; rage caps and defaults are conservative
+-- ============================================================================
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarriorSpells or {}

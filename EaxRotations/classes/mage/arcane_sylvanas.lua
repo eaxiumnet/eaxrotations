@@ -1,5 +1,12 @@
 -- Mage Arcane priority list with burn/conserve phase state machine.
 
+-- ============================================================================
+-- What: TBC Mage Arcane priority with Arcane Blast stacks and burn/conserve flow.
+-- When: Evaluated every tick.
+-- Why: Priority-list early exit keeps combat decisions fast and predictable.
+-- Safety: All settings nil-guarded; shared data is pcall-gated; conservative fallbacks.
+-- ============================================================================
+
 --
 local NS = _G.EaxRotations
 if not NS then return nil end

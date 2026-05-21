@@ -1,4 +1,10 @@
 -- runtime module.
+-- ============================================================================
+-- What: Shared helper import module that maps short NS aliases to runtime helpers
+-- When: Loaded by class files during startup
+-- Why: Keep helper naming consistent across many class modules
+-- Safety: Must load after core_sylvanas.lua, and missing aliases fall back conservatively
+-- ============================================================================
 
 -- ============================================================================
 -- EaxRotations - Shared Helper Import Module

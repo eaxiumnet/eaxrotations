@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for diminishing-return tracking on crowd control
+-- When: On spell-cast events and DR queries
+-- Why: Decide when a CC target is still affected or immune
+-- Safety: GUID nil-guards, expiry cleanup, and conservative unknown-state handling
+-- ============================================================================
 -- Shared Helper: DR Tracker (Diminishing Returns)
 -- ============================================================================
 local M = {}

@@ -1,5 +1,12 @@
 -- Druid Cat priority list for TBC melee DPS.
 
+-- ============================================================================
+-- What: TBC Druid Cat priority list with powershift, bleed upkeep, and melee burst
+-- When: Evaluated every tick via main_sylvanas.lua dispatcher
+-- Why: Priority-list early-exit keeps energy and positional checks cheap
+-- Safety: Nil-guarded settings; NS.* wrappers; conservative defaults for movement and form handling
+-- ============================================================================
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 

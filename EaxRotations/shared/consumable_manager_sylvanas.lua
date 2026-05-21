@@ -1,4 +1,9 @@
 -- ============================================================================
+-- What: Shared helper for consumable detection and usage
+-- When: Periodic checks with throttled per-tick evaluation
+-- Why: Automate healthstone, potion, and similar recovery usage safely
+-- Safety: Throttled scans, inventory nil checks, and conservative role/state gates
+-- ============================================================================
 -- Shared Helper: Consumable Manager
 -- ============================================================================
 -- ============================================================================

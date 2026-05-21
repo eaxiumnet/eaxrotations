@@ -94,17 +94,8 @@ function M.should_clip_mf(mf_channeling, mf_ticks, vt_clip_threshold, mb_ready, 
         and (mb_ready or swd_ready or vt_remaining < vt_clip_threshold or swp_remaining < 0.7)
 end
 
--- ============================================================================
--- ============================================================================
+-- Standalone test fallback
 local _G = _G
-if _G.EaxRotations then
-    _G.EaxRotations.compute_mf_channel_state = M.compute_channel_state
-    _G.EaxRotations.should_clip_mf = M.should_clip_mf
-end
-
--- ============================================================================
--- Global fallback: make available via _G for unit tests (dofile pattern)
--- ============================================================================
 _G.MfTickCompute = M
 
 return M
