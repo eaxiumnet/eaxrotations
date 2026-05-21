@@ -63,6 +63,10 @@ local MANA_CONSERVE_DEFAULT = 15   -- No Chain Lightning, Flame Shock only
 local MANA_EMERGENCY_DEFAULT = 5   -- All spells forbidden
 local WATER_SHIELD_MANA_DEFAULT = 50
 
+-- SP-aware DoT gating: skip Flame Shock below this spell damage threshold
+-- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient; breakpoint ~400 SP pre-raid
+local FLAME_SHOCK_MIN_SP_DEFAULT = 400
+
 -- Chain Lightning defaults (DB2: EffectChainTargets=3, EffectChainAmplitude=0.70)
 local CL_MIN_TARGETS = 3
 local CL_CLUSTER_RADIUS = 10  -- yards, configurable
@@ -90,6 +94,7 @@ local ele_state = {
     has_windfury = false,
     has_rockbiter = false,
     now_ms = 0,
+    spell_damage = 0,
 }
 
 local function build_state(context)
@@ -111,6 +116,8 @@ local function build_state(context)
     ele_state.hp_pct = context.hp or 100
     ele_state.target_count = context.enemy_count or 1
     ele_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
+    -- Current spell damage from NS (provided by middleware or character API)
+    ele_state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
     -- Weapon buff freshness
     ele_state.has_flametongue = (ele_state.now_ms - runtime.last_flametongue_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.has_windfury = (ele_state.now_ms - runtime.last_windfury_ms) < WEAPON_BUFF_REFRESH_MS
@@ -176,7 +183,11 @@ end
 local function flame_shock_matches_fn(context, state)
     if not context.target then return false end
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
-    if state.flame_remains > 1 then return false end
+    if state.flame_remains > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
+    -- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient = ~0.6 total; GCD-positive at ~400 SP
+    local s = context.settings or {}
+    local min_sp = s.elemental_flame_shock_min_sp or FLAME_SHOCK_MIN_SP_DEFAULT
+    if state.spell_damage < min_sp then return false end
     if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
     return NS.spell_ready(SPELLS.FlameShock, context.target)
 end
