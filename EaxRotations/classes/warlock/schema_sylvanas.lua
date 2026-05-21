@@ -110,4 +110,17 @@ return {
             },
         },
     },
+    {
+        name = "Destruction",
+        sections = {
+            {
+                header = "Rotation & Mana",
+                settings = {
+                    { key = "destro_immolate_min_sp", type = "slider", label = "Immolate Min SP", min = 0, max = 2000, default = 400 },
+                    { key = "destro_shadowburn_hp", type = "slider", label = "Shadowburn HP %", min = 0, max = 100, default = 20 },
+                    { key = "destro_mana_gem_threshold", type = "slider", label = "Mana Gem at %", min = 0, max = 100, default = 35 },
+                },
+            },
+        },
+    },
 }

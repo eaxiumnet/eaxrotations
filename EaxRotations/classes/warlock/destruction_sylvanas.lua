@@ -43,6 +43,7 @@ local FelDomination = NS.spell_action({ 18708, 18707, 18706 }, "FelDomination")
 
 -- Constants
 local IMMOLATE_PANDEMIC_WINDOW = 3.5
+local IMMOLATE_MIN_SP_DEFAULT = 400  -- SP below which Immolate is skipped (conservative GCD-positive threshold)
 local SHADOWBURN_HP_PCT = 20
 local DRAIN_LIFE_HP_THRESHOLD = 40
 local MANA_LIFE_TAP_THRESHOLD = 35
@@ -67,6 +68,7 @@ local function build_state(context)
         mana_pct = context.mana_pct or 100,
         mana_gem_id = nil,
         mana_gem_ready = false,
+        spell_damage = 0,
     }
     -- Find ready mana item
     state.mana_gem_id = nil
@@ -77,6 +79,8 @@ local function build_state(context)
         end
     end
     state.mana_gem_ready = state.mana_gem_id ~= nil
+    -- SP-aware gating: Falls back through context (middleware) then to 0 (conservative: skip DoTs when SP unknown)
+    state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
     return state
 end
 
@@ -124,6 +128,11 @@ local ACTIONS = {
 local function immolate_matches(context, action, state)
     if not state then return false end
     state = state or {}
+    -- SP-aware gating: skip Immolate when spell damage is below the threshold
+    -- (conservative: defaults to 400 SP, configurable via destro_immolate_min_sp)
+    local s = context.settings or {}
+    local min_sp = s.destro_immolate_min_sp or IMMOLATE_MIN_SP_DEFAULT
+    if (state.spell_damage or 0) < min_sp then return false end
     if state.immolate_remains > IMMOLATE_PANDEMIC_WINDOW then return false end
     if not NS.should_refresh_dot(state.immolate_remains, 1.5, context.ttd, 15) then return false end
     return NS.action_matches(context, action)
