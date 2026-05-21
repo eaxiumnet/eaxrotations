@@ -12,7 +12,7 @@ EaxRotations/
 ├── core_sylvanas.lua              # NS.* runtime boundary
 ├── load_order_sylvanas.lua        # Module load order
 ├── shared/                        # 46 cross-class modules
-├── classes/<class>/               # Per-class (9 classes, 27+ playstyles)
+├── classes/<class>/               # Per-class (9 classes, 31 talent specs + 2 extra playstyles + 9 leveling = 40 registered)
 │   ├── class_sylvanas.lua         # Registration
 │   ├── schema_sylvanas.lua        # Settings
 │   ├── middleware_sylvanas.lua     # Shared class behavior
