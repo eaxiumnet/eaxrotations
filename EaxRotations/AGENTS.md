@@ -1,6 +1,6 @@
 # EaxRotations Knowledge Base
 
-**Generated:** 2026-05-11 | **Version:** 2.0.0-Tier4 | **Files:** 100 Lua (~55K lines) | **Tests:** 40 passing
+**Generated:** 2026-05-21 | **Version:** 2.0.0-Tier4 | **Files:** ~273 Lua (~72K lines) | **Tests:** 106 passing
 
 ---
 
