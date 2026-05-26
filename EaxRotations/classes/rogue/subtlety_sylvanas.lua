@@ -10,6 +10,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local BASE_SPELLS = NS.RogueSpells or {}
+local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 local function spell(ids, label)
     return NS.spell_action(ids, label)
@@ -22,6 +23,7 @@ local SPELLS = {
     CheapShot = BASE_SPELLS.CheapShot or spell({ 1833 }, "CheapShot"),
     CloakOfShadows = BASE_SPELLS.CloakOfShadows or spell({ 31224 }, "CloakOfShadows"),
     DeadlyThrow = BASE_SPELLS.DeadlyThrow or spell({ 26679 }, "DeadlyThrow"),
+    Dismantle = BASE_SPELLS.Dismantle or spell({ 51722 }, "Dismantle"),
     Evasion = BASE_SPELLS.Evasion or spell({ 26669, 5277 }, "Evasion"),
     Eviscerate = BASE_SPELLS.Eviscerate or spell({ 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
     ExposeArmor = BASE_SPELLS.ExposeArmor or spell({ 26866, 11198, 8647 }, "ExposeArmor"),
@@ -37,6 +39,7 @@ local SPELLS = {
     Rupture = BASE_SPELLS.Rupture or spell({ 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
     Sap = BASE_SPELLS.Sap or spell({ 11297, 2070, 6770 }, "Sap"),
     Shadowstep = BASE_SPELLS.Shadowstep or spell({ 36554 }, "Shadowstep"),
+    Shiv = BASE_SPELLS.Shiv or spell({ 5938 }, "Shiv"),
     SinisterStrike = BASE_SPELLS.SinisterStrike or spell({ 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }, "SinisterStrike"),
     SliceAndDice = BASE_SPELLS.SliceAndDice or spell({ 6774, 5171 }, "SliceAndDice"),
     Sprint = BASE_SPELLS.Sprint or spell({ 11305, 8696, 2983 }, "Sprint"),
@@ -55,6 +58,9 @@ local EXPOSE_ARMOR_DEBUFF = { 26866, 11198, 8647 }
 local CHEAP_SHOT_DEBUFF = { 1833 }
 local KIDNEY_SHOT_DEBUFF = { 8643, 408 }
 local CONTROL_DEBUFFS = { 1833, 8643, 408, 1776, 2094, 11297, 2070, 6770 }
+
+-- Disarm target classes: melee classes that lose weapon-based damage when disarmed
+local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
 local ENERGY_CHEAP_SHOT = 60
 local ENERGY_GARROTE = 50
@@ -105,6 +111,13 @@ local subtlety_state = {
     vanish_cd = 0,
     sprint_cd = 0,
     evasion_cd = 0,
+    -- Shiv Purge (PvP buff dispel via Wound Poison)
+    shiv_ready = false,
+    shiv_purge_name = nil,
+    -- Disarm (PvP Dismantle)
+    disarm_ready = false,
+    disarm_class_ok = false,
+    disarm_buff_name = nil,
 }
 
 local function player_buff_up(ids)
@@ -162,6 +175,29 @@ local function build_state(context)
     subtlety_state.vanish_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Vanish) or 0
     subtlety_state.sprint_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Sprint) or 0
     subtlety_state.evasion_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Evasion) or 0
+    -- Shiv Purge (PvP buff dispel via Wound Poison)
+    subtlety_state.shiv_ready = context.target and NS.spell_ready(SPELLS.Shiv, context.target, { expected_cooldown = 10 }) or false
+    subtlety_state.shiv_purge_name = nil
+    if context.in_combat and (context.is_pvp or false) and context.target and CCGateDB.find_best_dispel_target then
+        local best_id, _, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
+        if best_id then subtlety_state.shiv_purge_name = best_name end
+    end
+    -- Disarm (PvP Dismantle — weapon removal vs melee)
+    subtlety_state.disarm_ready = context.target and NS.spell_ready(SPELLS.Dismantle, context.target, { expected_cooldown = 60 }) or false
+    subtlety_state.disarm_class_ok = false
+    subtlety_state.disarm_buff_name = nil
+    if context.target and (context.is_pvp or false) and subtlety_state.disarm_ready then
+        local ok, class_id = pcall(function() return context.target:get_class() end)
+        if ok and type(class_id) == "number" and DISARM_CLASS_IDS[class_id] then
+            subtlety_state.disarm_class_ok = true
+            if CCGateDB.find_best_dispel_target then
+                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
+                if best_id and (best_priority or 0) >= 3 then
+                    subtlety_state.disarm_buff_name = best_name
+                end
+            end
+        end
+    end
     return subtlety_state
 end
 
@@ -268,6 +304,45 @@ local function kick_matches(context, state)
     if not target_is_casting(context.target) then return false end
     if not enough_energy(state, ENERGY_KICK) then return false end
     return NS.spell_ready(SPELLS.Kick, context.target)
+end
+
+local function shiv_purge_matches(context, state)
+    local settings = context.settings or {}
+    if settings.use_shiv_purge == false then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
+    if not context.in_combat then return false end
+    if not (context.is_pvp or false) then return false end
+    if not context.target then return false end
+    if not (context.in_melee_range or false) then return false end
+    if not state.shiv_ready then return false end
+    if not state.shiv_purge_name then return false end
+    if settings.shiv_purge_pvp_only ~= false then
+        local ok, is_player = pcall(function() return context.target:is_player() end)
+        if not (ok and is_player) then return false end
+    end
+    return true
+end
+
+local function disarm_matches(context, state)
+    local settings = context.settings or {}
+    if settings.use_disarm == false then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
+    if not context.in_combat then return false end
+    if not (context.is_pvp or false) then return false end
+    if not context.target then return false end
+    if not (context.in_melee_range or false) then return false end
+    if not state.disarm_ready then return false end
+    if not state.disarm_class_ok then return false end
+    if settings.disarm_pvp_only ~= false then
+        local ok, is_player = pcall(function() return context.target:is_player() end)
+        if not (ok and is_player) then return false end
+    end
+    local trigger = settings.disarm_trigger or "on_burst"
+    if trigger == "on_burst" then
+        if not state.disarm_buff_name then return false end
+        context._disarm_buff_name = state.disarm_buff_name
+    end
+    return true
 end
 
 local function cloak_matches(context, state)
@@ -429,6 +504,8 @@ end
 
 local strategies = {
     { name = "Kick", matches = kick_matches, execute = function(context) return cast(SPELLS.Kick, context.target, "[SUBTLETY] Kick") end },
+    { name = "ShivPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.Shiv, context.target, "[SUBTLETY] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
+    { name = "Disarm", matches = disarm_matches, execute = function(context) local label = context._disarm_buff_name and ("[SUBTLETY] Dismantle → " .. context._disarm_buff_name) or "[SUBTLETY] Dismantle" return cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 }) end },
     { name = "CloakOfShadows", matches = cloak_matches, execute = function() return cast(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },
     { name = "Evasion", matches = evasion_matches, execute = function() return cast(SPELLS.Evasion, NS.PLAYER_UNIT, "[SUBTLETY] Evasion", { skip_range = true }) end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return cast(SPELLS.GhostlyStrike, context.target, "[SUBTLETY] Ghostly Strike") end },

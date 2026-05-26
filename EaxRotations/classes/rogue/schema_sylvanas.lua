@@ -23,6 +23,14 @@ return {
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
+                    { key = "use_disarm", type = "checkbox", label = "Auto Disarm (PvP)", default = true, tooltip = "Dismantle enemy melee players (Warrior/Rogue/Paladin/Shaman). No stance requirement." },
+                    { key = "disarm_trigger", type = "dropdown", label = "Disarm Trigger", default = "on_burst", options = {
+                            { text = "On Burst (priority buffs)", value = "on_burst" },
+                            { text = "On Cooldown", value = "on_cooldown" },
+                    } },
+                    { key = "disarm_pvp_only", type = "checkbox", label = "Disarm — Players Only", default = true, tooltip = "Only disarm enemy players (safer for PvE with CC'd mobs)." },
+                    { key = "use_shiv_purge", type = "checkbox", label = "Shiv Purge (PvP)", default = true, tooltip = "Shiv dispels 1 magic buff on enemy players via Wound Poison (BoP, PW:S, Ice Barrier, etc.). Requires off-hand with Wound Poison applied." },
+                    { key = "shiv_purge_pvp_only", type = "checkbox", label = "Shiv Purge — Players Only", default = true, tooltip = "Only purge buffs from enemy players (safer for PvE)." },
                 },
             },
             {
@@ -32,6 +40,8 @@ return {
                     { key = "rogue_evasion_hp", type = "slider", label = "Evasion HP", min = 10, max = 50, default = 35 },
                     { key = "rogue_use_cloak", type = "checkbox", label = "Cloak of Shadows", default = true },
                     { key = "rogue_cloak_hp", type = "slider", label = "Cloak HP", min = 20, max = 60, default = 45 },
+                    { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Blade Flurry when a nearby enemy is Polymorphed/Sapped/etc." },
+                    { key = "use_cc_break", type = "checkbox", label = "CC Break (Cloak/Vanish)", default = true, tooltip = "Preemptively Cloak or Vanish when enemy casts Polymorph/Fear/Blind at you" },
                     { key = "rogue_use_vanish_defensive", type = "checkbox", label = "Vanish (Emergency)", default = false },
                     { key = "rogue_vanish_hp", type = "slider", label = "Vanish HP", min = 10, max = 40, default = 20 },
                     { key = "rogue_vanish_in_raid", type = "checkbox", label = "Vanish on Raid Bosses", default = false },
