@@ -9,6 +9,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.RogueSpells or {}
+local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -18,9 +19,11 @@ local SLICE_DICE_BUFF  = { 6774, 5171 }
 local FIND_WEAKNESS_BUFF = { 31235, 31234, 31233 }  -- debuff on target after finisher
 local RUPTURE_DEBUFF   = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
 local GARROTE_DEBUFF   = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
+local COLD_BLOOD_BUFF = { 14177 }
 local DEADLY_POISON_DEBUFF = { 27187, 27186, 26968, 26967, 25349, 25347, 11354, 11356, 11353, 11355, 2819, 2837, 2818, 2835 }
 local CRIPPLING_POISON_DEBUFF = { 3408, 3409, 11201, 11202 }
 local WOUND_POISON_DEBUFF   = { 27283, 13230, 13229, 13228, 13220 }  -- Wound Poison (healing reduction, DB2-vetted)
+local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
 local DOT_REFRESH_WINDOW = 3
 local SND_REFRESH_WINDOW = 3     -- Slice and Dice refresh when < 3s remains
@@ -56,6 +59,13 @@ local assassin_state = {
     find_weakness_active = false,
     has_cold_blood = false,
     healing_item_id = nil,
+    -- Shiv Purge (PvP buff dispel via Wound Poison)
+    shiv_ready = false,
+    shiv_purge_name = nil,
+    -- Disarm (PvP Dismantle)
+    disarm_ready = false,
+    disarm_class_ok = false,
+    disarm_buff_name = nil,
 }
 
 local function build_state(context)
@@ -71,7 +81,7 @@ local function build_state(context)
         assassin_state.snd_remains = 0
     end
     assassin_state.snd_needs_refresh = assassin_state.slice_dice_active and assassin_state.snd_remains <= SND_REFRESH_WINDOW
-    assassin_state.has_cold_blood = NS.has_player_buff({ 14177 })
+    assassin_state.has_cold_blood = NS.has_player_buff(COLD_BLOOD_BUFF)
     -- Debuffs on target
     if target then
         assassin_state.rupture_remains = NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
@@ -95,6 +105,30 @@ local function build_state(context)
     assassin_state.energy_low = assassin_state.energy < ENERGY_LOW_BUILDER
     assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
     assassin_state.hp_pct = context.hp or 100
+    -- Disarm (PvP Dismantle — weapon removal vs melee)
+    assassin_state.disarm_ready = target and NS.spell_ready(SPELLS.Dismantle, target, { expected_cooldown = 60 }) or false
+    assassin_state.disarm_class_ok = false
+    assassin_state.disarm_buff_name = nil
+    if target and (context.is_pvp or false) and assassin_state.disarm_ready then
+        local ok, class_id = pcall(function() return target:get_class() end)
+        if ok and type(class_id) == "number" and DISARM_CLASS_IDS[class_id] then
+            assassin_state.disarm_class_ok = true
+            if CCGateDB and CCGateDB.find_best_dispel_target then
+                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(target, NS)
+                if best_id and (best_priority or 0) >= 3 then
+                    assassin_state.disarm_buff_name = best_name
+                end
+            end
+        end
+    end
+    -- Shiv Purge (PvP buff dispel via Wound Poison)
+    assassin_state.shiv_ready = target and NS.spell_ready(SPELLS.Shiv, target, { expected_cooldown = 10 }) or false
+    assassin_state.shiv_purge_name = nil
+    if context.in_combat and (context.is_pvp or false) and target and CCGateDB and CCGateDB.find_best_dispel_target then
+        local best_id, _, best_name = CCGateDB.find_best_dispel_target(target, NS)
+        if best_id then assassin_state.shiv_purge_name = best_name end
+    end
+
     -- Healing item
     assassin_state.healing_item_id = nil
     for _, id in ipairs(HEALING_ITEM_IDS) do
@@ -104,6 +138,23 @@ local function build_state(context)
         end
     end
     return assassin_state
+end
+
+local function shiv_purge_matches(context, state)
+    local settings = context.settings or {}
+    if settings.use_shiv_purge == false then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
+    if not context.in_combat then return false end
+    if not (context.is_pvp or false) then return false end
+    if not context.target then return false end
+    if not (context.in_melee_range or false) then return false end
+    if not state.shiv_ready then return false end
+    if not state.shiv_purge_name then return false end
+    if settings.shiv_purge_pvp_only ~= false then
+        local ok, is_player = pcall(function() return context.target:is_player() end)
+        if not (ok and is_player) then return false end
+    end
+    return true
 end
 
 local function assassination_leveling_builder_matches(context, state)
@@ -194,6 +245,55 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.Kick, context.target, "[ASSASS] Kick interrupt")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- PvP: Shiv Purge — dispel 1 magic buff via Wound Poison (BoP, PW:S, etc.)
+    -- Ported from middleware/combat/subtlety ShivPurge pattern.
+    -- ------------------------------------------------------------------------
+    {
+        name = "AssassinationShivPurge",
+        matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end,
+        execute = function(context)
+            local name = context._shiv_purge_name or "buff"
+            return NS.try_cast(SPELLS.Shiv, context.target, "[ASSASS] Shiv purge → " .. name, { expected_cooldown = 10 })
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- PvP: Dismantle — remove enemy melee weapon (10s, no stance required)
+    -- Ported from middleware/leveling Disarm pattern. Uses offensive dispel
+    -- priority DB for on_burst trigger mode (priority ≥ 3).
+    -- ------------------------------------------------------------------------
+    {
+        name = "AssassinationDisarm",
+        matches = function(context, state)
+            local settings = context.settings or {}
+            if settings.use_disarm == false then return false end
+            if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
+            if not context.in_combat then return false end
+            if not (context.is_pvp or false) then return false end
+            if not context.target then return false end
+            if not (context.in_melee_range or false) then return false end
+            if not state.disarm_ready then return false end
+            if not state.disarm_class_ok then return false end
+            if settings.disarm_pvp_only ~= false then
+                local ok, is_player = pcall(function() return context.target:is_player() end)
+                if not (ok and is_player) then return false end
+            end
+            local trigger = settings.disarm_trigger or "on_burst"
+            if trigger == "on_burst" then
+                if not state.disarm_buff_name then return false end
+                context._disarm_buff_name = state.disarm_buff_name
+            end
+            return true
+        end,
+        execute = function(context)
+            local label = context._disarm_buff_name
+                and ("[ASSASS] Dismantle → " .. context._disarm_buff_name)
+                or "[ASSASS] Dismantle"
+            return NS.try_cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 })
         end,
     },
 
@@ -326,10 +426,10 @@ local strategies = {
             -- Only Shiv if DP is about to drop and we care about stacks
             if state.dp_remains > 3 then return false end
             if state.dp_stacks >= 5 then return false end  -- already max
-            return NS.spell_ready(SPELLS.Shiv, target)
+            return NS.spell_ready(SPELLS.Shiv, target, { expected_cooldown = 10 })
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Shiv, context.target, "[ASSASS] Shiv (DP refresh)")
+            return NS.try_cast(SPELLS.Shiv, context.target, "[ASSASS] Shiv (DP refresh)", { expected_cooldown = 10 })
         end,
     },
 

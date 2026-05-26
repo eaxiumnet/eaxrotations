@@ -9,10 +9,14 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.RogueSpells or {}
+local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
 local SND_BUFF = { 6774, 5171 }
 local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
 local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
+local BLADE_FLURRY_BUFF = { 13877 }
+local ADRENALINE_RUSH_BUFF = { 13750 }
 local KIDNEY_SHOT_DEBUFF = { 8643, 408 }
 local EVISCERATE_SPELL = SPELLS.Eviscerate
 local RUPTURE_SPELL = SPELLS.Rupture
@@ -123,6 +127,13 @@ local combat_state = {
     ghostly_strike_ready = false,
     kidney_shot_ready = false,
     expose_armor_ready = false,
+    -- Shiv Purge (PvP buff dispel via Wound Poison)
+    shiv_ready = false,
+    shiv_purge_name = nil,
+    -- Disarm (PvP Dismantle)
+    disarm_ready = false,
+    disarm_class_ok = false,
+    disarm_buff_name = nil,
 }
 
 local function build_state(context)
@@ -131,8 +142,8 @@ local function build_state(context)
 
     combat_state.has_stealth = me and NS.buff_up(me, STEALTH_BUFF) or false
     combat_state.has_snd = me and NS.buff_up(me, SND_BUFF) or false
-    combat_state.has_blade_flurry = me and NS.buff_up(me, { 13877 }) or false
-    combat_state.has_adrenaline_rush = me and NS.buff_up(me, { 13750 }) or false
+    combat_state.has_blade_flurry = me and NS.buff_up(me, BLADE_FLURRY_BUFF) or false
+    combat_state.has_adrenaline_rush = me and NS.buff_up(me, ADRENALINE_RUSH_BUFF) or false
     combat_state.snd_remains = me and NS.buff_remains(me, SND_BUFF) or 0
     combat_state.rupture_remains = target and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
     combat_state.combo_points = context.combo_points or 0
@@ -168,66 +179,36 @@ local function build_state(context)
     combat_state.snd_needs_refresh = combat_state.has_snd and combat_state.snd_remains <= SND_REFRESH_WINDOW
     combat_state.expose_assigned = context.settings and context.settings.combat_expose_assigned or false
 
+    -- Shiv Purge (PvP buff dispel via Wound Poison)
+    combat_state.shiv_ready = target and NS.spell_ready(SPELLS.Shiv, target, { expected_cooldown = 10 }) or false
+    combat_state.shiv_purge_name = nil
+    if combat_state.in_combat and (context.is_pvp or false) and target and CCGateDB.find_best_dispel_target then
+        local best_id, _, best_name = CCGateDB.find_best_dispel_target(target, NS)
+        if best_id then combat_state.shiv_purge_name = best_name end
+    end
+
+    -- Disarm (PvP Dismantle — weapon removal vs melee)
+    combat_state.disarm_ready = target and NS.spell_ready(SPELLS.Dismantle, target, { expected_cooldown = 60 }) or false
+    combat_state.disarm_class_ok = false
+    combat_state.disarm_buff_name = nil
+    if target and (context.is_pvp or false) and combat_state.disarm_ready then
+        local ok, class_id = pcall(function() return target:get_class() end)
+        if ok and type(class_id) == "number" and DISARM_CLASS_IDS[class_id] then
+            combat_state.disarm_class_ok = true
+            if CCGateDB and CCGateDB.find_best_dispel_target then
+                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(target, NS)
+                if best_id and (best_priority or 0) >= 3 then
+                    combat_state.disarm_buff_name = best_name
+                end
+            end
+        end
+    end
+
     return combat_state
 end
 
 local function cooldowns_enabled(context)
     return not context.settings or context.settings.use_cooldowns ~= false
-end
-
--- ============================================================================
--- Action definitions (test assertion strings embedded)
--- ============================================================================
-local STEALTH_ACTION = { name = "Stealth", spell = SPELLS.Stealth, target = "self", kind = "buff", buff = STEALTH_BUFF, ooc = true, requires_target = false }
-local ADRENALINE_RUSH_ACTION = { name = "AdrenalineRush", spell = SPELLS.AdrenalineRush, target = "self", combat = true, setting = "use_cooldowns", cooldown = 300, requires_target = false }
-local BLADE_FLURRY_ACTION = { name = "BladeFlurry", spell = SPELLS.BladeFlurry, target = "self", combat = true, setting = "use_cooldowns", cooldown = 120, requires_target = false }
-local SLICE_AND_DICE_ACTION = { name = "SliceAndDice", spell = SPELLS.SliceAndDice, target = "self", kind = "buff", buff = SND_BUFF, min_combo = 2, min_energy = 25, requires_target = false }
-local RUPTURE_ACTION = { name = "Rupture", spell = SPELLS.Rupture, min_combo = 5, min_energy = 25, kind = "debuff", debuff = RUPTURE_DEBUFF, refresh = 3, max_enemy_count = 1 }
-local EVISCERATE_ACTION = { name = "Eviscerate", spell = SPELLS.Eviscerate, min_combo = 5, min_energy = 35 }
-local SINISTER_STRIKE_ACTION = { name = "SinisterStrike", spell = SPELLS.SinisterStrike, min_energy = 45 }
-local KICK_ACTION = { name = "Kick", spell = SPELLS.Kick, cooldown = 10, interrupt = true }
-local GOUGE_ACTION = { name = "Gouge", spell = SPELLS.Gouge, cooldown = 10 }
-local SPRINT_ACTION = { name = "Sprint", spell = SPELLS.Sprint, target = "self", cooldown = 180, requires_target = false }
-local VANISH_ACTION = { name = "Vanish", spell = SPELLS.Vanish, target = "self", cooldown = 300, requires_target = false }
-local FEINT_ACTION = { name = "Feint", spell = SPELLS.Feint, target = "self", cooldown = 10, requires_target = false }
-local HEMORRHAGE_ACTION = { name = "Hemorrhage", spell = SPELLS.Hemorrhage, min_energy = 35 }
-local BACKSTAB_ACTION = { name = "Backstab", spell = SPELLS.Backstab, min_energy = 60 }
-local GHOSTLY_STRIKE_ACTION = { name = "GhostlyStrike", spell = SPELLS.GhostlyStrike, min_energy = 40, cooldown = 20 }
-local KIDNEY_SHOT_ACTION = { name = "KidneyShot", spell = SPELLS.KidneyShot, cooldown = 20 }
-local EXPOSE_ARMOR_ACTION = { name = "ExposeArmor", spell = SPELLS.ExposeArmor, min_combo = 2, min_energy = 25, kind = "debuff" }
-
--- ============================================================================
--- Custom match functions (preserved from original for test compatibility)
--- ============================================================================
-local function rupture_matches(context, action)
-    local target = context.target
-    if not target then return false end
-    local rupture_remains = NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
-    local combo = context.combo_points or 0
-    if combo < 5 then return false end
-    if rupture_remains > RUPTURE_REFRESH_WINDOW then return false end
-    return NS.action_matches(context, action)
-end
-
-local function sinister_strike_matches(context, action)
-    local energy = context.energy or 0
-    if energy >= 85 then return NS.action_matches(context, action) end
-    if not should_spend_energy(context, 45) then return false end
-    return NS.action_matches(context, action)
-end
-
-local function adrenaline_rush_matches(context, action)
-    if not NS.action_matches(context, action) then return false end
-    local bf_ready = NS.spell_ready(SPELLS.BladeFlurry, context.me, { skip_range = true, expected_cooldown = 120 })
-    if bf_ready then return true end
-    return true
-end
-
-local function blade_flurry_matches(context, action)
-    if not NS.action_matches(context, action) then return false end
-    local ar_active = context.me and NS.buff_up(context.me, { 13750 }) or false
-    if ar_active then return true end
-    return context.should_burst or false
 end
 
 -- ============================================================================
@@ -237,7 +218,7 @@ local function stealth_matches(context, s)
     if s.in_combat then return false end
     if s.has_stealth then return false end
     if not s.stealth_ready then return false end
-    return NS.action_matches(context, STEALTH_ACTION)
+    return true
 end
 
 local function adrenaline_rush_wrapper(context, s)
@@ -248,7 +229,7 @@ local function adrenaline_rush_wrapper(context, s)
     -- Research: delay AR during Bloodlust/Heroism to avoid energy capping
     local delay_during_heroism = (context.settings and context.settings.combat_adrenaline_rush_heroism) ~= false
     if delay_during_heroism and s.heroism_active then return false end
-    return adrenaline_rush_matches(context, ADRENALINE_RUSH_ACTION)
+    return true
 end
 
 local function blade_flurry_wrapper(context, s)
@@ -259,7 +240,7 @@ local function blade_flurry_wrapper(context, s)
     -- Research: only use when 2+ targets within 5y (avoid wasted CD on single target)
     local min_targets = (context.settings and context.settings.combat_blade_flurry_count) or 2
     if s.target_count < min_targets then return false end
-    return blade_flurry_matches(context, BLADE_FLURRY_ACTION)
+    return true
 end
 
 local function slice_and_dice_wrapper(context, s)
@@ -267,7 +248,7 @@ local function slice_and_dice_wrapper(context, s)
     -- Research: maintain 100% uptime; refresh when <3s remains
     if s.has_snd and not s.snd_needs_refresh then return false end
     if s.combo_points < 2 then return false end
-    return NS.action_matches(context, SLICE_AND_DICE_ACTION)
+    return true
 end
 
 local function rupture_wrapper(context, s)
@@ -277,7 +258,11 @@ local function rupture_wrapper(context, s)
     local ttd_floor = (context.settings and context.settings.combat_rupture_ttd) or RUPTURE_TTD_FLOOR
     local ttd = context.target_ttd
     if ttd and ttd < ttd_floor then return false end
-    return rupture_matches(context, RUPTURE_ACTION)
+    if not context.target then return false end
+    local rupture_remains = NS.debuff_remains(context.target, RUPTURE_DEBUFF) or 0
+    if rupture_remains > RUPTURE_REFRESH_WINDOW then return false end
+    if s.combo_points < 5 then return false end
+    return true
 end
 
 local function eviscerate_matches(context, s)
@@ -286,30 +271,73 @@ local function eviscerate_matches(context, s)
     if s.energy < 35 then return false end  -- hard floor: spell costs 35 energy
     -- Research: only Eviscerate at 4-5 CP (not wasted at 2-3 CP)
     if s.combo_points < 4 then return false end
-    return NS.action_matches(context, EVISCERATE_ACTION)
+    return true
 end
 
 local function sinister_strike_wrapper(context, s)
     if not s.sinister_strike_ready then return false end
     if s.energy_low then return false end  -- Research: pool energy below 45
-    return sinister_strike_matches(context, SINISTER_STRIKE_ACTION)
+    local energy = context.energy or 0
+    if energy < 85 then
+        if not should_spend_energy(context, 45) then return false end
+    end
+    return true
+end
+
+local function shiv_purge_matches(context, s)
+    local settings = context.settings or {}
+    if settings.use_shiv_purge == false then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
+    if not s.in_combat then return false end
+    if not (context.is_pvp or false) then return false end
+    if not context.target then return false end
+    if not (context.in_melee_range or false) then return false end
+    if not s.shiv_ready then return false end
+    if not s.shiv_purge_name then return false end
+    if settings.shiv_purge_pvp_only ~= false then
+        local ok, is_player = pcall(function() return context.target:is_player() end)
+        if not (ok and is_player) then return false end
+    end
+    return true
+end
+
+local function disarm_matches(context, s)
+    local settings = context.settings or {}
+    if settings.use_disarm == false then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
+    if not s.in_combat then return false end
+    if not (context.is_pvp or false) then return false end
+    if not context.target then return false end
+    if not (context.in_melee_range or false) then return false end
+    if not s.disarm_ready then return false end
+    if not s.disarm_class_ok then return false end
+    if settings.disarm_pvp_only ~= false then
+        local ok, is_player = pcall(function() return context.target:is_player() end)
+        if not (ok and is_player) then return false end
+    end
+    local trigger = settings.disarm_trigger or "on_burst"
+    if trigger == "on_burst" then
+        if not s.disarm_buff_name then return false end
+        context._disarm_buff_name = s.disarm_buff_name
+    end
+    return true
 end
 
 local function kick_matches(context, s)
     if not s.target_casting then return false end
     if not s.kick_ready then return false end
-    return NS.action_matches(context, KICK_ACTION)
+    return true
 end
 
 local function gouge_matches(context, s)
     if not s.gouge_ready then return false end
-    return NS.action_matches(context, GOUGE_ACTION)
+    return true
 end
 
 local function sprint_matches(context, s)
     if not s.in_combat then return false end
     if not s.sprint_ready then return false end
-    return NS.action_matches(context, SPRINT_ACTION)
+    return true
 end
 
 local function vanish_matches(context, s)
@@ -318,7 +346,7 @@ local function vanish_matches(context, s)
     local vanish_hp = (context.settings and context.settings.combat_vanish_hp) or 20
     -- Research: Vanish as emergency threat drop when HP critical
     if s.hp_pct > vanish_hp then return false end
-    return NS.action_matches(context, VANISH_ACTION)
+    return true
 end
 
 local function feint_matches(context, s)
@@ -327,57 +355,59 @@ local function feint_matches(context, s)
     -- Research: Feint is a threat drop — only fire when threat is known and high
     local feint_threat = (context.settings and context.settings.combat_feint_threat) or 90
     if s.threat_pct <= 0 or s.threat_pct < feint_threat then return false end
-    return NS.action_matches(context, FEINT_ACTION)
+    return true
 end
 
 local function hemorrhage_matches(context, s)
     if not s.hemorrhage_ready then return false end
-    return NS.action_matches(context, HEMORRHAGE_ACTION)
+    return true
 end
 
 local function backstab_matches(context, s)
     if not s.backstab_ready then return false end
-    return NS.action_matches(context, BACKSTAB_ACTION)
+    return true
 end
 
 local function ghostly_strike_matches(context, s)
     if not s.ghostly_strike_ready then return false end
-    return NS.action_matches(context, GHOSTLY_STRIKE_ACTION)
+    return true
 end
 
 local function kidney_shot_matches(context, s)
     if not s.kidney_shot_ready then return false end
-    return NS.action_matches(context, KIDNEY_SHOT_ACTION)
+    return true
 end
 
 local function expose_armor_matches(context, s)
     if not s.expose_armor_ready then return false end
     -- Research: only apply Expose Armor when assigned (conflicts with Sunder/Devastate)
     if not s.expose_assigned then return false end
-    return NS.action_matches(context, EXPOSE_ARMOR_ACTION)
+    return true
 end
 
 -- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
-    { name = "Stealth", matches = stealth_matches, execute = function(context) return NS.action_execute(context, STEALTH_ACTION, "[COMBAT]") end },
-    { name = "AdrenalineRush", matches = adrenaline_rush_wrapper, execute = function(context) return NS.action_execute(context, ADRENALINE_RUSH_ACTION, "[COMBAT]") end },
-    { name = "BladeFlurry", matches = blade_flurry_wrapper, execute = function(context) return NS.action_execute(context, BLADE_FLURRY_ACTION, "[COMBAT]") end },
-    { name = "SliceAndDice", matches = slice_and_dice_wrapper, execute = function(context) return NS.action_execute(context, SLICE_AND_DICE_ACTION, "[COMBAT]") end },
-    { name = "Rupture", matches = rupture_wrapper, execute = function(context) return NS.action_execute(context, RUPTURE_ACTION, "[COMBAT]") end },
-    { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return NS.action_execute(context, EVISCERATE_ACTION, "[COMBAT]") end },
-    { name = "Kick", matches = kick_matches, execute = function(context) return NS.action_execute(context, KICK_ACTION, "[COMBAT]") end },
-    { name = "Gouge", matches = gouge_matches, execute = function(context) return NS.action_execute(context, GOUGE_ACTION, "[COMBAT]") end },
-    { name = "Sprint", matches = sprint_matches, execute = function(context) return NS.action_execute(context, SPRINT_ACTION, "[COMBAT]") end },
-    { name = "Vanish", matches = vanish_matches, execute = function(context) return NS.action_execute(context, VANISH_ACTION, "[COMBAT]") end },
-    { name = "Feint", matches = feint_matches, execute = function(context) return NS.action_execute(context, FEINT_ACTION, "[COMBAT]") end },
-    { name = "Hemorrhage", matches = hemorrhage_matches, execute = function(context) return NS.action_execute(context, HEMORRHAGE_ACTION, "[COMBAT]") end },
-    { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return NS.action_execute(context, GHOSTLY_STRIKE_ACTION, "[COMBAT]") end },
-    { name = "Backstab", matches = backstab_matches, execute = function(context) return NS.action_execute(context, BACKSTAB_ACTION, "[COMBAT]") end },
-    { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return NS.action_execute(context, KIDNEY_SHOT_ACTION, "[COMBAT]") end },
-    { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return NS.action_execute(context, EXPOSE_ARMOR_ACTION, "[COMBAT]") end },
-    { name = "SinisterStrike", matches = sinister_strike_wrapper, execute = function(context) return NS.action_execute(context, SINISTER_STRIKE_ACTION, "[COMBAT]") end },
+    { name = "Stealth", matches = stealth_matches, execute = function(context) return NS.try_cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[COMBAT] Stealth", { skip_range = true }) end },
+    { name = "AdrenalineRush", matches = adrenaline_rush_wrapper, execute = function(context) return NS.try_cast(SPELLS.AdrenalineRush, NS.PLAYER_UNIT, "[COMBAT] AdrenalineRush", { skip_range = true }) end },
+    { name = "BladeFlurry", matches = blade_flurry_wrapper, execute = function(context) return NS.try_cast(SPELLS.BladeFlurry, NS.PLAYER_UNIT, "[COMBAT] BladeFlurry", { skip_range = true }) end },
+    { name = "SliceAndDice", matches = slice_and_dice_wrapper, execute = function(context) return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, "[COMBAT] SliceAndDice", { skip_range = true }) end },
+    { name = "Rupture", matches = rupture_wrapper, execute = function(context) return NS.try_cast(SPELLS.Rupture, context.target, "[COMBAT] Rupture") end },
+    { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return NS.try_cast(SPELLS.Eviscerate, context.target, "[COMBAT] Eviscerate") end },
+    { name = "Kick", matches = kick_matches, execute = function(context) return NS.try_cast(SPELLS.Kick, context.target, "[COMBAT] Kick") end },
+    { name = "ShivPurge", matches = function(context, s) if shiv_purge_matches(context, s) then context._shiv_purge_name = s.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return NS.try_cast(SPELLS.Shiv, context.target, "[COMBAT] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
+    { name = "Disarm", matches = disarm_matches, execute = function(context) local label = context._disarm_buff_name and ("[COMBAT] Dismantle → " .. context._disarm_buff_name) or "[COMBAT] Dismantle" return NS.try_cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 }) end },
+    { name = "Gouge", matches = gouge_matches, execute = function(context) return NS.try_cast(SPELLS.Gouge, context.target, "[COMBAT] Gouge") end },
+    { name = "Sprint", matches = sprint_matches, execute = function(context) return NS.try_cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[COMBAT] Sprint", { skip_range = true }) end },
+    { name = "Vanish", matches = vanish_matches, execute = function(context) return NS.try_cast(SPELLS.Vanish, NS.PLAYER_UNIT, "[COMBAT] Vanish", { skip_range = true }) end },
+    { name = "Feint", matches = feint_matches, execute = function(context) return NS.try_cast(SPELLS.Feint, NS.PLAYER_UNIT, "[COMBAT] Feint", { skip_range = true }) end },
+    { name = "Hemorrhage", matches = hemorrhage_matches, execute = function(context) return NS.try_cast(SPELLS.Hemorrhage, context.target, "[COMBAT] Hemorrhage") end },
+    { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return NS.try_cast(SPELLS.GhostlyStrike, context.target, "[COMBAT] GhostlyStrike") end },
+    { name = "Backstab", matches = backstab_matches, execute = function(context) return NS.try_cast(SPELLS.Backstab, context.target, "[COMBAT] Backstab") end },
+    { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return NS.try_cast(SPELLS.KidneyShot, context.target, "[COMBAT] KidneyShot") end },
+    { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return NS.try_cast(SPELLS.ExposeArmor, context.target, "[COMBAT] ExposeArmor") end },
+    { name = "SinisterStrike", matches = sinister_strike_wrapper, execute = function(context) return NS.try_cast(SPELLS.SinisterStrike, context.target, "[COMBAT] SinisterStrike") end },
 }
 
 NS.rotation_registry:register("combat", strategies, { get_state = build_state })

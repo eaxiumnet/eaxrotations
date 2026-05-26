@@ -105,6 +105,16 @@ local SPELLS = {
         power_type = "energy",
         school = "physical",
     }),
+    Dismantle = NS.spell_action({
+        name = "Dismantle",
+        ids = {51722},
+        levels = {40},
+        cast_time = 0,
+        cooldown = 60,
+        power_cost = 25,
+        power_type = "energy",
+        school = "physical",
+    }),
     Envenom = NS.spell_action({
         name = "Envenom",
         ids = {32684, 32645},
@@ -362,7 +372,7 @@ local config = {
 NS.rotation_registry:set_class_config(config)
 
 load_child("middleware_sylvanas")
-load_child("leveling_sylvanas")
+load_child("leveling_sylvanas", true)
 load_child("assassination_sylvanas")
 load_child("combat_sylvanas")
 load_child("subtlety_sylvanas")

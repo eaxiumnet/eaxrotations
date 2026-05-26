@@ -11,6 +11,8 @@ if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local SPELLS = NS.RogueSpells or {}
+local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local CCGateDB = CCBreakDB  -- Same module for CC break + CC gate
 
 -- Spell IDs by rank (newest first) for TBC
 local EVASION_IDS = { 26669, 5277 }      -- Evasion
@@ -63,18 +65,163 @@ local function get_known_spell_id(ids)
     return nil
 end
 
+-- Disarm target classes: melee classes that lose weapon-based damage when disarmed
+local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
+
+-- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
+local ROGUE_AOE_IDS = { 13877 }  -- Blade Flurry
+
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("rogue", "Kick", SPELLS),
+
+    -- ============================================================================
+    -- PvP: SHIV PURGE — dispel 1 magic buff via Wound Poison (BoP, PW:S, Ice Barrier)
+    -- Ported from Flux Warrior ShieldSlamPurge pattern. Uses offensive dispel priority DB.
+    -- Shiv is a 20-energy off-hand attack with 10s cooldown — no stance requirement.
+    -- Requires off-hand weapon with Wound Poison applied for the dispel effect.
+    -- ============================================================================
+    {
+        name = "RogueShivPurge",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_shiv_purge == false then return false end
+            -- Skip entirely if Shiv not learned (level < 28)
+            if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
+            if not context.in_combat then return false end
+            if not context.has_valid_enemy_target then return false end
+            if not context.target then return false end
+            if not (context.is_pvp or false) then return false end
+            -- Shiv is a melee off-hand attack — must be in range
+            if not context.in_melee_range then return false end
+            -- Target must be a player (PvP only — Shiv purge is niche in PvE)
+            if settings.shiv_purge_pvp_only ~= false then
+                local ok, is_player = pcall(function() return context.target:is_player() end)
+                if not (ok and is_player) then return false end
+            end
+            -- Check if target has a priority dispellable buff
+            local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
+            if not best_id then return false end
+            context._shiv_purge_name = best_name
+            return true
+        end,
+        execute = function(context)
+            local name = context._shiv_purge_name or "buff"
+            return NS.try_cast(SPELLS.Shiv, context.target, "[ROGUE] Shiv purge → " .. name, { expected_cooldown = 10 })
+        end,
+    },
+
+    -- ============================================================================
+    -- PvP: DISMANTLE — remove enemy melee weapon (10s, no stance required)
+    -- Ported from Flux Warrior middleware pattern. Uses offensive dispel priority DB
+    -- for on_burst trigger mode. No stance dance needed (rogue is always ready).
+    -- ============================================================================
+    {
+        name = "RogueDisarm",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_disarm == false then return false end
+            -- Skip entirely if Dismantle not learned (level < 40)
+            if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
+            if not context.in_combat then return false end
+            if not (context.is_pvp or false) then return false end
+            if not context.has_valid_enemy_target then return false end
+            if not context.target then return false end
+            if not context.in_melee_range then return false end
+            -- Target must be a player
+            if settings.disarm_pvp_only ~= false then
+                local ok, is_player = pcall(function() return context.target:is_player() end)
+                if not (ok and is_player) then return false end
+            end
+            -- Check target class is melee (Warrior/Rogue/Paladin/Shaman)
+            local ok, class_id = pcall(function() return context.target:get_class() end)
+            if not (ok and type(class_id) == "number") then return false end
+            if not DISARM_CLASS_IDS[class_id] then return false end
+            -- Trigger mode: on_burst requires target has priority dispellable buffs
+            local trigger = settings.disarm_trigger or "on_burst"
+            if trigger == "on_burst" then
+                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
+                if not best_id or (best_priority or 0) < 3 then return false end  -- High+ tier only
+                context._disarm_buff_name = best_name
+            end
+            return true
+        end,
+        execute = function(context)
+            local label = context._disarm_buff_name
+                and ("[ROGUE] Dismantle → " .. context._disarm_buff_name)
+                or "[ROGUE] Dismantle"
+            return NS.try_cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 })
+        end,
+    },
+
+    -- ============================================================================
+    -- CC Break: preemptively Cloak or Vanish when enemy casts CC at us
+    -- ============================================================================
+    {
+        name = "RogueCCBreak",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_cc_break == false then return false end
+            if not context.in_combat then return false end
+            local me = context.me or NS.GetPlayer()
+            if not me then return false end
+            -- Preemptive scan: enemy casting CC at us → Cloak (magic immunity) or Vanish (escape)
+            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+            for _, enemy in ipairs(enemies) do
+                if enemy then
+                    local is_casting_cc = CCBreakDB.is_casting_preemptive_cc(enemy)
+                    if is_casting_cc then
+                        local ok, etarget = pcall(function() return enemy:get_target() end)
+                        if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
+                            -- Cloak of Shadows: magic immunity, prevents Polymorph/Fear
+                            local cloak_id = get_known_spell_id(CLOAK_IDS)
+                            if cloak_id and NS.spell_ready and NS.spell_ready(cloak_id) then
+                                return true
+                            end
+                            -- Vanish: escape everything (emergency option)
+                            local vanish_id = get_known_spell_id(VANISH_IDS)
+                            if vanish_id and NS.spell_ready and NS.spell_ready(vanish_id) then
+                                return true
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+            -- Fallback: player is already under breakable CC — Cloak to dispel, Vanish to escape
+            local has_cc = CCBreakDB.is_breakable_cc_active(me, NS)
+            if has_cc then
+                if cloak_id and NS.spell_ready and NS.spell_ready(cloak_id) then return true end
+                local vanish_id = get_known_spell_id(VANISH_IDS)
+                if vanish_id and NS.spell_ready and NS.spell_ready(vanish_id) then return true end
+            end
+            return false
+        end,
+        execute = function(context)
+            local me = context.me or NS.GetPlayer()
+            if not me then return false end
+            -- Prefer Cloak of Shadows (magic immunity)
+            local cloak_id = get_known_spell_id(CLOAK_IDS)
+            if cloak_id and NS.spell_ready and NS.spell_ready(cloak_id) then
+                return NS.try_cast(cloak_id, me, "[ROGUE] Cloak → CC Break", { skip_range = true })
+            end
+            -- Fallback: Vanish
+            local vanish_id = get_known_spell_id(VANISH_IDS)
+            if vanish_id and NS.spell_ready and NS.spell_ready(vanish_id) then
+                return NS.try_cast(vanish_id, me, "[ROGUE] Vanish → CC Break", { skip_range = true })
+            end
+            return false
+        end,
+    },
 
     {
         name = "ThreatDrop",
         matches = function(context)
             if context.settings.use_threat_drop == false then return false end
-            return NS.action_matches(context, { name = "ThreatDrop", spell = SPELLS.Feint, target = "self", kind = "threat_drop", requires_target = false })
+            return true
         end,
         execute = function(context)
-            return NS.action_execute(context, { name = "ThreatDrop", spell = SPELLS.Feint, target = "self", requires_target = false }, "[ROGUE]")
+            return NS.try_cast(SPELLS.Feint, context.me, "[ROGUE] Feint", { skip_range = true })
         end,
     },
 
@@ -211,6 +358,29 @@ local strategies = {
             end
             return false
         end,
+    },
+
+    -- ============================================================================
+    -- PvP CC Gate: placed at END of middleware so defensives (Evasion, Vanish, Cloak) still fire.
+    -- Only gates spec-level AoE/cleave (Blade Flurry).
+    -- ============================================================================
+    {
+        name = "PvPCCGate",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_pvp_cc_gating == false then return false end
+            if not context.in_combat then return false end
+            local has_aoe = false
+            for _, id in ipairs(ROGUE_AOE_IDS) do
+                if NS.is_spell_learned and NS.is_spell_learned(id) then
+                    has_aoe = true
+                    break
+                end
+            end
+            if not has_aoe then return false end
+            return CCGateDB.is_any_nearby_enemy_under_cc(NS, 15)
+        end,
+        execute = function() return true end,
     },
 
     -- Auto-consumable usage
