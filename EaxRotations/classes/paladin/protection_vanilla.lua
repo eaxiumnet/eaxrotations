@@ -1,12 +1,12 @@
 -- =========================================================================
 -- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
+-- Last Modified: 2026-05-28
+-- Change: Classic Vanilla Protection Paladin rotation
 -- =========================================================================
-local __eax_file = "classes/paladin/protection_sylvanas.lua"
+local __eax_file = "classes/paladin/protection_vanilla.lua"
 local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
+local __eax_modified = "2026-05-28"
+local __eax_change = "Classic Vanilla Protection Paladin rotation"
 local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
 _G.EaxRotationsFileVersions = __eax_versions
 __eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
@@ -122,13 +122,13 @@ local function build_state(context)
     prot_state.lay_on_hands_ready = me and NS.spell_ready(SPELLS.LayOnHands, me, { skip_range = true, expected_cooldown = 1200 }) or false
     prot_state.hammer_of_justice_ready = me and NS.spell_ready(SPELLS.HammerOfJustice, me, { expected_cooldown = 60 }) or false
     prot_state.hammer_of_wrath_ready = me and NS.spell_ready(SPELLS.HammerOfWrath, me, { expected_cooldown = 6 }) or false
-    prot_state.avenging_wrath_ready = me and NS.spell_ready(SPELLS.AvengingWrath, me, { skip_range = true, expected_cooldown = 180 }) or false
+    prot_state.avenging_wrath_ready = me and NS.spell_ready(SPELLS.UnavailableClassicPaladinBurst, me, { skip_range = true, expected_cooldown = 180 }) or false
     prot_state.flash_of_light_ready = me and NS.spell_ready(SPELLS.FlashOfLight, me, { skip_range = true, expected_cooldown = 1.5 }) or false
     prot_state.holy_light_ready = me and NS.spell_ready(SPELLS.HolyLight, me, { skip_range = true, expected_cooldown = 2.5 }) or false
     prot_state.holy_shock_ready = me and NS.spell_ready(SPELLS.HolyShock, me, { expected_cooldown = 15 }) or false
     prot_state.cleanse_ready = me and NS.spell_ready(SPELLS.Cleanse, me, { skip_range = true, expected_cooldown = 1.5 }) or false
     prot_state.seal_of_wisdom_ready = me and NS.spell_ready(SPELLS.SealOfWisdom, me, { skip_range = true, expected_cooldown = 1.5 }) or false
-    prot_state.righteous_defense_ready = me and NS.spell_ready(SPELLS.RighteousDefense, me, { skip_range = true, expected_cooldown = 10 }) or false
+    prot_state.righteous_defense_ready = me and NS.spell_ready(SPELLS.UnavailableClassicPaladinTaunt, me, { skip_range = true, expected_cooldown = 10 }) or false
     prot_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     prot_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     prot_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
@@ -378,7 +378,7 @@ local strategies = {
     { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(SPELLS.Judgement, context.target, "[PROTECTION] Judgement") end },
     { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.try_cast(SPELLS.SealRighteousness, context.me, "[PROTECTION] SealRighteousness") end },
     { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfWrath, context.target, "[PROTECTION] HammerOfWrath") end },
-    { name = "AvengingWrath", matches = avenging_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.AvengingWrath, context.me, "[PROTECTION] AvengingWrath") end },
+    { name = "UnavailableClassicPaladinBurst", matches = avenging_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicPaladinBurst, context.me, "[PROTECTION] UnavailableClassicPaladinBurst") end },
     { name = "Exorcism", matches = exorcism_matches, execute = function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[PROTECTION] Exorcism") end },
     { name = "HolyWrath", matches = holy_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HolyWrath, context.me, "[PROTECTION] HolyWrath") end },
     { name = "SealOfWisdom", matches = seal_of_wisdom_matches, execute = function(context) return NS.try_cast(SPELLS.SealOfWisdom, context.me, "[PROTECTION] SealOfWisdom") end },
@@ -393,7 +393,7 @@ local strategies = {
     { name = "HammerOfJustice", matches = hammer_of_justice_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfJustice, context.target, "[PROTECTION] HammerOfJustice") end },
 
     -- Peel
-    { name = "RighteousDefense", matches = function(context, state) return get_setting(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready end, execute = function(context, state) return NS.try_cast(SPELLS.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
+    { name = "UnavailableClassicPaladinTaunt", matches = function(context, state) return get_setting(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready end, execute = function(context, state) return NS.try_cast(SPELLS.UnavailableClassicPaladinTaunt, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
     { name = "BlessingOfProtectionAlly", matches = function(context, state) return get_setting(context, "prot_blessing_of_protection", true) and state.low_hp_ally ~= nil and NS.spell_ready(SPELLS.BlessingOfProtection, state.low_hp_ally, {}) or false end, execute = function(context, state) return NS.try_cast(SPELLS.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end },
 }
 
