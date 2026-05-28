@@ -8,13 +8,10 @@ Thumbs.db
 *.swp
 .opencode/
 .claude/
+omo/
 
 # Worktrees
 .worktrees/
-
-# Shared modules (auto-generated/built)
-# eax_shared/dot_manager.lua  -- now committed
-# eax_shared/mana_manager.lua  -- now committed
 
 # Build artifacts
 luac.out
@@ -22,31 +19,68 @@ nul
 .tmp_wfu_luac.txt
 .ruff_cache/
 .sisyphus/
-sylvanas-mcp/
-spell_ids_tbc (1).md
 
-# Deprecated plugins
-EaxFishing_v2_0_1/
-
-# Documentation zips (temp downloads)
-*.zip
-!plugins-listing*.zip
-
-# Local dev docs (not part of repo)
-sylvanas-dev-docs-llm/
-
-# Temp API files
+# Temp / local API
 .api/
+.tmp/
 
-# Untracked local noise
-node_modules/
-.omo/
+# Local dev docs / old projects
+sylvanas-dev-docs-llm/
 OldProjects/
 Sonah/
 
-# Packaging policy
+# Packaging
 *.toc
+*.zip
+
+# Deprecated
+EaxFishing_v2_0_1/
 
 # Backup / archive directories
 _backup_*/
 _edit_*.py
+
+# ---- Excluded directories (not part of EaxRotations) ----
+.slim/
+_archive_legacy/
+archive/
+archive_original_specs/
+api/
+apidocs/
+ClassResearchTBC/
+common/
+core_lua/
+core_universal_kicks/
+dev_developer_tools/
+dist/
+docs/
+ext_rotation_tbc_opendruid_alpha/
+flux/
+tools/
+SlyRotate/
+node_modules/
+
+# ---- Loose files to ignore ----
+*.py
+*.txt
+*.md.original.md
+AGENTS.md
+CHANGELOG.md
+CONTRIBUTING.md
+DASHBOARD_HANDOVER.md
+FLUX_EAX_TANKING_HANDOVER.md
+HANDOVER.md
+HANDOVER_MENU_WIRING_FIXES.md
+KIMI_HANDOVER_PROMPT.md
+LICENSE
+MENU_STANDARDIZATION.md
+MENU_WIRING_VERIFICATION_REPORT.md
+README.md
+legacy_rotation_inventory.md
+sylvanas_bug_report_is_spell_learned.md
+sylvanas_vs_retail_analysis.md
+ulw-notepad.md
+ulw-notepad-phase2.md
+balance_old.lua
+package.json
+package-lock.json
