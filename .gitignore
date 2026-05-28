@@ -65,17 +65,13 @@ node_modules/
 *.txt
 *.md.original.md
 AGENTS.md
-CHANGELOG.md
-CONTRIBUTING.md
 DASHBOARD_HANDOVER.md
 FLUX_EAX_TANKING_HANDOVER.md
 HANDOVER.md
 HANDOVER_MENU_WIRING_FIXES.md
 KIMI_HANDOVER_PROMPT.md
-LICENSE
 MENU_STANDARDIZATION.md
 MENU_WIRING_VERIFICATION_REPORT.md
-README.md
 legacy_rotation_inventory.md
 sylvanas_bug_report_is_spell_learned.md
 sylvanas_vs_retail_analysis.md
