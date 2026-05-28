@@ -1,8 +1,28 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/shaman/leveling_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Shaman leveling rotation.
 -- ============================================================================
--- What: TBC Shaman leveling rotation for solo questing with shields, imbues, and totem upkeep
+-- What: TBC Shaman leveling rotation for solo questing with shields, imbues, totems,
+--        Stormstrike (40+), Shamanistic Rage (50+), and smart shield-swapping
 -- When: Per tick
--- Why: Leveling needs shared context guards plus safe maintenance logic for weak gear states
+-- Why: Leveling needs shared context guards, safe maintenance logic for weak gear states,
+--        and Enhancement melee abilities for post-40 efficiency
 -- Safety: Context guard required; pcall-safe spell checks; nil-guarded lookups; conservative fallback timers
 -- ============================================================================
 -- Auto-activates in solo/leveling context or when playstyle = "leveling".
@@ -33,9 +53,8 @@ local is_leveling_context = leveling.create_context_guard()
 local SPELLS = NS.ShamanSpells or NS.SPELLS or {}
 local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
 local WATER_SHIELD_BUFF = TBC_SHAMAN.water_shield or { 33736, 24398, 23575 }
-local TOTEM_REFRESH_MS = 110000
-local IMBUE_REFRESH_UNKNOWN_MS = 1500000
-local SHIELD_REFRESH_UNKNOWN_MS = 300000
+local SHAMANISTIC_RAGE_BUFF = { 30823 }
+
 local MAIN_HAND_SLOT = 16
 local OFF_HAND_SLOT = 17 -- for future off-hand support
 local TOTEM_SLOT = {
@@ -45,13 +64,7 @@ local TOTEM_SLOT = {
     air = 4,
 }
 
-local runtime = {
-    last_imbue_ms = -IMBUE_REFRESH_UNKNOWN_MS,
-    last_lightning_shield_ms = -SHIELD_REFRESH_UNKNOWN_MS,
-    last_fire_totem_ms = -TOTEM_REFRESH_MS,
-    last_earth_totem_ms = -TOTEM_REFRESH_MS,
-    last_water_totem_ms = -TOTEM_REFRESH_MS,
-}
+local runtime = {}
 
 local IMBUE_PRIORITY_AUTO = {
     SPELLS.WindfuryWeapon,
@@ -102,11 +115,6 @@ local function has_buff(buff_ids)
     if not me then return false end
     if NS.buff_up then
         local ok, result = pcall(NS.buff_up, me, buff_ids)
-        if ok and result then return true end
-    end
-    if type(buff_ids) ~= "table" then buff_ids = { buff_ids } end
-    for i = 1, #buff_ids do
-        local ok, result = pcall(function() return me:has_buff(buff_ids[i]) end)
         if ok and result then return true end
     end
     return false
@@ -180,13 +188,13 @@ local function select_weapon_imbue(setting)
 end
 
 local function can_retry_unknown_imbue(state)
-    return state.now_ms - runtime.last_imbue_ms >= IMBUE_REFRESH_UNKNOWN_MS
+    return true
 end
 
 local function can_drop_totem(state, element, last_ms)
     if (state.mana_pct or 100) < 20 then return false end
     if totem_active(element) then return false end
-    return state.now_ms - last_ms >= TOTEM_REFRESH_MS
+    return true
 end
 
 -- ============================================================================
@@ -211,6 +219,8 @@ function shaman_leveling.build_state(context)
     state.chain_lightning_ready = spell_ready(SPELLS.ChainLightning, state.target)
     state.lightning_shield_ready = spell_ready(SPELLS.LightningShield, me, { skip_range = true })
     state.water_shield_ready = spell_ready(SPELLS.WaterShield, me, { skip_range = true })
+    state.stormstrike_ready = spell_ready(SPELLS.Stormstrike, state.target, { expected_cooldown = 10 })
+    state.shamanistic_rage_ready = spell_ready(SPELLS.ShamanisticRage, me, { skip_range = true, expected_cooldown = 120 })
     state.healing_wave_ready = spell_ready(SPELLS.HealingWave, me, { skip_range = true })
     state.lesser_healing_wave_ready = spell_ready(SPELLS.LesserHealingWave, me, { skip_range = true })
     state.ghost_wolf_ready = spell_ready(SPELLS.GhostWolf, me, { skip_range = true })
@@ -231,26 +241,41 @@ function shaman_leveling.build_state(context)
     -- Buff checks
     state.has_lightning_shield = has_buff(LIGHTNING_SHIELD_BUFF)
     state.has_water_shield = has_buff(WATER_SHIELD_BUFF)
-    state.has_mainhand_imbue, state.weapon_imbue_api_known = mainhand_has_imbue()
+    state.has_shamanistic_rage = has_buff(SHAMANISTIC_RAGE_BUFF)
+    -- In melee range check for Stormstrike
+    state.in_melee_range = state.target and state.target.get_distance and state.target:get_distance(me) and state.target:get_distance(me) <= 5 or false
+    -- Weapon imbue detection — use WeaponImbueManager API instead of direct item probe.
+    -- The shared WeaponImbueManager handles both GetWeaponEnchantInfo() and item:item_has_enchant().
+    local imbue = NS.WeaponImbueManager
+    if imbue and type(imbue.mainhand_has_imbue) == "function" then
+        state.has_mainhand_imbue = imbue.mainhand_has_imbue()
+        state.weapon_imbue_api_known = true
+    else
+        state.has_mainhand_imbue, state.weapon_imbue_api_known = mainhand_has_imbue()
+    end
 
     -- Off-hand detection logging (for enhancement dual-wield diagnosis)
     if NS.get_setting and NS.get_setting("debug_system", false) then
-        local oh_item = get_equipped_item(OFF_HAND_SLOT)
-        if oh_item then
-            local oh_has, oh_id, oh_exp = "?", "?", "?"
-            if oh_item.item_has_enchant then
-                local ok1, r1 = pcall(function() return oh_item:item_has_enchant() end)
-                oh_has = ok1 and tostring(r1) or "err"
-                if ok1 and r1 then
-                    local ok2, r2 = pcall(function() return oh_item:item_enchant_id() end)
-                    local ok3, r3 = pcall(function() return oh_item:item_enchant_expiration() end)
-                    oh_id = ok2 and tostring(r2) or "err"
-                    oh_exp = ok3 and tostring(r3) or "err"
-                end
-            end
-            NS.log("[IMBUEDIAG] offhand: item_exists=true has_enchant=" .. oh_has .. " ench_id=" .. oh_id .. " exp=" .. oh_exp)
+        if imbue and type(imbue.offhand_has_imbue) == "function" then
+            NS.log("[IMBUEDIAG] offhand: WeaponImbueManager reports has_imbue=" .. tostring(imbue.offhand_has_imbue()))
         else
-            NS.log("[IMBUEDIAG] offhand: NO item in slot 17")
+            local oh_item = get_equipped_item(OFF_HAND_SLOT)
+            if oh_item then
+                local oh_has, oh_id, oh_exp = "?", "?", "?"
+                if oh_item.item_has_enchant then
+                    local ok1, r1 = pcall(function() return oh_item:item_has_enchant() end)
+                    oh_has = ok1 and tostring(r1) or "err"
+                    if ok1 and r1 then
+                        local ok2, r2 = pcall(function() return oh_item:item_enchant_id() end)
+                        local ok3, r3 = pcall(function() return oh_item:item_enchant_expiration() end)
+                        oh_id = ok2 and tostring(r2) or "err"
+                        oh_exp = ok3 and tostring(r3) or "err"
+                    end
+                end
+                NS.log("[IMBUEDIAG] offhand: item_exists=true has_enchant=" .. oh_has .. " ench_id=" .. oh_id .. " exp=" .. oh_exp)
+            else
+                NS.log("[IMBUEDIAG] offhand: NO item in slot 17")
+            end
         end
     end
 
@@ -266,6 +291,9 @@ function shaman_leveling.build_state(context)
     state.use_searing_totem = settings.leveling_use_searing_totem ~= false
     state.use_strength_totem = settings.leveling_use_strength_totem ~= false
     state.use_water_totem = settings.leveling_use_water_totem ~= false
+    state.use_stormstrike = settings.leveling_use_stormstrike ~= false
+    state.water_shield_mana = settings.leveling_water_shield_mana or 40
+    state.shamanistic_rage_mana = settings.leveling_shamanistic_rage_mana or 30
 
     return state
 end
@@ -303,7 +331,7 @@ local weapon_imbue_matches = function(context, state)
     end
     if not state.weapon_imbue_api_known then
         local retry_ok = can_retry_unknown_imbue(state)
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: api_known=false retry_ok=" .. tostring(retry_ok) .. " retry_ms=" .. tostring(IMBUE_REFRESH_UNKNOWN_MS)) end
+        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: api_known=false retry_ok=" .. tostring(retry_ok) .. " retry_ms=" .. tostring(1500000)) end
         if not retry_ok then return false end
     end
     local ready = spell_ready(state.weapon_imbue, get_player(), { skip_range = true })
@@ -322,7 +350,7 @@ local lightning_shield_matches = function(context, state)
     if state.in_combat then return false end
     if state.has_lightning_shield then return false end
     if not state.lightning_shield_ready then return false end
-    if state.now_ms - runtime.last_lightning_shield_ms < SHIELD_REFRESH_UNKNOWN_MS then return false end
+    if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, LIGHTNING_SHIELD_BUFF) > 2 then return false end
     return true
 end
 
@@ -353,7 +381,7 @@ local searing_totem_matches = function(context, state)
     if not state.use_totems or not state.use_searing_totem then return false end
     if not state.searing_totem_ready then return false end
     if not state.target then return false end
-    return can_drop_totem(state, "fire", runtime.last_fire_totem_ms)
+    return can_drop_totem(state, "fire", 0)
 end
 
 --- Strength of Earth Totem - melee leveling support
@@ -362,7 +390,7 @@ local strength_totem_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.use_totems or not state.use_strength_totem then return false end
     if not state.strength_of_earth_ready then return false end
-    return can_drop_totem(state, "earth", runtime.last_earth_totem_ms)
+    return can_drop_totem(state, "earth", 0)
 end
 
 --- Mana/Healing Stream - water totem sustain
@@ -371,10 +399,10 @@ local water_totem_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.use_totems or not state.use_water_totem then return false end
     if state.mana_spring_ready and (state.mana_pct or 100) <= 85 then
-        return can_drop_totem(state, "water", runtime.last_water_totem_ms)
+        return can_drop_totem(state, "water", 0)
     end
     if state.healing_stream_ready and (state.hp or 100) <= 85 then
-        return can_drop_totem(state, "water", runtime.last_water_totem_ms)
+        return can_drop_totem(state, "water", 0)
     end
     return false
 end
@@ -445,6 +473,88 @@ local earthbind_totem_matches = function(context, state)
     return true
 end
 
+--- Water Shield - OOC mana sustain (when mana below threshold, swap from Lightning Shield)
+local water_shield_matches = function(context, state)
+    if not state then return false end
+    if state.in_combat then return false end
+    if state.has_water_shield then return false end
+    if not state.water_shield_ready then return false end
+    if (state.mana_pct or 100) > state.water_shield_mana then return false end
+    -- Remove Lightning Shield before applying Water Shield (mutually exclusive in TBC)
+    return true
+end
+
+--- Shamanistic Rage - combat mana recovery (level 50+)
+local shamanistic_rage_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if state.has_shamanistic_rage then return false end
+    if not state.shamanistic_rage_ready then return false end
+    if (state.mana_pct or 100) > state.shamanistic_rage_mana then return false end
+    return true
+end
+
+--- Stormstrike - melee DPS (level 40+)
+local stormstrike_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.use_stormstrike then return false end
+    if not state.stormstrike_ready then return false end
+    if not state.target then return false end
+    if not state.in_melee_range then return false end
+    -- Gate: skip if mana emergency (Shamanistic Rage not learned yet or on CD)
+    if (state.mana_pct or 100) < 10 then return false end
+    return true
+end
+
+--- Lesser Healing Wave - fast cheap heal (leveling priority over big heal)
+local lesser_healing_wave_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.lesser_healing_wave_ready then return false end
+    if state.hp > 40 then return false end
+    return true
+end
+
+--- Stoneclaw Totem - aggro redirect when overwhelmed
+local stoneclaw_totem_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.stoneclaw_totem_ready then return false end
+    if state.enemies < 3 then return false end
+    if state.hp > 50 then return false end
+    return true
+end
+
+--- Grounding Totem - absorb incoming spells (PvP + caster mobs)
+local grounding_totem_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.grounding_totem_ready then return false end
+    if state.enemies < 2 then return false end
+    return can_drop_totem(state, "air", 0)
+end
+
+--- Tremor Totem - break fear/charm/sleep effects
+local tremor_totem_matches = function(context, state)
+    if not state then return false end
+    if not state.tremor_totem_ready then return false end
+    -- Always drop Tremor when in PvP combat (counters fear classes)
+    if not state.in_combat then return false end
+    return can_drop_totem(state, "earth", 0)
+end
+
+--- Purge - dispel 2 magic buffs from enemy
+local purge_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.purge_ready then return false end
+    if not state.target then return false end
+    -- Gate: only purge in PvP or vs buffed mobs (healer/caster type)
+    if not state.is_pvp then return false end
+    return true
+end
+
 --- Ghost Wolf - OOC travel
 local ghost_wolf_matches = function(context, state)
     if not state then return false end
@@ -476,7 +586,6 @@ local strategies = {
               NS.log("[IMBUEDIAG] execute: try_cast(" .. spell_name .. ")=" .. tostring(cast_ok) .. " target=nil")
           end
           if cast_ok then
-              runtime.last_imbue_ms = state.now_ms
               return true
           end
           if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] execute: try_cast FAILED") end
@@ -489,7 +598,21 @@ local strategies = {
       execute = function(context, state)
           if not state then return false end
           if try_cast(SPELLS.LightningShield, nil, "[LEVELING] Lightning Shield", { skip_range = true }) then
-              runtime.last_lightning_shield_ms = state.now_ms
+              return true
+          end
+          return false
+      end },
+
+    -- OOC: Water Shield (mana sustain, swaps from Lightning Shield)
+    { name = "WaterShield",
+      matches = water_shield_matches,
+      execute = function(context, state)
+          if not state then return false end
+          -- Cancel Lightning Shield first (mutually exclusive in TBC)
+          if state.has_lightning_shield and NS.cancel_buff then
+              pcall(NS.cancel_buff, LIGHTNING_SHIELD_BUFF)
+          end
+          if try_cast(SPELLS.WaterShield, nil, "[LEVELING] Water Shield", { skip_range = true }) then
               return true
           end
           return false
@@ -500,10 +623,22 @@ local strategies = {
       matches = earth_shock_interrupt_matches,
       execute = function(context) if not context then return false end return try_cast(SPELLS.EarthShock, context.target, "[LEVELING] Earth Shock") end },
 
+    -- Mana Recovery: Shamanistic Rage (level 50+)
+    { name = "ShamanisticRage",
+      matches = shamanistic_rage_matches,
+      execute = function(context)
+          return try_cast(SPELLS.ShamanisticRage, nil, "[LEVELING] Shamanistic Rage", { skip_range = true })
+      end },
+
     -- Survival: Healing Wave
     { name = "HealingWave",
       matches = healing_wave_matches,
       execute = function(context) return try_cast(SPELLS.HealingWave, nil, "[LEVELING] Healing Wave", { skip_range = true }) end },
+
+    -- Survival: Lesser Healing Wave (fast cheap heal)
+    { name = "LesserHealingWave",
+      matches = lesser_healing_wave_matches,
+      execute = function(context) return try_cast(SPELLS.LesserHealingWave, nil, "[LEVELING] Lesser Healing Wave", { skip_range = true }) end },
 
     -- Totems: combat support
     { name = "SearingTotem",
@@ -511,7 +646,6 @@ local strategies = {
       execute = function(context, state)
           if not state then return false end
           if try_cast(SPELLS.SearingTotem, nil, "[LEVELING] Searing Totem", { skip_range = true }) then
-              runtime.last_fire_totem_ms = state.now_ms
               return true
           end
           return false
@@ -522,7 +656,6 @@ local strategies = {
       execute = function(context, state)
           if not state then return false end
           if try_cast(SPELLS.StrengthOfEarthTotem, nil, "[LEVELING] Strength of Earth Totem", { skip_range = true }) then
-              runtime.last_earth_totem_ms = state.now_ms
               return true
           end
           return false
@@ -534,10 +667,27 @@ local strategies = {
           if not state then return false end
           local spell = (state.mana_spring_ready and (state.mana_pct or 100) <= 85) and SPELLS.ManaSpringTotem or SPELLS.HealingStreamTotem
           if try_cast(spell, nil, "[LEVELING] Water Totem", { skip_range = true }) then
-              runtime.last_water_totem_ms = state.now_ms
               return true
           end
           return false
+      end },
+
+    -- Defense: Grounding Totem (spell absorb)
+    { name = "GroundingTotem",
+      matches = grounding_totem_matches,
+      execute = function(context) return try_cast(SPELLS.GroundingTotem, nil, "[LEVELING] Grounding Totem", { skip_range = true }) end },
+
+    -- Defense: Tremor Totem (fear/charm/sleep break)
+    { name = "TremorTotem",
+      matches = tremor_totem_matches,
+      execute = function(context) return try_cast(SPELLS.TremorTotem, nil, "[LEVELING] Tremor Totem", { skip_range = true }) end },
+
+    -- Melee DPS: Stormstrike (level 40+)
+    { name = "Stormstrike",
+      matches = stormstrike_matches,
+      execute = function(context)
+          if not context then return false end
+          return try_cast(SPELLS.Stormstrike, context.target, "[LEVELING] Stormstrike")
       end },
 
     -- AoE: Chain Lightning
@@ -555,17 +705,25 @@ local strategies = {
       matches = earth_shock_dps_matches,
       execute = function(context) if not context then return false end return try_cast(SPELLS.EarthShock, context.target, "[LEVELING] Earth Shock") end },
 
+    -- PvP: Purge (dispel 2 magic buffs)
+    { name = "Purge",
+      matches = purge_matches,
+      execute = function(context) if not context then return false end return try_cast(SPELLS.Purge, context.target, "[LEVELING] Purge") end },
+
     -- Slow: Frost Shock
     { name = "FrostShock",
       matches = frost_shock_matches,
-      execute = function(context) if not context then return false end return try_cast(SPELLS.FrostShock, context.target, "[LEVELING] Frost Shock") end },
-
-    -- Kite: Earthbind Totem
+      execute = function(context) if not context then return false end return try_cast(SPELLS.FrostShock, context.target, "[LEVELING] Frost Shock") end },    -- Kite: Earthbind Totem
     { name = "EarthbindTotem",
       matches = earthbind_totem_matches,
       execute = function(context) return try_cast(SPELLS.EarthbindTotem, nil, "[LEVELING] Earthbind Totem") end },
 
-    -- Filler: Lightning Bolt
+    -- Defense: Stoneclaw Totem (aggro redirect when overwhelmed)
+    { name = "StoneclawTotem",
+      matches = stoneclaw_totem_matches,
+      execute = function(context) return try_cast(SPELLS.StoneclawTotem, nil, "[LEVELING] Stoneclaw Totem", { skip_range = true }) end },
+
+    -- Filler: LightningBolt
     { name = "LightningBolt",
       matches = lightning_bolt_matches,
       execute = function(context) if not context then return false end return try_cast(SPELLS.LightningBolt, context.target, "[LEVELING] Lightning Bolt") end },
