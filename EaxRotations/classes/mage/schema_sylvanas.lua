@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/mage/schema_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Mage menu schema.
 
 -- ============================================================================
@@ -37,6 +55,7 @@ return {
                     { key = "use_mana_shield", type = "checkbox", label = "Mana Shield", default = true },
                     { key = "mana_shield_mana_threshold", type = "slider", label = "Mana Shield Min Mana", min = 0, max = 100, default = 50 },
                     { key = "use_ice_barrier", type = "checkbox", label = "Ice Barrier", default = true },
+                    { key = "use_cc_break", type = "checkbox", label = "CC Break (Blink/Ice Block)", default = true, tooltip = "Preemptively Blink or Ice Block when enemy casts Polymorph/Fear/Cyclone at you" },
                 },
             },
             {
@@ -53,6 +72,8 @@ return {
                 settings = {
                     { key = "use_self_buffs", type = "checkbox", label = "Self Buffs", default = true },
                     { key = "auto_remove_curse", type = "checkbox", label = "Remove Curse", default = true },
+                    { key = "use_spellsteal", type = "checkbox", label = "Spellsteal", default = true, tooltip = "Steal priority enemy magic buffs (Bloodlust, BoP, Ice Barrier, etc.)" },
+                    { key = "spellsteal_mana_floor", type = "slider", label = "Spellsteal Min Mana %", min = 10, max = 80, default = 30, tooltip = "Skip Spellsteal when mana is below this threshold" },
                 },
             },
         },

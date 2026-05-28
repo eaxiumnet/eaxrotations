@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **v1.1.1** — Add runtime file-version stamping and load-time logging for
+  `EaxRotations` Lua files so in-game logs can confirm the active code after
+  reboot. Includes `NS.dump_file_versions()` and documents the cooldown tracker
+  fallback fix that prevents tick-level retry spam when cooldown APIs report `0`.
+- **Private-Server API Health Guards** — Add
+  `NS.broken_api_throttled(spell_id, seconds)` helper to `core_sylvanas.lua`
+  that detects unhealthy aura APIs (common on private servers) and throttles
+  repeated aura checks to prevent crash loops. Applied to **all 31 spec files**
+  across all 9 classes with 3.0s throttle for self-buffs/seals/forms/shields
+  and 2.0s for debuffs/dots. Also fixed `main_sylvanas.lua` bug where
+  `target_range` was computed before `in_melee_range` was set. Restored missing
+  Balance Druid strategies that caused 3 test failures. Fixed
+  `test_balance_custom_matches.lua` mock so `action_execute` correctly calls
+  `try_cast`. All 104 rotation suites + 11 leveling suites pass.
 - **v1.0.30** — Add SP-aware DoT gating to all caster specs: Elemental Shaman Flame Shock (400 SP default, `elemental_flame_shock_min_sp` slider), Destruction Warlock Immolate (400 SP default, `destro_immolate_min_sp` slider), Balance Druid Insect Swarm + Moonfire (800 SP default, dual `balance_insect_swarm_min_sp` / `balance_moonfire_min_sp` sliders). All use `NS.get_spell_damage()` → `context.spell_damage` → 0 fallback pattern matching Shadow Priest/Affliction. Schemas updated with per-spec sliders (0–2000 range). Includes test fix for balance_custom_matches mock states and captures the earlier 5 PvP Tier 2 test additions (106→111 suites). Completes the deferred SP breakpoint research from `SP_Breakpoints_Druid_Balance.md`.
 - **v1.0.29** — Add [IMBUEDIAG] debug instrumentation to shaman leveling rotation: log enchant detection (item_has_enchant, enchant_id, expiration, charges), weapon_imbue_matches flow (rejection reasons, spell ready state), try_cast results, and off-hand weapon enchant state. Fix nil crash in spell_ids log. Remove dead OFF_HAND_SLOT constant.
 - **v1.0.28** — Bump all remaining per-cycle `[ROTDBG]` traces in `main_sylvanas.lua` from 500-1000ms to 2000ms: per-strategy `:blocked`, `:match`, `:exec` (was 700-1000ms), plus `target:pick`, `context:summary`, `gate:ooc`, `playstyle:active` (was 500ms). Debug output now ~10-15 lines/2s instead of 50+/frame.

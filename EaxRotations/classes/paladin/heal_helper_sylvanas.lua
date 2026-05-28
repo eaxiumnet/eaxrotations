@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/paladin/heal_helper_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- What: Paladin healing utilities for party and raid scanning.
 -- When: Load time and scan ticks.
@@ -11,10 +29,11 @@ if not NS then
     return
 end
 
-local enums = require("common/enums")
-if type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
+local _ok_enums, enums = pcall(require, "common/enums")
+if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
 local load_player = NS.GetPlayer()
-if not load_player or load_player:get_class() ~= enums.class_id.PALADIN then return end
+local ok_cls, cls_id = pcall(function() return load_player and load_player:get_class() end)
+if not ok_cls or cls_id ~= enums.class_id.PALADIN then return end
 
 -- PARTY_UNITS/RAID_UNITS removed: unused (healing uses build_healing_entries/NS.healing_* for target scanning)
 

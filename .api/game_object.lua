@@ -42,6 +42,8 @@
 ---@field is_visible fun(self: game_object): boolean
 ---Returns the type of the game object.
 ---@field get_type fun(self: game_object): number
+---Returns the object type as a string.
+---@field get_object_type_string fun(self: game_object): string
 ---Returns the class of the game object.
 ---@field get_class fun(self: game_object): number
 ---Returns the spec_id of the game object.

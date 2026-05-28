@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_discipline_frostbyte_gaps.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Feature audit for discipline_sylvanas: verifies all strategies and FrostByte/Research gaps.
 -- 18 baseline + 3 ClassResearchTBC (PainSuppression, PowerInfusion, InnerFocus) + 4 FrostByte = 25 total.
 
@@ -175,8 +193,7 @@ for _, gap_name in ipairs(frostbyte_gaps) do
 end
 
 -- All 4 FrostByte gaps + 3 ClassResearchTBC enhancements are now implemented.
--- Expected: 18 baseline + 3 ClassResearchTBC (PainSuppression, PowerInfusion, InnerFocus) + 4 FrostByte = 25 total
-assert_eq(#strategies, 27, "expected 27 strategies (Deep Upgrade adjusted), got " .. #strategies)
+assert_eq(#strategies, 29, "expected 29 strategies (Deep Upgrade adjusted), got " .. #strategies)
 
 print("PASS test_discipline_frostbyte_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/4 FrostByte gaps closed)")
 

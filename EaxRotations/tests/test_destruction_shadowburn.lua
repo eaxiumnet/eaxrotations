@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_destruction_shadowburn.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- unit tests for destruction_sylvanas Shadowburn execute logic.
 -- Verifies Shadowburn fires only when target is in execute range and soul shard is available.
 
@@ -56,6 +74,9 @@ _G.EaxRotations = {
     end,
     action_matches = function(ctx, act)
         action_calls[#action_calls + 1] = { fn = "action_matches", ctx = ctx, act = act }
+        return true
+    end,
+    spell_ready = function(spell, target, opts)
         return true
     end,
     spell_action = function(spell_ids, name)

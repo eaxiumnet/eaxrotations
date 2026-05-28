@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warrior/class_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warrior spell table, playstyle config, and child module loader.
 -- ============================================================================
 -- What: TBC Warrior spell table and class bootstrap for all warrior playstyles
@@ -12,7 +30,8 @@ local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("warrior", "Warrior")
 local enums = cl.get_enums()
 local player = NS.GetPlayer()
-if not player or player:get_class() ~= enums.class_id.WARRIOR then return nil end
+local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
+if not ok_cls or cls_id ~= enums.class_id.WARRIOR then return nil end
 
 local SPELLS = {
     BattleShout = NS.spell_action({
@@ -454,10 +473,10 @@ local config = {
 NS.rotation_registry:set_class_config(config)
 
 load_child("middleware_sylvanas")
-load_child("leveling_sylvanas")
+load_child("leveling_sylvanas", true)
 load_child("arms_sylvanas")
 load_child("fury_sylvanas")
-load_child("kebab_sylvanas")
+load_child("kebab_sylvanas", true)
 load_child("protection_sylvanas")
 NS.log("Warrior class module loaded")
 return config
