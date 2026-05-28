@@ -152,12 +152,7 @@ local arms_state = {
     healthstone_id = nil,
 }
 
-local function setting(context, key, fallback)
-    local settings = context.settings
-    if settings and settings[key] ~= nil then return settings[key] end
-    if NS.get_setting then return NS.get_setting(key, fallback) end
-    return fallback
-end
+local setting = NS.setting
 
 local function player_unit(context)
     return context.me or (NS.GetPlayer and NS.GetPlayer()) or PLAYER_UNIT

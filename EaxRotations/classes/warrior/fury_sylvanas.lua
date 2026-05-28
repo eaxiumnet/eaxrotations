@@ -165,9 +165,7 @@ local fury_state = {
 }
 
 -- Helper functions
--- Uses NS.setting when available (loaded by core_sylvanas); falls back inline for isolated tests.
-local function setting(context, key, fallback)
-    if NS.setting then return NS.setting(context, key, fallback) end
+local setting = NS.setting or function(context, key, fallback)
     local settings = context and context.settings
     if settings and settings[key] ~= nil then return settings[key] end
     if NS.get_setting then return NS.get_setting(key, fallback) end

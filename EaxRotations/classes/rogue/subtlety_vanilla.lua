@@ -1,12 +1,12 @@
 -- =========================================================================
 -- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
+-- Last Modified: 2026-05-28
+-- Change: Classic Vanilla Subtlety Rogue rotation
 -- =========================================================================
-local __eax_file = "classes/rogue/subtlety_sylvanas.lua"
+local __eax_file = "classes/rogue/subtlety_vanilla.lua"
 local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
+local __eax_modified = "2026-05-28"
+local __eax_change = "Classic Vanilla Subtlety Rogue rotation"
 local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
 _G.EaxRotationsFileVersions = __eax_versions
 __eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
@@ -16,9 +16,9 @@ if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
 end
 local __eax_ns = rawget(_G, "EaxRotations")
 if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- Rogue Subtlety priority list: TBC Shadowstep burst, Hemorrhage upkeep, and PvP control chains.
+-- Rogue Subtlety priority list: Classic Vanilla ClassicRemovedMobilityA burst, Hemorrhage upkeep, and PvP control chains.
 -- ============================================================================
--- What: TBC Rogue Subtlety rotation with stealth openers, Shadowstep burst, and control
+-- What: Classic Vanilla Rogue Subtlety rotation with stealth openers, ClassicRemovedMobilityA burst, and control
 -- When: Per tick
 -- Why: Priority list balances openers, burst, and PvP control chains
 -- Safety: Nil-guarded target/state checks, bounded range logic, conservative opener rules
@@ -39,8 +39,8 @@ local SPELLS = {
     Backstab = BASE_SPELLS.Backstab or spell({ 26863, 25300, 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }, "Backstab"),
     Blind = BASE_SPELLS.Blind or spell({ 2094 }, "Blind"),
     CheapShot = BASE_SPELLS.CheapShot or spell({ 1833 }, "CheapShot"),
-    CloakOfShadows = BASE_SPELLS.CloakOfShadows or spell({ 31224 }, "CloakOfShadows"),
-    DeadlyThrow = BASE_SPELLS.DeadlyThrow or spell({ 26679 }, "DeadlyThrow"),
+    ClassicRemovedDefensiveA = BASE_SPELLS.ClassicRemovedDefensiveA or spell({ 31224 }, "ClassicRemovedDefensiveA"),
+    ClassicRemovedThrowA = BASE_SPELLS.ClassicRemovedThrowA or spell({ 26679 }, "ClassicRemovedThrowA"),
     Dismantle = BASE_SPELLS.Dismantle or spell({ 51722 }, "Dismantle"),
     Evasion = BASE_SPELLS.Evasion or spell({ 26669, 5277 }, "Evasion"),
     Eviscerate = BASE_SPELLS.Eviscerate or spell({ 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
@@ -56,8 +56,8 @@ local SPELLS = {
     Preparation = BASE_SPELLS.Preparation or spell({ 14185 }, "Preparation"),
     Rupture = BASE_SPELLS.Rupture or spell({ 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
     Sap = BASE_SPELLS.Sap or spell({ 11297, 2070, 6770 }, "Sap"),
-    Shadowstep = BASE_SPELLS.Shadowstep or spell({ 36554 }, "Shadowstep"),
-    Shiv = BASE_SPELLS.Shiv or spell({ 5938 }, "Shiv"),
+    ClassicRemovedMobilityA = BASE_SPELLS.ClassicRemovedMobilityA or spell({ 36554 }, "ClassicRemovedMobilityA"),
+    ClassicRemovedUtilityA = BASE_SPELLS.ClassicRemovedUtilityA or spell({ 5938 }, "ClassicRemovedUtilityA"),
     SinisterStrike = BASE_SPELLS.SinisterStrike or spell({ 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }, "SinisterStrike"),
     SliceAndDice = BASE_SPELLS.SliceAndDice or spell({ 6774, 5171 }, "SliceAndDice"),
     Sprint = BASE_SPELLS.Sprint or spell({ 11305, 8696, 2983 }, "Sprint"),
@@ -129,7 +129,7 @@ local subtlety_state = {
     vanish_cd = 0,
     sprint_cd = 0,
     evasion_cd = 0,
-    -- Shiv Purge (PvP buff dispel via Wound Poison)
+    -- ClassicRemovedUtilityA Purge (PvP buff dispel via Wound Poison)
     shiv_ready = false,
     shiv_purge_name = nil,
     -- Disarm (PvP Dismantle)
@@ -192,8 +192,8 @@ local function build_state(context)
     subtlety_state.vanish_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Vanish) or 0
     subtlety_state.sprint_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Sprint) or 0
     subtlety_state.evasion_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Evasion) or 0
-    -- Shiv Purge (PvP buff dispel via Wound Poison)
-    subtlety_state.shiv_ready = context.target and NS.spell_ready(SPELLS.Shiv, context.target, { expected_cooldown = 10 }) or false
+    -- ClassicRemovedUtilityA Purge (PvP buff dispel via Wound Poison)
+    subtlety_state.shiv_ready = context.target and NS.spell_ready(SPELLS.ClassicRemovedUtilityA, context.target, { expected_cooldown = 10 }) or false
     subtlety_state.shiv_purge_name = nil
     if context.in_combat and (context.is_pvp or false) and context.target and CCGateDB.find_best_dispel_target then
         local best_id, _, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
@@ -290,7 +290,7 @@ local function shadowstep_opener_matches(context, state)
     if not state.stealth_up then return false end
     if not use_shadowstep_now(context) then return false end
     if not in_shadowstep_range(context, state) and not state.is_behind then return false end
-    return NS.spell_ready(SPELLS.Shadowstep, context.target)
+    return NS.spell_ready(SPELLS.ClassicRemovedMobilityA, context.target)
 end
 
 local function ambush_opener_matches(context, state)
@@ -365,7 +365,7 @@ end
 local function cloak_matches(context, state)
     if setting(context, "rogue_use_cloak", true) == false then return false end
     if (state.hp or 100) > setting(context, "rogue_cloak_hp", 45) and not state.is_caster_target then return false end
-    return NS.spell_ready(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready(SPELLS.ClassicRemovedDefensiveA, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function evasion_matches(context, state)
@@ -397,7 +397,7 @@ end
 local function shadowstep_gap_matches(context, state)
     if not use_shadowstep_now(context) then return false end
     if not in_shadowstep_range(context, state) then return false end
-    return NS.spell_ready(SPELLS.Shadowstep, context.target)
+    return NS.spell_ready(SPELLS.ClassicRemovedMobilityA, context.target)
 end
 
 local function sprint_gap_matches(context, state)
@@ -471,7 +471,7 @@ end
 local function deadly_throw_matches(context, state)
     if state.combo < 3 or not enough_energy(state, ENERGY_DEADLY_THROW) then return false end
     if state.target_distance <= MELEE_RANGE or state.target_distance > 30 then return false end
-    return NS.spell_ready(SPELLS.DeadlyThrow, context.target)
+    return NS.spell_ready(SPELLS.ClassicRemovedThrowA, context.target)
 end
 
 local function eviscerate_kill_matches(context, state)
@@ -521,9 +521,9 @@ end
 
 local strategies = {
     { name = "Kick", matches = kick_matches, execute = function(context) return cast(SPELLS.Kick, context.target, "[SUBTLETY] Kick") end },
-    { name = "ShivPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.Shiv, context.target, "[SUBTLETY] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
+    { name = "ClassicRemovedUtilityAPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.ClassicRemovedUtilityA, context.target, "[SUBTLETY] ClassicRemovedUtilityA purge → " .. name, { expected_cooldown = 10 }) end },
     { name = "Disarm", matches = disarm_matches, execute = function(context) local label = context._disarm_buff_name and ("[SUBTLETY] Dismantle → " .. context._disarm_buff_name) or "[SUBTLETY] Dismantle" return cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 }) end },
-    { name = "CloakOfShadows", matches = cloak_matches, execute = function() return cast(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },
+    { name = "ClassicRemovedDefensiveA", matches = cloak_matches, execute = function() return cast(SPELLS.ClassicRemovedDefensiveA, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },
     { name = "Evasion", matches = evasion_matches, execute = function() return cast(SPELLS.Evasion, NS.PLAYER_UNIT, "[SUBTLETY] Evasion", { skip_range = true }) end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return cast(SPELLS.GhostlyStrike, context.target, "[SUBTLETY] Ghostly Strike") end },
     { name = "Blind", matches = blind_matches, execute = function(context) return cast(SPELLS.Blind, context.target, "[SUBTLETY] Blind") end },
@@ -531,21 +531,21 @@ local strategies = {
     { name = "Stealth", matches = stealth_matches, execute = function() return cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[SUBTLETY] Stealth", { skip_range = true }) end },
     { name = "Sap", matches = sap_matches, execute = function(context) return cast(SPELLS.Sap, context.target, "[SUBTLETY] Sap") end },
     { name = "Premeditation", matches = premeditation_matches, execute = function(context) return cast(SPELLS.Premeditation, context.target, "[SUBTLETY] Premeditation", { skip_range = true }) end },
-    { name = "ShadowstepOpener", matches = shadowstep_opener_matches, is_burst = true, execute = function(context) return cast(SPELLS.Shadowstep, context.target, "[SUBTLETY] Shadowstep opener") end },
+    { name = "ClassicRemovedMobilityAOpener", matches = shadowstep_opener_matches, is_burst = true, execute = function(context) return cast(SPELLS.ClassicRemovedMobilityA, context.target, "[SUBTLETY] ClassicRemovedMobilityA opener") end },
     { name = "Ambush", spell = SPELLS.Ambush, requires_buff = { 1787, 1786, 1785, 1784 }, requires_behind = true, min_energy = ENERGY_AMBUSH, matches = ambush_opener_matches, execute = function(context) return cast(SPELLS.Ambush, context.target, "[SUBTLETY] Ambush") end },
     { name = "Garrote", matches = garrote_opener_matches, execute = function(context) return cast(SPELLS.Garrote, context.target, "[SUBTLETY] Garrote caster opener") end },
     { name = "CheapShot", matches = cheap_shot_opener_matches, execute = function(context) return cast(SPELLS.CheapShot, context.target, "[SUBTLETY] Cheap Shot opener") end },
     { name = "Vanish", matches = vanish_burst_matches, is_burst = true, execute = function() return cast(SPELLS.Vanish, NS.PLAYER_UNIT, "[SUBTLETY] Vanish reopen", { skip_range = true }) end },
     { name = "Preparation", matches = preparation_matches, is_burst = true, execute = function() return cast(SPELLS.Preparation, NS.PLAYER_UNIT, "[SUBTLETY] Preparation reset", { skip_range = true }) end },
     { name = "Sprint", matches = sprint_gap_matches, execute = function() return cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[SUBTLETY] Sprint gap close", { skip_range = true }) end },
-    { name = "Shadowstep", matches = shadowstep_gap_matches, is_burst = true, execute = function(context) return cast(SPELLS.Shadowstep, context.target, "[SUBTLETY] Shadowstep") end },
+    { name = "ClassicRemovedMobilityA", matches = shadowstep_gap_matches, is_burst = true, execute = function(context) return cast(SPELLS.ClassicRemovedMobilityA, context.target, "[SUBTLETY] ClassicRemovedMobilityA") end },
     { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return cast(SPELLS.KidneyShot, context.target, "[SUBTLETY] Kidney Shot stun chain") end },
-    { name = "ShadowstepHemorrhage", matches = shadowstep_hemo_matches, execute = function(context) return cast(SPELLS.Hemorrhage, context.target, "[SUBTLETY] Shadowstep Hemorrhage") end },
+    { name = "ClassicRemovedMobilityAHemorrhage", matches = shadowstep_hemo_matches, execute = function(context) return cast(SPELLS.Hemorrhage, context.target, "[SUBTLETY] ClassicRemovedMobilityA Hemorrhage") end },
     { name = "HemorrhageDebuff", matches = hemo_debuff_matches, execute = function(context) return cast(SPELLS.Hemorrhage, context.target, "[SUBTLETY] Hemorrhage debuff") end },
     { name = "SliceAndDice", matches = slice_matches, execute = function() return cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, "[SUBTLETY] Slice and Dice", { skip_range = true }) end },
     { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return cast(SPELLS.ExposeArmor, context.target, "[SUBTLETY] Expose Armor") end },
     { name = "Rupture", matches = rupture_matches, execute = function(context) return cast(SPELLS.Rupture, context.target, "[SUBTLETY] Rupture") end },
-    { name = "DeadlyThrow", matches = deadly_throw_matches, execute = function(context) return cast(SPELLS.DeadlyThrow, context.target, "[SUBTLETY] Deadly Throw") end },
+    { name = "ClassicRemovedThrowA", matches = deadly_throw_matches, execute = function(context) return cast(SPELLS.ClassicRemovedThrowA, context.target, "[SUBTLETY] Deadly Throw") end },
     { name = "EviscerateKill", matches = eviscerate_kill_matches, execute = function(context) return cast(SPELLS.Eviscerate, context.target, "[SUBTLETY] Eviscerate kill") end },
     { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return cast(SPELLS.Eviscerate, context.target, "[SUBTLETY] Eviscerate") end },
     { name = "Feint", matches = feint_matches, execute = function() return cast(SPELLS.Feint, NS.PLAYER_UNIT, "[SUBTLETY] Feint AoE reduction", { skip_range = true }) end },
@@ -555,5 +555,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("subtlety", strategies, { get_state = build_state })
-NS.log("Rogue subtlety rotation registered (Shadowstep control enhanced)")
+NS.log("Rogue subtlety rotation registered (ClassicRemovedMobilityA control enhanced)")
 return strategies
