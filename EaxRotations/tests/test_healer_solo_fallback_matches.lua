@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_healer_solo_fallback_matches.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- behavior tests for healer solo damage fallback gates.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -61,6 +79,7 @@ _G.EaxRotations = {
     POWER_MANA = 0,
     spell_action = function(ids, label) return { ids = ids, label = label } end,
     spell_ready = function() return true end,
+    spell_castable_via_izi = function() return true end,
     buff_up = function() return false end,
     debuff_remains = function() return 0 end,
     has_player_buff = function() return false end,
@@ -105,7 +124,7 @@ _G.EaxRotations = {
 }
 local shaman = dofile("EaxRotations/classes/shaman/restoration_sylvanas.lua")
 local flame_shock = find_strategy(shaman, "FlameShock")
-assert_true(flame_shock.matches({ is_solo = true, has_valid_enemy_target = true, target = {}, settings = {} }, { flame_shock_ready = true, flame_shock_remains = 0, mana_pct = 60, lowest = { effective_hp = 95 } }), "Resto Shaman Flame Shock should match in stable solo fallback")
-assert_false(flame_shock.matches({ is_solo = true, has_valid_enemy_target = true, target = {}, settings = {} }, { flame_shock_ready = true, flame_shock_remains = 0, mana_pct = 20, lowest = { effective_hp = 95 } }), "Resto Shaman Flame Shock should not match below mana floor")
+assert_true(flame_shock.matches({ is_solo = true, has_valid_enemy_target = true, target = {}, settings = { restoration_dps_when_idle = true } }, { flame_shock_ready = true, flame_shock_remains = 0, mana_pct = 60, lowest = { effective_hp = 95 } }), "Resto Shaman Flame Shock should match in stable solo fallback")
+assert_false(flame_shock.matches({ is_solo = true, has_valid_enemy_target = true, target = {}, settings = { restoration_dps_when_idle = true } }, { flame_shock_ready = true, flame_shock_remains = 0, mana_pct = 20, lowest = { effective_hp = 95 } }), "Resto Shaman Flame Shock should not match below mana floor")
 
 print("PASS test_healer_solo_fallback_matches")

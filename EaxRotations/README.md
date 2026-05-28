@@ -1,12 +1,12 @@
 # EaxRotations
 
-**Version:** 1.0.15 | **Updated:** 2026-05-16 | **Status:** Stable
+**Version:** 1.1.0 | **Updated:** 2026-05-26 | **Status:** Stable
 
 EaxRotations is a comprehensive TBC Classic rotation framework for Project Sylvanas. It is built around a shared combat engine, class modules, playstyle priority lists, defensive middleware, role-aware settings, and regression tests.
 
 The package is intended to be readable, auditable, and practical for community use. Release contents should be Markdown documentation and Lua source/tests only.
 
-**Stats:** ~273 Lua files, 31 talent specs + 2 extra playstyles (caster, kebab) + 9 leveling = 40 registered playstyles, ~110 regression tests (100 rotation entries [99 unique files] + 11 leveling), ~72,000 lines of Lua.
+**Stats:** ~291 Lua files, 31 talent specs + 2 extra playstyles (caster, kebab) + 9 leveling = 40 registered playstyles, ~115 regression tests (104 rotation suites + 11 leveling), ~72,000 lines of Lua.
 
 EaxRotations automates class rotation decisions through Project Sylvanas APIs. It does not blindly press buttons. Every action is expected to pass shared gates before a cast is attempted:
 
@@ -648,7 +648,7 @@ The current project passes:
 - **Architecture**: Clean dispatcher, NS.* API boundary; class files use NS wrappers; only `header.lua` uses raw bootstrap API
 - **TBC Accuracy**: 100% spell ID audit clean (0 fake/legacy IDs)
 - **Readability**: What/When/Why/Safety headers on 83+ production files
-- **Test Coverage**: ~110 suites (100 rotation entries [99 unique files: duplicate `test_execute_phase.lua`] + 11 leveling)
+- **Test Coverage**: ~115 suites (104 rotation suites + 11 leveling)
 - **Performance**: Strategy evaluation benchmarked under 20ms threshold
 - **Open Source**: MIT LICENSE, CONTRIBUTING.md, stale stats corrected
 - Lua syntax checks across all ~273 Lua files
@@ -686,7 +686,7 @@ The current project passes:
 Before publishing a community build:
 
 - [ ] run syntax checks (all files pass `luac -p`)
-- [ ] run all Lua tests (~110 tests: 100 rotation entries [99 unique] + 11 leveling)
+- [ ] run all Lua tests (~115 regression suites: 104 rotation + 11 leveling)
 - [ ] confirm only Markdown and Lua files are included
 - [ ] scan public documentation for stale internal wording
 - [ ] test at least one DPS, one tank, and one healer profile in game

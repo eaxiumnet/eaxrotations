@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_protection_frostbyte_gaps.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Feature audit for protection_sylvanas: Bloodrage, VictoryRush, Rend, IntimidatingShout.
 -- Documents FrostByte features and verifies all 4 gaps are now closed.
 
@@ -134,8 +152,9 @@ assert_true(strategy_names["VictoryRush"], "VictoryRush should be present - Fros
 assert_true(strategy_names["Rend"], "Rend should be present - FrostByte feature: bleed threat")
 assert_true(strategy_names["IntimidatingShout"], "IntimidatingShout should be present - FrostByte feature: AoE fear")
 
-local expected_count = 29
+local expected_count = 30
 assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies, got " .. #strategies)
+assert_true(strategy_names["ShieldSlamPurge"], "ShieldSlamPurge should be present - Ported from Flux middleware")
 
 print("PASS test_protection_frostbyte_gaps (gap audit: " .. #strategies .. " strategies present, 4 FrostByte gaps closed)")
 

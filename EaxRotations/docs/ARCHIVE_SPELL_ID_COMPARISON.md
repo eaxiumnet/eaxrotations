@@ -6,15 +6,14 @@ This compares `archive_original_specs/*/libraries/spells.lua` against the curren
 
 | Spec | Archive Tables | Matched | Missing Tables | Same-Name ID Diffs | IDs Absent Anywhere |
 |---|---:|---:|---:|---:|---:|
-| EAXDruidBalance | 36 | 23 | 13 | 3 | 19 |
+| EAXDruidBalance | 36 | 21 | 15 | 2 | 19 |
 
 ## EAXDruidBalance
 
-Missing current spell tables: `AQUATIC_FORM`, `BUFF_BERSERKING`, `BUFF_CLEARCASTING`, `DIRE_BEAR_FORM`, `FERAL_CHARGE_BEAR`, `HASTE_POTION`, `DEBUFF_ID`, `BUFF_NATURES_GRACE`, `PACIFY_BUFFS`, `SCROLL_OF_INTELLECT`, `SCROLL_OF_STAMINA`, `BUFF_SHADOWMELD`, `SUPER_MANA_POTION`
+Missing current spell tables: `AQUATIC_FORM`, `BUFF_BERSERKING`, `BUFF_CLEARCASTING`, `DIRE_BEAR_FORM`, `FERAL_CHARGE_BEAR`, `HASTE_POTION`, `DEBUFF_ID`, `BUFF_NATURES_GRACE`, `PACIFY_BUFFS`, `REBIRTH`, `SCROLL_OF_INTELLECT`, `SCROLL_OF_STAMINA`, `BUFF_SHADOWMELD`, `SUPER_MANA_POTION`, `WAR_STOMP`
 
 Archive IDs not present under the same normalized table name:
 - BUFF_GIFT_OF_THE_WILD missing 27003
-- REBIRTH missing 20910, 20909
 - REMOVE_CURSE missing 8690, 8691
 
 Archive IDs absent anywhere in current class/spec files:
@@ -2222,4 +2221,4 @@ Archive IDs absent anywhere in current class/spec files:
 - 34775 from DRAGON_SLAYER
 
 
-Summary: `518` missing normalized tables, `481` same-name archive ID differences, `1755` archive IDs absent anywhere.
+Summary: `520` missing normalized tables, `479` same-name archive ID differences, `1755` archive IDs absent anywhere.
