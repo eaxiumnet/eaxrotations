@@ -66,7 +66,6 @@ local state = {
     call_pet_ready = false, revive_pet_ready = false,
     hunters_mark_ready = false, serpent_sting_ready = false,
     scorpid_sting_ready = false, viper_sting_ready = false,
-    readiness_ready = false,
     -- FrostByte features
     aspect_mode = "auto",
     sting_mode = "serpent",
@@ -145,7 +144,6 @@ local function build_state(context)
     state.mend_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     state.call_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
     state.revive_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
-    state.readiness_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true }) or false
     -- Viper Sting ready from SPELLS or fallback
     if SPELLS.ViperSting then
         state.viper_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ViperSting, target) or false
@@ -347,16 +345,6 @@ local function rapid_fire_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
     if not s.rapid_fire_ready then return false end
-    return true
-end
-
--- Readiness (reset Bestial Wrath / Rapid Fire after they expire)
-local function readiness_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not cooldowns_allowed(context) then return false end
-    if not s.readiness_ready then return false end
-    -- Only use if Bestial Wrath is on cooldown (already used)
-    if s.bestial_wrath_ready then return false end
     return true
 end
 
@@ -678,13 +666,7 @@ local strategies = {
         matches = rapid_fire_matches,
         execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[BEAST_MASTERY] RapidFire", { skip_range = true }) end,
     },
-    -- 12. Readiness (reset CDs)
-    {
-        name = "Readiness",
-        matches = readiness_matches,
-        execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true }) end,
-    },
-    -- 13. Kill Command (off-GCD, highest DPS)
+    -- 12. Kill Command (off-GCD, highest DPS)
     {
         name = "UnavailableClassicHunterShotB",
         matches = kill_command_matches,

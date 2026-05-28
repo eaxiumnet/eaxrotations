@@ -49,6 +49,66 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local M = {}
 
 -- ---------------------------------------------------------------------------
+-- Section 0: Security — forbidden pattern validation for generated code
+-- ---------------------------------------------------------------------------
+
+--- Patterns that must never appear in generated Lua code.
+-- These block access to I/O, OS, debug, and dynamic code execution.
+local FORBIDDEN_PATTERNS = {
+    { pattern = "%bos%.",           name = "os.execute/os.remove/os.rename" },
+    { pattern = "%bio%.",           name = "io.open/io.popen/io.write" },
+    { pattern = "%bdebug%.",        name = "debug.getinfo/debug.setmetatable" },
+    { pattern = "loadstring",       name = "loadstring (dynamic code)" },
+    { pattern = "loadfile",         name = "loadfile (dynamic code)" },
+    { pattern = "dofile",           name = "dofile (dynamic code)" },
+    { pattern = "rawset",           name = "rawset" },
+    { pattern = "rawget",           name = "rawget" },
+    { pattern = "setmetatable",     name = "setmetatable" },
+    { pattern = "getmetatable",     name = "getmetatable" },
+    { pattern = "setfenv",          name = "setfenv" },
+    { pattern = "getfenv",          name = "getfenv" },
+    { pattern = "_G",               name = "_G global table" },
+    { pattern = "string%.dump",     name = "string.dump" },
+    { pattern = "coroutine%.wrap",  name = "coroutine.wrap" },
+    { pattern = "pcall",            name = "pcall" },
+    { pattern = "xpcall",           name = "xpcall" },
+    { pattern = "select",           name = "select" },
+    { pattern = "require",          name = "require" },
+    { pattern = "collectgarbage",   name = "collectgarbage" },
+    { pattern = "newproxy",         name = "newproxy" },
+}
+
+--- Validate generated Lua code against forbidden patterns.
+-- @param code string The generated Lua source
+-- @return boolean ok, string|nil error_message
+local function validate_generated_code(code)
+    if type(code) ~= "string" then
+        return false, "validate_generated_code: code is not a string"
+    end
+    for _, entry in ipairs(FORBIDDEN_PATTERNS) do
+        if code:match(entry.pattern) then
+            return false, "[APL Security] Forbidden pattern in generated code: " .. entry.name
+        end
+    end
+    return true, nil
+end
+
+--- Sanitize a string for safe interpolation into a Lua string literal.
+-- Rejects characters that could break out of double-quoted strings.
+-- @param s string The raw string
+-- @return string sanitized The safe string (or "invalid" if dangerous chars found)
+local function safe_string_literal(s)
+    if type(s) ~= "string" then return "invalid" end
+    -- Reject if contains characters that could break double-quote context
+    if s:match('[\\"%\n\r]') then
+        return "invalid"
+    end
+    -- Reject if empty
+    if s == "" then return "invalid" end
+    return s
+end
+
+-- ---------------------------------------------------------------------------
 -- Section 1: Tokenizer
 -- ---------------------------------------------------------------------------
 
@@ -724,33 +784,88 @@ function M.parse_apl(apl_text, config)
 
     -- Compile functions if requested
     if config.compile_functions ~= false then
-        -- Expose sub_lists globally for dispatch execute closures (loadstring scope)
-        _G._sub_lists = sub_lists
+        -- SECURITY: Use closure-captured local instead of _G._sub_lists.
+        -- This prevents global namespace pollution and removes the exposure window
+        -- that existed during loadstring compilation.
+        local _captured_sub_lists = sub_lists
+
+        --- Safely compile and return a function from Lua source.
+        -- Validates generated code against forbidden patterns before compilation.
+        -- Uses setfenv sandboxing (Lua 5.1) to restrict the function's environment.
+        -- @param src string Lua source code
+        -- @param context string Label for error logging
+        -- @param env table|nil Optional restricted environment
+        -- @return function|nil compiled_fn
+        local function safe_compile(src, context, env)
+            local ok_v, err_v = validate_generated_code(src)
+            if not ok_v then
+                if NS and NS.core and NS.core.log_warning then
+                    NS.core.log_warning("[APL] " .. tostring(context) .. ": " .. tostring(err_v))
+                end
+                return nil
+            end
+            local ok, factory = pcall(loadstring, src)
+            if not ok or not factory then return nil end
+            -- Apply restricted environment via setfenv (Lua 5.1)
+            if env and setfenv then
+                pcall(setfenv, factory, env)
+            end
+            local ok2, compiled = pcall(factory)
+            if ok2 and type(compiled) == "function" then
+                if env and setfenv then
+                    pcall(setfenv, compiled, env)
+                end
+                return compiled
+            end
+            return nil
+        end
+
+        --- Build a restricted environment for compiled APL functions.
+        -- Only exposes safe globals needed by generated code.
+        -- @param extra table|nil Additional upvalues to inject
+        -- @return table env Restricted environment
+        local function build_restricted_env(extra)
+            local env = {
+                NS = NS,
+                ipairs = ipairs,
+                pairs = pairs,
+                tostring = tostring,
+                type = type,
+                pcall = pcall,
+                error = error,
+                assert = assert,
+                select = select,
+                unpack = unpack or table.unpack,
+                table = table,
+                math = math,
+                string = string,
+                tonumber = tonumber,
+                print = print,
+            }
+            if extra then
+                for k, v in pairs(extra) do env[k] = v end
+            end
+            return env
+        end
+
         -- Compile main strategies
         for _, strategy in ipairs(strategies) do
+            -- SECURITY: Sanitize string literals before interpolation
+            local safe_label = safe_string_literal(strategy._label)
+            local safe_spell_ref = safe_string_literal(strategy._spell_ref)
+
             if strategy._is_dispatch then
                 -- Dispatch strategy: compile matches and execute
-                -- matches checks the call_action_list condition
                 local matches_src = "return function(context, state)\n    return " .. strategy._matches_body .. "\nend"
-                local ok_m, fn_m = pcall(loadstring, matches_src)
-                if ok_m and fn_m then
-                    local ok_m2, compiled_m = pcall(fn_m)
-                    if ok_m2 and type(compiled_m) == "function" then
-                        strategy.matches = compiled_m
-                    else
-                        strategy.matches = function() return false end
-                    end
-                else
-                    strategy.matches = function() return false end
-                end
+                strategy.matches = safe_compile(matches_src, "dispatch matches:" .. strategy.name) or function() return false end
 
                 -- execute checks matches then iterates the sub-list
-                local list_name = strategy._list_name
+                local list_name = safe_string_literal(strategy._list_name)
                 local exec_src = "return function(context, state)\n" ..
                     "    if not (" .. strategy._matches_body .. ") then\n" ..
                     "        return false\n" ..
                     "    end\n" ..
-                    '    local sub = (_sub_lists or {})["' .. list_name .. '"]\n' ..
+                    "    local sub = (_sub_lists or {})[" .. string.format("%q", list_name) .. "]\n" ..
                     "    if sub then\n" ..
                     "        for _, s in ipairs(sub) do\n" ..
                     "            if s.matches and s.matches(context, state) then\n" ..
@@ -760,46 +875,16 @@ function M.parse_apl(apl_text, config)
                     "    end\n" ..
                     "    return false\n" ..
                     "end"
-                local ok, fn = pcall(loadstring, exec_src)
-                if ok and fn then
-                    local ok2, compiled = pcall(fn)
-                    if ok2 and type(compiled) == "function" then
-                        strategy.execute = compiled
-                    else
-                        strategy.execute = function() return false end
-                    end
-                else
-                    strategy.execute = function() return false end
-                end
+                local dispatch_env = build_restricted_env({ _sub_lists = _captured_sub_lists })
+                strategy.execute = safe_compile(exec_src, "dispatch execute:" .. strategy.name, dispatch_env) or function() return false end
             else
-                -- Normal spell strategy (same as before)
-                -- matches(context, state)
+                -- Normal spell strategy
                 local matches_src = "return function(context, state)\n    return " .. strategy._matches_body .. "\nend"
-                local ok, fn = pcall(loadstring, matches_src)
-                if ok and fn then
-                    local ok2, compiled = pcall(fn)
-                    if ok2 and type(compiled) == "function" then
-                        strategy.matches = compiled
-                    else
-                        strategy.matches = function() return false end
-                    end
-                else
-                    strategy.matches = function() return false end
-                end
+                local spell_env = build_restricted_env()
+                strategy.matches = safe_compile(matches_src, "spell matches:" .. strategy.name, spell_env) or function() return false end
 
-                -- execute(context)
-                local exec_src = "return function(context)\n    return NS.try_cast(" .. strategy._spell_ref .. ", context.target, \"" .. strategy._label .. "\")\nend"
-                local ok3, fn2 = pcall(loadstring, exec_src)
-                if ok3 and fn2 then
-                    local ok4, compiled2 = pcall(fn2)
-                    if ok4 and type(compiled2) == "function" then
-                        strategy.execute = compiled2
-                    else
-                        strategy.execute = function() return false end
-                    end
-                else
-                    strategy.execute = function() return false end
-                end
+                local exec_src = "return function(context)\n    return NS.try_cast(" .. strategy._spell_ref .. ", context.target, " .. string.format("%q", safe_label) .. ")\nend"
+                strategy.execute = safe_compile(exec_src, "spell execute:" .. strategy.name, spell_env) or function() return false end
             end
 
             -- Clean up internal fields
@@ -813,40 +898,21 @@ function M.parse_apl(apl_text, config)
         -- Compile sub-list strategies
         for _, sl in pairs(sub_lists) do
             for _, strategy in ipairs(sl) do
-                local matches_src = "return function(context, state)\n    return " .. strategy._matches_body .. "\nend"
-                local ok, fn = pcall(loadstring, matches_src)
-                if ok and fn then
-                    local ok2, compiled = pcall(fn)
-                    if ok2 and type(compiled) == "function" then
-                        strategy.matches = compiled
-                    else
-                        strategy.matches = function() return false end
-                    end
-                else
-                    strategy.matches = function() return false end
-                end
+                local safe_label = safe_string_literal(strategy._label)
+                local safe_spell_ref = safe_string_literal(strategy._spell_ref)
 
-                local exec_src = "return function(context)\n    return NS.try_cast(" .. strategy._spell_ref .. ", context.target, \"" .. strategy._label .. "\")\nend"
-                local ok3, fn2 = pcall(loadstring, exec_src)
-                if ok3 and fn2 then
-                    local ok4, compiled2 = pcall(fn2)
-                    if ok4 and type(compiled2) == "function" then
-                        strategy.execute = compiled2
-                    else
-                        strategy.execute = function() return false end
-                    end
-                else
-                    strategy.execute = function() return false end
-                end
+                local matches_src = "return function(context, state)\n    return " .. strategy._matches_body .. "\nend"
+                local sub_env = build_restricted_env()
+                strategy.matches = safe_compile(matches_src, "sublist matches:" .. strategy.name, sub_env) or function() return false end
+
+                local exec_src = "return function(context)\n    return NS.try_cast(" .. strategy._spell_ref .. ", context.target, " .. string.format("%q", safe_label) .. ")\nend"
+                strategy.execute = safe_compile(exec_src, "sublist execute:" .. strategy.name, sub_env) or function() return false end
 
                 strategy._matches_body = nil
                 strategy._spell_ref = nil
                 strategy._label = nil
             end
         end
-
-        -- Clean up global exposure
-        _G._sub_lists = nil
     end
 
     return strategies

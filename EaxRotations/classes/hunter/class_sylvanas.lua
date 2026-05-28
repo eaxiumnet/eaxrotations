@@ -29,6 +29,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("hunter", "Hunter")
+local load_spec = cl.create_expansion_loader("hunter", "Hunter")
 local enums = cl.get_enums()
 local player = NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
@@ -342,8 +343,8 @@ end
 load_child("middleware_sylvanas")
 load_child("cliptracker_sylvanas", true)
 load_child("leveling_sylvanas", true)
-load_child("beast_mastery_sylvanas")
-load_child("marksmanship_sylvanas")
-load_child("survival_sylvanas")
+load_spec("beast_mastery")
+load_spec("marksmanship")
+load_spec("survival")
 NS.log("Hunter class module loaded")
 return config
