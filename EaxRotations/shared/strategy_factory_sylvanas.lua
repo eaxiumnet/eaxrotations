@@ -31,12 +31,7 @@ local NS = _G.EaxRotations
 local EMPTY = {}
 
 -- Helper: safely get setting from context
-local function get_setting(context, key, default)
-    if not context or not context.settings then return default end
-    local value = context.settings[key]
-    if value == nil then return default end
-    return value
-end
+local get_setting = NS.setting
 
 -- Create a named strategy wrapper
 -- Adds .name field for debugging/logging

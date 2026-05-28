@@ -28,13 +28,7 @@ local M = {}
 local _G = _G
 local NS = _G.EaxRotations
 
--- Get setting safely
-local function get_setting(context, key, default)
-    if not context or not context.settings then return default end
-    local value = context.settings[key]
-    if value == nil then return default end
-    return value
-end
+local get_setting = NS.setting
 
 -- Get spell from spell key (class-specific)
 local function get_spell_from_key(class, spec, spell_key)
