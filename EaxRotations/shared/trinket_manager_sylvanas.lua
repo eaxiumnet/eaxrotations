@@ -300,7 +300,7 @@ function M.register_trinket_manager()
     if _registered then return true end
     if not NS or type(NS.register_on_update_callback) ~= "function" then return false end
     seed_default_settings()
-    local ok = NS.register_on_update_callback(function()
+    local ok = pcall(NS.register_on_update_callback, function()
         return M.on_update()
     end)
     _registered = ok ~= false

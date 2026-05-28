@@ -32,10 +32,11 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-local _core_time = core.time
-local _get_local_player = core.object_manager.get_local_player
-local _get_enemies = core.object_manager.get_enemy_list
-local _get_party = core.object_manager.get_party_frames
+local _core_time = core and core.time
+local om = core and core.object_manager or {}
+local _get_local_player = om.get_local_player
+local _get_enemies = om.get_enemy_list
+local _get_party = om.get_party_frames
 
 local function unit_is_live(unit)
     if not unit then return false end

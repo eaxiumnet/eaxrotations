@@ -1,0 +1,5858 @@
+# Legacy rotation inventory outside current EaxRotations flat-file system
+
+Total files found: 5838
+
+Scope: _archive_legacy/, archive_original_specs/, OldProjects/, Sonah/, SlyRotate/, flux/rotation/, archive/EaxRotation2/, and explicit open-name root/doc matches. Current EaxRotations/ and _backup_EaxRotations_* backups are excluded.
+
+## Counts by top-level location
+
+- _archive_legacy: 107
+- archive: 36
+- archive_original_specs: 1373
+- docs: 1
+- ext_rotation_tbc_opendruid_alpha: 1
+- flux: 72
+- OldProjects: 4169
+- SlyRotate: 12
+- Sonah: 67
+
+## Files
+
+- C:\newbot\scripts\_archive_legacy\druid\auto_attack_helper.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\buff_db.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\debug_ui.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\enums.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\flux_compat.lua — archived legacy druid Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\druid\header.lua — archived legacy druid plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\druid\healing_engine.lua — archived legacy druid healing support module.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\balance_rotation.lua — archived legacy druid rotation implementation module.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\bear_rotation.lua — archived legacy druid rotation implementation module.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\cat_rotation.lua — archived legacy druid rotation implementation module.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\constants.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\middleware.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\resto_rotation.lua — archived legacy druid rotation implementation module.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\rotation_engine.lua — archived legacy druid rotation implementation module.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\settings_bridge.lua — archived legacy druid settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\smart_dispel.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\spell_rank_optimizer.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\spells.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\tree_reshift.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\libraries\utils.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\main.lua — archived legacy druid plugin main entrypoint.
+- C:\newbot\scripts\_archive_legacy\druid\notification.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\plugin_info.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\druid\settings_manager.lua — archived legacy druid settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\druid\settings_sections.lua — archived legacy druid settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\druid\settings_ui.lua — archived legacy druid settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\druid\slash_commands.lua — archived legacy druid helper/support file.
+- C:\newbot\scripts\_archive_legacy\hunter\extra\debug_ui.lua — archived legacy hunter helper/support file.
+- C:\newbot\scripts\_archive_legacy\hunter\extra\notification.lua — archived legacy hunter helper/support file.
+- C:\newbot\scripts\_archive_legacy\hunter\extra\settings_sections.lua — archived legacy hunter settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\hunter\extra\settings_ui.lua — archived legacy hunter settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\hunter\extra\slash_commands.lua — archived legacy hunter helper/support file.
+- C:\newbot\scripts\_archive_legacy\hunter\header.lua — archived legacy hunter plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\hunter\libraries\flux_compat.lua — archived legacy hunter Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\hunter\libraries\healing_engine.lua — archived legacy hunter healing support module.
+- C:\newbot\scripts\_archive_legacy\hunter\libraries\settings_bridge.lua — archived legacy hunter settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\hunter\main.lua — archived legacy hunter plugin main entrypoint.
+- C:\newbot\scripts\_archive_legacy\mage\extra\debug_ui.lua — archived legacy mage helper/support file.
+- C:\newbot\scripts\_archive_legacy\mage\extra\notification.lua — archived legacy mage helper/support file.
+- C:\newbot\scripts\_archive_legacy\mage\extra\settings_sections.lua — archived legacy mage settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\mage\extra\settings_ui.lua — archived legacy mage settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\mage\extra\slash_commands.lua — archived legacy mage helper/support file.
+- C:\newbot\scripts\_archive_legacy\mage\header.lua — archived legacy mage plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\mage\libraries\flux_compat.lua — archived legacy mage Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\mage\libraries\healing_engine.lua — archived legacy mage healing support module.
+- C:\newbot\scripts\_archive_legacy\mage\libraries\settings_bridge.lua — archived legacy mage settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\mage\main.lua — archived legacy mage plugin main entrypoint.
+- C:\newbot\scripts\_archive_legacy\paladin\extra\debug_ui.lua — archived legacy paladin helper/support file.
+- C:\newbot\scripts\_archive_legacy\paladin\extra\notification.lua — archived legacy paladin helper/support file.
+- C:\newbot\scripts\_archive_legacy\paladin\extra\settings_sections.lua — archived legacy paladin settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\paladin\extra\settings_ui.lua — archived legacy paladin settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\paladin\extra\slash_commands.lua — archived legacy paladin helper/support file.
+- C:\newbot\scripts\_archive_legacy\paladin\header.lua — archived legacy paladin plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\paladin\libraries\flux_compat.lua — archived legacy paladin Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\paladin\libraries\healing_engine.lua — archived legacy paladin healing support module.
+- C:\newbot\scripts\_archive_legacy\paladin\libraries\settings_bridge.lua — archived legacy paladin settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\paladin\main.lua — archived legacy paladin plugin main entrypoint.
+- C:\newbot\scripts\_archive_legacy\priest\extra\debug_ui.lua — archived legacy priest helper/support file.
+- C:\newbot\scripts\_archive_legacy\priest\extra\notification.lua — archived legacy priest helper/support file.
+- C:\newbot\scripts\_archive_legacy\priest\extra\settings_sections.lua — archived legacy priest settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\priest\extra\settings_ui.lua — archived legacy priest settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\priest\extra\slash_commands.lua — archived legacy priest helper/support file.
+- C:\newbot\scripts\_archive_legacy\priest\header.lua — archived legacy priest plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\priest\libraries\flux_compat.lua — archived legacy priest Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\priest\libraries\healing_engine.lua — archived legacy priest healing support module.
+- C:\newbot\scripts\_archive_legacy\priest\libraries\settings_bridge.lua — archived legacy priest settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\priest\main.lua — archived legacy priest plugin main entrypoint.
+- C:\newbot\scripts\_archive_legacy\rogue\extra\debug_ui.lua — archived legacy rogue helper/support file.
+- C:\newbot\scripts\_archive_legacy\rogue\extra\notification.lua — archived legacy rogue helper/support file.
+- C:\newbot\scripts\_archive_legacy\rogue\extra\settings_sections.lua — archived legacy rogue settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\rogue\extra\settings_ui.lua — archived legacy rogue settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\rogue\extra\slash_commands.lua — archived legacy rogue helper/support file.
+- C:\newbot\scripts\_archive_legacy\rogue\header.lua — archived legacy rogue plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\rogue\libraries\flux_compat.lua — archived legacy rogue Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\rogue\libraries\healing_engine.lua — archived legacy rogue healing support module.
+- C:\newbot\scripts\_archive_legacy\rogue\libraries\settings_bridge.lua — archived legacy rogue settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\rogue\main.lua — archived legacy rogue plugin main entrypoint.
+- C:\newbot\scripts\_archive_legacy\shaman\extra\debug_ui.lua — archived legacy shaman helper/support file.
+- C:\newbot\scripts\_archive_legacy\shaman\extra\notification.lua — archived legacy shaman helper/support file.
+- C:\newbot\scripts\_archive_legacy\shaman\extra\settings_sections.lua — archived legacy shaman settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\shaman\extra\settings_ui.lua — archived legacy shaman settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\shaman\extra\slash_commands.lua — archived legacy shaman helper/support file.
+- C:\newbot\scripts\_archive_legacy\shaman\header.lua — archived legacy shaman plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\shaman\libraries\flux_compat.lua — archived legacy shaman Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\shaman\libraries\healing_engine.lua — archived legacy shaman healing support module.
+- C:\newbot\scripts\_archive_legacy\shaman\libraries\settings_bridge.lua — archived legacy shaman settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\shaman\main.lua — archived legacy shaman plugin main entrypoint.
+- C:\newbot\scripts\_archive_legacy\warlock\extra\debug_ui.lua — archived legacy warlock helper/support file.
+- C:\newbot\scripts\_archive_legacy\warlock\extra\notification.lua — archived legacy warlock helper/support file.
+- C:\newbot\scripts\_archive_legacy\warlock\extra\settings_sections.lua — archived legacy warlock settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\warlock\extra\settings_ui.lua — archived legacy warlock settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\warlock\extra\slash_commands.lua — archived legacy warlock helper/support file.
+- C:\newbot\scripts\_archive_legacy\warlock\header.lua — archived legacy warlock plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\warlock\libraries\flux_compat.lua — archived legacy warlock Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\warlock\libraries\healing_engine.lua — archived legacy warlock healing support module.
+- C:\newbot\scripts\_archive_legacy\warlock\libraries\settings_bridge.lua — archived legacy warlock settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\warlock\main.lua — archived legacy warlock plugin main entrypoint.
+- C:\newbot\scripts\_archive_legacy\warrior\extra\debug_ui.lua — archived legacy warrior helper/support file.
+- C:\newbot\scripts\_archive_legacy\warrior\extra\notification.lua — archived legacy warrior helper/support file.
+- C:\newbot\scripts\_archive_legacy\warrior\extra\settings_sections.lua — archived legacy warrior settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\warrior\extra\settings_ui.lua — archived legacy warrior settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\warrior\extra\slash_commands.lua — archived legacy warrior helper/support file.
+- C:\newbot\scripts\_archive_legacy\warrior\header.lua — archived legacy warrior plugin header/bootstrap.
+- C:\newbot\scripts\_archive_legacy\warrior\libraries\flux_compat.lua — archived legacy warrior Flux compatibility shim.
+- C:\newbot\scripts\_archive_legacy\warrior\libraries\healing_engine.lua — archived legacy warrior healing support module.
+- C:\newbot\scripts\_archive_legacy\warrior\libraries\settings_bridge.lua — archived legacy warrior settings/menu support file.
+- C:\newbot\scripts\_archive_legacy\warrior\main.lua — archived legacy warrior plugin main entrypoint.
+- C:\newbot\scripts\archive\EaxRotation2\engine\dispatcher.lua — archived EaxRotation2 engine/dispatcher module.
+- C:\newbot\scripts\archive\EaxRotation2\header.lua — archived EaxRotation2 project bootstrap file.
+- C:\newbot\scripts\archive\EaxRotation2\init.lua — archived EaxRotation2 project bootstrap file.
+- C:\newbot\scripts\archive\EaxRotation2\main.lua — archived EaxRotation2 project bootstrap file.
+- C:\newbot\scripts\archive\EaxRotation2\MIGRATION_PLAN.md — archived EaxRotation2 project bootstrap file.
+- C:\newbot\scripts\archive\EaxRotation2\README.md — archived EaxRotation2 project bootstrap file.
+- C:\newbot\scripts\archive\EaxRotation2\specs\druid\balance.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\druid\bear.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\druid\cat.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\druid\resto.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\hunter\beast_mastery.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\hunter\marksmanship.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\hunter\survival.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\mage\arcane.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\mage\fire.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\mage\frost.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\paladin\holy.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\paladin\protection.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\paladin\retribution.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\priest\discipline.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\priest\holy.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\priest\shadow.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\priest\smite.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\rogue\assassination.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\rogue\combat.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\rogue\subtlety.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\shaman\elemental.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\shaman\enhancement.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\shaman\restoration.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\warlock\affliction.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\warlock\demonology.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\warlock\destruction.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\warrior\arms.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\warrior\fury.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\specs\warrior\protection.lua — archived EaxRotation2 spec rotation module.
+- C:\newbot\scripts\archive\EaxRotation2\tests\test_smoke.lua — archived EaxRotation2 smoke test.
+- C:\newbot\scripts\archive_original_specs\eax_shared\AGENTS.md — shared helper from the original per-spec EAX project archive.
+- C:\newbot\scripts\archive_original_specs\eax_shared\pull_optimizer.lua — shared helper from the original per-spec EAX project archive.
+- C:\newbot\scripts\archive_original_specs\eax_shared\pvp_manager.lua — shared helper from the original per-spec EAX project archive.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\extra\codemap.md — original per-spec EAX DruidBalance documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\extra\README.md — original per-spec EAX DruidBalance documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\header.lua — original per-spec EAX DruidBalance plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\class_identity.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\class_theme.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\class_ui_init.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\color.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\combat_context.lua — original per-spec EAX DruidBalance rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\consumables_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\cooldown_tracker.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\creature_utils.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\defensive_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\dot_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\dps_meter.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\dps_risk.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\dps_runtime.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\eax_utils.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\enchant_checker.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\encounter_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\esp_renderer.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\healer_triage.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\interrupt_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\leveling_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\mana_conservator.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\mana_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\menu.lua — original per-spec EAX DruidBalance menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\ooc_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\ps_theme.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\pull_optimizer.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\pvp_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\racial_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\reactive_engine.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\reactive_runtime.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\resource_gate.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\role_policy.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\rotation_context.lua — original per-spec EAX DruidBalance rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\set_bonus.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\settings_framework.lua — original per-spec EAX DruidBalance menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\smart_cast_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\spell_downrank.lua — original per-spec EAX DruidBalance spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\spell_resolver.lua — original per-spec EAX DruidBalance spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\spells.lua — original per-spec EAX DruidBalance spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\swing_timer.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\tank_recovery.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\threat_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\totem_manager.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\ttd_tracker.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\utils.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\libraries\visual_state.lua — original per-spec EAX DruidBalance library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\main.lua — original per-spec EAX DruidBalance rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXDruidBalance\plugin_info.lua — original per-spec EAX DruidBalance plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\extra\codemap.md — original per-spec EAX DruidFeral documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\extra\README.md — original per-spec EAX DruidFeral documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\header.lua — original per-spec EAX DruidFeral plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\class_identity.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\class_theme.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\class_ui_init.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\color.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\combat_context.lua — original per-spec EAX DruidFeral rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\consumables_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\cooldown_tracker.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\creature_utils.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\defensive_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\dot_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\dps_meter.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\dps_risk.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\dps_runtime.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\eax_utils.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\enchant_checker.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\encounter_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\esp_renderer.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\healer_triage.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\interrupt_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\leveling_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\mana_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\menu.lua — original per-spec EAX DruidFeral menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\ooc_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\ps_theme.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\pull_optimizer.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\pvp_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\racial_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\reactive_engine.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\reactive_runtime.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\resource_gate.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\role_policy.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\rotation_context.lua — original per-spec EAX DruidFeral rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\set_bonus.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\settings_framework.lua — original per-spec EAX DruidFeral menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\smart_cast_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\spell_resolver.lua — original per-spec EAX DruidFeral spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\spells.lua — original per-spec EAX DruidFeral spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\swing_timer.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\tank_recovery.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\threat_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\totem_manager.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\ttd_tracker.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\utils.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\libraries\visual_state.lua — original per-spec EAX DruidFeral library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\main.lua — original per-spec EAX DruidFeral rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXDruidFeral\plugin_info.lua — original per-spec EAX DruidFeral plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\eax_shared\enchant_checker.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\extra\codemap.md — original per-spec EAX DruidRestoration documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\extra\README.md — original per-spec EAX DruidRestoration documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\header.lua — original per-spec EAX DruidRestoration plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\class_identity.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\class_theme.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\class_ui_init.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\color.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\combat_context.lua — original per-spec EAX DruidRestoration rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\consumables_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\cooldown_tracker.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\creature_utils.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\defensive_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\dispel_engine.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\dot_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\dps_meter.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\dps_risk.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\dps_runtime.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\eax_utils.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\emergency_handlers.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\enchant_checker.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\encounter_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\esp_renderer.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\heal_engine.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\healer_triage.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\interrupt_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\leveling_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\lifebloom_bloom_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\mana_conservator.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\mana_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\menu.lua — original per-spec EAX DruidRestoration menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\ooc_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\ps_theme.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\pull_optimizer.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\pvp_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\racial_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\reactive_engine.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\reactive_runtime.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\rejuv_spread_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\resource_gate.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\role_policy.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\rotation_context.lua — original per-spec EAX DruidRestoration rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\set_bonus.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\settings_framework.lua — original per-spec EAX DruidRestoration menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\smart_cast_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\spell_downrank.lua — original per-spec EAX DruidRestoration spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\spell_resolver.lua — original per-spec EAX DruidRestoration spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\spells.lua — original per-spec EAX DruidRestoration spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\swing_timer.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\tank_recovery.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\threat_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\totem_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\tree_reshift_manager.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\ttd_tracker.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\utils.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\libraries\visual_state.lua — original per-spec EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\main.lua — original per-spec EAX DruidRestoration rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXDruidRestoration\plugin_info.lua — original per-spec EAX DruidRestoration plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\extra\AGENTS.md — original per-spec EAX HunterBeastMastery documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\extra\codemap.md — original per-spec EAX HunterBeastMastery documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\extra\README.md — original per-spec EAX HunterBeastMastery documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\header.lua — original per-spec EAX HunterBeastMastery plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\class_identity.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\class_theme.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\class_ui_init.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\color.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\combat_context.lua — original per-spec EAX HunterBeastMastery rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\consumables_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\cooldown_tracker.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\creature_utils.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\defensive_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\dot_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\dps_meter.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\dps_risk.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\dps_runtime.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\eax_utils.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\enchant_checker.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\encounter_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\esp_renderer.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\healer_triage.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\interrupt_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\kiting_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\leveling_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\mana_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\menu.lua — original per-spec EAX HunterBeastMastery menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\ooc_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\pet_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\ps_theme.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\pull_optimizer.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\pvp_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\racial_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\reactive_engine.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\reactive_runtime.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\resource_gate.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\role_policy.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\rotation_context.lua — original per-spec EAX HunterBeastMastery rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\set_bonus.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\settings_framework.lua — original per-spec EAX HunterBeastMastery menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\smart_cast_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\spell_resolver.lua — original per-spec EAX HunterBeastMastery spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\spells.lua — original per-spec EAX HunterBeastMastery spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\swing_timer.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\talent_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\tank_recovery.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\threat_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\totem_manager.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\ttd_tracker.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\utils.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\libraries\visual_state.lua — original per-spec EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\main.lua — original per-spec EAX HunterBeastMastery rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXHunterBeastMastery\plugin_info.lua — original per-spec EAX HunterBeastMastery plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\extra\codemap.md — original per-spec EAX HunterMarksmanship documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\extra\README.md — original per-spec EAX HunterMarksmanship documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\header.lua — original per-spec EAX HunterMarksmanship plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\class_identity.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\class_theme.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\class_ui_init.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\color.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\combat_context.lua — original per-spec EAX HunterMarksmanship rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\consumables_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\cooldown_tracker.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\creature_utils.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\defensive_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\dot_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\dps_meter.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\dps_risk.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\dps_runtime.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\eax_utils.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\enchant_checker.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\encounter_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\esp_renderer.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\healer_triage.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\interrupt_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\leveling_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\mana_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\menu.lua — original per-spec EAX HunterMarksmanship menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\ooc_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\ps_theme.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\pull_optimizer.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\pvp_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\racial_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\reactive_engine.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\reactive_runtime.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\resource_gate.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\role_policy.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\rotation_context.lua — original per-spec EAX HunterMarksmanship rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\set_bonus.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\settings_framework.lua — original per-spec EAX HunterMarksmanship menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\smart_cast_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\spell_resolver.lua — original per-spec EAX HunterMarksmanship spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\spells.lua — original per-spec EAX HunterMarksmanship spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\swing_timer.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\tank_recovery.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\threat_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\totem_manager.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\ttd_tracker.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\utils.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\libraries\visual_state.lua — original per-spec EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\main.lua — original per-spec EAX HunterMarksmanship rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXHunterMarksmanship\plugin_info.lua — original per-spec EAX HunterMarksmanship plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\extra\codemap.md — original per-spec EAX HunterSurvival documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\extra\README.md — original per-spec EAX HunterSurvival documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\header.lua — original per-spec EAX HunterSurvival plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\class_identity.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\class_theme.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\class_ui_init.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\color.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\combat_context.lua — original per-spec EAX HunterSurvival rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\consumables_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\cooldown_tracker.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\creature_utils.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\defensive_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\dot_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\dps_meter.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\dps_risk.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\dps_runtime.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\eax_utils.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\enchant_checker.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\encounter_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\esp_renderer.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\healer_triage.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\interrupt_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\leveling_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\mana_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\menu.lua — original per-spec EAX HunterSurvival menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\ooc_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\ps_theme.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\pull_optimizer.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\pvp_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\racial_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\reactive_engine.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\reactive_runtime.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\resource_gate.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\role_policy.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\rotation_context.lua — original per-spec EAX HunterSurvival rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\set_bonus.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\settings_framework.lua — original per-spec EAX HunterSurvival menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\smart_cast_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\spell_resolver.lua — original per-spec EAX HunterSurvival spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\spells.lua — original per-spec EAX HunterSurvival spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\swing_timer.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\tank_recovery.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\threat_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\totem_manager.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\ttd_tracker.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\utils.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\libraries\visual_state.lua — original per-spec EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\main.lua — original per-spec EAX HunterSurvival rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXHunterSurvival\plugin_info.lua — original per-spec EAX HunterSurvival plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\extra\codemap.md — original per-spec EAX MageArcane documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\extra\README.md — original per-spec EAX MageArcane documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\header.lua — original per-spec EAX MageArcane plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\class_identity.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\class_theme.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\class_ui_init.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\color.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\combat_context.lua — original per-spec EAX MageArcane rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\consumables_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\cooldown_tracker.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\creature_utils.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\defensive_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\dot_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\dps_meter.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\dps_risk.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\dps_runtime.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\eax_utils.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\enchant_checker.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\encounter_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\esp_renderer.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\healer_triage.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\interrupt_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\leveling_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\mana_conservator.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\mana_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\menu.lua — original per-spec EAX MageArcane menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\ooc_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\ps_theme.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\pull_optimizer.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\pvp_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\racial_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\reactive_engine.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\reactive_runtime.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\resource_gate.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\role_policy.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\rotation_context.lua — original per-spec EAX MageArcane rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\set_bonus.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\settings_framework.lua — original per-spec EAX MageArcane menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\smart_cast_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\spell_downrank.lua — original per-spec EAX MageArcane spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\spell_resolver.lua — original per-spec EAX MageArcane spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\spells.lua — original per-spec EAX MageArcane spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\swing_timer.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\tank_recovery.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\threat_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\totem_manager.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\ttd_tracker.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\utils.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\libraries\visual_state.lua — original per-spec EAX MageArcane library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\main.lua — original per-spec EAX MageArcane rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXMageArcane\plugin_info.lua — original per-spec EAX MageArcane plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\extra\codemap.md — original per-spec EAX MageFire documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\extra\README.md — original per-spec EAX MageFire documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\header.lua — original per-spec EAX MageFire plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\class_identity.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\class_theme.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\class_ui_init.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\color.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\combat_context.lua — original per-spec EAX MageFire rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\consumables_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\cooldown_tracker.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\creature_utils.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\defensive_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\dot_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\dps_meter.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\dps_risk.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\dps_runtime.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\eax_utils.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\enchant_checker.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\encounter_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\esp_renderer.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\healer_triage.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\interrupt_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\leveling_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\mana_conservator.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\mana_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\menu.lua — original per-spec EAX MageFire menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\ooc_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\ps_theme.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\pull_optimizer.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\pvp_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\racial_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\reactive_engine.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\reactive_runtime.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\resource_gate.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\role_policy.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\rotation_context.lua — original per-spec EAX MageFire rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\set_bonus.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\settings_framework.lua — original per-spec EAX MageFire menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\smart_cast_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\spell_downrank.lua — original per-spec EAX MageFire spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\spell_resolver.lua — original per-spec EAX MageFire spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\spells.lua — original per-spec EAX MageFire spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\swing_timer.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\tank_recovery.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\threat_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\totem_manager.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\ttd_tracker.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\utils.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\libraries\visual_state.lua — original per-spec EAX MageFire library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\main.lua — original per-spec EAX MageFire rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXMageFire\plugin_info.lua — original per-spec EAX MageFire plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\extra\codemap.md — original per-spec EAX MageFrost documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\extra\README.md — original per-spec EAX MageFrost documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\header.lua — original per-spec EAX MageFrost plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\class_identity.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\class_theme.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\class_ui_init.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\color.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\combat_context.lua — original per-spec EAX MageFrost rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\consumables_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\cooldown_tracker.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\creature_utils.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\defensive_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\dot_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\dps_meter.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\dps_risk.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\dps_runtime.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\eax_utils.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\enchant_checker.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\encounter_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\esp_renderer.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\healer_triage.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\interrupt_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\leveling_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\mana_conservator.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\mana_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\menu.lua — original per-spec EAX MageFrost menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\ooc_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\ps_theme.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\pull_optimizer.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\pvp_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\racial_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\reactive_engine.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\reactive_runtime.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\resource_gate.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\role_policy.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\rotation_context.lua — original per-spec EAX MageFrost rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\set_bonus.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\settings_framework.lua — original per-spec EAX MageFrost menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\smart_cast_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\spell_downrank.lua — original per-spec EAX MageFrost spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\spell_resolver.lua — original per-spec EAX MageFrost spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\spells.lua — original per-spec EAX MageFrost spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\swing_timer.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\tank_recovery.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\threat_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\totem_manager.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\ttd_tracker.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\utils.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\libraries\visual_state.lua — original per-spec EAX MageFrost library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\main.lua — original per-spec EAX MageFrost rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXMageFrost\plugin_info.lua — original per-spec EAX MageFrost plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\extra\codemap.md — original per-spec EAX PaladinHoly documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\extra\README.md — original per-spec EAX PaladinHoly documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\header.lua — original per-spec EAX PaladinHoly plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\class_identity.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\class_theme.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\class_ui_init.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\color.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\combat_context.lua — original per-spec EAX PaladinHoly rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\consumables_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\cooldown_tracker.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\creature_utils.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\defensive_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\dispel_engine.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\dot_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\dps_meter.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\dps_risk.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\dps_runtime.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\eax_utils.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\enchant_checker.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\encounter_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\esp_renderer.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\heal_engine.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\healer_triage.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\interrupt_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\leveling_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\mana_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\menu.lua — original per-spec EAX PaladinHoly menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\ooc_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\ps_theme.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\pull_optimizer.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\pvp_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\racial_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\reactive_engine.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\reactive_runtime.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\resource_gate.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\role_policy.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\rotation_context.lua — original per-spec EAX PaladinHoly rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\set_bonus.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\settings_framework.lua — original per-spec EAX PaladinHoly menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\smart_cast_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\spell_downrank.lua — original per-spec EAX PaladinHoly spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\spell_resolver.lua — original per-spec EAX PaladinHoly spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\spells.lua — original per-spec EAX PaladinHoly spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\swing_timer.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\tank_recovery.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\threat_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\totem_manager.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\ttd_tracker.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\utils.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\libraries\visual_state.lua — original per-spec EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\main.lua — original per-spec EAX PaladinHoly rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinHoly\plugin_info.lua — original per-spec EAX PaladinHoly plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\extra\codemap.md — original per-spec EAX PaladinProtection documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\extra\README.md — original per-spec EAX PaladinProtection documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\header.lua — original per-spec EAX PaladinProtection plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\class_identity.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\class_theme.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\class_ui_init.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\color.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\combat_context.lua — original per-spec EAX PaladinProtection rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\consumables_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\cooldown_tracker.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\creature_utils.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\defensive_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\dispel_engine.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\dot_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\dps_meter.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\dps_risk.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\dps_runtime.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\eax_utils.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\enchant_checker.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\encounter_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\esp_renderer.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\healer_triage.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\interrupt_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\leveling_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\mana_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\menu.lua — original per-spec EAX PaladinProtection menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\ooc_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\ps_theme.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\pull_optimizer.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\pvp_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\racial_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\reactive_engine.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\reactive_runtime.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\resource_gate.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\role_policy.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\rotation_context.lua — original per-spec EAX PaladinProtection rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\set_bonus.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\settings_framework.lua — original per-spec EAX PaladinProtection menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\smart_cast_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\spell_resolver.lua — original per-spec EAX PaladinProtection spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\spells.lua — original per-spec EAX PaladinProtection spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\swing_timer.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\tank_recovery.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\threat_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\totem_manager.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\ttd_tracker.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\utils.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\libraries\visual_state.lua — original per-spec EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\main.lua — original per-spec EAX PaladinProtection rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinProtection\plugin_info.lua — original per-spec EAX PaladinProtection plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\extra\codemap.md — original per-spec EAX PaladinRetribution documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\extra\README.md — original per-spec EAX PaladinRetribution documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\header.lua — original per-spec EAX PaladinRetribution plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\class_identity.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\class_theme.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\class_ui_init.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\color.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\combat_context.lua — original per-spec EAX PaladinRetribution rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\consumables_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\cooldown_tracker.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\creature_utils.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\defensive_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\dispel_engine.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\dot_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\dps_meter.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\dps_risk.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\dps_runtime.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\eax_utils.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\enchant_checker.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\encounter_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\esp_renderer.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\healer_triage.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\interrupt_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\leveling_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\mana_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\menu.lua — original per-spec EAX PaladinRetribution menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\ooc_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\ps_theme.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\pull_optimizer.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\pvp_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\racial_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\reactive_engine.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\reactive_runtime.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\resource_gate.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\role_policy.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\rotation_context.lua — original per-spec EAX PaladinRetribution rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\set_bonus.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\settings_framework.lua — original per-spec EAX PaladinRetribution menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\smart_cast_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\spell_resolver.lua — original per-spec EAX PaladinRetribution spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\spells.lua — original per-spec EAX PaladinRetribution spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\swing_timer.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\tank_recovery.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\threat_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\totem_manager.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\ttd_tracker.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\utils.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\libraries\visual_state.lua — original per-spec EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\main.lua — original per-spec EAX PaladinRetribution rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXPaladinRetribution\plugin_info.lua — original per-spec EAX PaladinRetribution plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\extra\codemap.md — original per-spec EAX PriestDiscipline documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\extra\README.md — original per-spec EAX PriestDiscipline documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\header.lua — original per-spec EAX PriestDiscipline plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\class_identity.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\class_theme.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\class_ui_init.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\color.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\combat_context.lua — original per-spec EAX PriestDiscipline rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\consumables_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\cooldown_tracker.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\creature_utils.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\defensive_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\dispel_engine.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\dot_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\dps_meter.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\dps_risk.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\dps_runtime.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\eax_utils.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\enchant_checker.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\encounter_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\esp_renderer.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\heal_engine.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\healer_triage.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\interrupt_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\leveling_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\mana_conservator.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\mana_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\menu.lua — original per-spec EAX PriestDiscipline menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\ooc_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\ps_theme.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\pull_optimizer.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\pvp_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\racial_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\reactive_engine.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\reactive_runtime.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\resource_gate.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\role_policy.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\rotation_context.lua — original per-spec EAX PriestDiscipline rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\set_bonus.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\settings_framework.lua — original per-spec EAX PriestDiscipline menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\smart_cast_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\spell_downrank.lua — original per-spec EAX PriestDiscipline spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\spell_resolver.lua — original per-spec EAX PriestDiscipline spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\spells.lua — original per-spec EAX PriestDiscipline spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\swing_timer.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\tank_recovery.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\threat_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\totem_manager.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\ttd_tracker.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\utils.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\libraries\visual_state.lua — original per-spec EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\main.lua — original per-spec EAX PriestDiscipline rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXPriestDiscipline\plugin_info.lua — original per-spec EAX PriestDiscipline plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\extra\codemap.md — original per-spec EAX PriestHoly documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\extra\README.md — original per-spec EAX PriestHoly documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\header.lua — original per-spec EAX PriestHoly plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\class_identity.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\class_theme.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\class_ui_init.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\color.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\combat_context.lua — original per-spec EAX PriestHoly rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\consumables_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\cooldown_tracker.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\creature_utils.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\defensive_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\dispel_engine.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\dot_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\dps_meter.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\dps_risk.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\dps_runtime.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\eax_utils.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\enchant_checker.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\encounter_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\esp_renderer.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\heal_engine.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\healer_triage.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\interrupt_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\leveling_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\mana_conservator.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\mana_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\menu.lua — original per-spec EAX PriestHoly menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\ooc_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\ps_theme.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\pull_optimizer.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\pvp_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\racial_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\reactive_engine.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\reactive_runtime.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\resource_gate.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\role_policy.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\rotation_context.lua — original per-spec EAX PriestHoly rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\set_bonus.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\settings_framework.lua — original per-spec EAX PriestHoly menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\smart_cast_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\spell_downrank.lua — original per-spec EAX PriestHoly spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\spell_resolver.lua — original per-spec EAX PriestHoly spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\spells.lua — original per-spec EAX PriestHoly spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\swing_timer.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\tank_recovery.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\threat_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\totem_manager.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\ttd_tracker.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\utils.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\libraries\visual_state.lua — original per-spec EAX PriestHoly library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\main.lua — original per-spec EAX PriestHoly rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXPriestHoly\plugin_info.lua — original per-spec EAX PriestHoly plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\extra\codemap.md — original per-spec EAX PriestShadow documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\extra\README.md — original per-spec EAX PriestShadow documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\header.lua — original per-spec EAX PriestShadow plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\class_identity.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\class_theme.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\class_ui_init.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\color.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\combat_context.lua — original per-spec EAX PriestShadow rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\consumables_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\cooldown_tracker.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\creature_utils.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\defensive_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\dot_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\dps_meter.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\dps_risk.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\dps_runtime.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\eax_utils.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\enchant_checker.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\encounter_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\esp_renderer.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\healer_triage.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\interrupt_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\leveling_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\mana_conservator.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\mana_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\menu.lua — original per-spec EAX PriestShadow menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\ooc_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\ps_theme.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\pull_optimizer.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\pvp_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\racial_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\reactive_engine.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\reactive_runtime.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\resource_gate.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\role_policy.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\rotation_context.lua — original per-spec EAX PriestShadow rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\set_bonus.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\settings_framework.lua — original per-spec EAX PriestShadow menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\smart_cast_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\spell_downrank.lua — original per-spec EAX PriestShadow spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\spell_resolver.lua — original per-spec EAX PriestShadow spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\spells.lua — original per-spec EAX PriestShadow spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\swing_timer.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\tank_recovery.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\threat_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\totem_manager.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\ttd_tracker.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\utils.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\libraries\visual_state.lua — original per-spec EAX PriestShadow library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\main.lua — original per-spec EAX PriestShadow rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXPriestShadow\plugin_info.lua — original per-spec EAX PriestShadow plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\extra\codemap.md — original per-spec EAX RogueAssassination documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\extra\README.md — original per-spec EAX RogueAssassination documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\header.lua — original per-spec EAX RogueAssassination plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\class_identity.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\class_theme.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\class_ui_init.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\color.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\combat_context.lua — original per-spec EAX RogueAssassination rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\consumables_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\cooldown_tracker.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\defensive_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\dot_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\dps_meter.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\dps_risk.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\dps_runtime.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\eax_utils.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\enchant_checker.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\encounter_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\esp_renderer.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\healer_triage.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\interrupt_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\leveling_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\mana_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\menu.lua — original per-spec EAX RogueAssassination menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\ooc_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\poison_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\ps_theme.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\pull_optimizer.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\pvp_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\racial_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\reactive_engine.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\reactive_runtime.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\resource_gate.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\role_policy.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\rotation_context.lua — original per-spec EAX RogueAssassination rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\set_bonus.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\settings_framework.lua — original per-spec EAX RogueAssassination menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\smart_cast_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\spell_resolver.lua — original per-spec EAX RogueAssassination spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\spells.lua — original per-spec EAX RogueAssassination spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\swing_timer.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\tank_recovery.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\threat_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\totem_manager.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\ttd_tracker.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\utils.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\libraries\visual_state.lua — original per-spec EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\main.lua — original per-spec EAX RogueAssassination rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXRogueAssassination\plugin_info.lua — original per-spec EAX RogueAssassination plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\extra\codemap.md — original per-spec EAX RogueCombat documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\extra\README.md — original per-spec EAX RogueCombat documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\header.lua — original per-spec EAX RogueCombat plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\class_identity.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\class_theme.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\class_ui_init.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\color.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\combat_context.lua — original per-spec EAX RogueCombat rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\consumables_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\cooldown_tracker.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\defensive_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\dot_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\dps_meter.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\dps_risk.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\dps_runtime.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\eax_utils.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\enchant_checker.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\encounter_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\esp_renderer.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\healer_triage.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\interrupt_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\leveling_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\mana_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\menu.lua — original per-spec EAX RogueCombat menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\ooc_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\poison_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\ps_theme.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\pull_optimizer.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\pvp_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\racial_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\reactive_engine.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\reactive_runtime.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\resource_gate.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\role_policy.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\rotation_context.lua — original per-spec EAX RogueCombat rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\set_bonus.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\settings_framework.lua — original per-spec EAX RogueCombat menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\smart_cast_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\spell_resolver.lua — original per-spec EAX RogueCombat spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\spells.lua — original per-spec EAX RogueCombat spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\swing_timer.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\tank_recovery.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\threat_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\totem_manager.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\ttd_tracker.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\utils.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\libraries\visual_state.lua — original per-spec EAX RogueCombat library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\main.lua — original per-spec EAX RogueCombat rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXRogueCombat\plugin_info.lua — original per-spec EAX RogueCombat plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\extra\codemap.md — original per-spec EAX RogueSubtlety documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\extra\README.md — original per-spec EAX RogueSubtlety documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\header.lua — original per-spec EAX RogueSubtlety plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\class_identity.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\class_theme.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\class_ui_init.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\color.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\combat_context.lua — original per-spec EAX RogueSubtlety rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\consumables_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\cooldown_tracker.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\defensive_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\dot_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\dps_meter.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\dps_risk.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\dps_runtime.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\eax_utils.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\enchant_checker.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\encounter_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\esp_renderer.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\healer_triage.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\interrupt_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\leveling_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\mana_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\menu.lua — original per-spec EAX RogueSubtlety menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\ooc_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\poison_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\ps_theme.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\pull_optimizer.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\pvp_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\racial_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\reactive_engine.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\reactive_runtime.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\resource_gate.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\role_policy.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\rotation_context.lua — original per-spec EAX RogueSubtlety rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\set_bonus.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\settings_framework.lua — original per-spec EAX RogueSubtlety menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\smart_cast_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\spell_resolver.lua — original per-spec EAX RogueSubtlety spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\spells.lua — original per-spec EAX RogueSubtlety spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\swing_timer.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\tank_recovery.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\threat_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\totem_manager.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\ttd_tracker.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\utils.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\libraries\visual_state.lua — original per-spec EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\main.lua — original per-spec EAX RogueSubtlety rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXRogueSubtlety\plugin_info.lua — original per-spec EAX RogueSubtlety plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\extra\codemap.md — original per-spec EAX ShamanElemental documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\extra\README.md — original per-spec EAX ShamanElemental documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\header.lua — original per-spec EAX ShamanElemental plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\class_identity.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\class_theme.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\class_ui_init.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\color.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\combat_context.lua — original per-spec EAX ShamanElemental rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\consumables_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\cooldown_tracker.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\defensive_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\dispel_engine.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\dot_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\dps_meter.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\dps_risk.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\dps_runtime.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\eax_utils.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\enchant_checker.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\encounter_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\esp_renderer.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\healer_triage.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\interrupt_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\leveling_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\mana_conservator.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\mana_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\menu.lua — original per-spec EAX ShamanElemental menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\ooc_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\ps_theme.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\pull_optimizer.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\pvp_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\racial_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\reactive_engine.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\reactive_runtime.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\resource_gate.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\role_policy.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\rotation_context.lua — original per-spec EAX ShamanElemental rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\set_bonus.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\settings_framework.lua — original per-spec EAX ShamanElemental menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\smart_cast_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\spell_downrank.lua — original per-spec EAX ShamanElemental spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\spell_resolver.lua — original per-spec EAX ShamanElemental spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\spells.lua — original per-spec EAX ShamanElemental spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\swing_timer.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\tank_recovery.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\threat_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\totem_manager.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\ttd_tracker.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\utils.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\libraries\visual_state.lua — original per-spec EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\main.lua — original per-spec EAX ShamanElemental rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXShamanElemental\plugin_info.lua — original per-spec EAX ShamanElemental plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\extra\codemap.md — original per-spec EAX ShamanEnhancement documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\extra\README.md — original per-spec EAX ShamanEnhancement documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\header.lua — original per-spec EAX ShamanEnhancement plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\class_identity.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\class_theme.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\class_ui_init.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\color.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\combat_context.lua — original per-spec EAX ShamanEnhancement rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\consumables_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\cooldown_tracker.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\defensive_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\dispel_engine.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\dot_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\dps_meter.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\dps_risk.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\dps_runtime.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\eax_utils.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\enchant_checker.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\encounter_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\esp_renderer.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\healer_triage.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\interrupt_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\leveling_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\mana_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\menu.lua — original per-spec EAX ShamanEnhancement menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\ooc_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\ps_theme.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\pull_optimizer.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\pvp_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\racial_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\reactive_engine.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\reactive_runtime.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\resource_gate.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\role_policy.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\rotation_context.lua — original per-spec EAX ShamanEnhancement rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\set_bonus.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\settings_framework.lua — original per-spec EAX ShamanEnhancement menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\smart_cast_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\spell_resolver.lua — original per-spec EAX ShamanEnhancement spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\spells.lua — original per-spec EAX ShamanEnhancement spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\swing_timer.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\tank_recovery.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\threat_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\totem_manager.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\ttd_tracker.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\utils.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\libraries\visual_state.lua — original per-spec EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\main.lua — original per-spec EAX ShamanEnhancement rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXShamanEnhancement\plugin_info.lua — original per-spec EAX ShamanEnhancement plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\.gitignore — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\extra\codemap.md — original per-spec EAX ShamanRestoration documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\extra\README.md — original per-spec EAX ShamanRestoration documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\header.lua — original per-spec EAX ShamanRestoration plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\class_identity.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\class_theme.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\class_ui_init.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\color.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\combat_context.lua — original per-spec EAX ShamanRestoration rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\consumables_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\cooldown_tracker.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\defensive_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\dispel_engine.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\dot_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\dps_meter.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\dps_risk.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\dps_runtime.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\eax_utils.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\enchant_checker.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\encounter_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\esp_renderer.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\heal_engine.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\healer_triage.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\interrupt_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\leveling_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\mana_conservator.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\mana_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\menu.lua — original per-spec EAX ShamanRestoration menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\ooc_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\ps_theme.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\pull_optimizer.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\pvp_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\racial_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\reactive_engine.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\reactive_runtime.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\resource_gate.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\role_policy.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\rotation_context.lua — original per-spec EAX ShamanRestoration rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\set_bonus.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\settings_framework.lua — original per-spec EAX ShamanRestoration menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\smart_cast_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\spell_downrank.lua — original per-spec EAX ShamanRestoration spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\spell_resolver.lua — original per-spec EAX ShamanRestoration spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\spells.lua — original per-spec EAX ShamanRestoration spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\swing_timer.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\tank_recovery.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\threat_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\totem_manager.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\ttd_tracker.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\utils.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\libraries\visual_state.lua — original per-spec EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\main.lua — original per-spec EAX ShamanRestoration rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXShamanRestoration\plugin_info.lua — original per-spec EAX ShamanRestoration plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\extra\codemap.md — original per-spec EAX WarlockAffliction documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\extra\README.md — original per-spec EAX WarlockAffliction documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\header.lua — original per-spec EAX WarlockAffliction plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\class_identity.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\class_theme.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\class_ui_init.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\color.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\combat_context.lua — original per-spec EAX WarlockAffliction rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\consumables_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\cooldown_tracker.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\creature_utils.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\defensive_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\dot_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\dps_meter.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\dps_risk.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\dps_runtime.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\eax_utils.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\enchant_checker.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\encounter_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\esp_renderer.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\healer_triage.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\interrupt_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\leveling_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\mana_conservator.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\mana_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\menu.lua — original per-spec EAX WarlockAffliction menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\ooc_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\ps_theme.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\pull_optimizer.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\pvp_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\racial_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\reactive_engine.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\reactive_runtime.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\resource_gate.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\role_policy.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\rotation_context.lua — original per-spec EAX WarlockAffliction rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\set_bonus.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\settings_framework.lua — original per-spec EAX WarlockAffliction menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\smart_cast_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\spell_downrank.lua — original per-spec EAX WarlockAffliction spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\spell_resolver.lua — original per-spec EAX WarlockAffliction spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\spells.lua — original per-spec EAX WarlockAffliction spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\swing_timer.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\tank_recovery.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\threat_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\totem_manager.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\ttd_tracker.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\utils.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\libraries\visual_state.lua — original per-spec EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\main.lua — original per-spec EAX WarlockAffliction rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockAffliction\plugin_info.lua — original per-spec EAX WarlockAffliction plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\extra\codemap.md — original per-spec EAX WarlockDemonology documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\extra\README.md — original per-spec EAX WarlockDemonology documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\header.lua — original per-spec EAX WarlockDemonology plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\class_identity.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\class_theme.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\class_ui_init.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\color.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\combat_context.lua — original per-spec EAX WarlockDemonology rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\consumables_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\cooldown_tracker.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\creature_utils.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\defensive_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\dot_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\dps_meter.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\dps_risk.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\dps_runtime.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\eax_utils.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\enchant_checker.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\encounter_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\esp_renderer.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\healer_triage.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\interrupt_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\leveling_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\mana_conservator.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\mana_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\menu.lua — original per-spec EAX WarlockDemonology menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\ooc_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\ps_theme.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\pull_optimizer.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\pvp_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\racial_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\reactive_engine.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\reactive_runtime.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\resource_gate.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\role_policy.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\rotation_context.lua — original per-spec EAX WarlockDemonology rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\set_bonus.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\settings_framework.lua — original per-spec EAX WarlockDemonology menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\smart_cast_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\spell_downrank.lua — original per-spec EAX WarlockDemonology spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\spell_resolver.lua — original per-spec EAX WarlockDemonology spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\spells.lua — original per-spec EAX WarlockDemonology spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\swing_timer.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\tank_recovery.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\threat_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\totem_manager.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\ttd_tracker.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\utils.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\libraries\visual_state.lua — original per-spec EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\main.lua — original per-spec EAX WarlockDemonology rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDemonology\plugin_info.lua — original per-spec EAX WarlockDemonology plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\extra\codemap.md — original per-spec EAX WarlockDestruction documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\extra\README.md — original per-spec EAX WarlockDestruction documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\header.lua — original per-spec EAX WarlockDestruction plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\class_identity.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\class_theme.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\class_ui_init.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\color.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\combat_context.lua — original per-spec EAX WarlockDestruction rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\consumables_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\cooldown_tracker.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\creature_utils.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\defensive_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\dot_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\dps_meter.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\dps_risk.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\dps_runtime.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\eax_utils.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\enchant_checker.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\encounter_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\esp_renderer.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\healer_triage.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\interrupt_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\leveling_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\mana_conservator.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\mana_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\menu.lua — original per-spec EAX WarlockDestruction menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\ooc_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\ps_theme.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\pull_optimizer.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\pvp_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\racial_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\reactive_engine.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\reactive_runtime.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\resource_gate.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\role_policy.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\rotation_context.lua — original per-spec EAX WarlockDestruction rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\set_bonus.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\settings_framework.lua — original per-spec EAX WarlockDestruction menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\smart_cast_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\spell_downrank.lua — original per-spec EAX WarlockDestruction spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\spell_resolver.lua — original per-spec EAX WarlockDestruction spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\spells.lua — original per-spec EAX WarlockDestruction spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\swing_timer.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\tank_recovery.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\threat_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\totem_manager.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\ttd_tracker.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\utils.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\libraries\visual_state.lua — original per-spec EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\main.lua — original per-spec EAX WarlockDestruction rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXWarlockDestruction\plugin_info.lua — original per-spec EAX WarlockDestruction plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\extra\codemap.md — original per-spec EAX WarriorArms documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\extra\README.md — original per-spec EAX WarriorArms documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\header.lua — original per-spec EAX WarriorArms plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\class_identity.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\class_theme.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\class_ui_init.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\color.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\combat_context.lua — original per-spec EAX WarriorArms rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\consumables_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\cooldown_tracker.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\defensive_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\dot_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\dps_meter.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\dps_risk.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\dps_runtime.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\eax_utils.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\enchant_checker.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\encounter_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\esp_renderer.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\healer_triage.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\interrupt_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\leveling_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\mana_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\menu.lua — original per-spec EAX WarriorArms menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\ooc_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\ps_theme.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\pull_optimizer.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\pvp_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\racial_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\reactive_engine.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\reactive_runtime.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\resource_gate.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\role_policy.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\rotation_context.lua — original per-spec EAX WarriorArms rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\set_bonus.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\settings_framework.lua — original per-spec EAX WarriorArms menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\smart_cast_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\spell_resolver.lua — original per-spec EAX WarriorArms spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\spells.lua — original per-spec EAX WarriorArms spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\swing_timer.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\tank_recovery.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\threat_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\totem_manager.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\ttd_tracker.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\utils.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\libraries\visual_state.lua — original per-spec EAX WarriorArms library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\main.lua — original per-spec EAX WarriorArms rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorArms\plugin_info.lua — original per-spec EAX WarriorArms plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\extra\codemap.md — original per-spec EAX WarriorFury documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\extra\README.md — original per-spec EAX WarriorFury documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\header.lua — original per-spec EAX WarriorFury plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\class_identity.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\class_theme.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\class_ui_init.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\color.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\combat_context.lua — original per-spec EAX WarriorFury rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\consumables_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\cooldown_tracker.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\defensive_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\dot_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\dps_meter.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\dps_risk.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\dps_runtime.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\eax_utils.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\enchant_checker.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\encounter_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\esp_renderer.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\healer_triage.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\interrupt_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\leveling_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\mana_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\menu.lua — original per-spec EAX WarriorFury menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\ooc_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\ps_theme.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\pull_optimizer.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\pvp_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\racial_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\reactive_engine.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\reactive_runtime.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\resource_gate.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\role_policy.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\rotation_context.lua — original per-spec EAX WarriorFury rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\set_bonus.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\settings_framework.lua — original per-spec EAX WarriorFury menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\smart_cast_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\spell_resolver.lua — original per-spec EAX WarriorFury spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\spells.lua — original per-spec EAX WarriorFury spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\swing_timer.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\tank_recovery.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\threat_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\totem_manager.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\ttd_tracker.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\utils.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\libraries\visual_state.lua — original per-spec EAX WarriorFury library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\main.lua — original per-spec EAX WarriorFury rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorFury\plugin_info.lua — original per-spec EAX WarriorFury plugin metadata.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\extra\AGENTS.md — original per-spec EAX WarriorProtection documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\extra\codemap.md — original per-spec EAX WarriorProtection documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\extra\README.md — original per-spec EAX WarriorProtection documentation/codemap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\header.lua — original per-spec EAX WarriorProtection plugin header/bootstrap.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\class_identity.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\class_theme.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\class_ui_init.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\color.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\combat_context.lua — original per-spec EAX WarriorProtection rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\consumables_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\cooldown_tracker.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\defensive_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\dot_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\dps_meter.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\dps_risk.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\dps_runtime.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\eax_utils.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\enchant_checker.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\encounter_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\esp_renderer.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\healer_triage.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\interrupt_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\leveling_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\mana_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\menu.lua — original per-spec EAX WarriorProtection menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\ooc_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\ps_theme.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\pull_optimizer.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\pvp_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\racial_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\reactive_engine.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\reactive_runtime.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\resource_gate.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\role_policy.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\rotation_context.lua — original per-spec EAX WarriorProtection rotation/combat context helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\set_bonus.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\settings_framework.lua — original per-spec EAX WarriorProtection menu/settings helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\smart_cast_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\spell_resolver.lua — original per-spec EAX WarriorProtection spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\spells.lua — original per-spec EAX WarriorProtection spell data/resolution helper.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\swing_timer.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\tank_recovery.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\threat_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\totem_manager.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\ttd_tracker.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\utils.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\libraries\visual_state.lua — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\main.lua — original per-spec EAX WarriorProtection rotation main entrypoint.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\main.lua.orig — original per-spec EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\archive_original_specs\EAXWarriorProtection\plugin_info.lua — original per-spec EAX WarriorProtection plugin metadata.
+- C:\newbot\scripts\docs\OPENPRIEST_MIGRATION_GUIDE.md — OpenPriest migration guide for moving legacy Priest rotation into the newer system.
+- C:\newbot\scripts\ext_rotation_tbc_opendruid_alpha — compiled/binary OpenDruid alpha TBC rotation artifact.
+- C:\newbot\scripts\flux\rotation\AGENTS.md — Flux rotation project support file.
+- C:\newbot\scripts\flux\rotation\build.js — Flux rotation project support file.
+- C:\newbot\scripts\flux\rotation\dev-watch.js — Flux rotation project support file.
+- C:\newbot\scripts\flux\rotation\dev.ini.example — Flux rotation project support file.
+- C:\newbot\scripts\flux\rotation\package.json — Flux rotation project support file.
+- C:\newbot\scripts\flux\rotation\source\aio\common.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\core.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\dashboard.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\balance.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\bear.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\caster.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\cat.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\healing.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\resto.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\druid\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\hunter\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\hunter\cliptracker.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\hunter\debugui.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\hunter\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\hunter\rotation.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\hunter\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\mage\arcane.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\mage\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\mage\fire.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\mage\frost.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\mage\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\mage\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\main.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\paladin\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\paladin\healing.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\paladin\holy.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\paladin\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\paladin\protection.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\paladin\retribution.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\paladin\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\priest\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\priest\discipline.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\priest\healing.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\priest\holy.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\priest\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\priest\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\priest\shadow.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\priest\smite.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\rogue\assassination.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\rogue\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\rogue\combat.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\rogue\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\rogue\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\rogue\subtlety.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\settings.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\shaman\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\shaman\elemental.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\shaman\enhancement.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\shaman\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\shaman\restoration.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\shaman\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\ui.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warlock\affliction.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warlock\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warlock\demonology.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warlock\destruction.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warlock\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warlock\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warrior\arms.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warrior\class.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warrior\fury.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warrior\middleware.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warrior\protection.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\source\aio\warrior\schema.lua — Flux AIO class/spec rotation source file.
+- C:\newbot\scripts\flux\rotation\tmw-template.lua — Flux TellMeWhen rotation template.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\auto_attack_helper.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\buff_db.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\enums.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\balance_rotation.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\bear_rotation.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\cat_rotation.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\constants.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\middleware.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\resto_rotation.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\rotation_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\smart_dispel.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\spell_rank_optimizer.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\spells.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\tree_reshift.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\libraries\utils.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\plugin_info.lua — older EAX legacy rotation plugin metadata.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\settings_manager.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\druid\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\extra\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\extra\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\extra\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\extra\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\extra\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\libraries\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\libraries\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\hunter\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\extra\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\extra\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\extra\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\extra\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\extra\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\libraries\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\libraries\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\mage\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\extra\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\extra\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\extra\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\extra\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\extra\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\libraries\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\libraries\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\paladin\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\extra\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\extra\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\extra\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\extra\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\extra\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\libraries\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\libraries\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\priest\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\extra\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\extra\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\extra\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\extra\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\extra\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\libraries\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\libraries\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\rogue\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\extra\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\extra\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\extra\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\extra\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\extra\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\libraries\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\libraries\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\shaman\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\extra\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\extra\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\extra\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\extra\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\extra\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\libraries\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\libraries\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warlock\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\extra\debug_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\extra\notification.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\extra\settings_sections.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\extra\settings_ui.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\extra\slash_commands.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\libraries\flux_compat.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\libraries\healing_engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\libraries\settings_bridge.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\_archive_legacy\warrior\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\eax_shared\pull_optimizer.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\eax_shared\pvp_manager.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\header.lua — older EAX DruidBalance plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\anti_fake_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\burst_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\cc_detector.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\class_identity.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\class_theme.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\class_ui_init.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\color.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\combat_context.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\combat_forecast.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\compat.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\consumables_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\context_builder.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\cooldown_tracker.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\creature_utils.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\dashboard.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\dashboard_config.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\defensive_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\dot_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\dps_meter.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\dps_risk.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\dps_runtime.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\eax_utils.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\enchant_checker.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\encounter_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\energy_tick.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\esp_renderer.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\force_commands.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\form_consumables.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\heal_context.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\heal_utils.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\healer_triage.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\hot_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\hunter_clip_tracker.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\interrupt_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\leveling_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\mana_conservator.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\mana_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\menu.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\middleware.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\middleware_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\ooc_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\powershift.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\ps_theme.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\pull_optimizer.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\pvp_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\racial_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\reactive_engine.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\reactive_runtime.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\resource_gate.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\role_policy.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\rotation_context.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\set_bonus.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\settings_framework.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\smart_cast_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\smart_defensive.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\spell_downrank.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\spell_prediction.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\spell_resolver.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\spells.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\swing_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\swing_timer.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\tank_recovery.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\threat_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\threat_tab_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\totem_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\trinket_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\ttd_tracker.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\utils.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\libraries\visual_state.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\main.lua — older EAX DruidBalance rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBalance\plugin_info.lua — older EAX DruidBalance plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\header.lua — older EAX DruidBear plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\anti_fake_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\burst_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\cc_detector.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\combat_forecast.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\compat.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\context_builder.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\dashboard.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\dashboard_config.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\energy_tick.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\force_commands.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\form_consumables.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\heal_context.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\heal_utils.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\hot_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\hunter_clip_tracker.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\mana_conservator.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\mana_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\menu.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\middleware.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\middleware_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\ooc_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\powershift.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\ps_theme.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\settings_framework.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\smart_defensive.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\spell_resolver.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\spells.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\swing_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\threat_tab_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\trinket_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\libraries\utils.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\main.lua — older EAX DruidBear rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidBear\plugin_info.lua — older EAX DruidBear plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\header.lua — older EAX DruidFeral plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\anti_fake_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\burst_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\cc_detector.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\class_identity.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\class_theme.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\class_ui_init.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\color.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\combat_context.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\combat_forecast.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\compat.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\consumables_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\context_builder.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\cooldown_tracker.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\creature_utils.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\dashboard.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\dashboard_config.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\defensive_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\dot_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\dps_meter.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\dps_risk.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\dps_runtime.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\eax_utils.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\enchant_checker.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\encounter_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\energy_tick.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\esp_renderer.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\force_commands.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\form_consumables.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\heal_context.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\heal_utils.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\healer_triage.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\hot_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\hunter_clip_tracker.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\interrupt_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\leveling_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\mana_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\menu.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\middleware.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\middleware_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\ooc_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\powershift.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\ps_theme.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\pull_optimizer.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\pvp_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\racial_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\reactive_engine.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\reactive_runtime.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\resource_gate.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\role_policy.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\rotation_context.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\set_bonus.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\settings_framework.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\smart_cast_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\smart_defensive.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\spell_resolver.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\spells.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\swing_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\swing_timer.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\tank_recovery.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\threat_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\threat_tab_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\totem_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\trinket_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\ttd_tracker.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\utils.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\libraries\visual_state.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\main.lua — older EAX DruidFeral rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidFeral\plugin_info.lua — older EAX DruidFeral plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\header.lua — older EAX DruidResto plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\anti_fake_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\burst_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\cc_detector.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\combat_forecast.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\compat.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\context_builder.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\dashboard.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\dashboard_config.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\energy_tick.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\force_commands.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\form_consumables.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\heal_context.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\heal_utils.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\hot_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\hunter_clip_tracker.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\mana_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\menu.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\middleware.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\middleware_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\ooc_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\powershift.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\ps_theme.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\settings_framework.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\smart_defensive.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\spell_resolver.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\spells.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\swing_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\threat_tab_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\trinket_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\libraries\utils.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\main.lua — older EAX DruidResto rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidResto\plugin_info.lua — older EAX DruidResto plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\eax_shared\enchant_checker.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\header.lua — older EAX DruidRestoration plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\class_identity.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\class_theme.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\class_ui_init.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\color.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\combat_context.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\consumables_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\cooldown_tracker.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\creature_utils.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\defensive_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\dispel_engine.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\dot_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\dps_meter.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\dps_risk.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\dps_runtime.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\eax_utils.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\emergency_handlers.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\enchant_checker.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\encounter_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\esp_renderer.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\heal_engine.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\healer_triage.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\interrupt_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\leveling_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\lifebloom_bloom_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\mana_conservator.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\mana_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\menu.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\ooc_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\ps_theme.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\pull_optimizer.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\pvp_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\racial_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\reactive_engine.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\reactive_runtime.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\rejuv_spread_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\resource_gate.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\role_policy.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\rotation_context.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\set_bonus.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\settings_framework.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\smart_cast_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\spell_downrank.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\spell_resolver.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\spells.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\swing_timer.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\tank_recovery.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\threat_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\totem_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\tree_reshift_manager.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\ttd_tracker.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\utils.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\libraries\visual_state.lua — older EAX DruidRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\main.lua — older EAX DruidRestoration rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXDruidRestoration\plugin_info.lua — older EAX DruidRestoration plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\class_identity.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\common\color.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\config.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\constants.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\core\api_surface.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\core\app.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\core\behavior.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\core\context.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\core\state.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\defensive_manager.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\esp_renderer.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\fishing\engine.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\fishing\gear.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\fishing\loot.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\fishing\loot_db.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\fishing\lures.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\header.lua — older EAX legacy rotation plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\inventory\bags.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\inventory\vendor.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\main.lua — older EAX legacy rotation rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\navigation\client.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\navigation\shoreline_solver.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\navigation\terrain.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\ooc_manager.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\ps_theme.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\settings_framework.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\swing_timer.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\ui\control_panel.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\ui\menu.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\ui\render.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\utils\log.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\utils\math.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EaxFishing_v2_0_1\utils\menu.lua — older EAX legacy rotation library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\header.lua — older EAX HunterBeastMastery plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\class_identity.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\class_theme.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\class_ui_init.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\color.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\combat_context.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\consumables_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\cooldown_tracker.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\creature_utils.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\defensive_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\dot_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\dps_meter.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\dps_risk.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\dps_runtime.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\eax_utils.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\enchant_checker.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\encounter_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\esp_renderer.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\healer_triage.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\interrupt_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\kiting_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\leveling_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\mana_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\menu.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\ooc_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\pet_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\ps_theme.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\pull_optimizer.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\pvp_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\racial_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\reactive_engine.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\reactive_runtime.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\resource_gate.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\role_policy.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\rotation_context.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\set_bonus.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\settings_framework.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\smart_cast_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\spell_resolver.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\spells.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\swing_timer.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\talent_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\tank_recovery.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\threat_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\totem_manager.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\ttd_tracker.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\utils.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\libraries\visual_state.lua — older EAX HunterBeastMastery library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\main.lua — older EAX HunterBeastMastery rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBeastMastery\plugin_info.lua — older EAX HunterBeastMastery plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\header.lua — older EAX HunterBM plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\anti_fake_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\burst_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\cc_detector.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\combat_forecast.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\compat.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\context_builder.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\dashboard.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\dashboard_config.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\energy_tick.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\force_commands.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\form_consumables.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\heal_context.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\heal_utils.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\hot_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\hunter_clip_tracker.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\mana_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\menu.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\middleware.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\middleware_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\ooc_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\powershift.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\ps_theme.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\rotation_compat.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\settings_framework.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\smart_defensive.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\spell_resolver.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\spells.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\swing_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\swing_timer.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\threat_tab_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\trinket_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\libraries\utils.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\main.lua — older EAX HunterBM rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterBM\plugin_info.lua — older EAX HunterBM plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\header.lua — older EAX HunterMarksmanship plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\class_identity.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\class_theme.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\class_ui_init.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\color.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\combat_context.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\consumables_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\cooldown_tracker.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\creature_utils.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\defensive_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\dot_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\dps_meter.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\dps_risk.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\dps_runtime.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\eax_utils.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\enchant_checker.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\encounter_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\esp_renderer.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\healer_triage.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\interrupt_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\leveling_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\mana_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\menu.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\ooc_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\ps_theme.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\pull_optimizer.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\pvp_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\racial_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\reactive_engine.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\reactive_runtime.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\resource_gate.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\role_policy.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\rotation_context.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\set_bonus.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\settings_framework.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\smart_cast_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\spell_resolver.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\spells.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\swing_timer.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\tank_recovery.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\threat_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\totem_manager.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\ttd_tracker.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\utils.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\libraries\visual_state.lua — older EAX HunterMarksmanship library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\main.lua — older EAX HunterMarksmanship rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMarksmanship\plugin_info.lua — older EAX HunterMarksmanship plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\header.lua — older EAX HunterMM plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\anti_fake_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\burst_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\cc_detector.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\combat_forecast.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\compat.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\context_builder.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\dashboard.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\dashboard_config.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\energy_tick.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\force_commands.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\form_consumables.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\heal_context.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\heal_utils.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\hot_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\hunter_clip_tracker.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\mana_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\menu.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\middleware.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\middleware_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\ooc_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\powershift.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\ps_theme.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\rotation_compat.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\settings_framework.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\smart_defensive.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\spell_resolver.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\spells.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\swing_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\threat_tab_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\trinket_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\libraries\utils.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\main.lua — older EAX HunterMM rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterMM\plugin_info.lua — older EAX HunterMM plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\header.lua — older EAX HunterSurvival plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\anti_fake_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\burst_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\cc_detector.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\class_identity.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\class_theme.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\class_ui_init.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\color.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\combat_context.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\combat_forecast.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\compat.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\consumables_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\context_builder.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\cooldown_tracker.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\creature_utils.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\dashboard.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\dashboard_config.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\defensive_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\dot_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\dps_meter.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\dps_risk.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\dps_runtime.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\eax_utils.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\enchant_checker.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\encounter_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\energy_tick.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\esp_renderer.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\force_commands.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\form_consumables.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\heal_context.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\heal_utils.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\healer_triage.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\hot_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\hunter_clip_tracker.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\interrupt_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\leveling_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\mana_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\menu.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\middleware.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\middleware_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\ooc_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\powershift.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\ps_theme.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\pull_optimizer.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\pvp_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\racial_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\reactive_engine.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\reactive_runtime.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\resource_gate.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\role_policy.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\rotation_compat.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\rotation_context.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\set_bonus.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\settings_framework.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\smart_cast_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\smart_defensive.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\spell_resolver.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\spells.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\swing_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\swing_timer.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\tank_recovery.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\threat_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\threat_tab_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\totem_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\trinket_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\ttd_tracker.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\utils.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\libraries\visual_state.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\main.lua — older EAX HunterSurvival rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXHunterSurvival\plugin_info.lua — older EAX HunterSurvival plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\header.lua — older EAX MageArcane plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\anti_fake_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\burst_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\cc_detector.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\class_identity.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\class_theme.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\class_ui_init.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\color.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\combat_context.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\combat_forecast.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\compat.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\consumables_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\context_builder.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\cooldown_tracker.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\creature_utils.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\dashboard.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\dashboard_config.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\defensive_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\dot_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\dps_meter.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\dps_risk.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\dps_runtime.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\eax_utils.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\enchant_checker.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\encounter_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\energy_tick.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\esp_renderer.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\force_commands.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\form_consumables.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\heal_context.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\heal_utils.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\healer_triage.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\hot_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\hunter_clip_tracker.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\interrupt_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\leveling_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\mana_conservator.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\mana_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\menu.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\middleware.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\middleware_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\ooc_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\powershift.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\ps_theme.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\pull_optimizer.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\pvp_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\racial_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\reactive_engine.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\reactive_runtime.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\resource_gate.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\role_policy.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\rotation_context.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\set_bonus.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\settings_framework.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\smart_cast_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\smart_defensive.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\spell_downrank.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\spell_resolver.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\spells.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\swing_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\swing_timer.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\tank_recovery.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\threat_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\threat_tab_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\totem_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\trinket_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\ttd_tracker.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\utils.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\libraries\visual_state.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\main.lua — older EAX MageArcane rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageArcane\plugin_info.lua — older EAX MageArcane plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\header.lua — older EAX MageFire plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\anti_fake_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\burst_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\cc_detector.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\class_identity.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\class_theme.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\class_ui_init.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\color.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\combat_context.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\combat_forecast.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\compat.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\consumables_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\context_builder.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\cooldown_tracker.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\creature_utils.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\dashboard.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\dashboard_config.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\defensive_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\dot_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\dps_meter.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\dps_risk.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\dps_runtime.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\eax_utils.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\enchant_checker.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\encounter_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\energy_tick.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\esp_renderer.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\force_commands.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\form_consumables.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\heal_context.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\heal_utils.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\healer_triage.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\hot_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\hunter_clip_tracker.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\interrupt_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\leveling_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\mana_conservator.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\mana_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\menu.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\middleware.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\middleware_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\ooc_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\powershift.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\ps_theme.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\pull_optimizer.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\pvp_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\racial_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\reactive_engine.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\reactive_runtime.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\resource_gate.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\role_policy.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\rotation_context.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\set_bonus.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\settings_framework.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\smart_cast_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\smart_defensive.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\spell_downrank.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\spell_resolver.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\spells.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\swing_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\swing_timer.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\tank_recovery.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\threat_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\threat_tab_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\totem_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\trinket_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\ttd_tracker.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\utils.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\libraries\visual_state.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\main.lua — older EAX MageFire rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFire\plugin_info.lua — older EAX MageFire plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\header.lua — older EAX MageFrost plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\anti_fake_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\burst_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\cc_detector.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\class_identity.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\class_theme.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\class_ui_init.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\color.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\combat_context.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\combat_forecast.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\compat.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\consumables_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\context_builder.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\cooldown_tracker.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\creature_utils.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\dashboard.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\dashboard_config.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\defensive_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\dot_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\dps_meter.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\dps_risk.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\dps_runtime.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\eax_utils.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\enchant_checker.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\encounter_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\energy_tick.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\esp_renderer.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\force_commands.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\form_consumables.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\heal_context.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\heal_utils.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\healer_triage.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\hot_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\hunter_clip_tracker.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\interrupt_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\leveling_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\mana_conservator.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\mana_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\menu.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\middleware.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\middleware_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\ooc_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\powershift.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\ps_theme.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\pull_optimizer.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\pvp_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\racial_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\reactive_engine.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\reactive_runtime.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\resource_gate.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\role_policy.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\rotation_context.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\set_bonus.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\settings_framework.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\smart_cast_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\smart_defensive.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\spell_downrank.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\spell_resolver.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\spells.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\swing_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\swing_timer.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\tank_recovery.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\threat_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\threat_tab_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\totem_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\trinket_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\ttd_tracker.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\utils.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\libraries\visual_state.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\main.lua — older EAX MageFrost rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXMageFrost\plugin_info.lua — older EAX MageFrost plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\header.lua — older EAX PaladinHoly plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\anti_fake_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\burst_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\cc_detector.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\class_identity.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\class_theme.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\class_ui_init.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\color.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\combat_context.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\combat_forecast.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\compat.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\consumables_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\cooldown_tracker.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\creature_utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\dashboard.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\dashboard_config.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\defensive_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\dispel_engine.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\dot_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\dps_meter.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\dps_risk.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\dps_runtime.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\eax_utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\enchant_checker.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\encounter_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\energy_tick.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\esp_renderer.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\event_handler.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\force_commands.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\form_consumables.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\heal_context.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\heal_engine.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\heal_utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\healer_triage.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\hot_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\hunter_clip_tracker.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\interrupt_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\leveling_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\mana_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\menu.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\middleware.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\middleware_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\ooc_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\powershift.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\ps_theme.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\pull_optimizer.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\pvp_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\queue_debug.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\racial_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\reactive_engine.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\reactive_runtime.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\resource_gate.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\role_policy.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\rotation_context.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\set_bonus.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\settings_framework.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\smart_cast_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\smart_defensive.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\spell_downrank.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\spell_resolver.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\spells.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\swing_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\swing_timer.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\tank_recovery.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\threat_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\threat_tab_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\totem_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\trinket_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\ttd_tracker.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\libraries\visual_state.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\main.lua — older EAX PaladinHoly rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinHoly\plugin_info.lua — older EAX PaladinHoly plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\header.lua — older EAX PaladinProtection plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\anti_fake_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\burst_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\cc_detector.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\class_identity.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\class_theme.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\class_ui_init.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\color.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\combat_context.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\combat_forecast.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\compat.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\consumables_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\cooldown_tracker.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\creature_utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\dashboard.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\dashboard_config.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\defensive_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\dispel_engine.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\dot_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\dps_meter.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\dps_risk.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\dps_runtime.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\eax_utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\enchant_checker.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\encounter_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\energy_tick.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\esp_renderer.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\force_commands.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\form_consumables.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\heal_context.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\heal_utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\healer_triage.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\hot_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\hunter_clip_tracker.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\interrupt_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\leveling_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\mana_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\menu.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\middleware.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\middleware_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\ooc_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\powershift.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\ps_theme.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\pull_optimizer.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\pvp_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\racial_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\reactive_engine.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\reactive_runtime.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\resource_gate.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\role_policy.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\rotation_context.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\set_bonus.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\settings_framework.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\smart_cast_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\smart_defensive.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\spell_resolver.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\spells.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\swing_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\swing_timer.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\tank_recovery.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\threat_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\threat_tab_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\totem_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\trinket_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\ttd_tracker.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\libraries\visual_state.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\main.lua — older EAX PaladinProtection rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinProtection\plugin_info.lua — older EAX PaladinProtection plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\header.lua — older EAX PaladinRetribution plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\anti_fake_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\burst_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\cc_detector.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\class_identity.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\class_theme.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\class_ui_init.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\color.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\combat_context.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\combat_forecast.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\compat.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\consumables_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\cooldown_tracker.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\creature_utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\dashboard.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\dashboard_config.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\defensive_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\dispel_engine.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\dot_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\dps_meter.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\dps_risk.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\dps_runtime.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\eax_utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\enchant_checker.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\encounter_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\energy_tick.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\esp_renderer.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\force_commands.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\form_consumables.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\heal_context.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\heal_utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\healer_triage.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\hot_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\hunter_clip_tracker.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\interrupt_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\leveling_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\mana_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\menu.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\middleware.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\middleware_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\ooc_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\powershift.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\ps_theme.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\pull_optimizer.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\pvp_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\racial_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\reactive_engine.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\reactive_runtime.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\resource_gate.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\role_policy.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\rotation_context.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\set_bonus.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\settings_framework.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\smart_cast_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\smart_defensive.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\spell_resolver.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\spells.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\swing_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\swing_timer.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\tank_recovery.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\threat_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\threat_tab_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\totem_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\trinket_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\ttd_tracker.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\libraries\visual_state.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\main.lua — older EAX PaladinRetribution rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPaladinRetribution\plugin_info.lua — older EAX PaladinRetribution plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\header.lua — older EAX PriestDiscipline plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\anti_fake_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\burst_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\cc_detector.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\class_identity.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\class_theme.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\class_ui_init.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\color.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\combat_context.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\combat_forecast.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\compat.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\consumables_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\context_builder.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\cooldown_tracker.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\creature_utils.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\dashboard.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\dashboard_config.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\defensive_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\dispel_engine.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\dot_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\dps_meter.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\dps_risk.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\dps_runtime.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\eax_utils.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\enchant_checker.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\encounter_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\energy_tick.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\esp_renderer.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\force_commands.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\form_consumables.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\heal_context.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\heal_engine.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\heal_utils.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\healer_triage.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\hot_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\hunter_clip_tracker.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\interrupt_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\leveling_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\mana_conservator.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\mana_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\menu.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\middleware.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\middleware_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\ooc_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\powershift.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\ps_theme.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\pull_optimizer.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\pvp_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\racial_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\reactive_engine.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\reactive_runtime.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\resource_gate.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\role_policy.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\rotation_context.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\set_bonus.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\settings_framework.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\smart_cast_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\smart_defensive.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\spell_downrank.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\spell_resolver.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\spells.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\swing_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\swing_timer.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\tank_recovery.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\threat_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\threat_tab_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\totem_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\trinket_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\ttd_tracker.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\utils.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\libraries\visual_state.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\main.lua — older EAX PriestDiscipline rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestDiscipline\plugin_info.lua — older EAX PriestDiscipline plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\header.lua — older EAX PriestHoly plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\anti_fake_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\burst_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\cc_detector.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\class_identity.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\class_theme.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\class_ui_init.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\color.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\combat_context.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\combat_forecast.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\compat.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\consumables_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\context_builder.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\cooldown_tracker.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\creature_utils.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\dashboard.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\dashboard_config.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\defensive_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\dispel_engine.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\dot_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\dps_meter.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\dps_risk.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\dps_runtime.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\eax_utils.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\enchant_checker.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\encounter_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\energy_tick.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\esp_renderer.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\force_commands.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\form_consumables.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\heal_context.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\heal_engine.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\heal_utils.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\healer_triage.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\hot_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\hunter_clip_tracker.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\interrupt_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\leveling_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\mana_conservator.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\mana_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\menu.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\middleware.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\middleware_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\ooc_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\powershift.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\ps_theme.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\pull_optimizer.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\pvp_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\racial_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\reactive_engine.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\reactive_runtime.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\resource_gate.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\role_policy.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\rotation_context.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\set_bonus.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\settings_framework.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\smart_cast_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\smart_defensive.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\spell_downrank.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\spell_resolver.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\spells.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\swing_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\swing_timer.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\tank_recovery.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\threat_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\threat_tab_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\totem_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\trinket_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\ttd_tracker.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\utils.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\libraries\visual_state.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\main.lua — older EAX PriestHoly rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestHoly\plugin_info.lua — older EAX PriestHoly plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\header.lua — older EAX PriestShadow plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\anti_fake_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\burst_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\cc_detector.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\class_identity.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\class_theme.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\class_ui_init.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\color.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\combat_context.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\combat_forecast.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\compat.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\consumables_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\context_builder.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\cooldown_tracker.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\creature_utils.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\dashboard.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\dashboard_config.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\defensive_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\dot_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\dps_meter.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\dps_risk.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\dps_runtime.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\eax_utils.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\enchant_checker.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\encounter_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\energy_tick.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\esp_renderer.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\force_commands.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\form_consumables.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\heal_context.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\heal_utils.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\healer_triage.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\hot_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\hunter_clip_tracker.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\interrupt_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\leveling_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\mana_conservator.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\mana_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\menu.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\middleware.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\middleware_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\ooc_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\powershift.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\ps_theme.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\pull_optimizer.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\pvp_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\racial_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\reactive_engine.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\reactive_runtime.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\resource_gate.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\role_policy.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\rotation_context.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\set_bonus.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\settings_framework.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\smart_cast_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\smart_defensive.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\spell_downrank.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\spell_resolver.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\spells.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\swing_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\swing_timer.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\tank_recovery.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\threat_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\threat_tab_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\totem_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\trinket_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\ttd_tracker.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\utils.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\libraries\visual_state.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\main.lua — older EAX PriestShadow rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestShadow\plugin_info.lua — older EAX PriestShadow plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\header.lua — older EAX PriestSmite plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\anti_fake_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\burst_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\cc_detector.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\combat_forecast.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\compat.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\context_builder.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\dashboard.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\dashboard_config.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\energy_tick.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\force_commands.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\form_consumables.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\heal_context.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\heal_utils.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\hot_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\hunter_clip_tracker.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\mana_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\menu.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\middleware.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\middleware_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\ooc_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\powershift.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\ps_theme.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\settings_framework.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\smart_defensive.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\spell_resolver.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\spells.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\swing_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\threat_tab_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\trinket_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\libraries\utils.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\main.lua — older EAX PriestSmite rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXPriestSmite\plugin_info.lua — older EAX PriestSmite plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\header.lua — older EAX RogueAssassination plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\anti_fake_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\burst_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\cc_detector.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\class_identity.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\class_theme.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\class_ui_init.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\color.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\combat_context.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\combat_forecast.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\compat.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\consumables_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\context_builder.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\cooldown_tracker.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\dashboard.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\dashboard_config.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\defensive_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\dot_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\dps_meter.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\dps_risk.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\dps_runtime.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\eax_utils.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\enchant_checker.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\encounter_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\energy_tick.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\esp_renderer.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\force_commands.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\form_consumables.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\heal_context.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\heal_utils.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\healer_triage.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\hot_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\hunter_clip_tracker.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\interrupt_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\leveling_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\mana_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\menu.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\middleware.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\middleware_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\ooc_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\poison_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\powershift.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\ps_theme.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\pull_optimizer.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\pvp_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\racial_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\reactive_engine.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\reactive_runtime.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\resource_gate.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\role_policy.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\rotation_context.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\set_bonus.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\settings_framework.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\smart_cast_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\smart_defensive.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\spell_resolver.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\spells.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\swing_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\swing_timer.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\tank_recovery.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\threat_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\threat_tab_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\totem_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\trinket_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\ttd_tracker.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\utils.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\libraries\visual_state.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\main.lua — older EAX RogueAssassination rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\main.lua.bak — backup of older EAX RogueAssassination rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueAssassination\plugin_info.lua — older EAX RogueAssassination plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\header.lua — older EAX RogueCombat plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\anti_fake_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\burst_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\cc_detector.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\class_identity.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\class_theme.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\class_ui_init.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\color.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\combat_context.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\combat_forecast.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\compat.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\consumables_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\context_builder.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\cooldown_tracker.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\dashboard.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\dashboard_config.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\defensive_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\dot_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\dps_meter.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\dps_risk.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\dps_runtime.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\eax_utils.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\enchant_checker.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\encounter_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\energy_tick.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\esp_renderer.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\force_commands.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\form_consumables.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\heal_context.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\heal_utils.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\healer_triage.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\hot_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\hunter_clip_tracker.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\interrupt_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\leveling_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\mana_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\menu.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\middleware.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\middleware_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\ooc_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\poison_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\powershift.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\ps_theme.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\pull_optimizer.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\pvp_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\racial_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\reactive_engine.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\reactive_runtime.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\resource_gate.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\role_policy.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\rotation_context.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\set_bonus.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\settings_framework.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\smart_cast_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\smart_defensive.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\spell_resolver.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\spells.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\swing_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\swing_timer.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\tank_recovery.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\threat_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\threat_tab_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\totem_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\trinket_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\ttd_tracker.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\utils.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\libraries\visual_state.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\main.lua — older EAX RogueCombat rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\main.lua.bak — backup of older EAX RogueCombat rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueCombat\plugin_info.lua — older EAX RogueCombat plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\header.lua — older EAX RogueSubtlety plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\anti_fake_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\burst_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\cc_detector.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\class_identity.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\class_theme.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\class_ui_init.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\color.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\combat_context.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\combat_forecast.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\compat.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\consumables_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\context_builder.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\cooldown_tracker.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\dashboard.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\dashboard_config.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\defensive_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\dot_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\dps_meter.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\dps_risk.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\dps_runtime.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\eax_utils.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\enchant_checker.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\encounter_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\energy_tick.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\esp_renderer.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\force_commands.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\form_consumables.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\healer_triage.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\interrupt_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\leveling_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\mana_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\menu.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\middleware.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\middleware_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\ooc_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\poison_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\ps_theme.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\pull_optimizer.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\pvp_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\racial_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\reactive_engine.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\reactive_runtime.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\resource_gate.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\role_policy.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\rotation_context.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\set_bonus.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\settings_framework.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\smart_cast_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\smart_defensive.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\spell_resolver.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\spells.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\swing_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\swing_timer.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\tank_recovery.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\threat_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\threat_tab_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\totem_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\trinket_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\ttd_tracker.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\utils.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\libraries\visual_state.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\main.lua — older EAX RogueSubtlety rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXRogueSubtlety\plugin_info.lua — older EAX RogueSubtlety plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\header.lua — older EAX ShamanElemental plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\anti_fake_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\burst_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\cc_detector.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\class_identity.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\class_theme.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\class_ui_init.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\color.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\combat_context.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\combat_forecast.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\compat.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\consumables_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\context_builder.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\cooldown_tracker.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\dashboard.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\dashboard_config.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\defensive_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\dispel_engine.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\dot_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\dps_meter.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\dps_risk.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\dps_runtime.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\eax_utils.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\enchant_checker.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\encounter_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\energy_tick.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\esp_renderer.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\force_commands.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\form_consumables.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\heal_context.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\heal_utils.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\healer_triage.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\hot_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\hunter_clip_tracker.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\interrupt_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\leveling_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\mana_conservator.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\mana_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\menu.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\middleware.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\middleware_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\ooc_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\powershift.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\ps_theme.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\pull_optimizer.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\pvp_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\racial_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\reactive_engine.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\reactive_runtime.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\resource_gate.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\role_policy.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\rotation_context.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\set_bonus.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\settings_framework.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\smart_cast_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\smart_defensive.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\spell_downrank.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\spell_resolver.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\spells.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\swing_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\swing_timer.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\tank_recovery.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\threat_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\threat_tab_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\totem_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\trinket_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\ttd_tracker.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\utils.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\libraries\visual_state.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\main.lua — older EAX ShamanElemental rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\main.lua.bak — backup of older EAX ShamanElemental rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanElemental\plugin_info.lua — older EAX ShamanElemental plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\header.lua — older EAX ShamanEnhancement plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\anti_fake_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\burst_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\cc_detector.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\class_identity.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\class_theme.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\class_ui_init.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\color.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\combat_context.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\combat_forecast.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\compat.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\consumables_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\context_builder.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\cooldown_tracker.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\dashboard.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\dashboard_config.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\defensive_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\dispel_engine.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\dot_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\dps_meter.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\dps_risk.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\dps_runtime.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\eax_utils.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\enchant_checker.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\encounter_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\energy_tick.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\esp_renderer.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\force_commands.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\form_consumables.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\heal_context.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\heal_utils.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\healer_triage.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\hot_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\hunter_clip_tracker.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\interrupt_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\leveling_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\mana_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\menu.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\middleware.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\middleware_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\ooc_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\powershift.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\ps_theme.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\pull_optimizer.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\pvp_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\racial_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\reactive_engine.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\reactive_runtime.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\resource_gate.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\role_policy.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\rotation_context.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\set_bonus.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\settings_framework.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\smart_cast_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\smart_defensive.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\spell_resolver.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\spells.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\swing_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\swing_timer.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\tank_recovery.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\threat_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\threat_tab_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\totem_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\trinket_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\ttd_tracker.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\utils.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\libraries\visual_state.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\main.lua — older EAX ShamanEnhancement rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\main.lua.bak — backup of older EAX ShamanEnhancement rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanEnhancement\plugin_info.lua — older EAX ShamanEnhancement plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\.gitignore — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\header.lua — older EAX ShamanRestoration plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\anti_fake_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\burst_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\cc_detector.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\class_identity.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\class_theme.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\class_ui_init.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\color.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\combat_context.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\combat_forecast.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\compat.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\consumables_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\context_builder.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\cooldown_tracker.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\dashboard.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\dashboard_config.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\defensive_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\dispel_engine.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\dot_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\dps_meter.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\dps_risk.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\dps_runtime.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\eax_utils.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\enchant_checker.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\encounter_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\energy_tick.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\esp_renderer.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\force_commands.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\form_consumables.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\heal_context.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\heal_engine.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\heal_utils.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\healer_triage.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\hot_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\hunter_clip_tracker.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\interrupt_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\leveling_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\mana_conservator.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\mana_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\menu.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\middleware.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\middleware_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\ooc_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\powershift.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\ps_theme.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\pull_optimizer.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\pvp_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\racial_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\reactive_engine.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\reactive_runtime.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\resource_gate.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\role_policy.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\rotation_context.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\set_bonus.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\settings_framework.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\smart_cast_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\smart_defensive.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\spell_downrank.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\spell_resolver.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\spells.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\swing_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\swing_timer.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\tank_recovery.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\threat_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\threat_tab_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\totem_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\trinket_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\ttd_tracker.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\utils.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\libraries\visual_state.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\main.lua — older EAX ShamanRestoration rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\main.lua.bak — backup of older EAX ShamanRestoration rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXShamanRestoration\plugin_info.lua — older EAX ShamanRestoration plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\header.lua — older EAX WarlockAffliction plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\anti_fake_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\burst_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\cc_detector.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\class_identity.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\class_theme.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\class_ui_init.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\color.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\combat_context.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\combat_forecast.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\compat.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\consumables_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\context_builder.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\cooldown_tracker.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\creature_utils.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\dashboard.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\dashboard_config.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\defensive_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\dot_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\dps_meter.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\dps_risk.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\dps_runtime.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\eax_utils.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\enchant_checker.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\encounter_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\energy_tick.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\esp_renderer.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\force_commands.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\form_consumables.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\heal_context.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\heal_utils.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\healer_triage.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\hot_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\hunter_clip_tracker.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\interrupt_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\leveling_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\mana_conservator.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\mana_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\menu.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\middleware.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\middleware_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\ooc_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\powershift.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\ps_theme.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\pull_optimizer.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\pvp_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\racial_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\reactive_engine.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\reactive_runtime.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\resource_gate.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\role_policy.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\rotation_context.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\set_bonus.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\settings_framework.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\smart_cast_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\smart_defensive.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\spell_downrank.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\spell_resolver.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\spells.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\swing_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\swing_timer.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\tank_recovery.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\threat_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\threat_tab_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\totem_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\trinket_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\ttd_tracker.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\utils.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\libraries\visual_state.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\main.lua — older EAX WarlockAffliction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\main.lua.bak — backup of older EAX WarlockAffliction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockAffliction\plugin_info.lua — older EAX WarlockAffliction plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\header.lua — older EAX WarlockDemonology plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\anti_fake_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\burst_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\cc_detector.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\class_identity.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\class_theme.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\class_ui_init.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\color.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\combat_context.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\combat_forecast.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\compat.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\consumables_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\context_builder.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\cooldown_tracker.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\creature_utils.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\dashboard.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\dashboard_config.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\defensive_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\dot_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\dps_meter.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\dps_risk.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\dps_runtime.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\eax_utils.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\enchant_checker.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\encounter_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\energy_tick.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\esp_renderer.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\force_commands.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\form_consumables.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\heal_context.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\heal_utils.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\healer_triage.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\hot_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\hunter_clip_tracker.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\interrupt_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\leveling_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\mana_conservator.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\mana_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\menu.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\middleware.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\middleware_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\ooc_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\powershift.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\ps_theme.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\pull_optimizer.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\pvp_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\racial_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\reactive_engine.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\reactive_runtime.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\resource_gate.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\role_policy.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\rotation_context.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\set_bonus.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\settings_framework.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\smart_cast_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\smart_defensive.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\spell_downrank.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\spell_resolver.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\spells.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\swing_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\swing_timer.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\tank_recovery.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\threat_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\threat_tab_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\totem_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\trinket_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\ttd_tracker.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\utils.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\libraries\visual_state.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\main.lua — older EAX WarlockDemonology rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\main.lua.bak — backup of older EAX WarlockDemonology rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDemonology\plugin_info.lua — older EAX WarlockDemonology plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\header.lua — older EAX WarlockDestruction plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\anti_fake_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\burst_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\cc_detector.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\class_identity.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\class_theme.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\class_ui_init.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\color.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\combat_context.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\combat_forecast.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\compat.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\consumables_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\context_builder.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\cooldown_tracker.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\creature_utils.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\dashboard.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\dashboard_config.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\defensive_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\dot_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\dps_meter.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\dps_risk.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\dps_runtime.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\eax_utils.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\enchant_checker.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\encounter_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\energy_tick.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\esp_renderer.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\force_commands.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\form_consumables.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\heal_context.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\heal_utils.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\healer_triage.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\hot_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\hunter_clip_tracker.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\interrupt_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\leveling_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\mana_conservator.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\mana_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\menu.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\middleware.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\middleware_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\ooc_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\powershift.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\ps_theme.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\pull_optimizer.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\pvp_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\racial_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\reactive_engine.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\reactive_runtime.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\resource_gate.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\role_policy.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\rotation_context.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\set_bonus.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\settings_framework.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\smart_cast_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\smart_defensive.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\spell_downrank.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\spell_resolver.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\spells.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\swing_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\swing_timer.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\tank_recovery.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\threat_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\threat_tab_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\totem_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\trinket_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\ttd_tracker.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\utils.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\libraries\visual_state.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\main.lua — older EAX WarlockDestruction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\main.lua.bak — backup of older EAX WarlockDestruction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarlockDestruction\plugin_info.lua — older EAX WarlockDestruction plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\header.lua — older EAX WarriorArms plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\anti_fake_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\burst_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\cc_detector.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\class_identity.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\class_theme.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\class_ui_init.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\color.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\combat_context.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\combat_forecast.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\compat.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\consumables_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\context_builder.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\cooldown_tracker.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\dashboard.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\dashboard_config.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\defensive_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\dot_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\dps_meter.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\dps_risk.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\dps_runtime.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\eax_utils.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\enchant_checker.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\encounter_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\energy_tick.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\esp_renderer.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\force_commands.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\form_consumables.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\heal_context.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\heal_utils.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\healer_triage.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\hot_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\hunter_clip_tracker.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\interrupt_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\leveling_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\mana_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\menu.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\middleware.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\middleware_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\ooc_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\powershift.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\ps_theme.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\pull_optimizer.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\pvp_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\racial_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\reactive_engine.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\reactive_runtime.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\resource_gate.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\role_policy.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\rotation_context.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\set_bonus.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\settings_framework.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\smart_cast_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\smart_defensive.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\spell_resolver.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\spells.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\swing_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\swing_timer.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\tank_recovery.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\threat_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\threat_tab_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\totem_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\trinket_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\ttd_tracker.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\utils.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\libraries\visual_state.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\main.lua — older EAX WarriorArms rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorArms\plugin_info.lua — older EAX WarriorArms plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\header.lua — older EAX WarriorFury plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\anti_fake_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\burst_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\cc_detector.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\class_identity.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\class_theme.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\class_ui_init.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\color.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\combat_context.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\combat_forecast.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\compat.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\consumables_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\context_builder.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\cooldown_tracker.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\dashboard.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\dashboard_config.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\defensive_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\dot_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\dps_meter.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\dps_risk.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\dps_runtime.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\eax_utils.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\enchant_checker.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\encounter_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\energy_tick.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\esp_renderer.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\force_commands.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\form_consumables.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\heal_context.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\heal_utils.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\healer_triage.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\hot_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\hunter_clip_tracker.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\interrupt_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\leveling_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\mana_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\menu.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\middleware.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\middleware_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\ooc_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\powershift.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\ps_theme.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\pull_optimizer.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\pvp_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\racial_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\reactive_engine.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\reactive_runtime.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\resource_gate.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\role_policy.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\rotation_context.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\schema.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\schema_framework.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\set_bonus.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\settings_framework.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\smart_cast_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\smart_defensive.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\spell_resolver.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\spells.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\swing_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\swing_timer.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\tank_recovery.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\threat_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\threat_tab_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\totem_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\trinket_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\ttd_tracker.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\utils.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\libraries\visual_state.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\main.lua — older EAX WarriorFury rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorFury\plugin_info.lua — older EAX WarriorFury plugin metadata.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\header.lua — older EAX WarriorProtection plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\anti_fake_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\burst_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\cc_detector.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\class_identity.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\class_theme.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\class_ui_init.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\color.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\combat_context.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\combat_forecast.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\compat.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\consumables_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\context_builder.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\cooldown_tracker.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\dashboard.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\dashboard_config.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\defensive_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\dot_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\dps_meter.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\dps_risk.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\dps_runtime.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\eax_utils.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\enchant_checker.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\encounter_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\energy_tick.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\esp_renderer.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\force_commands.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\form_consumables.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\heal_context.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\heal_utils.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\healer_triage.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\hot_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\hunter_clip_tracker.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\interrupt_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\leveling_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\mana_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\menu.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\middleware.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\middleware_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\ooc_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\powershift.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\ps_theme.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\pull_optimizer.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\pvp_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\racial_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\reactive_engine.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\reactive_runtime.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\resource_gate.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\role_policy.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\rotation_context.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\set_bonus.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\settings_framework.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\smart_cast_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\smart_defensive.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\spell_resolver.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\spells.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\swing_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\swing_timer.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\tank_recovery.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\threat_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\threat_tab_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\totem_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\trinket_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\ttd_tracker.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\utils.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\libraries\visual_state.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\main.lua — older EAX WarriorProtection rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\main.lua.orig — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\archive_original_specs\EAXWarriorProtection\plugin_info.lua — older EAX WarriorProtection plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\header.lua — older EAX DruidBalance plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\anti_fake_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\burst_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\cc_detector.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\combat_forecast.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\compat.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\context_builder.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\dashboard.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\dashboard_config.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\energy_tick.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\force_commands.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\form_consumables.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\heal_context.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\heal_utils.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\hot_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\hunter_clip_tracker.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\mana_conservator.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\mana_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\menu.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\middleware.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\middleware_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\ooc_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\powershift.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\ps_theme.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\settings_framework.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\smart_defensive.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\spell_prediction.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\spell_resolver.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\spells.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\swing_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\threat_tab_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\trinket_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\libraries\utils.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\main.lua — older EAX DruidBalance rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXDruidBalance\plugin_info.lua — older EAX DruidBalance plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\header.lua — older EAX DruidBear plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\anti_fake_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\burst_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\cc_detector.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\combat_forecast.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\compat.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\context_builder.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\dashboard.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\dashboard_config.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\energy_tick.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\force_commands.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\form_consumables.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\heal_context.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\heal_utils.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\hot_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\hunter_clip_tracker.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\mana_conservator.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\mana_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\menu.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\middleware.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\middleware_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\ooc_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\powershift.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\ps_theme.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\settings_framework.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\smart_defensive.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\spell_resolver.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\spells.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\swing_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\threat_tab_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\trinket_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\libraries\utils.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\main.lua — older EAX DruidBear rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXDruidBear\plugin_info.lua — older EAX DruidBear plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\header.lua — older EAX DruidFeral plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\anti_fake_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\burst_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\cc_detector.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\combat_forecast.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\compat.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\context_builder.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\dashboard.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\dashboard_config.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\energy_tick.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\force_commands.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\form_consumables.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\heal_context.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\heal_utils.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\hot_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\hunter_clip_tracker.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\mana_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\menu.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\middleware.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\middleware_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\ooc_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\powershift.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\ps_theme.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\settings_framework.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\smart_defensive.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\spell_resolver.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\spells.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\swing_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\threat_tab_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\trinket_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\libraries\utils.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\main.lua — older EAX DruidFeral rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXDruidFeral\plugin_info.lua — older EAX DruidFeral plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\header.lua — older EAX DruidResto plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\anti_fake_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\burst_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\cc_detector.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\combat_forecast.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\compat.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\context_builder.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\dashboard.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\dashboard_config.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\energy_tick.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\force_commands.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\form_consumables.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\heal_context.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\heal_utils.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\hot_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\hunter_clip_tracker.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\mana_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\menu.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\middleware.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\middleware_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\ooc_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\powershift.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\ps_theme.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\settings_framework.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\smart_defensive.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\spell_resolver.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\spells.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\swing_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\threat_tab_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\trinket_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\libraries\utils.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\main.lua — older EAX DruidResto rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXDruidResto\plugin_info.lua — older EAX DruidResto plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\header.lua — older EAX HunterBM plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\anti_fake_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\burst_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\cc_detector.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\combat_forecast.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\compat.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\context_builder.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\dashboard.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\dashboard_config.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\energy_tick.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\force_commands.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\form_consumables.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\heal_context.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\heal_utils.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\hot_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\hunter_clip_tracker.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\mana_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\menu.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\middleware.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\middleware_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\ooc_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\powershift.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\ps_theme.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\rotation_compat.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\settings_framework.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\smart_defensive.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\spell_resolver.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\spells.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\swing_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\swing_timer.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\threat_tab_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\trinket_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\libraries\utils.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\main.lua — older EAX HunterBM rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXHunterBM\plugin_info.lua — older EAX HunterBM plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\header.lua — older EAX HunterMM plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\anti_fake_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\burst_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\cc_detector.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\combat_forecast.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\compat.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\context_builder.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\dashboard.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\dashboard_config.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\energy_tick.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\force_commands.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\form_consumables.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\heal_context.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\heal_utils.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\hot_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\hunter_clip_tracker.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\mana_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\menu.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\middleware.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\middleware_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\ooc_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\powershift.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\ps_theme.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\rotation_compat.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\settings_framework.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\smart_defensive.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\spell_resolver.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\spells.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\swing_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\threat_tab_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\trinket_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\libraries\utils.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\main.lua — older EAX HunterMM rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXHunterMM\plugin_info.lua — older EAX HunterMM plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\header.lua — older EAX HunterSurvival plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\anti_fake_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\burst_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\cc_detector.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\combat_forecast.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\compat.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\context_builder.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\dashboard.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\dashboard_config.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\energy_tick.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\force_commands.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\form_consumables.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\heal_context.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\heal_utils.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\hot_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\hunter_clip_tracker.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\mana_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\menu.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\middleware.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\middleware_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\ooc_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\powershift.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\ps_theme.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\rotation_compat.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\settings_framework.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\smart_defensive.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\spell_resolver.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\spells.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\swing_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\threat_tab_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\trinket_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\libraries\utils.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\main.lua — older EAX HunterSurvival rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXHunterSurvival\plugin_info.lua — older EAX HunterSurvival plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\header.lua — older EAX MageArcane plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\anti_fake_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\burst_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\cc_detector.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\combat_forecast.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\compat.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\context_builder.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\dashboard.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\dashboard_config.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\energy_tick.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\force_commands.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\form_consumables.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\heal_context.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\heal_utils.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\hot_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\hunter_clip_tracker.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\interrupt_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\mana_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\menu.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\middleware.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\middleware_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\ooc_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\powershift.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\ps_theme.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\settings_framework.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\smart_defensive.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\spell_resolver.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\spells.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\swing_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\threat_tab_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\trinket_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\libraries\utils.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\main.lua — older EAX MageArcane rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXMageArcane\plugin_info.lua — older EAX MageArcane plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXMageFire\header.lua — older EAX MageFire plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\anti_fake_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\burst_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\cc_detector.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\combat_forecast.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\compat.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\consumables_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\context_builder.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\dashboard.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\dashboard_config.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\encounter_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\energy_tick.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\force_commands.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\form_consumables.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\heal_context.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\heal_utils.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\hot_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\hunter_clip_tracker.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\interrupt_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\mana_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\menu.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\middleware.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\middleware_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\ooc_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\powershift.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\ps_theme.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\pvp_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\settings_framework.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\smart_defensive.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\spell_resolver.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\spells.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\swing_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\threat_tab_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\trinket_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\ttd_tracker.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\libraries\utils.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFire\main.lua — older EAX MageFire rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXMageFire\plugin_info.lua — older EAX MageFire plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\header.lua — older EAX MageFrost plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\anti_fake_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\burst_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\cc_detector.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\combat_forecast.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\compat.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\consumables_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\context_builder.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\dashboard.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\dashboard_config.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\encounter_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\energy_tick.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\force_commands.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\form_consumables.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\heal_context.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\heal_utils.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\hot_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\hunter_clip_tracker.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\interrupt_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\mana_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\menu.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\middleware.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\middleware_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\ooc_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\powershift.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\ps_theme.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\pvp_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\settings_framework.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\smart_defensive.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\spell_resolver.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\spells.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\swing_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\threat_tab_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\trinket_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\ttd_tracker.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\libraries\utils.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\main.lua — older EAX MageFrost rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXMageFrost\plugin_info.lua — older EAX MageFrost plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\header.lua — older EAX PaladinHoly plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\anti_fake_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\burst_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\cc_detector.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\combat_context.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\combat_forecast.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\compat.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\consumables_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\dashboard.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\dashboard_config.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\defensive_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\eax_utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\energy_tick.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\event_handler.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\force_commands.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\form_consumables.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\heal_context.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\heal_utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\hot_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\hunter_clip_tracker.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\mana_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\menu.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\middleware.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\middleware_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\ooc_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\powershift.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\ps_theme.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\queue_debug.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\racial_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\settings_framework.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\smart_defensive.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\spell_resolver.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\spells.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\swing_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\threat_tab_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\trinket_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\libraries\utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\main.lua — older EAX PaladinHoly rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXPaladinHoly\plugin_info.lua — older EAX PaladinHoly plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\header.lua — older EAX PaladinProtection plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\anti_fake_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\burst_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\cc_detector.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\combat_context.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\combat_forecast.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\compat.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\consumables_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\dashboard.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\dashboard_config.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\defensive_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\eax_utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\energy_tick.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\force_commands.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\form_consumables.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\heal_context.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\heal_utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\hot_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\hunter_clip_tracker.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\mana_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\menu.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\middleware.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\middleware_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\ooc_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\powershift.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\ps_theme.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\racial_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\settings_framework.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\smart_defensive.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\spell_resolver.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\spells.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\swing_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\threat_tab_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\trinket_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\libraries\utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\main.lua — older EAX PaladinProtection rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXPaladinProtection\plugin_info.lua — older EAX PaladinProtection plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\header.lua — older EAX PaladinRetribution plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\anti_fake_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\burst_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\cc_detector.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\combat_context.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\combat_forecast.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\compat.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\consumables_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\dashboard.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\dashboard_config.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\defensive_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\eax_utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\energy_tick.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\force_commands.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\form_consumables.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\heal_context.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\heal_utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\hot_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\hunter_clip_tracker.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\interrupt_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\mana_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\menu.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\middleware.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\middleware_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\ooc_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\powershift.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\ps_theme.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\racial_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\settings_framework.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\smart_defensive.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\spell_resolver.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\spells.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\swing_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\threat_tab_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\trinket_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\libraries\utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\main.lua — older EAX PaladinRetribution rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXPaladinRetribution\plugin_info.lua — older EAX PaladinRetribution plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\header.lua — older EAX PriestDiscipline plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\anti_fake_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\burst_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\cc_detector.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\combat_forecast.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\compat.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\context_builder.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\dashboard.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\dashboard_config.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\energy_tick.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\force_commands.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\form_consumables.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\heal_context.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\heal_utils.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\hot_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\hunter_clip_tracker.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\mana_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\menu.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\middleware.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\middleware_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\ooc_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\powershift.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\ps_theme.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\settings_framework.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\smart_defensive.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\spell_resolver.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\spells.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\swing_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\threat_tab_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\trinket_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\libraries\utils.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\main.lua — older EAX PriestDiscipline rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXPriestDiscipline\plugin_info.lua — older EAX PriestDiscipline plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\header.lua — older EAX PriestHoly plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\anti_fake_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\burst_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\cc_detector.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\combat_forecast.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\compat.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\context_builder.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\dashboard.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\dashboard_config.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\energy_tick.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\force_commands.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\form_consumables.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\heal_context.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\heal_utils.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\hot_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\hunter_clip_tracker.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\mana_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\menu.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\middleware.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\middleware_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\ooc_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\powershift.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\ps_theme.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\settings_framework.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\smart_defensive.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\spell_resolver.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\spells.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\swing_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\threat_tab_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\trinket_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\libraries\utils.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\main.lua — older EAX PriestHoly rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXPriestHoly\plugin_info.lua — older EAX PriestHoly plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\header.lua — older EAX PriestShadow plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\anti_fake_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\burst_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\cc_detector.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\combat_forecast.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\compat.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\context_builder.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\dashboard.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\dashboard_config.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\energy_tick.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\force_commands.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\form_consumables.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\heal_context.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\heal_utils.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\hot_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\hunter_clip_tracker.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\mana_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\menu.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\middleware.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\middleware_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\ooc_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\powershift.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\ps_theme.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\settings_framework.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\smart_defensive.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\spell_resolver.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\spells.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\swing_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\threat_tab_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\trinket_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\libraries\utils.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\main.lua — older EAX PriestShadow rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXPriestShadow\plugin_info.lua — older EAX PriestShadow plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\header.lua — older EAX PriestSmite plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\anti_fake_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\burst_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\cc_detector.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\combat_forecast.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\compat.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\context_builder.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\dashboard.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\dashboard_config.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\energy_tick.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\force_commands.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\form_consumables.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\heal_context.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\heal_utils.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\hot_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\hunter_clip_tracker.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\mana_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\menu.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\middleware.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\middleware_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\ooc_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\powershift.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\ps_theme.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\settings_framework.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\smart_defensive.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\spell_resolver.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\spells.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\swing_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\threat_tab_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\trinket_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\libraries\utils.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\main.lua — older EAX PriestSmite rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXPriestSmite\plugin_info.lua — older EAX PriestSmite plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\header.lua — older EAX RogueAssassination plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\anti_fake_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\burst_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\cc_detector.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\combat_forecast.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\compat.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\context_builder.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\dashboard.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\dashboard_config.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\energy_tick.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\force_commands.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\form_consumables.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\heal_context.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\heal_utils.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\hot_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\hunter_clip_tracker.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\mana_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\menu.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\middleware.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\middleware_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\ooc_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\powershift.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\ps_theme.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\settings_framework.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\smart_defensive.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\spell_resolver.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\spells.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\swing_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\threat_tab_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\trinket_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\libraries\utils.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\main.lua — older EAX RogueAssassination rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\main.lua.bak — backup of older EAX RogueAssassination rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXRogueAssassination\plugin_info.lua — older EAX RogueAssassination plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\header.lua — older EAX RogueCombat plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\anti_fake_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\burst_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\cc_detector.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\combat_forecast.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\compat.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\context_builder.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\dashboard.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\dashboard_config.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\energy_tick.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\force_commands.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\form_consumables.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\heal_context.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\heal_utils.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\hot_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\hunter_clip_tracker.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\mana_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\menu.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\middleware.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\middleware_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\ooc_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\powershift.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\ps_theme.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\settings_framework.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\smart_defensive.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\spell_resolver.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\spells.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\swing_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\threat_tab_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\trinket_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\libraries\utils.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\main.lua — older EAX RogueCombat rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\main.lua.bak — backup of older EAX RogueCombat rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXRogueCombat\plugin_info.lua — older EAX RogueCombat plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\header.lua — older EAX RogueSubtlety plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\anti_fake_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\burst_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\cc_detector.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\combat_forecast.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\compat.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\context_builder.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\dashboard.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\dashboard_config.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\energy_tick.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\force_commands.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\form_consumables.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\menu.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\middleware.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\middleware_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\ooc_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\ps_theme.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\settings_framework.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\smart_defensive.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\spell_resolver.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\spells.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\swing_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\threat_tab_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\trinket_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\libraries\utils.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\main.lua — older EAX RogueSubtlety rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXRogueSubtlety\plugin_info.lua — older EAX RogueSubtlety plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\header.lua — older EAX ShamanElemental plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\anti_fake_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\burst_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\cc_detector.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\combat_forecast.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\compat.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\context_builder.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\dashboard.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\dashboard_config.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\energy_tick.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\force_commands.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\form_consumables.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\heal_context.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\heal_utils.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\hot_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\hunter_clip_tracker.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\mana_conservator.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\mana_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\menu.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\middleware.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\middleware_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\ooc_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\powershift.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\ps_theme.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\settings_framework.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\smart_defensive.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\spell_resolver.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\spells.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\swing_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\threat_tab_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\trinket_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\libraries\utils.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\main.lua — older EAX ShamanElemental rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\main.lua.bak — backup of older EAX ShamanElemental rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXShamanElemental\plugin_info.lua — older EAX ShamanElemental plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\header.lua — older EAX ShamanEnhancement plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\anti_fake_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\burst_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\cc_detector.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\combat_forecast.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\compat.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\context_builder.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\dashboard.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\dashboard_config.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\energy_tick.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\force_commands.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\form_consumables.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\heal_context.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\heal_utils.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\hot_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\hunter_clip_tracker.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\mana_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\menu.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\middleware.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\middleware_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\ooc_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\powershift.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\ps_theme.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\settings_framework.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\smart_defensive.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\spell_resolver.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\spells.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\swing_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\threat_tab_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\trinket_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\libraries\utils.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\main.lua — older EAX ShamanEnhancement rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\main.lua.bak — backup of older EAX ShamanEnhancement rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXShamanEnhancement\plugin_info.lua — older EAX ShamanEnhancement plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\header.lua — older EAX ShamanRestoration plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\anti_fake_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\burst_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\cc_detector.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\combat_forecast.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\compat.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\context_builder.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\dashboard.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\dashboard_config.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\energy_tick.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\force_commands.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\form_consumables.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\heal_context.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\heal_utils.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\hot_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\hunter_clip_tracker.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\mana_conservator.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\mana_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\menu.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\middleware.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\middleware_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\ooc_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\powershift.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\ps_theme.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\settings_framework.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\smart_defensive.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\spell_resolver.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\spells.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\swing_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\threat_tab_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\trinket_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\libraries\utils.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\main.lua — older EAX ShamanRestoration rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\main.lua.bak — backup of older EAX ShamanRestoration rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXShamanRestoration\plugin_info.lua — older EAX ShamanRestoration plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\header.lua — older EAX WarlockAffliction plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\anti_fake_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\burst_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\cc_detector.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\combat_forecast.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\compat.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\context_builder.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\dashboard.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\dashboard_config.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\energy_tick.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\force_commands.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\form_consumables.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\heal_context.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\heal_utils.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\hot_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\hunter_clip_tracker.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\mana_conservator.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\mana_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\menu.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\middleware.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\middleware_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\ooc_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\powershift.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\ps_theme.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\settings_framework.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\smart_defensive.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\spell_resolver.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\spells.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\swing_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\threat_tab_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\trinket_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\libraries\utils.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\main.lua — older EAX WarlockAffliction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\main.lua.bak — backup of older EAX WarlockAffliction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarlockAffliction\plugin_info.lua — older EAX WarlockAffliction plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\header.lua — older EAX WarlockDemonology plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\anti_fake_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\burst_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\cc_detector.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\combat_forecast.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\compat.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\context_builder.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\dashboard.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\dashboard_config.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\energy_tick.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\force_commands.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\form_consumables.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\heal_context.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\heal_utils.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\hot_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\hunter_clip_tracker.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\mana_conservator.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\mana_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\menu.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\middleware.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\middleware_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\ooc_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\powershift.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\ps_theme.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\settings_framework.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\smart_defensive.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\spell_resolver.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\spells.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\swing_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\threat_tab_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\trinket_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\libraries\utils.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\main.lua — older EAX WarlockDemonology rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\main.lua.bak — backup of older EAX WarlockDemonology rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarlockDemonology\plugin_info.lua — older EAX WarlockDemonology plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\header.lua — older EAX WarlockDestruction plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\anti_fake_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\burst_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\cc_detector.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\combat_forecast.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\compat.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\context_builder.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\dashboard.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\dashboard_config.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\energy_tick.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\force_commands.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\form_consumables.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\heal_context.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\heal_utils.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\hot_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\hunter_clip_tracker.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\mana_conservator.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\mana_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\menu.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\middleware.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\middleware_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\ooc_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\powershift.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\ps_theme.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\settings_framework.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\smart_defensive.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\spell_resolver.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\spells.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\swing_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\threat_tab_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\trinket_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\libraries\utils.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\main.lua — older EAX WarlockDestruction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\main.lua.bak — backup of older EAX WarlockDestruction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarlockDestruction\plugin_info.lua — older EAX WarlockDestruction plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\header.lua — older EAX WarriorArms plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\anti_fake_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\burst_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\cc_detector.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\combat_forecast.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\compat.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\context_builder.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\dashboard.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\dashboard_config.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\energy_tick.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\force_commands.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\form_consumables.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\heal_context.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\heal_utils.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\hot_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\hunter_clip_tracker.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\interrupt_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\mana_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\menu.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\middleware.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\middleware_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\ooc_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\powershift.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\ps_theme.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\racial_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\settings_framework.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\smart_defensive.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\spell_resolver.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\spells.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\swing_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\threat_tab_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\trinket_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\libraries\utils.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\main.lua — older EAX WarriorArms rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarriorArms\plugin_info.lua — older EAX WarriorArms plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\header.lua — older EAX WarriorFury plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\anti_fake_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\burst_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\cc_detector.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\combat_forecast.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\compat.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\context_builder.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\dashboard.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\dashboard_config.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\energy_tick.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\force_commands.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\form_consumables.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\heal_context.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\heal_utils.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\hot_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\hunter_clip_tracker.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\interrupt_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\mana_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\menu.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\middleware.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\middleware_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\ooc_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\powershift.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\ps_theme.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\racial_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\schema.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\schema_framework.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\settings_framework.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\smart_defensive.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\spell_resolver.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\spells.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\swing_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\threat_tab_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\trinket_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\libraries\utils.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\main.lua — older EAX WarriorFury rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarriorFury\plugin_info.lua — older EAX WarriorFury plugin metadata.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\header.lua — older EAX WarriorProtection plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\anti_fake_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\burst_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\cc_detector.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\combat_forecast.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\compat.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\context_builder.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\dashboard.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\dashboard_config.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\energy_tick.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\force_commands.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\form_consumables.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\heal_context.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\heal_utils.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\hot_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\hunter_clip_tracker.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\interrupt_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\mana_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\menu.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\middleware.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\middleware_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\ooc_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\powershift.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\ps_theme.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\racial_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\settings_framework.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\smart_defensive.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\spell_resolver.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\spells.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\swing_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\threat_tab_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\trinket_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\libraries\utils.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\main.lua — older EAX WarriorProtection rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\EAXWarriorProtection\plugin_info.lua — older EAX WarriorProtection plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\header.lua — older EAX DruidBalance plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\anti_fake_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\burst_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\cc_detector.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\combat_forecast.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\compat.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\context_builder.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\dashboard.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\dashboard_config.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\energy_tick.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\force_commands.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\form_consumables.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\heal_context.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\heal_utils.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\hot_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\hunter_clip_tracker.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\mana_conservator.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\mana_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\menu.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\middleware.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\middleware_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\ooc_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\powershift.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\ps_theme.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\settings_framework.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\smart_defensive.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\spell_prediction.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\spell_resolver.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\spells.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\swing_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\threat_tab_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\trinket_manager.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\libraries\utils.lua — older EAX DruidBalance library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\main.lua — older EAX DruidBalance rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBalance\plugin_info.lua — older EAX DruidBalance plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\header.lua — older EAX DruidBear plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\anti_fake_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\burst_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\cc_detector.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\combat_forecast.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\compat.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\context_builder.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\dashboard.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\dashboard_config.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\energy_tick.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\force_commands.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\form_consumables.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\heal_context.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\heal_utils.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\hot_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\hunter_clip_tracker.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\mana_conservator.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\mana_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\menu.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\middleware.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\middleware_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\ooc_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\powershift.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\ps_theme.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\settings_framework.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\smart_defensive.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\spell_resolver.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\spells.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\swing_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\threat_tab_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\trinket_manager.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\libraries\utils.lua — older EAX DruidBear library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\main.lua — older EAX DruidBear rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidBear\plugin_info.lua — older EAX DruidBear plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\header.lua — older EAX DruidFeral plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\anti_fake_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\burst_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\cc_detector.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\combat_forecast.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\compat.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\context_builder.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\dashboard.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\dashboard_config.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\energy_tick.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\force_commands.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\form_consumables.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\heal_context.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\heal_utils.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\hot_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\hunter_clip_tracker.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\mana_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\menu.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\middleware.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\middleware_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\ooc_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\powershift.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\ps_theme.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\settings_framework.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\smart_defensive.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\spell_resolver.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\spells.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\swing_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\threat_tab_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\trinket_manager.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\libraries\utils.lua — older EAX DruidFeral library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\main.lua — older EAX DruidFeral rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidFeral\plugin_info.lua — older EAX DruidFeral plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\header.lua — older EAX DruidResto plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\anti_fake_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\burst_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\cc_detector.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\combat_forecast.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\compat.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\context_builder.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\dashboard.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\dashboard_config.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\energy_tick.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\force_commands.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\form_consumables.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\heal_context.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\heal_utils.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\hot_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\hunter_clip_tracker.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\mana_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\menu.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\middleware.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\middleware_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\ooc_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\powershift.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\ps_theme.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\settings_framework.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\smart_defensive.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\spell_resolver.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\spells.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\swing_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\threat_tab_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\trinket_manager.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\libraries\utils.lua — older EAX DruidResto library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\main.lua — older EAX DruidResto rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXDruidResto\plugin_info.lua — older EAX DruidResto plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\header.lua — older EAX HunterBM plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\anti_fake_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\burst_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\cc_detector.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\combat_forecast.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\compat.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\context_builder.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\dashboard.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\dashboard_config.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\energy_tick.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\force_commands.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\form_consumables.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\heal_context.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\heal_utils.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\hot_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\hunter_clip_tracker.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\mana_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\menu.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\middleware.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\middleware_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\ooc_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\powershift.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\ps_theme.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\rotation_compat.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\settings_framework.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\smart_defensive.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\spell_resolver.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\spells.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\swing_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\swing_timer.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\threat_tab_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\trinket_manager.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\libraries\utils.lua — older EAX HunterBM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\main.lua — older EAX HunterBM rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterBM\plugin_info.lua — older EAX HunterBM plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\header.lua — older EAX HunterMM plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\anti_fake_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\burst_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\cc_detector.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\combat_forecast.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\compat.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\context_builder.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\dashboard.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\dashboard_config.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\energy_tick.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\force_commands.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\form_consumables.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\heal_context.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\heal_utils.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\hot_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\hunter_clip_tracker.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\mana_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\menu.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\middleware.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\middleware_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\ooc_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\powershift.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\ps_theme.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\rotation_compat.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\settings_framework.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\smart_defensive.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\spell_resolver.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\spells.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\swing_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\threat_tab_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\trinket_manager.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\libraries\utils.lua — older EAX HunterMM library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\main.lua — older EAX HunterMM rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterMM\plugin_info.lua — older EAX HunterMM plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\header.lua — older EAX HunterSurvival plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\anti_fake_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\burst_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\cc_detector.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\combat_forecast.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\compat.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\context_builder.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\dashboard.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\dashboard_config.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\energy_tick.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\force_commands.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\form_consumables.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\heal_context.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\heal_utils.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\hot_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\hunter_clip_tracker.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\mana_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\menu.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\middleware.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\middleware_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\ooc_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\powershift.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\ps_theme.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\rotation_compat.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\settings_framework.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\smart_defensive.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\spell_resolver.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\spells.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\swing_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\threat_tab_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\trinket_manager.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\libraries\utils.lua — older EAX HunterSurvival library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\main.lua — older EAX HunterSurvival rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXHunterSurvival\plugin_info.lua — older EAX HunterSurvival plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\header.lua — older EAX MageArcane plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\anti_fake_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\burst_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\cc_detector.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\combat_forecast.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\compat.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\context_builder.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\dashboard.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\dashboard_config.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\energy_tick.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\force_commands.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\form_consumables.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\heal_context.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\heal_utils.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\hot_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\hunter_clip_tracker.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\interrupt_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\mana_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\menu.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\middleware.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\middleware_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\ooc_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\powershift.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\ps_theme.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\settings_framework.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\smart_defensive.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\spell_resolver.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\spells.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\swing_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\threat_tab_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\trinket_manager.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\libraries\utils.lua — older EAX MageArcane library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\main.lua — older EAX MageArcane rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageArcane\plugin_info.lua — older EAX MageArcane plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\header.lua — older EAX MageFire plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\anti_fake_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\burst_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\cc_detector.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\combat_forecast.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\compat.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\consumables_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\context_builder.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\dashboard.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\dashboard_config.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\encounter_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\energy_tick.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\force_commands.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\form_consumables.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\heal_context.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\heal_utils.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\hot_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\hunter_clip_tracker.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\interrupt_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\mana_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\menu.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\middleware.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\middleware_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\ooc_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\powershift.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\ps_theme.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\pvp_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\settings_framework.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\smart_defensive.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\spell_resolver.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\spells.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\swing_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\threat_tab_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\trinket_manager.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\ttd_tracker.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\libraries\utils.lua — older EAX MageFire library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\main.lua — older EAX MageFire rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFire\plugin_info.lua — older EAX MageFire plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\header.lua — older EAX MageFrost plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\anti_fake_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\burst_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\cc_detector.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\combat_forecast.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\compat.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\consumables_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\context_builder.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\dashboard.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\dashboard_config.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\encounter_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\energy_tick.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\force_commands.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\form_consumables.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\heal_context.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\heal_utils.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\hot_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\hunter_clip_tracker.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\interrupt_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\mana_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\menu.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\middleware.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\middleware_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\ooc_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\powershift.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\ps_theme.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\pvp_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\settings_framework.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\smart_defensive.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\spell_resolver.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\spells.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\swing_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\threat_tab_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\trinket_manager.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\ttd_tracker.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\libraries\utils.lua — older EAX MageFrost library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\main.lua — older EAX MageFrost rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXMageFrost\plugin_info.lua — older EAX MageFrost plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\header.lua — older EAX PaladinHoly plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\anti_fake_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\burst_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\cc_detector.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\combat_context.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\combat_forecast.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\compat.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\consumables_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\dashboard.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\dashboard_config.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\defensive_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\eax_utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\energy_tick.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\event_handler.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\force_commands.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\form_consumables.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\heal_context.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\heal_utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\hot_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\hunter_clip_tracker.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\mana_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\menu.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\middleware.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\middleware_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\ooc_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\powershift.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\ps_theme.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\queue_debug.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\racial_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\settings_framework.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\smart_defensive.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\spell_resolver.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\spells.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\swing_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\threat_tab_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\trinket_manager.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\libraries\utils.lua — older EAX PaladinHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\main.lua — older EAX PaladinHoly rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinHoly\plugin_info.lua — older EAX PaladinHoly plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\header.lua — older EAX PaladinProtection plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\anti_fake_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\burst_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\cc_detector.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\combat_context.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\combat_forecast.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\compat.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\consumables_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\dashboard.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\dashboard_config.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\defensive_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\eax_utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\energy_tick.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\force_commands.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\form_consumables.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\heal_context.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\heal_utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\hot_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\hunter_clip_tracker.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\mana_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\menu.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\middleware.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\middleware_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\ooc_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\powershift.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\ps_theme.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\racial_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\settings_framework.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\smart_defensive.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\spell_resolver.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\spells.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\swing_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\threat_tab_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\trinket_manager.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\libraries\utils.lua — older EAX PaladinProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\main.lua — older EAX PaladinProtection rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinProtection\plugin_info.lua — older EAX PaladinProtection plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\header.lua — older EAX PaladinRetribution plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\anti_fake_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\burst_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\cc_detector.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\combat_context.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\combat_forecast.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\compat.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\consumables_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\dashboard.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\dashboard_config.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\defensive_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\eax_utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\energy_tick.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\force_commands.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\form_consumables.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\heal_context.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\heal_utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\hot_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\hunter_clip_tracker.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\interrupt_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\mana_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\menu.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\middleware.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\middleware_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\ooc_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\powershift.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\ps_theme.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\racial_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\settings_framework.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\smart_defensive.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\spell_resolver.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\spells.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\swing_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\threat_tab_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\trinket_manager.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\libraries\utils.lua — older EAX PaladinRetribution library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\main.lua — older EAX PaladinRetribution rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPaladinRetribution\plugin_info.lua — older EAX PaladinRetribution plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\header.lua — older EAX PriestDiscipline plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\anti_fake_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\burst_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\cc_detector.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\combat_forecast.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\compat.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\context_builder.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\dashboard.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\dashboard_config.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\energy_tick.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\force_commands.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\form_consumables.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\heal_context.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\heal_utils.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\hot_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\hunter_clip_tracker.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\mana_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\menu.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\middleware.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\middleware_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\ooc_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\powershift.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\ps_theme.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\settings_framework.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\smart_defensive.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\spell_resolver.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\spells.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\swing_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\threat_tab_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\trinket_manager.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\libraries\utils.lua — older EAX PriestDiscipline library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\main.lua — older EAX PriestDiscipline rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestDiscipline\plugin_info.lua — older EAX PriestDiscipline plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\header.lua — older EAX PriestHoly plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\anti_fake_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\burst_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\cc_detector.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\combat_forecast.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\compat.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\context_builder.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\dashboard.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\dashboard_config.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\energy_tick.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\force_commands.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\form_consumables.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\heal_context.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\heal_utils.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\hot_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\hunter_clip_tracker.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\mana_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\menu.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\middleware.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\middleware_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\ooc_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\powershift.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\ps_theme.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\settings_framework.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\smart_defensive.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\spell_resolver.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\spells.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\swing_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\threat_tab_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\trinket_manager.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\libraries\utils.lua — older EAX PriestHoly library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\main.lua — older EAX PriestHoly rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestHoly\plugin_info.lua — older EAX PriestHoly plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\header.lua — older EAX PriestShadow plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\anti_fake_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\burst_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\cc_detector.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\combat_forecast.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\compat.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\context_builder.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\dashboard.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\dashboard_config.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\energy_tick.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\force_commands.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\form_consumables.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\heal_context.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\heal_utils.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\hot_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\hunter_clip_tracker.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\mana_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\menu.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\middleware.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\middleware_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\ooc_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\powershift.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\ps_theme.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\settings_framework.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\smart_defensive.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\spell_resolver.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\spells.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\swing_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\threat_tab_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\trinket_manager.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\libraries\utils.lua — older EAX PriestShadow library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\main.lua — older EAX PriestShadow rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestShadow\plugin_info.lua — older EAX PriestShadow plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\header.lua — older EAX PriestSmite plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\anti_fake_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\burst_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\cc_detector.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\combat_forecast.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\compat.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\context_builder.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\dashboard.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\dashboard_config.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\energy_tick.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\force_commands.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\form_consumables.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\heal_context.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\heal_utils.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\hot_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\hunter_clip_tracker.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\mana_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\menu.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\middleware.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\middleware_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\ooc_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\powershift.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\ps_theme.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\settings_framework.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\smart_defensive.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\spell_resolver.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\spells.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\swing_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\threat_tab_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\trinket_manager.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\libraries\utils.lua — older EAX PriestSmite library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\main.lua — older EAX PriestSmite rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXPriestSmite\plugin_info.lua — older EAX PriestSmite plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\header.lua — older EAX RogueAssassination plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\anti_fake_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\burst_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\cc_detector.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\combat_forecast.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\compat.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\context_builder.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\dashboard.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\dashboard_config.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\energy_tick.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\force_commands.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\form_consumables.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\heal_context.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\heal_utils.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\hot_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\hunter_clip_tracker.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\mana_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\menu.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\middleware.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\middleware_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\ooc_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\powershift.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\ps_theme.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\settings_framework.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\smart_defensive.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\spell_resolver.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\spells.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\swing_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\threat_tab_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\trinket_manager.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\libraries\utils.lua — older EAX RogueAssassination library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\main.lua — older EAX RogueAssassination rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\main.lua.bak — backup of older EAX RogueAssassination rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueAssassination\plugin_info.lua — older EAX RogueAssassination plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\header.lua — older EAX RogueCombat plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\anti_fake_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\burst_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\cc_detector.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\combat_forecast.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\compat.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\context_builder.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\dashboard.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\dashboard_config.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\energy_tick.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\force_commands.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\form_consumables.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\heal_context.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\heal_utils.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\hot_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\hunter_clip_tracker.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\mana_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\menu.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\middleware.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\middleware_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\ooc_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\powershift.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\ps_theme.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\settings_framework.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\smart_defensive.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\spell_resolver.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\spells.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\swing_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\threat_tab_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\trinket_manager.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\libraries\utils.lua — older EAX RogueCombat library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\main.lua — older EAX RogueCombat rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\main.lua.bak — backup of older EAX RogueCombat rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueCombat\plugin_info.lua — older EAX RogueCombat plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\header.lua — older EAX RogueSubtlety plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\anti_fake_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\burst_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\cc_detector.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\combat_forecast.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\compat.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\context_builder.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\dashboard.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\dashboard_config.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\energy_tick.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\force_commands.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\form_consumables.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\menu.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\middleware.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\middleware_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\ooc_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\ps_theme.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\settings_framework.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\smart_defensive.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\spell_resolver.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\spells.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\swing_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\threat_tab_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\trinket_manager.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\libraries\utils.lua — older EAX RogueSubtlety library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\main.lua — older EAX RogueSubtlety rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXRogueSubtlety\plugin_info.lua — older EAX RogueSubtlety plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\header.lua — older EAX ShamanElemental plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\anti_fake_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\burst_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\cc_detector.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\combat_forecast.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\compat.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\context_builder.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\dashboard.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\dashboard_config.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\energy_tick.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\force_commands.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\form_consumables.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\heal_context.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\heal_utils.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\hot_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\hunter_clip_tracker.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\mana_conservator.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\mana_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\menu.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\middleware.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\middleware_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\ooc_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\powershift.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\ps_theme.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\settings_framework.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\smart_defensive.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\spell_resolver.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\spells.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\swing_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\threat_tab_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\trinket_manager.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\libraries\utils.lua — older EAX ShamanElemental library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\main.lua — older EAX ShamanElemental rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\main.lua.bak — backup of older EAX ShamanElemental rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanElemental\plugin_info.lua — older EAX ShamanElemental plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\header.lua — older EAX ShamanEnhancement plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\anti_fake_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\burst_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\cc_detector.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\combat_forecast.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\compat.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\context_builder.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\dashboard.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\dashboard_config.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\energy_tick.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\force_commands.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\form_consumables.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\heal_context.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\heal_utils.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\hot_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\hunter_clip_tracker.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\mana_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\menu.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\middleware.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\middleware_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\ooc_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\powershift.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\ps_theme.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\settings_framework.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\smart_defensive.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\spell_resolver.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\spells.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\swing_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\threat_tab_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\trinket_manager.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\libraries\utils.lua — older EAX ShamanEnhancement library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\main.lua — older EAX ShamanEnhancement rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\main.lua.bak — backup of older EAX ShamanEnhancement rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanEnhancement\plugin_info.lua — older EAX ShamanEnhancement plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\header.lua — older EAX ShamanRestoration plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\anti_fake_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\burst_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\cc_detector.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\combat_forecast.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\compat.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\context_builder.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\dashboard.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\dashboard_config.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\energy_tick.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\force_commands.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\form_consumables.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\heal_context.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\heal_utils.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\hot_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\hunter_clip_tracker.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\mana_conservator.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\mana_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\menu.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\middleware.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\middleware_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\ooc_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\powershift.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\ps_theme.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\settings_framework.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\smart_defensive.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\spell_resolver.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\spells.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\swing_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\threat_tab_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\trinket_manager.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\libraries\utils.lua — older EAX ShamanRestoration library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\main.lua — older EAX ShamanRestoration rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\main.lua.bak — backup of older EAX ShamanRestoration rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXShamanRestoration\plugin_info.lua — older EAX ShamanRestoration plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\header.lua — older EAX WarlockAffliction plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\anti_fake_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\burst_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\cc_detector.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\combat_forecast.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\compat.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\context_builder.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\dashboard.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\dashboard_config.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\energy_tick.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\force_commands.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\form_consumables.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\heal_context.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\heal_utils.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\hot_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\hunter_clip_tracker.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\mana_conservator.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\mana_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\menu.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\middleware.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\middleware_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\ooc_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\powershift.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\ps_theme.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\settings_framework.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\smart_defensive.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\spell_resolver.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\spells.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\swing_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\threat_tab_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\trinket_manager.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\libraries\utils.lua — older EAX WarlockAffliction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\main.lua — older EAX WarlockAffliction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\main.lua.bak — backup of older EAX WarlockAffliction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockAffliction\plugin_info.lua — older EAX WarlockAffliction plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\header.lua — older EAX WarlockDemonology plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\anti_fake_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\burst_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\cc_detector.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\combat_forecast.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\compat.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\context_builder.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\dashboard.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\dashboard_config.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\energy_tick.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\force_commands.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\form_consumables.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\heal_context.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\heal_utils.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\hot_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\hunter_clip_tracker.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\mana_conservator.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\mana_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\menu.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\middleware.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\middleware_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\ooc_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\powershift.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\ps_theme.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\settings_framework.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\smart_defensive.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\spell_resolver.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\spells.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\swing_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\threat_tab_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\trinket_manager.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\libraries\utils.lua — older EAX WarlockDemonology library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\main.lua — older EAX WarlockDemonology rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\main.lua.bak — backup of older EAX WarlockDemonology rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDemonology\plugin_info.lua — older EAX WarlockDemonology plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\header.lua — older EAX WarlockDestruction plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\anti_fake_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\burst_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\cc_detector.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\combat_forecast.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\compat.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\context_builder.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\dashboard.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\dashboard_config.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\energy_tick.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\force_commands.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\form_consumables.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\heal_context.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\heal_utils.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\hot_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\hunter_clip_tracker.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\mana_conservator.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\mana_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\menu.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\middleware.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\middleware_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\ooc_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\powershift.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\ps_theme.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\settings_framework.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\smart_defensive.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\spell_resolver.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\spells.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\swing_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\threat_tab_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\trinket_manager.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\libraries\utils.lua — older EAX WarlockDestruction library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\main.lua — older EAX WarlockDestruction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\main.lua.bak — backup of older EAX WarlockDestruction rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarlockDestruction\plugin_info.lua — older EAX WarlockDestruction plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\header.lua — older EAX WarriorArms plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\anti_fake_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\burst_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\cc_detector.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\combat_forecast.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\compat.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\context_builder.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\dashboard.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\dashboard_config.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\energy_tick.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\force_commands.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\form_consumables.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\heal_context.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\heal_utils.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\hot_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\hunter_clip_tracker.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\interrupt_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\mana_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\menu.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\middleware.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\middleware_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\ooc_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\powershift.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\ps_theme.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\racial_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\settings_framework.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\smart_defensive.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\spell_resolver.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\spells.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\swing_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\threat_tab_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\trinket_manager.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\libraries\utils.lua — older EAX WarriorArms library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\main.lua — older EAX WarriorArms rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorArms\plugin_info.lua — older EAX WarriorArms plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\header.lua — older EAX WarriorFury plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\anti_fake_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\burst_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\cc_detector.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\combat_forecast.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\compat.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\context_builder.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\dashboard.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\dashboard_config.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\energy_tick.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\force_commands.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\form_consumables.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\heal_context.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\heal_utils.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\hot_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\hunter_clip_tracker.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\interrupt_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\mana_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\menu.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\middleware.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\middleware_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\ooc_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\powershift.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\ps_theme.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\racial_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\schema.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\schema_framework.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\settings_framework.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\smart_defensive.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\spell_resolver.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\spells.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\swing_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\threat_tab_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\trinket_manager.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\libraries\utils.lua — older EAX WarriorFury library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\main.lua — older EAX WarriorFury rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorFury\plugin_info.lua — older EAX WarriorFury plugin metadata.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\header.lua — older EAX WarriorProtection plugin header/bootstrap.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\anti_fake_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\burst_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\cc_detector.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\combat_forecast.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\compat.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\context_builder.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\dashboard.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\dashboard_config.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\energy_tick.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\force_commands.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\form_consumables.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\heal_context.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\heal_utils.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\hot_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\hunter_clip_tracker.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\interrupt_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\mana_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\menu.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\middleware.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\middleware_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\ooc_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\powershift.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\ps_theme.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\racial_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\settings_framework.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\smart_defensive.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\spell_resolver.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\spells.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\swing_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\threat_tab_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\trinket_manager.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\libraries\utils.lua — older EAX WarriorProtection library/helper module.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\main.lua — older EAX WarriorProtection rotation main entrypoint.
+- C:\newbot\scripts\OldProjects\more old stuff\EAXWarriorProtection\plugin_info.lua — older EAX WarriorProtection plugin metadata.
+- C:\newbot\scripts\SlyRotate\SlyRotate.lua — SlyRotate core rotation addon file.
+- C:\newbot\scripts\SlyRotate\SlyRotate.toc — SlyRotate WoW addon manifest.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Admin.lua — SlyRotate admin/support module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_FeralDruid.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Hunter.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Mage.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Paladin.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Priest.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Rogue.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Shaman.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Warlock.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\SlyRotate\SlyRotate_Warrior.lua — SlyRotate class rotation module.
+- C:\newbot\scripts\Sonah\Classes\Druid\Balance.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Druid\DruidCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Druid\Feral.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Druid\Restoration.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Hunter\BeastMastery.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Hunter\HunterCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Hunter\Marksmanship.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Hunter\Survival.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Mage\Arcane.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Mage\Fire.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Mage\Frost.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Mage\MageCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Paladin\HolyPal.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Paladin\PaladinCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Paladin\Protection.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Paladin\Retribution.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Priest\Discipline.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Priest\Holy.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Priest\PriestCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Priest\Shadow.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Rogue\Assassination.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Rogue\Combat.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Rogue\RogueCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Rogue\Subtlety.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Shaman\Elemental.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Shaman\Enhancement.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Shaman\RestorationSham.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Shaman\ShamanCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Warlock\Affliction.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Warlock\Demonology.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Warlock\Destruction.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Warlock\WarlockCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Warrior\Arms.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Warrior\Fury.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Warrior\ProtectionWar.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Classes\Warrior\WarriorCore.lua — Sonah class/spec rotation module.
+- C:\newbot\scripts\Sonah\Config\Config.lua — Sonah configuration/profile module.
+- C:\newbot\scripts\Sonah\Config\Profiles.lua — Sonah configuration/profile module.
+- C:\newbot\scripts\Sonah\Core\AddonComm.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\ClassLoader.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\Core.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\CustomRotation.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\GearScore.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\Globals.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\Macros.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\PvPSystem.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\TalentHelper.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\TalentHelper_Classes2.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\TalentHelper_Classes3.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\TalentHelper_Classes4.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Core\Utilities.lua — Sonah core rotation framework module.
+- C:\newbot\scripts\Sonah\Locale\deDE.lua — Sonah localization file.
+- C:\newbot\scripts\Sonah\Locale\enUS.lua — Sonah localization file.
+- C:\newbot\scripts\Sonah\Locale\esES.lua — Sonah localization file.
+- C:\newbot\scripts\Sonah\Locale\frFR.lua — Sonah localization file.
+- C:\newbot\scripts\Sonah\Locale\jaJP.lua — Sonah localization file.
+- C:\newbot\scripts\Sonah\Locale\Locale.lua — Sonah localization file.
+- C:\newbot\scripts\Sonah\Locale\zhCN.lua — Sonah localization file.
+- C:\newbot\scripts\Sonah\Sonah.toc — Sonah WoW addon manifest.
+- C:\newbot\scripts\Sonah\sonahlogo.tga — Sonah addon logo asset.
+- C:\newbot\scripts\Sonah\Stats\BuffTracker.lua — Sonah stats/buff tracking module.
+- C:\newbot\scripts\Sonah\Stats\Stats.lua — Sonah stats/buff tracking module.
+- C:\newbot\scripts\Sonah\UI\ActionBarGlow.lua — Sonah UI/support module.
+- C:\newbot\scripts\Sonah\UI\Minimap.lua — Sonah UI/support module.
+- C:\newbot\scripts\Sonah\UI\SwingTimer.lua — Sonah UI/support module.
+- C:\newbot\scripts\Sonah\UI\Themes.lua — Sonah UI/support module.
+- C:\newbot\scripts\Sonah\UI\UI.lua — Sonah UI/support module.

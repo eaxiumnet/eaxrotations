@@ -33,18 +33,22 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local core = _G.core
 
 -- Import IZI SDK from common folder (as per Project Sylvanas documentation)
-local izi = require("common/izi_sdk")
+local izi_ok, izi = pcall(require, "common/izi_sdk")
 
-if not izi then
-    core.log_error("[EaxRotations] Failed to load IZI SDK from common/izi_sdk")
+if not izi_ok or not izi then
+    if type(core) == "table" and type(core.log_error) == "function" then
+        core.log_error("[EaxRotations] Failed to load IZI SDK from common/izi_sdk: " .. tostring(izi))
+    end
     return
 end
 
 -- Get plugin info from header
-local plugin_info = require("header")
+local header_ok, plugin_info = pcall(require, "header")
 
-if not plugin_info or not plugin_info.load then
-    core.log_warning("[EaxRotations] Plugin not loaded - check header.lua")
+if not header_ok or not plugin_info or not plugin_info.load then
+    if type(core) == "table" and type(core.log_warning) == "function" then
+        core.log_warning("[EaxRotations] Plugin not loaded - check header.lua: " .. tostring(plugin_info))
+    end
     return
 end
 
@@ -57,14 +61,23 @@ core.log("[EaxRotations] Version " .. tostring(plugin_info.version or "unknown")
 
 -- Load core framework components in dependency order.
 -- The runtime only loads header.lua + main.lua; all framework files must be explicitly require()'d here.
-local framework_core = require("core_sylvanas")          -- order 10 (creates _G.EaxRotations namespace)
+local core_ok, framework_core = pcall(require, "core_sylvanas")
+if not core_ok or not framework_core then
+    if type(core) == "table" and type(core.log_error) == "function" then
+        core.log_error("[EaxRotations] Failed to load core_sylvanas: " .. tostring(framework_core))
+    end
+    return
+end
 framework_core.core = core
 framework_core.izi = izi
 local runtime_generation = framework_core.runtime_generation
 
 local function load_modules(modules)
     for i = 1, #modules do
-        require(modules[i])
+        local ok, err = pcall(require, modules[i])
+        if not ok and type(core) == "table" and type(core.log_warning) == "function" then
+            core.log_warning("[EaxRotations] Failed to load " .. modules[i] .. ": " .. tostring(err))
+        end
     end
 end
 
@@ -73,7 +86,8 @@ load_modules({
     "explain_helpers_sylvanas",
 })
 
-local optimizer = require("optimizer")                   -- order 11 (DecisionCache)
+local opt_ok, optimizer = pcall(require, "optimizer")
+if not opt_ok then optimizer = nil end
 
 load_modules({
     -- Runtime services
@@ -135,7 +149,12 @@ end
 core.log("[EaxRotations] Class module loaded: " .. plugin_info.player_class_name)
 
 local format = string.format
-local color = require("common/color")
+local color_ok, color = pcall(require, "common/color")
+if not color_ok or type(color) ~= "table" then
+    -- Fallback color table if common/color is unavailable
+    local _noop = function() return { r = 255, g = 255, b = 255, a = 255 } end
+    color = { yellow = _noop, white = _noop, green = _noop, red = _noop }
+end
 local key_helper_ok, key_helper = pcall(require, "common/utility/key_helper")
 if not key_helper_ok then key_helper = nil end
 local control_panel_helper_ok, control_panel_helper = pcall(require, "common/utility/control_panel_helper")
@@ -859,7 +878,7 @@ local function on_update()
     end
     if framework_main and framework_main.on_rotation_update then
         if debug_mode then
-            local _now_ms = core.game_time() or 0
+            local _now_ms = core.game_time and core.game_time() or 0
             if not _last_calling_log_time or (_now_ms - _last_calling_log_time) > 2000 then
                 _last_calling_log_time = _now_ms
                 core.log("[EaxRotations:main] CALLING on_rotation_update")
@@ -879,8 +898,12 @@ end
 -- ============================================================================
 
 framework_core.register_on_update_callback(on_update)
-core.register_on_render_menu_callback(render_menu)
-core.register_on_render_control_panel_callback(on_control_panel_render)
+if type(core.register_on_render_menu_callback) == "function" then
+    pcall(core.register_on_render_menu_callback, render_menu)
+end
+if type(core.register_on_render_control_panel_callback) == "function" then
+    pcall(core.register_on_render_control_panel_callback, on_control_panel_render)
+end
 
 core.log("[EaxRotations] Framework initialized successfully!")
 core.log("[EaxRotations] Class: " .. plugin_info.player_class_name)

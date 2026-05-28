@@ -48,7 +48,7 @@ assert_true(contains(main, 'key = "use_interrupt"'), "interrupt toggle should re
 assert_true(contains(main, 'key = "utility_enabled"'), "utility toggle should sync utility_enabled")
 assert_true(contains(main, 'key = "use_threat_drop"'), "threat drop toggle should reuse use_threat_drop")
 assert_true(contains(main, "QUICK_TOGGLE_SETTING_KEYS") and contains(main, "return nil"), "schema widgets for quick-toggle keys should be skipped")
-assert_true(contains(main, "core.register_on_render_control_panel_callback(on_control_panel_render)"), "control panel callback should be registered")
+assert_true(contains(main, "register_on_render_control_panel_callback") and contains(main, "on_control_panel_render"), "control panel callback should be registered")
 assert_true(contains(main, "keybind = def.control"), "control panel should return the same keybind objects rendered in the main menu")
 assert_true(contains(main, 'require, "common/utility/control_panel_helper"'), "control panel helper should be loaded from Sylvanas utility API")
 assert_true(contains(main, "control_panel_helper:insert_toggle_"), "control panel should use the helper for drag/drop and duplicate handling")

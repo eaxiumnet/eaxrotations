@@ -94,6 +94,24 @@ if NS.init_izi_buff_events then pcall(NS.init_izi_buff_events) end
 -- ============================================================================
 local _reaction_delay_start = nil
 local _reaction_was_on_gcd = false
+local _expansion_logged = false
+
+local function log_expansion_once(config, active)
+    if _expansion_logged then return end
+    if type(NS.is_vanilla) ~= "function" or not NS.is_vanilla() then return end
+    _expansion_logged = true
+    local spec_display = active
+    if config and config.playstyles then
+        for _, ps in ipairs(config.playstyles) do
+            if ps.name == active then
+                spec_display = ps.display_name or ps.name
+                break
+            end
+        end
+    end
+    local class_name = (config and config.class_name) or "Unknown"
+    NS.log("Classic Era (1.12) rotation active: " .. class_name .. " " .. tostring(spec_display))
+end
 
 local function reaction_delay_active(context)
     local delay_ms = (NS.get_setting and NS.get_setting("reaction_delay_ms", 0)) or 0
@@ -170,7 +188,7 @@ end
 
 local _cached_enemies, _cached_enemies_time = nil, -1
 local function throttled_enemies()
-    local now = NS.game_time_ms()
+    local now = NS.game_time_ms and NS.game_time_ms() or 0
     if now - _cached_enemies_time > 100 then
         _cached_enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or nil
         _cached_enemies_time = now
@@ -346,8 +364,8 @@ local function build_context()
     _context.force_defensive = NS.force_defensive_active and NS.force_defensive_active() or false
     _context.force_gap = NS.force_gap_active and NS.force_gap_active() or false
     _context.has_breakable_cc_nearby = NS.has_breakable_cc_nearby and NS.has_breakable_cc_nearby() or false
-    _context.target_is_player = target and NS.safe_field and NS.safe_field(target, "is_player") and target:is_player() or false
-    _context.target_is_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and target:is_boss() or false
+    _context.target_is_player = target and NS.safe_field and NS.safe_field(target, "is_player") and safe(target.is_player, target) == true or false
+    _context.target_is_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and safe(target.is_boss, target) == true or false
     _context.ttd = ttd or 999
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)
@@ -595,6 +613,7 @@ function M.on_rotation_update()
     end
     context.active_playstyle = active
     trace("playstyle:active", "playstyle requested=" .. tostring(requested_playstyle) .. " source=" .. tostring(active_source) .. " active=" .. tostring(active), 2000)
+    log_expansion_once(config, active)
     local class_key = config and config.class_key
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
         trace("update:middleware_fired", "on_rotation_update fired middleware class_key=" .. tostring(class_key), 2000)
@@ -665,6 +684,7 @@ function M.on_rotation_update_unified()
     end
     context.active_playstyle = active
     trace("unified:playstyle", "unified playstyle requested=" .. tostring(requested_playstyle) .. " source=" .. tostring(active_source) .. " active=" .. tostring(active), 500)
+    log_expansion_once(config, active)
     local class_key = config and config.class_key
     -- Run legacy class middleware first; new unified entries are in NS.unified_registry
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then

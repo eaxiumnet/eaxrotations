@@ -76,20 +76,17 @@ local function load_profiles_from_file()
     -- Decode JSON (Sylvanas may provide JSON decode)
     if NS.core.json_decode then
         local ok2, decoded = pcall(NS.core.json_decode, data)
-        if ok2 and decoded then
+        if ok2 and decoded and type(decoded) == "table" then
             return decoded
         end
     end
-    
-    -- Fallback: assume Lua table serialization
-    local ok3, func = pcall(loadstring, "return " .. data)
-    if ok3 and func then
-        local ok4, result = pcall(func)
-        if ok4 and type(result) == "table" then
-            return result
-        end
+
+    -- JSON decode unavailable or failed — log and return empty.
+    -- Removed loadstring fallback: arbitrary code execution via profile files
+    -- is a critical security risk in an open-source distribution model.
+    if NS.core.log_warning then
+        NS.core.log_warning("[EaxRotations] Profile file could not be decoded (json_decode unavailable or data malformed). File: " .. tostring(PROFILES_FILE))
     end
-    
     return {}
 end
 

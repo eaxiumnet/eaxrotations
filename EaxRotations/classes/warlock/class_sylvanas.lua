@@ -28,6 +28,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("warlock", "Warlock")
+local load_spec = cl.create_expansion_loader("warlock", "Warlock")
 local enums = cl.get_enums()
 local player = NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
@@ -300,8 +301,8 @@ NS.rotation_registry:set_class_config(config)
 
 load_child("middleware_sylvanas")
 load_child("leveling_sylvanas", true)
-load_child("affliction_sylvanas")
-load_child("demonology_sylvanas")
-load_child("destruction_sylvanas")
+load_spec("affliction")
+load_spec("demonology")
+load_spec("destruction")
 NS.log("Warlock class module loaded")
 return config
