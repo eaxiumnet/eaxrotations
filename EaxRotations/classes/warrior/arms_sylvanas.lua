@@ -167,8 +167,8 @@ local arms_state = {
     healthstone_id = nil,
 }
 
-local function setting(context, key, fallback)
-    local settings = context.settings
+local setting = NS.setting or function(context, key, fallback)
+    local settings = context and context.settings
     if settings and settings[key] ~= nil then return settings[key] end
     if NS.get_setting then return NS.get_setting(key, fallback) end
     return fallback
