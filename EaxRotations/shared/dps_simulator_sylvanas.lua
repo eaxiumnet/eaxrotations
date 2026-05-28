@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/dps_simulator_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- What: Shared helper that estimates DPS from rotation inputs
 -- When: On demand during offline analysis and tuning
@@ -282,13 +300,6 @@ local function update_cooldowns(state, dt)
     for k, v in pairs(state.cooldown) do
         state.cooldown[k] = max(0, v - dt)
     end
-end
-
-local function burst_overlap(state, t, duration)
-    if state.profile.playstyle ~= "beast_mastery" then return 0 end
-    local bw = aura_active(state, "bestial_wrath", t) and min(state.aura_until.bestial_wrath - t, duration) or 0
-    local rf = aura_active(state, "rapid_fire", t) and min(state.aura_until.rapid_fire - t, duration) or 0
-    return min(bw, rf)
 end
 
 local function schedule_cast(state, profile, action_name, t)

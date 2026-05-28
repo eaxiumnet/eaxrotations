@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/priest/smite_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Priest Smite DPS Rotation
 -- ============================================================================
@@ -15,9 +33,11 @@ if not NS then return end
 
 local load_player = NS.GetPlayer()
 
-local enums = require("common/enums")
-if type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
-if not load_player or load_player:get_class() ~= enums.class_id.PRIEST then return end
+local _ok_enums, enums = pcall(require, "common/enums")
+if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
+if not load_player then return end
+local ok_cls, cls_id = pcall(function() return load_player:get_class() end)
+if not ok_cls or cls_id ~= enums.class_id.PRIEST then return end
 
 -- Cache player race at load for racial spell gating (Night Elf = 4, Undead = 5)
 local _player_race = load_player:get_race_id() or 0
@@ -95,24 +115,28 @@ local function build_smite_state(context)
     context.mana_pct = context.mana_pct or context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
     context.hp = health_pct(NS.PLAYER_UNIT)
 
-    local swp_dur = target and debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
-    smite_state.swp_active = swp_dur > 0
-    smite_state.swp_remaining = swp_dur
-    smite_state.surge_of_light = buff_up(NS.PLAYER_UNIT, SURGE_OF_LIGHT_BUFF)
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14752, 3.0) or false
+    if not skip_aura then
+        local swp_dur = target and debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
+        smite_state.swp_active = swp_dur > 0
+        smite_state.swp_remaining = swp_dur
+        smite_state.surge_of_light = buff_up(NS.PLAYER_UNIT, SURGE_OF_LIGHT_BUFF)
+        smite_state.dp_remaining = target and debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
+        smite_state.has_inner_focus = buff_up(NS.PLAYER_UNIT, INNER_FOCUS_BUFF)
+        smite_state.has_inner_fire = buff_up(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
+        smite_state.inner_fire_remains = 0
+        if smite_state.has_inner_fire and type(buff_remains) == "function" then
+            local r = buff_remains(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
+            smite_state.inner_fire_remains = (r ~= nil and r >= 0) and r or 999
+        end
+        smite_state.has_renew = buff_up(NS.PLAYER_UNIT, RENEW_BUFF)
+        smite_state.has_weakened_soul = NS.debuff_up and NS.debuff_up(NS.PLAYER_UNIT, WEAKENED_SOUL_DEBUFF) or false
+    end
     smite_state.hf_ready = spell_exists(SPELLS.HolyFire) and spell_ready(SPELLS.HolyFire, target)
     smite_state.mb_ready = spell_exists(SPELLS.MindBlast) and spell_ready(SPELLS.MindBlast, target)
     smite_state.swd_ready = spell_exists(SPELLS.ShadowWordDeath) and spell_ready(SPELLS.ShadowWordDeath, target)
     smite_state.swd_safe = context.hp > (context.settings.smite_swd_hp or 40)
-    smite_state.dp_remaining = target and debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
-    smite_state.has_inner_focus = buff_up(NS.PLAYER_UNIT, INNER_FOCUS_BUFF)
-    smite_state.has_inner_fire = buff_up(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
-    smite_state.inner_fire_remains = 0
-    if smite_state.has_inner_fire and type(buff_remains) == "function" then
-        local r = buff_remains(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
-        smite_state.inner_fire_remains = (r ~= nil and r >= 0) and r or 999
-    end
-    smite_state.has_renew = buff_up(NS.PLAYER_UNIT, RENEW_BUFF)
-    smite_state.has_weakened_soul = NS.debuff_up and NS.debuff_up(NS.PLAYER_UNIT, WEAKENED_SOUL_DEBUFF) or false
     smite_state.inner_focus_ready = spell_exists(SPELLS.InnerFocus) and spell_ready(SPELLS.InnerFocus, NS.PLAYER_UNIT)
     smite_state.inner_fire_ready = spell_exists(SPELLS.InnerFire) and spell_ready(SPELLS.InnerFire, NS.PLAYER_UNIT, SKIP_RANGE)
     smite_state.power_word_shield_ready = spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, NS.PLAYER_UNIT, SKIP_RANGE)

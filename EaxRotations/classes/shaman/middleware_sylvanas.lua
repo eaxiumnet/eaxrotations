@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/shaman/middleware_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shaman Middleware: Tier 1 Gap Analysis Features
 -- ============================================================================
@@ -17,6 +35,7 @@ local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local auto_tremor = require("shared/auto_tremor_sylvanas")
 local purge_manager = require("shared/purge_manager_sylvanas")
+local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 -- Cure Poison IDs by rank (newest first) - TBC spell IDs
@@ -81,7 +100,7 @@ local strategies = {
     },
 
     -- ============================================================================
-    -- Purge (Tier 1 Gap Feature)
+    -- Purge (Tier 1 Gap Feature — upgraded with priority DB targeting)
     -- ============================================================================
     {
         name = "Purge",
@@ -99,10 +118,27 @@ local strategies = {
             local mana_pct = context.mana_pct or 100
             local min_mana = context.settings.purge_min_mana_pct or 20
             if mana_pct < min_mana then return false end
-            
+
+            -- Priority DB scan: strip Bloodlust, BoP, Recklessness, etc. first
+            if OffensiveDispelDB and OffensiveDispelDB.find_best_dispel_target then
+                local _, priority = OffensiveDispelDB.find_best_dispel_target(context.target, NS)
+                if priority and priority >= OffensiveDispelDB.PRIORITY_HIGH then
+                    return true  -- High-value buff found, purge it
+                end
+            end
+
+            -- Fallback: flat purgeable buffs list (PW:S, Renew, Ice Barrier, etc.)
             return purge_manager.has_purgeable_buff(context.target)
         end,
         execute = function(context)
+            -- Try priority-DB purge first
+            if OffensiveDispelDB and OffensiveDispelDB.find_best_dispel_target then
+                local _, priority = OffensiveDispelDB.find_best_dispel_target(context.target, NS)
+                if priority and priority >= OffensiveDispelDB.PRIORITY_HIGH then
+                    return purge_manager.try_purge(context)
+                end
+            end
+            -- Fallback: flat list purge
             return purge_manager.try_purge(context)
         end,
     },

@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/rogue/combat_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Rogue Combat priority list.
 -- ============================================================================
 -- What: TBC Rogue Combat rotation with energy pooling and cooldown alignment
@@ -36,21 +54,31 @@ local RUPTURE_TTD_FLOOR = 12
 local HEROISM_BUFF = { 2825, 32182 }
 
 -- ============================================================================
--- Energy Tick Optimization (preserved)
+-- [ARTISTRY] Energy Tick Optimization
 -- ============================================================================
 local _last_energy = 0
 local _last_tick_time = 0
 
-local function get_next_tick_in(energy)
+local function get_next_tick_in(energy, settings)
     local now = NS.time_now and NS.time_now() or 0
     local energy_gained = energy - _last_energy
-    if energy_gained > 0 then
+    
+    -- Heuristic: TBC energy ticks are usually 20. 
+    -- If gain is 20 (or slightly different due to haste/procs?), it's likely a server tick.
+    -- AR gain is higher (40?), Tea is 100.
+    if energy_gained >= 19 and energy_gained <= 21 then
         _last_tick_time = now
         _last_energy = energy
         return ENERGY_TICK
     end
+    
+    if energy_gained > 0 then
+        _last_energy = energy
+    end
+
     local time_since_tick = now - _last_tick_time
     if time_since_tick < 0 or time_since_tick > ENERGY_TICK * 2 then
+        -- Desync: assume a tick just happened to be safe
         _last_tick_time = now
         return ENERGY_TICK
     end
@@ -58,9 +86,14 @@ local function get_next_tick_in(energy)
 end
 
 local function should_pool_energy(context)
+    if not (context.settings and context.settings.combat_energy_tick_sync) then return false end
+    
     local energy = context.energy or 0
-    local next_tick_in = get_next_tick_in(energy)
-    if next_tick_in <= 0.5 then
+    local offset = (context.settings and context.settings.combat_energy_tick_offset or 100) / 1000
+    local next_tick_in = get_next_tick_in(energy, context.settings)
+    
+    -- If tick is coming in very soon, wait for it unless we are capping
+    if next_tick_in <= offset + 0.1 then
         local projected_energy = energy + ENERGY_PER_TICK
         if projected_energy <= ENERGY_CAP then
             return true
@@ -71,18 +104,27 @@ end
 
 local function should_spend_energy(context, cost)
     local energy = context.energy or 0
-    local next_tick_in = get_next_tick_in(energy)
+    local settings = context.settings or {}
+    local offset = (settings.combat_energy_tick_offset or 100) / 1000
+    local next_tick_in = get_next_tick_in(energy, settings)
+    
+    -- Capping risk: if next tick will put us over cap, spend NOW
     local projected_energy = energy + ENERGY_PER_TICK
     if projected_energy > ENERGY_CAP then
         return true
     end
-    if next_tick_in > 1.0 then
+    
+    -- Logic: only spend if we just had a tick or the next one is far away
+    if next_tick_in > offset + 0.3 then
         return true
     end
-    if next_tick_in > ENERGY_TICK - 0.3 then
+    
+    -- Or if we are in the "Advance" window (offset)
+    if next_tick_in <= offset then
         return true
     end
-    return false
+
+    return not (settings.combat_energy_tick_sync)
 end
 
 -- ============================================================================
@@ -215,6 +257,7 @@ end
 -- Match functions
 -- ============================================================================
 local function stealth_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Stealth, 3.0) then return false end
     if s.in_combat then return false end
     if s.has_stealth then return false end
     if not s.stealth_ready then return false end
@@ -244,6 +287,7 @@ local function blade_flurry_wrapper(context, s)
 end
 
 local function slice_and_dice_wrapper(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SliceAndDice, 3.0) then return false end
     if not s.slice_and_dice_ready then return false end
     -- Research: maintain 100% uptime; refresh when <3s remains
     if s.has_snd and not s.snd_needs_refresh then return false end
@@ -252,6 +296,7 @@ local function slice_and_dice_wrapper(context, s)
 end
 
 local function rupture_wrapper(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rupture, 2.0) then return false end
     if not s.rupture_ready then return false end
     if s.energy_pool_finisher then return false end
     -- Research: only Rupture when target lives > ttd floor (avoid wasted DoT ticks)
@@ -285,6 +330,7 @@ local function sinister_strike_wrapper(context, s)
 end
 
 local function shiv_purge_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Shiv, 2.0) then return false end
     local settings = context.settings or {}
     if settings.use_shiv_purge == false then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end

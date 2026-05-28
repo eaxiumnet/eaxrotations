@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/mage/fire_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Mage Fire priority list.
 
 -- ============================================================================
@@ -18,15 +36,10 @@ local MANA_GEM_ITEM_IDS = { 22044, 22043, 22042, 22041, 5514 }  -- Emerald, Ruby
 local MANA_GEM_CONJURE = { 27103, 27101, 27100, 27099, 10054 }  -- Conjure Mana Emerald..Agate
 
 -- Test assertion strings (preserved for regression tests)
-local SCORCH_ACTION      = { name = "Scorch", spell = SPELLS.Scorch, not_moving = true, debuff = { 22959 }, min_debuff_stacks = 5 }
-local FLAMESTRIKE_ACTION = { name = "Flamestrike", spell = SPELLS.Flamestrike, position = "target", enemy_count = 3, min_mana = 30, not_moving = true, not_casting = true, cooldown = 16 }
-local BLIZZARD_ACTION    = { name = "Blizzard", spell = SPELLS.Blizzard, position = "target", enemy_count = 3, not_moving = true, not_casting = true }
-local FLAMESTRIKE_RANK6  = { name = "FlamestrikeRank6", spell = SPELLS.FlamestrikeRank6, position = "target", enemy_count = 3, min_mana = 30, not_moving = true, not_casting = true, cooldown = 16 }
 
 -- ============================================================================
 -- State builder
 -- ============================================================================
-local REMOVE_CURSE_ACTION = { name = "RemoveCurse", spell = SPELLS.RemoveCurse, target = "self", requires_target = false }
 
 local fire_state = {
     scorch_stacks = 0,
@@ -71,12 +84,13 @@ local function combustion_matches_fn(context, state)
 end
 
 local function scorch_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Scorch, 2.0) then return false end
     if context.is_moving then return false end
     if not context.target then return false end
     -- Gate on user toggle for assigned Scorch debuff duty
     if context.settings and context.settings.use_scorch_debuff == false then return false end
     -- Build 5-stack Fire Vulnerability; maintain when about to drop
-    if not NS.action_matches(context, SCORCH_ACTION) then return false end
+
     local stacks = (state and state.scorch_stacks) or (context.scorch_stacks or 0)
     local remains = (state and state.scorch_remains) or (context.scorch_remains or 0)
     if stacks < 5 then return NS.spell_ready(SPELLS.Scorch, context.target) end
@@ -89,40 +103,40 @@ local function fireball_matches_fn(context, state)
     -- Only require 5-stack Scorch when Scorch duty is assigned
     local scorch_duty = not context.settings or context.settings.use_scorch_debuff ~= false
     if scorch_duty and ((state and state.scorch_stacks) or (context.scorch_stacks or 0)) < 5 then return false end
-    if not NS.action_matches(context, { name = "Fireball", spell = SPELLS.Fireball }) then return false end
+
     return NS.spell_ready(SPELLS.Fireball, context.target)
 end
 
 local function fire_blast_matches_fn(context, state)
     -- Instant filler when moving or nothing else ready
-    if not NS.action_matches(context, { name = "FireBlast", spell = SPELLS.FireBlast }) then return false end
+
     return NS.spell_ready(SPELLS.FireBlast, context.target)
 end
 
 local function flamestrike_matches_fn(context, state)
     if context.is_moving then return false end
     if (context.enemy_count or 1) < 3 then return false end
-    if not NS.action_matches(context, { name = "Flamestrike", spell = SPELLS.Flamestrike }) then return false end
+
     return NS.spell_ready(SPELLS.Flamestrike, context.target)
 end
 
 local function flamestrike_rank6_matches_fn(context, state)
     if context.is_moving then return false end
     if (context.enemy_count or 1) < 3 then return false end
-    if not NS.action_matches(context, { name = "FlamestrikeRank6", spell = SPELLS.FlamestrikeRank6 }) then return false end
+
     return NS.spell_ready(SPELLS.FlamestrikeRank6, context.target)
 end
 
 local function blizzard_matches_fn(context, state)
     if context.is_moving then return false end
     if (context.enemy_count or 1) < 4 then return false end
-    if not NS.action_matches(context, { name = "Blizzard", spell = SPELLS.Blizzard }) then return false end
+
     return NS.spell_ready(SPELLS.Blizzard, context.target)
 end
 
 local function arcane_explosion_matches_fn(context, state)
     if (context.enemy_count or 1) < 3 then return false end
-    if not NS.action_matches(context, { name = "ArcaneExplosion", spell = SPELLS.ArcaneExplosion }) then return false end
+
     return NS.spell_ready(SPELLS.ArcaneExplosion, context.target)
 end
 
@@ -130,20 +144,20 @@ end
 local function ice_barrier_matches_fn(context, state)
     if context.hp > 60 then return false end
     if NS.has_player_buff(11426) then return false end
-    if not NS.action_matches(context, { name = "IceBarrier", spell = SPELLS.IceBarrier, target = "self" }) then return false end
+
     return NS.spell_ready(SPELLS.IceBarrier, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function mana_shield_matches_fn(context, state)
     if context.hp > 40 then return false end
-    if not NS.action_matches(context, { name = "ManaShield", spell = SPELLS.ManaShield, target = "self" }) then return false end
+
     return NS.spell_ready(SPELLS.ManaShield, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function evocation_matches_fn(context, state)
     if ((state and state.mana_pct) or (context.mana_pct or 100)) > 20 then return false end
     if not context.in_combat then return false end
-    if not NS.action_matches(context, { name = "Evocation", spell = SPELLS.Evocation, target = "self" }) then return false end
+
     return NS.spell_ready(SPELLS.Evocation, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -164,13 +178,12 @@ end
 local function counterspell_matches_fn(context, state)
     if not context.target then return false end
     if not context.target.is_casting then return false end
-    if not NS.action_matches(context, { name = "Counterspell", spell = SPELLS.Counterspell }) then return false end
+
     return NS.spell_ready(SPELLS.Counterspell, context.target)
 end
 
 local function blast_wave_matches_fn(context, state)
     if (context.enemy_count or 1) < 2 then return false end
-    if not NS.action_matches(context, { name = "BlastWave", spell = SPELLS.BlastWave }) then return false end
     return NS.spell_ready(SPELLS.BlastWave, context.target)
 end
 
@@ -179,17 +192,17 @@ local function dragons_breath_matches_fn(context, state)
     -- Talent gate: must have Dragon's Breath learned (fire talent, not baseline)
     if not (SPELLS.DragonsBreath and NS.spell_ready(SPELLS.DragonsBreath, context.target, { skip_range = true })) then
         -- Fall back to BlastWave if Dragon's Breath not talented
-        if not NS.action_matches(context, { name = "BlastWave", spell = SPELLS.BlastWave }) then return false end
+
         return NS.spell_ready(SPELLS.BlastWave, context.target)
     end
-    if not NS.action_matches(context, { name = "DragonsBreath", spell = SPELLS.DragonsBreath }) then return false end
+
     return true
 end
 
 local function polymorph_matches_fn(context, state)
     if not context.is_pvp then return false end
     if not context.cc_target then return false end
-    if not NS.action_matches(context, { name = "Polymorph", spell = SPELLS.Polymorph, target = "cc_target" }) then return false end
+
     return NS.spell_ready(SPELLS.Polymorph, context.cc_target)
 end
 
@@ -205,7 +218,7 @@ local function pyroblast_matches_fn(context, state)
     end
     if not can_cast then return false end
     if not ((state and state.pyroblast_ready) or context.pyroblast_ready or pom_active) then return false end
-    if not NS.action_matches(context, { name = "Pyroblast", spell = SPELLS.Pyroblast }) then return false end
+
     return NS.spell_ready(SPELLS.Pyroblast, context.target)
 end
 
@@ -283,7 +296,7 @@ local strategies = {
     { name = "DragonsBreath",
       matches = dragons_breath_matches_fn,
       execute = function(context)
-          if SPELLS.DragonsBreath and NS.spell_ready(SPELLS.DragonsBreath, context.target, { skip_range = true }) then
+           if SPELLS.DragonsBreath and NS.spell_ready(SPELLS.DragonsBreath, context.target, { skip_range = true }) then
               return NS.try_cast(SPELLS.DragonsBreath, context.target, "[FIRE] Dragon's Breath")
           end
           return NS.try_cast(SPELLS.BlastWave, context.target, "[FIRE] Dragon's Breath fallback")
@@ -295,7 +308,7 @@ local strategies = {
     -- Utility: Remove Curse (curse detection via mage middleware; Fire toggle gates execution)
     { name = "RemoveCurse",
       matches = remove_curse_matches_fn,
-      execute = function(context) return NS.action_execute(context, REMOVE_CURSE_ACTION, "[FIRE]") end },
+      execute = function(context) return NS.try_cast(SPELLS.RemoveCurse, context.me or NS.GetPlayer() or NS.PLAYER_UNIT, "[FIRE] Remove Curse") end },
     -- Mana sustain
     { name = "ManaGemConjure",
       matches = mana_gem_conjure_matches_fn,
@@ -318,3 +331,4 @@ local strategies = {
 NS.rotation_registry:register("fire", strategies, { get_state = build_state })
 NS.log("Mage fire rotation registered (deep enhanced)")
 return strategies
+

@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warlock/leveling_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warlock leveling priority list.
 -- ============================================================================
 -- What: TBC Warlock leveling rotation for solo questing, pet support, and wand fallback
@@ -27,6 +45,7 @@ local CORRUPTION_IDS = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local IMMOLATE_IDS = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local CURSE_OF_AGONY_IDS = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local HEALTH_FUNNEL_IDS = { 27259, 11695, 11694, 11693, 755, 3699, 3700 }
+local DRAIN_LIFE_IDS = { 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }
 
 local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
 
@@ -95,6 +114,7 @@ local function build_state(context)
     leveling_state.use_immolate = settings.leveling_use_immolate ~= false
     leveling_state.use_corruption = settings.leveling_use_corruption ~= false
     leveling_state.use_curse_of_agony = settings.leveling_use_curse_of_agony ~= false
+    leveling_state.drain_life_hp = settings.leveling_drain_life_hp or 60
 
     -- Spell readiness (each returns false if spell not learned)
     leveling_state.shadow_bolt_ready = safe_is_spell_ready(SPELLS.ShadowBolt, context.target)
@@ -108,7 +128,11 @@ local function build_state(context)
     leveling_state.health_funnel_ready = safe_is_spell_ready(SPELLS.HealthFunnel, nil, { skip_range = true })
     leveling_state.fel_armor_ready = safe_is_spell_ready(SPELLS.FelArmor, nil, { skip_range = true })
     leveling_state.healthstone_ready = safe_is_spell_ready(SPELLS.CreateHealthstone, nil, { skip_range = true })
+    leveling_state.soulstone_ready = safe_is_spell_ready(SPELLS.CreateSoulstone, nil, { skip_range = true })
     leveling_state.spell_lock_ready = safe_is_spell_ready(SPELLS.SpellLock, context.target)
+    leveling_state.howl_of_terror_ready = safe_is_spell_ready(SPELLS.HowlofTerror, nil, { skip_range = true })
+    leveling_state.siphon_life_ready = safe_is_spell_ready(SPELLS.SiphonLife, context.target)
+    leveling_state.drain_life_ready = safe_is_spell_ready(SPELLS.DrainLife, context.target)
 
     -- Wand readiness
     leveling_state.wand_learned = NS.spell_exists and NS.spell_exists(WAND_SPELL_ID) or false
@@ -231,6 +255,55 @@ local function curse_of_agony_matches(context, state)
     return state.curse_of_agony_ready
 end
 
+local function soulstone_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if state.in_combat then return false end
+    return state.soulstone_ready
+end
+
+local function howl_of_terror_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.howl_of_terror_ready then return false end
+    if state.enemies < 3 then return false end
+    if state.hp > 40 then return false end
+    return true
+end
+
+local function siphon_life_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not state.siphon_life_ready then return false end
+    local remains = safe_debuff_remains(state.target, SPELLS.SiphonLife)
+    if remains > 4 then return false end
+    return true
+end
+
+local function drain_life_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not state.drain_life_ready then return false end
+    if state.is_moving then return false end
+    -- Only drain life when HP is below threshold
+    if state.hp > (state.drain_life_hp or 60) then return false end
+    -- Don't drain if target is in execute range (Drain Soul handles that)
+    local target_hp = 100
+    if state.target then
+        local ok, hp = pcall(function() return state.target:get_health_percentage() end)
+        if ok and hp then target_hp = hp end
+    end
+    if target_hp <= (state.drain_soul_execute or 25) then return false end
+    -- Don't drain if mana too low (keep reserve for Life Tap or wand)
+    if state.mana_pct < 10 then return false end
+    return true
+end
+
 local function drain_soul_matches(context, state)
     if not leveling_context_allowed(context) then return false end
     if not state then return false end
@@ -288,7 +361,11 @@ local strategies = {
       matches = healthstone_matches,
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.CreateHealthstone, NS.PLAYER_UNIT, "[LEVELING] Healthstone") or false end },
 
-    -- Pet sustain
+    -- OOC: Soulstone (self-buff, pre-death safety)
+    { name = "CreateSoulstone",
+      matches = soulstone_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.CreateSoulstone, NS.PLAYER_UNIT, "[LEVELING] Soulstone") or false end },
+
     -- Interrupt
     { name = "SpellLock",
       matches = spell_lock_matches,
@@ -303,6 +380,11 @@ local strategies = {
     { name = "Fear",
       matches = fear_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.Fear, context.target, "[LEVELING] Fear") or false end },
+
+    -- CC: Howl of Terror (AoE fear escape)
+    { name = "HowlOfTerror",
+      matches = howl_of_terror_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.HowlofTerror, nil, "[LEVELING] Howl of Terror") or false end },
 
     { name = "DeathCoil",
       matches = death_coil_matches,
@@ -325,6 +407,16 @@ local strategies = {
     { name = "CurseOfAgony",
       matches = curse_of_agony_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.CurseOfAgony, context.target, "[LEVELING] Curse of Agony") or false end },
+
+    -- DoT: Siphon Life (damage + self-heal)
+    { name = "SiphonLife",
+      matches = siphon_life_matches,
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.SiphonLife, context.target, "[LEVELING] Siphon Life") or false end },
+
+    -- Sustain: Drain Life (channeled damage + self-heal)
+    { name = "DrainLife",
+      matches = drain_life_matches,
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.DrainLife, context.target, "[LEVELING] Drain Life") or false end },
 
     -- Execute / low mana filler
     { name = "DrainSoul",

@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/paladin/class_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Paladin spell table, playstyle config, and child module loader.
 
 -- ============================================================================
@@ -13,7 +31,8 @@ local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("paladin", "Paladin")
 local enums = cl.get_enums()
 local player = NS.GetPlayer()
-if not player or player:get_class() ~= enums.class_id.PALADIN then return nil end
+local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
+if not ok_cls or cls_id ~= enums.class_id.PALADIN then return nil end
 
 local SPELLS = {
     AvengerShield = NS.spell_action({
@@ -485,9 +504,13 @@ NS.rotation_registry:set_class_config(config)
 
 load_child("middleware_sylvanas")
 load_child("heal_helper_sylvanas")
-load_child("leveling_sylvanas")
+load_child("leveling_sylvanas", true)
 load_child("holy_sylvanas")
 load_child("protection_sylvanas")
 load_child("retribution_sylvanas")
+-- Reset API health after a /reload so spell_book is re-probed fresh.
+if NS.reset_api_health then NS.reset_api_health() end
+-- Dump known spells for debugging; run once at load.
+if NS.dump_class_spells then NS.dump_class_spells("Paladin") end
 NS.log("Paladin class module loaded")
 return config

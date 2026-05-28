@@ -1,6 +1,25 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/paladin/leveling_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Paladin leveling priority list.
 -- Designed for solo/leveling play, from level 1 to 70.
 -- Handles unlearned spells gracefully via NS.spell_ready checks.
+-- Spells: Holy Shield (lvl 40+), Consecration (lvl 20+), Holy Light (lvl 1+), Cleanse (lvl 42+), Blessing of Wisdom (lvl 4+).
 
 -- ============================================================================
 -- What: Paladin leveling priority with seal, aura, and solo fallback logic.
@@ -20,7 +39,9 @@ local leveling = require("shared/leveling_sylvanas")
 
 local SEAL_WISDOM_BUFF = { 27166, 20357, 20356, 20166 }
 local BLESSING_MIGHT_BUFF = { 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }
+local BLESSING_WISDOM_BUFF = { 27142, 25290, 19854, 19853, 19852, 19850 }
 local DEVOTION_AURA_BUFF = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
+local HOLY_SHIELD_BUFF = { 27179, 20928, 20927, 20925 }
 local SEAL_OF_WISDOM = 20170
 local SEAL_OF_RIGHTEOUSNESS = 20154
 local SEAL_OF_COMMAND = 20375
@@ -54,17 +75,25 @@ local function build_state(context)
     leveling.build_common_state(context, leveling_state)
 
     -- Buffs
-    leveling_state.has_blessing_might = safe_buff_up(context.me, BLESSING_MIGHT_BUFF)
-    leveling_state.has_devotion_aura = safe_buff_up(context.me, DEVOTION_AURA_BUFF)
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(25780, 3.0) or false
+    if not skip_aura then
+        leveling_state.has_blessing_might = safe_buff_up(context.me, BLESSING_MIGHT_BUFF)
+        leveling_state.has_blessing_wisdom = safe_buff_up(context.me, BLESSING_WISDOM_BUFF)
+        leveling_state.has_devotion_aura = safe_buff_up(context.me, DEVOTION_AURA_BUFF)
+        leveling_state.has_holy_shield = safe_buff_up(context.me, HOLY_SHIELD_BUFF)
+    end
 
     -- Spell readiness
     leveling_state.blessing_might_ready = spell_is_ready(SPELLS.BlessingOfMight, nil, { skip_range = true })
+    leveling_state.blessing_wisdom_ready = spell_is_ready(SPELLS.BlessingOfWisdom, nil, { skip_range = true })
     leveling_state.devotion_aura_ready = spell_is_ready(SPELLS.DevotionAura, nil, { skip_range = true })
     leveling_state.seal_righteousness_ready = spell_is_ready(SPELLS.SealRighteousness, nil, { skip_range = true })
     leveling_state.seal_command_ready = spell_is_ready(SPELLS.SealCommand, nil, { skip_range = true })
     leveling_state.seal_blood_ready = spell_is_ready(SPELLS.SealBlood, nil, { skip_range = true })
     leveling_state.judgement_ready = spell_is_ready(SPELLS.Judgement, context.target)
     leveling_state.consecration_ready = spell_is_ready(SPELLS.Consecration, context.target)
+    leveling_state.holy_shield_ready = spell_is_ready(SPELLS.HolyShield, nil, { skip_range = true })
     leveling_state.hammer_wrath_ready = spell_is_ready(SPELLS.HammerOfWrath, context.target)
     leveling_state.crusader_strike_ready = spell_is_ready(SPELLS.CrusaderStrike, context.target)
     leveling_state.hammer_justice_ready = spell_is_ready(SPELLS.HammerOfJustice, context.target)
@@ -72,12 +101,49 @@ local function build_state(context)
     leveling_state.divine_shield_ready = spell_is_ready(SPELLS.DivineShield, nil, { skip_range = true })
     leveling_state.lay_on_hands_ready = spell_is_ready(SPELLS.LayOnHands, nil, { skip_range = true })
     leveling_state.flash_light_ready = spell_is_ready(SPELLS.FlashOfLight, context.me)
+    leveling_state.holy_light_ready = spell_is_ready(SPELLS.HolyLight, context.me)
+    leveling_state.cleanse_ready = spell_is_ready(SPELLS.Cleanse, nil, { skip_range = true })
 
     return leveling_state
 end
 
 -- ============================================================================
 -- Match functions
+-- ============================================================================
+
+local function holy_shield_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if not state.in_combat then return false end
+    if state.has_holy_shield then return false end
+    return state.holy_shield_ready
+end
+
+local function blessing_wisdom_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if state.in_combat then return false end
+    if state.has_blessing_wisdom then return false end
+    if state.has_blessing_might then return false end
+    return state.blessing_wisdom_ready
+end
+
+local function holy_light_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if not state.in_combat then return false end
+    if state.hp > 35 then return false end
+    return state.holy_light_ready
+end
+
+local function cleanse_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    -- OOC debuff cleanup between pulls
+    if state.in_combat then return false end
+    return state.cleanse_ready
+end
+
 -- ============================================================================
 
 local function blessing_might_matches(context, state)
@@ -197,9 +263,27 @@ local strategies = {
       matches = blessing_might_matches,
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.BlessingOfMight, NS.PLAYER_UNIT, "[LEVELING] Blessing of Might") or false end },
 
+    -- OOC: Blessing of Wisdom for mana sustain (prefer Might when it's up, fallback to Wisdom)
+    { name = "BlessingWisdom",
+      matches = blessing_wisdom_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.BlessingOfWisdom, NS.PLAYER_UNIT, "[LEVELING] Blessing of Wisdom") or false end },
+
     { name = "DevotionAura",
       matches = devotion_aura_matches,
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.DevotionAura, NS.PLAYER_UNIT, "[LEVELING] Devotion Aura") or false end },
+
+    -- Self-buffs / defensives
+    { name = "HolyShield",
+      matches = holy_shield_matches,
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.HolyShield, context.me, "[LEVELING] Holy Shield") or false
+      end },
+
+    -- OOC: Cleanse debuffs between pulls
+    { name = "Cleanse",
+      matches = cleanse_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.Cleanse, NS.PLAYER_UNIT, "[LEVELING] Cleanse") or false end },
 
     -- Survival
     { name = "FlashOfLight",
@@ -207,6 +291,14 @@ local strategies = {
       execute = function(context)
         if not context then return false end
         return NS.try_cast and NS.try_cast(SPELLS.FlashOfLight, context.me, "[LEVELING] Flash of Light") or false
+      end },
+
+    -- Big heal when critically low
+    { name = "HolyLight",
+      matches = holy_light_matches,
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.HolyLight, context.me, "[LEVELING] Holy Light") or false
       end },
 
     { name = "DivineShield",

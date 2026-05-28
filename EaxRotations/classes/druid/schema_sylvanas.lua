@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/druid/schema_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Druid menu schema.
 
 -- ============================================================================
@@ -25,6 +43,10 @@ return {
                     { key = "use_cooldowns", type = "checkbox", label = "Cooldowns", default = true },
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
+                    { key = "use_self_buffs", type = "checkbox", label = "Self Buffs", default = true },
+                    { key = "auto_dispel", type = "checkbox", label = "Auto Dispel (party)", default = true, description = "Auto-remove curse and poison on self and party members" },
+                    { key = "use_cc_break", type = "checkbox", label = "CC Break (Shapeshift)", default = true, tooltip = "Preemptively shapeshift when enemy casts Polymorph/Cyclone/Hibernate at you; shift to break roots/snares" },
+                    { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Swipe/Hurricane when a nearby enemy is Polymorphed/Cycloned/etc." },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
                 },
             },
@@ -36,6 +58,7 @@ return {
                     { key = "bear_barkskin_hp", type = "slider", label = "Barkskin HP%", min = 0, max = 100, default = 55 },
                     { key = "bear_frenzied_regen_hp", type = "slider", label = "Frenzied Regen HP%", min = 0, max = 100, default = 35 },
                     { key = "bear_demo_roar", type = "checkbox", label = "Demoralizing Roar", default = true },
+                    { key = "auto_bear_form_ooc", type = "checkbox", label = "Auto Bear Form OOC", default = true },
                 },
             },
             {
@@ -126,6 +149,10 @@ return {
                     { key = "use_mana_potions", type = "checkbox", label = "Mana Potions", default = true },
                     { key = "mana_potion_threshold", type = "slider", label = "Mana Potion at %", min = 0, max = 100, default = 40 },
                     { key = "health_potion_threshold", type = "slider", label = "Health Potion at %", min = 0, max = 100, default = 35 },
+                    { key = "use_healthstone", type = "checkbox", label = "Healthstones (auto-use)", default = false, description = "Auto-use healthstone at HP threshold" },
+                    { key = "healthstone_hp", type = "slider", label = "Healthstone HP%", min = 0, max = 100, default = 30 },
+                    { key = "use_healing_potion", type = "checkbox", label = "Healing Potions (auto-use)", default = false, description = "Auto-use healing potion at HP threshold" },
+                    { key = "healing_potion_hp", type = "slider", label = "Healing Potion HP%", min = 0, max = 100, default = 35 },
                 },
             },
         },

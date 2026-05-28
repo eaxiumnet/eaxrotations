@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/threat_manager_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Helper: Threat Manager
 -- Threat zone detection (green/yellow/orange/red), FD + Soulshatter modes
@@ -105,14 +123,11 @@ function M.use_feign_death(spell_id, mode, ctx)
     if now - _last_fd_time < 10 then return false end
 
     if M.should_drop_threat(mode, me) then
-        -- Check spell is ready
-        local ok, cd = pcall(core.spell_book.get_spell_cooldown, spell_id)
-        if ok and cd and cd == 0 then
-            local ok2 = pcall(core.input.cast_target_spell, spell_id, me)
-            if ok2 then
+        -- Route threat drops through the central cast guard; cooldown-only checks
+        -- miss GCD/resource/reagent validation and can spam failed casts.
+        if NS.try_cast and NS.try_cast(spell_id, me, "[THREAT] Feign Death", { skip_range = true }) == true then
                 _last_fd_time = now
                 return true
-            end
         end
     end
 
@@ -140,13 +155,11 @@ function M.use_soulshatter(spell_id, mode, ctx)
     if now - _last_soulshatter_time < 30 then return false end
 
     if M.should_drop_threat(mode, me) then
-        local ok, cd = pcall(core.spell_book.get_spell_cooldown, spell_id)
-        if ok and cd and cd == 0 then
-            local ok2 = pcall(core.input.cast_target_spell, spell_id, me)
-            if ok2 then
+        -- Route Soulshatter through the central guard to prevent GCD/cooldown,
+        -- resource, reagent, or anti-flicker bypasses.
+        if NS.try_cast and NS.try_cast(spell_id, me, "[THREAT] Soulshatter", { skip_range = true }) == true then
                 _last_soulshatter_time = now
                 return true
-            end
         end
     end
 
@@ -183,11 +196,10 @@ function M.use_misdirection(spell_id, target_type, ctx)
 
     if not target then return false end
 
-    local ok, cd = pcall(core.spell_book.get_spell_cooldown, spell_id)
-    if not ok or not cd or cd > 0 then return false end
-
-    local ok2 = pcall(core.input.cast_target_spell, spell_id, target)
-    return ok2 or false
+    -- Misdirection is target-sensitive, so keep the resolved target but let the
+    -- central guard own readiness/range/resource checks before dispatch.
+    if not NS.try_cast then return false end
+    return NS.try_cast(spell_id, target, "[THREAT] Misdirection") == true
 end
 
 -- ============================================================================

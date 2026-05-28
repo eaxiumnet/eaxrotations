@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/paladin/holy_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Paladin Holy group-healing playstyle with TBC healing, blessings, dispels, mana, and PvP utility.
 
 -- ============================================================================
@@ -386,6 +404,8 @@ local function try_use_item(item_ids, reason)
 end
 
 local function build_state(context)
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(20216, 3.0) or false
     local entries, count = Healing.scan_healing_targets()
     state.entries = entries
     state.count = count or 0
@@ -411,19 +431,21 @@ local function build_state(context)
     state.moving = context and context.is_moving or false
     state.in_pvp = NS.is_pvp_zone and NS.is_pvp_zone() or context and context.is_pvp or false
     state.use_group_blessings = state.count >= 5
-    state.has_divine_favor = NS.has_player_buff(BUFF_DIVINE_FAVOR)
-    state.has_divine_illumination = NS.has_player_buff(BUFF_DIVINE_ILLUMINATION)
-    state.has_forbearance = NS.has_player_buff(BUFF_FORBEARANCE)
-    state.has_seal_wisdom = NS.has_player_buff(BUFF_SEAL_WISDOM)
-    state.has_seal_righteousness = NS.has_player_buff(BUFF_SEAL_RIGHTEOUSNESS)
-    state.has_concentration_aura = NS.has_player_buff(BUFF_CONCENTRATION_AURA)
-    state.has_devotion_aura = NS.has_player_buff(BUFF_DEVOTION_AURA)
-    state.has_fire_aura = NS.has_player_buff(BUFF_FIRE_RESIST_AURA)
-    state.has_frost_aura = NS.has_player_buff(BUFF_FROST_RESIST_AURA)
-    state.has_shadow_aura = NS.has_player_buff(BUFF_SHADOW_RESIST_AURA)
-    state.has_lights_grace = NS.has_player_buff(BUFF_LIGHTS_GRACE)
-    state.target_has_jol = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_LIGHT) or false
-    state.target_has_jow = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_WISDOM) or false
+    if not skip_aura then
+        state.has_divine_favor = NS.has_player_buff(BUFF_DIVINE_FAVOR)
+        state.has_divine_illumination = NS.has_player_buff(BUFF_DIVINE_ILLUMINATION)
+        state.has_forbearance = NS.has_player_buff(BUFF_FORBEARANCE)
+        state.has_seal_wisdom = NS.has_player_buff(BUFF_SEAL_WISDOM)
+        state.has_seal_righteousness = NS.has_player_buff(BUFF_SEAL_RIGHTEOUSNESS)
+        state.has_concentration_aura = NS.has_player_buff(BUFF_CONCENTRATION_AURA)
+        state.has_devotion_aura = NS.has_player_buff(BUFF_DEVOTION_AURA)
+        state.has_fire_aura = NS.has_player_buff(BUFF_FIRE_RESIST_AURA)
+        state.has_frost_aura = NS.has_player_buff(BUFF_FROST_RESIST_AURA)
+        state.has_shadow_aura = NS.has_player_buff(BUFF_SHADOW_RESIST_AURA)
+        state.has_lights_grace = NS.has_player_buff(BUFF_LIGHTS_GRACE)
+        state.target_has_jol = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_LIGHT) or false
+        state.target_has_jow = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_WISDOM) or false
+    end
 
     for i = 1, state.count do
         local entry = entries[i]
@@ -797,3 +819,4 @@ local strategies = {
 NS.rotation_registry:register("holy", strategies, { get_state = build_state })
 NS.log("Paladin holy rotation registered (deep TBC healing/buff utility)")
 return strategies
+

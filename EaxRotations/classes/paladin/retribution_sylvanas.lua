@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/paladin/retribution_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- TBC Retribution Paladin priority module for the Sylvanas dispatcher.
 
 -- ============================================================================
@@ -34,6 +52,7 @@ local HammerJustice = SPELLS.HammerOfJustice or action({ 10308, 5589, 5588, 853 
 local Repentance = SPELLS.Repentance or action({ 20066 }, "Repentance")
 
 local SEAL_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
+local SEAL_COMMAND_RANK1_BUFF = { 20375 }
 local SEAL_BLOOD_BUFF = { 31892 }
 local SEAL_MARTYR_BUFF = { 348701, 348700 }
 local SEAL_RIGHTEOUSNESS_BUFF = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084 }
@@ -41,6 +60,7 @@ local SEAL_CRUSADER_BUFF = { 27158, 20308, 20307, 20306, 20305, 21082, 20162 }
 local SEAL_WISDOM_BUFF = { 27166, 20357, 20356, 20166 }
 local JUDGEMENT_CRUSADER_DEBUFF = { 27159, 20303, 20302, 20301, 20300, 20188, 20186 }
 local JUDGEMENT_WISDOM_DEBUFF = { 27164, 20354, 20353, 20352, 20186 }
+local SANCTITY_AURA_GATE_BUFF = { 20218, 32223 }
 local BLESSING_MIGHT_BUFF = { 27140, 25291, 25782, 19838, 19837, 19836, 19835, 19834, 19832, 19831, 19830, 19740 }
 local BLESSING_KINGS_BUFF = { 20217 }
 local FORBEARANCE_DEBUFF = { 25771 }
@@ -73,7 +93,7 @@ end
 local TWIST_WINDOW = 0.45
 local TWIST_PREP_WINDOW = 1.20
 local MELEE_RANGE = 8
-local EXORCISM_ACTION = { name = "Exorcism", spell = SPELLS.Exorcism, not_moving = true, cooldown = 15, min_mana = 20, creature_types = DEMON_OR_UNDEAD }
+
 
 local ret_state = {
     hp_pct = 100,
@@ -133,22 +153,11 @@ end
 local function unit_has_debuff(unit, ids)
     if not unit then return false end
     if NS.has_target_debuff then return NS.has_target_debuff(unit, ids) end
-    if unit.has_debuff then
-        for i = 1, #ids do
-            if unit:has_debuff(ids[i]) then return true end
-        end
-    end
     return false
 end
 
 local function unit_has_buff(unit, ids)
-    if not unit then return false end
-    if unit.has_buff then
-        for i = 1, #ids do
-            if unit:has_buff(ids[i]) then return true end
-        end
-    end
-    return false
+    return NS.buff_up(unit, ids)
 end
 
 local function health_pct(unit, fallback)
@@ -225,6 +234,8 @@ local function damage_seal_spell(state)
 end
 
 local function build_state(context)
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(27170, 3.0) or false
     ret_state.hp_pct = context.hp or health_pct(context.me, 100)
     ret_state.mana_pct = context.mana_pct or context.mana or 100
     ret_state.enemy_count = context.enemy_count or context.enemies_nearby or 1
@@ -233,6 +244,9 @@ local function build_state(context)
     ret_state.seal_preference = get_setting(context, "seal_preference", get_setting(context, "retri_seal_preference", "auto"))
     ret_state.can_use_blood = should_use_blood(context)
     ret_state.preferred_damage_seal = ret_state.can_use_blood and "blood" or "command"
+    -- [ARTISTRY] Improved: Dynamic Twist Window from settings (ms to seconds)
+    local twist_ms = get_setting(context, "retri_twist_window", 450)
+    ret_state.twist_window = twist_ms / 1000
     -- Alliance faction override: Seal of the Martyr replaces Seal of Blood
     if SPELLS.SealOfTheMartyr and NS.unit_faction and NS.GetPlayer() then
         local faction = NS.unit_faction(NS.GetPlayer())
@@ -240,19 +254,21 @@ local function build_state(context)
             ret_state.preferred_damage_seal = "martyr"
         end
     end
-    ret_state.has_blood = has_player_buff(SEAL_BLOOD_BUFF)
-    ret_state.has_command = has_player_buff(SEAL_COMMAND_BUFF)
-    ret_state.has_command_rank1 = has_player_buff({ 20375 })
-    ret_state.has_crusader = has_player_buff(SEAL_CRUSADER_BUFF)
-    ret_state.has_righteousness = has_player_buff(SEAL_RIGHTEOUSNESS_BUFF)
-    ret_state.has_wisdom = has_player_buff(SEAL_WISDOM_BUFF)
-    ret_state.has_martyr = has_player_buff(SEAL_MARTYR_BUFF)
-    ret_state.has_damage_seal = ret_state.has_blood or ret_state.has_command or ret_state.has_righteousness or ret_state.has_martyr
-    ret_state.has_might = has_player_buff(BLESSING_MIGHT_BUFF)
-    ret_state.has_kings = has_player_buff(BLESSING_KINGS_BUFF)
-    ret_state.has_forbearance = has_player_debuff(FORBEARANCE_DEBUFF)
-    ret_state.target_has_crusader = unit_has_debuff(context.target, JUDGEMENT_CRUSADER_DEBUFF)
-    ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
+    if not skip_aura then
+        ret_state.has_blood = has_player_buff(SEAL_BLOOD_BUFF)
+        ret_state.has_command = has_player_buff(SEAL_COMMAND_BUFF)
+        ret_state.has_command_rank1 = has_player_buff(SEAL_COMMAND_RANK1_BUFF)
+        ret_state.has_crusader = has_player_buff(SEAL_CRUSADER_BUFF)
+        ret_state.has_righteousness = has_player_buff(SEAL_RIGHTEOUSNESS_BUFF)
+        ret_state.has_wisdom = has_player_buff(SEAL_WISDOM_BUFF)
+        ret_state.has_martyr = has_player_buff(SEAL_MARTYR_BUFF)
+        ret_state.has_damage_seal = ret_state.has_blood or ret_state.has_command or ret_state.has_righteousness or ret_state.has_martyr
+        ret_state.has_might = has_player_buff(BLESSING_MIGHT_BUFF)
+        ret_state.has_kings = has_player_buff(BLESSING_KINGS_BUFF)
+        ret_state.has_forbearance = has_player_debuff(FORBEARANCE_DEBUFF)
+        ret_state.target_has_crusader = unit_has_debuff(context.target, JUDGEMENT_CRUSADER_DEBUFF)
+        ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
+    end
     ret_state.target_casting = is_casting(context.target)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
@@ -266,7 +282,7 @@ local function build_state(context)
 end
 
 local function ready(spell, target, opts)
-    return spell ~= nil and NS.spell_ready and NS.spell_ready(spell, target, opts or {})
+    return spell ~= nil and NS.spell_ready(spell, target, opts or {})
 end
 
 local function cast(spell, target, reason, opts)
@@ -297,7 +313,7 @@ end, function() return cast(SPELLS.LayOnHands, PLAYER, "[RET] Lay on Hands last 
 
 add_strategy(strategies, "Ret_SanctityAura", 550, function(context, state)
     if not get_setting(context, "sanctity_aura_enabled", get_setting(context, "retri_aura_enabled", true)) then return false end
-    if has_player_buff({ 20218, 32223 }) then return false end
+    if has_player_buff(SANCTITY_AURA_GATE_BUFF) then return false end
     return ready(SPELLS.SanctityAura, PLAYER, { skip_range = true })
 end, function() return cast(SPELLS.SanctityAura, PLAYER, "[RET] Sanctity Aura", { skip_range = true }) end)
 
@@ -381,7 +397,8 @@ strategies[#strategies + 1] = {
     name = "SealTwistBlood",
     priority = 760,
     matches = function(context, state)
-        return state.can_twist and state.has_command and not state.has_blood and state.swing_remains <= TWIST_WINDOW and ready(SPELLS.SealBlood, PLAYER, { skip_range = true })
+        -- [ARTISTRY] Improved: Use dynamic twist_window instead of hardcoded 0.45s
+        return state.can_twist and state.has_command and not state.has_blood and state.swing_remains <= state.twist_window and ready(SPELLS.SealBlood, PLAYER, { skip_range = true })
     end,
     execute = function()
         return cast(SPELLS.SealBlood, PLAYER, "[RET] Seal twist: Blood", { skip_range = true })
@@ -392,7 +409,9 @@ strategies[#strategies + 1] = {
     name = "SealTwistPrepCommand",
     priority = 750,
     matches = function(context, state)
-        return state.can_twist and state.can_use_blood and not state.has_command_rank1 and state.swing_remains <= TWIST_PREP_WINDOW and state.swing_remains > TWIST_WINDOW and ready(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, { skip_range = true })
+        -- [ARTISTRY] Improved: Sync prep window with dynamic twist_window
+        local prep_start = state.twist_window + 0.75 -- Give enough time for GCD + Reaction
+        return state.can_twist and state.can_use_blood and not state.has_command_rank1 and state.swing_remains <= prep_start and state.swing_remains > state.twist_window and ready(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, { skip_range = true })
     end,
     execute = function()
         return cast(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, "[RET] Seal twist prep: Rank 1 Command", { skip_range = true })
@@ -471,8 +490,20 @@ add_strategy(strategies, "Ret_Consecration_ManaDump", 590, function(context, sta
 end, function() return cast(SPELLS.Consecration, PLAYER, "[RET] Consecration mana dump", { skip_range = true, expected_cooldown = 8 }) end, 8)
 
 add_strategy(strategies, "Exorcism", 580, function(context)
-    return NS.action_matches(context, EXORCISM_ACTION)
-end, function(context) return NS.action_execute(context, EXORCISM_ACTION, "[RET]") end, 15)
+    -- [ARTISTRY] Improved: TBC Exorcism only works on Undead and Demons.
+    if not context.target then return false end
+    local type = context.target.get_creature_type and context.target:get_creature_type()
+    return DEMON_OR_UNDEAD[type] or false
+end, function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[RET] Exorcism", { expected_cooldown = 15 }) end, 15)
+
+add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
+    -- [ARTISTRY] Improved: TBC Holy Wrath works on Undead/Demon groups.
+    if state.enemy_count < 2 or state.mana_pct < 40 then return false end
+    if not ready(SPELLS.HolyWrath, PLAYER, { skip_range = true }) then return false end
+    -- Check if target is undead/demon
+    local type = context.target and context.target.get_creature_type and context.target:get_creature_type()
+    return DEMON_OR_UNDEAD[type] or false
+end, function() return cast(SPELLS.HolyWrath, PLAYER, "[RET] Holy Wrath AoE", { skip_range = true }) end, 30)
 
 add_strategy(strategies, "Ret_JudgeSecondary_CommandCleave", 570, function(context, state)
     return state.secondary_target ~= nil and state.has_command and state.mana_pct >= 30 and ready(SPELLS.Judgement, state.secondary_target, { expected_cooldown = 10 })
@@ -527,3 +558,4 @@ end, function() return cast(SPELLS.SealOfTheMartyr, PLAYER, "[RET] Seal of the M
 
 NS.rotation_registry:register("retribution", strategies, { get_state = build_state })
 return { strategies = strategies, build_state = build_state }
+

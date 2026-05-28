@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/shaman/elemental_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Shaman Elemental priority list.
 -- ============================================================================
 -- What: TBC Shaman Elemental priority list for Lightning Bolt, shocks, and totem support
@@ -130,6 +148,7 @@ end
 -- ============================================================================
 
 local function lightning_shield_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LightningShield, 3.0) then return false end
     local s = context.settings or {}
     if state.mana_emergency then return false end
     if s.elemental_lightning_shield == false then return false end
@@ -181,6 +200,7 @@ local function lightning_bolt_matches_fn(context, state)
 end
 
 local function flame_shock_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlameShock, 2.0) then return false end
     if not context.target then return false end
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
     if state.flame_remains > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
@@ -237,6 +257,7 @@ local function natures_swiftness_matches_fn(context, state)
 end
 
 local function water_shield_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.WaterShield, 3.0) then return false end
     local s = context.settings or {}
     if state.mana_emergency then return false end
     local ws_mana = s.elemental_water_shield_mana or WATER_SHIELD_MANA_DEFAULT
@@ -250,6 +271,7 @@ local function ghost_wolf_matches_fn(context, state)
 end
 
 local function tremor_totem_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.TremorTotem, 3.0) then return false end
     if not context.in_combat then return false end
     if state.mana_emergency then return false end
     if not context.fear_nearby then return false end
@@ -263,6 +285,7 @@ local function earthbind_totem_matches_fn(context, state)
 end
 
 local function mana_tide_totem_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaTideTotem, 3.0) then return false end
     if state.mana_emergency then return false end
     if state.mana_pct > 30 then return false end
     return NS.spell_ready(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true })
@@ -278,6 +301,7 @@ end
 -- ============================================================================
 
 local function flametongue_weapon_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlametongueWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_flametongue then return false end
     return NS.spell_ready(SPELLS.FlametongueWeapon, NS.PLAYER_UNIT, { skip_range = true })
@@ -292,6 +316,7 @@ local function flametongue_weapon_execute(context, state)
 end
 
 local function windfury_weapon_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.WindfuryWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_windfury then return false end
     return NS.spell_ready(SPELLS.WindfuryWeapon, NS.PLAYER_UNIT, { skip_range = true })
@@ -306,6 +331,7 @@ local function windfury_weapon_execute(context, state)
 end
 
 local function rockbiter_weapon_matches_fn(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.RockbiterWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_rockbiter then return false end
     return NS.spell_ready(SPELLS.RockbiterWeapon, NS.PLAYER_UNIT, { skip_range = true })

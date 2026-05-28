@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/reagent_guard_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- reagent_guard_sylvanas.lua (Phase 1)
 -- Centralised reagent check for spells that consume items.
@@ -34,14 +52,20 @@ local REAGENT_MAP = {
     -- ========================================================================
     -- Warlock — Soul Shard (item 6265)
     -- ========================================================================
-    [635]  = { item = 6265, count = 1 }, -- Soul Fire (Rank 1)
-    [636]  = { item = 6265, count = 1 }, -- Soul Fire (Rank 2)
-    [637]  = { item = 6265, count = 1 }, -- Soul Fire (Rank 3)
-    [638]  = { item = 6265, count = 1 }, -- Soul Fire (Rank 4)
-    [639]  = { item = 6265, count = 1 }, -- Soul Fire (Rank 5)
+    [6353]  = { item = 6265, count = 1 }, -- Soul Fire (Rank 1, TBC)
+    [17924] = { item = 6265, count = 1 }, -- Soul Fire (Rank 2, TBC)
+    [27211] = { item = 6265, count = 1 }, -- Soul Fire (Rank 3, TBC)
+    [30545] = { item = 6265, count = 1 }, -- Soul Fire (Rank 4, TBC)
     [27247] = { item = 6265, count = 1 }, -- Shadowburn (Rank 6)
     [27248] = { item = 6265, count = 1 }, -- Shadowburn (Rank 7)
     [17877] = { item = 6265, count = 1 }, -- Shadowburn (Rank 8/Immo-lock variant)
+    [18867] = { item = 6265, count = 1 }, -- Shadowburn (Rank 1)
+    [18868] = { item = 6265, count = 1 }, -- Shadowburn (Rank 2)
+    [18869] = { item = 6265, count = 1 }, -- Shadowburn (Rank 3)
+    [18870] = { item = 6265, count = 1 }, -- Shadowburn (Rank 4)
+    [18871] = { item = 6265, count = 1 }, -- Shadowburn (Rank 5)
+    [27263] = { item = 6265, count = 1 }, -- Shadowburn (Rank 6)
+    [30546] = { item = 6265, count = 1 }, -- Shadowburn (Rank 7)
     [6201]  = { item = 6265, count = 1 }, -- Create Healthstone (Rank 1)
     [6202]  = { item = 6265, count = 1 }, -- Create Healthstone (Rank 2)
     [5699]  = { item = 6265, count = 1 }, -- Create Healthstone (Rank 3)
@@ -55,7 +79,10 @@ local REAGENT_MAP = {
     [20757] = { item = 6265, count = 1 }, -- Create Soulstone (Rank 5)
     [27238] = { item = 6265, count = 1 }, -- Create Soulstone (Rank 6)
     [29893] = { item = 6265, count = 2 }, -- Ritual of Souls (costs 2 shards)
-    -- Drain Soul (rank-dependent shard generation, not a consumer)
+    [5175] = { item = 5175, count = 1 },
+    [5176] = { item = 5176, count = 1 },
+    [5177] = { item = 5177, count = 1 },
+    [5178] = { item = 5178, count = 1 },
 
     -- ========================================================================
     -- Priest — Sacred Candle (item 17030) / Holy Candle (item 17031)
@@ -69,34 +96,37 @@ local REAGENT_MAP = {
     [14819] = { item = 17031, count = 1 }, -- Divine Spirit (Rank 3)
     [27841] = { item = 17031, count = 1 }, -- Divine Spirit (Rank 4)
     [25312] = { item = 17031, count = 1 }, -- Divine Spirit (Rank 5)
+    [25392] = { item = 17030, count = 1 }, -- Prayer of Fortitude (Rank 3)
+    [21564] = { item = 17030, count = 1 }, -- Prayer of Fortitude (Rank 2)
+    [21562] = { item = 17030, count = 1 }, -- Prayer of Fortitude (Rank 1)
 
     -- ========================================================================
     -- Paladin — Symbol of Kings (item 21142) for Greater Blessings
     -- ========================================================================
-    [25898] = { item = 21142, count = 2 }, -- Greater Blessing of Kings (rank 1)
-    [25916] = { item = 21142, count = 2 }, -- Greater Blessing of Kings (rank 2)
-    [25917] = { item = 21142, count = 2 }, -- Greater Blessing of Kings (rank 3)
-    [27181] = { item = 21142, count = 2 }, -- Greater Blessing of Kings (rank 4)
-    [25918] = { item = 21142, count = 2 }, -- Greater Blessing of Might (rank 1)
-    [27143] = { item = 21142, count = 2 }, -- Greater Blessing of Might (rank 2)
-    [27144] = { item = 21142, count = 2 }, -- Greater Blessing of Might (rank 3)
-    [27145] = { item = 21142, count = 2 }, -- Greater Blessing of Might (rank 4)
-    [25919] = { item = 21142, count = 2 }, -- Greater Blessing of Wisdom (rank 1)
-    [27146] = { item = 21142, count = 2 }, -- Greater Blessing of Wisdom (rank 2)
-    [27147] = { item = 21142, count = 2 }, -- Greater Blessing of Wisdom (rank 3)
-    [27148] = { item = 21142, count = 2 }, -- Greater Blessing of Wisdom (rank 4)
-    [25920] = { item = 21142, count = 2 }, -- Greater Blessing of Light (rank 1)
-    [27149] = { item = 21142, count = 2 }, -- Greater Blessing of Light (rank 2)
-    [27150] = { item = 21142, count = 2 }, -- Greater Blessing of Light (rank 3)
-    [27151] = { item = 21142, count = 2 }, -- Greater Blessing of Light (rank 4)
-    [25921] = { item = 21142, count = 2 }, -- Greater Blessing of Salvation (rank 1)
-    [27152] = { item = 21142, count = 2 }, -- Greater Blessing of Salvation (rank 2)
-    [27153] = { item = 21142, count = 2 }, -- Greater Blessing of Salvation (rank 3)
-    [27154] = { item = 21142, count = 2 }, -- Greater Blessing of Salvation (rank 4)
-    [27155] = { item = 21142, count = 2 }, -- Greater Blessing of Sanctuary (rank 1)
-    [27156] = { item = 21142, count = 2 }, -- Greater Blessing of Sanctuary (rank 2)
-    [27157] = { item = 21142, count = 2 }, -- Greater Blessing of Sanctuary (rank 3)
-    [25899] = { item = 21142, count = 2 }, -- Greater Blessing of Sanctuary (rank 4)
+    [25898] = { item = 21177, count = 2 }, -- Greater Blessing of Kings (rank 1)
+    [25916] = { item = 21177, count = 2 }, -- Greater Blessing of Kings (rank 2)
+    [25917] = { item = 21177, count = 2 }, -- Greater Blessing of Kings (rank 3)
+    [27181] = { item = 21177, count = 2 }, -- Greater Blessing of Kings (rank 4)
+    [25918] = { item = 21177, count = 2 }, -- Greater Blessing of Might (rank 1)
+    [27143] = { item = 21177, count = 2 }, -- Greater Blessing of Might (rank 2)
+    [27144] = { item = 21177, count = 2 }, -- Greater Blessing of Might (rank 3)
+    [27145] = { item = 21177, count = 2 }, -- Greater Blessing of Might (rank 4)
+    [25919] = { item = 21177, count = 2 }, -- Greater Blessing of Wisdom (rank 1)
+    [27146] = { item = 21177, count = 2 }, -- Greater Blessing of Wisdom (rank 2)
+    [27147] = { item = 21177, count = 2 }, -- Greater Blessing of Wisdom (rank 3)
+    [27148] = { item = 21177, count = 2 }, -- Greater Blessing of Wisdom (rank 4)
+    [25920] = { item = 21177, count = 2 }, -- Greater Blessing of Light (rank 1)
+    -- [27149] REMOVED — this is Devotion Aura (Rank 8), NOT Greater Blessing of Light
+    [27150] = { item = 21177, count = 2 }, -- Greater Blessing of Light (rank 2)
+    [27151] = { item = 21177, count = 2 }, -- Greater Blessing of Light (rank 3)
+    [25921] = { item = 21177, count = 2 }, -- Greater Blessing of Salvation (rank 1)
+    [27152] = { item = 21177, count = 2 }, -- Greater Blessing of Salvation (rank 2)
+    [27153] = { item = 21177, count = 2 }, -- Greater Blessing of Salvation (rank 3)
+    [27154] = { item = 21177, count = 2 }, -- Greater Blessing of Salvation (rank 4)
+    [27155] = { item = 21177, count = 2 }, -- Greater Blessing of Sanctuary (rank 1)
+    [27156] = { item = 21177, count = 2 }, -- Greater Blessing of Sanctuary (rank 2)
+    [27157] = { item = 21177, count = 2 }, -- Greater Blessing of Sanctuary (rank 3)
+    [25899] = { item = 21177, count = 2 }, -- Greater Blessing of Sanctuary (rank 4)
 
     -- ========================================================================
     -- Shaman — Ankh (item 17030) for Reincarnation / Ancestral Spirit

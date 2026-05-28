@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/warrior_core_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- What: Shared helper for warrior stance, opener, shout, and rage logic
 -- When: Loaded once and consulted during per-tick combat decisions
@@ -14,8 +32,14 @@ local NS = _G.EaxRotations
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_spell_cd = core.spell_book.get_spell_cooldown
-local _cast_spell = core.input.cast_target_spell
 local _is_spell_learned = core.spell_book.is_spell_learned
+
+local function cast_guarded(spell_id, target, reason, opts)
+    if not NS or type(NS.try_cast) ~= "function" then return false end
+    -- Legacy warrior helpers used raw cast_target_spell; route through
+    -- NS.try_cast so evaluate_cast enforces GCD/cooldown/resource/target gates.
+    return NS.try_cast(spell_id, target, reason, opts) == true
+end
 
 -- ============================================================================
 -- Spell ID tables
@@ -101,31 +125,20 @@ function M.get_current_stance(me)
     end
 
     -- Fallback: check buffs
-    for _, id in ipairs(STANCES.BATTLE_STANCE) do
-        local ok, has = pcall(function() return me:has_buff(id) end)
-        if ok and has then
-            _stance_cache.current = M.STANCE_BATTLE
-            _stance_cache.last_check = now
-            return M.STANCE_BATTLE
-        end
+    if NS.buff_up(me, STANCES.BATTLE_STANCE) then
+        _stance_cache.current = M.STANCE_BATTLE
+        _stance_cache.last_check = now
+        return M.STANCE_BATTLE
     end
-
-    for _, id in ipairs(STANCES.DEFENSIVE_STANCE) do
-        local ok, has = pcall(function() return me:has_buff(id) end)
-        if ok and has then
-            _stance_cache.current = M.STANCE_DEFENSIVE
-            _stance_cache.last_check = now
-            return M.STANCE_DEFENSIVE
-        end
+    if NS.buff_up(me, STANCES.DEFENSIVE_STANCE) then
+        _stance_cache.current = M.STANCE_DEFENSIVE
+        _stance_cache.last_check = now
+        return M.STANCE_DEFENSIVE
     end
-
-    for _, id in ipairs(STANCES.BERSERKER_STANCE) do
-        local ok, has = pcall(function() return me:has_buff(id) end)
-        if ok and has then
-            _stance_cache.current = M.STANCE_BERSERKER
-            _stance_cache.last_check = now
-            return M.STANCE_BERSERKER
-        end
+    if NS.buff_up(me, STANCES.BERSERKER_STANCE) then
+        _stance_cache.current = M.STANCE_BERSERKER
+        _stance_cache.last_check = now
+        return M.STANCE_BERSERKER
     end
 
     return nil
@@ -156,8 +169,7 @@ function M.switch_to_stance(target_stance)
         if _is_spell_learned(id) then
             local cd = _get_spell_cd(id)
             if cd == 0 then
-                _cast_spell(id, me)
-                return true
+                return cast_guarded(id, me, "[WARRIOR CORE] Stance", { skip_range = true })
             end
         end
     end
@@ -236,9 +248,10 @@ function M.process_aggro_opener(charge_id, whirlwind_id, me, target)
         if current == M.STANCE_BERSERKER then
             local cd = _get_spell_cd(whirlwind_id)
             if cd == 0 then
-                _cast_spell(whirlwind_id, target)
-                _opener.phase = 2
-                _opener.start_time = now
+                if cast_guarded(whirlwind_id, target, "[WARRIOR CORE] Aggro opener Whirlwind") then
+                    _opener.phase = 2
+                    _opener.start_time = now
+                end
             end
         else
             -- Switch to Berserker stance for Whirlwind
@@ -329,11 +342,9 @@ function M.should_shout(shout_type, me, min_rage)
 
     -- Check if we have the buff
     if my_highest then
-        local ok, has = pcall(function() return me:has_buff(my_highest) end)
-        if ok and has then
+        if NS.buff_up(me, {my_highest}) then
             -- Check remaining duration
-            local ok2, remains = pcall(function() return me:buff_remains(my_highest) end)
-            if ok2 and remains and remains > 20 then
+            if (NS.buff_remains(me, {my_highest}) or 0) > 20 then
                 return nil -- Still fresh
             end
         end
@@ -356,18 +367,14 @@ function M.use_demo_shout(me, target, min_rage)
     if rage < min_rage then return false end
 
     -- Check if target already has demo shout
-    for _, id in ipairs(SHOUTS.DEMORALIZING_SHOUT) do
-        local ok, has = pcall(function() return target:has_debuff(id) end)
-        if ok and has then return false end
-    end
+    if NS.debuff_up and NS.debuff_up(target, SHOUTS.DEMORALIZING_SHOUT) then return false end
 
     -- Find highest known rank
     for _, id in ipairs(SHOUTS.DEMORALIZING_SHOUT) do
         if _is_spell_learned(id) then
             local cd = _get_spell_cd(id)
             if cd == 0 then
-                _cast_spell(id, me)
-                return true
+                return cast_guarded(id, me, "[WARRIOR CORE] Demoralizing Shout", { skip_range = true })
             end
         end
     end

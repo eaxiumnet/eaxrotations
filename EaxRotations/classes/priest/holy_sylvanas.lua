@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/priest/holy_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- What: TBC Priest Holy healing rotation and FrostByte utility actions
 -- When: Per tick
@@ -10,9 +28,11 @@ if not NS then return end
 
 local load_player = NS.GetPlayer()
 
-local enums = require("common/enums")
-if type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
-if not load_player or load_player:get_class() ~= enums.class_id.PRIEST then return end
+local _ok_enums, enums = pcall(require, "common/enums")
+if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
+if not load_player then return end
+local ok_cls, cls_id = pcall(function() return load_player:get_class() end)
+if not ok_cls or cls_id ~= enums.class_id.PRIEST then return end
 
 local SPELLS = NS.PriestSpells
 
@@ -206,8 +226,12 @@ local function build_holy_state(context)
     holy_state.pom_ready = spell_exists(SPELLS.PrayerofMending) and spell_ready(SPELLS.PrayerofMending, (tank_entry and tank_entry.unit) or NS.PLAYER_UNIT)
     holy_state.coh_ready = spell_exists(SPELLS.CircleofHealing) and spell_ready(SPELLS.CircleofHealing, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.has_inner_focus = has_player_buff(INNER_FOCUS_BUFF)
-    holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
-    holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14752, 3.0) or false
+    if not skip_aura then
+        holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
+        holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
+    end
     holy_state.lightwell_ready = spell_exists(SPELLS.Lightwell) and spell_ready(SPELLS.Lightwell, NS.PLAYER_UNIT)
     holy_state.shadowfiend_ready = spell_exists(SPELLS.Shadowfiend) and spell_ready(SPELLS.Shadowfiend, NS.PLAYER_UNIT)
     holy_state.dispel_magic_ready = spell_exists(SPELLS.DispelMagic) and spell_ready(SPELLS.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
@@ -345,12 +369,22 @@ local strategies = {
         matches = function(context, state)
             if context.player_control_locked then return false end
             if context.settings.holy_use_pws == false then return false end
+            -- Tank-only gate: when disc_shield_tank_only is set, only shield the tank
+            if context.settings.disc_shield_tank_only then
+                if not state.tank then return false end
+                if state.tank.effective_hp > (context.settings.holy_pws_hp or 30) then return false end
+                if state.tank.has_weakened_soul then return false end
+                return spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, state.tank.unit)
+            end
             if not state.lowest then return false end
             if state.lowest.effective_hp > (context.settings.holy_pws_hp or 30) then return false end
             if state.lowest.has_weakened_soul then return false end
             return spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, state.lowest.unit)
         end,
-        execute = function(_, state)
+        execute = function(context, state)
+            if context.settings.disc_shield_tank_only and state.tank then
+                return try_cast(SPELLS.PowerWordShield, state.tank.unit, format("[HOLY] Emergency PW:S Tank %.0f%%", state.tank.effective_hp or 0))
+            end
             return try_cast(SPELLS.PowerWordShield, state.lowest.unit, format("[HOLY] Emergency PW:S %.0f%%", state.lowest.effective_hp or 0))
         end,
     },

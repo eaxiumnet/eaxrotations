@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warlock/schema_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warlock menu schema.
 -- ============================================================================
 -- What: TBC Warlock settings schema for rotation, survival, pet, consumable, and leveling controls
@@ -28,9 +46,26 @@ return {
                 },
             },
             {
+                header = "Curse Governance",
+                settings = {
+                    { key = "warlock_curse_mode", type = "dropdown", label = "Curse Mode", default = "auto", options = {
+                        { text = "Auto (Raid-Aware)", value = "auto" },
+                        { text = "Agony", value = "agony" },
+                        { text = "Doom", value = "doom" },
+                        { text = "Elements", value = "elements" },
+                        { text = "Recklessness", value = "recklessness" },
+                        { text = "Weakness", value = "weakness" },
+                        { text = "None", value = "none" },
+                    } },
+                    { key = "warlock_curse_elements_threshold", type = "slider", label = "Elements Caster Threshold", min = 1, max = 5, default = 2, tooltip = "Auto-Curse Elements if this many casters are in the party." },
+                    { key = "warlock_curse_reck_threshold", type = "slider", label = "Recklessness Melee Threshold", min = 1, max = 5, default = 2, tooltip = "Auto-Curse Recklessness if this many physical DPS are in the party." },
+                },
+            },
+            {
                 header = "Survival",
                 settings = {
                     { key = "death_coil_hp", type = "slider", label = "Death Coil HP", min = 0, max = 100, default = 0 },
+                    { key = "use_cc_break", type = "checkbox", label = "CC Break (Death Coil)", default = true, tooltip = "Preemptively Death Coil when enemy casts Polymorph/Fear/Cyclone at you to interrupt + self-heal" },
                     { key = "healthstone_hp", type = "slider", label = "Healthstone HP", min = 0, max = 100, default = 0 },
                     { key = "use_shadow_ward", type = "checkbox", label = "Shadow Ward", default = true },
                     { key = "shadow_ward_hp", type = "slider", label = "Shadow Ward HP", min = 0, max = 100, default = 70 },
@@ -39,6 +74,8 @@ return {
             {
                 header = "Pet / Stones",
                 settings = {
+                    { key = "use_devour_magic", type = "checkbox", label = "Devour Magic (Felhunter)", default = true, tooltip = "Felhunter auto-strips priority enemy magic buffs (Bloodlust, BoP, Ice Barrier, etc.)" },
+                    { key = "devour_magic_mana_floor", type = "slider", label = "Devour Magic Min Mana %", min = 10, max = 80, default = 20, tooltip = "Skip Devour Magic when mana is below this threshold" },
                     { key = "use_fel_domination", type = "checkbox", label = "Fel Domination", default = true },
                     { key = "fel_domination_hp", type = "slider", label = "Fel Domination HP", min = 0, max = 100, default = 35 },
                     { key = "use_demonic_sacrifice", type = "checkbox", label = "Demonic Sacrifice", default = true },

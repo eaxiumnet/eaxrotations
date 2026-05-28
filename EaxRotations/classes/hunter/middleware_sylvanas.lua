@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/hunter/middleware_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Hunter shared middleware.
 
 -- ============================================================================
@@ -22,10 +40,10 @@ local strategies = {
         name = "ThreatDrop",
         matches = function(context)
             if context.settings.use_threat_drop == false then return false end
-            return NS.action_matches(context, { name = "ThreatDrop", spell = SPELLS.FeignDeath, target = "self", kind = "threat_drop", requires_target = false })
+            return true
         end,
         execute = function(context)
-            return NS.action_execute(context, { name = "ThreatDrop", spell = SPELLS.FeignDeath, target = "self", requires_target = false }, "[HUNTER]")
+            return NS.try_cast(SPELLS.FeignDeath, context.me, "[HUNTER] Feign Death", { skip_range = true })
         end,
     },
 
@@ -83,23 +101,12 @@ local strategies = {
                 end
             end
 
-            -- Use action_matches for spell readiness check
-            return NS.action_matches(context, {
-                name = "ViperSting",
-                spell = SPELLS.ViperSting,
-                setting = "use_viper_sting_pve",
-                not_moving = false,
-                requires_target = true,
-            })
+            return true
         end,
         execute = function(context)
             local is_pvp = context.is_pvp or false
             local prefix = is_pvp and "[HUNTER/PvP]" or "[HUNTER]"
-            return NS.action_execute(context, {
-                name = "ViperSting",
-                spell = SPELLS.ViperSting,
-                requires_target = true,
-            }, prefix)
+            return NS.try_cast(SPELLS.ViperSting, context.target, prefix .. " Viper Sting")
         end,
     },
 
@@ -126,21 +133,10 @@ local strategies = {
                 end
             end
 
-            return NS.action_matches(context, {
-                name = "FreezingTrap",
-                spell = SPELLS.FreezingTrap,
-                setting = "freezing_trap_pve",
-                requires_target = true,
-                skip_range = true,
-            })
+            return true
         end,
         execute = function(context)
-            return NS.action_execute(context, {
-                name = "FreezingTrap",
-                spell = SPELLS.FreezingTrap,
-                requires_target = true,
-                skip_range = true,
-            }, "[HUNTER]")
+            return NS.try_cast(SPELLS.FreezingTrap, context.me, "[HUNTER] Freezing Trap", { skip_range = true })
         end,
     },
 

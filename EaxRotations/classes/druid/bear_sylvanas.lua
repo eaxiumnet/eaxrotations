@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/druid/bear_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Druid Bearpriority list for TBC tanking.
 
 -- ============================================================================
@@ -81,7 +99,7 @@ local HEALING_POTION_IDS = {
     TBC_POTIONS.lesser_healing or 858,
 }
 
-local EMPTY_ACTION = { name = "BearWait" }
+-- No action definitions needed; ACTIONS table below provides field specs
 local bear_state = {
     now = 0,
     me = nil,
@@ -425,16 +443,20 @@ local function build_state(context)
     state.target_target_is_tank = is_tank(target_target)
     state.target_target_is_healer = is_healer(target_target)
 
-    state.has_clearcasting = buff_up(state.me, CLEARCASTING_BUFF)
-    state.has_barkskin = buff_up(state.me, BARKSKIN_BUFF)
-    state.has_frenzied_regen = buff_up(state.me, FRENZIED_REGEN_BUFF)
-    state.has_mark = buff_up(state.me, MARK_BUFF)
-    state.has_thorns = buff_remains(state.me, THORNS_BUFF) > THORNS_REFRESH
-    state.faerie_remains = debuff_remains(state.target, FAERIE_FIRE_DEBUFF)
-    state.lacerate_remains = debuff_remains(state.target, LACERATE_DEBUFF)
-    state.lacerate_stacks = debuff_stacks(state.target, LACERATE_DEBUFF)
-    state.mangle_remains = debuff_remains(state.target, MANGLE_DEBUFF)
-    state.demo_remains = debuff_remains(state.target, DEMO_ROAR_DEBUFF)
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
+    if not skip_aura then
+        state.has_clearcasting = buff_up(state.me, CLEARCASTING_BUFF)
+        state.has_barkskin = buff_up(state.me, BARKSKIN_BUFF)
+        state.has_frenzied_regen = buff_up(state.me, FRENZIED_REGEN_BUFF)
+        state.has_mark = buff_up(state.me, MARK_BUFF)
+        state.has_thorns = buff_remains(state.me, THORNS_BUFF) > THORNS_REFRESH
+        state.faerie_remains = debuff_remains(state.target, FAERIE_FIRE_DEBUFF)
+        state.lacerate_remains = debuff_remains(state.target, LACERATE_DEBUFF)
+        state.lacerate_stacks = debuff_stacks(state.target, LACERATE_DEBUFF)
+        state.mangle_remains = debuff_remains(state.target, MANGLE_DEBUFF)
+        state.demo_remains = debuff_remains(state.target, DEMO_ROAR_DEBUFF)
+    end
 
     state.mangle_ready = spell_ready(SPELLS.MangleBear, state.target)
     state.lacerate_ready = spell_ready(SPELLS.Lacerate, state.target)
@@ -466,12 +488,23 @@ end
 
 local function action_ready(context, action)
     if not action then return false end
-    if not action.spell and NS.spell_exists then return false end
-    return NS.action_matches(context, action)
+    if not action.spell then return true end
+    local target = (action.target == "self" or action.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
+    if not target then return false end
+    local opts = {}
+    if action.requires_target == false then opts.skip_range = true end
+    if action.cooldown then opts.expected_cooldown = action.cooldown end
+    return NS.spell_ready(action.spell, target, opts)
 end
 
 local function execute_action(context, action)
-    return NS.action_execute(context, action, "[BEAR]")
+    if not action or not action.spell then return false end
+    local target = (action.target == "self" or action.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
+    if not target then return false end
+    local opts = {}
+    if action.requires_target == false then opts.skip_range = true end
+    if action.cooldown then opts.expected_cooldown = action.cooldown end
+    return NS.try_cast(action.spell, target, "[BEAR]", opts)
 end
 
 local function execute_item(context, item_id, label)
@@ -770,8 +803,8 @@ local ACTIONS = {
     { name = "FeralChargePull", spell = FERAL_CHARGE, required_form = "bear", matches = feral_charge_pull_matches },
     { name = "FaerieFirePull", spell = SPELLS.FaerieFireFeral, required_form = "bear", debuff = FAERIE_FIRE_DEBUFF, refresh = FAERIE_FIRE_REFRESH, matches = faerie_fire_pull_matches },
 
-    { name = "Healthstone", spell = EMPTY_ACTION, target = "self", requires_target = false, matches = healthstone_matches, execute = function(context) return execute_item(context, build_state(context).healthstone_ready, "Healthstone") end },
-    { name = "HealingPotion", spell = EMPTY_ACTION, target = "self", requires_target = false, matches = potion_matches, execute = function(context) return execute_item(context, build_state(context).potion_ready, "Healing Potion") end },
+    { name = "Healthstone", target = "self", requires_target = false, matches = healthstone_matches, execute = function(context) return execute_item(context, build_state(context).healthstone_ready, "Healthstone") end },
+    { name = "HealingPotion", target = "self", requires_target = false, matches = potion_matches, execute = function(context) return execute_item(context, build_state(context).potion_ready, "Healing Potion") end },
     { name = "FrenziedRegeneration", spell = SPELLS.FrenziedRegeneration, target = "self", required_form = "bear", min_rage = RAGE_FRENZIED_REGEN, requires_target = false, matches = frenzied_regen_matches },
     { name = "Barkskin", spell = SPELLS.Barkskin, target = "self", requires_target = false, matches = barkskin_matches },
 

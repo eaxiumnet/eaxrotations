@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/priest/schema_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Priest menu schema.
 -- ============================================================================
 -- What: Priest settings schema for healing, shadow, and leveling
@@ -75,6 +93,12 @@ return {
                     { key = "discipline_dps_when_idle", type = "checkbox", label = "DPS When Idle", default = false },
                     { key = "discipline_dps_mana_floor", type = "slider", label = "DPS Mana Floor (%)", min = 10, max = 70, default = 35 },
                     { key = "discipline_idle_hp", type = "slider", label = "Idle DPS Group Safe HP (%)", min = 50, max = 100, default = 92 },
+                },
+            },
+            {
+                header = "Shield Targeting",
+                settings = {
+                    { key = "disc_shield_tank_only", type = "checkbox", label = "Shield Tank Only", default = false, tooltip = "Only cast Power Word: Shield on the tank. Disable to shield any injured party member." },
                 },
             },
             {

@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warrior/schema_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warrior menu schema.
 -- ============================================================================
 -- What: TBC Warrior settings schema for rotations, PvP defensives, tactician weaving, and leveling
@@ -24,6 +42,15 @@ return {
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "use_pvp_defensives", type = "checkbox", label = "PvP Defensives", default = true },
+                    { key = "use_defensives", type = "checkbox", label = "Defensives (auto-use)", default = true },
+                    { key = "defensive_hp_threshold", type = "slider", label = "Defensive HP%", min = 0, max = 100, default = 30, description = "HP threshold to trigger defensive cooldowns" },
+                    { key = "use_last_stand", type = "checkbox", label = "Last Stand", default = true },
+                    { key = "use_shield_wall", type = "checkbox", label = "Shield Wall", default = true },
+                    { key = "use_self_buffs", type = "checkbox", label = "Self Buffs", default = true },
+                    { key = "use_battle_shout", type = "checkbox", label = "Battle Shout", default = true },
+                    { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Cleave/Whirlwind/Sweeping Strikes when a nearby enemy is Polymorphed/Sapped/etc." },
+                    { key = "use_shield_slam_purge", type = "checkbox", label = "Shield Slam Purge (PvP)", default = true, tooltip = "Shield Slam dispels 1 magic buff on enemy players (BoP, PW:S, Ice Barrier, etc.). Requires Defensive Stance." },
+                    { key = "shield_slam_purge_pvp_only", type = "checkbox", label = "Shield Slam Purge — Players Only", default = true, tooltip = "Only purge buffs from enemy players (safer for PvE dungeons with CC'd mobs)." },
                     { key = "pvp_kite_threshold", type = "slider", label = "PvP Kite HP", min = 20, max = 80, default = 50 },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
                 },
@@ -33,8 +60,15 @@ return {
                 settings = {
                     { key = "warrior_use_spell_reflection", type = "checkbox", label = "Spell Reflection", default = true },
                     { key = "warrior_reflect_pvp_only", type = "checkbox", label = "Spell Reflection PvP Only", default = true },
+                    { key = "use_disarm", type = "checkbox", label = "Auto Disarm (PvP)", default = true, tooltip = "Disarm enemy melee players (Warrior/Rogue/Paladin/Shaman). Requires Defensive Stance." },
+                    { key = "disarm_trigger", type = "dropdown", label = "Disarm Trigger", default = "on_burst", options = {
+                            { text = "On Burst (target has priority buffs)", value = "on_burst" },
+                            { text = "On Cooldown", value = "on_cooldown" },
+                    }, tooltip = "on_burst: only disarm when enemy has priority buffs (Death Wish, Bloodlust, etc.). on_cooldown: disarm whenever available." },
+                    { key = "disarm_pvp_only", type = "checkbox", label = "Disarm — Players Only", default = true, tooltip = "Only disarm enemy players (safer for PvE with CC'd mobs)." },
                     { key = "warrior_cancel_external_buff", type = "checkbox", label = "Cancel PW:S/BoP", default = false },
                     { key = "warrior_defensive_stance_pve", type = "checkbox", label = "Defensive Stance Outside PvP", default = false },
+                    { key = "hs_trick", type = "checkbox", label = "HS Dequeue Trick", default = true, description = "Smart HS dequeue to avoid rage waste on missed attacks" },
                 },
             },
             {

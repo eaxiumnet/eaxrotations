@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/gear_score_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- What: Shared helper that calculates gear score and weak slots
 -- When: On demand during profile or character inspection
@@ -200,36 +218,28 @@ function M.get_consumable_status(context)
     
     local buffs = TBC.BUFFS or {}
     if NS.has_buff then
-        for _, id in ipairs(buffs.flasks or {}) do
-            if NS.has_buff(me, id) then
-                status.flask = true
-                status.score = status.score + 25
-                break
+        -- Batch all IDs into single NS.has_buff() calls to avoid per-ID DIAG traces.
+        -- Each category uses a single batch check instead of per-ID iteration.
+        local function has_any_buff(id_list, score)
+            if #id_list == 0 then return false end
+            if NS.has_buff(me, id_list) then
+                status.score = status.score + score
+                return true
             end
-        end
-        
-        for _, id in ipairs(buffs.food or {}) do
-            if NS.has_buff(me, id) then
-                status.food = true
-                status.score = status.score + 15
-                break
-            end
+            return false
         end
 
-        for _, id in ipairs(buffs.battle_elixirs or {}) do
-            if NS.has_buff(me, id) then
-                status.battle_elixir = true
-                status.score = status.score + 10
-                break
-            end
+        if has_any_buff(buffs.flasks or {}, 25) then
+            status.flask = true
         end
-
-        for _, id in ipairs(buffs.guardian_elixirs or {}) do
-            if NS.has_buff(me, id) then
-                status.guardian_elixir = true
-                status.score = status.score + 10
-                break
-            end
+        if has_any_buff(buffs.food or {}, 15) then
+            status.food = true
+        end
+        if has_any_buff(buffs.battle_elixirs or {}, 10) then
+            status.battle_elixir = true
+        end
+        if has_any_buff(buffs.guardian_elixirs or {}, 10) then
+            status.guardian_elixir = true
         end
     end
 

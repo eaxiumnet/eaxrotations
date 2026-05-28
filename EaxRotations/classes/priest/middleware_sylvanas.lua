@@ -1,8 +1,28 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/priest/middleware_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Priest shared middleware.
 -- ============================================================================
--- What: Priest shared middleware for dispels, threat drop, and survivability
+-- What: Priest shared middleware for dispels, threat drop, survivability, and PvP utility
 -- When: Per tick
--- Why: Consolidates party dispel, disease cleanup, and emergency utility across priest playstyles
+-- Why: Consolidates party dispel, disease cleanup, emergency utility, offensive dispel,
+--   Mass Dispel (bubble/block purge), Mana Burn (healer pressure), and PvP defensives
+--   across priest playstyles
 -- Safety: Settings nil-guards, pcall on class/spell/item checks, conservative mana thresholds
 -- ============================================================================
 
@@ -11,6 +31,7 @@ if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local SPELLS = NS.PriestSpells or {}
+local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 -- Dispel Magic IDs by rank
 local DISPEL_MAGIC_IDS = { 988, 527 }
@@ -72,10 +93,156 @@ local function get_known_spell_id(ids)
     return nil
 end
 
+-- ============================================================================
+-- Helper: scan nearby enemies and return the highest-priority dispel target
+-- Caches result per tick to avoid double-scan (matches + execute).
+-- ============================================================================
+local _cached_dispel_unit = nil
+local _cached_dispel_priority = 0
+local _cached_dispel_fresh = false
+local function get_offensive_dispel_target(context)
+    if _cached_dispel_fresh then
+        return _cached_dispel_unit, _cached_dispel_priority
+    end
+    _cached_dispel_unit = nil
+    _cached_dispel_priority = 0
+    local settings = context.settings or {}
+    local min_mana = settings.offensive_dispel_mana_floor or 30
+    if (context.mana_pct or 100) < min_mana then return nil, 0 end
+    local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+    local best_unit, best_priority = nil, 0
+    for _, enemy in ipairs(enemies) do
+        if enemy then
+            local id, priority = OffensiveDispelDB.find_best_dispel_target(enemy, NS)
+            if id and priority and priority > best_priority then
+                best_unit, best_priority = enemy, priority
+                if best_priority >= OffensiveDispelDB.PRIORITY_CRITICAL then break end
+            end
+        end
+    end
+    _cached_dispel_unit = best_unit
+    _cached_dispel_priority = best_priority
+    _cached_dispel_fresh = true
+    return best_unit, best_priority
+end
+
+-- ============================================================================
+-- Helper: find the best Mana Burn target (enemy healer with most mana)
+-- ============================================================================
+local function find_mana_burn_target(context)
+    local settings = context.settings or {}
+    local min_mana = settings.mana_burn_mana_floor or 40
+    if (context.mana_pct or 100) < min_mana then return nil end
+    local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+    local best_target, best_mana = nil, 0
+    for _, enemy in ipairs(enemies) do
+        if enemy and OffensiveDispelDB.is_healer_class(enemy) then
+            local mana = NS.unit_mana_pct and NS.unit_mana_pct(enemy) or 0
+            if mana > best_mana then
+                best_target, best_mana = enemy, mana
+            end
+        end
+    end
+    return best_target, best_mana
+end
+
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("priest", "Silence", SPELLS),
     interrupt_manager.register_interrupt_spell("priest", "PsychicScream", SPELLS),
+
+    -- ============================================================================
+    -- Mass Dispel: purge Divine Shield / Ice Block (PvP fight-winning purge)
+    -- ============================================================================
+    {
+        name = "MassDispel",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_mass_dispel == false then return false end
+            if not context.in_combat then return false end
+            -- Mana check: Mass Dispel costs ~36% base mana
+            local mana_pct = context.mana_pct or 100
+            local min_mana = settings.mass_dispel_mana_floor or 50
+            if mana_pct < min_mana then return false end
+            -- Spell check
+            if not (NS.is_spell_learned and NS.is_spell_learned(SPELLS.MassDispel)) then return false end
+            if not (NS.spell_ready and NS.spell_ready(SPELLS.MassDispel)) then return false end
+            -- Scan enemies for Divine Shield / Ice Block
+            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+            for _, enemy in ipairs(enemies) do
+                if enemy then
+                    local should_md, buff_name = OffensiveDispelDB.should_mass_dispel(enemy, NS)
+                    if should_md then
+                        return true
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            -- Find the target with the critical buff (cast Mass Dispel on their position)
+            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+            for _, enemy in ipairs(enemies) do
+                if enemy then
+                    local should_md, buff_name = OffensiveDispelDB.should_mass_dispel(enemy, NS)
+                    if should_md then
+                        return NS.try_cast(SPELLS.MassDispel, enemy, "[PRIEST] Mass Dispel → " .. (buff_name or "bubble"))
+                    end
+                end
+            end
+            return false
+        end,
+    },
+
+    -- ============================================================================
+    -- Offensive Dispel: strip priority enemy buffs with Dispel Magic
+    -- ============================================================================
+    {
+        name = "OffensiveDispel",
+        matches = function(context)
+            _cached_dispel_fresh = false  -- invalidate cache each tick
+            local settings = context.settings or {}
+            if settings.use_offensive_dispel == false then return false end
+            if not context.in_combat then return false end
+            -- Check if Dispel Magic is available
+            if not (NS.is_spell_learned and NS.is_spell_learned(SPELLS.DispelMagic)) then return false end
+            if not (NS.spell_ready and NS.spell_ready(SPELLS.DispelMagic)) then return false end
+            -- Find a valid dispel target (cached, no double-scan)
+            local _, priority = get_offensive_dispel_target(context)
+            return priority and priority >= OffensiveDispelDB.PRIORITY_MEDIUM
+        end,
+        execute = function(context)
+            local target = get_offensive_dispel_target(context)
+            if not target then return false end
+            return NS.try_cast(SPELLS.DispelMagic, target, "[PRIEST] Offensive Dispel")
+        end,
+    },
+
+    -- ============================================================================
+    -- Mana Burn: pressure enemy healer mana pools
+    -- ============================================================================
+    {
+        name = "ManaBurn",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_mana_burn == false then return false end
+            if not context.in_combat then return false end
+            if context.is_moving then return false end
+            -- Spell check
+            if not (NS.is_spell_learned and NS.is_spell_learned(SPELLS.ManaBurn)) then return false end
+            if not (NS.spell_ready and NS.spell_ready(SPELLS.ManaBurn)) then return false end
+            -- Find healers with mana to burn
+            local target, mana = find_mana_burn_target(context)
+            if not target then return false end
+            -- Only burn if healer has meaningful mana (>20% to avoid wasted casts)
+            return mana and mana > 20
+        end,
+        execute = function(context)
+            local target = find_mana_burn_target(context)
+            if not target then return false end
+            return NS.try_cast(SPELLS.ManaBurn, target, "[PRIEST] Mana Burn")
+        end,
+    },
 
     {
         name = "PvPPsychicScream",
@@ -84,21 +251,33 @@ local strategies = {
             if settings.use_pvp_defensives == false then return false end
             if not NS.should_kite(context) then return false end
             if (NS.GetEnemiesCount and NS.GetEnemiesCount(8) or 0) < 2 then return false end
-            return NS.action_matches(context, { name = "PvPPsychicScream", spell = SPELLS.PsychicScream, target = "self", requires_target = false })
+            return true
         end,
         execute = function(context)
-            return NS.action_execute(context, { name = "PvPPsychicScream", spell = SPELLS.PsychicScream, target = "self", requires_target = false }, "[PRIEST]")
+            return NS.try_cast(SPELLS.PsychicScream, context.me, "[PRIEST] Psychic Scream", { skip_range = true })
         end,
     },
 
     {
         name = "ThreatDrop",
         matches = function(context)
+            if not context.in_combat then return false end
             if context.settings.use_threat_drop == false then return false end
-            return NS.action_matches(context, { name = "ThreatDrop", spell = SPELLS.Fade, target = "self", kind = "threat_drop", requires_target = false })
+            if not (NS.spell_ready and SPELLS.Fade and NS.spell_ready(SPELLS.Fade, context.me, { skip_range = true })) then return false end
+            if context.me and NS.has_buff and NS.has_buff(context.me, SPELLS.Fade) then return false end
+            local enemies = (NS.GetEnemiesInRange and NS.GetEnemiesInRange(20)) or {}
+            for _, enemy in ipairs(enemies) do
+                if enemy then
+                    local ok, etarget = pcall(function() return enemy:get_target() end)
+                    if ok and etarget and context.me and NS.same_unit and NS.same_unit(etarget, context.me) then
+                        return true
+                    end
+                end
+            end
+            return false
         end,
         execute = function(context)
-            return NS.action_execute(context, { name = "ThreatDrop", spell = SPELLS.Fade, target = "self", requires_target = false }, "[PRIEST]")
+            return NS.try_cast(SPELLS.Fade, context.me, "[PRIEST] Fade", { skip_range = true })
         end,
     },
 
@@ -302,7 +481,7 @@ local strategies = {
                     local ok, val = pcall(function() return enemy:get_target() end)
                     if ok then target_of_enemy = val end
                     
-                    if target_of_enemy and target_of_enemy == context.me then
+                    if target_of_enemy and NS.same_unit and NS.same_unit(target_of_enemy, context.me) then
                         return true
                     end
                 end

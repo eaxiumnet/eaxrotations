@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warlock/affliction_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- TBC Warlock Affliction priority list with multi-DoT cycling, Nightfall procs, and execute drain.
 -- ============================================================================
 -- What: TBC Warlock Affliction multi-DoT rotation with curses, drains, and execute handling
@@ -13,8 +31,6 @@ local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
-local _core_time = NS.time_now or (NS.core and NS.core.time) or (rawget(_G, "core") and _G.core.time) or function() return 0 end
-
 -- ============================================================================
 -- Debuff & Buff ID tables
 -- ============================================================================
@@ -27,6 +43,7 @@ local IMMOLATE_DEBUFF        = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 
 local SEED_OF_CORRUPTION_DEBUFF = { 27285 }  -- the DoT that triggers the explosion
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
 local SOULSHATTER_BUFF       = { 29858 }
+local FEL_ARMOR_BUFF         = { 28189, 28176 }
 
 local DOT_REFRESH_WINDOW = 1.5   -- refresh within last 1.5s per Research Angle 1 (clip <1.5s)
 local EXECUTE_HP = 25           -- Drain Soul execute threshold
@@ -34,9 +51,9 @@ local LIFE_TAP_SAFETY_HP = 35   -- don't Life Tap below this HP%
 
 -- Snapshot-aware refresh constants
 local SPELL_DMG_UPGRADE_RATIO = 1.08    -- Refresh only if 8%+ spell damage upgrade
-local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh
+local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh    -- Local anti-spam: Soulshatter has 5min CD, use local timer as fallback for broken API
+    local _last_soulshatter = 0
 
--- Local spell actions
 local LOCAL_SPELLS = {
     DrainLife       = NS.spell_action({ 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
     DrainSoul       = NS.spell_action({ 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
@@ -72,20 +89,6 @@ local MANA_POTION_IDS = {
     TBC_POTIONS.super_rejuvenation or 22850,
     TBC_POTIONS.major_mana or 13444,
     TBC_POTIONS.superior_mana or 13443,
-}
-
--- Throttle: prevent per-frame Fel Armor recheck when buff API is unavailable
-local _fel_armor_last_check = nil
-
-local CURSE_OF_DOOM_ACTION = {
-    name = "CurseOfDoom",
-    spell = SPELLS.CurseOfDoom,
-    debuff = CURSE_OF_DOOM_DEBUFF,
-    refresh = 5,
-    cooldown = 60,
-    min_ttd = 62,
-    require_ttd = true,
-    target_not_player = true,
 }
 
 -- ============================================================================
@@ -151,7 +154,7 @@ local function build_state(context)
 	    -- Nightfall proc
 	    aff_state.nightfall_active = NS.has_player_buff(NIGHTFALL_BUFF)
 	    -- Resources
-	    aff_state.mana_pct = context.mana or 100
+	    aff_state.mana_pct = context.mana_pct or 100
 	    aff_state.hp_pct = context.hp or 100
 	    aff_state.enemy_count = context.enemy_count or 1            -- Pet status (via pet object if available)
             local pet = context.pet
@@ -241,9 +244,10 @@ local function racial_matches(context, state)
     return true
 end
 
--- ============================================================================
--- Strategies (priority order)
--- ============================================================================
+-- Throttle DoT re-matches when aura APIs are broken on private servers.
+local function broken_api_dot_throttled(spell_id)
+    return NS.is_api_health_broken() and NS.recent_spell_cast(spell_id, 2.0)
+end
 local strategies = {
 
     -- ------------------------------------------------------------------------
@@ -252,6 +256,7 @@ local strategies = {
     {
         name = "DeathCoilSurvival",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
             if state.hp_pct > 30 then return false end
             return NS.spell_ready(LOCAL_SPELLS.DeathCoil, context.target)
         end,
@@ -279,13 +284,21 @@ local strategies = {
     -- ------------------------------------------------------------------------
     {
         name = "Soulshatter",
-        matches = function(context)
+        matches = function(context, state)
             if not context.in_combat then return false end
             if context.threat_pct and context.threat_pct < 90 then return false end
-            return NS.spell_ready(LOCAL_SPELLS.Soulshatter or SPELLS.Soulshatter, NS.PLAYER_UNIT, { skip_range = true })
+            local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+            if not me then return false end
+            -- Local timer: Soul shatter has 5min CD
+            if (NS.time_now() - _last_soulshatter) < 290 then return false end
+            if NS.cooldown_remains(SPELLS.Soulshatter, 300) > 0 then return false end
+            return NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true })
         end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.Soulshatter or SPELLS.Soulshatter, NS.PLAYER_UNIT, "[AFFL] Soulshatter")
+        execute = function(context)
+            local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
+            local ok = NS.try_cast(SPELLS.Soulshatter, me, "[AFFL] Soulshatter", { skip_range = true })
+            if ok then _last_soulshatter = NS.time_now() end
+            return ok
         end,
     },
 
@@ -295,11 +308,25 @@ local strategies = {
     {
         name = "NightfallProc",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
             if not state.nightfall_active then return false end
             return NS.spell_ready(SPELLS.ShadowBolt, context.target)
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Nightfall instant Shadow Bolt")
+        end,
+    },
+
+    {
+        name = "DrainLife",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if state.hp_pct > 55 then return false end
+            if context.is_channeling then return false end
+            return NS.spell_ready(LOCAL_SPELLS.DrainLife, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[AFFL] Drain Life sustain")
         end,
     },
 
@@ -309,6 +336,8 @@ local strategies = {
     {
         name = "UnstableAffliction",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if broken_api_dot_throttled(30405) then return false end
             if state.ua_remains > DOT_REFRESH_WINDOW then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
 	            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
 	            if state.ua_remains > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_ua_dmg, state.ua_remains, DOT_REFRESH_WINDOW, ratio) then return false end
@@ -327,6 +356,8 @@ local strategies = {
     {
         name = "CorruptionDoT",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if broken_api_dot_throttled(27216) then return false end
             if state.corruption_remains > DOT_REFRESH_WINDOW then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
 	            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
 	            if state.corruption_remains > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_corruption_dmg, state.corruption_remains, DOT_REFRESH_WINDOW, ratio) then return false end
@@ -346,6 +377,7 @@ local strategies = {
     {
         name = "SiphonLife",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
             if state.siphon_remains > DOT_REFRESH_WINDOW then return false end
             -- Gate: require at least 1 stack of ISB (Shadow Vulnerability) on target
             if state.isb_stacks < 1 then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
@@ -366,13 +398,17 @@ local strategies = {
     -- ------------------------------------------------------------------------
     {
         name = "CurseOfDoom",
-        require_ttd = true,
-        target_not_player = true,
-        matches = function(context)
-            return NS.action_matches(context, CURSE_OF_DOOM_ACTION)
+        matches = function(context, state)
+            if not context.target then return false end
+            if not context.has_valid_enemy_target then return false end
+            -- Don't refresh if already applied and still ticking
+            if state.doom_remains > DOT_REFRESH_WINDOW then return false end
+            -- Only on long-lived targets (Doom takes 60s to tick)
+            if context.ttd and context.ttd < 62 then return false end
+            return NS.spell_ready(SPELLS.CurseOfDoom, context.target)
         end,
         execute = function(context)
-            return NS.action_execute(context, CURSE_OF_DOOM_ACTION, "[AFFL]")
+            return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[AFFL] Curse of Doom")
         end,
     },
 
@@ -382,6 +418,7 @@ local strategies = {
     {
         name = "CurseOfAgony",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
             if state.agony_remains > DOT_REFRESH_WINDOW then return false end
@@ -400,6 +437,7 @@ local strategies = {
     {
         name = "ImmolateDoT",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
             if state.immolate_remains > DOT_REFRESH_WINDOW then return false end
             -- Skip if target TTD is very short
             if context.ttd and context.ttd < 5 then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
@@ -421,6 +459,7 @@ local strategies = {
     {
         name = "AmplifyCurse",
         matches = function(context, state)
+            if not context.target then return false end
             if not state.amplify_curse_ready then return false end
             -- Gate: setting check
             if context.settings and context.settings.aff_use_amplify_curse == false then return false end
@@ -431,7 +470,7 @@ local strategies = {
             if state.agony_remains <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 8 then about_to_curse = true end
             if state.doom_remains <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 62 then about_to_curse = true end
             -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
-            if state.doom_remains <= 0 and NS.spell_ready and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
+            if context.target and state.doom_remains <= 0 and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
             return about_to_curse
         end,
         execute = function()
@@ -445,6 +484,7 @@ local strategies = {
     {
         name = "SeedOfCorruption",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
             local min_targets = context.settings and context.settings.aff_seed_targets or 3
             if state.enemy_count < min_targets then return false end
             return NS.spell_ready(SPELLS.SeedOfCorruption, context.target)
@@ -460,7 +500,9 @@ local strategies = {
     {
         name = "DrainSoulExecute",
         matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
             if state.target_hp > EXECUTE_HP then return false end
+            if context.is_channeling then return false end
             return NS.spell_ready(LOCAL_SPELLS.DrainSoul, context.target)
         end,
         execute = function(context)
@@ -490,6 +532,7 @@ local strategies = {
     {
         name = "ShadowBoltFiller",
         matches = function(context)
+            if not context.has_valid_enemy_target then return false end
             return NS.spell_ready(SPELLS.ShadowBolt, context.target)
         end,
         execute = function(context)
@@ -528,20 +571,6 @@ local strategies = {
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.DarkPact, NS.PLAYER_UNIT, "[AFFL] Dark Pact")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 15. Drain Life (sustain healing)
-    -- ------------------------------------------------------------------------
-    {
-        name = "DrainLife",
-        matches = function(context, state)
-            if state.hp_pct > 55 then return false end
-            return NS.spell_ready(LOCAL_SPELLS.DrainLife, context.target)
-        end,
-        execute = function(context)
-            return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[AFFL] Drain Life sustain")
         end,
     },
 
@@ -587,6 +616,7 @@ local strategies = {
         name = "PvP_Fear",
         matches = function(context)
             if not context.is_pvp then return false end
+            if not context.target then return false end
             return NS.spell_ready(LOCAL_SPELLS.Fear, context.target)
         end,
         execute = function(context)
@@ -608,6 +638,7 @@ local strategies = {
         name = "PvP_CurseExhaustion",
         matches = function(context, state)
             if not context.is_pvp then return false end
+            if not context.target then return false end
             if not context.melee_on_you then return false end
             return NS.spell_ready(LOCAL_SPELLS.CurseExhaustion, context.target)
         end,
@@ -619,6 +650,7 @@ local strategies = {
         name = "PvP_CurseTongues",
         matches = function(context)
             if not context.is_pvp then return false end
+            if not context.target then return false end
             if not context.enemy_caster then return false end
             return NS.spell_ready(LOCAL_SPELLS.CurseTongues, context.target)
         end,
@@ -634,14 +666,9 @@ local strategies = {
         name = "FelArmorBuff",
         matches = function(context)
             if context.in_combat then return false end
-            -- Throttle: only check every 30s to avoid recast spam when buff API is unavailable
-            local now = _core_time()
-            if _fel_armor_last_check and now - _fel_armor_last_check < 30 then return false end
-            _fel_armor_last_check = now
-            -- Skip if Fel Armor buff is already active
-            local me = NS.GetPlayer and NS.GetPlayer()
-            if me and NS.buff_up and NS.buff_up(me, { 28189, 28176 }) then return false end
-            return NS.spell_ready(LOCAL_SPELLS.FelArmor, NS.PLAYER_UNIT, { skip_range = true })
+            local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+            if me and NS.buff_remains(me, FEL_ARMOR_BUFF) > 0 then return false end
+            return NS.spell_ready(LOCAL_SPELLS.FelArmor, me or NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.FelArmor, NS.PLAYER_UNIT, "[AFFL] Fel Armor")
@@ -673,6 +700,7 @@ local strategies = {
         name = "CurseOfElements",
         matches = function(context)
             if context.in_combat then return false end
+            if not context.target then return false end
             return NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target)
         end,
         execute = function(context)
@@ -703,6 +731,12 @@ local strategies = {
         matches = function(context, state)
             if context.in_combat then return false end
             if state.has_soulstone then return false end
+            -- Require at least one soul shard to create
+            local reagent = NS.ReagentGuard or (pcall(require, "shared/reagent_guard_sylvanas") and require("shared/reagent_guard_sylvanas"))
+            if reagent and reagent.check_reagent then
+                local spell_id = LOCAL_SPELLS.CreateSoulstone and LOCAL_SPELLS.CreateSoulstone.id and LOCAL_SPELLS.CreateSoulstone:id()
+                if spell_id and not reagent.check_reagent(spell_id) then return false end
+            end
             return NS.spell_ready(LOCAL_SPELLS.CreateSoulstone, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
@@ -731,3 +765,4 @@ local strategies = {
 
 NS.rotation_registry:register("affliction", strategies, { get_state = build_state })
 return { strategies = strategies, build_state = build_state }
+
