@@ -186,7 +186,7 @@ local function build_state(context)
     -- Combat mode: explicit setting or auto-detect
     local mode = settings.shadow_combat_mode or "auto"
     if mode == "auto" then
-        enemy_count = shadow_state.enemy_count
+        local enemy_count = shadow_state.enemy_count or 0
         if enemy_count >= 5 then mode = "aoe"
         elseif enemy_count >= 3 then mode = "cleave"
         else mode = "st" end
