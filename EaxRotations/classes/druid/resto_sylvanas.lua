@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/druid/resto_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- TBC Restoration Druid priority list for group healing, HoT rolling, dispels, mana, forms, and light PvP.
 
 -- ============================================================================
@@ -215,7 +233,8 @@ local function count_tree_aura_targets(entries, count)
     local aura_count = 0
     for i = 1, count do
         local entry = entries[i]
-        if entry and entry.unit and (not NS.unit_distance or NS.unit_distance(entry.unit) <= TREE_AURA_RANGE) then
+        local distance = entry and entry.unit and NS.unit_distance and NS.unit_distance(entry.unit) or 0
+        if entry and entry.unit and distance <= TREE_AURA_RANGE then
             aura_count = aura_count + 1
         end
     end
@@ -260,7 +279,9 @@ local function find_priority_innervate(entries, count, context)
     local healer_mana_floor = (context.settings and context.settings.resto_innervate_mana) or 30
     for i = 1, count do
         local entry = entries[i]
-        if entry and entry.unit and is_healer_entry(entry) and not NS.same_unit(entry.unit, context.me) and NS.mana_pct and NS.mana_pct(entry.unit) <= (healer_mana_floor + 5) then
+        local mana = entry and entry.unit and NS.mana_pct and NS.mana_pct(entry.unit) or 100
+        local is_self = entry and entry.unit and NS.same_unit and NS.same_unit(entry.unit, context.me)
+        if entry and entry.unit and is_healer_entry(entry) and not is_self and mana <= (healer_mana_floor + 5) then
             return entry.unit
         end
     end
@@ -325,17 +346,18 @@ local function build_state(context)
     resto_state.cursed_target = nil
     resto_state.poison_target = nil
     resto_state.tranquility_count = 0
-    resto_state.tree_aura_count = count_tree_aura_targets(entries, count)
-    resto_state.mana_potion_id = nil
-    resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
-    resto_state.in_tree = context.stance == STANCE_TREE or NS.has_player_buff(TREE_OF_LIFE_BUFF)
+    resto_state.in_tree = context.stance == STANCE_TREE
     resto_state.in_caster = not context.stance or context.stance == STANCE_CASTER
-    resto_state.can_tree = (settings.resto_tol_enabled ~= false) and NS.spell_ready(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, TREE_OPTS)
-    resto_state.should_dance_caster = false
-    resto_state.should_move_form = false
-    resto_state.moonfire_remains = context.target and debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
-    resto_state.insect_swarm_remains = context.target and debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
-    resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(17116, 3.0) or false
+    if not skip_aura then
+        resto_state.tree_aura_count = count_tree_aura_targets(entries, count)
+        resto_state.in_tree = context.stance == STANCE_TREE or NS.has_player_buff(TREE_OF_LIFE_BUFF)
+        resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
+        resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
+        resto_state.moonfire_remains = context.target and debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
+        resto_state.insect_swarm_remains = context.target and debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
+    end
     resto_state.mana_pct = context.mana_pct or context.player_mana_pct or 100
     local mana_conserve_pct = (settings.resto_mana_conserve_pct ~= nil and settings.resto_mana_conserve_pct) or MANA_CONSERVE_PCT
     local mana_emergency_pct = (settings.resto_mana_emergency_pct ~= nil and settings.resto_mana_emergency_pct) or MANA_EMERGENCY_PCT

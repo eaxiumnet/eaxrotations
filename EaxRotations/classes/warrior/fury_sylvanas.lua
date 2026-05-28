@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warrior/fury_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warrior Fury priority list — FrostByte v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
 -- ============================================================================
 -- What: TBC Warrior Fury rotation with rage pooling, Slam weaving, and debuff upkeep
@@ -87,9 +105,7 @@ local CHARGE_LOCKOUT_MS = 3000
 local INTERCEPT_LOCKOUT_MS = 5000
 
 -- Test assertion strings (preserved for regression tests)
-local BT_ACTION  = { name = "Bloodthirst", spell = ACTION.Bloodthirst, required_stance = 3, min_rage = 30, cooldown = 6 }
-local WW_ACTION  = { name = "Whirlwind", spell = ACTION.Whirlwind, required_stance = 3, min_rage = 25, cooldown = 10 }
-local EXEC_ACTION = { name = "Execute", spell = ACTION.Execute, min_rage = 15, required_stance = 3 }
+-- Action fields referenced via build_action() in strategy specs
 
 -- State table
 local fury_state = {
@@ -141,7 +157,7 @@ local fury_state = {
     -- Charge/Intercept protection
     charge_lock_until = 0,
     intercept_fired_at = 0,
-    last_charge_time = 0,
+    
     healthstone_ready = false,
     healthstone_id = nil,
     health_potion_ready = false,
@@ -220,11 +236,25 @@ local function desired_stance(context)
 end
 
 local function action(context, row)
-    return NS.action_matches(context, row)
+    if not context or not row then return false end
+    if not row.spell then return true end
+    local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
+    if not target then return false end
+    local opts = {}
+    if row.requires_target == false then opts.skip_range = true end
+    if row.cooldown then opts.expected_cooldown = row.cooldown end
+    return NS.spell_ready(row.spell, target, opts)
 end
 
 local function cast(context, row)
-    return NS.action_execute(context, row, "[FURY]")
+    if not context or not row then return false end
+    if not row.spell then return false end
+    local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
+    if not target then return false end
+    local opts = {}
+    if row.requires_target == false then opts.skip_range = true end
+    if row.cooldown then opts.expected_cooldown = row.cooldown end
+    return NS.try_cast(row.spell, target, "[FURY]", opts)
 end
 
 local function build_action(name, spell_value, opts)
@@ -365,6 +395,7 @@ end
 
 -- Battle Shout / Commanding Shout
 local function battle_shout_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
     if state.has_battle_shout or state.has_commanding_shout then return false end
     return action(context, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false, min_rage = 10 }))
 end
@@ -391,10 +422,10 @@ local function healthstone_matches(context, state)
     if state.hp > hs_hp then return false end
     -- Healthstone preferred, then health potion as fallback
     if state.healthstone_ready and state.healthstone_id then
-        return NS.action_matches(context, { name = "Healthstone", target = "self", requires_target = false })
+        return true
     end
     if state.health_potion_ready and state.health_potion_id then
-        return NS.action_matches(context, { name = "HealthPotion", target = "self", requires_target = false })
+        return true
     end
     return false
 end
@@ -419,6 +450,7 @@ end
 
 -- Rampage: stack management — recast when stacks < min threshold or buff about to fall off
 local function rampage_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rampage, 3.0) then return false end
     if not state.in_combat then return false end
     if not state.has_rampage then
         -- No buff at all — apply it
@@ -450,6 +482,7 @@ end
 
 -- Rend: bleed DoT
 local function rend_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rend, 2.0) then return false end
     if execute_phase(context, state) then return false end
     if state.rend_remains > 3 then return false end
     if state.target_hp < 25 then return false end
@@ -458,6 +491,7 @@ end
 
 -- Sunder Armor: stack armor reduction
 local function sunder_armor_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     if execute_phase(context, state) then return false end
     local sunder_mode = setting(context, "sunder_mode", "off")
     if sunder_mode == "off" then return false end
@@ -524,6 +558,7 @@ end
 
 -- Demoralizing Shout: enemy damage reduction
 local function demo_shout_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
     if state.demo_remains > 5 then return false end
     if not state.is_pvp and state.enemy_count < 2 and state.hp > 70 then return false end
     return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false, debuff = DEMO_SHOUT_DEBUFF, refresh = 5 }))
@@ -531,6 +566,7 @@ end
 
 -- Thunder Clap: attack speed slow
 local function thunder_clap_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
     if state.tclap_remains > 5 then return false end
     if not state.is_pvp and state.hp > 65 and state.enemy_count < 2 then return false end
     return action(context, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4 }))
@@ -538,6 +574,7 @@ end
 
 -- Berserker Rage: fear break / enrage
 local function berserker_rage_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BerserkerRage, 3.0) then return false end
     if not state.in_combat then return false end
     if state.has_berserker_rage then return false end
     return action(context, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", requires_target = false, cooldown = 30 }))
@@ -545,6 +582,7 @@ end
 
 -- Hamstring: PvP snare
 local function hamstring_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
     if not state.is_pvp then return false end
     if state.hamstring_remains > 3 then return false end
     return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
@@ -557,8 +595,7 @@ local function intercept_matches(context, state)
     if not auto_charge then return false end
     if state.target_distance < 8 or state.target_distance > 25 then return false end
     -- v2.1.7 / v2.1.8: Charge opener protection — don't Intercept if we just Charged
-    local now = NS.time and NS.time() or 0
-    if state.last_charge_time and (now - state.last_charge_time) < 2.5 then return false end
+    if not ready(ACTION.Intercept, context.target) then return false end
     return action(context, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10, cooldown = 30 }))
 end
 
@@ -629,10 +666,10 @@ local STRATEGY_SPECS = {
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BERSERKER, min_rage = 30, requires_target = false }) },
     -- Core rotation
     { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }) },
-    { "Bloodthirst", bt_matches, BT_ACTION },
-    { "Execute", execute_matches, EXEC_ACTION },
+    { "Bloodthirst", bt_matches, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }) },
+    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }) },
     { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }) },
-    { "Whirlwind", whirlwind_matches, WW_ACTION },
+    { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF }) },
     { "DemoralizingShout", demo_shout_matches, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false }) },
     { "ThunderClap", thunder_clap_matches, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, cooldown = 4 }) },

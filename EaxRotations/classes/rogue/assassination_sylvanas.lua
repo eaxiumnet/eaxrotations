@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/rogue/assassination_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- TBC Rogue Assassination priority list with Mutilate CP building,
 -- ============================================================================
 -- What: TBC Rogue Assassination rotation with Mutilate, poison upkeep, and finisher priority
@@ -70,15 +88,39 @@ local assassin_state = {
 
 local function build_state(context)
     local target = context.target
-    -- Buffs
-    assassin_state.stealth_active = NS.has_player_buff(STEALTH_BUFF)
-    assassin_state.slice_dice_active = NS.has_player_buff(SLICE_DICE_BUFF)
-    -- SnD refresh tracking: re-cast when < 3s remains for 100% uptime
-    if assassin_state.slice_dice_active and type(NS.buff_remains) == "function" then
-        local r = NS.buff_remains(NS.PLAYER_UNIT, SLICE_DICE_BUFF)
-        assassin_state.snd_remains = (r ~= nil and r >= 0) and r or 999
-    else
-        assassin_state.snd_remains = 0
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(1787, 3.0) or false
+    if not skip_aura then
+        -- Buffs
+        assassin_state.stealth_active = NS.has_player_buff(STEALTH_BUFF)
+        assassin_state.slice_dice_active = NS.has_player_buff(SLICE_DICE_BUFF)
+        -- SnD refresh tracking: re-cast when < 3s remains for 100% uptime
+        if assassin_state.slice_dice_active and type(NS.buff_remains) == "function" then
+            local r = NS.buff_remains(NS.PLAYER_UNIT, SLICE_DICE_BUFF)
+            assassin_state.snd_remains = (r ~= nil and r >= 0) and r or 999
+        else
+            assassin_state.snd_remains = 0
+        end
+        assassin_state.snd_needs_refresh = assassin_state.slice_dice_active and assassin_state.snd_remains <= SND_REFRESH_WINDOW
+        assassin_state.has_cold_blood = NS.has_player_buff(COLD_BLOOD_BUFF)
+        -- Debuffs on target
+        if target then
+            assassin_state.rupture_remains = NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
+            assassin_state.garrote_remains = NS.debuff_remains and NS.debuff_remains(target, GARROTE_DEBUFF) or 0
+            assassin_state.dp_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, DEADLY_POISON_DEBUFF) or 0
+            assassin_state.dp_remains = NS.debuff_remains and NS.debuff_remains(target, DEADLY_POISON_DEBUFF) or 0
+            assassin_state.target_poisoned = assassin_state.dp_stacks > 0
+                or (NS.has_target_debuff and NS.has_target_debuff(target, CRIPPLING_POISON_DEBUFF))
+                or (NS.has_target_debuff and NS.has_target_debuff(target, WOUND_POISON_DEBUFF))
+            assassin_state.find_weakness_active = NS.has_target_debuff and NS.has_target_debuff(target, FIND_WEAKNESS_BUFF)
+        else
+            assassin_state.rupture_remains = 0
+            assassin_state.garrote_remains = 0
+            assassin_state.dp_stacks = 0
+            assassin_state.dp_remains = 0
+            assassin_state.target_poisoned = false
+            assassin_state.find_weakness_active = false
+        end
     end
     assassin_state.snd_needs_refresh = assassin_state.slice_dice_active and assassin_state.snd_remains <= SND_REFRESH_WINDOW
     assassin_state.has_cold_blood = NS.has_player_buff(COLD_BLOOD_BUFF)

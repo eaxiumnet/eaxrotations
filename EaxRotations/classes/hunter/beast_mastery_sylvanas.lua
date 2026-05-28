@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/hunter/beast_mastery_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Hunter Beast Mastery — FrostByte Parity (1-70)
 -- Auto-shot timer, pet mgmt, dynamic aspects, stings, threat, pull modes, melee, AoE
 
@@ -210,44 +228,7 @@ local function is_item_ready(me, item_id)
     return true
 end
 
--- ============================================================================
--- Action definitions
--- ============================================================================
--- Pet management (out of combat)
-local CALL_PET_ACTION = { name = "CallPet", spell = SPELLS.CallPet, target = "self", requires_target = false }
-local REVIVE_PET_ACTION = { name = "RevivePet", spell = SPELLS.RevivePet, target = "self", requires_target = false }
 
--- Aspect switching
-local ASPECT_HAWK_ACTION = { name = "AspectOfTheHawk", spell = SPELLS.AspectOfTheHawk, target = "self", kind = "buff", requires_target = false }
-local ASPECT_VIPER_ACTION = { name = "AspectOfTheViper", spell = SPELLS.AspectOfTheViper, target = "self", kind = "buff", requires_target = false }
-
--- Hunter's Mark
-local HUNTERS_MARK_ACTION = { name = "HuntersMark", spell = SPELLS.HuntersMark, requires_target = true }
-
--- Pet healing
-local MEND_PET_ACTION = { name = "MendPet", spell = SPELLS.MendPet, target = "pet", requires_target = false }
-
--- Feign Death
-local FEIGN_DEATH_ACTION = { name = "FeignDeath", spell = SPELLS.FeignDeath, target = "self", requires_target = false }
-
--- Cooldowns
-local BESTIAL_WRATH_ACTION = { name = "BestialWrath", spell = SPELLS.BestialWrath, target = "self", requires_target = false }
-local RAPID_FIRE_ACTION = { name = "RapidFire", spell = SPELLS.RapidFire, target = "self", requires_target = false }
-local READINESS_ACTION = { name = "Readiness", spell = SPELLS.Readiness, target = "self", requires_target = false }
-
--- Combat rotation
-local KILL_COMMAND_ACTION = { name = "KillCommand", spell = SPELLS.KillCommand, skip_gcd = true }
-local MULTI_SHOT_ACTION = { name = "MultiShot", spell = SPELLS.MultiShot }
-local STEADY_SHOT_ACTION = { name = "SteadyShot", spell = SPELLS.SteadyShot, not_moving = true }
-local ARCANE_SHOT_ACTION = { name = "ArcaneShot", spell = SPELLS.ArcaneShot }
-local SERPENT_STING_ACTION = { name = "SerpentSting", spell = SPELLS.SerpentSting }
-local FREEZING_TRAP_ACTION = { name = "FreezingTrap", spell = SPELLS.FreezingTrap, target = "self", requires_target = false }
-
--- Melee & AoE (FrostByte parity)
-local RAPTOR_STRIKE_ACTION = { name = "RaptorStrike", spell = RAPTOR_STRIKE_IDS }
-local CONCUSSIVE_SHOT_ACTION = { name = "ConcussiveShot", spell = CONCUSSIVE_SHOT_IDS }
-local VOLLEY_ACTION = { name = "Volley", spell = VOLLEY_IDS, not_moving = true }
-local EXPLOSIVE_TRAP_ACTION = { name = "ExplosiveTrap", spell = SPELLS.ExplosiveTrap, target = "self", requires_target = false }
 
 -- ============================================================================
 -- Match functions
@@ -266,7 +247,7 @@ local function call_pet_matches(context, s)
     if not s.has_pet_spell then return false end
     if s.has_pet then return false end
     if not s.call_pet_ready then return false end
-    return NS.action_matches(context, CALL_PET_ACTION)
+    return true
 end
 
 local function revive_pet_matches(context, s)
@@ -279,7 +260,7 @@ local function revive_pet_matches(context, s)
         return false
     end
     if not s.revive_pet_ready then return false end
-    return NS.action_matches(context, REVIVE_PET_ACTION)
+    return true
 end
 
 -- Aspect management (OOC — Cheetah for speed if auto mode)
@@ -296,12 +277,13 @@ end
 
 -- IN COMBAT — Hunter's Mark
 local function hunters_mark_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.HuntersMark, 2.0) then return false end
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not context.target then return false end
     if s.has_hunters_mark then return false end
     if not s.hunters_mark_ready then return false end
-    return NS.action_matches(context, HUNTERS_MARK_ACTION)
+    return true
 end
 
 -- Misdirection (pull window)
@@ -327,11 +309,12 @@ local function mend_pet_matches(context, s)
     if not s.pet_alive then return false end
     if s.pet_hp > 45 then return false end
     if not s.mend_pet_ready then return false end
-    return NS.action_matches(context, MEND_PET_ACTION)
+    return true
 end
 
 -- Aspect management (in combat — Viper if low mana)
 local function aspect_viper_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.AspectOfTheViper, 3.0) then return false end
     if not mounted_bail(context, s) then return false end
     if s.aspect_mode ~= "auto" then return false end
     if s.has_viper then return false end
@@ -356,7 +339,7 @@ local function bestial_wrath_matches(context, s)
     if not cooldowns_allowed(context) then return false end
     if not s.pet_alive then return false end
     if not s.bestial_wrath_ready then return false end
-    return NS.action_matches(context, BESTIAL_WRATH_ACTION)
+    return true
 end
 
 -- Rapid Fire
@@ -364,7 +347,7 @@ local function rapid_fire_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
     if not s.rapid_fire_ready then return false end
-    return NS.action_matches(context, RAPID_FIRE_ACTION)
+    return true
 end
 
 -- Readiness (reset Bestial Wrath / Rapid Fire after they expire)
@@ -374,7 +357,7 @@ local function readiness_matches(context, s)
     if not s.readiness_ready then return false end
     -- Only use if Bestial Wrath is on cooldown (already used)
     if s.bestial_wrath_ready then return false end
-    return NS.action_matches(context, READINESS_ACTION)
+    return true
 end
 
 -- Kill Command (off-GCD, high priority)
@@ -383,7 +366,7 @@ local function kill_command_matches(context, s)
     if not s.in_combat then return false end
     if not s.pet_alive then return false end
     if not s.kill_command_ready then return false end
-    return NS.action_matches(context, KILL_COMMAND_ACTION)
+    return true
 end
 
 -- Multi-Shot (configurable threshold, CC-safe and mana-gated)
@@ -399,7 +382,7 @@ local function multi_shot_matches(context, s)
     if s.mana_pct < MULTI_SHOT_MANA_FLOOR then return false end
     -- Check auto-shot clipping
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
-    return NS.action_matches(context, MULTI_SHOT_ACTION)
+    return true
 end
 
 -- Feign Death (threat management)
@@ -409,7 +392,7 @@ local function feign_death_matches(context, s)
     if s.fd_mode == "off" then return false end
     if not hunter_core.should_feign_death(s.threat_level, s.fd_mode) then return false end
     if not s.feign_death_ready then return false end
-    return NS.action_matches(context, FEIGN_DEATH_ACTION)
+    return true
 end
 
 -- Sting application (Serpent/Scorpid/Viper based on mode)
@@ -424,7 +407,7 @@ local function sting_matches(context, s)
     if s.sting_mode == "serpent" then
         if s.has_serpent_sting then return false end
         if not s.serpent_sting_ready then return false end
-        return NS.action_matches(context, SERPENT_STING_ACTION)
+        return true
     end
     -- Other stings not implemented yet (Scorpid/Viper via middleware)
     return false
@@ -442,7 +425,7 @@ local function serpent_refresh_matches(context, s)
     local remains = hunter_core.sting_remains(context.target, "serpent")
     if remains > 3 then return false end
     if not s.serpent_sting_ready then return false end
-    return NS.action_matches(context, SERPENT_STING_ACTION)
+    return true
 end
 
 -- Arcane Shot (instant filler, suppressed at low mana per Research Angle 4: <20% = Steady only)
@@ -454,7 +437,7 @@ local function arcane_shot_matches(context, s)
     if s.mana_pct < ARCANE_SHOT_MANA_FLOOR then return false end
     -- Check auto-shot clipping for instant
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
-    return NS.action_matches(context, ARCANE_SHOT_ACTION)
+    return true
 end
 
 -- Steady Shot (primary filler, 62+)
@@ -466,7 +449,7 @@ local function steady_shot_matches(context, s)
     if not hunter_core.can_cast_steady(s.shot_buffer) then return false end
     -- Not while moving (steady requires standing still)
     if context.is_moving then return false end
-    return NS.action_matches(context, STEADY_SHOT_ACTION)
+    return true
 end
 
 -- Freezing Trap (OOC, CC)
@@ -475,7 +458,7 @@ local function freezing_trap_matches(context, s)
     if s.in_combat then return false end
     if not context.target then return false end
     if not (NS.spell_ready and NS.spell_ready(SPELLS.FreezingTrap, context.me, { skip_range = true })) then return false end
-    return NS.action_matches(context, FREEZING_TRAP_ACTION)
+    return true
 end
 
 -- ============================================================================
@@ -493,7 +476,7 @@ local function raptor_strike_matches(context, s)
     if not s.raptor_strike_ready then return false end
     -- Don't clip auto-shot
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
-    return NS.action_matches(context, RAPTOR_STRIKE_ACTION)
+    return true
 end
 
 -- Concussive Shot: slow chasing mobs
@@ -507,18 +490,19 @@ local function concussive_shot_matches(context, s)
     if dist < 8 then return false end
     -- Check auto-shot clipping
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
-    return NS.action_matches(context, CONCUSSIVE_SHOT_ACTION)
+    return true
 end
 
 -- Volley: AoE channeled (respects threshold)
 local function volley_matches(context, s)
+    if context.is_channeling then return false end
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.use_volley then return false end
     if s.enemy_count < s.aoe_threshold then return false end
     if not s.volley_ready then return false end
     if context.is_moving then return false end
-    return NS.action_matches(context, VOLLEY_ACTION)
+    return true
 end
 
 -- Explosive Trap: AoE ground placement
@@ -528,7 +512,7 @@ local function explosive_trap_matches(context, s)
     if not s.use_explosive_trap then return false end
     if s.enemy_count < s.aoe_threshold then return false end
     if not s.explosive_trap_ready then return false end
-    return NS.action_matches(context, EXPLOSIVE_TRAP_ACTION)
+    return true
 end
 
 -- Trinket: on-use trinket activation during combat
@@ -722,12 +706,6 @@ local strategies = {
             return result
         end,
     },
-    -- 16. Sting application (Serpent by default)
-    {
-        name = "SerpentSting",
-        matches = sting_matches,
-        execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
-    },
     -- 17. Serpent Sting refresh
     {
         name = "SerpentStingRefresh",
@@ -753,6 +731,11 @@ local strategies = {
             if result then hunter_core.record_steady_start() end
             return result
         end,
+    },
+    {
+        name = "SerpentSting",
+        matches = sting_matches,
+        execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
     },
     -- 20. Trinkets (on-use, during combat, respects cooldown toggle)
     {

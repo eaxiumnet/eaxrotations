@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/druid/middleware_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Druid shared middleware.
 
 -- ============================================================================
@@ -11,6 +29,8 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local CCGateDB = CCBreakDB
 local SPELLS = NS.DruidSpells or {}
 
 -- ============================================================================
@@ -65,10 +85,134 @@ local function can_afford_reshift(stance)
     return true
 end
 
+-- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
+local DRUID_AOE_IDS = { 779, 17401 }  -- Swipe (Bear), Hurricane
+
+-- Form buff IDs for CC break detection
+local FORM_BUFFS = {
+    BEAR = { 9634, 5487 },
+    CAT = { 768 },
+    MOONKIN = { 24858 },
+    TREE = { 33891 },
+    TRAVEL = { 783 },
+    AQUATIC = { 1066 },
+}
+
+-- Root/snare debuffs breakable by shapeshifting (stuns NOT included — can't shift while stunned)
+local ROOT_SNARE_DEBUFFS = {
+    339, 5195, 5196, 9852, 9853, 19970, 19972, 19973, 19974, 19975, 26989, 27010,  -- Entangling Roots
+    122, 865, 6131, 10230, 27088,   -- Frost Nova
+    1715, 7372, 7373,               -- Hamstring
+    2974, 14267, 14268,             -- Wing Clip
+    3408, 11202, 11201,  -- Crippling Poison
+}
+
+-- Helper: check if druid is in a form that's immune to Polymorph
+local function in_poly_immune_form()
+    if NS.has_player_buff and NS.has_player_buff(FORM_BUFFS.BEAR) then return true end
+    if NS.has_player_buff and NS.has_player_buff(FORM_BUFFS.CAT) then return true end
+    if NS.has_player_buff and NS.has_player_buff(FORM_BUFFS.MOONKIN) then return true end
+    if NS.has_player_buff and NS.has_player_buff(FORM_BUFFS.TREE) then return true end
+    return false
+end
+
+-- Helper: check if druid is rooted or snared
+local function is_rooted_or_snared(me)
+    if not me or not NS.debuff_up then return false end
+    for _, id in ipairs(ROOT_SNARE_DEBUFFS) do
+        if NS.debuff_up(me, id) then return true end
+    end
+    return false
+end
+
+-- Helper: find the best form to shift into for CC immunity
+local function get_best_cc_form(settings)
+    local playstyle = (settings and settings.playstyle) or "balance"
+    -- Prefer playstyle-appropriate form
+    if playstyle == "bear" then
+        for _, id in ipairs(FORM_BUFFS.BEAR) do
+            if NS.is_spell_learned and NS.is_spell_learned(id) then return id end
+        end
+    end
+    if playstyle == "cat" then
+        for _, id in ipairs(FORM_BUFFS.CAT) do
+            if NS.is_spell_learned and NS.is_spell_learned(id) then return id end
+        end
+    end
+    if playstyle == "balance" then
+        for _, id in ipairs(FORM_BUFFS.MOONKIN) do
+            if NS.is_spell_learned and NS.is_spell_learned(id) then return id end
+        end
+    end
+    if playstyle == "resto" then
+        for _, id in ipairs(FORM_BUFFS.TREE) do
+            if NS.is_spell_learned and NS.is_spell_learned(id) then return id end
+        end
+    end
+    -- Fallback: Bear Form (tanky default)
+    for _, id in ipairs(FORM_BUFFS.BEAR) do
+        if NS.is_spell_learned and NS.is_spell_learned(id) then return id end
+    end
+    -- Then Cat Form
+    for _, id in ipairs(FORM_BUFFS.CAT) do
+        if NS.is_spell_learned and NS.is_spell_learned(id) then return id end
+    end
+    return nil
+end
+
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("druid", "FeralCharge", SPELLS, "bear"),
     interrupt_manager.register_interrupt_spell("druid", "Bash", SPELLS, "bear"),
+
+    -- ============================================================================
+    -- CC Break: preemptively shapeshift when enemy casts Poly/Cyclone at caster-form druid
+    -- Reactive: shapeshift to break roots/snares
+    -- ============================================================================
+    {
+        name = "DruidCCBreak",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_cc_break == false then return false end
+            if not context.in_combat then return false end
+            local me = context.me or NS.GetPlayer()
+            if not me then return false end
+            -- Preemptive scan: check if any nearby enemy is casting Poly/Cyclone/Hibernate on us
+            -- Only preempt if we're in caster form (forms are immune to Poly)
+            if not in_poly_immune_form() then
+                local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+                for _, enemy in ipairs(enemies) do
+                    if enemy then
+                        local is_casting_cc = CCBreakDB.is_casting_preemptive_cc(enemy)
+                        if is_casting_cc then
+                            local ok, etarget = pcall(function() return enemy:get_target() end)
+                            if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
+                                local form_id = get_best_cc_form(settings)
+                                if form_id and NS.spell_ready and NS.spell_ready(form_id, me, { skip_range = true }) then
+                                    return true
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            -- Reactive: shapeshift to break roots/snares (roots allow casting, so this path works)
+            if is_rooted_or_snared(me) then
+                local form_id = get_best_cc_form(settings)
+                if form_id and NS.spell_ready and NS.spell_ready(form_id, me, { skip_range = true }) then
+                    return true
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local me = context.me or NS.GetPlayer()
+            if not me then return false end
+            local form_id = get_best_cc_form(context.settings or {})
+            if not form_id then return false end
+            return NS.try_cast(form_id, me, "[DRUID] Shapeshift → CC Break", { skip_range = true })
+        end,
+    },
 
     -- ============================================================================
     -- FORM-AWARE CONSUMABLES (pots/runes usable in Cat/Bear with auto-reshift)
@@ -158,7 +302,12 @@ local strategies = {
         name = "PartyDispel",
         matches = function(context)
             local settings = context.settings or {}
+            -- Shared global kill switch
             if settings.auto_dispel == false then return false end
+            -- Playstyle-specific AND gate: respect balance_auto_dispel / resto_auto_dispel
+            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            local playstyle_key = playstyle .. "_auto_dispel"
+            if settings[playstyle_key] == false then return false end
             if not context.in_combat then return false end
             -- Check self for curse or poison
             local me = context.me or NS.GetPlayer()
@@ -231,10 +380,10 @@ local strategies = {
         name = "ThreatDrop",
         matches = function(context)
             if context.settings.use_threat_drop == false then return false end
-            return NS.action_matches(context, { name = "ThreatDrop", spell = SPELLS.Cower, target = "self", kind = "threat_drop", requires_target = false, required_form = "cat" })
+            return true
         end,
         execute = function(context)
-            return NS.action_execute(context, { name = "ThreatDrop", spell = SPELLS.Cower, target = "self", requires_target = false }, "[DRUID]")
+            return NS.try_cast(SPELLS.Cower, context.me, "[DRUID] Cower", { skip_range = true })
         end,
     },
 
@@ -283,6 +432,9 @@ local strategies = {
             local settings = context.settings or {}
             if context.in_combat then return false end
             if settings.auto_bear_form_ooc == false then return false end
+            -- Playstyle gate: auto bear form is for bear tanks only
+            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            if playstyle ~= "bear" then return false end
             -- Check if already in Bear Form (buff check)
             local bear_buffs = { 9634, 5487 }
             if NS.has_player_buff and NS.has_player_buff(bear_buffs) then return false end
@@ -292,6 +444,29 @@ local strategies = {
         execute = function(context)
             return NS.try_cast({ id = { 9634, 5487 }, name = "BearForm" }, context.me, "[DRUID] Bear Form", { skip_range = true })
         end,
+    },
+
+    -- ============================================================================
+    -- PvP CC Gate: placed at END of middleware so healthstones/pots/dispels still fire.
+    -- Only gates spec-level AoE (Swipe, Hurricane).
+    -- ============================================================================
+    {
+        name = "PvPCCGate",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_pvp_cc_gating == false then return false end
+            if not context.in_combat then return false end
+            local has_aoe = false
+            for _, id in ipairs(DRUID_AOE_IDS) do
+                if NS.is_spell_learned and NS.is_spell_learned(id) then
+                    has_aoe = true
+                    break
+                end
+            end
+            if not has_aoe then return false end
+            return CCGateDB.is_any_nearby_enemy_under_cc(NS, 15)
+        end,
+        execute = function() return true end,
     },
 
     -- Auto-consumable usage

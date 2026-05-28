@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/healer_engine_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- What: Shared healer engine for stop-cast, pre-heal, and target scoring
 -- When: Per tick during healing decisions
@@ -15,7 +33,39 @@ local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
 local _get_enemies = core.object_manager.get_enemy_list
 local _get_party = core.object_manager.get_party_frames
-local _cast_spell = core.input.cast_target_spell
+
+local function unit_is_live(unit)
+    if not unit then return false end
+    local ok_valid, is_valid = pcall(function()
+        if unit.is_valid then return unit:is_valid() end
+        return true
+    end)
+    if not ok_valid or is_valid == false then return false end
+
+    local ok_alive, is_alive = pcall(function()
+        if unit.is_alive then return unit:is_alive() end
+        return true
+    end)
+    return ok_alive and is_alive ~= false
+end
+
+local function unit_health_pct(unit)
+    if not unit then return nil end
+    local ok, hp = pcall(function()
+        if unit.get_health_percentage then return unit:get_health_percentage() end
+        return nil
+    end)
+    return ok and type(hp) == "number" and hp or nil
+end
+
+local function unit_distance_from(me, unit)
+    if not me or not unit then return nil end
+    local ok, dist = pcall(function()
+        if me.get_distance then return me:get_distance(unit) end
+        return nil
+    end)
+    return ok and type(dist) == "number" and dist or nil
+end
 
 -- ============================================================================
 -- Internal state
@@ -57,6 +107,7 @@ end
 function M.check_stopcast(target, cast_start_time, cast_duration, heal_threshold)
     if not target then return false end
     if not cast_start_time or not cast_duration then return false end
+    if type(cast_duration) ~= "number" or cast_duration <= 0 then return false end
     if not heal_threshold then heal_threshold = 85 end
 
     local now = _core_time()
@@ -69,7 +120,7 @@ function M.check_stopcast(target, cast_start_time, cast_duration, heal_threshold
     if now - _stopcast.last_cancel < 0.1 then return false end
 
     -- Check if target HP recovered above threshold
-    local hp = target:get_health_percentage()
+    local hp = unit_health_pct(target)
     if not hp or hp < heal_threshold then return false end
 
     -- Check if we should cancel at this checkpoint
@@ -78,7 +129,8 @@ function M.check_stopcast(target, cast_start_time, cast_duration, heal_threshold
         if progress >= cp_pct - 0.05 and progress <= cp_pct + 0.05 then
             _stopcast.last_cancel = now
             -- Cancel current cast
-            pcall(core.input.cast_target_spell, 32747)  -- Spell_Cancel
+            -- Cancel current cast via API surface
+            pcall(function() return NS.cancel_spells() end)
             return true
         end
     end
@@ -86,7 +138,7 @@ function M.check_stopcast(target, cast_start_time, cast_duration, heal_threshold
     -- Also check if HP recovered above threshold regardless of checkpoint
     if hp >= heal_threshold + 5 then
         _stopcast.last_cancel = now
-        pcall(core.input.cast_target_spell, 32747)
+        pcall(function() return NS.cancel_spells() end)
         return true
     end
 
@@ -123,6 +175,7 @@ end
 ---@return boolean used
 function M.pre_heal(target, spell_id, ctx, opts)
     if not target or not spell_id or not ctx then return false end
+    if not unit_is_live(target) then return false end
     opts = opts or {}
 
     local mana_floor = opts.mana_floor or 50
@@ -130,7 +183,7 @@ function M.pre_heal(target, spell_id, ctx, opts)
     local emergency_hp = opts.emergency_hp or 60
 
     -- Don't pre-heal if target is already healthy
-    local hp = target:get_health_percentage()
+    local hp = unit_health_pct(target)
     if hp and hp >= stop_hp then
         _preheal.active = false
         return false
@@ -163,15 +216,14 @@ function M.pre_heal(target, spell_id, ctx, opts)
         if is_moving then return false end
     end
 
-    -- Cast the pre-heal
-    local cd = pcall(core.spell_book.get_spell_cooldown, spell_id)
-    if cd then
-        _cast_spell(spell_id, target)
-        _preheal.active = true
-        _preheal.target_guid = tostring(target:get_guid() or "")
-        _preheal.spell_id = spell_id
-        _preheal.start_time = _core_time()
-        return true
+    -- Intent-only: return what should be cast, never cast directly.
+    local ok_cd, cd = pcall(core.spell_book.get_spell_cooldown, spell_id)
+    if ok_cd and cd and cd <= 0 then
+        return {
+            target = target,
+            spell_id = spell_id,
+            label = "[pre_heal] " .. tostring(spell_id),
+        }
     end
 
     return false
@@ -216,23 +268,16 @@ function M.is_tank(unit)
     if ok and class then
         -- Warrior in Defensive stance
         if class == 1 then  -- WARRIOR
-            local ok_has, is_def = pcall(function()
-                return unit:has_buff(7372) or unit:has_buff(7166) or unit:has_buff(7165)
-            end)
-            if ok_has and is_def then return true end
+            if NS.buff_up(unit, {7372, 7166, 7165}) then return true end
         end
         -- Druid in Bear form
         if class == 11 then  -- DRUID
-            local ok_bear, is_bear = pcall(function()
-                return unit:has_buff(5487) or unit:has_buff(9634) or unit:has_buff(26989)
-            end)
-            if ok_bear and is_bear then return true end
+            if NS.buff_up(unit, {5487, 9634, 26989}) then return true end
         end
         -- Paladin
         if class == 2 then  -- PALADIN
             -- Check for Righteous Fury
-            local ok_rf, has_rf = pcall(function() return unit:has_buff(25780) end)
-            if ok_rf and has_rf then return true end
+            if NS.buff_up(unit, {25780}) then return true end
         end
     end
 
@@ -249,7 +294,7 @@ end
 ---@return number score Urgency score (higher = more urgent)
 function M.score_heal_target(unit, opts)
     if not unit then return -999 end
-    if not unit:is_valid() or not unit:is_alive() then return -999 end
+    if not unit_is_live(unit) then return -999 end
 
     opts = opts or {}
     local me = _get_local_player()
@@ -257,10 +302,10 @@ function M.score_heal_target(unit, opts)
 
     -- Check distance
     local max_dist = opts.max_distance or 40
-    local dist = me:get_distance(unit)
+    local dist = unit_distance_from(me, unit)
     if dist and dist > max_dist then return -999 end
 
-    local hp = unit:get_health_percentage()
+    local hp = unit_health_pct(unit)
     if not hp then return -999 end
 
     local score = 0
@@ -352,8 +397,8 @@ function M.get_heal_targets(include_self, max_range)
     if ok_party and party then
         for i = 1, #party do
             local member = party[i]
-            if member and member:is_valid() and member:is_alive() then
-                local dist = me:get_distance(member)
+            if unit_is_live(member) then
+                local dist = unit_distance_from(me, member)
                 if dist and dist <= max_range then
                     targets[idx] = member
                     idx = idx + 1

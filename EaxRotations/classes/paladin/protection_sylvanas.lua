@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/paladin/protection_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Paladin Protection priority list with holy threat, uncrushable logic, and seal/aura management.
 
 -- ============================================================================
@@ -27,6 +45,20 @@ local CONSECRATION_MIN_MANA = 35
 local CONSECRATION_AOE_THRESHOLD = 3
 
 -- ============================================================================
+-- Settings helper
+-- ============================================================================
+local function get_setting(context, key, fallback)
+    local settings = context.settings or {}
+    local value = settings[key]
+    if value == nil then return fallback end
+    return value
+end
+
+-- ============================================================================
+-- Time-based gates (buff detection via Sylvanas API returns nil)
+-- ============================================================================
+
+-- ============================================================================
 -- State builder
 -- ============================================================================
 local prot_state = {
@@ -37,6 +69,7 @@ local prot_state = {
     has_divine_shield = false,
     consecration_remains = 0,
     has_blessing_sanctuary = false,
+    now_ms = 0,
     holy_shield_ready = false,
     avenger_ready = false,
     exorcism_ready = false,
@@ -67,19 +100,25 @@ local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
 
-    prot_state.has_righteous_fury = me and NS.buff_up(me, RIGHTEOUS_FURY_BUFF) or false
-    prot_state.has_holy_shield = me and NS.buff_up(me, HOLY_SHIELD_BUFF) or false
-    -- Track remaining Holy Shield charges via buff.points for proactive refresh
-    prot_state.holy_shield_charges = 0
-    if prot_state.has_holy_shield and type(NS.buff_points) == "function" then
-        local pts = NS.buff_points(me, HOLY_SHIELD_BUFF)
-        prot_state.holy_shield_charges = (pts and pts[1]) or 0
+    prot_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(25780, 3.0) or false
+    if not skip_aura then
+        prot_state.has_righteous_fury = me and NS.buff_up(me, RIGHTEOUS_FURY_BUFF) or false
+        prot_state.has_holy_shield = me and NS.buff_up(me, HOLY_SHIELD_BUFF) or false
+        -- Track remaining Holy Shield charges via buff.points for proactive refresh
+        prot_state.holy_shield_charges = 0
+        if prot_state.has_holy_shield and type(NS.buff_points) == "function" then
+            local pts = NS.buff_points(me, HOLY_SHIELD_BUFF)
+            prot_state.holy_shield_charges = (pts and pts[1]) or 0
+        end
+        prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
+        prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
+        prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
+        prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
+        prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
     end
-    prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
-    prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
-    prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
-    prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
-    prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
+    prot_state.consecration_ready = me and NS.spell_ready(SPELLS.Consecration, me, { skip_range = true, expected_cooldown = 8 }) or false
     prot_state.holy_shield_ready = me and NS.spell_ready(SPELLS.HolyShield, me, { skip_range = true, expected_cooldown = 10 }) or false
     prot_state.avenger_ready = me and NS.spell_ready(SPELLS.AvengerShield, me, { expected_cooldown = 30 }) or false
     prot_state.exorcism_ready = me and NS.spell_ready(SPELLS.Exorcism, me, { expected_cooldown = 15 }) or false
@@ -129,7 +168,7 @@ local function build_state(context)
             local enemy = enemies[i]
             if enemy and enemy ~= target then
                 for j = 1, #CC_DEBUFFS do
-                    if enemy.has_debuff and enemy:has_debuff(CC_DEBUFFS[j]) then
+                    if NS.debuff_up(enemy, {CC_DEBUFFS[j]}) then
                         local dx = (enemy.x or 0) - (target.x or 0)
                         local dy = (enemy.y or 0) - (target.y or 0)
                         if dx*dx + dy*dy < 225 then -- 15 yards
@@ -151,192 +190,219 @@ local function cooldowns_enabled(context)
 end
 
 -- ============================================================================
--- Action definitions (test assertion strings embedded)
--- ============================================================================
-local RIGHTEOUS_FURY_ACTION = { name = "RighteousFury", spell = SPELLS.RighteousFury, target = "self", kind = "buff", buff = RIGHTEOUS_FURY_BUFF, requires_target = false }
-local HOLY_SHIELD_ACTION = { name = "HolyShield", spell = SPELLS.HolyShield, target = "self", combat = true, cooldown = 10, requires_target = false }
-local CONSECRATION_ACTION = { name = "Consecration", spell = SPELLS.Consecration, target = "self", combat = true, cooldown = 8, requires_target = false, min_mana = CONSECRATION_MIN_MANA }
-local HOLY_WRATH_ACTION = { name = "HolyWrath", spell = SPELLS.HolyWrath, target = "self", not_moving = true, cooldown = 60, min_mana = 20, creature_types = DEMON_OR_UNDEAD, requires_target = false }
-local AVENGER_SHIELD_ACTION = { name = "AvengerShield", spell = SPELLS.AvengerShield, not_moving = true, cooldown = 30 }
-local EXORCISM_ACTION = { name = "Exorcism", spell = SPELLS.Exorcism, not_moving = true, cooldown = 15, min_mana = 20, creature_types = DEMON_OR_UNDEAD }
-local SEAL_RIGHTEOUSNESS_ACTION = { name = "SealRighteousness", spell = SPELLS.SealRighteousness, target = "self", kind = "buff", buff = SEAL_RIGHTEOUSNESS_BUFF, requires_target = false }
-local JUDGEMENT_ACTION = { name = "Judgement", spell = SPELLS.Judgement, cooldown = 10 }
-
-local DIVINE_SHIELD_ACTION = { name = "DivineShield", spell = SPELLS.DivineShield, target = "self", kind = "buff", buff = DIVINE_SHIELD_BUFF, cooldown = 300, requires_target = false }
-local LAY_ON_HANDS_ACTION = { name = "LayOnHands", spell = SPELLS.LayOnHands, target = "self", cooldown = 1200, requires_target = false }
-local HAMMER_OF_JUSTICE_ACTION = { name = "HammerOfJustice", spell = SPELLS.HammerOfJustice, cooldown = 60 }
-local HAMMER_OF_WRATH_ACTION = { name = "HammerOfWrath", spell = SPELLS.HammerOfWrath, cooldown = 6 }
-local AVENGING_WRATH_ACTION = { name = "AvengingWrath", spell = SPELLS.AvengingWrath, target = "self", kind = "buff", cooldown = 180, requires_target = false }
-local FLASH_OF_LIGHT_ACTION = { name = "FlashOfLight", spell = SPELLS.FlashOfLight, target = "self", cooldown = 1.5, requires_target = false }
-local HOLY_LIGHT_ACTION = { name = "HolyLight", spell = SPELLS.HolyLight, target = "self", cooldown = 2.5, requires_target = false }
-local HOLY_SHOCK_ACTION = { name = "HolyShock", spell = SPELLS.HolyShock, cooldown = 15 }
-local CLEANSE_ACTION = { name = "Cleanse", spell = SPELLS.Cleanse, target = "self", cooldown = 1.5, requires_target = false }
-local DEVOTION_AURA_ACTION = { name = "DevotionAura", spell = SPELLS.DevotionAura, target = "self", kind = "buff", buff = DEVOTION_AURA_BUFF, requires_target = false }
-local BLESSING_OF_SANCTUARY_ACTION = { name = "BlessingOfSanctuary", spell = SPELLS.BlessingOfSanctuary, target = "self", kind = "buff", buff = BLESSING_OF_SANCTUARY_BUFF, requires_target = false }
-local SEAL_OF_WISDOM_ACTION = { name = "SealOfWisdom", spell = SPELLS.SealOfWisdom, target = "self", kind = "buff", requires_target = false }
-
--- ============================================================================
 -- Match functions
 -- ============================================================================
 local function righteous_fury_matches(context, state)
     if state.has_righteous_fury then return false end
-    return NS.action_matches(context, RIGHTEOUS_FURY_ACTION)
+    return true
 end
 
-local function devotion_aura_matches(context, state)
-    if state.has_devotion_aura then return false end
-    return NS.action_matches(context, DEVOTION_AURA_ACTION)
-end
-
-local function seal_righteousness_matches(context, state)
-    if state.has_seal then return false end
-    return NS.action_matches(context, SEAL_RIGHTEOUSNESS_ACTION)
+local function has_combat_target(context)
+    return context.has_valid_enemy_target and context.in_combat
 end
 
 local function holy_shield_matches(context, state)
+    if not get_setting(context, "prot_holy_shield", true) then return false end
+    if not has_combat_target(context) then return false end
     if not state.holy_shield_ready then return false end
-    -- Track Holy Shield charges via buff.points for proactive refresh.
     -- Holy Shield has 8 charges (10 with Imp Holy Shield talent).
-    -- buff.points[1] is typically the remaining charge count.
-    -- Refresh when charges <= 2 to maintain uncrushable coverage.
+    -- buff.points[1] is the remaining charge count.
+    -- Refresh when charges drop below configurable threshold.
     if state.has_holy_shield then
         local charges = state.holy_shield_charges or 0
-        if charges > 2 then return false end
+        local refresh_at = get_setting(context, "prot_holy_shield_charges", 2)
+        if charges > refresh_at then return false end
     end
-    return NS.action_matches(context, HOLY_SHIELD_ACTION)
+    return true
 end
 
 local function consecration_matches(context, state)
+    if not get_setting(context, "prot_consecration", true) then return false end
+    if not has_combat_target(context) then return false end
     -- Don't break CC with Consecration
     if state.cc_nearby then return false end
-    -- Mana conservation: skip Consecration below mana floor
-    if state.mana_pct < CONSECRATION_MIN_MANA then return false end
-    if state.enemy_count < 2 and state.consecration_remains > 2 then return false end
-    return NS.action_matches(context, CONSECRATION_ACTION)
+    -- Mana conservation: skip Consecration below configurable floor
+    local min_mana = get_setting(context, "prot_consecration_min_mana", CONSECRATION_MIN_MANA)
+    if state.mana_pct < min_mana then return false end
+    -- AoE threshold: only use single-target if Consecration is already ticking
+    local min_targets = get_setting(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
+    if state.enemy_count < min_targets and state.consecration_remains > 2 then return false end
+    return true
 end
 
 local function avenger_shield_matches(context, state)
+    if not get_setting(context, "prot_avenger_shield", true) then return false end
+    if not has_combat_target(context) then return false end
     if not state.avenger_ready then return false end
     -- Skip Avenger's Shield near CC'd mobs (bouncing breaks CC)
     if state.cc_nearby then return false end
-    return NS.action_matches(context, AVENGER_SHIELD_ACTION)
+    return true
 end
 
-local function exorcism_matches(context, state)
-    if not state.exorcism_ready then return false end
-    if not state.target_creature_type then return false end
-    if not DEMON_OR_UNDEAD[state.target_creature_type] then return false end
-    return NS.action_matches(context, EXORCISM_ACTION)
+local function judgement_matches(context, state)
+    if not get_setting(context, "prot_judgement", true) then return false end
+    if not has_combat_target(context) then return false end
+    if not state.judgement_ready then return false end
+    if not state.has_seal then return false end
+    return true
 end
 
-local function divine_shield_matches(context, state)
-    if state.hp_pct > 15 then return false end
-    if state.has_divine_shield then return false end
-    if not state.divine_shield_ready then return false end
-    return NS.action_matches(context, DIVINE_SHIELD_ACTION)
-end
-
-local function lay_on_hands_matches(context, state)
-    if state.hp_pct > 10 then return false end
-    if not state.lay_on_hands_ready then return false end
-    return NS.action_matches(context, LAY_ON_HANDS_ACTION)
-end
-
-local function hammer_of_justice_matches(context, state)
-    if not state.hammer_of_justice_ready then return false end
-    if not state.target_casting then return false end
-    return NS.action_matches(context, HAMMER_OF_JUSTICE_ACTION)
+local function seal_righteousness_matches(context, state)
+    if not get_setting(context, "prot_seal_of_righteousness", true) then return false end
+    if state.has_seal then return false end
+    return true
 end
 
 local function hammer_of_wrath_matches(context, state)
+    if not get_setting(context, "prot_hammer_of_wrath", true) then return false end
+    if not has_combat_target(context) then return false end
     if not state.hammer_of_wrath_ready then return false end
-    if state.target_hp_pct > 20 then return false end
-    return NS.action_matches(context, HAMMER_OF_WRATH_ACTION)
+    local execute_hp = get_setting(context, "prot_hammer_of_wrath_hp", 20)
+    if state.target_hp_pct > execute_hp then return false end
+    return true
 end
 
 local function avenging_wrath_matches(context, state)
+    if not get_setting(context, "prot_avenging_wrath", true) then return false end
     if not cooldowns_enabled(context) then return false end
     if not state.avenging_wrath_ready then return false end
-    return NS.action_matches(context, AVENGING_WRATH_ACTION)
+    return true
 end
 
-local function flash_of_light_matches(context, state)
-    if state.hp_pct > 40 then return false end
-    if not state.flash_of_light_ready then return false end
-    return NS.action_matches(context, FLASH_OF_LIGHT_ACTION)
-end
-
-local function holy_light_matches(context, state)
-    if state.hp_pct > 25 then return false end
-    if not state.holy_light_ready then return false end
-    return NS.action_matches(context, HOLY_LIGHT_ACTION)
-end
-
-local function holy_shock_matches(context, state)
-    if not state.holy_shock_ready then return false end
-    return NS.action_matches(context, HOLY_SHOCK_ACTION)
-end
-
-local function cleanse_matches(context, state)
-    if not state.cleanse_ready then return false end
-    return NS.action_matches(context, CLEANSE_ACTION)
-end
-
-local function seal_of_wisdom_matches(context, state)
-    if state.mana_pct > 30 then return false end
-    if state.has_seal then return false end
-    if not state.seal_of_wisdom_ready then return false end
-    return NS.action_matches(context, SEAL_OF_WISDOM_ACTION)
-end
-
-
-local function judgement_matches(context, state)
-    if not state.judgement_ready then return false end
-    if not state.has_seal then return false end
-    return NS.action_matches(context, JUDGEMENT_ACTION)
+local function exorcism_matches(context, state)
+    if not get_setting(context, "prot_exorcism", true) then return false end
+    if not has_combat_target(context) then return false end
+    if not state.exorcism_ready then return false end
+    if not state.target_creature_type then return false end
+    if not DEMON_OR_UNDEAD[state.target_creature_type] then return false end
+    return true
 end
 
 local function holy_wrath_matches(context, state)
+    if not get_setting(context, "prot_holy_wrath", true) then return false end
+    if not has_combat_target(context) then return false end
     -- Holy Wrath is AoE; only cast when 2+ demon/undead targets present
     if state.enemy_count < 2 then return false end
     if not state.target_creature_type then return false end
     if not DEMON_OR_UNDEAD[state.target_creature_type] then return false end
-    return NS.action_matches(context, HOLY_WRATH_ACTION)
+    return true
+end
+
+local function divine_shield_matches(context, state)
+    local threshold = get_setting(context, "prot_divine_shield_hp", 15)
+    if state.hp_pct > threshold then return false end
+    if state.has_divine_shield then return false end
+    if not state.divine_shield_ready then return false end
+    return true
+end
+
+local function lay_on_hands_matches(context, state)
+    local threshold = get_setting(context, "prot_lay_on_hands_hp", 10)
+    if state.hp_pct > threshold then return false end
+    if not state.lay_on_hands_ready then return false end
+    return true
+end
+
+local function hammer_of_justice_matches(context, state)
+    if not get_setting(context, "prot_hammer_of_justice", true) then return false end
+    if not state.target_casting then return false end
+    if not state.hammer_of_justice_ready then return false end
+    return true
+end
+
+local function holy_shock_matches(context, state)
+    if not state.holy_shock_ready then return false end
+    return true
+end
+
+local function flash_of_light_matches(context, state)
+    local threshold = get_setting(context, "prot_flash_of_light_hp", 40)
+    if state.hp_pct > threshold then return false end
+    if not state.flash_of_light_ready then return false end
+    return true
+end
+
+local function holy_light_matches(context, state)
+    local threshold = get_setting(context, "prot_holy_light_hp", 25)
+    if state.hp_pct > threshold then return false end
+    if not state.holy_light_ready then return false end
+    return true
+end
+
+local function cleanse_matches(context, state)
+    if not get_setting(context, "prot_cleanse", true) then return false end
+    if not state.cleanse_ready then return false end
+    return true
+end
+
+local function seal_of_wisdom_matches(context, state)
+    if not get_setting(context, "prot_seal_of_wisdom", true) then return false end
+    local mana_threshold = get_setting(context, "prot_seal_of_wisdom_mana", 30)
+    if state.mana_pct > mana_threshold then return false end
+    if state.has_seal then return false end
+    if not state.seal_of_wisdom_ready then return false end
+    return true
+end
+
+local function devotion_aura_matches(context, state)
+    if not get_setting(context, "prot_devotion_aura", true) then return false end
+    -- Don't block combat rotation with aura maintenance when in combat
+    if has_combat_target(context) then return false end
+    if state.has_devotion_aura then return false end
+    if NS.buff_remains and context.me then
+        local remains = NS.buff_remains(context.me, DEVOTION_AURA_BUFF) or 0
+        if remains > 0 then return false end
+    end
+    return true
 end
 
 local function blessing_of_sanctuary_matches(context, state)
+    if not get_setting(context, "prot_blessing_sanctuary", true) then return false end
+    -- Don't block combat rotation with blessing maintenance when in combat
+    if has_combat_target(context) then return false end
     if state.has_blessing_sanctuary then return false end
-    return NS.action_matches(context, BLESSING_OF_SANCTUARY_ACTION)
+    if NS.buff_remains and context.me then
+        local remains = NS.buff_remains(context.me, BLESSING_OF_SANCTUARY_BUFF) or 0
+        if remains > 0 then return false end
+    end
+    return true
 end
 
 -- ============================================================================
 -- Strategies
 -- ============================================================================
+-- Priority order: combat spells first, then buff maintenance, then emergency.
+-- DevotionAura and BlessingOfSanctuary are placed low so they don't block
+-- the actual combat rotation (HolyShield, Consecration, Judgement, etc.).
 local strategies = {
-    { name = "RighteousFury", matches = righteous_fury_matches, execute = function(context) return NS.action_execute(context, RIGHTEOUS_FURY_ACTION, "[PROTECTION]") end },
-    { name = "DevotionAura", matches = devotion_aura_matches, execute = function(context) return NS.action_execute(context, DEVOTION_AURA_ACTION, "[PROTECTION]") end },
-    { name = "BlessingOfSanctuary", matches = blessing_of_sanctuary_matches, execute = function(context) return NS.action_execute(context, BLESSING_OF_SANCTUARY_ACTION, "[PROTECTION]") end },
-    { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.action_execute(context, SEAL_RIGHTEOUSNESS_ACTION, "[PROTECTION]") end },
-    { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.action_execute(context, HOLY_SHIELD_ACTION, "[PROTECTION]") end },
-    { name = "Consecration", matches = consecration_matches, execute = function(context) return NS.action_execute(context, CONSECRATION_ACTION, "[PROTECTION]") end },
-    { name = "AvengerShield", matches = avenger_shield_matches, execute = function(context) return NS.action_execute(context, AVENGER_SHIELD_ACTION, "[PROTECTION]") end },
-    { name = "Exorcism", matches = exorcism_matches, execute = function(context) return NS.action_execute(context, EXORCISM_ACTION, "[PROTECTION]") end },
-    { name = "HolyWrath", matches = holy_wrath_matches, execute = function(context) return NS.action_execute(context, HOLY_WRATH_ACTION, "[PROTECTION]") end },
-    { name = "DivineShield", matches = divine_shield_matches, execute = function(context) return NS.action_execute(context, DIVINE_SHIELD_ACTION, "[PROTECTION]") end },
-    { name = "LayOnHands", matches = lay_on_hands_matches, execute = function(context) return NS.action_execute(context, LAY_ON_HANDS_ACTION, "[PROTECTION]") end },
-    { name = "HammerOfJustice", matches = hammer_of_justice_matches, execute = function(context) return NS.action_execute(context, HAMMER_OF_JUSTICE_ACTION, "[PROTECTION]") end },
-    { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(context) return NS.action_execute(context, HAMMER_OF_WRATH_ACTION, "[PROTECTION]") end },
-    { name = "AvengingWrath", matches = avenging_wrath_matches, execute = function(context) return NS.action_execute(context, AVENGING_WRATH_ACTION, "[PROTECTION]") end },
-    { name = "FlashOfLight", matches = flash_of_light_matches, execute = function(context) return NS.action_execute(context, FLASH_OF_LIGHT_ACTION, "[PROTECTION]") end },
-    { name = "HolyLight", matches = holy_light_matches, execute = function(context) return NS.action_execute(context, HOLY_LIGHT_ACTION, "[PROTECTION]") end },
-    { name = "HolyShock", matches = holy_shock_matches, execute = function(context) return NS.action_execute(context, HOLY_SHOCK_ACTION, "[PROTECTION]") end },
-    { name = "Cleanse", matches = cleanse_matches, execute = function(context) return NS.action_execute(context, CLEANSE_ACTION, "[PROTECTION]") end },
-    { name = "SealOfWisdom", matches = seal_of_wisdom_matches, execute = function(context) return NS.action_execute(context, SEAL_OF_WISDOM_ACTION, "[PROTECTION]") end },
-    { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.action_execute(context, JUDGEMENT_ACTION, "[PROTECTION]") end },
-    { name = "RighteousDefense", matches = function(context, state) return state.ally_threatened ~= nil and state.righteous_defense_ready end, execute = function(context, state) return NS.try_cast(SPELLS.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
-    { name = "BlessingOfProtectionAlly", matches = function(context, state) return state.low_hp_ally ~= nil and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfProtection, state.low_hp_ally, {}) or false end, execute = function(context, state) return NS.try_cast(SPELLS.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end },
+    -- Buff maintenance (no target needed, check once)
+{ name = "RighteousFury", matches = righteous_fury_matches, execute = function(context) return NS.try_cast(SPELLS.RighteousFury, context.me, "[PROTECTION] RighteousFury") end },
+    { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.try_cast(SPELLS.HolyShield, context.me, "[PROTECTION] HolyShield") end },
+    { name = "Consecration", matches = consecration_matches, execute = function(context) return NS.try_cast(SPELLS.Consecration, context.me, "[PROTECTION] Consecration") end },
+    { name = "AvengerShield", matches = avenger_shield_matches, execute = function(context) return NS.try_cast(SPELLS.AvengerShield, context.target, "[PROTECTION] AvengerShield") end },
+    { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(SPELLS.Judgement, context.target, "[PROTECTION] Judgement") end },
+    { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.try_cast(SPELLS.SealRighteousness, context.me, "[PROTECTION] SealRighteousness") end },
+    { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfWrath, context.target, "[PROTECTION] HammerOfWrath") end },
+    { name = "AvengingWrath", matches = avenging_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.AvengingWrath, context.me, "[PROTECTION] AvengingWrath") end },
+    { name = "Exorcism", matches = exorcism_matches, execute = function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[PROTECTION] Exorcism") end },
+    { name = "HolyWrath", matches = holy_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HolyWrath, context.me, "[PROTECTION] HolyWrath") end },
+    { name = "SealOfWisdom", matches = seal_of_wisdom_matches, execute = function(context) return NS.try_cast(SPELLS.SealOfWisdom, context.me, "[PROTECTION] SealOfWisdom") end },
+    { name = "DevotionAura", matches = devotion_aura_matches, execute = function(context) return NS.try_cast(SPELLS.DevotionAura, context.me, "[PROTECTION] DevotionAura") end },
+    { name = "BlessingOfSanctuary", matches = blessing_of_sanctuary_matches, execute = function(context) return NS.try_cast(SPELLS.BlessingOfSanctuary, context.me, "[PROTECTION] BlessingOfSanctuary") end },
+    { name = "HolyShock", matches = holy_shock_matches, execute = function(context) return NS.try_cast(SPELLS.HolyShock, context.target, "[PROTECTION] HolyShock") end },
+    { name = "FlashOfLight", matches = flash_of_light_matches, execute = function(context) return NS.try_cast(SPELLS.FlashOfLight, context.me, "[PROTECTION] FlashOfLight") end },
+    { name = "HolyLight", matches = holy_light_matches, execute = function(context) return NS.try_cast(SPELLS.HolyLight, context.me, "[PROTECTION] HolyLight") end },
+    { name = "Cleanse", matches = cleanse_matches, execute = function(context) return NS.try_cast(SPELLS.Cleanse, context.me, "[PROTECTION] Cleanse") end },
+    { name = "DivineShield", matches = divine_shield_matches, execute = function(context) return NS.try_cast(SPELLS.DivineShield, context.me, "[PROTECTION] DivineShield") end },
+    { name = "LayOnHands", matches = lay_on_hands_matches, execute = function(context) return NS.try_cast(SPELLS.LayOnHands, context.me, "[PROTECTION] LayOnHands") end },
+    { name = "HammerOfJustice", matches = hammer_of_justice_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfJustice, context.target, "[PROTECTION] HammerOfJustice") end },
+
+    -- Peel
+    { name = "RighteousDefense", matches = function(context, state) return get_setting(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready end, execute = function(context, state) return NS.try_cast(SPELLS.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
+    { name = "BlessingOfProtectionAlly", matches = function(context, state) return get_setting(context, "prot_blessing_of_protection", true) and state.low_hp_ally ~= nil and NS.spell_ready(SPELLS.BlessingOfProtection, state.low_hp_ally, {}) or false end, execute = function(context, state) return NS.try_cast(SPELLS.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end },
 }
 
 NS.rotation_registry:register("protection", strategies, { get_state = build_state })
-NS.log("Paladin protection rotation registered (Tier A)")
+NS.log("Paladin protection rotation registered (Tier A) [strategy reorder + DevotionAura gate fix]")
 return strategies
+

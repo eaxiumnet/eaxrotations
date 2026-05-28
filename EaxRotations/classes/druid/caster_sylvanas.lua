@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/druid/caster_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Druid Caster priority list.
 
 -- ============================================================================
@@ -25,16 +43,18 @@ local caster_state = {
 }
 
 local function build_state(context)
-    context.settings = context.settings or EMPTY_SETTINGS
     local target = context.target
-    if target then
-        caster_state.moonfire_remains = NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
-        caster_state.ff_remains = NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
-    else
-        caster_state.moonfire_remains = 0
-        caster_state.ff_remains = 0
+    local me = context.me or NS.GetPlayer()
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
+    if not skip_aura then
+        caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
+        caster_state.faerie_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
     end
-    caster_state.innervate_ready = NS.spell_ready(SPELLS.Innervate, NS.PLAYER_UNIT, { skip_range = true })
+    caster_state.in_combat = context.in_combat or false
+    caster_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
+    caster_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
+    caster_state.target_hp = context.target_hp or 100
     return caster_state
 end
 
@@ -90,6 +110,8 @@ local function innervate_matches_fn(context, state)
     return state.innervate_ready
 end
 
+local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+
 local function barkskin_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if context.hp > 55 then return false end
@@ -99,6 +121,7 @@ end
 local function thorns_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if context.in_combat then return false end
+    if NS.has_player_buff and NS.has_player_buff(THORNS_BUFF) then return false end
     return NS.spell_ready(SPELLS.Thorns, NS.PLAYER_UNIT, { skip_range = true })
 end
 

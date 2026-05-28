@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/rogue/leveling_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Rogue leveling rotation.
 -- ============================================================================
 -- What: Rogue leveling rotation for solo questing and stealth openers
@@ -60,10 +78,7 @@ local function has_buff(buff_ids)
     local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
     if not me then return false end
     local ids = type(buff_ids) == "table" and buff_ids or { buff_ids }
-    for _, id in ipairs(ids) do
-        local ok, result = pcall(function() return me:has_buff(id) end)
-        if ok and result then return true end
-    end
+    if NS.buff_up then return NS.buff_up(me, ids) end
     return false
 end
 
@@ -85,6 +100,7 @@ function rogue_leveling.build_state(context)
     state.slice_and_dice_ready = spell_ready(SPELLS.SliceAndDice)
     state.rupture_ready = spell_ready(SPELLS.Rupture)
     state.garrote_ready = spell_ready(SPELLS.Garrote)
+    state.ambush_ready = spell_ready(SPELLS.Ambush)
     state.kick_ready = HAS_KICK and spell_ready(SPELLS.Kick)
     state.gouge_ready = spell_ready(SPELLS.Gouge)
     state.evasion_ready = spell_ready(SPELLS.Evasion)
@@ -96,6 +112,7 @@ function rogue_leveling.build_state(context)
     state.stealth_ready = spell_ready(SPELLS.Stealth)
     state.sap_ready = HAS_SAP and spell_ready(SPELLS.Sap)
     state.blind_ready = spell_ready(SPELLS.Blind)
+    state.kidney_shot_ready = spell_ready(SPELLS.KidneyShot)
     state.expose_armor_ready = spell_ready(SPELLS.ExposeArmor)
     state.disarm_ready = spell_ready(SPELLS.Dismantle)
     state.shiv_ready = spell_ready(SPELLS.Shiv)
@@ -163,6 +180,27 @@ local stealth_matches = function(context, state)
     return true
 end
 
+--- Ambush - stealth opener (high burst, requires behind target)
+-- NOTE: NS.spell_ready is expected to validate the behind-target positional requirement.
+local ambush_matches = function(context, state)
+    if not state then return false end
+    if state.in_combat then return false end
+    if not state.stealthed then return false end
+    if not state.ambush_ready then return false end
+    if not context.target then return false end
+    return true
+end
+
+--- Garrote - stealth opener (DoT + silence, good vs casters)
+local garrote_matches = function(context, state)
+    if not state then return false end
+    if state.in_combat then return false end
+    if not state.stealthed then return false end
+    if not state.garrote_ready then return false end
+    if not context.target then return false end
+    return true
+end
+
 --- Sap OOC CC
 local sap_matches = function(context, state)
     if not state then return false end
@@ -172,6 +210,17 @@ local sap_matches = function(context, state)
     if not context.target then return false end
     -- Don't sap the current kill target
     return false  -- Disabled by default — manual Sap is better
+end
+
+--- Gouge - CC to bandage/eat or interrupt
+local gouge_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.gouge_ready then return false end
+    if not state.target then return false end
+    -- Only Gouge when HP is low (setup for bandage/eat reset)
+    if state.hp > 40 then return false end
+    return true
 end
 
 --- Kick interrupt
@@ -247,6 +296,16 @@ local evasion_matches = function(context, state)
     return true
 end
 
+--- Blind - OOC CC escape or setup (breaks on damage)
+local blind_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.blind_ready then return false end
+    if not state.target then return false end
+    if state.hp > 30 then return false end
+    return true
+end
+
 --- Sprint - use when low HP vs single target
 local sprint_escape_matches = function(context, state)
     if not state then return false end
@@ -291,6 +350,18 @@ local expose_armor_matches = function(context, state)
     local ok, stacks = pcall(function() return NS.debuff_stacks and NS.debuff_stacks(state.target, SPELLS.ExposeArmor) or 0 end)
     if ok and stacks and stacks > 0 then return false end
     if state.combo_points >= state.max_combo_points then return false end  -- prefer Eviscerate at 5
+    return true
+end
+
+--- Kidney Shot - finisher stun (CC + damage)
+local kidney_shot_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.kidney_shot_ready then return false end
+    if not state.target then return false end
+    if state.combo_points < 3 then return false end
+    -- Use when HP is low for CC safety
+    if state.hp > 40 then return false end
     return true
 end
 
@@ -364,10 +435,24 @@ local strategies = {
       matches = stealth_matches,
       execute = function(context) return try_cast(SPELLS.Stealth, nil, "[LEVELING] Stealth") end },
 
+    -- OOC: Stealth openers
+    { name = "Ambush",
+      matches = ambush_matches,
+      execute = function(context) return try_cast(SPELLS.Ambush, context and context.target, "[LEVELING] Ambush") end },
+
+    { name = "Garrote",
+      matches = garrote_matches,
+      execute = function(context) return try_cast(SPELLS.Garrote, context and context.target, "[LEVELING] Garrote") end },
+
     -- Interrupt
     { name = "Kick",
       matches = kick_matches,
       execute = function(context) return try_cast(SPELLS.Kick, context and context.target, "[LEVELING] Kick") end },
+
+    -- CC: Gouge (low HP - setup for bandage/eat reset)
+    { name = "Gouge",
+      matches = gouge_matches,
+      execute = function(context) return try_cast(SPELLS.Gouge, context and context.target, "[LEVELING] Gouge") end },
 
     -- PvP: Shiv Purge (after interrupt, before defensives — ShieldSlamPurge parity)
     { name = "ShivPurge",
@@ -391,6 +476,11 @@ local strategies = {
     { name = "Sprint",
       matches = sprint_escape_matches,
       execute = function(context) return try_cast(SPELLS.Sprint, nil, "[LEVELING] Sprint") end },
+
+    -- CC: Blind (low HP emergency escape, breaks on damage)
+    { name = "Blind",
+      matches = blind_matches,
+      execute = function(context) return try_cast(SPELLS.Blind, context and context.target, "[LEVELING] Blind") end },
 
     -- PvP: Dismantle (after defensives, before burst — survival wins over utility)
     { name = "Disarm",
@@ -431,6 +521,11 @@ local strategies = {
     { name = "ExposeArmor",
       matches = expose_armor_matches,
       execute = function(context) return try_cast(SPELLS.ExposeArmor, context and context.target, "[LEVELING] Expose Armor") end },
+
+    -- Finisher: Kidney Shot (stun CC, low HP safety)
+    { name = "KidneyShot",
+      matches = kidney_shot_matches,
+      execute = function(context) return try_cast(SPELLS.KidneyShot, context and context.target, "[LEVELING] Kidney Shot") end },
 
     -- Finisher: Eviscerate (5 CP)
     { name = "Eviscerate",

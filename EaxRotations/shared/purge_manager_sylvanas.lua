@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/purge_manager_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Helper: Purge Manager
 -- ============================================================================
@@ -77,20 +95,30 @@ local PURGEABLE_BUFFS = {
     [7302] = true, [7320] = true, [10219] = true, [10220] = true, [27124] = true,
 }
 
+-- Precomputed flat array of all purgeable buff IDs (built once at load).
+-- Avoids per-ID NS.buff_up() calls in the hot path, which would emit
+-- individual [DIAG] buff_up messages for each missing buff in debug mode.
+local _PURGEABLE_BUFF_IDS_LIST
+local function _get_purgeable_buff_ids()
+    if _PURGEABLE_BUFF_IDS_LIST then return _PURGEABLE_BUFF_IDS_LIST end
+    local ids = { n = 0 }
+    for id, _ in pairs(PURGEABLE_BUFFS) do
+        ids.n = ids.n + 1
+        ids[ids.n] = id
+    end
+    _PURGEABLE_BUFF_IDS_LIST = ids
+    return ids
+end
+
 --- Check if enemy has magic buffs that should be purged.
+-- Uses a single batch NS.buff_up() call instead of per-ID iteration
+-- to avoid [DIAG] buff_up debug spam from the purge middleware.
 -- @param target table - Enemy unit object
 -- @return boolean - true if purgeable buff detected
 function M.has_purgeable_buff(target)
     if not target or not NS then return false end
     if not NS.has_buff then return false end
-
-    for buff_id, _ in pairs(PURGEABLE_BUFFS) do
-        if NS.has_buff(target, buff_id) then
-            return true
-        end
-    end
-
-    return false
+    return NS.has_buff(target, _get_purgeable_buff_ids())
 end
 
 --- Get the learned Purge spell ID (highest rank).

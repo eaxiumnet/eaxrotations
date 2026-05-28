@@ -1,9 +1,27 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/shaman/enhancement_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Shaman Enhancement rotation - FrostByte feature port v2.0.
 -- ============================================================================
 -- What: TBC Shaman Enhancement rotation with weapon imbues, totem twisting, and shield swapping
 -- When: Per tick
 -- Why: High-frequency totem and weapon timing needs cached state for stable priority decisions
--- Safety: Totem/object scans are throttled; optional modules use pcall; nil-guarded NS/core lookups; conservative refresh timers
+-- Safety: Optional modules use pcall; nil-guarded NS/core lookups; strict API-driven buff and readiness checks
 -- ============================================================================
 -- Features: per-slot weapon buffs, smart shield auto-swap, totem twisting
 -- with Fire Nova cycle, shock priority, randomized interrupts, Ghost Wolf OOC
@@ -19,34 +37,26 @@ local _core = (NS and NS.core) or rawget(_G, "core")
 local _get_totem_info = _core and _core.spell_book and _core.spell_book.get_totem_info
 local _get_visible_objects = _core and _core.object_manager and _core.object_manager.get_visible_objects
 
--- Expose GetWeaponEnchantInfo for weapon imbue detection
-pcall(require, "common/wow_api_clone")
-local _GetWeaponEnchantInfo = type(GetWeaponEnchantInfo) == "function" and GetWeaponEnchantInfo or nil
----@diagnostic disable-next-line: undefined-global
-local _GetWeaponEnchant = type(GetWeaponEnchant) == "function" and GetWeaponEnchant or nil
-
 -- Auto-attack helper
-local auto_attack = require("common/utility/auto_attack_helper")
+local _ok_aa, auto_attack = pcall(require, "common/utility/auto_attack_helper")
+if not _ok_aa or type(auto_attack) ~= "table" then
+    auto_attack = {
+        is_auto_attacking = function() return false end,
+        start_attack = function() return false end,
+        ATTACK_TYPE = { MELEE = 1 },
+    }
+end
 
 -- ============================================================================
 -- Constants
 -- ============================================================================
-local AIR_TWIST_HOLD_MS = 9000
-local AIR_TWIST_SWAP_DELAY_MS = 1300
-local TOTEM_REFRESH_MS = 115000
-local FIRE_TOTEM_DURATION_MS = 60000
 local TOTEMIC_CALL_SPELL = { 36936 }
 local TOTEM_CALL_DISTANCE = 20           -- yards
 local TOTEM_CALL_MAGMA_DISTANCE = 8      -- yards (tighter for Magma)
-local TOTEM_SCAN_INTERVAL_MS = 2000      -- throttle object scanning
-local SHIELD_REFRESH_UNKNOWN_MS = 30000
-local WEAPON_BUFF_REFRESH_MS = 1500000  -- 25 minutes
-local FIRE_NOVA_TWIST_MS = 4000          -- Fire Nova -> Magma after 4s
-local ENCOUNTER_COOLDOWN_MS = 3000       -- Throttle new-encounter detection
-local TOTEM_RANGE_SCAN_MS = 1000          -- 1s throttle for totem range scan (v1.1.1)
 
 local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
 local WATER_SHIELD_BUFF = TBC_SHAMAN.water_shield or { 57960, 33736, 24398, 24396, 23566, 23563, 23548, 16198, 16196, 16192, 10911 }
+local SHIELD_REFRESH_UNKNOWN_MS = 30000
 local FLAME_SHOCK_DEBUFF = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
 local WINDFURY_WEAPON_SPELLS = { 25505, 16362, 10486, 8235, 8232 }
 local FLAMETONGUE_WEAPON_SPELLS = { 25489, 16342, 16341, 16339, 8030, 8027, 8024 }
@@ -57,6 +67,8 @@ local FROST_RESIST_TOTEM = { 25560, 10542, 8185, 8184, 8182 }
 local NATURE_RESIST_TOTEM = { 25574, 10548 }
 local GHOST_WOLF_SPELL = { 2645 }
 local TREMOR_TOTEM_SPELL = { 8143 }
+local SHAMANISTIC_RAGE_BUFF = { 30823 }
+local BLOODLUST_BUFF_ID = { 2825 }
 
 -- ============================================================================
 -- Totem state
@@ -64,30 +76,14 @@ local TREMOR_TOTEM_SPELL = { 8143 }
 local totem_state = {
     -- Twisting
     next_air = "windfury",
-    last_air_ms = -100000,
-    last_windfury_ms = -100000,
     -- Earth
-    last_strength_ms = -100000,
-    last_stoneskin_ms = -100000,
     -- Water
-    last_mana_ms = -100000,
-    last_healing_stream_ms = -100000,
     -- Fire
-    last_fire_ms = -100000,
-    last_fire_nova_ms = -100000,
-    last_fire_nova_swap_ms = -100000,
     fire_totem_type = "none",
     fire_nova_active = false,
+    last_fire_nova_ms = 0,
     -- Shield
-    last_lightning_shield_ms = -SHIELD_REFRESH_UNKNOWN_MS,
-    last_water_shield_ms = -SHIELD_REFRESH_UNKNOWN_MS,
     -- Weapon buffs
-    last_mh_buff_ms = -WEAPON_BUFF_REFRESH_MS,
-    last_oh_buff_ms = -WEAPON_BUFF_REFRESH_MS,
-    last_mh_buff_type = "none",
-    last_oh_buff_type = "none",
-    -- Encounter tracking
-    last_encounter_ms = -ENCOUNTER_COOLDOWN_MS,
 }
 
 -- ============================================================================
@@ -105,6 +101,13 @@ local enh_state = {
     has_shamanistic_rage = false,
     has_bloodlust = false,
     has_ghost_wolf = false,
+    -- OH weapon imbue (distinct from MH fields)
+    oh_has_windfury_weapon = false,
+    oh_has_flametongue_weapon = false,
+    oh_has_rockbiter_weapon = false,
+    oh_has_frostbrand_weapon = false,
+    mh_enchant_id = nil,
+    oh_enchant_id = nil,
     -- Resources
     mana_pct = 100,
     hp_pct = 100,
@@ -163,21 +166,17 @@ local enh_state = {
     totem_twisting = true,
     -- Totemic call
     totemic_call_ready = false,
-    last_totem_scan_ms = 0,
-    last_totem_range_scan_ms = 0,
-    totem_out_of_range_earth = false,
-    totem_out_of_range_water = false,
-    totem_out_of_range_fire = false,
     gift_of_the_naaru_ready = false,
+}
+
+local runtime = {
+    last_lightning_shield_ms = -SHIELD_REFRESH_UNKNOWN_MS,
 }
 
 ---@diagnostic disable-next-line: duplicate-set-field
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
-
-    totem_state.now_ms = NS.game_time_ms()
-    enh_state.now_ms = totem_state.now_ms
 
     -- -- Settings cache
     local s = context.settings or {}
@@ -199,8 +198,6 @@ local function build_state(context)
     enh_state.fs_multi_target = s.enhancement_fs_multi_target ~= false
     enh_state.hold_shocks_focus = s.enhancement_hold_shocks_focus == true
     enh_state.sr_melee_only = s.enhancement_sr_melee_only ~= false
-    enh_state.weapon_buff_last_attempt = enh_state.weapon_buff_last_attempt or 0
-    enh_state.last_totem_scan_ms = enh_state.last_totem_scan_ms or 0
     enh_state.auto_attack = s.enhancement_auto_attack ~= false
     enh_state.auto_totemic_call = s.enhancement_auto_totemic_call ~= false
     enh_state.gift_of_the_naaru_enabled = s.enhancement_cd_gift_of_the_naaru ~= false
@@ -208,6 +205,7 @@ local function build_state(context)
     -- -- Resource state
     enh_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     enh_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
+    enh_state.now_ms = NS.game_time_ms()
     enh_state.mana_low = enh_state.mana_pct < (s.enhancement_mana_low_pct or 20)
     enh_state.mana_emergency = enh_state.mana_pct < (s.enhancement_mana_emergency_pct or 10)
     enh_state.in_combat = context.in_combat or false
@@ -223,41 +221,68 @@ local function build_state(context)
     end
 
     -- -- Buff detection
-    enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
-    enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and NS.get_buff_stacks(me, LIGHTNING_SHIELD_BUFF)) or 0
-    enh_state.has_water_shield = me and NS.buff_up(me, WATER_SHIELD_BUFF) or false
-    enh_state.has_shamanistic_rage = me and NS.buff_up(me, { 30823 }) or false
-    enh_state.has_bloodlust = me and NS.buff_up(me, { 2825 }) or false
-    enh_state.has_ghost_wolf = me and NS.buff_up(me, GHOST_WOLF_SPELL) or false
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local LIGHTNING_SHIELD_ID = (type(LIGHTNING_SHIELD_BUFF) == "table" and LIGHTNING_SHIELD_BUFF[1]) or 25472
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(LIGHTNING_SHIELD_ID, 3.0) or false
+    if not skip_aura then
+        enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
+        enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and NS.get_buff_stacks(me, LIGHTNING_SHIELD_BUFF)) or 0
+        enh_state.has_water_shield = me and NS.buff_up(me, WATER_SHIELD_BUFF) or false
+        enh_state.has_shamanistic_rage = me and NS.buff_up(me, SHAMANISTIC_RAGE_BUFF) or false
+        enh_state.has_bloodlust = me and NS.buff_up(me, BLOODLUST_BUFF_ID) or false
+        enh_state.has_ghost_wolf = me and NS.buff_up(me, GHOST_WOLF_SPELL) or false
+    end
 
-    -- -- Weapon buff detection (separate MH/OH)
-    if _GetWeaponEnchantInfo then
-        local ok, hasMH, hasOH = pcall(function() return _GetWeaponEnchantInfo() end)
-        enh_state.has_windfury_weapon = ok and hasMH or false
-        enh_state.has_rockbiter_weapon = false
-        enh_state.has_flametongue_weapon = false
-        enh_state.has_frostbrand_weapon = false
-        -- Use GetWeaponEnchant if available for precise detection
-        if ok and _GetWeaponEnchant then
-            local mh_ok, mh_id = pcall(_GetWeaponEnchant, 0)
-            local oh_ok, oh_id = pcall(_GetWeaponEnchant, 1)
-            if mh_ok and mh_id then
-                enh_state.mh_enchant_id = mh_id
-            end
-            if oh_ok and oh_id then
-                enh_state.oh_enchant_id = oh_id
-            end
+    -- -- Weapon buff detection via WeaponImbueManager + exact enchant IDs.
+    local imbue = NS.WeaponImbueManager
+    local mh_has = imbue and type(imbue.mainhand_has_imbue) == "function" and imbue.mainhand_has_imbue()
+    local oh_has = imbue and type(imbue.offhand_has_imbue) == "function" and imbue.offhand_has_imbue()
+    local mh_info = imbue and type(imbue.get_mainhand_enchant_info) == "function" and imbue.get_mainhand_enchant_info() or nil
+    local oh_info = imbue and type(imbue.get_offhand_enchant_info) == "function" and imbue.get_offhand_enchant_info() or nil
+
+    local function match_enchant(info, spell_list)
+        if not info or not info.enchant_id or type(spell_list) ~= "table" then return false end
+        for i = 1, #spell_list do
+            if info.enchant_id == spell_list[i] then return true end
         end
+        return false
+    end
+
+    if mh_has then
+        enh_state.has_windfury_weapon = match_enchant(mh_info, WINDFURY_WEAPON_SPELLS)
+        enh_state.has_flametongue_weapon = match_enchant(mh_info, FLAMETONGUE_WEAPON_SPELLS)
+        enh_state.has_rockbiter_weapon = match_enchant(mh_info, ROCKBITER_WEAPON_SPELLS)
+        enh_state.has_frostbrand_weapon = match_enchant(mh_info, FROSTBRAND_WEAPON_SPELLS)
+        enh_state.mh_enchant_id = mh_info and mh_info.enchant_id or nil
     else
         enh_state.has_windfury_weapon = false
+        enh_state.has_flametongue_weapon = false
+        enh_state.has_rockbiter_weapon = false
+        enh_state.has_frostbrand_weapon = false
+        enh_state.mh_enchant_id = nil
+    end
+
+    if oh_has then
+        enh_state.oh_has_flametongue_weapon = match_enchant(oh_info, FLAMETONGUE_WEAPON_SPELLS)
+        enh_state.oh_has_windfury_weapon = match_enchant(oh_info, WINDFURY_WEAPON_SPELLS)
+        enh_state.oh_has_rockbiter_weapon = match_enchant(oh_info, ROCKBITER_WEAPON_SPELLS)
+        enh_state.oh_has_frostbrand_weapon = match_enchant(oh_info, FROSTBRAND_WEAPON_SPELLS)
+        enh_state.oh_enchant_id = oh_info and oh_info.enchant_id or nil
+    else
+        enh_state.oh_has_flametongue_weapon = false
+        enh_state.oh_has_windfury_weapon = false
+        enh_state.oh_has_rockbiter_weapon = false
+        enh_state.oh_has_frostbrand_weapon = false
+        enh_state.oh_enchant_id = nil
     end
 
     -- -- Target state
     enh_state.target_has_flame_shock = target and NS.debuff_up(target, FLAME_SHOCK_DEBUFF) or false
     enh_state.flame_shock_remains = target and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF) or 0
     if target and target.is_casting then
-        enh_state.target_is_casting = target:is_casting()
-        enh_state.target_cast_pct = target:get_casting_percent() or 0
+        enh_state.target_is_casting = pcall(function() return target:is_casting() end) and target:is_casting() or false
+        local ok, pct = pcall(function() return target:get_casting_percent() end)
+        enh_state.target_cast_pct = ok and pct or 0
         enh_state.target_can_interrupt = enh_state.target_is_casting
     else
         enh_state.target_is_casting = false
@@ -295,58 +320,6 @@ local function build_state(context)
     enh_state.totemic_call_ready = me and NS.spell_ready(SPELLS.TotemicCall, me, { skip_range = true, expected_cooldown = 120 }) or false
     enh_state.gift_of_the_naaru_ready = me and NS.spell_ready(SPELLS.GiftOfTheNaaru, me, { skip_range = true, expected_cooldown = 120 }) or false
 
-    -- -- Throttled totem range scan (v1.1.1)
-    local now_ms = NS.game_time_ms()
-    if now_ms - enh_state.last_totem_range_scan_ms >= TOTEM_RANGE_SCAN_MS then
-        enh_state.last_totem_range_scan_ms = now_ms
-        enh_state.totem_out_of_range_earth = false
-        enh_state.totem_out_of_range_water = false
-        enh_state.totem_out_of_range_fire = false
-
-        local my_pos = me and me:get_position()
-        if my_pos then
-            local range = enh_state.totem_range or 25
-            local range_sq = range * range
-
-            -- Check each totem slot via get_totem_info
-            local earth_active = false
-            local water_active = false
-            local fire_active = false
-
-            local info1 = _get_totem_info and _get_totem_info(1) or nil
-            local info2 = _get_totem_info and _get_totem_info(2) or nil
-            local info3 = _get_totem_info and _get_totem_info(3) or nil
-
-            if info1 and info1.have_totem then earth_active = true end
-            if info2 and info2.have_totem then water_active = true end
-            if info3 and info3.have_totem then fire_active = true end
-
-            -- Scan visible objects for owned totems
-            if earth_active or water_active or fire_active then
-                local objects = _get_visible_objects and _get_visible_objects() or nil
-                if objects then
-                    for _, obj in ipairs(objects) do
-                        local owner = obj:get_owner()
-                        if owner then
-                            local obj_pos = obj:get_position()
-                            if obj_pos then
-                                local dx = obj_pos.x - my_pos.x
-                                local dy = obj_pos.y - my_pos.y
-                                local dist_sq = dx*dx + dy*dy
-                                if dist_sq > range_sq then
-                                    -- Out of range — mark all active slots as needing re-cast
-                                    if earth_active then enh_state.totem_out_of_range_earth = true end
-                                    if water_active then enh_state.totem_out_of_range_water = true end
-                                    if fire_active then enh_state.totem_out_of_range_fire = true end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
     return enh_state
 end
 
@@ -357,9 +330,16 @@ local function can_manage_totems(ctx)
     return enh_state.manage_totems or enh_state.totem_twisting
 end
 
-local function can_drop_totem(ctx, spell)
+local function totem_active(slot)
+    local info = _get_totem_info and _get_totem_info(slot) or nil
+    return info and info.have_totem == true
+end
+
+local function can_drop_totem(ctx, spell, slot, buff_ids)
     if not can_manage_totems(ctx) then return false end
     if enh_state.mana_low then return false end
+    if slot and totem_active(slot) then return false end
+    if buff_ids and NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, buff_ids) then return false end
     return NS.spell_ready(spell, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -380,12 +360,18 @@ end
 -- v1.2.1: racial match functions
 local function blood_fury_matches(ctx)
     if ctx.settings and ctx.settings.enhancement_cd_blood_fury == false then return false end
-    return NS.action_matches(ctx, BLOOD_FURY_ACTION)
+    local me = ctx.me or NS.GetPlayer()
+    if not me then return false end
+    if not NS.spell_ready({ 33697, 20572 }, me, { skip_range = true }) then return false end
+    return true
 end
 
 local function berserking_matches(ctx)
     if ctx.settings and ctx.settings.enhancement_cd_berserking == false then return false end
-    return NS.action_matches(ctx, BERSERKING_ACTION)
+    local me = ctx.me or NS.GetPlayer()
+    if not me then return false end
+    if not NS.spell_ready({ 20554, 26297 }, me, { skip_range = true }) then return false end
+    return true
 end
 
 -- Tremor Totem (fear/charm/sleep break)
@@ -402,16 +388,6 @@ local function grounding_totem_matches(ctx)
     if not enh_state.in_combat then return false end
     if not (ctx.is_pvp == true or enh_state.target_is_casting) then return false end
     return true
-end
-
-local function is_new_encounter()
-    local now = totem_state.now_ms
-    local elapsed = now - totem_state.last_encounter_ms
-    if elapsed >= ENCOUNTER_COOLDOWN_MS then
-        totem_state.last_encounter_ms = now
-        return true
-    end
-    return false
 end
 
 local function should_interrupt_target(ctx)
@@ -434,70 +410,18 @@ local function should_interrupt_target(ctx)
     end
 end
 
-local function resolve_weapon_spell(settings_key)
-    local choice = enh_state[settings_key] or "none"
-    if choice == "windfury" then return WINDFURY_WEAPON_SPELLS, "windfury"
-    elseif choice == "flametongue" then return FLAMETONGUE_WEAPON_SPELLS, "flametongue"
-    elseif choice == "rockbiter" then return ROCKBITER_WEAPON_SPELLS, "rockbiter"
-    elseif choice == "frostbrand" then return FROSTBRAND_WEAPON_SPELLS, "frostbrand"
-    else return nil, "none" end
-end
-
--- ============================================================================
--- Action definitions
--- ============================================================================
-local LIGHTNING_SHIELD_ACTION = { name = "LightningShield", spell = SPELLS.LightningShield, target = "self", kind = "buff", buff = LIGHTNING_SHIELD_BUFF, requires_target = false }
-local WATER_SHIELD_ACTION = { name = "WaterShield", spell = SPELLS.WaterShield, target = "self", kind = "buff", buff = WATER_SHIELD_BUFF, requires_target = false }
-local STORMSTRIKE_ACTION = { name = "Stormstrike", spell = SPELLS.Stormstrike, cooldown = 10 }
-local FLAME_SHOCK_ACTION = { name = "FlameShock", spell = SPELLS.FlameShock, debuff = FLAME_SHOCK_DEBUFF, refresh = 3, cooldown = 6 }
-local EARTH_SHOCK_ACTION = { name = "EarthShock", spell = SPELLS.EarthShock, cooldown = 6 }
-local FROST_SHOCK_ACTION = { name = "FrostShock", spell = SPELLS.FrostShock, cooldown = 6 }
-local CHAIN_LIGHTNING_ACTION = { name = "ChainLightning", spell = SPELLS.ChainLightning, cooldown = 6 }
-local LIGHTNING_BOLT_ACTION = { name = "LightningBolt", spell = SPELLS.LightningBolt, cooldown = 2.5 }
-local LESSER_HEALING_WAVE_ACTION = { name = "LesserHealingWave", spell = SPELLS.LesserHealingWave, target = "self", requires_target = false }
-local CHAIN_HEAL_ACTION = { name = "ChainHeal", spell = SPELLS.ChainHeal, target = "self", requires_target = false }
-local MANA_TIDE_TOTEM_ACTION = { name = "ManaTideTotem", spell = SPELLS.ManaTideTotem, target = "self", cooldown = 300, requires_target = false }
-local NATURES_SWIFTNESS_ACTION = { name = "NaturesSwiftness", spell = SPELLS.NaturesSwiftness, target = "self", cooldown = 180, requires_target = false }
-local SHAMANISTIC_RAGE_ACTION = { name = "ShamanisticRage", spell = SPELLS.ShamanisticRage, target = "self", combat = true, cooldown = 120, requires_target = false }
-local BLOODLUST_ACTION = { name = "Bloodlust", spell = SPELLS.Bloodlust, target = "self", combat = true, setting = "use_cooldowns", cooldown = 600, min_mana = 25, requires_target = false }
--- v1.2.1: racials
-local BLOOD_FURY_ACTION = { name = "BloodFury", spell = { 33697, 20572 }, target = "self", combat = true, setting = "use_cooldowns", cooldown = 120, requires_target = false }
-local BERSERKING_ACTION = { name = "Berserking", spell = { 20554, 26297 }, target = "self", combat = true, setting = "use_cooldowns", cooldown = 180, requires_target = false }
-
--- Totem actions
-local STRENGTH_OF_EARTH_ACTION = { name = "StrengthOfEarthTotem", spell = SPELLS.StrengthOfEarthTotem, target = "self", requires_target = false }
-local STONESKIN_TOTEM_ACTION = { name = "StoneskinTotem", spell = SPELLS.StoneskinTotem, target = "self", requires_target = false }
-local MANA_SPRING_ACTION = { name = "ManaSpringTotem", spell = SPELLS.ManaSpringTotem, target = "self", requires_target = false }
-local HEALING_STREAM_ACTION = { name = "HealingStreamTotem", spell = SPELLS.HealingStreamTotem, target = "self", requires_target = false }
-local SEARING_TOTEM_ACTION = { name = "SearingTotem", spell = SPELLS.SearingTotem, target = "self", requires_target = false }
-local MAGMA_TOTEM_ACTION = { name = "MagmaTotem", spell = SPELLS.MagmaTotem, target = "self", requires_target = false }
-local FIRE_NOVA_TOTEM_ACTION = { name = "FireNovaTotem", spell = SPELLS.FireNovaTotem, target = "self", requires_target = false }
-local WINDFURY_TOTEM_ACTION = { name = "WindfuryTotem", spell = SPELLS.WindfuryTotem, target = "self", requires_target = false }
-local GRACE_OF_AIR_ACTION = { name = "GraceOfAirTotem", spell = SPELLS.GraceOfAirTotem, target = "self", requires_target = false }
-local WINDFURY_TWIST_ACTION = { name = "WindfuryTotemTwist", spell = SPELLS.WindfuryTotem, target = "self", requires_target = false }
-local GRACE_AIR_TWIST_ACTION = { name = "GraceOfAirTotemTwist", spell = SPELLS.GraceOfAirTotem, target = "self", requires_target = false }
-
--- Weapon buff actions
-local function make_weapon_action(name, spell_list, slot_key)
-    return { name = name, spell = spell_list, target = "self", kind = "buff", requires_target = false, slot = slot_key }
-end
-
 -- ============================================================================
 -- Totem match functions
 -- ============================================================================
 local function earth_totem_matches(ctx, desired)
     if not can_manage_totems(ctx) then return false end
     if not desired or desired == "none" then return false end
-    local now = enh_state.now_ms
-    local range_override = enh_state.totem_out_of_range_earth
     if desired == "strength" then
         if not enh_state.strength_of_earth_totem_ready then return false end
-        if now - totem_state.last_strength_ms < TOTEM_REFRESH_MS and not range_override then return false end
-        return true
+        return can_drop_totem(ctx, SPELLS.StrengthOfEarthTotem, 2, SPELLS.StrengthOfEarthTotem)
     elseif desired == "stoneskin" then
         if not enh_state.stoneskin_totem_ready then return false end
-        if now - totem_state.last_stoneskin_ms < TOTEM_REFRESH_MS and not range_override then return false end
-        return true
+        return can_drop_totem(ctx, SPELLS.StoneskinTotem, 2, SPELLS.StoneskinTotem)
     end
     return false
 end
@@ -505,16 +429,12 @@ end
 local function water_totem_matches(ctx, desired)
     if not can_manage_totems(ctx) then return false end
     if not desired or desired == "none" then return false end
-    local now = enh_state.now_ms
-    local range_override = enh_state.totem_out_of_range_water
     if desired == "mana_spring" then
         if not enh_state.mana_spring_totem_ready then return false end
-        if now - totem_state.last_mana_ms < TOTEM_REFRESH_MS and not range_override then return false end
-        return true
+        return can_drop_totem(ctx, SPELLS.ManaSpringTotem, 3, SPELLS.ManaSpringTotem)
     elseif desired == "healing_stream" then
         if not enh_state.healing_stream_totem_ready then return false end
-        if now - totem_state.last_healing_stream_ms < TOTEM_REFRESH_MS and not range_override then return false end
-        return true
+        return can_drop_totem(ctx, SPELLS.HealingStreamTotem, 3, SPELLS.HealingStreamTotem)
     end
     return false
 end
@@ -522,33 +442,30 @@ end
 local function fire_totem_matches(ctx, desired)
     if not can_manage_totems(ctx) then return false end
     if not desired or desired == "none" then return false end
-    local now = enh_state.now_ms
-    local range_override = enh_state.totem_out_of_range_fire
-
-    -- If Fire Nova was just placed, swap to Magma after 4s
-    if totem_state.fire_nova_active then
-        if now - totem_state.last_fire_nova_swap_ms >= FIRE_NOVA_TWIST_MS then
-            -- Time to replace Fire Nova with Magma
-            if desired ~= "fire_nova" and enh_state.magma_totem_ready then
-                totem_state.fire_nova_active = false
-                return false  -- Will be handled by fire_nova_replacement match
-            end
-        end
-        return false  -- Fire Nova still active
-    end
 
     if desired == "searing" then
         if not enh_state.searing_totem_ready then return false end
-        if now - totem_state.last_fire_ms < TOTEM_REFRESH_MS and not range_override then return false end
-        return true
+        return can_drop_totem(ctx, SPELLS.SearingTotem, 1, SPELLS.SearingTotem)
     elseif desired == "magma" then
         if not enh_state.magma_totem_ready then return false end
-        if now - totem_state.last_fire_ms < TOTEM_REFRESH_MS and not range_override then return false end
-        return true
+        return can_drop_totem(ctx, SPELLS.MagmaTotem, 1, SPELLS.MagmaTotem)
     elseif desired == "fire_nova" then
         if not enh_state.fire_nova_totem_ready then return false end
-        if now - totem_state.last_fire_ms < TOTEM_REFRESH_MS then return false end
-        return true
+        return can_drop_totem(ctx, SPELLS.FireNovaTotem, 1, SPELLS.FireNovaTotem)
+    elseif desired == "fire_weaving" then
+        -- Fire Weaving (Artistry): Prioritize Fire Nova if ready, otherwise Magma
+        if enh_state.fire_nova_totem_ready then
+            return can_drop_totem(ctx, SPELLS.FireNovaTotem, 1, SPELLS.FireNovaTotem)
+        end
+        -- If Nova was dropped recently (within 4s), it's still arming/active. 
+        -- Don't replace it yet.
+        local ms_since_nova = enh_state.now_ms - (totem_state.last_fire_nova_ms or 0)
+        if ms_since_nova < 4000 then return false end
+        
+        -- Nova is either on CD or already exploded. Use Magma as filler.
+        if enh_state.magma_totem_ready then
+            return can_drop_totem(ctx, SPELLS.MagmaTotem, 1, SPELLS.MagmaTotem)
+        end
     end
     return false
 end
@@ -557,19 +474,23 @@ end
 local function fire_nova_replacement_matches(ctx)
     if not can_manage_totems(ctx) then return false end
     if not totem_state.fire_nova_active then return false end
-    local now = enh_state.now_ms
-    if now - totem_state.last_fire_nova_swap_ms < FIRE_NOVA_TWIST_MS then return false end
     if not enh_state.magma_totem_ready then return false end
-    if now - totem_state.last_fire_ms < TOTEM_REFRESH_MS then return false end
-    return true
+    
+    -- [ARTISTRY] Improved replacement logic:
+    -- If we are in "fire_weaving" mode, replacement is handled by the primary fire_totem_resolve.
+    local s = ctx.settings or {}
+    if s.enhancement_fire_totem == "fire_weaving" then return false end
+    
+    if ctx.target and NS.debuff_up and not NS.debuff_up(ctx.target, FLAME_SHOCK_DEBUFF) then
+        return can_drop_totem(ctx, SPELLS.MagmaTotem, 1, SPELLS.MagmaTotem)
+    end
+    return false
 end
 
 local function windfury_maintain_matches(ctx)
     if not can_manage_totems(ctx) then return false end
     if not enh_state.windfury_totem_ready then return false end
-    local now = enh_state.now_ms
-    if now - totem_state.last_windfury_ms < TOTEM_REFRESH_MS then return false end
-    return true
+    return can_drop_totem(ctx, SPELLS.WindfuryTotem, 4, SPELLS.WindfuryTotem)
 end
 
 local function windfury_twist_matches(ctx)
@@ -579,7 +500,8 @@ local function windfury_twist_matches(ctx)
     local mana_floor = (ctx.settings or {}).enhancement_totem_twist_mana_floor or 25
     if enh_state.mana_pct < mana_floor then return false end
     if not enh_state.windfury_totem_ready then return false end
-    return totem_state.next_air == "windfury" and enh_state.now_ms - totem_state.last_air_ms >= AIR_TWIST_HOLD_MS
+    if totem_state.next_air ~= "windfury" then return false end
+    return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.WindfuryTotem))
 end
 
 local function grace_air_twist_matches(ctx)
@@ -589,7 +511,8 @@ local function grace_air_twist_matches(ctx)
     local mana_floor = (ctx.settings or {}).enhancement_totem_twist_mana_floor or 25
     if enh_state.mana_pct < mana_floor then return false end
     if not enh_state.grace_of_air_totem_ready then return false end
-    return totem_state.next_air == "grace" and enh_state.now_ms - totem_state.last_air_ms >= AIR_TWIST_SWAP_DELAY_MS
+    if totem_state.next_air ~= "grace" then return false end
+    return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.GraceOfAirTotem))
 end
 
 -- ============================================================================
@@ -598,16 +521,17 @@ end
 local function lightning_shield_matches(ctx)
     if enh_state.shield_type == "water" then return false end
     if enh_state.has_lightning_shield and (enh_state.lightning_shield_charges or 0) > 1 then return false end
+    if enh_state.now_ms - runtime.last_lightning_shield_ms < SHIELD_REFRESH_UNKNOWN_MS then return false end
     if not enh_state.lightning_shield_ready then return false end
-    if enh_state.now_ms - totem_state.last_lightning_shield_ms < SHIELD_REFRESH_UNKNOWN_MS then return false end
+    if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, LIGHTNING_SHIELD_BUFF) > 2 then return false end
     -- Auto mode: only maintain Lightning Shield when mana is above threshold
     if enh_state.shield_type == "auto" and enh_state.mana_pct < enh_state.lightning_shield_mana then return false end
-    return NS.action_matches(ctx, LIGHTNING_SHIELD_ACTION)
+    return true
 end
 
 local function lightning_shield_execute(ctx)
-    if NS.action_execute(ctx, LIGHTNING_SHIELD_ACTION, "[ENHANCEMENT]") then
-        totem_state.last_lightning_shield_ms = enh_state.now_ms
+    if NS.try_cast(SPELLS.LightningShield, NS.PLAYER_UNIT, "[ENHANCEMENT] Lightning Shield", { skip_range = true }) then
+        runtime.last_lightning_shield_ms = enh_state.now_ms
         return true
     end
     return false
@@ -617,18 +541,14 @@ local function water_shield_matches(ctx)
     if enh_state.shield_type == "lightning" then return false end
     if enh_state.has_water_shield then return false end
     if not enh_state.water_shield_ready then return false end
-    if enh_state.now_ms - totem_state.last_water_shield_ms < SHIELD_REFRESH_UNKNOWN_MS then return false end
+    if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, WATER_SHIELD_BUFF) > 2 then return false end
     -- Auto mode: switch to Water Shield when mana is low
     if enh_state.shield_type == "auto" and enh_state.mana_pct >= enh_state.water_shield_mana then return false end
-    return NS.action_matches(ctx, WATER_SHIELD_ACTION)
+    return true
 end
 
 local function water_shield_execute(ctx)
-    if NS.action_execute(ctx, WATER_SHIELD_ACTION, "[ENHANCEMENT]") then
-        totem_state.last_water_shield_ms = enh_state.now_ms
-        return true
-    end
-    return false
+    return NS.try_cast(SPELLS.WaterShield, NS.PLAYER_UNIT, "[ENHANCEMENT] Water Shield", { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -639,10 +559,14 @@ local function mh_weapon_matches(ctx)
     local choice = s.enhancement_main_hand_ench or "windfury"
     if choice == "none" then return false end
     if enh_state.in_combat then return false end
-    local now = enh_state.now_ms
-    if now - totem_state.last_mh_buff_ms < WEAPON_BUFF_REFRESH_MS and totem_state.last_mh_buff_type ~= "none" then return false end
-    -- v1.3.9: 3s retry throttle on failed cast attempts
-    if now - enh_state.weapon_buff_last_attempt < 3000 then return false end
+    -- Check WeaponImbueManager-based state: if the desired imbue is detected, skip
+    local has_imbue = false
+    if choice == "windfury" then has_imbue = enh_state.has_windfury_weapon
+    elseif choice == "flametongue" then has_imbue = enh_state.has_flametongue_weapon
+    elseif choice == "rockbiter" then has_imbue = enh_state.has_rockbiter_weapon
+    elseif choice == "frostbrand" then has_imbue = enh_state.has_frostbrand_weapon
+    end
+    if has_imbue then return false end
     return true
 end
 
@@ -651,10 +575,14 @@ local function oh_weapon_matches(ctx)
     local choice = s.enhancement_off_hand_ench or "flametongue"
     if choice == "none" then return false end
     if enh_state.in_combat then return false end
-    local now = enh_state.now_ms
-    if now - totem_state.last_oh_buff_ms < WEAPON_BUFF_REFRESH_MS and totem_state.last_oh_buff_type ~= "none" then return false end
-    -- v1.3.9: 3s retry throttle on failed cast attempts
-    if now - enh_state.weapon_buff_last_attempt < 3000 then return false end
+    -- Check WeaponImbueManager-based state: if the desired imbue is detected, skip
+    local has_imbue = false
+    if choice == "windfury" then has_imbue = enh_state.oh_has_windfury_weapon
+    elseif choice == "flametongue" then has_imbue = enh_state.oh_has_flametongue_weapon
+    elseif choice == "rockbiter" then has_imbue = enh_state.oh_has_rockbiter_weapon
+    elseif choice == "frostbrand" then has_imbue = enh_state.oh_has_frostbrand_weapon
+    end
+    if has_imbue then return false end
     return true
 end
 
@@ -676,7 +604,7 @@ local function shamanistic_rage_matches(ctx)
         local dist = target.get_distance and target:get_distance(NS.PLAYER_UNIT or ctx.me)
         if dist and dist > 8 then return false end
     end
-    return NS.action_matches(ctx, SHAMANISTIC_RAGE_ACTION)
+    return true
 end
 
 local function bloodlust_matches(ctx)
@@ -685,7 +613,7 @@ local function bloodlust_matches(ctx)
     if not enh_state.in_combat then return false end
     if enh_state.has_bloodlust then return false end
     if not enh_state.bloodlust_ready then return false end
-    return NS.action_matches(ctx, BLOODLUST_ACTION)
+    return true
 end
 
 local function mana_tide_totem_matches(ctx)
@@ -693,12 +621,12 @@ local function mana_tide_totem_matches(ctx)
     if ctx.settings and ctx.settings.enhancement_cd_mana_tide == false then return false end
     if not enh_state.mana_tide_totem_ready then return false end
     if (enh_state.mana_pct or 100) > 60 then return false end
-    return NS.action_matches(ctx, MANA_TIDE_TOTEM_ACTION)
+    return true
 end
 
 local function natures_swiftness_matches(ctx)
     if not enh_state.natures_swiftness_ready then return false end
-    return NS.action_matches(ctx, NATURES_SWIFTNESS_ACTION)
+    return true
 end
 
 --- Primary offensive matches
@@ -707,7 +635,7 @@ local function stormstrike_matches(ctx)
     -- Research: Mana < 10%: all spells forbidden (auto-attack only)
     if enh_state.mana_emergency then return false end
     -- Research: Mana < 20%: Stormstrike still allowed, shocks gated separately
-    return NS.action_matches(ctx, STORMSTRIKE_ACTION)
+    return true
 end
 
 local function flame_shock_matches(ctx)
@@ -723,7 +651,7 @@ local function flame_shock_matches(ctx)
     end
     -- Refresh when <3s remaining or not active
     if enh_state.target_has_flame_shock and enh_state.flame_shock_remains > 3 then return false end
-    return NS.action_matches(ctx, FLAME_SHOCK_ACTION)
+    return true
 end
 
 local function earth_shock_matches(ctx)
@@ -744,7 +672,7 @@ local function earth_shock_matches(ctx)
         if enh_state.hold_shocks_focus and not enh_state.in_combat then return false end
         if enh_state.mana_low then return false end
         if not enh_state.target_has_flame_shock then return false end
-        return NS.action_matches(ctx, EARTH_SHOCK_ACTION)
+        return true
     end
     return false
 end
@@ -754,34 +682,34 @@ local function frost_shock_matches(ctx)
     -- Hold shocks OOC when Shamanistic Focus proc is desired
     if enh_state.hold_shocks_focus and not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
-    return NS.action_matches(ctx, FROST_SHOCK_ACTION)
+    return true
 end
 
 local function chain_lightning_matches(ctx)
     if not enh_state.chain_lightning_ready then return false end
     -- AoE mode: CL if enough enemies
     if enh_state.effective_mode == "single" and enh_state.enemy_count < 2 then return false end
-    return NS.action_matches(ctx, CHAIN_LIGHTNING_ACTION)
+    return true
 end
 
 local function lightning_bolt_matches(ctx)
     if not enh_state.lightning_bolt_ready then return false end
     -- v1.1.5: OOC ranged pulls only — once in combat, commit to melee rotation
     if enh_state.in_combat then return false end
-    return NS.action_matches(ctx, LIGHTNING_BOLT_ACTION)
+    return true
 end
 
 --- Self-heal matches
 local function lesser_healing_wave_matches(ctx)
     if not enh_state.lesser_healing_wave_ready then return false end
     if (enh_state.hp_pct or 100) > enh_state.self_heal_hp then return false end
-    return NS.action_matches(ctx, LESSER_HEALING_WAVE_ACTION)
+    return true
 end
 
 local function chain_heal_matches(ctx)
     if not enh_state.chain_heal_ready then return false end
     if (enh_state.hp_pct or 100) > enh_state.chain_heal_hp then return false end
-    return NS.action_matches(ctx, CHAIN_HEAL_ACTION)
+    return true
 end
 
 --- Gift of the Naaru (v1.1.1: Draenei racial heal)
@@ -815,24 +743,15 @@ end
 -- Totem executes
 -- ============================================================================
 local function totem_try_cast(spell, label, state_field, state_val)
-    if NS.try_cast(spell, NS.PLAYER_UNIT, label) then
-        if state_field then
-            totem_state[state_field] = enh_state.now_ms
-        end
-        if state_val then
-            totem_state[state_field] = state_val
-        end
-        return true
-    end
-    return false
+    return NS.try_cast(spell, NS.PLAYER_UNIT, label, { skip_range = true }) or false
 end
 
 local function earth_totem_execute()
     local s = enh_state.earth_totem_desired or "strength"
     if s == "strength" then
-        return totem_try_cast(SPELLS.StrengthOfEarthTotem, "[ENHANCEMENT] Strength of Earth Totem", "last_strength_ms", "enh_state.now_ms")
+        return totem_try_cast(SPELLS.StrengthOfEarthTotem, "[ENHANCEMENT] Strength of Earth Totem")
     elseif s == "stoneskin" then
-        return totem_try_cast(SPELLS.StoneskinTotem, "[ENHANCEMENT] Stoneskin Totem", "last_stoneskin_ms", "enh_state.now_ms")
+        return totem_try_cast(SPELLS.StoneskinTotem, "[ENHANCEMENT] Stoneskin Totem")
     end
     return false
 end
@@ -840,9 +759,9 @@ end
 local function water_totem_execute()
     local s = enh_state.water_totem_desired or "mana_spring"
     if s == "mana_spring" then
-        return totem_try_cast(SPELLS.ManaSpringTotem, "[ENHANCEMENT] Mana Spring Totem", "last_mana_ms", "enh_state.now_ms")
+        return totem_try_cast(SPELLS.ManaSpringTotem, "[ENHANCEMENT] Mana Spring Totem")
     elseif s == "healing_stream" then
-        return totem_try_cast(SPELLS.HealingStreamTotem, "[ENHANCEMENT] Healing Stream Totem", "last_healing_stream_ms", "enh_state.now_ms")
+        return totem_try_cast(SPELLS.HealingStreamTotem, "[ENHANCEMENT] Healing Stream Totem")
     end
     return false
 end
@@ -850,22 +769,22 @@ end
 local function fire_totem_execute()
     local s = enh_state.fire_totem_desired or "searing"
     if s == "searing" then
-        if totem_try_cast(SPELLS.SearingTotem, "[ENHANCEMENT] Searing Totem", "last_fire_ms", "enh_state.now_ms") then
+        if totem_try_cast(SPELLS.SearingTotem, "[ENHANCEMENT] Searing Totem") then
             totem_state.fire_nova_active = false
             totem_state.fire_totem_type = "searing"
             return true
         end
     elseif s == "magma" then
-        if totem_try_cast(SPELLS.MagmaTotem, "[ENHANCEMENT] Magma Totem", "last_fire_ms", "enh_state.now_ms") then
+        if totem_try_cast(SPELLS.MagmaTotem, "[ENHANCEMENT] Magma Totem") then
             totem_state.fire_nova_active = false
             totem_state.fire_totem_type = "magma"
             return true
         end
-    elseif s == "fire_nova" then
-        if totem_try_cast(SPELLS.FireNovaTotem, "[ENHANCEMENT] Fire Nova Totem", "last_fire_ms", "enh_state.now_ms") then
+    elseif s == "fire_nova" or s == "fire_weaving" then
+        if totem_try_cast(SPELLS.FireNovaTotem, "[ENHANCEMENT] Fire Nova Totem") then
             totem_state.fire_nova_active = true
+            totem_state.last_fire_nova_ms = enh_state.now_ms
             totem_state.fire_totem_type = "fire_nova"
-            totem_state.last_fire_nova_swap_ms = enh_state.now_ms
             return true
         end
     end
@@ -873,7 +792,7 @@ local function fire_totem_execute()
 end
 
 local function fire_nova_replacement_execute()
-    if totem_try_cast(SPELLS.MagmaTotem, "[ENHANCEMENT] Fire Nova -> Magma replacement", "last_fire_ms", "enh_state.now_ms") then
+    if totem_try_cast(SPELLS.MagmaTotem, "[ENHANCEMENT] Fire Nova -> Magma replacement") then
         totem_state.fire_nova_active = false
         totem_state.fire_totem_type = "magma"
         return true
@@ -884,8 +803,6 @@ end
 local function windfury_twist_execute()
     if NS.try_cast(SPELLS.WindfuryTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Windfury Totem twist") then
         totem_state.next_air = "grace"
-        totem_state.last_air_ms = totem_state.now_ms
-        totem_state.last_windfury_ms = totem_state.now_ms
         return true
     end
     return false
@@ -894,18 +811,13 @@ end
 local function grace_air_twist_execute()
     if NS.try_cast(SPELLS.GraceOfAirTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Grace of Air Totem twist") then
         totem_state.next_air = "windfury"
-        totem_state.last_air_ms = totem_state.now_ms
         return true
     end
     return false
 end
 
 local function windfury_maintain_execute()
-    if NS.try_cast(SPELLS.WindfuryTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Windfury Totem") then
-        totem_state.last_windfury_ms = totem_state.now_ms
-        return true
-    end
-    return false
+    return NS.try_cast(SPELLS.WindfuryTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Windfury Totem", { skip_range = true }) or false
 end
 
 local function earth_totem_resolve(ctx)
@@ -981,13 +893,7 @@ local function mh_weapon_execute(ctx)
     elseif choice == "frostbrand" then spell_list = FROSTBRAND_WEAPON_SPELLS
     else return false end
 
-    enh_state.weapon_buff_last_attempt = enh_state.now_ms
-    if NS.try_cast(spell_list, NS.PLAYER_UNIT, "[ENHANCEMENT] MH " .. choice) then
-        totem_state.last_mh_buff_ms = enh_state.now_ms
-        totem_state.last_mh_buff_type = choice
-        return true
-    end
-    return false
+    return NS.try_cast(spell_list, NS.PLAYER_UNIT, "[ENHANCEMENT] MH " .. choice) or false
 end
 
 local function oh_weapon_execute(ctx)
@@ -1000,13 +906,7 @@ local function oh_weapon_execute(ctx)
     elseif choice == "frostbrand" then spell_list = FROSTBRAND_WEAPON_SPELLS
     else return false end
 
-    enh_state.weapon_buff_last_attempt = enh_state.now_ms
-    if NS.try_cast(spell_list, NS.PLAYER_UNIT, "[ENHANCEMENT] OH " .. choice) then
-        totem_state.last_oh_buff_ms = enh_state.now_ms
-        totem_state.last_oh_buff_type = choice
-        return true
-    end
-    return false
+    return NS.try_cast(spell_list, NS.PLAYER_UNIT, "[ENHANCEMENT] OH " .. choice) or false
 end
 
 -- ============================================================================
@@ -1047,11 +947,6 @@ end
 local function totemic_call_matches(ctx)
     if ctx.settings and ctx.settings.enhancement_auto_totemic_call == false then return false end
     if not enh_state.totemic_call_ready then return false end
-
-    -- Throttle object scanning
-    local now_ms = NS.game_time_ms()
-    if now_ms - enh_state.last_totem_scan_ms < TOTEM_SCAN_INTERVAL_MS then return false end
-    enh_state.last_totem_scan_ms = now_ms
 
     local me = ctx.me
     if not me then return false end
@@ -1152,33 +1047,33 @@ local strategies = {
     { name = "LightningShield", matches = lightning_shield_matches, execute = lightning_shield_execute },
 
     -- 7. Cooldowns
-    { name = "ShamanisticRage", matches = shamanistic_rage_matches, execute = function(ctx) return NS.action_execute(ctx, SHAMANISTIC_RAGE_ACTION, "[ENHANCEMENT]") end },
-    { name = "Bloodlust", matches = bloodlust_matches, execute = function(ctx) return NS.action_execute(ctx, BLOODLUST_ACTION, "[ENHANCEMENT]") end },
-    { name = "ManaTideTotem", matches = mana_tide_totem_matches, execute = function(ctx) return NS.action_execute(ctx, MANA_TIDE_TOTEM_ACTION, "[ENHANCEMENT]") end },
-    { name = "NaturesSwiftness", matches = natures_swiftness_matches, execute = function(ctx) return NS.action_execute(ctx, NATURES_SWIFTNESS_ACTION, "[ENHANCEMENT]") end },
+    { name = "ShamanisticRage", matches = shamanistic_rage_matches, execute = function(ctx) return NS.try_cast(SPELLS.ShamanisticRage, NS.PLAYER_UNIT, "[ENHANCEMENT] Shamanistic Rage", { skip_range = true }) end },
+    { name = "Bloodlust", matches = bloodlust_matches, execute = function(ctx) return NS.try_cast(SPELLS.Bloodlust, NS.PLAYER_UNIT, "[ENHANCEMENT] Bloodlust", { skip_range = true }) end },
+    { name = "ManaTideTotem", matches = mana_tide_totem_matches, execute = function(ctx) return NS.try_cast(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Mana Tide Totem", { skip_range = true }) end },
+    { name = "NaturesSwiftness", matches = natures_swiftness_matches, execute = function(ctx) return NS.try_cast(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, "[ENHANCEMENT] Nature's Swiftness", { skip_range = true }) end },
 
     -- 7b. Utility totems (fear break, spell absorb)
     { name = "TremorTotem", matches = tremor_totem_matches, execute = function(ctx) return NS.try_cast(TREMOR_TOTEM_SPELL, NS.PLAYER_UNIT, "[ENHANCEMENT] Tremor Totem") end },
     { name = "GroundingTotem", matches = grounding_totem_matches, execute = function(ctx) return NS.try_cast(SPELLS.GroundingTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Grounding Totem") end },
 
     -- v1.2.1: racials
-    { name = "BloodFury", matches = blood_fury_matches, execute = function(ctx) return NS.action_execute(ctx, BLOOD_FURY_ACTION, "[ENHANCEMENT]") end },
-    { name = "Berserking", matches = berserking_matches, execute = function(ctx) return NS.action_execute(ctx, BERSERKING_ACTION, "[ENHANCEMENT]") end },
+    { name = "BloodFury", matches = blood_fury_matches, execute = function(ctx) return NS.try_cast({ 33697, 20572 }, NS.PLAYER_UNIT, "[ENHANCEMENT] Blood Fury", { skip_range = true }) end },
+    { name = "Berserking", matches = berserking_matches, execute = function(ctx) return NS.try_cast({ 20554, 26297 }, NS.PLAYER_UNIT, "[ENHANCEMENT] Berserking", { skip_range = true }) end },
 
     -- 8. Self-heal
     { name = "GiftOfTheNaaru", matches = gift_of_the_naaru_matches, execute = gift_of_the_naaru_execute },
-    { name = "LesserHealingWave", matches = lesser_healing_wave_matches, execute = function(ctx) return NS.action_execute(ctx, LESSER_HEALING_WAVE_ACTION, "[ENHANCEMENT]") end },
-    { name = "ChainHeal", matches = chain_heal_matches, execute = function(ctx) return NS.action_execute(ctx, CHAIN_HEAL_ACTION, "[ENHANCEMENT]") end },
+    { name = "LesserHealingWave", matches = lesser_healing_wave_matches, execute = function(ctx) return NS.try_cast(SPELLS.LesserHealingWave, NS.PLAYER_UNIT, "[ENHANCEMENT] Lesser Healing Wave", { skip_range = true }) end },
+    { name = "ChainHeal", matches = chain_heal_matches, execute = function(ctx) return NS.try_cast(SPELLS.ChainHeal, NS.PLAYER_UNIT, "[ENHANCEMENT] Chain Heal", { skip_range = true }) end },
 
     -- 9. Offensive priority (FrostByte v2.0.1: Flame Shock first, Earth Shock only while FS active)
-    { name = "Stormstrike", matches = stormstrike_matches, execute = function(ctx) return NS.action_execute(ctx, STORMSTRIKE_ACTION, "[ENHANCEMENT]") end },
-    { name = "FlameShock", matches = flame_shock_matches, execute = function(ctx) return NS.action_execute(ctx, FLAME_SHOCK_ACTION, "[ENHANCEMENT]") end },
-    { name = "EarthShock", matches = earth_shock_matches, execute = function(ctx) return NS.action_execute(ctx, EARTH_SHOCK_ACTION, "[ENHANCEMENT]") end },
-    { name = "FrostShock", matches = frost_shock_matches, execute = function(ctx) return NS.action_execute(ctx, FROST_SHOCK_ACTION, "[ENHANCEMENT]") end },
+    { name = "Stormstrike", matches = stormstrike_matches, execute = function(ctx) return NS.try_cast(SPELLS.Stormstrike, ctx.target, "[ENHANCEMENT] Stormstrike") end },
+    { name = "FlameShock", matches = flame_shock_matches, execute = function(ctx) return NS.try_cast(SPELLS.FlameShock, ctx.target, "[ENHANCEMENT] Flame Shock") end },
+    { name = "EarthShock", matches = earth_shock_matches, execute = function(ctx) return NS.try_cast(SPELLS.EarthShock, ctx.target, "[ENHANCEMENT] Earth Shock") end },
+    { name = "FrostShock", matches = frost_shock_matches, execute = function(ctx) return NS.try_cast(SPELLS.FrostShock, ctx.target, "[ENHANCEMENT] Frost Shock") end },
 
     -- 10. AoE / filler
-    { name = "ChainLightning", matches = chain_lightning_matches, execute = function(ctx) return NS.action_execute(ctx, CHAIN_LIGHTNING_ACTION, "[ENHANCEMENT]") end },
-    { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(ctx) return NS.action_execute(ctx, LIGHTNING_BOLT_ACTION, "[ENHANCEMENT]") end },
+    { name = "ChainLightning", matches = chain_lightning_matches, execute = function(ctx) return NS.try_cast(SPELLS.ChainLightning, ctx.target, "[ENHANCEMENT] Chain Lightning") end },
+    { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(ctx) return NS.try_cast(SPELLS.LightningBolt, ctx.target, "[ENHANCEMENT] Lightning Bolt") end },
 }
 
 NS.rotation_registry:register("enhancement", strategies, { get_state = build_state })

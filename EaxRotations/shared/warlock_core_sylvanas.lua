@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/warlock_core_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- What: Shared helper for warlock immunity checks, Soulshatter, Life Tap, and sustain
 -- When: Loaded once and used during per-tick combat logic
@@ -13,9 +31,15 @@ local _G = _G
 local NS = _G.EaxRotations
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
-local _cast_spell = core.input.cast_target_spell
 local _get_spell_cd = core.spell_book.get_spell_cooldown
 local _is_spell_learned = core.spell_book.is_spell_learned
+
+local function cast_guarded(spell_id, target, reason, opts)
+    if not NS or type(NS.try_cast) ~= "function" then return false end
+    -- Legacy warlock helpers used raw cast_target_spell; route through
+    -- NS.try_cast so evaluate_cast enforces GCD/cooldown/resource/target gates.
+    return NS.try_cast(spell_id, target, reason, opts) == true
+end
 
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = {} } end
@@ -56,11 +80,7 @@ function M.is_fire_immune(target)
     end
 
     -- Check for fire immunity buff
-    local ok_buff, has_immune = pcall(function()
-        return target:has_buff(15007)  -- Fire Resistance/Immunity buff
-            or target:has_buff(7940)   -- Fire Shield immunity (certain elementals)
-    end)
-    if ok_buff and has_immune then
+    if NS.buff_up(target, {15007, 7940}) then
         return true
     end
 
@@ -76,8 +96,7 @@ function M.is_shadow_immune(target)
 
     local ok, has_immune = pcall(function()
         -- Shadow immunity buffs (various sources)
-        return target:has_buff(36894)  -- Shadow Resistance
-            or target:has_buff(37136)  -- Shadow Protection (Fel armor type)
+        return NS.buff_up(target, {36894, 37136})
     end)
     return ok and has_immune or false
 end
@@ -130,7 +149,7 @@ function M.cancel_cast_on_dying(target, cast_time_ms, ttd, me)
         if now - _cancel_lock_time < 0.5 then return false end
         _cancel_lock_time = now
 
-        pcall(core.input.cast_target_spell, 32747, me)  -- Spell_Cancel action
+        pcall(function() return NS.cancel_spells() end)
         return true
     end
 
@@ -165,8 +184,7 @@ function M.use_life_tap(life_tap_ids, mana_threshold, min_hp, me)
         if _is_spell_learned(id) then
             local cd = _get_spell_cd(id)
             if cd == 0 then
-                _cast_spell(id, me)
-                return true
+                return cast_guarded(id, me, "[WARLOCK CORE] Life Tap", { skip_range = true })
             end
         end
     end
@@ -219,22 +237,15 @@ function M.maintain_armor(fel_armor_ids, demon_armor_ids, prefer_fel, me)
     local armors = prefer_fel and fel_armor_ids or demon_armor_ids
 
     -- Check if any armor buff is already up
-    for _, id in ipairs(fel_armor_ids) do
-        local ok, has = pcall(function() return me:has_buff(id) end)
-        if ok and has then return false end
-    end
-    for _, id in ipairs(demon_armor_ids) do
-        local ok, has = pcall(function() return me:has_buff(id) end)
-        if ok and has then return false end
-    end
+    if NS.buff_up(me, fel_armor_ids) then return false end
+    if NS.buff_up(me, demon_armor_ids) then return false end
 
     -- Try preferred first
     for _, id in ipairs(armors) do
         if _is_spell_learned(id) then
             local cd = _get_spell_cd(id)
             if cd == 0 then
-                _cast_spell(id, me)
-                return true
+                return cast_guarded(id, me, "[WARLOCK CORE] Armor", { skip_range = true })
             end
         end
     end
@@ -245,8 +256,7 @@ function M.maintain_armor(fel_armor_ids, demon_armor_ids, prefer_fel, me)
         if _is_spell_learned(id) then
             local cd = _get_spell_cd(id)
             if cd == 0 then
-                _cast_spell(id, me)
-                return true
+                return cast_guarded(id, me, "[WARLOCK CORE] Armor", { skip_range = true })
             end
         end
     end
@@ -274,22 +284,10 @@ local _current_sacrifice_buff = nil
 function M.get_sacrifice_buff_type(config, me)
     if not config or not me then return nil end
 
-    if config.imp_buff_id then
-        local ok, has = pcall(function() return me:has_buff(config.imp_buff_id) end)
-        if ok and has then return "imp" end
-    end
-    if config.succubus_buff_id then
-        local ok, has = pcall(function() return me:has_buff(config.succubus_buff_id) end)
-        if ok and has then return "succubus" end
-    end
-    if config.felhunter_buff_id then
-        local ok, has = pcall(function() return me:has_buff(config.felhunter_buff_id) end)
-        if ok and has then return "felhunter" end
-    end
-    if config.voidwalker_buff_id then
-        local ok, has = pcall(function() return me:has_buff(config.voidwalker_buff_id) end)
-        if ok and has then return "voidwalker" end
-    end
+    if config.imp_buff_id and NS.buff_up(me, {config.imp_buff_id}) then return "imp" end
+    if config.succubus_buff_id and NS.buff_up(me, {config.succubus_buff_id}) then return "succubus" end
+    if config.felhunter_buff_id and NS.buff_up(me, {config.felhunter_buff_id}) then return "felhunter" end
+    if config.voidwalker_buff_id and NS.buff_up(me, {config.voidwalker_buff_id}) then return "voidwalker" end
 
     return nil
 end
@@ -312,8 +310,7 @@ function M.sacrifice_pet(config, me)
 
     local cd = _get_spell_cd(config.sacrifice_spell_id)
     if cd == 0 then
-        _cast_spell(config.sacrifice_spell_id, me)
-        return true
+        return cast_guarded(config.sacrifice_spell_id, me, "[WARLOCK CORE] Demonic Sacrifice", { skip_range = true })
     end
 
     return false
@@ -355,8 +352,7 @@ function M.create_healthstone(create_spell_id)
     if cd == 0 then
         local me = _get_local_player()
         if me then
-            _cast_spell(create_spell_id, me)
-            return true
+            return cast_guarded(create_spell_id, me, "[WARLOCK CORE] Create Healthstone", { skip_range = true })
         end
     end
 

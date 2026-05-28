@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "shared/hunter_core_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Hunter Core: auto-shot timer, shot weaving, sting/aspect/pet helpers
 -- ============================================================================
@@ -12,6 +30,7 @@ if not NS then return M end
 local shot_state = {
     last_auto_time = 0,
     weapon_speed = 0,
+    base_weapon_speed = 0,
     last_instant_time = 0,
     steady_start_time = 0,
     steady_casting = false,
@@ -22,23 +41,69 @@ local shot_state = {
 local AUTO_SHOT_ID = 75
 local DEFAULT_WEAPON_SPEED = 2.9
 
+-- Popular TBC Hunter Weapons for Base Speed lookup
+local WEAPON_BASE_SPEEDS = {
+    [28772] = 2.9, -- Sunfury Bow of the Phoenix
+    [32336] = 3.0, -- Black Bow of the Betrayer
+    [30906] = 3.0, -- Bristleblitz Striker
+    [34195] = 3.0, -- Golden Bow of Quel'Thalas
+    [34334] = 2.7, -- Thori'dal, the Stars' Fury
+    [32253] = 2.9, -- Gladiator's Crossbow
+    [28673] = 2.8, -- Valanos' Longbow
+    [31303] = 2.9, -- Veteran's Musket
+    [29943] = 2.8, -- Serpent Spine Longbow
+    [28504] = 2.7, -- Steelhawk Crossbow
+    [28297] = 2.6, -- Don Santos' Famous Hunting Rifle
+    [27503] = 3.0, -- Gladiator's Heavy Crossbow
+}
+
 local function now()
     return NS and NS.time_now and NS.time_now() or 0
 end
 
---- Get the player's ranged weapon speed.
+--- Get the player's current ranged weapon speed (including haste).
 function M.get_weapon_speed()
-    if shot_state.weapon_speed > 0 then return shot_state.weapon_speed end
-    -- Fallback: try to get from player object
     local me = NS.GetPlayer and NS.GetPlayer()
-    if me and me.GetRangedWeaponSpeed then
-        local speed = pcall(me.GetRangedWeaponSpeed, me)
-        if speed then
+    if me and me.get_ranged_weapon_speed then
+        local ok, speed = pcall(me.get_ranged_weapon_speed, me)
+        if ok and speed and speed > 0 then
             shot_state.weapon_speed = speed
             return speed
         end
     end
+    return shot_state.weapon_speed > 0 and shot_state.weapon_speed or DEFAULT_WEAPON_SPEED
+end
+
+--- Get the player's base ranged weapon speed (from item).
+function M.get_base_weapon_speed()
+    if shot_state.base_weapon_speed > 0 then return shot_state.base_weapon_speed end
+    if not NS.get_equipped_item_id then return DEFAULT_WEAPON_SPEED end
+    
+    local item_id = NS.get_equipped_item_id(18) -- RANGED slot
+    if item_id and WEAPON_BASE_SPEEDS[item_id] then
+        shot_state.base_weapon_speed = WEAPON_BASE_SPEEDS[item_id]
+        return shot_state.base_weapon_speed
+    end
+    
+    -- Heuristic: if out of combat and no haste buffs, current speed is base speed
+    if not shot_state.in_combat then
+        local current = M.get_weapon_speed()
+        if current > 2.0 then -- Avoid detecting while some permanent haste is active
+            shot_state.base_weapon_speed = current
+            return current
+        end
+    end
+    
     return DEFAULT_WEAPON_SPEED
+end
+
+--- Get current Steady Shot cast time in MS, adjusted for haste.
+function M.get_steady_cast_ms()
+    local current_speed = M.get_weapon_speed()
+    local base_speed = M.get_base_weapon_speed()
+    -- TBC Formula: CastTime = BaseCastTime / (BaseWeaponSpeed / CurrentWeaponSpeed)
+    local cast_ms = (1.5 * current_speed / base_speed) * 1000
+    return math.max(500, cast_ms) -- Floor at 0.5s
 end
 
 --- Record an auto-shot event (called from spell cast callback).
@@ -80,17 +145,21 @@ end
 function M.can_cast_steady(buffer_ms)
     buffer_ms = buffer_ms or 150  -- Default latency buffer
     local remain = M.ms_until_auto()
-    local steady_cast_ms = 1500
+    local steady_cast_ms = M.get_steady_cast_ms()
+    -- [ARTISTRY] Improved: use dynamic haste-adjusted steady cast time.
+    -- Account for the 500ms "Auto-Shot window" in TBC where casting blocks the auto.
     local needed = steady_cast_ms + buffer_ms
-    return remain == 0 or remain > needed
+    return remain == 0 or remain > (needed + 500)
 end
 
 --- Can cast an instant shot (Arcane/Multi/Sting) without clipping auto-shot?
 function M.can_cast_instant(cast_ms, buffer_ms)
-    cast_ms = cast_ms or 500  -- Multi-Shot GCD-ish window
+    cast_ms = cast_ms or 500  -- Heuristic for GCD start? No, GCD is 1500.
     buffer_ms = buffer_ms or 100
     local remain = M.ms_until_auto()
-    return remain == 0 or remain > cast_ms + buffer_ms
+    -- [ARTISTRY] Improved: Account for the 500ms "Auto-Shot window".
+    -- Casting an instant shot triggers the GCD, but also blocks the auto if within the 0.5s window.
+    return remain == 0 or remain > (buffer_ms + 500)
 end
 
 --- Initialize auto-shot tracking via spell cast callback.

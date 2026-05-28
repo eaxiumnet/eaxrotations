@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/paladin/middleware_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Paladin shared middleware.
 
 -- ============================================================================
@@ -11,9 +29,34 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local CCGateDB = CCBreakDB
 local SPELLS = NS.PaladinSpells or {}
 local REAGENT_SYMBOL_OF_KINGS = 21177
 local REAGENT_SYMBOL_OF_WISDOM = 19848
+-- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
+local PALADIN_AOE_IDS = { 20922, 10318 }  -- Consecration, Holy Wrath
+
+-- Root/snare debuffs that Blessing of Freedom removes
+local ROOT_SNARE_DEBUFFS = {
+    339, 5195, 5196, 9852, 9853, 19970, 19972, 19973, 19974, 19975, 26989, 27010,  -- Entangling Roots
+    122, 865, 6131, 10230, 27088,   -- Frost Nova
+    1715, 7372, 7373,               -- Hamstring
+    2974, 14267, 14268,             -- Wing Clip
+    3408, 11202, 11201,  -- Crippling Poison
+}
+
+-- Spell objects (reuse SPELLS table from class_sylvanas.lua)
+local BLESSING_OF_FREEDOM_SPELL = SPELLS.BlessingOfFreedom or { id = { 1044 }, name = "BlessingOfFreedom" }
+
+-- Resolve Divine Shield spell object (reuse SPELLS definition, same as emergency DS strategy)
+local function get_divine_shield_spell()
+    if not SPELLS.DivineShield then return nil end
+    if type(SPELLS.DivineShield) == "table" then return SPELLS.DivineShield end
+    if type(SPELLS.DivineShield) == "number" then return { id = { SPELLS.DivineShield }, name = "DivineShield" } end
+    return nil
+end
+
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("paladin", "Repentance", SPELLS),
@@ -34,9 +77,7 @@ local strategies = {
             if (context.hp or 100) <= threshold then
                 -- Check Forbearance debuff (25771)
                 local me = context.me
-                if me and me.debuff_remains then
-                    if me:debuff_remains(25771) > 0 then return false end
-                end
+                if me and NS.debuff_remains(me, {25771}) > 0 then return false end
                 return true
             end
             return false
@@ -65,9 +106,7 @@ local strategies = {
             if (context.hp or 100) <= threshold then
                 -- Check Forbearance debuff (25771)
                 local me = context.me
-                if me and me.debuff_remains then
-                    if me:debuff_remains(25771) > 0 then return false end
-                end
+                if me and NS.debuff_remains(me, {25771}) > 0 then return false end
                 return true
             end
             return false
@@ -91,6 +130,9 @@ local strategies = {
             local settings = context.settings or {}
             if not settings.use_seal_of_wisdom_low_mana then return false end
             if not context.in_combat then return false end
+            -- Playstyle gate: seal swap to zero-damage seal is for holy only
+            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            if playstyle ~= "holy" then return false end
             -- Only switch when mana is below threshold
             local threshold = settings.seal_of_wisdom_mana_pct or 20
             if (context.mana_pct or 100) > threshold then return false end
@@ -124,12 +166,9 @@ local strategies = {
             local hasDisease = false
             local hasMagic = false
             if me.has_debuff then
-                -- TBC cleansable debuff category IDs (approximate)
-                -- Poison = 1, Disease = 2, Magic = 4
-                -- We check specific common debuffs as fallback
-                hasPoison = me:has_debuff(2764) or me:has_debuff(5237) or me:has_debuff(11359) or me:has_debuff(13240)
-                hasDisease = me:has_debuff(853) or me:has_debuff(1368) or me:has_debuff(2047)
-                hasMagic = me:has_debuff(33786) or me:has_debuff(2855) or me:has_debuff(30982)
+                hasPoison = NS.has_player_debuff({2764, 5237, 11359, 13240})
+                hasDisease = NS.has_player_debuff({853, 1368, 2047})
+                hasMagic = NS.has_player_debuff({33786, 2855, 30982})
             end
             if not hasPoison and not hasDisease and not hasMagic then return false end
             return true
@@ -160,7 +199,8 @@ local strategies = {
             if target.is_casting and target:is_casting() then
                 local cast_left = 0
                 if target.get_casting_percent then
-                    cast_left = target:get_casting_percent()
+                    local ok, pct = pcall(target.get_casting_percent, target)
+                    if ok then cast_left = pct end
                 end
                 -- Only interrupt if cast is past 50% (or no data)
                 if cast_left >= 50 or cast_left == 0 then
@@ -182,6 +222,85 @@ local strategies = {
     },
 
     -- ============================================================================
+    -- CC Break: preemptively Divine Shield or Blessing of Freedom when enemy
+    -- casts Poly/Fear/Cyclone/Repentance at the paladin.
+    -- Reactive: DS or BoFreedom if already CC'd.
+    -- ============================================================================
+    {
+        name = "PaladinCCBreak",
+        priority = 160,
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_cc_break == false then return false end
+            if not context.in_combat then return false end
+            local me = context.me or NS.GetPlayer()
+            if not me then return false end
+            -- Preemptive scan: check if any nearby enemy is casting CC on us
+            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+            for _, enemy in ipairs(enemies) do
+                if enemy then
+                    local is_casting_cc = CCBreakDB.is_casting_preemptive_cc(enemy)
+                    if is_casting_cc then
+                        local ok, etarget = pcall(function() return enemy:get_target() end)
+                        if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
+                            -- Divine Shield: preemptive immunity (expensive but guaranteed)
+                            local ds_spell = get_divine_shield_spell()
+                            if ds_spell then
+                                -- Check Forbearance debuff (25771)
+                                if me.debuff_remains and NS.debuff_remains(me, {25771}) > 0 then ds_spell = nil end
+                            end
+                            if ds_spell and NS.spell_ready and NS.spell_ready(ds_spell, me, { skip_range = true }) then
+                                return true
+                            end
+                            -- Blessing of Freedom: cheap root/snare break (doesn't cause Forbearance)
+                            if NS.is_spell_learned and NS.is_spell_learned(1044) then
+                                if NS.spell_ready and NS.spell_ready(BLESSING_OF_FREEDOM_SPELL) then
+                                    return true
+                                end
+                            end
+                            return false
+                        end
+                    end
+                end
+            end
+            -- Reactive: check if player is already under breakable CC (Poly/Sap/Repentance/etc.)
+            local has_cc, cc_name = CCBreakDB.is_breakable_cc_active(me, NS)
+            if has_cc then
+                local ds_spell = get_divine_shield_spell()
+            if ds_spell and NS.debuff_remains(me, {25771}) > 0 then ds_spell = nil end
+                return ds_spell and NS.spell_ready and NS.spell_ready(ds_spell, me, { skip_range = true }) or false
+            end
+            -- Reactive: check if rooted or snared (BoFreedom handles this)
+            if me and NS.debuff_up then
+                for _, id in ipairs(ROOT_SNARE_DEBUFFS) do
+                    if NS.debuff_up(me, id) then
+                        if NS.is_spell_learned and NS.is_spell_learned(1044) and NS.spell_ready and NS.spell_ready(BLESSING_OF_FREEDOM_SPELL) then
+                            return true
+                        end
+                        break
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local me = context.me or NS.GetPlayer()
+            if not me then return false end
+            -- Try Divine Shield first (immune + break)
+            local ds_spell = get_divine_shield_spell()
+            if ds_spell and me and NS.debuff_remains(me, {25771}) > 0 then ds_spell = nil end
+            if ds_spell and NS.spell_ready and NS.spell_ready(ds_spell, me, { skip_range = true }) then
+                return NS.try_cast(ds_spell, me, "[PALADIN] Divine Shield → CC Break", { skip_range = true })
+            end
+            -- Fallback: Blessing of Freedom (root/snare break)
+            if NS.is_spell_learned and NS.is_spell_learned(1044) and NS.spell_ready and NS.spell_ready(BLESSING_OF_FREEDOM_SPELL) then
+                return NS.try_cast(BLESSING_OF_FREEDOM_SPELL, me, "[PALADIN] Blessing of Freedom → CC Break", { skip_range = true })
+            end
+            return false
+        end,
+    },
+
+    -- ============================================================================
     -- SELF-BUFF: AURA (Out of combat)
     -- ============================================================================
     {
@@ -192,17 +311,10 @@ local strategies = {
             if context.is_mounted then return false end
             -- Check if any aura is active (skip if already has one)
             local me = context.me
-            if me and me.buff_remains then
-                -- Check common aura buff IDs
-                local hasAura = false
-                -- Devotion Aura: 465
-                -- Retribution Aura: 7294
-                -- Concentration Aura: 19746
-                -- Sanctity Aura: 20218
-                if me:has_buff(465) or me:has_buff(7294) or me:has_buff(19746) or me:has_buff(20218) then
-                    hasAura = true
+            if me then
+                if NS.buff_up(me, {465, 7294, 19746, 20218}) then
+                    return false
                 end
-                if hasAura then return false end
             end
             return true
         end,
@@ -253,15 +365,8 @@ local strategies = {
             if context.is_mounted then return false end
             -- Check if any blessing is active
             local me = context.me
-            if me and me.has_buff then
-                -- Check common blessing buff IDs
-                -- Blessing of Might: 19740
-                -- Blessing of Kings: 20217
-                -- Blessing of Wisdom: 20355
-                -- Blessing of Sanctuary: 20911
-                if me:has_buff(19740) or me:has_buff(20217) or me:has_buff(20355) or me:has_buff(20911) then
-                    return false
-                end
+            if me and NS.buff_up(me, {19740, 20217, 20355, 20911}) then
+                return false
             end
             return true
         end,
@@ -311,7 +416,11 @@ local strategies = {
             if playstyle ~= "protection" then return false end
             local me = context.me
             if not me or not me.buff_remains then return false end
-            local kingsRemains = (me:buff_remains(20217) or 0) + (me:buff_remains(25898) or 0)
+            -- nil-guard: if both buff_remains return nil, API is unavailable — skip to avoid spam
+            local kings1 = NS.buff_remains(me, {20217}) or 0
+            local kings2 = NS.buff_remains(me, {25898}) or 0
+            if kings1 == nil and kings2 == nil then return false end
+            local kingsRemains = (kings1 or 0) + (kings2 or 0)
             if kingsRemains > 120 then return false end
             if not SPELLS.BlessingOfKings then return false end
             return true
@@ -346,7 +455,11 @@ local strategies = {
             if not me or not me.buff_remains then return false end
             local manaPct = context.mana_pct or 100
             if manaPct < (settings.combat_kings_refresh_mana or 30) then return false end
-            local kingsRemains = (me:buff_remains(20217) or 0) + (me:buff_remains(25898) or 0)
+            -- nil-guard: if both buff_remains return nil or 0, API is unavailable
+            local kings1 = NS.buff_remains(me, {20217}) or 0
+            local kings2 = NS.buff_remains(me, {25898}) or 0
+            if kings1 == 0 and kings2 == 0 then return false end
+            local kingsRemains = kings1 + kings2
             local threshold = settings.combat_kings_refresh_threshold or 60
             if kingsRemains > threshold then return false end
             if not SPELLS.BlessingOfKings then return false end
@@ -374,9 +487,21 @@ local strategies = {
             local settings = context.settings or {}
             local manaPct = context.mana_pct or 100
             if manaPct < (settings.combat_wisdom_refresh_mana or 30) then return false end
+            -- Playstyle gate: combat wisdom refresh is intended for holy only
+            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            if playstyle ~= "holy" then return false end
+            -- Blessing detection: don't overwrite Kings/Might/Sanctuary (safety net)
+            if me.has_buff then
+                if me and NS.buff_up(me, {20217, 19740, 20911}) then return false end
+            end
             local threshold = settings.combat_wisdom_refresh_threshold or 120
             -- Check self first
-            local wisdomRemains = (me:buff_remains(20355) or 0) + (me:buff_remains(25894) or 0)
+            local wisdomRemains
+            local wisdom1 = NS.buff_remains(me, {20355}) or 0
+            local wisdom2 = NS.buff_remains(me, {25894}) or 0
+            -- If both buff_remains calls return nil, skip (API unavailable/undetected)
+            if wisdom1 == nil and wisdom2 == nil then return false end
+            wisdomRemains = (wisdom1 or 0) + (wisdom2 or 0)
             if wisdomRemains <= threshold and SPELLS.BlessingOfWisdom then
                 return true
             end
@@ -389,10 +514,15 @@ local strategies = {
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
                     if member and member.buff_remains then
-                        local mRemains = (member:buff_remains(20355) or 0) + (member:buff_remains(25894) or 0)
-                        if mRemains <= threshold then
-                            if (useGreater and SPELLS.GreaterBlessingOfWisdom) or SPELLS.BlessingOfWisdom then
-                                return true
+            local m1 = NS.buff_remains(member, {20355}) or 0
+            local m2 = NS.buff_remains(member, {25894}) or 0
+                        -- If both returns are nil, skip this member (API undetected, don't overwrite)
+                        if m1 ~= nil or m2 ~= nil then
+                            local mRemains = (m1 or 0) + (m2 or 0)
+                            if mRemains <= threshold then
+                                if (useGreater and SPELLS.GreaterBlessingOfWisdom) or SPELLS.BlessingOfWisdom then
+                                    return true
+                                end
                             end
                         end
                     end
@@ -405,7 +535,7 @@ local strategies = {
             local settings = context.settings or {}
             local threshold = settings.combat_wisdom_refresh_threshold or 120
             -- Self first
-            local selfRemains = (me:buff_remains(20355) or 0) + (me:buff_remains(25894) or 0)
+            local selfRemains = (NS.buff_remains(me, {20355}) or 0) + (NS.buff_remains(me, {25894}) or 0)
             if selfRemains <= threshold and SPELLS.BlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfWisdom, me, {}) then
                 return NS.try_cast(SPELLS.BlessingOfWisdom, me, "[PALADIN] Combat Wisdom refresh (self)")
             end
@@ -418,7 +548,7 @@ local strategies = {
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
                     if member and member.buff_remains then
-                        local mRemains = (member:buff_remains(20355) or 0) + (member:buff_remains(25894) or 0)
+                        local mRemains = (NS.buff_remains(member, {20355}) or 0) + (NS.buff_remains(member, {25894}) or 0)
                         if mRemains <= threshold then
                             if useGreater and SPELLS.GreaterBlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfWisdom, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfWisdom, member, "[PALADIN] Greater Wisdom refresh (party)")
@@ -442,6 +572,8 @@ local strategies = {
         matches = function(context)
             if not context.in_combat then return false end
             local settings = context.settings or {}
+            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            if playstyle ~= "protection" then return false end
             local manaPct = context.mana_pct or 100
             if manaPct < (settings.combat_kings_refresh_mana or 30) then return false end
             local useGreater = false
@@ -452,10 +584,15 @@ local strategies = {
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
                     if member and member.buff_remains then
-                        local mRemains = (member:buff_remains(20217) or 0) + (member:buff_remains(25898) or 0)
-                        if mRemains <= (settings.combat_kings_refresh_threshold or 60) then
-                            if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
-                                return true
+            local m1 = NS.buff_remains(member, {20217}) or 0
+            local m2 = NS.buff_remains(member, {25898}) or 0
+                        -- If both returns are nil, skip this member (API undetected, don't overwrite)
+                        if m1 ~= nil or m2 ~= nil then
+                            local mRemains = (m1 or 0) + (m2 or 0)
+                            if mRemains <= (settings.combat_kings_refresh_threshold or 60) then
+                                if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
+                                    return true
+                                end
                             end
                         end
                     end
@@ -474,7 +611,7 @@ local strategies = {
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
                     if member and member.buff_remains then
-                        local mRemains = (member:buff_remains(20217) or 0) + (member:buff_remains(25898) or 0)
+                        local mRemains = (NS.buff_remains(member, {20217}) or 0) + (NS.buff_remains(member, {25898}) or 0)
                         if mRemains <= threshold then
                             if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings refresh (party)")
@@ -507,12 +644,19 @@ local strategies = {
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
                     if member and member.buff_remains then
-                        local mRemains = (member:buff_remains(20217) or 0) + (member:buff_remains(25898) or 0)
-                        -- Skip if they have another blessing type (don't overwrite)
-                        local hasOther = member.has_buff and (member:has_buff(19740) or member:has_buff(20355) or member:has_buff(20911))
-                        if not hasOther and mRemains <= 0 then
-                            if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
-                                return true
+            local m1 = NS.buff_remains(member, {20217}) or 0
+            local m2 = NS.buff_remains(member, {25898}) or 0
+                        -- If both returns are nil, skip this member (API undetected, don't overwrite)
+                        if m1 == nil and m2 == nil then
+                            -- noop: skip
+                        else
+                            local mRemains = (m1 or 0) + (m2 or 0)
+                            -- Skip if they have another blessing type (don't overwrite)
+                            local hasOther = NS.buff_up(member, {19740, 20355, 20911})
+                            if not hasOther and mRemains <= 0 then
+                                if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
+                                    return true
+                                end
                             end
                         end
                     end
@@ -529,8 +673,8 @@ local strategies = {
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
                     if member and member.buff_remains then
-                        local mRemains = (member:buff_remains(20217) or 0) + (member:buff_remains(25898) or 0)
-                        local hasOther = member.has_buff and (member:has_buff(19740) or member:has_buff(20355) or member:has_buff(20911))
+                        local mRemains = (NS.buff_remains(member, {20217}) or 0) + (NS.buff_remains(member, {25898}) or 0)
+                        local hasOther = NS.buff_up(member, {19740, 20355, 20911})
                         if not hasOther and mRemains <= 0 then
                             if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings (group, OOC)")
@@ -545,9 +689,33 @@ local strategies = {
         end,
     },
 
+    -- ============================================================================
+    -- PvP CC Gate: placed at END of middleware so DS/LoH/Cleanse/blessings still fire.
+    -- Only gates spec-level AoE (Consecration, Holy Wrath).
+    -- ============================================================================
+    {
+        name = "PvPCCGate",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_pvp_cc_gating == false then return false end
+            if not context.in_combat then return false end
+            local has_aoe = false
+            for _, id in ipairs(PALADIN_AOE_IDS) do
+                if NS.is_spell_learned and NS.is_spell_learned(id) then
+                    has_aoe = true
+                    break
+                end
+            end
+            if not has_aoe then return false end
+            return CCGateDB.is_any_nearby_enemy_under_cc(NS, 15)
+        end,
+        execute = function() return true end,
+    },
+
     -- Auto-consumable usage
     { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("paladin", strategies)
 return strategies
+

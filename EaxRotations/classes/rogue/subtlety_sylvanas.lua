@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/rogue/subtlety_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Rogue Subtlety priority list: TBC Shadowstep burst, Hemorrhage upkeep, and PvP control chains.
 -- ============================================================================
 -- What: TBC Rogue Subtlety rotation with stealth openers, Shadowstep burst, and control
@@ -150,16 +168,21 @@ end
 
 local function build_state(context)
     local target = context.target
-    subtlety_state.stealth_up = player_buff_up(STEALTH_BUFF)
-    subtlety_state.slice_remains = NS.buff_remains and (NS.buff_remains(context.me, SLICE_AND_DICE_BUFF) or 0) or 0
-    subtlety_state.rupture_remains = target_debuff_remains(target, RUPTURE_DEBUFF)
-    subtlety_state.hemo_remains = target_debuff_remains(target, HEMORRHAGE_DEBUFF)
-    subtlety_state.expose_remains = target_debuff_remains(target, EXPOSE_ARMOR_DEBUFF)
-    subtlety_state.garrote_remains = target_debuff_remains(target, GARROTE_DEBUFF)
-    subtlety_state.cheap_shot_remains = target_debuff_remains(target, CHEAP_SHOT_DEBUFF)
-    subtlety_state.kidney_remains = target_debuff_remains(target, KIDNEY_SHOT_DEBUFF)
-    subtlety_state.shadowstep_buff = player_buff_up(SHADOWSTEP_BUFF)
-    subtlety_state.master_of_subtlety = player_buff_up(MASTER_OF_SUBTLETY_BUFF)
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(1787, 3.0) or false
+    if not skip_aura then
+        subtlety_state.stealth_up = player_buff_up(STEALTH_BUFF)
+        subtlety_state.slice_remains = NS.buff_remains and (NS.buff_remains(context.me, SLICE_AND_DICE_BUFF) or 0) or 0
+        subtlety_state.rupture_remains = target_debuff_remains(target, RUPTURE_DEBUFF)
+        subtlety_state.hemo_remains = target_debuff_remains(target, HEMORRHAGE_DEBUFF)
+        subtlety_state.expose_remains = target_debuff_remains(target, EXPOSE_ARMOR_DEBUFF)
+        subtlety_state.garrote_remains = target_debuff_remains(target, GARROTE_DEBUFF)
+        subtlety_state.cheap_shot_remains = target_debuff_remains(target, CHEAP_SHOT_DEBUFF)
+        subtlety_state.kidney_remains = target_debuff_remains(target, KIDNEY_SHOT_DEBUFF)
+        subtlety_state.shadowstep_buff = player_buff_up(SHADOWSTEP_BUFF)
+        subtlety_state.master_of_subtlety = player_buff_up(MASTER_OF_SUBTLETY_BUFF)
+        subtlety_state.control_active = target_debuff_remains(target, CONTROL_DEBUFFS) > 0
+    end
     subtlety_state.combo = context.combo_points or context.combo or 0
     subtlety_state.energy = context.energy or 0
     subtlety_state.energy_low = subtlety_state.energy < ENERGY_LOW_BUILDER
@@ -170,7 +193,6 @@ local function build_state(context)
     subtlety_state.target_count = context.enemy_count or context.enemies_count or 1
     subtlety_state.is_behind = NS.is_behind_target and NS.is_behind_target(target) or false
     subtlety_state.is_caster_target = target_is_casting(target)
-    subtlety_state.control_active = target_debuff_remains(target, CONTROL_DEBUFFS) > 0
     subtlety_state.threat_pct = context.threat_pct or 0
     subtlety_state.vanish_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Vanish) or 0
     subtlety_state.sprint_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Sprint) or 0

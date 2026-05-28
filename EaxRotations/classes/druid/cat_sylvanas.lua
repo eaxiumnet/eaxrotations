@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/druid/cat_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Druid Cat priority list for TBC melee DPS.
 
 -- ============================================================================
@@ -301,11 +319,20 @@ end
 local function base_matches(context, action)
     if action.spell == nil and NS.spell_exists then return false end
     if action.matches then return action.matches(context, action) end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function execute_action(context, action)
-    return NS.action_execute(context, action, "[CAT]")
+    local target
+    if action.target == "self" or action.requires_target == false then
+        target = context.me or NS.GetPlayer()
+    else
+        target = context.target
+    end
+    local opts = {}
+    if action.cooldown then opts.expected_cooldown = action.cooldown end
+    if action.skip_gcd then opts.skip_gcd = true end
+    return NS.try_cast(action.spell, target, "[CAT] " .. (action.name or ""), opts)
 end
 
 local function record_shift(state)
@@ -358,22 +385,26 @@ function build_state(context)
     state.in_combat = context.in_combat == true
     state.is_pvp = context.is_pvp == true or (settings and settings.pvp_mode == true)
     state.is_player_target = is_target_player(target, context)
-    state.is_stealthed = context.is_stealthed == true or buff_up(me, PROWL_BUFF)
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
+    if not skip_aura then
+        state.is_stealthed = context.is_stealthed == true or buff_up(me, PROWL_BUFF)
+        state.clearcasting = buff_up(me, OMEN_OF_CLARITY_BUFF)
+        state.has_tigers_fury = buff_up(me, TIGERS_FURY_BUFF)
+        state.has_dash = buff_up(me, DASH_BUFF)
+        state.has_barkskin = buff_up(me, BARKSKIN_BUFF)
+        state.has_track_humanoids = buff_up(me, TRACK_HUMANOIDS_BUFF)
+        state.has_wolfshead = has_wolfshead_equipped(me) or buff_up(me, WOLFSHEAD_BUFF) or setting_bool(settings, "cat_wolfshead_helm", false)
+        state.has_bloodlust = buff_up(me, BLOODLUST_BUFFS)
+        state.rip_remains = debuff_remains(target, RIP_DEBUFF)
+        state.rake_remains = debuff_remains(target, RAKE_DEBUFF)
+        state.mangle_remains = debuff_remains(target, MANGLE_DEBUFF)
+        state.faerie_fire_remains = debuff_remains(target, FAERIE_FIRE_DEBUFF)
+        state.pounce_remains = debuff_remains(target, POUNCE_DEBUFF)
+        state.maim_remains = debuff_remains(target, MAIM_DEBUFF)
+    end
     state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
     state.is_behind = is_behind_target(target, context, settings)
-    state.clearcasting = buff_up(me, OMEN_OF_CLARITY_BUFF)
-    state.has_tigers_fury = buff_up(me, TIGERS_FURY_BUFF)
-    state.has_dash = buff_up(me, DASH_BUFF)
-    state.has_barkskin = buff_up(me, BARKSKIN_BUFF)
-    state.has_track_humanoids = buff_up(me, TRACK_HUMANOIDS_BUFF)
-    state.has_wolfshead = has_wolfshead_equipped(me) or buff_up(me, WOLFSHEAD_BUFF) or setting_bool(settings, "cat_wolfshead_helm", false)
-    state.has_bloodlust = buff_up(me, BLOODLUST_BUFFS)
-    state.rip_remains = debuff_remains(target, RIP_DEBUFF)
-    state.rake_remains = debuff_remains(target, RAKE_DEBUFF)
-    state.mangle_remains = debuff_remains(target, MANGLE_DEBUFF)
-    state.faerie_fire_remains = debuff_remains(target, FAERIE_FIRE_DEBUFF)
-    state.pounce_remains = debuff_remains(target, POUNCE_DEBUFF)
-    state.maim_remains = debuff_remains(target, MAIM_DEBUFF)
     state.attack_power = get_attack_power(context, me)
     if snapshot_state.rip_target ~= target or state.rip_remains <= 0 then snapshot_state.rip_ap = 0 end
     if snapshot_state.rake_target ~= target or state.rake_remains <= 0 then snapshot_state.rake_ap = 0 end
@@ -399,7 +430,7 @@ end
 
 local function cat_form_matches(context, action)
     if NS.has_form and NS.has_form("cat") then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function prowl_matches(context, action)
@@ -407,7 +438,7 @@ local function prowl_matches(context, action)
     if state.in_combat then return false end
     if state.is_stealthed then return false end
     if state.target and state.target_range > 0 and state.target_range > 18 then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function track_humanoids_matches(context, action)
@@ -415,7 +446,7 @@ local function track_humanoids_matches(context, action)
     if state.in_combat then return false end
     if state.has_track_humanoids then return false end
     if not state.is_pvp and not state.is_player_target then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function pounce_matches(context, action)
@@ -423,7 +454,7 @@ local function pounce_matches(context, action)
     if not state.is_stealthed then return false end
     if not state.is_pvp and not state.is_player_target then return false end
     if state.energy < POUNCE_COST then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function ravage_matches(context, action)
@@ -432,7 +463,7 @@ local function ravage_matches(context, action)
     if not state.is_behind then return false end
     if state.energy < RAVAGE_COST then return false end
     if not prevent_cp_waste(state, 1) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function stealth_shred_matches(context, action)
@@ -440,14 +471,14 @@ local function stealth_shred_matches(context, action)
     if not state.is_stealthed then return false end
     if state.mangle_remains <= 0 then return false end
     if not state.is_behind then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function stealth_mangle_matches(context, action)
     local state = build_state(context)
     if not state.is_stealthed then return false end
     if state.energy < MANGLE_COST then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function barkskin_matches(context, action)
@@ -455,7 +486,7 @@ local function barkskin_matches(context, action)
     local threshold = setting_number(state.settings, "cat_barkskin_hp", 85)
     if state.hp > threshold then return false end
     if state.has_barkskin then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function dash_matches(context, action)
@@ -463,14 +494,14 @@ local function dash_matches(context, action)
     if state.has_dash then return false end
     if not state.target or state.target_range < DASH_RANGE then return false end
     if not state.is_pvp and state.target_range < TRAVEL_FORM_RANGE then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function travel_form_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
     if not state.target or state.target_range < TRAVEL_FORM_RANGE then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function faerie_fire_matches(context, action)
@@ -478,8 +509,8 @@ local function faerie_fire_matches(context, action)
     if not state.target then return false end
     if state.faerie_fire_remains > MANGLE_REFRESH_WINDOW then return false end
     if state.target_ttd > 0 and state.target_ttd < 10 then return false end
-    if state.is_pvp and state.is_player_target then return NS.action_matches(context, action) end
-    return target_lives(state, LONG_TTD) and NS.action_matches(context, action)
+    if state.is_pvp and state.is_player_target then return true end
+    return target_lives(state, LONG_TTD)
 end
 
 local function faerie_fire_stealth_matches(context, action)
@@ -488,14 +519,14 @@ local function faerie_fire_stealth_matches(context, action)
     if state.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
     local creature_type = safe_method(state.target, "get_creature_type", nil)
     if creature_type and not STEALTH_PREVENT_TYPES[creature_type] then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function mangle_debuff_matches(context, action)
     local state = build_state(context)
     if state.mangle_remains > MANGLE_REFRESH_WINDOW then return false end
     if should_wait_for_tick(state, MANGLE_COST) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function rip_matches(context, action)
@@ -506,7 +537,7 @@ local function rip_matches(context, action)
     if not target_lives(state, MIN_RIP_TTD) then return false end
     if should_wait_for_tick(state, RIP_COST) then return false end
     if not should_snapshot_upgrade(state.attack_power, state.rip_ap, state.rip_remains, RIP_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function rip_snapshot_matches(context, action)
@@ -519,7 +550,7 @@ local function rip_snapshot_matches(context, action)
     -- Use lower threshold during bloodlust/high-AP windows to catch the snapshot opportunity
     local ratio = state.has_high_ap_window and HIGH_AP_UPGRADE_RATIO or STRONG_AP_UPGRADE_RATIO
     if state.attack_power < state.rip_ap * ratio then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function bite_matches(context, action)
@@ -529,14 +560,14 @@ local function bite_matches(context, action)
     if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
     if not state.should_execute and state.target_ttd > SHORT_TTD then return false end
     if should_wait_for_tick(state, BITE_COST) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function emergency_bite_matches(context, action)
     local state = build_state(context)
     if state.combo_points < 3 then return false end
     if state.target_ttd <= 0 or state.target_ttd > 4 then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function maim_interrupt_matches(context, action)
@@ -546,7 +577,7 @@ local function maim_interrupt_matches(context, action)
     if not state.is_pvp and not state.is_player_target then return false end
     local casting = safe_method(state.target, "is_casting", false) or safe_method(state.target, "is_channeling", false)
     if not casting then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function maim_control_matches(context, action)
@@ -555,7 +586,7 @@ local function maim_control_matches(context, action)
     if state.maim_remains > 0 then return false end
     if not state.is_pvp and not state.is_player_target then return false end
     if state.target_hp <= HARD_EXECUTE_HP then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function rake_matches(context, action)
@@ -565,7 +596,7 @@ local function rake_matches(context, action)
     if context.combo_points ~= nil and state.combo_points >= 5 then return false end
     if should_wait_for_tick(state, RAKE_COST) then return false end
     if not should_snapshot_upgrade(state.attack_power, state.rake_ap, state.rake_remains, RAKE_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function rake_snapshot_matches(context, action)
@@ -576,7 +607,7 @@ local function rake_snapshot_matches(context, action)
     -- Use lower threshold during bloodlust/high-AP windows to catch the snapshot opportunity
     local ratio = state.has_high_ap_window and HIGH_AP_UPGRADE_RATIO or STRONG_AP_UPGRADE_RATIO
     if state.attack_power < state.rake_ap * ratio then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function rake_tab_matches(context, action)
@@ -592,7 +623,7 @@ local function clearcasting_shred_matches(context, action)
     if state.target and not state.is_behind then return false end
     if context.combo_points ~= nil and state.combo_points >= 5 then return false end
     action.min_energy = CLEARCASTING_COST_FLOOR
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function shred_matches(context, action)
@@ -602,7 +633,7 @@ local function shred_matches(context, action)
     if not state.is_behind then return false end
     if state.mangle_remains <= MANGLE_REFRESH_WINDOW and target_lives(state, MIN_RAKE_TTD) then return false end
     if should_wait_for_tick(state, SHRED_COST) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function mangle_filler_matches(context, action)
@@ -610,7 +641,7 @@ local function mangle_filler_matches(context, action)
     if state.combo_points >= 5 then return false end
     if state.is_behind and spell_ready(SPELLS.Shred, state.target, nil) and state.energy >= SHRED_COST then return false end
     if should_wait_for_tick(state, MANGLE_COST) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function claw_matches(context, action)
@@ -618,7 +649,7 @@ local function claw_matches(context, action)
     if state.combo_points >= 5 then return false end
     if spell_exists(SPELLS.MangleCat) then return false end
     if should_wait_for_tick(state, 45) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function tigers_fury_matches(context, action)
@@ -632,7 +663,7 @@ local function tigers_fury_matches(context, action)
     if state.energy + fury_gain > max_energy then return false end
     if state.energy > ENERGY_CAP - TIGERS_FURY_ENERGY - 5 and state.next_tick_in <= 0.6 then return false end
     if state.combo_points >= 5 and state.energy >= RIP_COST then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function powershift_matches(context, action)
@@ -641,7 +672,7 @@ local function powershift_matches(context, action)
     if state.clearcasting then return false end
     if state.next_tick_in <= 0.35 and state.energy + ENERGY_PER_TICK <= ENERGY_CAP then return false end
     if state.combo_points >= 5 and state.energy >= RIP_COST then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function emergency_powershift_matches(context, action)
@@ -652,7 +683,7 @@ local function emergency_powershift_matches(context, action)
     if state.mana_pct < POWERSHIFT_MIN_MANA then return false end
     if state.combo_points >= 5 then return false end
     if state.next_tick_in <= 0.2 then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function pool_for_builder_matches(context)

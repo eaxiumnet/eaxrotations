@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warrior/kebab_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Kebab Warrior Rotation (Project Sylvanas API)
 -- ============================================================================
@@ -34,9 +52,10 @@ if not NS then return end
 
 local load_player = NS.GetPlayer()
 
-local enums = require("common/enums")
-if type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
-if not load_player or load_player:get_class() ~= enums.class_id.WARRIOR then return end
+local _ok_enums, enums = pcall(require, "common/enums")
+if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
+local ok_cls, cls_id = pcall(function() return load_player:get_class() end)
+if not ok_cls or cls_id ~= enums.class_id.WARRIOR then return end
 
 local SPELLS = NS.WarriorSpells
 local Constants = NS.WarriorConstants
@@ -63,18 +82,10 @@ local get_debuff_remains = debuff_remains
 
 local function battle_shout_needs_refresh(unit)
     if not unit then return true end
-    -- Use the documented IZI buff_remains extension when present,
-    -- otherwise fall back to the shared NS.buff_remains wrapper.
     local min_refresh = 30
     for _, id in ipairs(BATTLE_SHOUT_IDS) do
-        local remains = 0
-        if unit.buff_remains then
-            remains = unit:buff_remains(id) or 0
-        else
-            remains = buff_remains(unit, id)
-        end
+        local remains = NS.buff_remains(unit, {id}) or 0
         if remains > min_refresh then return false end
-        if remains > 0 then return true end
     end
     return true
 end
@@ -334,6 +345,7 @@ local strategies = {
         name = "BattleShout",
         is_gcd_gated = false,
         matches = function(context)
+            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
             if context.settings and context.settings.auto_shout == false then return false end
             local shout_type = (context.settings and context.settings.shout_type) or "battle"
             if shout_type ~= "battle" then return false end
@@ -352,9 +364,8 @@ local strategies = {
         name = "CommandingShout",
         is_gcd_gated = false,
         matches = function(context)
+            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CommandingShout, 3.0) then return false end
             if context.settings and context.settings.auto_shout == false then return false end
-            local shout_type = (context.settings and context.settings.shout_type) or "battle"
-            if shout_type ~= "commanding" then return false end
             if not can_attack_target(context) then return false end
             if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
             if has_player_buff(Constants.COMMANDING_SHOUT_BUFF or 469) then return false end
@@ -370,6 +381,7 @@ local strategies = {
     {
         name = "SunderMaintain",
         matches = function(context, state)
+            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
             local mode = context.settings.sunder_armor_mode or "none"
             if not can_attack_target(context) or mode == "none" then return false end
             if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.DEFENSIVE then return false end
@@ -405,6 +417,7 @@ local strategies = {
     {
         name = "ThunderClap",
         matches = function(context, state)
+            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
             if not can_attack_target(context) then return false end
             if context.settings and context.settings.maintain_thunder_clap == false then return false end
             if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end

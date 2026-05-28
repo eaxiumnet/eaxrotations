@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warrior/middleware_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warrior shared middleware.
 -- ============================================================================
 -- What: TBC Warrior middleware for defensives, self-buffs, and interrupt support
@@ -10,6 +28,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { DEFENSIVE = 2 }
@@ -22,6 +41,7 @@ end
 
 local function defensive_spell_ready(spell, context)
     local me = player_unit(context)
+    if not NS.spell_ready then return false end
     return spell and me and NS.spell_ready(spell, me, { skip_range = true }) == true
 end
 
@@ -53,6 +73,12 @@ local function unit_is_moving(unit)
     local ok, moving = pcall(is_moving, unit)
     return ok and moving == true
 end
+
+-- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
+local WARRIOR_AOE_IDS = { 845, 1680, 12328 }  -- Cleave, Whirlwind, Sweeping Strikes
+
+-- Disarm target classes: melee classes that lose weapon-based damage when disarmed
+local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
 local strategies = {
 
@@ -99,10 +125,10 @@ local strategies = {
             local settings = context.settings or {}
             if settings.use_pvp_defensives == false then return false end
             if not NS.should_kite(context) then return false end
-            return NS.action_matches(context, { name = "PvPIntercept", spell = SPELLS.Intercept, cooldown = 15 })
+            return true
         end,
         execute = function(context)
-            return NS.action_execute(context, { name = "PvPIntercept", spell = SPELLS.Intercept, cooldown = 15 }, "[WARRIOR]")
+            return NS.try_cast(SPELLS.Intercept, context.target, "[WARRIOR] Intercept", { expected_cooldown = 15 })
         end,
     },
 
@@ -115,10 +141,10 @@ local strategies = {
             if not (target and NS.is_melee_target and NS.is_melee_target(target, context.me)) then return false end
             if not unit_is_moving(target) then return false end
             if NS.debuff_up(target, HAMSTRING_DEBUFF) then return false end
-            return NS.action_matches(context, { name = "PvPHamstring", spell = SPELLS.Hamstring, debuff = HAMSTRING_DEBUFF, refresh = 2 })
+            return true
         end,
         execute = function(context)
-            return NS.action_execute(context, { name = "PvPHamstring", spell = SPELLS.Hamstring }, "[WARRIOR]")
+            return NS.try_cast(SPELLS.Hamstring, context.target, "[WARRIOR] Hamstring")
         end,
     },
 
@@ -410,6 +436,124 @@ local strategies = {
         execute = function(context)
             return cast_defensive_stance(context)
         end,
+    },
+
+    -- ============================================================================
+    -- PvP: SHIELD SLAM PURGE — dispel 1 magic buff (BoP, PW:S, Ice Barrier, etc.)
+    -- Ported from Flux Warrior middleware. Uses offensive dispel priority DB.
+    -- Requires Defensive Stance + shield equipped. Stance dances if needed.
+    -- ============================================================================
+    {
+        name = "ShieldSlamPurge",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_shield_slam_purge == false then return false end
+            if not context.in_combat then return false end
+            if not context.has_valid_enemy_target then return false end
+            if not context.target then return false end
+            if not (context.is_pvp or false) then return false end
+            -- Shield Slam is a melee attack — must be in range
+            if not context.in_melee_range then return false end
+            -- Target must be a player (PvP only — Shield Slam purge is niche in PvE)
+            if settings.shield_slam_purge_pvp_only ~= false then
+                local ok, is_player = pcall(function() return context.target:is_player() end)
+                if not (ok and is_player) then return false end
+            end
+            -- Check if target has a priority dispellable buff
+            local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
+            if not best_id then return false end
+            context._ss_purge_name = best_name
+            return true
+        end,
+        execute = function(context)
+            -- Shield Slam requires Defensive Stance
+            if context.stance ~= STANCE.DEFENSIVE then
+                -- Stance dance: swap to Defensive if we can afford the rage loss
+                if defensive_stance_ready(context) then
+                    return cast_defensive_stance(context)
+                end
+                return false
+            end
+            local name = context._ss_purge_name or "buff"
+            return NS.try_cast(SPELLS.ShieldSlam, context.target, "[WARRIOR] Shield Slam purge → " .. name, { expected_cooldown = 6 })
+        end,
+    },
+
+    -- ============================================================================
+    -- PvP: DISARM — remove enemy melee weapon (10s, Defensive Stance required)
+    -- Ported from Flux Warrior middleware. Uses offensive dispel priority DB
+    -- for on_burst trigger mode: disarms when target has priority buffs.
+    -- NOTE: Does not check disarm immunity/DR (API not exposed in EaxRotations).
+    --       NS.spell_ready + try_cast will fail gracefully on immune targets.
+    -- ============================================================================
+    {
+        name = "WarriorDisarm",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_disarm == false then return false end
+            -- Skip entirely if Disarm not learned (level < 22)
+            if not (NS.is_spell_learned and NS.is_spell_learned(676)) then return false end
+            if not context.in_combat then return false end
+            if not (context.is_pvp or false) then return false end
+            if not context.has_valid_enemy_target then return false end
+            if not context.target then return false end
+            if not context.in_melee_range then return false end
+            -- Target must be a player
+            if settings.disarm_pvp_only ~= false then
+                local ok, is_player = pcall(function() return context.target:is_player() end)
+                if not (ok and is_player) then return false end
+            end
+            -- Check target class is melee (Warrior/Rogue/Paladin/Shaman)
+            local ok, class_id = pcall(function() return context.target:get_class() end)
+            if not (ok and type(class_id) == "number") then return false end
+            if not DISARM_CLASS_IDS[class_id] then return false end
+            -- Trigger mode: on_burst requires target has priority dispellable buffs
+            local trigger = settings.disarm_trigger or "on_burst"
+            if trigger == "on_burst" then
+                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
+                if not best_id or (best_priority or 0) < 3 then return false end  -- High+ tier only
+                context._disarm_buff_name = best_name
+            end
+            return true
+        end,
+        execute = function(context)
+            -- Disarm requires Defensive Stance — stance dance if rage-safe
+            if context.stance ~= STANCE.DEFENSIVE then
+                -- Conservative rage gate: don't swap if high rage with no TM
+                if (context.rage or 0) > 25 then return false end
+                if defensive_stance_ready(context) then
+                    return cast_defensive_stance(context)
+                end
+                return false
+            end
+            local label = context._disarm_buff_name
+                and ("[WARRIOR] Disarm → " .. context._disarm_buff_name)
+                or "[WARRIOR] Disarm"
+            return NS.try_cast(SPELLS.Disarm, context.target, label, { expected_cooldown = 60 })
+        end,
+    },
+
+    -- ============================================================================
+    -- PvP CC Gate: placed at END of middleware so defensives still fire.
+    -- Only gates spec-level AoE/cleave (Whirlwind, Cleave, Sweeping Strikes).
+    -- ============================================================================
+    {
+        name = "PvPCCGate",
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_pvp_cc_gating == false then return false end
+            if not context.in_combat then return false end
+            local has_aoe = false
+            for _, id in ipairs(WARRIOR_AOE_IDS) do
+                if NS.is_spell_learned and NS.is_spell_learned(id) then
+                    has_aoe = true
+                    break
+                end
+            end
+            if not has_aoe then return false end
+            return CCGateDB.is_any_nearby_enemy_under_cc(NS, 15)
+        end,
+        execute = function() return true end,
     },
 
     -- Auto-consumable usage

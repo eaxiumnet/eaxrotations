@@ -1,134 +1,122 @@
--- TBC Balance Druid priority list with Starfire/Wrath cycling,
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/druid/balance_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 
--- ============================================================================
--- What: TBC Druid Balance priority list with Starfire/Wrath cycling, Nature's Grace, Hurricane
--- When: Evaluated every tick via main_sylvanas.lua dispatcher
--- Why: Priority-list early-exit keeps evaluation fast
--- Safety: All settings nil-guarded; API via NS.* wrappers; pcall optional TBC data; conservative defaults
--- ============================================================================
-
-local NS = _G.EaxRotations
-if not NS then return nil end
-local SPELLS = NS.DruidSpells or {}
+local _G_E = rawget(_G, "EaxRotations")
+if not _G_E then return nil end
+local SPELLS = _G_E.DruidSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
-local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
+local _TBC_P = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
--- ============================================================================
--- Debuff & Buff ID tables
--- ============================================================================
-local INSECT_SWARM_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
-local MOONFIRE_DEBUFF     = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
-local FAERIE_FIRE_DEBUFF  = { 26993, 9907, 9749, 778, 770 }
-local NATURES_GRACE_BUFF  = { 16880 }
-local MARK_OF_THE_WILD_BUFF = { 26991, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
--- Healer class IDs for Innervate priority: Paladin(2), Priest(5), Shaman(7), Druid(11)
-local HEALER_CLASS_IDS = { [2] = true, [5] = true, [7] = true, [11] = true }
+local _INSECT_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
+local _MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
+local _FAERIE_DEBUFF  = { 26993, 9907, 9749, 778, 770 }
+local _NATURES_BUFF = { 16880 }
+local _BARKSKIN_BUFF = { 22812 }
+local _MOTW_BUFF = { 26991, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
+local _HEALER_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }
 
--- Local spell actions for spells not yet in class table
-local LOCAL_SPELLS = {
-    Innervate    = NS.spell_action({ 29166 }, "Innervate"),
-    Rebirth      = NS.spell_action({ 26994, 20748, 20747, 20742, 20739, 20484 }, "Rebirth"),
-    Thorns       = NS.spell_action({ 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
-    Cyclone      = NS.spell_action({ 33786 }, "Cyclone"),
-    EntanglingRoots = NS.spell_action({ 26989, 9853, 9852, 5196, 5195, 1062, 339 }, "EntanglingRoots"),
-    NaturesGrasp    = NS.spell_action({ 27009, 17329, 16813, 16812, 16811, 16810, 16689 }, "NaturesGrasp"),
-    WarStomp        = NS.spell_action({ 20549 }, "WarStomp"),
-    MarkOfTheWild   = NS.spell_action({ 26991, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }, "MarkOfTheWild"),
+local _LOCAL_SPELLS = {
+    Innervate    = _G_E.spell_action({ 29166 }, "Innervate"),
+    Rebirth      = _G_E.spell_action({ 26994,20748,20747,20742,20739,20484 }, "Rebirth"),
+    Thorns       = _G_E.spell_action({ 26992,9910,9756,8914,1075,782,467 }, "Thorns"),
+    Cyclone      = _G_E.spell_action({ 33786 }, "Cyclone"),
+    EntanglingRoots = _G_E.spell_action({ 26989,9853,9852,5196,5195,1062,339 }, "EntanglingRoots"),
+    NaturesGrasp = _G_E.spell_action({ 27009,17329,16813,16812,16811,16810,16689 }, "NaturesGrasp"),
+    WarStomp     = _G_E.spell_action({ 20549 }, "WarStomp"),
+    MarkOfTheWild= _G_E.spell_action({ 26991,9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
 }
 
-local MANA_POTION_IDS = {
-    TBC_POTIONS.crystal_mana or 33935,
-    TBC_POTIONS.auchenai_mana or 32948,
-    TBC_POTIONS.super_mana or 22832,
-    TBC_POTIONS.super_rejuvenation or 22850,
-    TBC_POTIONS.major_mana or 13444,
-    TBC_POTIONS.superior_mana or 13443,
+local _MANA_POTION = {
+    _TBC_P.crystal_mana or 33935,
+    _TBC_P.auchenai_mana or 32948,
+    _TBC_P.super_mana or 22832,
+    _TBC_P.super_rejuvenation or 22850,
+    _TBC_P.major_mana or 13444,
+    _TBC_P.superior_mana or 13443,
 }
 
--- ============================================================================
--- Action definitions (retained for backward compat)
--- ============================================================================
-local FORCE_OF_NATURE_ACTION = { name = "ForceOfNature", spell = SPELLS.ForceOfNature, position = "target", combat = true, setting = "use_cooldowns", cooldown = 180, min_mana = 25 }
-local HURRICANE_ACTION       = { name = "Hurricane", spell = SPELLS.Hurricane, position = "target", enemy_count = 3, not_moving = true, min_mana = 35, cooldown = 60 }
-local STARFIRE_ACTION        = { name = "Starfire", spell = SPELLS.Starfire, not_moving = true, min_mana = 15 }
-local WRATH_ACTION           = { name = "Wrath", spell = SPELLS.Wrath, not_moving = true, min_mana = 10 }
-local MOONFIRE_ACTION        = { name = "Moonfire", spell = SPELLS.Moonfire, position = "target", min_mana = 10 }
-local INSECT_SWARM_ACTION    = { name = "InsectSwarm", spell = SPELLS.InsectSwarm, position = "target", min_mana = 10 }
+local _INSECT_MIN_SP = 800
+local _MOONFIRE_MIN_SP = 800
 
--- SP breakpoints for DoT value gating (from Research.md: 800 = GCD-positive threshold)
-local INSECT_SWARM_MIN_SP_DEFAULT = 800
-local MOONFIRE_MIN_SP_DEFAULT = 800
+local _ACT_FON = { name="ForceOfNature", spell=SPELLS.ForceOfNature, position="target", combat=true, setting="use_cooldowns", cooldown=180, min_mana=25 }
+local _ACT_HUR = { name="Hurricane", spell=SPELLS.Hurricane, position="target", enemy_count=3, not_moving=true, min_mana=35, cooldown=60 }
+local _ACT_SF  = { name="Starfire", spell=SPELLS.Starfire, not_moving=true, min_mana=15 }
+local _ACT_WR  = { name="Wrath", spell=SPELLS.Wrath, not_moving=true, min_mana=10 }
+local _ACT_MF  = { name="Moonfire", spell=SPELLS.Moonfire, position="target", min_mana=10 }
+local _ACT_IS  = { name="InsectSwarm", spell=SPELLS.InsectSwarm, position="target", min_mana=10 }
 
--- ============================================================================
--- State builder (pre-allocated, no GC in combat)
--- ============================================================================
-local balance_state = {
-    insect_remains = 0,
-    moonfire_remains = 0,
-    ff_remains = 0,
-    natures_grace_active = false,
-    barkskin_active = false,
-    mana_pct = 100,
-    mana_potion_id = nil,
-    enemy_count = 1,
-    target_ttd = 999,
-    innervate_target = nil,
-    spell_damage = 0,
+local _state = {
+    insect_remains=0, moonfire_remains=0, ff_remains=0, natures_grace_active=false,
+    barkskin_active=false, mana_pct=100, mana_potion_id=nil,
+    enemy_count=1, target_ttd=999, innervate_target=nil, spell_damage=0,
 }
 
-local function build_state(context)
-    local target = context.target
-    -- DoT remains
-    if target then
-        balance_state.insect_remains = NS.debuff_remains and NS.debuff_remains(target, INSECT_SWARM_DEBUFF) or 0
-        balance_state.moonfire_remains = NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
-        balance_state.ff_remains = NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
-    else
-        balance_state.insect_remains = 0
-        balance_state.moonfire_remains = 0
-        balance_state.ff_remains = 0
+local function _build_state(ctx)
+    local t = ctx.target
+    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+    local _BARKSKIN_ID = type(SPELLS.Barkskin) == "table" and SPELLS.Barkskin[1] or 22812
+    local skip_aura = _G_E.broken_api_throttled and _G_E.broken_api_throttled(_BARKSKIN_ID, 3.0) or false
+    if not skip_aura then
+        if t then
+            _state.insect_remains = _G_E.debuff_remains and _G_E.debuff_remains(t, _INSECT_DEBUFF) or 0
+            _state.moonfire_remains = _G_E.debuff_remains and _G_E.debuff_remains(t, _MOONFIRE_DEBUFF) or 0
+            _state.ff_remains = _G_E.debuff_remains and _G_E.debuff_remains(t, _FAERIE_DEBUFF) or 0
+        else
+            _state.insect_remains = 0
+            _state.moonfire_remains = 0
+            _state.ff_remains = 0
+        end
+        _state.natures_grace_active = _G_E.has_player_buff(_NATURES_BUFF)
+        _state.barkskin_active = _G_E.has_player_buff(_BARKSKIN_BUFF)
     end
-    -- Nature's Grace proc
-    balance_state.natures_grace_active = NS.has_player_buff(NATURES_GRACE_BUFF)
-    -- Barkskin buff tracking (for Hurricane safety gate)
-    balance_state.barkskin_active = NS.has_player_buff({ 22812 })
-    -- Mana tracking
-    balance_state.mana_pct = context.mana_pct or context.mana or 100
-    balance_state.enemy_count = context.enemy_count or 1
-    balance_state.target_ttd = context.ttd or context.target_ttd or 999
-    -- Find usable mana potion
-    balance_state.mana_potion_id = nil
-    for _, id in ipairs(MANA_POTION_IDS) do
-        if NS.is_item_ready and NS.is_item_ready(id) then
-            balance_state.mana_potion_id = id
+    _state.mana_pct = ctx.mana_pct or ctx.mana or 100
+    _state.enemy_count = ctx.enemy_count or 1
+    _state.target_ttd = ctx.ttd or ctx.target_ttd or 999
+    _state.mana_potion_id = nil
+    for _, id in ipairs(_MANA_POTION) do
+        if _G_E.is_item_ready and _G_E.is_item_ready(id) then
+            _state.mana_potion_id = id
             break
         end
     end
-    -- SP-aware DoT gating: falls back through context (middleware) then to 0
-    balance_state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
-    -- Smart Innervate target: prefer other healers at low mana, fall back to self
-    balance_state.innervate_target = nil
-    local healer_mana_floor = (context.settings and context.settings.balance_innervate_mana) or 30
-    if context.in_combat and context.is_group and context.me and NS.GetPartyMembers then
-        local party = NS.GetPartyMembers()
-        if party and type(party) == "table" then
+    _state.spell_damage = (_G_E.get_spell_damage and _G_E.get_spell_damage()) or ctx.spell_damage or 0
+    _state.innervate_target = nil
+    local floor_mana = (ctx.settings and ctx.settings.balance_innervate_mana) or 30
+    if ctx.in_combat and ctx.is_group and ctx.me and _G_E.GetPartyMembers then
+        local party = _G_E.GetPartyMembers()
+        if party and type(party)=="table" then
             for _, u in ipairs(party) do
                 if u then
-                    local is_self = NS.same_unit and NS.same_unit(u, context.me)
+                    local is_self = _G_E.same_unit and _G_E.same_unit(u, ctx.me)
                     if not is_self then
                         local class_id = nil
-                        if NS.safe_field then
-                            local getter = NS.safe_field(u, "get_class")
+                        if _G_E.safe_field then
+                            local getter = _G_E.safe_field(u, "get_class")
                             if getter then
                                 local ok, val = pcall(getter, u)
-                                if ok and type(val) == "number" then class_id = val end
+                                if ok and type(val)=="number" then class_id = val end
                             end
                         end
-                        if class_id and HEALER_CLASS_IDS[class_id] and NS.mana_pct then
-                            local mana = NS.mana_pct(u)
-                            if mana <= (healer_mana_floor + 5) then
-                                balance_state.innervate_target = u
+                        if class_id and _HEALER_IDS[class_id] and _G_E.mana_pct then
+                            if _G_E.mana_pct(u) <= (floor_mana+5) then
+                                _state.innervate_target = u
                                 break
                             end
                         end
@@ -137,414 +125,305 @@ local function build_state(context)
             end
         end
     end
-    if not balance_state.innervate_target then
-        if (balance_state.mana_pct or 100) <= healer_mana_floor then
-            balance_state.innervate_target = context.me
-        end
+    if not _state.innervate_target then
+        if (_state.mana_pct or 100) <= floor_mana then _state.innervate_target = ctx.me end
     end
-    return balance_state
+    return _state
 end
 
--- ============================================================================
--- Helper functions
--- ============================================================================
+local function _mana_now(s, ctx) return s.mana_pct or ctx.mana or ctx.mana_pct or 100 end
 
--- Choose Starfire vs Wrath based on mana and Nature's Grace
-local function mana_now(state, context)
-    return state.mana_pct or context.mana or context.mana_pct or 100
-end
-
-local function choose_nuke(state, context)
-    local settings = context.settings
+local function _choose_nuke(s, ctx)
+    local settings = ctx.settings
     local mana_floor = (settings and settings.balance_starfire_mana) or 40
-    local m = mana_now(state, context)
-    -- At low mana, Wrath is more efficient (lower cast time, lower cost)
-    if m < mana_floor then
-        return "wrath"
-    end
-    -- Nature's Grace active: Starfire benefits more from haste
-    if state.natures_grace_active then
-        return "starfire"
-    end
-    -- Default: Starfire for higher DPS
+    local m = _mana_now(s, ctx)
+    if m < mana_floor then return "wrath" end
+    if s.natures_grace_active then return "starfire" end
     return "starfire"
 end
 
--- ============================================================================
--- Strategies (ordered priority: urgent → maintenance)
--- ============================================================================
-local strategies = {
-    -- ------------------------------------------------------------------------
-    -- 1. Survival
-    -- ------------------------------------------------------------------------
+local _strategies = {
     {
-        name = "BarkskinDefense",
-        matches = function(context)
-            local hp_threshold = (context.settings and context.settings.balance_barkskin_hp) or 40
-            if (context.hp or 100) > hp_threshold then return false end
-            return NS.spell_ready(SPELLS.Barkskin, NS.PLAYER_UNIT, { skip_range = true })
+        name="BarkskinDefense",
+        matches=function(ctx)
+            local threshold = (ctx.settings and ctx.settings.balance_barkskin_hp) or 40
+            if (ctx.hp or 100) > threshold then return false end
+            return _G_E.spell_ready(SPELLS.Barkskin, _G_E.PLAYER_UNIT, { skip_range = true })
         end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.Barkskin, NS.PLAYER_UNIT, "[BALANCE] Barkskin defense")
+        execute=function()
+            return _G_E.try_cast(SPELLS.Barkskin, _G_E.PLAYER_UNIT, "[BALANCE] Barkskin defense")
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 2. Mana potion at critical mana
-    -- ------------------------------------------------------------------------
     {
-        name = "ManaPotionEmergency",
-        matches = function(context, state)
+        name="ManaPotionEmergency",
+        matches=function(_, s)
             local floor = 15
-            if (state.mana_pct or context.mana or context.mana_pct or 100) > floor then return false end
-            return state.mana_potion_id ~= nil
+            if (s.mana_pct or 100) > floor then return false end
+            return s.mana_potion_id ~= nil
         end,
-        execute = function(_, state)
-            if NS.use_item_by_id then
-                NS.use_item_by_id(state.mana_potion_id)
-            end
+        execute=function(_, s)
+            if _G_E.use_item_by_id then _G_E.use_item_by_id(s.mana_potion_id) end
             return true
         end,
     },
-
-    -- ------------------------------------------------------------------------
     {
-        name = "ForceOfNature",
-        matches = function(context)
-            if not context then return false end
-            if not context.in_combat then return false end
-            if not context.should_burst then return false end
-            return NS.action_matches(context, FORCE_OF_NATURE_ACTION)
+        name="ForceOfNature",
+        matches=function(ctx)
+            if not ctx or not ctx.in_combat then return false end
+            if not ctx.should_burst then return false end
+            return _G_E.action_matches(ctx, _ACT_FON)
         end,
-        execute = function(context)
-            return NS.action_execute(context, FORCE_OF_NATURE_ACTION, "[BALANCE]")
+        execute=function(ctx) return _G_E.action_execute(ctx, _ACT_FON, "[BALANCE]") end,
+    },
+    {
+        name="MoonkinForm",
+        matches=function(ctx)
+            if not (ctx.settings and ctx.settings.balance_moonkin_auto) then return false end
+            if ctx.in_combat then return false end
+            return _G_E.spell_ready(SPELLS.MoonkinForm, _G_E.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute=function()
+            return _G_E.try_cast(SPELLS.MoonkinForm, _G_E.PLAYER_UNIT, "[BALANCE] Moonkin Form")
         end,
     },
-
-    -- 4b. Innervate self (fallback — only when no healer needs it more)
-    -- ------------------------------------------------------------------------
     {
-        name = "InnervateSelf",
-        matches = function(context, state)
-            if not context then return false end
-            if not context.in_combat then return false end
-            if not state.innervate_target then return false end
-            local me = context.me or NS.GetPlayer()
+        name="InnervateSelf",
+        matches=function(ctx, s)
+            if not ctx or not ctx.in_combat then return false end
+            if not s.innervate_target then return false end
+            local me = ctx.me or _G_E.GetPlayer()
             if not me then return false end
-            if not (NS.same_unit and NS.same_unit(state.innervate_target, me)) then return false end
-            return NS.spell_ready(LOCAL_SPELLS.Innervate, state.innervate_target, { skip_range = true })
+            if not (_G_E.same_unit and _G_E.same_unit(s.innervate_target, me)) then return false end
+            return _G_E.spell_ready(_LOCAL_SPELLS.Innervate, s.innervate_target, { skip_range = true })
         end,
-        execute = function(_, state)
-            return NS.try_cast(LOCAL_SPELLS.Innervate, state.innervate_target, "[BALANCE] Innervate self")
+        execute=function(_, s)
+            return _G_E.try_cast(_LOCAL_SPELLS.Innervate, s.innervate_target, "[BALANCE] Innervate self")
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 5. Rebirth (battle rez — combat only, dead party member, not spammed)
-    -- ------------------------------------------------------------------------
     {
-        name = "RebirthBattleRez",
-        matches = function(context)
-            if not context.in_combat then return false end
-            local find_dead = NS.find_dead_party_ally or (require("shared/find_dead_party_ally_sylvanas").find_dead_party_ally)
-            local dead_ally = find_dead and find_dead() or nil
-            if not dead_ally then return false end
-            -- Only cast when the ally is a player and combat is stable (tank explicitly alive)
-            local is_player = dead_ally.is_player and dead_ally:is_player()
-            if not is_player then return false end
-            if context.tank_alive == false then return false end
-            return NS.spell_ready(LOCAL_SPELLS.Rebirth, dead_ally)
+        name="RebirthBattleRez",
+        matches=function(ctx)
+            if not ctx.in_combat then return false end
+            local find_dead = _G_E.find_dead_party_ally or (require("shared/find_dead_party_ally_sylvanas").find_dead_party_ally)
+            local dead = find_dead and find_dead() or nil
+            if not dead then return false end
+            if not (dead.is_player and dead:is_player()) then return false end
+            if ctx.tank_alive==false then return false end
+            return _G_E.spell_ready(_LOCAL_SPELLS.Rebirth, dead)
         end,
-        execute = function(context)
-            local find_dead = NS.find_dead_party_ally or (require("shared/find_dead_party_ally_sylvanas").find_dead_party_ally)
-            local dead_ally = find_dead and find_dead() or nil
-            if dead_ally then
-                return NS.try_cast(LOCAL_SPELLS.Rebirth, dead_ally, "[BALANCE] Rebirth battle rez")
+        execute=function(ctx)
+            local find_dead = _G_E.find_dead_party_ally or (require("shared/find_dead_party_ally_sylvanas").find_dead_party_ally)
+            local dead = find_dead and find_dead() or nil
+            if dead then
+                return _G_E.try_cast(_LOCAL_SPELLS.Rebirth, dead, "[BALANCE] Rebirth battle rez")
             end
             return false
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 6. Moonkin Form (if not active and talented)
-    -- ------------------------------------------------------------------------
     {
-        name = "MoonkinForm",
-        matches = function(context)
-            if not (context.settings and context.settings.balance_moonkin_auto) then return false end
-            if context.in_combat then return false end
-            return NS.spell_ready(SPELLS.MoonkinForm, NS.PLAYER_UNIT, { skip_range = true })
-        end,
-        execute = function()
-            return NS.try_cast(SPELLS.MoonkinForm, NS.PLAYER_UNIT, "[BALANCE] Moonkin Form")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 7. Pre-Hurricane Barkskin (cast Barkskin before channeling Hurricane)
-    -- Research.md Angle 1: Barkskin before Hurricane to prevent channel pushback.
-    -- Fires only when HP is above the defensive Barkskin threshold (BarkskinDefense
-    -- already handles the low-HP case). On the next tick, HurricaneAoE will match.
-    -- ------------------------------------------------------------------------
-    {
-        name = "PreHurricaneBarkskin",
-        matches = function(context, state)
-            local min_targets = (context.settings and context.settings.balance_hurricane_targets) or 3
-            if (state.enemy_count or context.enemy_count or 1) < min_targets then return false end
-            if context.is_moving then return false end
-            if (state.mana_pct or context.mana or context.mana_pct or 100) < 35 then return false end
-            if state.barkskin_active then return false end
-            if not NS.spell_ready(SPELLS.Barkskin, NS.PLAYER_UNIT, { skip_range = true }) then return false end
-            -- Only pre-cast when HP is above the defense threshold (BarkskinDefense handles low HP)
-            local barkskin_hp = (context.settings and context.settings.balance_barkskin_hp) or 40
-            if (context.hp or 100) <= barkskin_hp then return false end
+        name="PreHurricaneBarkskin",
+        matches=function(ctx, s)
+            local min_targets = (ctx.settings and ctx.settings.balance_hurricane_targets) or 3
+            if (s.enemy_count or ctx.enemy_count or 1) < min_targets then return false end
+            if ctx.is_moving then return false end
+            if (s.mana_pct or 100) < 35 then return false end
+            if s.barkskin_active then return false end
+            if not _G_E.spell_ready(SPELLS.Barkskin, _G_E.PLAYER_UNIT, { skip_range=true }) then return false end
+            local threshold = (ctx.settings and ctx.settings.balance_barkskin_hp) or 40
+            if (ctx.hp or 100) <= threshold then return false end
             return true
         end,
-        execute = function()
-            return NS.try_cast(SPELLS.Barkskin, NS.PLAYER_UNIT, "[BALANCE] Barkskin before Hurricane")
+        execute=function()
+            return _G_E.try_cast(SPELLS.Barkskin, _G_E.PLAYER_UNIT, "[BALANCE] Barkskin before Hurricane")
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 8. Hurricane AoE (3+ targets) — requires Barkskin active when available
-    -- ------------------------------------------------------------------------
     {
-        name = "HurricaneAoE",
-        matches = function(context, state)
-            local min_targets = (context.settings and context.settings.balance_hurricane_targets) or 3
-            if (state.enemy_count or context.enemy_count or 1) < min_targets then return false end
-            if context.is_moving then return false end
-            if (state.mana_pct or context.mana or context.mana_pct or 100) < 35 then return false end
-            -- Research.md: always cast Barkskin before Hurricane to prevent channel pushback.
-            -- If Barkskin is available but not active → PreHurricaneBarkskin handles it.
-            -- If Barkskin is on cooldown → allow Hurricane without protection.
-            if NS.spell_ready(SPELLS.Barkskin, NS.PLAYER_UNIT, { skip_range = true }) and not state.barkskin_active then
-                return false
+        name="HurricaneAoE",
+        matches=function(ctx, s)
+            local min_targets = (ctx.settings and ctx.settings.balance_hurricane_targets) or 3
+            if (s.enemy_count or ctx.enemy_count or 1) < min_targets then return false end
+            if ctx.is_moving then return false end
+            if (s.mana_pct or 100) < 35 then return false end
+            if not SPELLS.Hurricane then return false end
+            if not _G_E.spell_ready(SPELLS.Hurricane, ctx.target) then return false end
+            if _G_E.spell_ready(SPELLS.Barkskin, _G_E.PLAYER_UNIT, { skip_range=true }) and not s.barkskin_active then return false end
+            return _G_E.action_matches(ctx, _ACT_HUR)
+        end,
+        execute=function(ctx) return _G_E.action_execute(ctx, _ACT_HUR, "[BALANCE]") end,
+    },
+    {
+        name="FaerieFireDebuff",
+        matches=function(ctx, s)
+            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+            local skip = _G_E.broken_api_throttled and _G_E.broken_api_throttled(SPELLS.FaerieFire, 2.0) or false
+            if not skip then
+                if (s.ff_remains or 0) > 5 then return false end
             end
-            return NS.action_matches(context, HURRICANE_ACTION)
-        end,
-        execute = function(context)
-            return NS.action_execute(context, HURRICANE_ACTION, "[BALANCE]")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 8. Faerie Fire (armor debuff maintenance)
-    -- ------------------------------------------------------------------------
-    {
-        name = "FaerieFireDebuff",
-        matches = function(context, state)
-            local target = context.target
+            local target = ctx.target
             if not target then return false end
-            if not context.has_valid_enemy_target then return false end
-            if (state.ff_remains or 0) > 5 then return false end
-            -- Skip if a Feral is handling it
-            if context.has_feral_druid then return false end
-            return NS.spell_ready(SPELLS.FaerieFire, target)
+            if not ctx.has_valid_enemy_target then return false end
+            if ctx.has_feral_druid then return false end
+            return _G_E.spell_ready(SPELLS.FaerieFire, target)
         end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.FaerieFire, context.target, "[BALANCE] Faerie Fire")
+        execute=function(ctx)
+            return _G_E.try_cast(SPELLS.FaerieFire, ctx.target, "[BALANCE] Faerie Fire")
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 9. Insect Swarm (DoT maintenance, refresh via should_refresh_dot with TTD gate)
-    -- ------------------------------------------------------------------------
     {
-        name = "InsectSwarmDoT",
-        matches = function(context, state)
-            if not context.target then return false end
-            if not context.has_valid_enemy_target then return false end
-            local settings = context.settings or {}
+        name="InsectSwarmDoT",
+        matches=function(ctx, s)
+            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+            local skip = _G_E.broken_api_throttled and _G_E.broken_api_throttled(SPELLS.InsectSwarm, 2.0) or false
+            if not skip then
+                if (s.insect_remains or 0) > 2 then return false end
+            end
+            if not ctx.target then return false end
+            if not ctx.has_valid_enemy_target then return false end
+            local settings = ctx.settings or {}
             if settings.balance_use_insect_swarm == false then return false end
-            -- SP-aware gating: skip Insect Swarm when spell damage is below GCD-positive threshold
-            local min_sp = settings.balance_insect_swarm_min_sp or INSECT_SWARM_MIN_SP_DEFAULT
-            if (state.spell_damage or 0) < min_sp then return false end
-            if (state.mana_pct or context.mana or context.mana_pct or 100) < 10 then return false end
-            if NS.should_refresh_dot then
-                if not NS.should_refresh_dot(state.insect_remains, 1.5, state.target_ttd, 12) then return false end
-            else
-                if (state.insect_remains or 0) > 2 then return false end
+            local min_sp = settings.balance_insect_swarm_min_sp or _INSECT_MIN_SP
+            if (s.spell_damage or 0) < min_sp then return false end
+            if (s.mana_pct or 100) < 10 then return false end
+            return _G_E.action_matches(ctx, _ACT_IS)
+        end,
+        execute=function(ctx) return _G_E.action_execute(ctx, _ACT_IS, "[BALANCE]") end,
+    },
+    {
+        name="MoonfireDoT",
+        matches=function(ctx, s)
+            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+            local skip = _G_E.broken_api_throttled and _G_E.broken_api_throttled(SPELLS.Moonfire, 2.0) or false
+            if not skip then
+                if (s.moonfire_remains or 0) > 2 then return false end
             end
-            return NS.action_matches(context, INSECT_SWARM_ACTION)
+            if not ctx.target then return false end
+            if not ctx.has_valid_enemy_target then return false end
+            local settings = ctx.settings or {}
+            local min_sp = settings.balance_moonfire_min_sp or _MOONFIRE_MIN_SP
+            if (s.spell_damage or 0) < min_sp then return false end
+            if (s.mana_pct or 100) < 10 then return false end
+            return _G_E.action_matches(ctx, _ACT_MF)
         end,
-        execute = function(context)
-            return NS.action_execute(context, INSECT_SWARM_ACTION, "[BALANCE]")
+        execute=function(ctx) return _G_E.action_execute(ctx, _ACT_MF, "[BALANCE]") end,
+    },
+    {
+        name="StarfirePrimary",
+        matches=function(ctx, s)
+            if ctx.is_moving then return false end
+            if not ctx.has_valid_enemy_target then return false end
+            if (s.mana_pct or 100) < 15 then return false end
+            if _choose_nuke(s, ctx) ~= "starfire" then return false end
+            return _G_E.action_matches(ctx, _ACT_SF)
+        end,
+        execute=function(ctx) return _G_E.action_execute(ctx, _ACT_SF, "[BALANCE]") end,
+    },
+    {
+        name="WrathFiller",
+        matches=function(ctx, s)
+            if ctx.is_moving then return false end
+            if not ctx.has_valid_enemy_target then return false end
+            if (s.mana_pct or 100) < 10 then return false end
+            return _G_E.action_matches(ctx, _ACT_WR)
+        end,
+        execute=function(ctx) return _G_E.action_execute(ctx, _ACT_WR, "[BALANCE]") end,
+    },
+    {
+        name="RemoveCurse",
+        matches=function(ctx)
+            if not (ctx.settings and ctx.settings.balance_auto_dispel) then return false end
+            return _G_E.spell_ready(SPELLS.RemoveCurse, _G_E.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute=function()
+            return _G_E.try_cast(SPELLS.RemoveCurse, _G_E.PLAYER_UNIT, "[BALANCE] Remove Curse self")
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 10. Moonfire (DoT maintenance, refresh via should_refresh_dot with TTD gate)
-    -- ------------------------------------------------------------------------
     {
-        name = "MoonfireDoT",
-        matches = function(context, state)
-            if not context.target then return false end
-            if not context.has_valid_enemy_target then return false end
-            -- SP-aware gating: skip Moonfire when spell damage is below GCD-positive threshold
-            local settings = context.settings or {}
-            local min_sp = settings.balance_moonfire_min_sp or MOONFIRE_MIN_SP_DEFAULT
-            if (state.spell_damage or 0) < min_sp then return false end
-            if (state.mana_pct or context.mana or context.mana_pct or 100) < 10 then return false end
-            if NS.should_refresh_dot then
-                if not NS.should_refresh_dot(state.moonfire_remains, 1.5, state.target_ttd, 12) then return false end
-            else
-                if (state.moonfire_remains or 0) > 2 then return false end
-            end
-            return NS.action_matches(context, MOONFIRE_ACTION)
+        name="ManaPotion",
+        matches=function(_, s)
+            local threshold = 25
+            if (s.mana_pct or 100) > threshold then return false end
+            return s.mana_potion_id ~= nil
         end,
-        execute = function(context)
-            return NS.action_execute(context, MOONFIRE_ACTION, "[BALANCE]")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 11. Starfire (primary nuke)
-    -- ------------------------------------------------------------------------
-    {
-        name = "StarfirePrimary",
-        matches = function(context, state)
-            if context.is_moving then return false end
-            if not context.has_valid_enemy_target then return false end
-            if (state.mana_pct or context.mana or context.mana_pct or 100) < 15 then return false end
-            local choice = choose_nuke(state, context)
-            if choice ~= "starfire" then return false end
-            return NS.action_matches(context, STARFIRE_ACTION)
-        end,
-        execute = function(context)
-            return NS.action_execute(context, STARFIRE_ACTION, "[BALANCE]")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 12. Wrath (fallback nuke)
-    -- ------------------------------------------------------------------------
-    {
-        name = "WrathFiller",
-        matches = function(context, state)
-            if context.is_moving then return false end
-            if not context.has_valid_enemy_target then return false end
-            if (state.mana_pct or context.mana or context.mana_pct or 100) < 10 then return false end
-            return NS.action_matches(context, WRATH_ACTION)
-        end,
-        execute = function(context)
-            return NS.action_execute(context, WRATH_ACTION, "[BALANCE]")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 13. Remove Curse (auto-dispel)
-    -- ------------------------------------------------------------------------
-    {
-        name = "RemoveCurse",
-        matches = function(context)
-            if not (context.settings and context.settings.balance_auto_dispel) then return false end
-            return NS.spell_ready(SPELLS.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
-        end,
-        execute = function()
-            return NS.try_cast(SPELLS.RemoveCurse, NS.PLAYER_UNIT, "[BALANCE] Remove Curse self")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 14. Mana Potion (proactive)
-    -- ------------------------------------------------------------------------
-    {
-        name = "ManaPotion",
-        matches = function(context, state)
-            local threshold = (context.settings and context.settings.balance_mana_potion) or 25
-            if (state.mana_pct or context.mana or context.mana_pct or 100) > threshold then return false end
-            return state.mana_potion_id ~= nil
-        end,
-        execute = function(_, state)
-            if NS.use_item_by_id then
-                NS.use_item_by_id(state.mana_potion_id)
-            end
+        execute=function(_, s)
+            if _G_E.use_item_by_id then _G_E.use_item_by_id(s.mana_potion_id) end
             return true
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- PvP Section
-    -- ------------------------------------------------------------------------
     {
-        name = "PvP_NaturesGrasp",
-        matches = function(context)
-            if not context.is_pvp then return false end
-            if not context.melee_on_you then return false end
-            return NS.spell_ready(LOCAL_SPELLS.NaturesGrasp, NS.PLAYER_UNIT, { skip_range = true })
+        name="PvP_NaturesGrasp",
+        matches=function(ctx)
+            if not ctx.is_pvp then return false end
+            if not ctx.melee_on_you then return false end
+            return _G_E.spell_ready(_LOCAL_SPELLS.NaturesGrasp, _G_E.PLAYER_UNIT, { skip_range = true })
         end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.NaturesGrasp, NS.PLAYER_UNIT, "[BALANCE PvP] Nature's Grasp")
+        execute=function()
+            return _G_E.try_cast(_LOCAL_SPELLS.NaturesGrasp, _G_E.PLAYER_UNIT, "[BALANCE PvP] Nature's Grasp")
         end,
     },
     {
-        name = "PvP_EntanglingRoots",
-        matches = function(context)
-            if not context.is_pvp then return false end
-            if not context.melee_on_you then return false end
-            return NS.spell_ready(LOCAL_SPELLS.EntanglingRoots, context.target)
+        name="PvP_EntanglingRoots",
+        matches=function(ctx)
+            if not ctx.is_pvp then return false end
+            if not ctx.melee_on_you then return false end
+            return _G_E.spell_ready(_LOCAL_SPELLS.EntanglingRoots, ctx.target)
         end,
-        execute = function(context)
-            return NS.try_cast(LOCAL_SPELLS.EntanglingRoots, context.target, "[BALANCE PvP] Entangling Roots")
+        execute=function(ctx)
+            return _G_E.try_cast(_LOCAL_SPELLS.EntanglingRoots, ctx.target, "[BALANCE PvP] Entangling Roots")
         end,
     },
     {
-        name = "PvP_Cyclone",
-        matches = function(context)
-            if not context.is_pvp then return false end
-            if not context.enemy_healer then return false end
-            return NS.spell_ready(LOCAL_SPELLS.Cyclone, context.target)
+        name="PvP_Cyclone",
+        matches=function(ctx)
+            if not ctx.is_pvp then return false end
+            if not ctx.enemy_healer then return false end
+            return _G_E.spell_ready(_LOCAL_SPELLS.Cyclone, ctx.target)
         end,
-        execute = function(context)
-            return NS.try_cast(LOCAL_SPELLS.Cyclone, context.target, "[BALANCE PvP] Cyclone on healer")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 17. War Stomp (Tauren racial: AoE stun on 4+ melee enemies)
-    -- ------------------------------------------------------------------------
-    {
-        name = "WarStomp",
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if (state.enemy_count or context.enemy_count or 1) < 4 then return false end
-            return NS.spell_ready(LOCAL_SPELLS.WarStomp, NS.PLAYER_UNIT, { skip_range = true })
-        end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.WarStomp, NS.PLAYER_UNIT, "[BALANCE] War Stomp (4+ enemies)")
+        execute=function(ctx)
+            return _G_E.try_cast(_LOCAL_SPELLS.Cyclone, ctx.target, "[BALANCE PvP] Cyclone on healer")
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 18. Mark of the Wild self-buff (maintenance)
-    -- ------------------------------------------------------------------------
     {
-        name = "MarkOfTheWild",
-        matches = function(context)
-            if context.is_moving then return false end
-            if NS.buff_up(NS.PLAYER_UNIT, MARK_OF_THE_WILD_BUFF) then return false end
-            return NS.spell_ready(LOCAL_SPELLS.MarkOfTheWild, NS.PLAYER_UNIT, { skip_range = true })
+        name="WarStomp",
+        matches=function(ctx, s)
+            if not ctx.in_combat then return false end
+            if (s.enemy_count or ctx.enemy_count or 1) < 4 then return false end
+            return _G_E.spell_ready(_LOCAL_SPELLS.WarStomp, _G_E.PLAYER_UNIT, { skip_range = true })
         end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.MarkOfTheWild, NS.PLAYER_UNIT, "[BALANCE] Mark of the Wild")
+        execute=function()
+            return _G_E.try_cast(_LOCAL_SPELLS.WarStomp, _G_E.PLAYER_UNIT, "[BALANCE] War Stomp (4+ enemies)")
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 19. Thorns self-buff (maintenance)
-    -- ------------------------------------------------------------------------
     {
-        name = "ThornsBuff",
-        matches = function(context)
-            if context.in_combat then return false end
-            return NS.spell_ready(LOCAL_SPELLS.Thorns, NS.PLAYER_UNIT, { skip_range = true })
+        name="MarkOfTheWild",
+        matches=function(ctx)
+            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+            local skip = _G_E.broken_api_throttled and _G_E.broken_api_throttled(SPELLS.MarkOfTheWild, 3.0) or false
+            if not skip then
+                if _G_E.buff_up(_G_E.PLAYER_UNIT, _MOTW_BUFF) then return false end
+            end
+            if ctx.is_moving then return false end
+            return _G_E.spell_ready(_LOCAL_SPELLS.MarkOfTheWild, _G_E.PLAYER_UNIT, { skip_range = true })
         end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.Thorns, NS.PLAYER_UNIT, "[BALANCE] Thorns")
+        execute=function()
+            return _G_E.try_cast(_LOCAL_SPELLS.MarkOfTheWild, _G_E.PLAYER_UNIT, "[BALANCE] Mark of the Wild")
+        end,
+    },
+    {
+        name="ThornsBuff",
+        matches=function(ctx)
+            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
+            local skip = _G_E.broken_api_throttled and _G_E.broken_api_throttled(SPELLS.Thorns, 3.0) or false
+            if not skip then
+                if _G_E.buff_up(_G_E.PLAYER_UNIT, {26992,9910,9756,8914,1075,782,467}) then return false end
+            end
+            if ctx.in_combat then return false end
+            return _G_E.spell_ready(_LOCAL_SPELLS.Thorns, _G_E.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute=function()
+            return _G_E.try_cast(_LOCAL_SPELLS.Thorns, _G_E.PLAYER_UNIT, "[BALANCE] Thorns")
         end,
     },
 }
 
-NS.rotation_registry:register("balance", strategies, { get_state = build_state })
-return { strategies = strategies, build_state = build_state }
+_G_E.rotation_registry:register("balance", _strategies, { get_state = _build_state })
+return { strategies = _strategies, build_state = _build_state }

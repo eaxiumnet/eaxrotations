@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/warlock/destruction_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warlock Destruction priority list.
 -- ============================================================================
 -- What: TBC Warlock Destruction priority list for nukes, AoE, and emergency survivability
@@ -49,6 +67,7 @@ local DRAIN_LIFE_HP_THRESHOLD = 40
 local MANA_LIFE_TAP_THRESHOLD = 35
 local DARK_PACT_MANA_THRESHOLD = 45
 local MANA_ITEM_IDS = { 20520, 12662 }  -- Dark Rune, Demonic Rune
+local SOUL_SHARD_ITEM = 6265             -- TBC Soul Shard reagent (moved before first use in shadowburn_matches)
 
 -- build_state: compute per-update aura and timing state once for all strategies
 local function build_state(context)
@@ -126,6 +145,7 @@ local ACTIONS = {
 }
 
 local function immolate_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Immolate, 2.0) then return false end
     if not state then return false end
     state = state or {}
     -- SP-aware gating: skip Immolate when spell damage is below the threshold
@@ -135,126 +155,132 @@ local function immolate_matches(context, action, state)
     if (state.spell_damage or 0) < min_sp then return false end
     if state.immolate_remains > IMMOLATE_PANDEMIC_WINDOW then return false end
     if not NS.should_refresh_dot(state.immolate_remains, 1.5, context.ttd, 15) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function conflagrate_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if state.immolate_remains <= 0 then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function shadowburn_matches(context, action, state)
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     local hp_threshold = (context.settings and context.settings.destro_shadowburn_hp) or SHADOWBURN_HP_PCT
     if not NS.is_execute_phase(context.target_hp, hp_threshold) then return false end
-    return NS.action_matches(context, action)
+    return NS.spell_ready(action.spell, context.target)
 end
 
 local function curse_of_doom_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfDoom, 2.0) then return false end
     if not NS.should_use_long_cd(context, action.cooldown) then return false end
     if not state then return false end
     state = state or {}
     if state.cod_remains > 5 then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function backlash_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if not state.has_backlash then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function incinerate_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if state.immolate_remains <= 0 then return false end
-    return NS.action_matches(context, action)
+    return NS.spell_ready(action.spell, context.target)
 end
 
 local function searing_pain_matches(context, action, state)
-    return NS.action_matches(context, action)
+    return true
 end
 
-local SOUL_SHARD_ITEM = 6265  -- TBC soul shard reagent
 
 local function soul_fire_matches(context, action, state)
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function corruption_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Corruption, 2.0) then return false end
     if not state then return false end
     state = state or {}
     if state.corruption_remains > 3 then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function curse_of_agony_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfAgony, 2.0) then return false end
     if not state then return false end
     state = state or {}
     if state.coa_remains > 3 then return false end
     if state.cod_remains > 0 then return false end
-    return NS.action_matches(context, action)
+    return NS.spell_ready(action.spell, context.target)
 end
 
 local function drain_life_matches(context, action, state)
+    if context.is_channeling then return false end
     if not state then return false end
     state = state or {}
     if state.hp > DRAIN_LIFE_HP_THRESHOLD then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function health_funnel_matches(context, action, state)
     local pet = NS.GetPet()
     if not pet then return false end
     if NS.unit_health_pct(pet) > 50 then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function dark_pact_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if state.mana_pct > DARK_PACT_MANA_THRESHOLD then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function fel_armor_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FelArmor, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_fel_armor then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function demon_armor_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemonArmor, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_fel_armor then return false end
     if state.has_demon_armor then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function shadow_ward_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWard, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_shadow_ward then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function create_healthstone_matches(context, action, state)
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     if context.in_combat then return false end
     if context.has_valid_enemy_target then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function life_tap_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if state.mana_pct > MANA_LIFE_TAP_THRESHOLD then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function summon_pet_matches(context, action, state)
@@ -262,22 +288,23 @@ local function summon_pet_matches(context, action, state)
     if context.has_valid_enemy_target then return false end
     local pet = NS.GetPet()
     if pet and NS.unit_alive(pet) then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function death_coil_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if state.hp > 35 then return false end
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function fear_matches(context, action, state)
-    return NS.action_matches(context, action)
+    return true
 end
 
 local function aoe_matches(context, action, state)
-    if not NS.action_matches(context, action) then return false end
+    if context.is_channeling then return false end
+    if not NS.spell_ready(action.spell, context.target) then return false end
     if context.is_moving and action.not_moving then return false end
     return true
 end
@@ -331,13 +358,21 @@ for i = 1, #ACTIONS do
     elseif action.enemy_count then
         custom_matches = function(context, state) return aoe_matches(context, action, state) end
     else
-        custom_matches = function(context, state) return NS.action_matches(context, action) end
+        custom_matches = function(context, state) return true end
     end
     strategies[#strategies + 1] = {
         name = action.name,
         matches = custom_matches,
         execute = function(context)
-            return NS.action_execute(context, action, "[DESTRUCTION]")
+            local target = context.target
+            local opts = { expected_cooldown = action.cooldown }
+            if action.target == "self" or action.position == "self" then
+                target = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
+                opts.skip_range = true
+            elseif action.target == "pet" then
+                target = context.pet or (NS.GetPet and NS.GetPet())
+            end
+            return NS.try_cast(action.spell, target, "[DESTRUCTION] " .. action.name, opts)
         end,
     }
 end
@@ -372,13 +407,18 @@ table.insert(strategies, 24, {
     name = "Soulshatter",
     matches = function(context, state)
         if not context.in_combat then return false end
-        return NS.spell_ready(SPELLS.Soulshatter, NS.PLAYER_UNIT, { skip_range = true })
+        local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+        if not me then return false end
+        if NS.cooldown_remains(SPELLS.Soulshatter, 300) > 0 then return false end
+        return NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true })
     end,
-    execute = function()
-        return NS.try_cast(SPELLS.Soulshatter, NS.PLAYER_UNIT, "[DESTRUCTION] Soulshatter")
+    execute = function(context)
+        local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
+        return NS.try_cast(SPELLS.Soulshatter, me, "[DESTRUCTION] Soulshatter", { skip_range = true })
     end,
 })
 
 NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
 NS.log("Warlock destruction rotation registered (build_state, explicit strategies, Backlash/Backdraft, execute, AoE, defensives, utility)")
 return strategies
+
