@@ -17,13 +17,16 @@ end
 local __eax_ns = rawget(_G, "EaxRotations")
 if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
--- What: Shared healer engine for stop-cast, pre-heal, and target scoring
+-- DEPRECATED: This module is no longer loaded by the framework.
+--   Healer logic has been inlined into class-specific helpers (resto, holy,
+--   discipline) and core_sylvanas.lua (NS.healing_get_tank, NS.build_healing_entries).
+--   Kept for backward compatibility with external test files only.
+--   Do not add new production consumers.
+-- ============================================================================
+-- What: Shared healer engine for stop-cast, pre-heal, and target scoring (deprecated)
 -- When: Per tick during healing decisions
 -- Why: Reduce overheal and choose better heal targets
 -- Safety: Throttled cancel checks, nil-guarded targets, and conservative thresholds
--- ============================================================================
--- Shared Helper: Healer Engine
--- Stop-cast (overheal prevention), pre-heal (proactive), target scoring
 -- ============================================================================
 
 local M = {}

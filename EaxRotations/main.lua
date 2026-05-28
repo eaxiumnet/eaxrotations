@@ -103,7 +103,7 @@ load_modules({
     -- Metrics and utility support
     "shared/combat_stats_sylvanas",
     "shared/gear_score_sylvanas",
-    "shared/swing_timer_sylvanas",
+    -- "shared/swing_timer_sylvanas", -- Lazy-loaded by warrior specs that need it
     "shared/weapon_imbue_sylvanas",
     "shared/spell_validation_sylvanas",
     "shared/talent_inference_sylvanas",
