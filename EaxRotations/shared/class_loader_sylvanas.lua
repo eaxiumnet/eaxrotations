@@ -63,7 +63,8 @@ end
 ---@return fun(name_base: string): any load_child
 function class_loader.create_expansion_loader(class_key, class_display_name)
     return function(name_base, optional)
-        local expansion_suffix = (NS and NS.is_vanilla and NS.is_vanilla()) and "_vanilla" or "_sylvanas"
+        local current_ns = _G.EaxRotations or NS
+        local expansion_suffix = (current_ns.is_vanilla and current_ns.is_vanilla()) and "_vanilla" or "_sylvanas"
         local preferred_filename = name_base .. expansion_suffix
         local ok, result = pcall(require, "classes/" .. class_key .. "/" .. preferred_filename)
         if not ok then
