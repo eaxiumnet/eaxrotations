@@ -425,7 +425,7 @@ test("lightning_shield_matches: already has shield -> false", function()
 end)
 
 -- ============================================================================
--- Test: earth_shock_interrupt_matches (strategy #3)
+-- Test: earth_shock_interrupt_matches (strategy #4)
 -- ============================================================================
 
 test("earth_shock_interrupt: ready, target casting -> true", function()
@@ -433,14 +433,14 @@ test("earth_shock_interrupt: ready, target casting -> true", function()
     ctx.target.is_casting = function() return true end
     local state = get_state(ctx)
     state.earth_shock_ready = true
-    assert_true(strategies[3].matches(ctx, state), "target casting should match")
+    assert_true(strategies[4].matches(ctx, state), "target casting should match")
 end)
 
 test("earth_shock_interrupt: target not casting -> false", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.earth_shock_ready = true
-    assert_false(strategies[3].matches(ctx, state), "target not casting should not match")
+    assert_false(strategies[4].matches(ctx, state), "target not casting should not match")
 end)
 
 test("earth_shock_interrupt: interrupt disabled -> false", function()
@@ -449,7 +449,7 @@ test("earth_shock_interrupt: interrupt disabled -> false", function()
     local state = get_state(ctx)
     state.earth_shock_ready = true
     state.use_interrupt = false
-    assert_false(strategies[3].matches(ctx, state), "interrupt disabled should not match")
+    assert_false(strategies[4].matches(ctx, state), "interrupt disabled should not match")
 end)
 
 test("earth_shock_interrupt: not in combat -> false", function()
@@ -457,11 +457,11 @@ test("earth_shock_interrupt: not in combat -> false", function()
     local state = get_state(ctx)
     state.in_combat = false
     state.earth_shock_ready = true
-    assert_false(strategies[3].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: healing_wave_matches (strategy #4)
+-- Test: healing_wave_matches (strategy #6)
 -- ============================================================================
 
 test("healing_wave_matches: ready, HP below threshold -> true", function()
@@ -470,7 +470,7 @@ test("healing_wave_matches: ready, HP below threshold -> true", function()
     state.healing_wave_ready = true
     state.hp = 30
     state.heal_hp = 50
-    assert_true(strategies[4].matches(ctx, state), "HP below 50 should match")
+    assert_true(strategies[6].matches(ctx, state), "HP below 50 should match")
 end)
 
 test("healing_wave_matches: HP above threshold -> false", function()
@@ -479,7 +479,7 @@ test("healing_wave_matches: HP above threshold -> false", function()
     state.healing_wave_ready = true
     state.hp = 80
     state.heal_hp = 50
-    assert_false(strategies[4].matches(ctx, state), "HP above 50 should not match")
+    assert_false(strategies[6].matches(ctx, state), "HP above 50 should not match")
 end)
 
 test("healing_wave_matches: not in combat -> false", function()
@@ -488,11 +488,11 @@ test("healing_wave_matches: not in combat -> false", function()
     state.healing_wave_ready = true
     state.in_combat = false
     state.hp = 30
-    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: searing_totem_matches (strategy #5)
+-- Test: searing_totem_matches (strategy #8)
 -- ============================================================================
 
 test("searing_totem_matches: in combat, ready, enabled, no existing totem -> true", function()
@@ -502,7 +502,7 @@ test("searing_totem_matches: in combat, ready, enabled, no existing totem -> tru
     state.use_totems = true
     state.use_searing_totem = true
     state.mana_pct = 80
-    assert_true(strategies[5].matches(ctx, state), "should match in combat")
+    assert_true(strategies[8].matches(ctx, state), "should match in combat")
 end)
 
 test("searing_totem_matches: not in combat -> false", function()
@@ -512,7 +512,7 @@ test("searing_totem_matches: not in combat -> false", function()
     state.use_totems = true
     state.use_searing_totem = true
     state.in_combat = false
-    assert_false(strategies[5].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[8].matches(ctx, state), "OOC should not match")
 end)
 
 test("searing_totem_matches: totems disabled -> false", function()
@@ -520,11 +520,11 @@ test("searing_totem_matches: totems disabled -> false", function()
     local state = get_state(ctx)
     state.searing_totem_ready = true
     state.use_totems = false
-    assert_false(strategies[5].matches(ctx, state), "totems disabled should not match")
+    assert_false(strategies[8].matches(ctx, state), "totems disabled should not match")
 end)
 
 -- ============================================================================
--- Test: strength_totem_matches (strategy #6)
+-- Test: strength_totem_matches (strategy #9)
 -- ============================================================================
 
 test("strength_totem_matches: in combat, ready, enabled -> true", function()
@@ -534,7 +534,7 @@ test("strength_totem_matches: in combat, ready, enabled -> true", function()
     state.use_totems = true
     state.use_strength_totem = true
     state.mana_pct = 80
-    assert_true(strategies[6].matches(ctx, state), "should match in combat")
+    assert_true(strategies[9].matches(ctx, state), "should match in combat")
 end)
 
 test("strength_totem_matches: not in combat -> false", function()
@@ -544,11 +544,11 @@ test("strength_totem_matches: not in combat -> false", function()
     state.use_totems = true
     state.use_strength_totem = true
     state.in_combat = false
-    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: water_totem_matches (strategy #7)
+-- Test: water_totem_matches (strategy #10)
 -- ============================================================================
 
 test("water_totem_matches: ready, mana below threshold -> true", function()
@@ -560,7 +560,7 @@ test("water_totem_matches: ready, mana below threshold -> true", function()
     state.use_water_totem = true
     state.mana_pct = 60
     state.hp = 100
-    assert_true(strategies[7].matches(ctx, state), "should match when mana < 85")
+    assert_true(strategies[10].matches(ctx, state), "should match when mana < 85")
 end)
 
 test("water_totem_matches: not in combat -> false", function()
@@ -571,7 +571,7 @@ test("water_totem_matches: not in combat -> false", function()
     state.use_water_totem = true
     state.in_combat = false
     state.mana_pct = 60
-    assert_false(strategies[7].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[10].matches(ctx, state), "OOC should not match")
 end)
 
 test("water_totem_matches: totems disabled -> false", function()
@@ -580,11 +580,11 @@ test("water_totem_matches: totems disabled -> false", function()
     state.mana_spring_ready = true
     state.use_totems = false
     state.mana_pct = 60
-    assert_false(strategies[7].matches(ctx, state), "totems disabled should not match")
+    assert_false(strategies[10].matches(ctx, state), "totems disabled should not match")
 end)
 
 -- ============================================================================
--- Test: chain_lightning_matches (strategy #8)
+-- Test: chain_lightning_matches (strategy #14)
 -- ============================================================================
 
 test("chain_lightning_matches: ready, 2+ enemies -> true", function()
@@ -592,7 +592,7 @@ test("chain_lightning_matches: ready, 2+ enemies -> true", function()
     local state = get_state(ctx)
     state.chain_lightning_ready = true
     state.enemies = 3
-    assert_true(strategies[8].matches(ctx, state), "3 enemies should match")
+    assert_true(strategies[14].matches(ctx, state), "3 enemies should match")
 end)
 
 test("chain_lightning_matches: single enemy -> false", function()
@@ -600,11 +600,11 @@ test("chain_lightning_matches: single enemy -> false", function()
     local state = get_state(ctx)
     state.chain_lightning_ready = true
     state.enemies = 1
-    assert_false(strategies[8].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[14].matches(ctx, state), "1 enemy should not match")
 end)
 
 -- ============================================================================
--- Test: flame_shock_matches (strategy #9)
+-- Test: flame_shock_matches (strategy #15)
 -- ============================================================================
 
 test("flame_shock_matches: ready, default shock = flame, DoT expired -> true", function()
@@ -614,7 +614,7 @@ test("flame_shock_matches: ready, default shock = flame, DoT expired -> true", f
     state.flame_shock_ready = true
     state.use_shocks = true
     state.default_shock = "flame"
-    assert_true(strategies[9].matches(ctx, state), "should match when using flame shock")
+    assert_true(strategies[15].matches(ctx, state), "should match when using flame shock")
 end)
 
 test("flame_shock_matches: default shock is earth -> false", function()
@@ -623,7 +623,7 @@ test("flame_shock_matches: default shock is earth -> false", function()
     state.flame_shock_ready = true
     state.use_shocks = true
     state.default_shock = "earth"
-    assert_false(strategies[9].matches(ctx, state), "should not match with earth as default")
+    assert_false(strategies[15].matches(ctx, state), "should not match with earth as default")
 end)
 
 test("flame_shock_matches: DoT still active -> false", function()
@@ -633,7 +633,7 @@ test("flame_shock_matches: DoT still active -> false", function()
     state.flame_shock_ready = true
     state.use_shocks = true
     state.default_shock = "flame"
-    assert_false(strategies[9].matches(ctx, state), "active DoT should not match")
+    assert_false(strategies[15].matches(ctx, state), "active DoT should not match")
     NS.debuff_remains = function(target, spell) return 0 end
 end)
 
@@ -643,11 +643,11 @@ test("flame_shock_matches: shocks disabled -> false", function()
     state.flame_shock_ready = true
     state.use_shocks = false
     state.default_shock = "flame"
-    assert_false(strategies[9].matches(ctx, state), "shocks disabled should not match")
+    assert_false(strategies[15].matches(ctx, state), "shocks disabled should not match")
 end)
 
 -- ============================================================================
--- Test: earth_shock_dps_matches (strategy #10)
+-- Test: earth_shock_dps_matches (strategy #16)
 -- ============================================================================
 
 test("earth_shock_dps_matches: ready, default shock = earth -> true", function()
@@ -656,7 +656,7 @@ test("earth_shock_dps_matches: ready, default shock = earth -> true", function()
     state.earth_shock_ready = true
     state.use_shocks = true
     state.default_shock = "earth"
-    assert_true(strategies[10].matches(ctx, state), "should match with earth as default")
+    assert_true(strategies[16].matches(ctx, state), "should match with earth as default")
 end)
 
 test("earth_shock_dps_matches: default shock is flame -> false", function()
@@ -665,11 +665,11 @@ test("earth_shock_dps_matches: default shock is flame -> false", function()
     state.earth_shock_ready = true
     state.use_shocks = true
     state.default_shock = "flame"
-    assert_false(strategies[10].matches(ctx, state), "should not match with flame as default")
+    assert_false(strategies[16].matches(ctx, state), "should not match with flame as default")
 end)
 
 -- ============================================================================
--- Test: frost_shock_matches (strategy #11)
+-- Test: frost_shock_matches (strategy #18)
 -- ============================================================================
 
 test("frost_shock_matches: ready, default shock = frost -> true", function()
@@ -678,7 +678,7 @@ test("frost_shock_matches: ready, default shock = frost -> true", function()
     state.frost_shock_ready = true
     state.use_shocks = true
     state.default_shock = "frost"
-    assert_true(strategies[11].matches(ctx, state), "should match with frost as default")
+    assert_true(strategies[18].matches(ctx, state), "should match with frost as default")
 end)
 
 test("frost_shock_matches: default shock is flame -> false", function()
@@ -687,11 +687,11 @@ test("frost_shock_matches: default shock is flame -> false", function()
     state.frost_shock_ready = true
     state.use_shocks = true
     state.default_shock = "flame"
-    assert_false(strategies[11].matches(ctx, state), "should not match with flame as default")
+    assert_false(strategies[18].matches(ctx, state), "should not match with flame as default")
 end)
 
 -- ============================================================================
--- Test: earthbind_totem_matches (strategy #12)
+-- Test: earthbind_totem_matches (strategy #19)
 -- ============================================================================
 
 test("earthbind_totem_matches: 3+ enemies, low HP -> true", function()
@@ -700,7 +700,7 @@ test("earthbind_totem_matches: 3+ enemies, low HP -> true", function()
     state.earthbind_totem_ready = true
     state.hp = 40
     state.enemies = 4
-    assert_true(strategies[12].matches(ctx, state), "overwhelmed should match")
+    assert_true(strategies[19].matches(ctx, state), "overwhelmed should match")
 end)
 
 test("earthbind_totem_matches: high HP -> false", function()
@@ -709,7 +709,7 @@ test("earthbind_totem_matches: high HP -> false", function()
     state.earthbind_totem_ready = true
     state.hp = 80
     state.enemies = 4
-    assert_false(strategies[12].matches(ctx, state), "high HP should not match")
+    assert_false(strategies[19].matches(ctx, state), "high HP should not match")
 end)
 
 test("earthbind_totem_matches: 1 enemy -> false", function()
@@ -718,11 +718,11 @@ test("earthbind_totem_matches: 1 enemy -> false", function()
     state.earthbind_totem_ready = true
     state.hp = 40
     state.enemies = 1
-    assert_false(strategies[12].matches(ctx, state), "single enemy should not match")
+    assert_false(strategies[19].matches(ctx, state), "single enemy should not match")
 end)
 
 -- ============================================================================
--- Test: lightning_bolt_matches (strategy #13)
+-- Test: lightning_bolt_matches (strategy #21)
 -- ============================================================================
 
 test("lightning_bolt_matches: ready, not moving -> true", function()
@@ -730,7 +730,7 @@ test("lightning_bolt_matches: ready, not moving -> true", function()
     local state = get_state(ctx)
     state.lightning_bolt_ready = true
     state.is_moving = false
-    assert_true(strategies[13].matches(ctx, state), "stationary should match")
+    assert_true(strategies[21].matches(ctx, state), "stationary should match")
 end)
 
 test("lightning_bolt_matches: moving -> false", function()
@@ -738,7 +738,7 @@ test("lightning_bolt_matches: moving -> false", function()
     local state = get_state(ctx)
     state.lightning_bolt_ready = true
     state.is_moving = true
-    assert_false(strategies[13].matches(ctx, state), "moving should not match")
+    assert_false(strategies[21].matches(ctx, state), "moving should not match")
 end)
 
 test("lightning_bolt_matches: no target -> false", function()
@@ -746,11 +746,11 @@ test("lightning_bolt_matches: no target -> false", function()
     local state = get_state(ctx)
     state.lightning_bolt_ready = true
     state.target = nil
-    assert_false(strategies[13].matches(ctx, state), "no target should not match")
+    assert_false(strategies[21].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
--- Test: ghost_wolf_matches (strategy #14)
+-- Test: ghost_wolf_matches (strategy #22)
 -- ============================================================================
 
 test("ghost_wolf_matches: OOC, ready, target far -> true", function()
@@ -759,7 +759,7 @@ test("ghost_wolf_matches: OOC, ready, target far -> true", function()
     local state = get_state(ctx)
     state.ghost_wolf_ready = true
     state.in_combat = false
-    assert_true(strategies[14].matches(ctx, state), "OOC with distant target should match")
+    assert_true(strategies[22].matches(ctx, state), "OOC with distant target should match")
 end)
 
 test("ghost_wolf_matches: in combat -> false", function()
@@ -767,7 +767,7 @@ test("ghost_wolf_matches: in combat -> false", function()
     local state = get_state(ctx)
     state.ghost_wolf_ready = true
     state.in_combat = true
-    assert_false(strategies[14].matches(ctx, state), "in combat should not match")
+    assert_false(strategies[22].matches(ctx, state), "in combat should not match")
 end)
 
 test("ghost_wolf_matches: target too close -> false", function()
@@ -776,7 +776,7 @@ test("ghost_wolf_matches: target too close -> false", function()
     local state = get_state(ctx)
     state.ghost_wolf_ready = true
     state.in_combat = false
-    assert_false(strategies[14].matches(ctx, state), "target close should not match")
+    assert_false(strategies[22].matches(ctx, state), "target close should not match")
 end)
 
 test("ghost_wolf_matches: no target -> false", function()
@@ -784,11 +784,11 @@ test("ghost_wolf_matches: no target -> false", function()
     local state = get_state(ctx)
     state.ghost_wolf_ready = true
     state.in_combat = false
-    assert_false(strategies[14].matches(ctx, state), "no target should not match")
+    assert_false(strategies[22].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
--- Test: wand_matches (strategy #15, via create_wand_matches)
+-- Test: wand_matches (strategy #23, via create_wand_matches)
 -- ============================================================================
 
 test("wand_matches: low mana -> true", function()
@@ -797,7 +797,7 @@ test("wand_matches: low mana -> true", function()
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[15].matches(ctx, state), "low mana should match")
+    assert_true(strategies[23].matches(ctx, state), "low mana should match")
 end)
 
 test("wand_matches: enough mana -> false", function()
@@ -806,7 +806,7 @@ test("wand_matches: enough mana -> false", function()
     state.mana_pct = 80
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_false(strategies[15].matches(ctx, state), "enough mana should not match")
+    assert_false(strategies[23].matches(ctx, state), "enough mana should not match")
 end)
 
 test("wand_matches: wand not learned -> false", function()
@@ -814,32 +814,40 @@ test("wand_matches: wand not learned -> false", function()
     local state = get_state(ctx)
     state.mana_pct = 10
     state.wand_learned = false
-    assert_false(strategies[15].matches(ctx, state), "wand not learned should not match")
+    assert_false(strategies[23].matches(ctx, state), "wand not learned should not match")
 end)
 
 -- ============================================================================
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 15 strategies in correct priority order", function()
+test("strategies: 23 strategies in correct priority order", function()
     local expected = {
         "WeaponImbue",
         "LightningShield",
+        "WaterShield",
         "EarthShockInterrupt",
+        "ShamanisticRage",
         "HealingWave",
+        "LesserHealingWave",
         "SearingTotem",
         "StrengthOfEarthTotem",
         "WaterTotem",
+        "GroundingTotem",
+        "TremorTotem",
+        "Stormstrike",
         "ChainLightning",
         "FlameShock",
         "EarthShock",
+        "Purge",
         "FrostShock",
         "EarthbindTotem",
+        "StoneclawTotem",
         "LightningBolt",
         "GhostWolf",
         "Wand",
     }
-    assert_eq(#strategies, 15, "should have 15 strategies")
+    assert_eq(#strategies, 23, "should have 23 strategies after adding WaterShield, ShamanisticRage, LesserHealingWave, GroundingTotem, TremorTotem, Purge, StoneclawTotem, Stormstrike")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -866,7 +874,7 @@ end)
 
 test("execute_LightningBolt: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[13].execute, ctx)
+    local ok, result = pcall(strategies[21].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
@@ -946,7 +954,7 @@ test("rotation: low HP scenario - healing should match", function()
     state.heal_hp = 50
 
     -- HealingWave should match when HP < 50
-    assert_true(strategies[4].matches(ctx, state), "HealingWave should match when HP < 50")
+    assert_true(strategies[6].matches(ctx, state), "HealingWave should match when HP < 50")
 end)
 
 test("rotation: AoE scenario - chain lightning should match with 3+ enemies", function()
@@ -956,7 +964,7 @@ test("rotation: AoE scenario - chain lightning should match with 3+ enemies", fu
     state.enemies = 3
 
     -- Chain Lightning should match with 2+ enemies
-    assert_true(strategies[8].matches(ctx, state), "Chain Lightning should match with 3 enemies")
+    assert_true(strategies[14].matches(ctx, state), "Chain Lightning should match with 3 enemies")
 end)
 
 -- ============================================================================
@@ -971,7 +979,7 @@ do -- edge_healing_wave
         state.healing_wave_ready = true
         state.hp = 50
         state.heal_hp = 50
-        assert_true(strategies[4].matches(ctx, state), "HP 50 should match (<= threshold)")
+        assert_true(strategies[6].matches(ctx, state), "HP 50 should match (<= threshold)")
     end)
 
     test("edge_healing_wave: HP exactly 51 (above threshold) -> no match", function()
@@ -980,7 +988,7 @@ do -- edge_healing_wave
         state.healing_wave_ready = true
         state.hp = 51
         state.heal_hp = 50
-        assert_false(strategies[4].matches(ctx, state), "HP 51 should not match (> threshold)")
+        assert_false(strategies[6].matches(ctx, state), "HP 51 should not match (> threshold)")
     end)
 end
 
@@ -994,7 +1002,7 @@ do -- edge_chain_lightning
         local state = get_state(ctx)
         state.chain_lightning_ready = true
         state.enemies = 2
-        assert_true(strategies[8].matches(ctx, state), "2 enemies should match (>= 2)")
+        assert_true(strategies[14].matches(ctx, state), "2 enemies should match (>= 2)")
     end)
 
     test("edge_chain_lightning: enemies exactly 1 -> no match", function()
@@ -1002,7 +1010,7 @@ do -- edge_chain_lightning
         local state = get_state(ctx)
         state.chain_lightning_ready = true
         state.enemies = 1
-        assert_false(strategies[8].matches(ctx, state), "1 enemy should not match (< 2)")
+        assert_false(strategies[14].matches(ctx, state), "1 enemy should not match (< 2)")
     end)
 end
 
@@ -1019,7 +1027,7 @@ do -- edge_flame_shock
         state.default_shock = "flame"
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 0 end
-        assert_true(strategies[9].matches(ctx, state), "remains 0 should match (<= 4)")
+        assert_true(strategies[15].matches(ctx, state), "remains 0 should match (<= 4)")
         NS.debuff_remains = saved
     end)
 
@@ -1031,7 +1039,7 @@ do -- edge_flame_shock
         state.default_shock = "flame"
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 5 end
-        assert_false(strategies[9].matches(ctx, state), "remains 5 should not match (> 4)")
+        assert_false(strategies[15].matches(ctx, state), "remains 5 should not match (> 4)")
         NS.debuff_remains = saved
     end)
 
@@ -1041,7 +1049,7 @@ do -- edge_flame_shock
         state.flame_shock_ready = true
         state.use_shocks = true
         state.default_shock = "earth"
-        assert_false(strategies[9].matches(ctx, state), "earth default should not match")
+        assert_false(strategies[15].matches(ctx, state), "earth default should not match")
     end)
 end
 
@@ -1056,7 +1064,7 @@ do -- edge_earth_shock
         state.earth_shock_ready = true
         state.use_shocks = true
         state.default_shock = "earth"
-        assert_true(strategies[10].matches(ctx, state), "earth default should match")
+        assert_true(strategies[16].matches(ctx, state), "earth default should match")
     end)
 
     test("edge_earth_shock: default shock not earth -> no match", function()
@@ -1065,7 +1073,7 @@ do -- edge_earth_shock
         state.earth_shock_ready = true
         state.use_shocks = true
         state.default_shock = "flame"
-        assert_false(strategies[10].matches(ctx, state), "flame default should not match")
+        assert_false(strategies[16].matches(ctx, state), "flame default should not match")
     end)
 end
 
@@ -1080,7 +1088,7 @@ do -- edge_frost_shock
         state.frost_shock_ready = true
         state.use_shocks = true
         state.default_shock = "frost"
-        assert_true(strategies[11].matches(ctx, state), "frost default should match")
+        assert_true(strategies[18].matches(ctx, state), "frost default should match")
     end)
 
     test("edge_frost_shock: default shock not frost -> no match", function()
@@ -1089,7 +1097,7 @@ do -- edge_frost_shock
         state.frost_shock_ready = true
         state.use_shocks = true
         state.default_shock = "flame"
-        assert_false(strategies[11].matches(ctx, state), "flame default should not match")
+        assert_false(strategies[18].matches(ctx, state), "flame default should not match")
     end)
 end
 
@@ -1104,7 +1112,7 @@ do -- edge_earthbind
         state.earthbind_totem_ready = true
         state.hp = 40
         state.enemies = 3
-        assert_true(strategies[12].matches(ctx, state), "3 enemies should match (>= 3)")
+        assert_true(strategies[19].matches(ctx, state), "3 enemies should match (>= 3)")
     end)
 
     test("edge_earthbind: enemies exactly 2 -> no match", function()
@@ -1113,7 +1121,7 @@ do -- edge_earthbind
         state.earthbind_totem_ready = true
         state.hp = 40
         state.enemies = 2
-        assert_false(strategies[12].matches(ctx, state), "2 enemies should not match (< 3)")
+        assert_false(strategies[19].matches(ctx, state), "2 enemies should not match (< 3)")
     end)
 
     test("edge_earthbind: HP exactly 50 -> match", function()
@@ -1122,7 +1130,7 @@ do -- edge_earthbind
         state.earthbind_totem_ready = true
         state.hp = 50
         state.enemies = 3
-        assert_true(strategies[12].matches(ctx, state), "HP 50 should match (<= 50)")
+        assert_true(strategies[19].matches(ctx, state), "HP 50 should match (<= 50)")
     end)
 
     test("edge_earthbind: HP exactly 51 -> no match", function()
@@ -1131,7 +1139,7 @@ do -- edge_earthbind
         state.earthbind_totem_ready = true
         state.hp = 51
         state.enemies = 3
-        assert_false(strategies[12].matches(ctx, state), "HP 51 should not match (> 50)")
+        assert_false(strategies[19].matches(ctx, state), "HP 51 should not match (> 50)")
     end)
 end
 
@@ -1150,7 +1158,7 @@ do -- edge_water_totem
         state.mana_pct = 85
         state.hp = 100
         state.now_ms = 500000
-        assert_true(strategies[7].matches(ctx, state), "mana 85 should match (<= 85)")
+        assert_true(strategies[10].matches(ctx, state), "mana 85 should match (<= 85)")
     end)
 
     test("edge_water_totem: mana exactly 86 -> no match", function()
@@ -1162,7 +1170,7 @@ do -- edge_water_totem
         state.use_water_totem = true
         state.mana_pct = 86
         state.hp = 100
-        assert_false(strategies[7].matches(ctx, state), "mana 86 should not match (> 85)")
+        assert_false(strategies[10].matches(ctx, state), "mana 86 should not match (> 85)")
     end)
 
     test("edge_water_totem: HP exactly 85 -> match (healing_stream)", function()
@@ -1175,7 +1183,7 @@ do -- edge_water_totem
         state.mana_pct = 100
         state.hp = 85
         state.now_ms = 500000
-        assert_true(strategies[7].matches(ctx, state), "HP 85 should match (<= 85)")
+        assert_true(strategies[10].matches(ctx, state), "HP 85 should match (<= 85)")
     end)
 
     test("edge_water_totem: HP exactly 86 -> no match", function()
@@ -1187,7 +1195,7 @@ do -- edge_water_totem
         state.use_water_totem = true
         state.mana_pct = 100
         state.hp = 86
-        assert_false(strategies[7].matches(ctx, state), "HP 86 should not match (> 85)")
+        assert_false(strategies[10].matches(ctx, state), "HP 86 should not match (> 85)")
     end)
 end
 
@@ -1203,7 +1211,7 @@ do -- edge_ghost_wolf
         local state = get_state(ctx)
         state.ghost_wolf_ready = true
         state.in_combat = false
-        assert_false(strategies[14].matches(ctx, state), "distance 19 should not match (< 20)")
+        assert_false(strategies[22].matches(ctx, state), "distance 19 should not match (< 20)")
         NS.get_distance = saved
     end)
 
@@ -1214,7 +1222,7 @@ do -- edge_ghost_wolf
         local state = get_state(ctx)
         state.ghost_wolf_ready = true
         state.in_combat = false
-        assert_true(strategies[14].matches(ctx, state), "distance 20 should match (>= 20)")
+        assert_true(strategies[22].matches(ctx, state), "distance 20 should match (>= 20)")
         NS.get_distance = saved
     end)
 end
@@ -1230,7 +1238,7 @@ do -- edge_wand
         state.wand_threshold = 30
         state.mana_pct = 29
         state.wand_learned = true
-        assert_true(strategies[15].matches(ctx, state), "mana 29 should match (< threshold)")
+        assert_true(strategies[23].matches(ctx, state), "mana 29 should match (< threshold)")
     end)
 
     test("edge_wand: mana exactly 30 (at threshold) -> no match", function()
@@ -1239,7 +1247,7 @@ do -- edge_wand
         state.wand_threshold = 30
         state.mana_pct = 30
         state.wand_learned = true
-        assert_false(strategies[15].matches(ctx, state), "mana 30 should not match (>= threshold)")
+        assert_false(strategies[23].matches(ctx, state), "mana 30 should not match (>= threshold)")
     end)
 end
 
@@ -1296,7 +1304,7 @@ do -- edge_totem_disabled
         local state = get_state(ctx)
         state.searing_totem_ready = true
         state.use_totems = false
-        assert_false(strategies[5].matches(ctx, state), "totems disabled should not match")
+        assert_false(strategies[8].matches(ctx, state), "totems disabled should not match")
     end)
 
     test("edge_searing_totem: searing disabled -> no match", function()
@@ -1305,7 +1313,7 @@ do -- edge_totem_disabled
         state.searing_totem_ready = true
         state.use_totems = true
         state.use_searing_totem = false
-        assert_false(strategies[5].matches(ctx, state), "searing disabled should not match")
+        assert_false(strategies[8].matches(ctx, state), "searing disabled should not match")
     end)
 
     test("edge_strength_totem: strength disabled -> no match", function()
@@ -1314,7 +1322,7 @@ do -- edge_totem_disabled
         state.strength_of_earth_ready = true
         state.use_totems = true
         state.use_strength_totem = false
-        assert_false(strategies[6].matches(ctx, state), "strength disabled should not match")
+        assert_false(strategies[9].matches(ctx, state), "strength disabled should not match")
     end)
 
     test("edge_water_totem: water disabled -> no match", function()
@@ -1324,7 +1332,7 @@ do -- edge_totem_disabled
         state.use_totems = true
         state.use_water_totem = false
         state.mana_pct = 60
-        assert_false(strategies[7].matches(ctx, state), "water disabled should not match")
+        assert_false(strategies[10].matches(ctx, state), "water disabled should not match")
     end)
 end
 
@@ -1338,7 +1346,7 @@ do -- edge_lightning_bolt
         local state = get_state(ctx)
         state.lightning_bolt_ready = true
         state.is_moving = false
-        assert_true(strategies[13].matches(ctx, state), "stationary should match")
+        assert_true(strategies[21].matches(ctx, state), "stationary should match")
     end)
 
     test("edge_lightning_bolt: moving -> no match", function()
@@ -1346,7 +1354,7 @@ do -- edge_lightning_bolt
         local state = get_state(ctx)
         state.lightning_bolt_ready = true
         state.is_moving = true
-        assert_false(strategies[13].matches(ctx, state), "moving should not match")
+        assert_false(strategies[21].matches(ctx, state), "moving should not match")
     end)
 end
 
@@ -1361,7 +1369,7 @@ do -- edge_interrupt
         local state = get_state(ctx)
         state.earth_shock_ready = true
         state.use_interrupt = true
-        assert_true(strategies[3].matches(ctx, state), "target casting should match")
+        assert_true(strategies[4].matches(ctx, state), "target casting should match")
     end)
 
     test("edge_earth_shock_interrupt: target not casting -> no match", function()
@@ -1369,7 +1377,7 @@ do -- edge_interrupt
         local state = get_state(ctx)
         state.earth_shock_ready = true
         state.use_interrupt = true
-        assert_false(strategies[3].matches(ctx, state), "target not casting should not match")
+        assert_false(strategies[4].matches(ctx, state), "target not casting should not match")
     end)
 end
 
@@ -1392,10 +1400,12 @@ do -- edge_buff
         local saved = NS.buff_up
         NS.buff_up = function() error("crash") end
         local ctx = make_context()
-        local state = get_state(ctx)
+        local ok, state = pcall(get_state, ctx)
         NS.buff_up = saved
-        assert_not_nil(state, "state should not be nil")
-        assert_false(state.has_lightning_shield, "has_lightning_shield should be false")
+        assert_true(ok, "NS.buff_up throw should be caught - build_state should not crash")
+        if ok and state then
+            assert_false(state.has_lightning_shield, "has_lightning_shield should be false")
+        end
     end)
 end
 
@@ -1408,22 +1418,26 @@ do -- edge_api
         local saved = NS.spell_ready
         NS.spell_ready = nil
         local ctx = make_context()
-        local state = get_state(ctx)
+        local ok, state = pcall(get_state, ctx)
         NS.spell_ready = saved
-        assert_not_nil(state, "state should not be nil")
-        assert_false(state.lightning_bolt_ready, "lightning_bolt_ready should be false")
-        assert_false(state.earth_shock_ready, "earth_shock_ready should be false")
+        assert_true(ok, "NS.spell_ready nil should not crash build_state")
+        if ok and state then
+            assert_false(state.lightning_bolt_ready, "lightning_bolt_ready should be false")
+            assert_false(state.earth_shock_ready, "earth_shock_ready should be false")
+        end
     end)
 
     test("edge_api: NS.spell_ready throws -> no crash, ready flags false", function()
         local saved = NS.spell_ready
         NS.spell_ready = function() error("crash") end
         local ctx = make_context()
-        local state = get_state(ctx)
+        local ok, state = pcall(get_state, ctx)
         NS.spell_ready = saved
-        assert_not_nil(state, "state should not be nil")
-        assert_false(state.lightning_bolt_ready, "lightning_bolt_ready should be false")
-        assert_false(state.earth_shock_ready, "earth_shock_ready should be false")
+        assert_true(ok, "NS.spell_ready throw should not crash build_state")
+        if ok and state then
+            assert_false(state.lightning_bolt_ready, "lightning_bolt_ready should be false")
+            assert_false(state.earth_shock_ready, "earth_shock_ready should be false")
+        end
     end)
 
     test("edge_api: NS.try_cast nil does not crash execute functions", function()

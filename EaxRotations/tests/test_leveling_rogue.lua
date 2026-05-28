@@ -392,7 +392,7 @@ test("stealth_matches: nil state -> does not crash", function()
 end)
 
 -- ============================================================================
--- Test: kick_matches (strategy #2)
+-- Test: kick_matches (strategy #4)
 -- ============================================================================
 
 test("kick_matches: ready, target casting, interrupt enabled -> true", function()
@@ -400,14 +400,14 @@ test("kick_matches: ready, target casting, interrupt enabled -> true", function(
     ctx.target.is_casting = function() return true end
     local state = get_state(ctx)
     state.kick_ready = true
-    assert_true(strategies[2].matches(ctx, state), "target casting should match")
+    assert_true(strategies[4].matches(ctx, state), "target casting should match")
 end)
 
 test("kick_matches: target not casting -> false", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.kick_ready = true
-    assert_false(strategies[2].matches(ctx, state), "target not casting should not match")
+    assert_false(strategies[4].matches(ctx, state), "target not casting should not match")
 end)
 
 test("kick_matches: no target -> false", function()
@@ -415,7 +415,7 @@ test("kick_matches: no target -> false", function()
     local state = get_state(ctx)
     state.kick_ready = true
     state.target = nil
-    assert_false(strategies[2].matches(ctx, state), "no target should return false")
+    assert_false(strategies[4].matches(ctx, state), "no target should return false")
 end)
 
 test("kick_matches: interrupt disabled -> false", function()
@@ -424,11 +424,11 @@ test("kick_matches: interrupt disabled -> false", function()
     local state = get_state(ctx)
     state.kick_ready = true
     state.use_interrupt = false
-    assert_false(strategies[2].matches(ctx, state), "interrupt disabled should not match")
+    assert_false(strategies[4].matches(ctx, state), "interrupt disabled should not match")
 end)
 
 -- ============================================================================
--- Test: vanish_matches (strategy #3)
+-- Test: vanish_matches (strategy #7)
 -- ============================================================================
 
 test("vanish_matches: ready, very low HP -> true", function()
@@ -437,7 +437,7 @@ test("vanish_matches: ready, very low HP -> true", function()
     state.vanish_ready = true
     state.hp = 10
     state.vanish_hp = 15
-    assert_true(strategies[3].matches(ctx, state), "HP below threshold should match")
+    assert_true(strategies[7].matches(ctx, state), "HP below threshold should match")
 end)
 
 test("vanish_matches: HP above threshold -> false", function()
@@ -446,7 +446,7 @@ test("vanish_matches: HP above threshold -> false", function()
     state.vanish_ready = true
     state.hp = 50
     state.vanish_hp = 15
-    assert_false(strategies[3].matches(ctx, state), "HP above threshold should not match")
+    assert_false(strategies[7].matches(ctx, state), "HP above threshold should not match")
 end)
 
 test("vanish_matches: not in combat -> false", function()
@@ -455,11 +455,11 @@ test("vanish_matches: not in combat -> false", function()
     state.vanish_ready = true
     state.in_combat = false
     state.hp = 10
-    assert_false(strategies[3].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[7].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: evasion_matches (strategy #4)
+-- Test: evasion_matches (strategy #8)
 -- ============================================================================
 
 test("evasion_matches: ready, low HP, multiple enemies -> true", function()
@@ -468,7 +468,7 @@ test("evasion_matches: ready, low HP, multiple enemies -> true", function()
     state.evasion_ready = true
     state.hp = 40
     state.enemies = 3
-    assert_true(strategies[4].matches(ctx, state), "should match when overwhelmed")
+    assert_true(strategies[8].matches(ctx, state), "should match when overwhelmed")
 end)
 
 test("evasion_matches: HP above 50 -> false", function()
@@ -477,7 +477,7 @@ test("evasion_matches: HP above 50 -> false", function()
     state.evasion_ready = true
     state.hp = 80
     state.enemies = 3
-    assert_false(strategies[4].matches(ctx, state), "HP above 50 should not match")
+    assert_false(strategies[8].matches(ctx, state), "HP above 50 should not match")
 end)
 
 test("evasion_matches: single enemy -> false", function()
@@ -486,7 +486,7 @@ test("evasion_matches: single enemy -> false", function()
     state.evasion_ready = true
     state.hp = 40
     state.enemies = 1
-    assert_false(strategies[4].matches(ctx, state), "single enemy should not match")
+    assert_false(strategies[8].matches(ctx, state), "single enemy should not match")
 end)
 
 test("evasion_matches: not in combat -> false", function()
@@ -495,11 +495,11 @@ test("evasion_matches: not in combat -> false", function()
     state.evasion_ready = true
     state.in_combat = false
     state.hp = 40
-    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[8].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: sprint_escape_matches (strategy #5)
+-- Test: sprint_escape_matches (strategy #9)
 -- ============================================================================
 
 test("sprint_matches: ready, very low HP -> true", function()
@@ -507,7 +507,7 @@ test("sprint_matches: ready, very low HP -> true", function()
     local state = get_state(ctx)
     state.sprint_ready = true
     state.hp = 20
-    assert_true(strategies[5].matches(ctx, state), "HP below 30 should match")
+    assert_true(strategies[9].matches(ctx, state), "HP below 30 should match")
 end)
 
 test("sprint_matches: HP above 30 -> false", function()
@@ -515,7 +515,7 @@ test("sprint_matches: HP above 30 -> false", function()
     local state = get_state(ctx)
     state.sprint_ready = true
     state.hp = 50
-    assert_false(strategies[5].matches(ctx, state), "HP above 30 should not match")
+    assert_false(strategies[9].matches(ctx, state), "HP above 30 should not match")
 end)
 
 test("sprint_matches: not in combat -> false", function()
@@ -524,11 +524,11 @@ test("sprint_matches: not in combat -> false", function()
     state.sprint_ready = true
     state.in_combat = false
     state.hp = 20
-    assert_false(strategies[5].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: cold_blood_matches (strategy #6)
+-- Test: cold_blood_matches (strategy #12)
 -- ============================================================================
 
 test("cold_blood_matches: ready, 5 CP, cooldowns enabled -> true", function()
@@ -537,7 +537,7 @@ test("cold_blood_matches: ready, 5 CP, cooldowns enabled -> true", function()
     state.cold_blood_ready = true
     state.use_cooldowns = true
     state.combo_points = 5
-    assert_true(strategies[6].matches(ctx, state), "5 CP with cooldowns should match")
+    assert_true(strategies[12].matches(ctx, state), "5 CP with cooldowns should match")
 end)
 
 test("cold_blood_matches: below 5 CP -> false", function()
@@ -546,7 +546,7 @@ test("cold_blood_matches: below 5 CP -> false", function()
     state.cold_blood_ready = true
     state.use_cooldowns = true
     state.combo_points = 3
-    assert_false(strategies[6].matches(ctx, state), "3 CP should not match")
+    assert_false(strategies[12].matches(ctx, state), "3 CP should not match")
 end)
 
 test("cold_blood_matches: cooldowns disabled -> false", function()
@@ -555,7 +555,7 @@ test("cold_blood_matches: cooldowns disabled -> false", function()
     state.cold_blood_ready = true
     state.use_cooldowns = false
     state.combo_points = 5
-    assert_false(strategies[6].matches(ctx, state), "cooldowns disabled should not match")
+    assert_false(strategies[12].matches(ctx, state), "cooldowns disabled should not match")
 end)
 
 test("cold_blood_matches: not in combat -> false", function()
@@ -565,11 +565,11 @@ test("cold_blood_matches: not in combat -> false", function()
     state.use_cooldowns = true
     state.combo_points = 5
     state.in_combat = false
-    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[12].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: adrenaline_rush_matches (strategy #7)
+-- Test: adrenaline_rush_matches (strategy #13)
 -- ============================================================================
 
 test("adrenaline_rush_matches: ready, low energy, cooldowns enabled -> true", function()
@@ -578,7 +578,7 @@ test("adrenaline_rush_matches: ready, low energy, cooldowns enabled -> true", fu
     state.adrenaline_rush_ready = true
     state.use_cooldowns = true
     state.energy = 40
-    assert_true(strategies[7].matches(ctx, state), "low energy with cooldowns should match")
+    assert_true(strategies[13].matches(ctx, state), "low energy with cooldowns should match")
 end)
 
 test("adrenaline_rush_matches: energy above 60 -> false", function()
@@ -587,7 +587,7 @@ test("adrenaline_rush_matches: energy above 60 -> false", function()
     state.adrenaline_rush_ready = true
     state.use_cooldowns = true
     state.energy = 70
-    assert_false(strategies[7].matches(ctx, state), "energy above 60 should not match")
+    assert_false(strategies[13].matches(ctx, state), "energy above 60 should not match")
 end)
 
 test("adrenaline_rush_matches: cooldowns disabled -> false", function()
@@ -596,11 +596,11 @@ test("adrenaline_rush_matches: cooldowns disabled -> false", function()
     state.adrenaline_rush_ready = true
     state.use_cooldowns = false
     state.energy = 40
-    assert_false(strategies[7].matches(ctx, state), "cooldowns disabled should not match")
+    assert_false(strategies[13].matches(ctx, state), "cooldowns disabled should not match")
 end)
 
 -- ============================================================================
--- Test: blade_flurry_matches (strategy #8)
+-- Test: blade_flurry_matches (strategy #14)
 -- ============================================================================
 
 test("blade_flurry_matches: ready, 3+ enemies, enabled -> true", function()
@@ -610,7 +610,7 @@ test("blade_flurry_matches: ready, 3+ enemies, enabled -> true", function()
     state.use_blade_flurry = true
     state.enemies = 4
     state.blade_flurry_min_enemies = 3
-    assert_true(strategies[8].matches(ctx, state), "3+ enemies should match")
+    assert_true(strategies[14].matches(ctx, state), "3+ enemies should match")
 end)
 
 test("blade_flurry_matches: not enough enemies -> false", function()
@@ -620,7 +620,7 @@ test("blade_flurry_matches: not enough enemies -> false", function()
     state.use_blade_flurry = true
     state.enemies = 1
     state.blade_flurry_min_enemies = 3
-    assert_false(strategies[8].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[14].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("blade_flurry_matches: disabled -> false", function()
@@ -629,11 +629,11 @@ test("blade_flurry_matches: disabled -> false", function()
     state.blade_flurry_ready = true
     state.use_blade_flurry = false
     state.enemies = 4
-    assert_false(strategies[8].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[14].matches(ctx, state), "disabled should not match")
 end)
 
 -- ============================================================================
--- Test: slice_and_dice_matches (strategy #9)
+-- Test: slice_and_dice_matches (strategy #15)
 -- ============================================================================
 
 test("slice_and_dice_matches: ready, no buff, enough CP -> true", function()
@@ -642,7 +642,7 @@ test("slice_and_dice_matches: ready, no buff, enough CP -> true", function()
     state.slice_and_dice_ready = true
     state.has_slice_and_dice = false
     state.combo_points = 2
-    assert_true(strategies[9].matches(ctx, state), "should match when ready")
+    assert_true(strategies[15].matches(ctx, state), "should match when ready")
 end)
 
 test("slice_and_dice_matches: already has buff -> false", function()
@@ -651,7 +651,7 @@ test("slice_and_dice_matches: already has buff -> false", function()
     state.slice_and_dice_ready = true
     state.has_slice_and_dice = true
     state.combo_points = 2
-    assert_false(strategies[9].matches(ctx, state), "buff active should not match")
+    assert_false(strategies[15].matches(ctx, state), "buff active should not match")
 end)
 
 test("slice_and_dice_matches: 0 combo points -> false", function()
@@ -660,7 +660,7 @@ test("slice_and_dice_matches: 0 combo points -> false", function()
     state.slice_and_dice_ready = true
     state.has_slice_and_dice = false
     state.combo_points = 0
-    assert_false(strategies[9].matches(ctx, state), "0 CP should not match")
+    assert_false(strategies[15].matches(ctx, state), "0 CP should not match")
 end)
 
 test("slice_and_dice_matches: not in combat -> false", function()
@@ -670,11 +670,11 @@ test("slice_and_dice_matches: not in combat -> false", function()
     state.has_slice_and_dice = false
     state.combo_points = 2
     state.in_combat = false
-    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[15].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: rupture_matches (strategy #10)
+-- Test: rupture_matches (strategy #16)
 -- ============================================================================
 
 test("rupture_matches: ready, 3-4 CP, debuff expired -> true", function()
@@ -683,7 +683,7 @@ test("rupture_matches: ready, 3-4 CP, debuff expired -> true", function()
     local state = get_state(ctx)
     state.rupture_ready = true
     state.combo_points = 3
-    assert_true(strategies[10].matches(ctx, state), "should match when ready")
+    assert_true(strategies[16].matches(ctx, state), "should match when ready")
 end)
 
 test("rupture_matches: debuff still active -> false", function()
@@ -692,7 +692,7 @@ test("rupture_matches: debuff still active -> false", function()
     local state = get_state(ctx)
     state.rupture_ready = true
     state.combo_points = 3
-    assert_false(strategies[10].matches(ctx, state), "active debuff should not match")
+    assert_false(strategies[16].matches(ctx, state), "active debuff should not match")
     NS.debuff_remains = function(target, spell) return 0 end
 end)
 
@@ -701,7 +701,7 @@ test("rupture_matches: 5 CP (prefer eviscerate) -> false", function()
     local state = get_state(ctx)
     state.rupture_ready = true
     state.combo_points = 5
-    assert_false(strategies[10].matches(ctx, state), "5 CP should prefer eviscerate")
+    assert_false(strategies[16].matches(ctx, state), "5 CP should prefer eviscerate")
 end)
 
 test("rupture_matches: 1 CP -> false", function()
@@ -709,11 +709,11 @@ test("rupture_matches: 1 CP -> false", function()
     local state = get_state(ctx)
     state.rupture_ready = true
     state.combo_points = 1
-    assert_false(strategies[10].matches(ctx, state), "1 CP should not match")
+    assert_false(strategies[16].matches(ctx, state), "1 CP should not match")
 end)
 
 -- ============================================================================
--- Test: expose_armor_matches (strategy #11)
+-- Test: expose_armor_matches (strategy #17)
 -- ============================================================================
 
 test("expose_armor_matches: ready, 3-4 CP, no stacks -> true", function()
@@ -722,7 +722,7 @@ test("expose_armor_matches: ready, 3-4 CP, no stacks -> true", function()
     local state = get_state(ctx)
     state.expose_armor_ready = true
     state.combo_points = 3
-    assert_true(strategies[11].matches(ctx, state), "should match when ready")
+    assert_true(strategies[17].matches(ctx, state), "should match when ready")
 end)
 
 test("expose_armor_matches: already has stacks -> false", function()
@@ -731,7 +731,7 @@ test("expose_armor_matches: already has stacks -> false", function()
     local state = get_state(ctx)
     state.expose_armor_ready = true
     state.combo_points = 3
-    assert_false(strategies[11].matches(ctx, state), "stacks active should not match")
+    assert_false(strategies[17].matches(ctx, state), "stacks active should not match")
     NS.debuff_stacks = function(target, spell) return 0 end
 end)
 
@@ -740,7 +740,7 @@ test("expose_armor_matches: 5 CP (prefer eviscerate) -> false", function()
     local state = get_state(ctx)
     state.expose_armor_ready = true
     state.combo_points = 5
-    assert_false(strategies[11].matches(ctx, state), "5 CP should prefer eviscerate")
+    assert_false(strategies[17].matches(ctx, state), "5 CP should prefer eviscerate")
 end)
 
 test("expose_armor_matches: 1 CP -> false", function()
@@ -748,11 +748,11 @@ test("expose_armor_matches: 1 CP -> false", function()
     local state = get_state(ctx)
     state.expose_armor_ready = true
     state.combo_points = 1
-    assert_false(strategies[11].matches(ctx, state), "1 CP should not match")
+    assert_false(strategies[17].matches(ctx, state), "1 CP should not match")
 end)
 
 -- ============================================================================
--- Test: eviscerate_matches (strategy #12)
+-- Test: eviscerate_matches (strategy #19)
 -- ============================================================================
 
 test("eviscerate_matches: ready, 5 CP -> true", function()
@@ -760,7 +760,7 @@ test("eviscerate_matches: ready, 5 CP -> true", function()
     local state = get_state(ctx)
     state.eviscerate_ready = true
     state.combo_points = 5
-    assert_true(strategies[12].matches(ctx, state), "5 CP should match")
+    assert_true(strategies[19].matches(ctx, state), "5 CP should match")
 end)
 
 test("eviscerate_matches: 3 CP -> false", function()
@@ -768,7 +768,7 @@ test("eviscerate_matches: 3 CP -> false", function()
     local state = get_state(ctx)
     state.eviscerate_ready = true
     state.combo_points = 3
-    assert_false(strategies[12].matches(ctx, state), "3 CP should not match")
+    assert_false(strategies[19].matches(ctx, state), "3 CP should not match")
 end)
 
 test("eviscerate_matches: no target -> false", function()
@@ -777,11 +777,11 @@ test("eviscerate_matches: no target -> false", function()
     state.eviscerate_ready = true
     state.target = nil
     state.combo_points = 5
-    assert_false(strategies[12].matches(ctx, state), "no target should not match")
+    assert_false(strategies[19].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
--- Test: sinister_strike_matches (strategy #13)
+-- Test: sinister_strike_matches (strategy #20)
 -- ============================================================================
 
 test("sinister_strike_matches: ready, below 5 CP -> true", function()
@@ -789,7 +789,7 @@ test("sinister_strike_matches: ready, below 5 CP -> true", function()
     local state = get_state(ctx)
     state.sinister_strike_ready = true
     state.combo_points = 3
-    assert_true(strategies[13].matches(ctx, state), "should match when below max CP")
+    assert_true(strategies[20].matches(ctx, state), "should match when below max CP")
 end)
 
 test("sinister_strike_matches: at 5 CP -> false", function()
@@ -797,7 +797,7 @@ test("sinister_strike_matches: at 5 CP -> false", function()
     local state = get_state(ctx)
     state.sinister_strike_ready = true
     state.combo_points = 5
-    assert_false(strategies[13].matches(ctx, state), "5 CP should not match")
+    assert_false(strategies[20].matches(ctx, state), "5 CP should not match")
 end)
 
 test("sinister_strike_matches: no target -> false", function()
@@ -806,7 +806,7 @@ test("sinister_strike_matches: no target -> false", function()
     state.sinister_strike_ready = true
     state.target = nil
     state.combo_points = 3
-    assert_false(strategies[13].matches(ctx, state), "no target should not match")
+    assert_false(strategies[20].matches(ctx, state), "no target should not match")
 end)
 
 test("sinister_strike_matches: not in combat -> false", function()
@@ -815,30 +815,37 @@ test("sinister_strike_matches: not in combat -> false", function()
     state.sinister_strike_ready = true
     state.combo_points = 3
     state.in_combat = false
-    assert_false(strategies[13].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[20].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 13 strategies in correct priority order", function()
+test("strategies: 20 strategies in correct priority order", function()
     local expected = {
         "Stealth",
+        "Ambush",
+        "Garrote",
         "Kick",
+        "Gouge",
+        "ShivPurge",
         "Vanish",
         "Evasion",
         "Sprint",
+        "Blind",
+        "Disarm",
         "ColdBlood",
         "AdrenalineRush",
         "BladeFlurry",
         "SliceAndDice",
         "Rupture",
         "ExposeArmor",
+        "KidneyShot",
         "Eviscerate",
         "SinisterStrike",
     }
-    assert_eq(#strategies, 13, "should have 13 strategies")
+    assert_eq(#strategies, 20, "should have 20 strategies after adding Ambush, Garrote, Gouge, ShivPurge, Blind, Disarm, KidneyShot")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -863,7 +870,7 @@ end)
 
 test("execute_SinisterStrike: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[13].execute, ctx)
+    local ok, result = pcall(strategies[20].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
@@ -948,19 +955,19 @@ test("rotation: low HP scenario - various escape/defense abilities", function()
     state.vanish_hp = 15
 
     -- Vanish: HP(20) > vanish_hp(15), should NOT match
-    assert_false(strategies[3].matches(ctx, state), "Vanish should not match when HP above threshold")
+    assert_false(strategies[7].matches(ctx, state), "Vanish should not match when HP above threshold")
 
     -- Set HP low enough for Vanish
     state.hp = 10
-    assert_true(strategies[3].matches(ctx, state), "Vanish should match when HP below threshold")
+    assert_true(strategies[7].matches(ctx, state), "Vanish should match when HP below threshold")
 
     -- Sprint: HP(10) < 30, should match
     -- Sprint also checks sprint_ready which is true
-    assert_true(strategies[5].matches(ctx, state), "Sprint should match when HP below 30")
+    assert_true(strategies[9].matches(ctx, state), "Sprint should match when HP below 30")
 
     -- Evasion: HP(10) < 50, enemies(3) >= 2, should match
     assert_true(state.enemies >= 2, "there are 3 enemies")
-    assert_true(strategies[4].matches(ctx, state), "Evasion should match when low HP with multiple enemies")
+    assert_true(strategies[8].matches(ctx, state), "Evasion should match when low HP with multiple enemies")
 end)
 
 test("rotation: max combo points finisher priority", function()
@@ -971,9 +978,9 @@ test("rotation: max combo points finisher priority", function()
     state.combo_points = 5
 
     -- Eviscerate should match at 5 CP
-    assert_true(strategies[12].matches(ctx, state), "Eviscerate should match at 5 CP")
+    assert_true(strategies[19].matches(ctx, state), "Eviscerate should match at 5 CP")
     -- Sinister Strike should not match at 5 CP
-    assert_false(strategies[13].matches(ctx, state), "Sinister Strike should not match at 5 CP")
+    assert_false(strategies[20].matches(ctx, state), "Sinister Strike should not match at 5 CP")
 end)
 
 -- ============================================================================

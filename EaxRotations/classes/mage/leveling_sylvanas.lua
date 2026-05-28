@@ -1,7 +1,26 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "classes/mage/leveling_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Mage leveling priority list.
 -- Designed for solo/leveling play, from level 1 to 70.
 -- Handles unlearned spells gracefully via NS.spell_ready checks.
 -- Uses wand/Shoot as fallback when out of mana.
+-- Safety spells: Frost Armor (lvl 1+), Cone of Cold (lvl 26+), Blink (lvl 20+), Remove Curse (lvl 18+).
 
 -- ============================================================================
 -- What: Mage leveling priority with solo fallback casting and wand support.
@@ -21,6 +40,7 @@ local SPELLS = NS.MageSpells or {}
 -- ============================================================================
 
 local ARCANE_INTELLECT_BUFF = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
+local FROST_ARMOR_BUFF = { 27125, 12544, 12543, 10174, 10173, 7301, 7300, 168 }
 local MOLTEN_ARMOR_BUFF = { 30482 }
 local ICE_BARRIER_BUFF = { 27134, 13033, 13032, 13031, 11426 }
 local MANA_SHIELD_BUFF = { 27142, 13008, 13007, 13006, 13005, 13003, 8495, 8494, 8492, 1463 }
@@ -34,19 +54,6 @@ local MANA_GEM_ITEM_IDS = { 22147, 5523, 5521, 5513, 5514 }
 local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
 
 local EMPTY_SETTINGS = {}
-local leveling_state = {}
-
--- ============================================================================
--- Context guard
--- ============================================================================
-
-local function leveling_context_allowed(context)
-    if not context then return false end
-    if context.is_solo == true or context.is_leveling == true then return true end
-    -- Also allow if user explicitly selected leveling playstyle
-    local settings = context.settings or EMPTY_SETTINGS
-    return settings.playstyle == "leveling" or settings.active_playstyle == "leveling"
-end
 
 -- ============================================================================
 -- Spell readiness helper (hoisted to module level — no closure per frame)
@@ -95,71 +102,76 @@ local function build_state(context)
     if not context then return nil end
     local settings = context.settings or EMPTY_SETTINGS
     local me = context.me
+    local state = {}
 
-    leveling_state.has_ai = safe_buff_up(me, ARCANE_INTELLECT_BUFF)
-    leveling_state.has_molten_armor = safe_buff_up(me, MOLTEN_ARMOR_BUFF)
-    leveling_state.has_ice_barrier = safe_buff_up(me, ICE_BARRIER_BUFF)
-    leveling_state.has_mana_shield = safe_buff_up(me, MANA_SHIELD_BUFF)
+    state.has_ai = safe_buff_up(me, ARCANE_INTELLECT_BUFF)
+    state.has_molten_armor = safe_buff_up(me, MOLTEN_ARMOR_BUFF)
+    state.has_frost_armor = safe_buff_up(me, FROST_ARMOR_BUFF)
+    state.has_ice_barrier = safe_buff_up(me, ICE_BARRIER_BUFF)
+    state.has_mana_shield = safe_buff_up(me, MANA_SHIELD_BUFF)
 
-    leveling_state.in_combat = context.in_combat or false
-    leveling_state.mana_pct = context.mana_pct or 100
-    leveling_state.hp = context.hp or 100
-    leveling_state.enemies = context.enemies_count or 0
-    leveling_state.target = context.target
-    leveling_state.is_moving = context.is_moving or false
+    state.in_combat = context.in_combat or false
+    state.mana_pct = context.mana_pct or 100
+    state.hp = context.hp or 100
+    state.enemies = context.enemies_count or 0
+    state.target = context.target
+    state.is_moving = context.is_moving or false
 
     -- Settings from schema (with sensible defaults)
     local settings = context.settings or EMPTY_SETTINGS
-    leveling_state.wand_threshold = settings.leveling_wand_threshold or 30
-    leveling_state.polymorph_hp = settings.leveling_polymorph_hp or 40
-    leveling_state.use_arcane_missiles = settings.leveling_arcane_missiles_use ~= false
-    leveling_state.use_scorch = settings.leveling_scorch_use ~= false
-    leveling_state.use_interrupt = settings.use_interrupt ~= false
-    leveling_state.use_fire_blast = settings.leveling_fire_blast_use ~= false
+    state.wand_threshold = settings.leveling_wand_threshold or 30
+    state.polymorph_hp = settings.leveling_polymorph_hp or 40
+    state.use_arcane_missiles = settings.leveling_arcane_missiles_use ~= false
+    state.use_scorch = settings.leveling_scorch_use ~= false
+    state.use_interrupt = settings.use_interrupt ~= false
+    state.use_fire_blast = settings.leveling_fire_blast_use ~= false
 
     -- Mana gem state
-    leveling_state.use_mana_gem = settings.use_mana_gem ~= false
-    leveling_state.mana_gem_threshold = settings.mana_gem_mana_pct or 70
+    state.use_mana_gem = settings.use_mana_gem ~= false
+    state.mana_gem_threshold = settings.mana_gem_mana_pct or 70
 
     -- Check if conjure mana gem spell is learned
-    leveling_state.conjure_gem_ready = false
+    state.conjure_gem_ready = false
     for _, spell_id in ipairs(CONJURE_MANA_GEM_SPELLS) do
         local ok_e, exists = pcall(NS.spell_exists, spell_id)
         if ok_e and exists then
-            leveling_state.conjure_gem_ready = true
+            state.conjure_gem_ready = true
             break
         end
     end
 
     -- Check if any mana gem item is available in inventory
-    leveling_state.mana_gem_available = false
+    state.mana_gem_available = false
     for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
         if safe_is_item_ready(item_id) then
-            leveling_state.mana_gem_available = true
+            state.mana_gem_available = true
             break
         end
     end
 
     -- Spell readiness (each returns false if spell not learned, errors caught via pcall)
-    leveling_state.frostbolt_ready = spell_is_ready(SPELLS.Frostbolt, context.target)
-    leveling_state.fire_blast_ready = spell_is_ready(SPELLS.FireBlast, context.target)
-    leveling_state.scorch_ready = spell_is_ready(SPELLS.Scorch, context.target)
-    leveling_state.arcane_missiles_ready = spell_is_ready(SPELLS.ArcaneMissiles, context.target)
-    leveling_state.frost_nova_ready = spell_is_ready(SPELLS.FrostNova, context.target)
-    leveling_state.blizzard_ready = spell_is_ready(SPELLS.Blizzard, context.target)
-    leveling_state.polymorph_ready = spell_is_ready(SPELLS.Polymorph, context.target)
-    leveling_state.counterspell_ready = spell_is_ready(SPELLS.Counterspell, context.target)
-    leveling_state.evocation_ready = spell_is_ready(SPELLS.Evocation, nil, { skip_range = true })
-    leveling_state.ice_barrier_ready = spell_is_ready(SPELLS.IceBarrier, nil, { skip_range = true })
-    leveling_state.mana_shield_ready = spell_is_ready(SPELLS.ManaShield, nil, { skip_range = true })
-    leveling_state.ai_ready = spell_is_ready(SPELLS.ArcaneIntellect, nil, { skip_range = true })
-    leveling_state.remove_curse_ready = spell_is_ready(SPELLS.RemoveCurse, nil, { skip_range = true })
+    state.frostbolt_ready = spell_is_ready(SPELLS.Frostbolt, context.target)
+    state.fire_blast_ready = spell_is_ready(SPELLS.FireBlast, context.target)
+    state.scorch_ready = spell_is_ready(SPELLS.Scorch, context.target)
+    state.arcane_missiles_ready = spell_is_ready(SPELLS.ArcaneMissiles, context.target)
+    state.frost_nova_ready = spell_is_ready(SPELLS.FrostNova, context.target)
+    state.blizzard_ready = spell_is_ready(SPELLS.Blizzard, context.target)
+    state.polymorph_ready = spell_is_ready(SPELLS.Polymorph, context.target)
+    state.counterspell_ready = spell_is_ready(SPELLS.Counterspell, context.target)
+    state.evocation_ready = spell_is_ready(SPELLS.Evocation, nil, { skip_range = true })
+    state.ice_barrier_ready = spell_is_ready(SPELLS.IceBarrier, nil, { skip_range = true })
+    state.mana_shield_ready = spell_is_ready(SPELLS.ManaShield, nil, { skip_range = true })
+    state.ai_ready = spell_is_ready(SPELLS.ArcaneIntellect, nil, { skip_range = true })
+    state.remove_curse_ready = spell_is_ready(SPELLS.RemoveCurse, nil, { skip_range = true })
+    state.frost_armor_ready = spell_is_ready(SPELLS.FrostArmor, nil, { skip_range = true })
+    state.cone_of_cold_ready = spell_is_ready(SPELLS.ConeOfCold, context.target)
+    state.blink_ready = spell_is_ready(SPELLS.Blink, nil, { skip_range = true })
 
     -- Wand readiness (learned via wand training)
     local ok_wand, exists = pcall(NS.spell_exists, WAND_SPELL_ID)
-    leveling_state.wand_learned = ok_wand and exists or false
+    state.wand_learned = ok_wand and exists or false
 
-    return leveling_state
+    return state
 end
 
 -- ============================================================================
@@ -167,7 +179,6 @@ end
 -- ============================================================================
 
 local function arcane_intellect_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if state.in_combat then return false end
     if state.has_ai then return false end
@@ -175,7 +186,6 @@ local function arcane_intellect_matches(context, state)
 end
 
 local function evocation_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
     if state.mana_pct > 25 then return false end
@@ -183,7 +193,6 @@ local function evocation_matches(context, state)
 end
 
 local function ice_barrier_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if state.has_ice_barrier then return false end
     if not state.in_combat then return false end
@@ -191,15 +200,14 @@ local function ice_barrier_matches(context, state)
 end
 
 local function mana_shield_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
+    if not state.in_combat then return false end
     if state.has_mana_shield then return false end
-    if state.hp > 40 then return false end
+    if (state.hp or 100) > 40 then return false end
     return state.mana_shield_ready
 end
 
 local function counterspell_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if not state.use_interrupt then return false end
@@ -209,7 +217,6 @@ local function counterspell_matches(context, state)
 end
 
 local function polymorph_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if state.in_combat then return false end
@@ -222,7 +229,6 @@ local function polymorph_matches(context, state)
 end
 
 local function frost_nova_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
@@ -234,7 +240,6 @@ local function frost_nova_matches(context, state)
 end
 
 local function blizzard_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
@@ -244,7 +249,6 @@ local function blizzard_matches(context, state)
 end
 
 local function fire_blast_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
@@ -253,7 +257,6 @@ local function fire_blast_matches(context, state)
 end
 
 local function arcane_missiles_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
@@ -264,7 +267,6 @@ local function arcane_missiles_matches(context, state)
 end
 
 local function frostbolt_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
@@ -274,7 +276,6 @@ local function frostbolt_matches(context, state)
 end
 
 local function scorch_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
@@ -284,8 +285,43 @@ local function scorch_matches(context, state)
     return state.scorch_ready
 end
 
+local function frost_armor_matches(context, state)
+    if not state then return false end
+    if state.in_combat then return false end
+    if state.has_frost_armor then return false end
+    if state.has_molten_armor then return false end
+    return state.frost_armor_ready
+end
+
+local function cone_of_cold_matches(context, state)
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if state.enemies < 2 then return false end
+    if not context.me then return false end
+    local ok, dist = pcall(function() return state.target:get_distance(context.me) end)
+    if not ok or not dist or dist > 10 then return false end
+    return state.cone_of_cold_ready
+end
+
+local function blink_matches(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if (state.hp or 100) > 50 then return false end
+    return state.blink_ready
+end
+
+local function remove_curse_matches(context, state)
+    if not state then return false end
+    -- OOC cleanup: remove curses between pulls
+    if state.in_combat then return false end
+    return state.remove_curse_ready
+end
+
+-- NOTE: In-combat curse removal would require scanning for curse debuffs on self.
+-- For leveling simplicity, Remove Curse runs OOC only.
+
 local function wand_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
     if not state.wand_learned then return false end
@@ -299,7 +335,6 @@ end
 -- ============================================================================
 
 local function conjure_gem_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if state.in_combat then return false end
     if not state.conjure_gem_ready then return false end
@@ -309,7 +344,6 @@ local function conjure_gem_matches(context, state)
 end
 
 local function use_mana_gem_matches(context, state)
-    if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
     if not state.use_mana_gem then return false end
@@ -361,6 +395,15 @@ local strategies = {
       matches = arcane_intellect_matches,
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[LEVELING] Arcane Intellect") or false end },
 
+    { name = "FrostArmor",
+      matches = frost_armor_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.FrostArmor, NS.PLAYER_UNIT, "[LEVELING] Frost Armor") or false end },
+
+    -- OOC: remove curses between pulls
+    { name = "RemoveCurse",
+      matches = remove_curse_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.RemoveCurse, NS.PLAYER_UNIT, "[LEVELING] Remove Curse") or false end },
+
     -- Pre-combat: conjure mana gem if missing
     { name = "ConjureManaGem",
       matches = conjure_gem_matches,
@@ -388,6 +431,16 @@ local strategies = {
     { name = "FrostNova",
       matches = frost_nova_matches,
       execute = frost_nova_execute },
+
+    -- AoE: Cone of Cold (kite tool, before Blizzard)
+    { name = "ConeOfCold",
+      matches = cone_of_cold_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.ConeOfCold, context.target, "[LEVELING] Cone of Cold") or false end },
+
+    -- Escape: Blink
+    { name = "Blink",
+      matches = blink_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[LEVELING] Blink") or false end },
 
     -- AoE
     { name = "Blizzard",
