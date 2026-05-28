@@ -130,13 +130,6 @@ local ret_state = {
 
 local get_setting = NS.setting
 
-local function get_any_setting(context, primary, secondary, fallback)
-    local settings = context.settings or {}
-    if settings[primary] ~= nil then return settings[primary] end
-    if settings[secondary] ~= nil then return settings[secondary] end
-    return fallback
-end
-
 local function has_player_buff(ids)
     return NS.has_player_buff and NS.has_player_buff(ids) or false
 end
@@ -268,7 +261,7 @@ local function build_state(context)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
     ret_state.in_melee = distance_to(context, context.target) <= MELEE_RANGE
-    ret_state.can_twist = get_any_setting(context, "seal_twisting_enabled", "retri_seal_twisting", false) and ret_state.mana_pct >= get_setting(context, "retri_twist_mana_floor", 20)
+    ret_state.can_twist = NS.get_any_setting(context, "seal_twisting_enabled", "retri_seal_twisting", false) and ret_state.mana_pct >= get_setting(context, "retri_twist_mana_floor", 20)
     ret_state.utility_target = nil
     ret_state.secondary_target = find_secondary_enemy(context)
     ret_state.mana_item = first_ready_item(MANA_POTIONS)

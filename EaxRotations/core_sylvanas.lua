@@ -1149,6 +1149,20 @@ function NS.setting_bool(settings, key, default)
     if value == nil then return default end
     return value ~= false
 end
+
+--- Looks up a setting by primary key, falling back to secondary key, then hardcoded fallback.
+--- Returns the first non-nil value found, or the fallback.
+---@param context   table Current rotation context.
+---@param primary   string Primary setting key.
+---@param secondary string Secondary setting key (fallback).
+---@param fallback  any    Hardcoded default when neither key is present.
+---@return any The resolved setting value.
+function NS.get_any_setting(context, primary, secondary, fallback)
+    local settings = context.settings or {}
+    if settings[primary] ~= nil then return settings[primary] end
+    if settings[secondary] ~= nil then return settings[secondary] end
+    return fallback
+end
 function NS.refresh_settings_cache()
 
     _settings_cache = {}

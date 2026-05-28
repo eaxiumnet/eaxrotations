@@ -43,6 +43,14 @@ _G.EaxRotations = {
     get_debuff_stacks = function(target, debuff_list)
         return target and target._debuff_stacks or 0
     end,
+    setting_number = function(settings, key, default)
+        return type(settings) == "table" and type(settings[key]) == "number" and settings[key] or default
+    end,
+    setting_bool = function(settings, key, default)
+        local value = settings and settings[key]
+        if value == nil then return default end
+        return value ~= false
+    end,
     log = function() end,
     rotation_registry = {
         register = function() end,
