@@ -80,15 +80,6 @@
 - Queue: 001_Druid_Balance moved from `blocked/` to `completed/` (2 of 3 blockers resolved); remaining SP breakpoints tracked in `SP_Breakpoints_Druid_Balance.md`.
 - All 106 regression suites (95 rotation + 11 leveling) pass with zero failures.
 
-## 1.0.15 - 2026-05-16
-
-- Improved TBC spell and aura coverage for racials, common crowd control, Druid utility, and Hunter abilities.
-- Improved Hunter leveling stability, including safer API fallbacks and correct Serpent Sting refresh timing.
-- Improved Warrior buff-cancel and Shaman totem handling through safer shared helpers.
-- Cleaned the release package so it contains only Lua source and Markdown documentation.
-- Added audit documentation for spell IDs, archive comparisons, and static behavior checks.
-- Verified release health: Lua syntax passes, all 106 regression suites pass, online TBC ID audit passes, and package file-type checks pass.
-
 ## 1.0.14 - 2026-05-15
 
 - Made menu playstyle selection authoritative: Leveling no longer overrides Elemental, Enhancement, or Restoration for under-70 players.
