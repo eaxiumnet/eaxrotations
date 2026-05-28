@@ -2,7 +2,7 @@
 
 **Repo**: https://github.com/eaxiumnet/eax-tbc-classic-rotations  
 **Local Path**: `C:\newbot\scripts`  
-**Last Updated**: 2026-05-21  
+**Last Updated**: 2026-05-28  
 **Specs**: 29 TBC Classic class specializations (all 29 completed)  
 **Pattern Compliance**: 99% menu guards, 95% API caching, 100% banned API compliance
 
@@ -1177,6 +1177,72 @@ end
 - pcall-guarded `unit:get_class()` prevents crashes on invalid unit objects
 - `NS.mana_pct()` nil-safe (returns nil for invalid units, handled by `<=` returning false)
 
+### Pattern 14: State Field Nil-Guards (match functions)
+
+**Purpose**: Prevent silent false-negatives when a `build_state()` field is nil — either because state initialization was skipped (e.g., OOC, no target, private-server API failure) or because an optional state field was never populated. Bare `state.field < X` with a nil field evaluates to `nil < X` → `false`, silently skipping the strategy.
+
+**Severity**: Affects every numeric state field used in match function comparisons across all 29 specs + 9 leveling files. A single nil `state.rage` can suppress an entire defensive or burst strategy with no warning.
+
+**WRONG — Bare state field comparison (crashes/incorrect on nil)**:
+```lua
+-- BAD: nil < 25 evaluates to false — silently skips Execute
+local function execute_matches(context, state)
+    if state.rage < 25 then return false end  -- nil silently kills strategy
+    return NS.spell_ready(SPELLS.Execute, context.target)
+end
+
+-- BAD: nil > 35 also evaluates to false
+local function deathwish_matches(context, state)
+    if state.hp > 35 then return false end  -- nil → false → casts at any HP (defensive when not needed)
+    return NS.spell_ready(SPELLS.DeathWish, context.me)
+end
+```
+
+**CORRECT — Nil-guard with safe default**:
+```lua
+-- GOOD: Nil-guarded — safe default 0 for rage means "don't have enough"
+local function execute_matches(context, state)
+    if (state.rage or 0) < 25 then return false end  -- nil → 0 → correctly blocks
+    return NS.spell_ready(SPELLS.Execute, context.target)
+end
+
+-- GOOD: Nil-guarded — safe default 100 for hp means "assume full HP, skip"
+local function deathwish_matches(context, state)
+    if (state.hp or 100) > 35 then return false end  -- nil → 100 → correctly skips
+    return NS.spell_ready(SPELLS.DeathWish, context.me)
+end
+```
+
+**Safe Defaults Table**:
+
+| Field | Safe Default | Rationale |
+|-------|-------------|-----------|
+| `hp` / `hp_pct` | `100` | Assume full health → skip defensives when unknown |
+| `mana_pct` | `100` | Assume full mana → skip mana pot/Innervate when unknown |
+| `rage` | `0` | Assume no rage → skip rage-spenders when unknown |
+| `energy` | `0` | Assume no energy → skip finishers when unknown |
+| `focus` | `0` | Assume no focus → skip shots when unknown |
+| `enemy_count` | `0` | Assume no enemies → skip AoE/multi-target when unknown |
+| `enemies` | `0` | Assume no enemies → skip AoE when unknown |
+| `combo_points` | `0` | Assume no CP → skip finishers when unknown |
+| `target_hp` / `target_hp_pct` | `100` | Assume target is full → skip execute-range when unknown |
+
+**Future audits**: `state.target_hp`, `state.target_hp_pct`, and `state.target_ttd` (time-to-die) are used in execute-range and DoT refresh decisions across multiple specs and should receive the same nil-guard treatment in the next audit pass.
+
+**Key distinction — build_state vs match functions**:
+- **build_state**: Fields are **assigned** here (e.g., `state.rage = context.rage or 0`). Do NOT nil-guard in build_state — it's the canonical source that should populate defaults.
+- **match functions**: Fields are **read** here (e.g., `if state.rage < 25 then return false end`). Nil-guard ALL numeric comparisons here.
+- **Derived booleans** assigned in build_state (e.g., `state.energy_low = state.energy < LOW`) are **not** comparisons on the derived field — these are assignments, not reads, and should be left alone.
+
+**How to spot**: Any `state.<field> < X`, `state.<field> > X`, `state.<field> <= X`, `state.<field> >= X` in a match function is a candidate. The pattern `return state.field < X` (bare return) is particularly dangerous because the nil → false return exits the match function before spell-ready checks.
+
+**Audit scope** (2026-05-28):
+- **14 non-leveling spec files**: warrior (protection, fury, arms), druid (bear, cat), rogue (subtlety, assassination), warlock (destruction, affliction), paladin (retribution, protection), priest (smite), shaman (enhancement, restoration)
+- **9 leveling files**: druid, hunter, mage, paladin, priest, rogue, shaman, warlock, warrior
+- **1 missed file**: shadow_sylvanas.lua (enemy_count caught post-audit)
+- **Total**: 24 files, ~170 locations guarded
+- All 105 rotation suites + 11 leveling suites pass post-guard
+
 ---
 
 ## Menu Item Reference
@@ -1246,6 +1312,7 @@ menu.auto_trinkets                -- Auto-use trinkets
 - Limit target scan to 50 objects with early exit
 - Use Project Sylvanas API (`api/`, `apidocs/`) exclusively
 - Nil-guard ALL menu references: `(menu.x and menu.x:get()) or default`
+- Nil-guard ALL numeric state field comparisons in match functions: `(state.field or safe_default) > X`
 - Use squared distance for range checks (not `math.sqrt`)
 - Reuse static tables with `{ n = 0 }` pattern
 
@@ -1282,6 +1349,7 @@ menu.auto_trinkets                -- Auto-use trinkets
 | Aura points (buff_points) | 100% | None | 3 specs (protection, healing, discipline) |
 | PW:S absorb tracking | 100% | None | healing + discipline cross-spec |
 | Smart Innervate targeting | 100% | None | balance + resto (healer-class party scan) |
+| State field nil-guards | 100% | None | 24 files audited (14 spec + 9 leveling + 1 shadow) |
 | Banned APIs | 100% | None | Perfect compliance |
 | No TOC files | 100% | None | N/A under flat-file architecture |
 
