@@ -1,12 +1,12 @@
 -- =========================================================================
 -- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
+-- Last Modified: 2026-05-28
+-- Change: Classic Vanilla Retribution Paladin rotation
 -- =========================================================================
-local __eax_file = "classes/paladin/retribution_sylvanas.lua"
+local __eax_file = "classes/paladin/retribution_vanilla.lua"
 local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
+local __eax_modified = "2026-05-28"
+local __eax_change = "Classic Vanilla Retribution Paladin rotation"
 local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
 _G.EaxRotationsFileVersions = __eax_versions
 __eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
@@ -16,13 +16,13 @@ if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
 end
 local __eax_ns = rawget(_G, "EaxRotations")
 if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- TBC Retribution Paladin priority module for the Sylvanas dispatcher.
+-- Classic Vanilla Retribution Paladin priority module for the Sylvanas dispatcher.
 
 -- ============================================================================
--- What: TBC Retribution Paladin priority with seals, judgements, and burst.
+-- What: Classic Vanilla Retribution Paladin priority with seals, judgements, and burst.
 -- When: Evaluated every tick.
 -- Why: Priority-list early exit keeps DPS decisions fast and predictable.
--- Safety: pcall-gated TBC data; nil-guarded helpers; conservative defaults.
+-- Safety: pcall-gated Classic Vanilla data; nil-guarded helpers; conservative defaults.
 -- ============================================================================
 
 local NS = _G.EaxRotations
@@ -32,7 +32,7 @@ local SPELLS = NS.PaladinSpells or {}
 local PLAYER = NS.PLAYER_UNIT
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { healthstones = {}, potions = {} } } end
-local TBC_ITEMS = TBC.ITEMS or {}
+local TBC_ITEMS = Classic.ITEMS or {}
 local TBC_POTIONS = TBC_ITEMS.potions or {}
 
 local function action(ids, label)
@@ -40,7 +40,7 @@ local function action(ids, label)
     return type(ids) == "table" and ids[1] or ids
 end
 
--- Spell IDs are TBC 2.4.3 ranks only, newest-to-oldest where ranks exist.
+-- Spell IDs are Classic Vanilla 2.4.3 ranks only, newest-to-oldest where ranks exist.
 local SealCrusader = SPELLS.SealCrusader or action({ 27158, 20308, 20307, 20306, 20305, 20304, 21082, 20162, 20161, 20160, 20159, 20158, 20157, 20156, 20337 }, "SealCrusader")
 local SealWisdom = SPELLS.SealOfWisdom or SPELLS.SealWisdom or action({ 27166, 20357, 20356, 20166 }, "SealOfWisdom")
 local BlessingFreedom = SPELLS.BlessingOfFreedom or action({ 1044 }, "BlessingOfFreedom")
@@ -381,12 +381,12 @@ add_strategy(strategies, "Ret_HammerWrath_FleeingPvP", 790, function(context, st
     return context.is_pvp and state.target_fleeing and state.target_hp_pct < 25 and ready(HammerWrath, context.target, { expected_cooldown = 6 })
 end, function(context) return cast(HammerWrath, context.target, "[RET PvP] Hammer of Wrath fleeing target", { expected_cooldown = 6 }) end)
 
-add_strategy(strategies, "Ret_AvengingWrath_Burst", 780, function(context, state)
+add_strategy(strategies, "Ret_UnavailableClassicPaladinBurst_Burst", 780, function(context, state)
     if not get_setting(context, "use_avenging_wrath", get_setting(context, "retri_aw_enabled", true)) then return false end
     if state.has_forbearance then return false end
-    if not ready(SPELLS.AvengingWrath, PLAYER, { skip_range = true, expected_cooldown = 180 }) then return false end
+    if not ready(SPELLS.UnavailableClassicPaladinBurst, PLAYER, { skip_range = true, expected_cooldown = 180 }) then return false end
     return true
-end, function() return cast(SPELLS.AvengingWrath, PLAYER, "[RET] Avenging Wrath burst", { skip_range = true, expected_cooldown = 180 }) end, 180)
+end, function() return cast(SPELLS.UnavailableClassicPaladinBurst, PLAYER, "[RET] Avenging Wrath burst", { skip_range = true, expected_cooldown = 180 }) end, 180)
 
 strategies[#strategies + 1] = {
     name = "SealTwistBlood",
@@ -413,9 +413,9 @@ strategies[#strategies + 1] = {
     end,
 }
 
-add_strategy(strategies, "Ret_CrusaderStrike_AfterJudgement", 730, function(context, state)
-    return state.in_melee and not state.has_damage_seal and ready(SPELLS.CrusaderStrike, context.target, { expected_cooldown = 6 })
-end, function(context) return cast(SPELLS.CrusaderStrike, context.target, "[RET] Crusader Strike after Judgement", { expected_cooldown = 6 }) end)
+add_strategy(strategies, "Ret_UnavailableClassicPaladinStrike_AfterJudgement", 730, function(context, state)
+    return state.in_melee and not state.has_damage_seal and ready(SPELLS.UnavailableClassicPaladinStrike, context.target, { expected_cooldown = 6 })
+end, function(context) return cast(SPELLS.UnavailableClassicPaladinStrike, context.target, "[RET] Crusader Strike after Judgement", { expected_cooldown = 6 }) end)
 
 add_strategy(strategies, "Ret_JudgeCrusader", 720, function(context, state)
     return not state.target_has_crusader and state.has_crusader and ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 })
@@ -426,14 +426,14 @@ add_strategy(strategies, "Ret_ApplyCrusaderSeal", 710, function(_, state)
 end, function() return cast(SealCrusader, PLAYER, "[RET] Seal of the Crusader", { skip_range = true }) end)
 
 strategies[#strategies + 1] = {
-    name = "CrusaderStrike",
+    name = "UnavailableClassicPaladinStrike",
     priority = 700,
     cooldown = 6,
     matches = function(context, state)
-        return state.in_melee and ready(SPELLS.CrusaderStrike, context.target, { expected_cooldown = 6 })
+        return state.in_melee and ready(SPELLS.UnavailableClassicPaladinStrike, context.target, { expected_cooldown = 6 })
     end,
     execute = function(context)
-        return cast(SPELLS.CrusaderStrike, context.target, "[RET] Crusader Strike", { expected_cooldown = 6 })
+        return cast(SPELLS.UnavailableClassicPaladinStrike, context.target, "[RET] Crusader Strike", { expected_cooldown = 6 })
     end,
 }
 
@@ -485,14 +485,14 @@ add_strategy(strategies, "Ret_Consecration_ManaDump", 590, function(context, sta
 end, function() return cast(SPELLS.Consecration, PLAYER, "[RET] Consecration mana dump", { skip_range = true, expected_cooldown = 8 }) end, 8)
 
 add_strategy(strategies, "Exorcism", 580, function(context)
-    -- [ARTISTRY] Improved: TBC Exorcism only works on Undead and Demons.
+    -- [ARTISTRY] Improved: Classic Vanilla Exorcism only works on Undead and Demons.
     if not context.target then return false end
     local type = context.target.get_creature_type and context.target:get_creature_type()
     return DEMON_OR_UNDEAD[type] or false
 end, function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[RET] Exorcism", { expected_cooldown = 15 }) end, 15)
 
 add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
-    -- [ARTISTRY] Improved: TBC Holy Wrath works on Undead/Demon groups.
+    -- [ARTISTRY] Improved: Classic Vanilla Holy Wrath works on Undead/Demon groups.
     if (state.enemy_count or 0) < 2 or (state.mana_pct or 100) < 40 then return false end
     if not ready(SPELLS.HolyWrath, PLAYER, { skip_range = true }) then return false end
     -- Check if target is undead/demon

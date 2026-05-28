@@ -1,12 +1,12 @@
 -- =========================================================================
 -- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
+-- Last Modified: 2026-05-28
+-- Change: Classic Vanilla Arcane Mage rotation
 -- =========================================================================
-local __eax_file = "classes/mage/arcane_sylvanas.lua"
+local __eax_file = "classes/mage/arcane_vanilla.lua"
 local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
+local __eax_modified = "2026-05-28"
+local __eax_change = "Classic Vanilla Arcane Mage rotation"
 local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
 _G.EaxRotationsFileVersions = __eax_versions
 __eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
@@ -19,7 +19,7 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Mage Arcane priority list with burn/conserve phase state machine.
 
 -- ============================================================================
--- What: TBC Mage Arcane priority with Arcane Blast stacks and burn/conserve flow.
+-- What: Classic Vanilla Mage Arcane priority with Arcane Blast stacks and burn/conserve flow.
 -- When: Evaluated every tick.
 -- Why: Priority-list early exit keeps combat decisions fast and predictable.
 -- Safety: All settings nil-guarded; shared data is pcall-gated; conservative fallbacks.
@@ -57,9 +57,6 @@ local AB_STACK_DURATION = 8                 -- Stacks last 8 seconds
 -- MTTE constants (conservative estimates including Fire Blast / AM filler)
 local MTTE_BURN_MPS_MULT = 1.4              -- Add 40% overhead for rotations with instant casts
 local MTTE_CONSERVE_MPS = 100               -- ~100 mana/sec during conserve (AM filler + regen)
-
--- Bloodlust / Heroism buff IDs
-local BLOODLUST_BUFFS = { 2825, 32182 }
 
 -- Mana Gem spell IDs (not defined in class_sylvanas.lua, use local constant)
 local MANA_GEM_SPELLS = TBC_MAGE.conjure_mana_gem or { 27101, 10054, 10053, 3552, 759 }  -- Conjure Mana Emerald -> Agate.
@@ -163,7 +160,7 @@ local function build_state(context)
         s.has_presence_of_mind = NS.buff_up and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
         s.has_ice_barrier = NS.buff_up and NS.buff_up(me, ICE_BARRIER_BUFF) or false
         s.has_mana_shield = NS.buff_up and NS.buff_up(me, MANA_SHIELD_BUFF) or false
-        s.bloodlust_active = NS.buff_up and NS.buff_up(me, BLOODLUST_BUFFS) or false
+        s.bloodlust_active = false
     end
 
     -- Cooldown availability
@@ -397,7 +394,7 @@ local function arcane_blast_matches(context, s)
         if max_stacks > 0 and s.ab_stacks >= 1 then return false end
     end
 
-    return NS.spell_ready(SPELLS.ArcaneBlast, context.target)
+    return NS.spell_ready(SPELLS.UnavailableClassicMageArcane, context.target)
 end
 
 --- Fire Blast: instant filler, use on cooldown or while moving
@@ -443,7 +440,7 @@ end
 local function low_level_bolt_matches(context, s)
     if not context.is_leveling then return false end
     if s.is_moving then return false end
-    if NS.spell_exists(SPELLS.ArcaneBlast) then return false end
+    if NS.spell_exists(SPELLS.UnavailableClassicMageArcane) then return false end
     return true
 end
 
@@ -492,9 +489,9 @@ local strategies = {
       execute = function(context) return NS.try_cast(MANA_GEM_SPELLS, context.me, "[ARCANE] ManaGem") end },
 
     -- Primary nuke: Arcane Blast (stack management)
-    { name = "ArcaneBlast",
+    { name = "UnavailableClassicMageArcane",
       matches = arcane_blast_matches,
-      execute = function(context) return NS.try_cast(SPELLS.ArcaneBlast, context.target, "[ARCANE] ArcaneBlast") end },
+      execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicMageArcane, context.target, "[ARCANE] UnavailableClassicMageArcane") end },
 
     -- Instant filler
     { name = "FireBlast",
