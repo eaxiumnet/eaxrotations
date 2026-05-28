@@ -982,8 +982,10 @@ function NS.GetPartyMembers()
 
     local units, count = NS.get_visible_units()
 
-    local party = { n = 0 }
-
+    -- SECURITY: Use static buffer to avoid per-call table allocation on hot paths
+    if not NS._party_fallback_buf then NS._party_fallback_buf = { n = 0 } end
+    local party = NS._party_fallback_buf
+    party.n = 0
     for i = 1, count do
 
         local unit = units[i]
@@ -1028,7 +1030,8 @@ function NS.time_now()
 
     end
 
-    return NS.game_time_ms() / 1000
+    local ok, ms = pcall(NS.game_time_ms)
+    return ok and type(ms) == "number" and ms / 1000 or 0
 
 end
 
@@ -1121,9 +1124,31 @@ function NS.setting(context, key, default)
     local settings = context and context.settings
     if settings and settings[key] ~= nil then return settings[key] end
     if NS.get_setting then return NS.get_setting(key, default) end
-    return default
 end
 
+
+--- Safe number setting access. Returns the value if it's a number, otherwise the default.
+--- Replaces copy-pasted local setting_number(...) functions in spec files.
+---@param settings table The settings table (e.g., context.settings).
+---@param key     string Setting key to look up.
+---@param default number Fallback value when key is missing or value is not a number.
+---@return number The resolved numeric setting value.
+function NS.setting_number(settings, key, default)
+    local value = settings and settings[key]
+    return type(value) == "number" and value or default
+end
+
+--- Safe boolean setting access. Returns default when nil, otherwise treats non-false as true.
+--- Replaces copy-pasted local setting_bool(...) functions in spec files.
+---@param settings table The settings table (e.g., context.settings).
+---@param key     string Setting key to look up.
+---@param default boolean Fallback value when key is missing.
+---@return boolean The resolved boolean setting value.
+function NS.setting_bool(settings, key, default)
+    local value = settings and settings[key]
+    if value == nil then return default end
+    return value ~= false
+end
 function NS.refresh_settings_cache()
 
     _settings_cache = {}
@@ -1520,7 +1545,10 @@ function NS._fire_combat_start(context)
 
     for _, cb in ipairs(combat_start_callbacks) do
 
-        pcall(cb, context)
+        local ok, err = pcall(cb, context)
+        if not ok and type(NS.log_warning) == "function" then
+            NS.log_warning("[EaxRotations] combat_start callback error: " .. tostring(err))
+        end
 
     end
 
@@ -1534,7 +1562,10 @@ function NS._fire_combat_end(context)
 
     for _, cb in ipairs(combat_end_callbacks) do
 
-        pcall(cb, context)
+        local ok, err = pcall(cb, context)
+        if not ok and type(NS.log_warning) == "function" then
+            NS.log_warning("[EaxRotations] combat_end callback error: " .. tostring(err))
+        end
 
     end
 
