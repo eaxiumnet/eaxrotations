@@ -188,7 +188,7 @@ end
 local function evocation_matches(context, state)
     if not state then return false end
     if not state.in_combat then return false end
-    if state.mana_pct > 25 then return false end
+    if (state.mana_pct or 100) > 25 then return false end
     return state.evocation_ready
 end
 
@@ -262,7 +262,7 @@ local function arcane_missiles_matches(context, state)
     if not state.in_combat then return false end
     if state.is_moving then return false end
     if not state.use_arcane_missiles then return false end
-    if state.mana_pct < 20 then return false end
+    if (state.mana_pct or 100) < 20 then return false end
     return state.arcane_missiles_ready
 end
 
@@ -271,7 +271,7 @@ local function frostbolt_matches(context, state)
     if not state.target then return false end
     if not state.in_combat then return false end
     if state.is_moving then return false end
-    if state.mana_pct < 10 then return false end
+    if (state.mana_pct or 100) < 10 then return false end
     return state.frostbolt_ready
 end
 
@@ -281,7 +281,7 @@ local function scorch_matches(context, state)
     if not state.in_combat then return false end
     if not state.use_scorch then return false end
     if state.is_moving then return false end
-    if state.mana_pct < 10 then return false end
+    if (state.mana_pct or 100) < 10 then return false end
     return state.scorch_ready
 end
 
@@ -326,7 +326,7 @@ local function wand_matches(context, state)
     if not state.target then return false end
     if not state.wand_learned then return false end
     -- Use wand threshold from settings instead of hardcoded 20%
-    if state.mana_pct >= (state.wand_threshold or 30) then return false end
+    if (state.mana_pct or 100) >= (state.wand_threshold or 30) then return false end
     return true
 end
 
@@ -348,7 +348,7 @@ local function use_mana_gem_matches(context, state)
     if not state.in_combat then return false end
     if not state.use_mana_gem then return false end
     if not state.mana_gem_available then return false end
-    if state.mana_pct >= (state.mana_gem_threshold or 70) then return false end
+    if (state.mana_pct or 100) >= (state.mana_gem_threshold or 70) then return false end
     return true
 end
 
