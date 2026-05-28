@@ -132,7 +132,7 @@ local function holy_light_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
-    if state.hp > 35 then return false end
+    if (state.hp or 100) > 35 then return false end
     return state.holy_light_ready
 end
 
@@ -215,7 +215,7 @@ local function consecration_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     if state.is_moving then return false end
     return state.consecration_ready
 end
@@ -225,7 +225,7 @@ local function hammer_justice_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return state.hammer_justice_ready
 end
 
@@ -233,7 +233,7 @@ local function divine_shield_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
-    if state.hp > 20 then return false end
+    if (state.hp or 100) > 20 then return false end
     return state.divine_shield_ready
 end
 
@@ -241,7 +241,7 @@ local function lay_on_hands_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
-    if state.hp > 15 then return false end
+    if (state.hp or 100) > 15 then return false end
     return state.lay_on_hands_ready
 end
 
@@ -249,7 +249,7 @@ local function flash_light_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
-    if state.hp > 60 then return false end
+    if (state.hp or 100) > 60 then return false end
     return state.flash_light_ready
 end
 

@@ -200,7 +200,7 @@ local bear_form_survival_matches = function(context, state)
     if not state.use_feral then return false end
     if not state.bear_form_ready then return false end
     if state.is_bear then return false end  -- Already in bear
-    if state.hp > state.bear_hp then return false end
+    if (state.hp or 100) > state.bear_hp then return false end
     return true
 end
 
@@ -210,8 +210,8 @@ local frenzied_regen_matches = function(context, state)
     if not state.is_bear then return false end
     if not state.in_combat then return false end
     if not state.frenzied_regen_ready then return false end
-    if state.rage < RAGE_LOW then return false end
-    if state.hp > (state.bear_hp - 5) then return false end
+    if (state.rage or 0) < RAGE_LOW then return false end
+    if (state.hp or 100) > (state.bear_hp - 5) then return false end
     return true
 end
 
@@ -222,7 +222,7 @@ local cat_form_entry_matches = function(context, state)
     if not state.use_feral then return false end
     if not state.cat_form_ready then return false end
     if state.is_cat then return false end  -- Already in cat
-    if state.is_bear and state.hp <= state.bear_hp then return false end  -- Stay bear if low HP
+    if state.is_bear and (state.hp or 100) <= state.bear_hp then return false end  -- Stay bear if low HP
     if not state.target then return false end
     if not state.in_melee then return false end  -- Don't shift if not in melee range
     return true
@@ -247,7 +247,7 @@ local pounce_matches = function(context, state)
     if not state.is_stealthed then return false end
     if not state.is_cat then return false end
     if not state.pounce_ready then return false end
-    if state.energy < 50 then return false end
+    if (state.energy or 0) < 50 then return false end
     return true
 end
 
@@ -257,7 +257,7 @@ local ravage_matches = function(context, state)
     if not state.is_stealthed then return false end
     if not state.is_cat then return false end
     if not state.ravage_ready then return false end
-    if state.energy < 60 then return false end
+    if (state.energy or 0) < 60 then return false end
     if not state.is_behind then return false end
     return true
 end
@@ -280,8 +280,8 @@ local rake_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.rake_ready then return false end
-    if state.energy < 35 then return false end
-    if state.combo_points >= 5 then return false end  -- Don't waste CP
+    if (state.energy or 0) < 35 then return false end
+    if (state.combo_points or 0) >= 5 then return false end  -- Don't waste CP
     if state.target_ttd > 0 and state.target_ttd < MIN_RAKE_TTD then return false end
     if state.rake_remains > 3 then return false end  -- Still ticking
     return true
@@ -294,8 +294,8 @@ local mangle_cat_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.mangle_cat_ready then return false end
-    if state.energy < 40 then return false end
-    if state.combo_points >= 5 then return false end
+    if (state.energy or 0) < 40 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     -- Apply if debuff missing; otherwise use as filler when Shred not available
     if state.mangle_remains > 3 and state.shred_ready and state.is_behind and state.energy >= 42 then
         return false  -- Shred is better when Mangle debuff is up
@@ -310,8 +310,8 @@ local shred_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.shred_ready then return false end
-    if state.energy < 42 then return false end
-    if state.combo_points >= 5 then return false end
+    if (state.energy or 0) < 42 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     if not state.is_behind then return false end
     if state.mangle_remains <= 0 then return false end  -- Need Mangle debuff up
     return true
@@ -324,8 +324,8 @@ local rip_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.rip_ready then return false end
-    if state.energy < 30 then return false end
-    if state.combo_points < RIP_CP_MIN then return false end
+    if (state.energy or 0) < 30 then return false end
+    if (state.combo_points or 0) < RIP_CP_MIN then return false end
     if state.target_ttd > 0 and state.target_ttd < MIN_RIP_TTD then return false end
     if state.rip_remains > 2 then return false end  -- Still ticking
     return true
@@ -338,8 +338,8 @@ local bite_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.bite_ready then return false end
-    if state.energy < 35 then return false end
-    if state.combo_points < BITE_CP_MIN then return false end
+    if (state.energy or 0) < 35 then return false end
+    if (state.combo_points or 0) < BITE_CP_MIN then return false end
     -- Prefer Rip if it still has value and is available
     if state.combo_points >= RIP_CP_MIN and state.rip_ready and state.rip_remains <= 0 and state.target_ttd > MIN_RIP_TTD then return false end
     return true
@@ -352,8 +352,8 @@ local claw_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.claw_ready then return false end
-    if state.combo_points >= 5 then return false end
-    if state.energy < 45 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
+    if (state.energy or 0) < 45 then return false end
     -- Only use if no better builder is available
     if state.mangle_cat_ready and state.energy >= 40 then return false end
     if state.rake_ready and state.rake_remains <= 3 and state.energy >= 35 then return false end
@@ -368,7 +368,7 @@ local mangle_bear_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.mangle_bear_ready then return false end
-    if state.rage < 15 then return false end
+    if (state.rage or 0) < 15 then return false end
     if not state.in_melee then return false end
     return true
 end
@@ -379,8 +379,8 @@ local swipe_bear_matches = function(context, state)
     if not state.is_bear then return false end
     if not state.in_combat then return false end
     if not state.swipe_ready then return false end
-    if state.rage < 20 then return false end
-    if state.enemies < 2 then return false end
+    if (state.rage or 0) < 20 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return true
 end
 
@@ -391,7 +391,7 @@ local maul_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.maul_ready then return false end
-    if state.rage < 40 then return false end  -- Conservative; Maul is expensive
+    if (state.rage or 0) < 40 then return false end  -- Conservative; Maul is expensive
     return true
 end
 
@@ -422,7 +422,7 @@ local natures_grasp_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.natures_grasp_ready then return false end
-    if state.hp > 50 and state.enemies < 2 then return false end  -- Only when threatened
+    if (state.hp or 100) > 50 and (state.enemies or 0) < 2 then return false end  -- Only when threatened
     return true
 end
 
@@ -431,7 +431,7 @@ local barkskin_matches = function(context, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.barkskin_ready then return false end
-    if state.hp > 50 then return false end  -- Only when HP is low
+    if (state.hp or 100) > 50 then return false end  -- Only when HP is low
     return true
 end
 
@@ -440,7 +440,7 @@ local healing_touch_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.healing_touch_ready then return false end
-    if state.hp > (state.heal_hp - 10) then return false end  -- Only when very low HP
+    if (state.hp or 100) > (state.heal_hp - 10) then return false end  -- Only when very low HP
     return true
 end
 
@@ -449,7 +449,7 @@ local rejuvenation_matches = function(context, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.rejuvenation_ready then return false end
-    if state.hp > state.heal_hp then return false end
+    if (state.hp or 100) > state.heal_hp then return false end
     return true
 end
 
@@ -460,7 +460,7 @@ local entangling_roots_matches = function(context, state)
     if not state.entangling_roots_ready then return false end
     if not state.target then return false end
     -- Use when overwhelmed (3+ enemies) or low HP
-    if state.enemies < 3 and state.hp > 30 then return false end
+    if (state.enemies or 0) < 3 and (state.hp or 100) > 30 then return false end
     return true
 end
 
@@ -506,7 +506,7 @@ local hurricane_matches = function(context, state)
 	    if not state.in_combat then return false end
     if not state.hurricane_ready then return false end
     if not state.target then return false end
-    if state.enemies < 3 then return false end
+    if (state.enemies or 0) < 3 then return false end
     if state.is_moving then return false end
     return true
 end

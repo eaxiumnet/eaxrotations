@@ -219,7 +219,7 @@ local gouge_matches = function(context, state)
     if not state.gouge_ready then return false end
     if not state.target then return false end
     -- Only Gouge when HP is low (setup for bandage/eat reset)
-    if state.hp > 40 then return false end
+    if (state.hp or 100) > 40 then return false end
     return true
 end
 
@@ -291,8 +291,8 @@ local evasion_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.evasion_ready then return false end
-    if state.hp > 50 then return false end
-    if state.enemies < 2 then return false end
+    if (state.hp or 100) > 50 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return true
 end
 
@@ -302,7 +302,7 @@ local blind_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.blind_ready then return false end
     if not state.target then return false end
-    if state.hp > 30 then return false end
+    if (state.hp or 100) > 30 then return false end
     return true
 end
 
@@ -311,7 +311,7 @@ local sprint_escape_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.sprint_ready then return false end
-    if state.hp > 30 then return false end
+    if (state.hp or 100) > 30 then return false end
     return true  -- Sprint to kite/escape
 end
 
@@ -321,7 +321,7 @@ local slice_and_dice_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.slice_and_dice_ready then return false end
     if state.has_slice_and_dice then return false end
-    if state.combo_points < 1 then return false end
+    if (state.combo_points or 0) < 1 then return false end
     return true
 end
 
@@ -331,8 +331,8 @@ local rupture_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.rupture_ready then return false end
     if not state.target then return false end
-    if state.combo_points < 3 then return false end
-    if state.combo_points >= state.max_combo_points then return false end  -- prefer Eviscerate at 5 CP
+    if (state.combo_points or 0) < 3 then return false end
+    if (state.combo_points or 0) >= state.max_combo_points then return false end  -- prefer Eviscerate at 5 CP
     -- Check if rupture is already up
     local ok, remains = pcall(function() return NS.debuff_remains and NS.debuff_remains(state.target, SPELLS.Rupture) or 0 end)
     if ok and remains and remains > 4 then return false end
@@ -345,11 +345,11 @@ local expose_armor_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.expose_armor_ready then return false end
     if not state.target then return false end
-    if state.combo_points < 3 then return false end
+    if (state.combo_points or 0) < 3 then return false end
     -- Check if already applied
     local ok, stacks = pcall(function() return NS.debuff_stacks and NS.debuff_stacks(state.target, SPELLS.ExposeArmor) or 0 end)
     if ok and stacks and stacks > 0 then return false end
-    if state.combo_points >= state.max_combo_points then return false end  -- prefer Eviscerate at 5
+    if (state.combo_points or 0) >= state.max_combo_points then return false end  -- prefer Eviscerate at 5
     return true
 end
 
@@ -359,9 +359,9 @@ local kidney_shot_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.kidney_shot_ready then return false end
     if not state.target then return false end
-    if state.combo_points < 3 then return false end
+    if (state.combo_points or 0) < 3 then return false end
     -- Use when HP is low for CC safety
-    if state.hp > 40 then return false end
+    if (state.hp or 100) > 40 then return false end
     return true
 end
 
@@ -371,7 +371,7 @@ local eviscerate_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.eviscerate_ready then return false end
     if not state.target then return false end
-    if state.combo_points < state.max_combo_points then return false end
+    if (state.combo_points or 0) < state.max_combo_points then return false end
     return true
 end
 
@@ -382,7 +382,7 @@ local cold_blood_matches = function(context, state)
     if not state.cold_blood_ready then return false end
     if not state.target then return false end
     if not state.use_cooldowns then return false end
-    if state.combo_points < state.max_combo_points then return false end
+    if (state.combo_points or 0) < state.max_combo_points then return false end
     return true
 end
 
@@ -392,7 +392,7 @@ local adrenaline_rush_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.adrenaline_rush_ready then return false end
     if not state.use_cooldowns then return false end
-    if state.energy > 60 then return false end  -- Use when low energy for regen
+    if (state.energy or 0) > 60 then return false end  -- Use when low energy for regen
     return true
 end
 
@@ -402,7 +402,7 @@ local blade_flurry_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.blade_flurry_ready then return false end
     if not state.use_blade_flurry then return false end
-    if state.enemies < state.blade_flurry_min_enemies then return false end
+    if (state.enemies or 0) < state.blade_flurry_min_enemies then return false end
     return true
 end
 
@@ -412,7 +412,7 @@ local sinister_strike_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.sinister_strike_ready then return false end
     if not state.target then return false end
-    if state.combo_points >= state.max_combo_points then return false end
+    if (state.combo_points or 0) >= state.max_combo_points then return false end
     return true
 end
 
@@ -421,7 +421,7 @@ local vanish_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.vanish_ready then return false end
-    if state.hp > state.vanish_hp then return false end
+    if (state.hp or 100) > state.vanish_hp then return false end
     return true
 end
 
