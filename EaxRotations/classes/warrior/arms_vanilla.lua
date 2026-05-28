@@ -626,7 +626,7 @@ for i = 1, #STRATEGY_SPECS do
 end
 
 if NS.rotation_registry and NS.rotation_registry.register then
-    NS.rotation_registry:register("arms_vanilla", strategies, { get_state = build_state })
+    NS.rotation_registry:register("arms", strategies, { get_state = build_state })
 end
 if NS.log then NS.log("Warrior arms_vanilla rotation registered (Classic Vanilla)") end
 return strategies

@@ -407,7 +407,7 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("kebab_vanilla", strategies, {
+NS.rotation_registry:register("kebab", strategies, {
     context_builder = build_kebab_state,
 })
 

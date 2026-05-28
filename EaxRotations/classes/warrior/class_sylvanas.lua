@@ -27,7 +27,8 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local NS = _G.EaxRotations
 if not NS then return nil end
 local cl = require("shared/class_loader_sylvanas")
-local load_child = cl.create_expansion_loader("warrior", "Warrior")
+local load_child = cl.create_loader("warrior", "Warrior")
+local load_spec = cl.create_expansion_loader("warrior", "Warrior")
 local enums = cl.get_enums()
 local player = NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
@@ -466,7 +467,6 @@ local config = {
         { name = "leveling", display_name = "Leveling" },
         { name = "arms", display_name = "Arms" },
         { name = "fury", display_name = "Fury" },
-        { name = "fury_vanilla", display_name = "Fury (Classic)" },
         { name = "kebab", display_name = "Kebab" },
         { name = "protection", display_name = "Protection" },
     },
@@ -475,13 +475,9 @@ NS.rotation_registry:set_class_config(config)
 
 load_child("middleware_sylvanas")
 load_child("leveling_sylvanas", true)
-load_child("arms_sylvanas")
-load_child("arms_vanilla", true)
-load_child("fury_sylvanas")
-load_child("fury_vanilla", true)
-load_child("kebab_sylvanas", true)
-load_child("kebab_vanilla", true)
-load_child("protection_sylvanas")
-load_child("protection_vanilla", true)
+load_spec("arms")
+load_spec("fury")
+load_spec("kebab", true)
+load_spec("protection")
 NS.log("Warrior class module loaded")
 return config

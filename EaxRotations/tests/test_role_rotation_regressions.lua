@@ -96,7 +96,7 @@ assert_true(out_entry == nil, "42 yd unit should not be selected as heal target"
 
 local druid_class = read_file("EaxRotations/classes/druid/class_sylvanas.lua")
 local healing_pos = assert(druid_class:find('load_child%("healing_sylvanas"%)'))
-local resto_pos = assert(druid_class:find('load_child%("resto_sylvanas"%)'))
+local resto_pos = assert(druid_class:find('load_spec%("resto"%)'))
 assert_true(healing_pos < resto_pos, "druid healing helpers should load before resto")
 
 local prot = read_file("EaxRotations/classes/warrior/protection_sylvanas.lua")
