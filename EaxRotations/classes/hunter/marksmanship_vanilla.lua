@@ -99,7 +99,6 @@ local mm_state = {
     freezing_trap_ready = false,
     viper_sting_ready = false,
     bestial_wrath_ready = false,
-    readiness_ready = false,
     mana_pct = 100,
     in_combat = false,
     enemy_count = 1,
@@ -143,7 +142,6 @@ local function build_state(context)
     mm_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
     mm_state.bestial_wrath_ready = me and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true, expected_cooldown = 120 }) or false
-    mm_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 180 }) or false
     mm_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     mm_state.in_combat = context.in_combat or false
     mm_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -290,15 +288,6 @@ local function bestial_wrath_matches(context, s)
     return true
 end
 
-local function readiness_matches(context, s)
-    if not cooldowns_enabled(context) then return false end
-    if not s.in_combat then return false end
-    if not s.readiness_ready then return false end
-    -- Use after Rapid Fire has been used (on CD) to reset it for a 2nd burst window
-    if s.bestial_wrath_ready or s.rapid_fire_ready then return false end
-    return true
-end
-
 local function leveling_arcane_shot_matches(context, s)
     if not s.pre_steady_leveling then return false end
     if not s.arcane_shot_ready then return false end
@@ -326,7 +315,6 @@ local strategies = {
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[MARKSMANSHIP] Hunter's Mark") end },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[MARKSMANSHIP] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) local pet = context.pet or (NS.GetPet and NS.GetPet()) or context.me; return NS.try_cast(SPELLS.BestialWrath, pet, "[MARKSMANSHIP] Bestial Wrath", { skip_range = true, expected_cooldown = 120 }) end },
-    { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 180 }) end },
     { name = "UnavailableClassicHunterInterrupt", matches = silencing_shot_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterInterrupt, context.target, "[MARKSMANSHIP] Silencing Shot", { expected_cooldown = 20 }) end },
     { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },

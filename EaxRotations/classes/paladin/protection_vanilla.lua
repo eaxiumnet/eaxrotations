@@ -66,7 +66,6 @@ local prot_state = {
     has_blessing_sanctuary = false,
     now_ms = 0,
     holy_shield_ready = false,
-    avenger_ready = false,
     exorcism_ready = false,
     judgement_ready = false,
     divine_shield_ready = false,
@@ -115,7 +114,6 @@ local function build_state(context)
     end
     prot_state.consecration_ready = me and NS.spell_ready(SPELLS.Consecration, me, { skip_range = true, expected_cooldown = 8 }) or false
     prot_state.holy_shield_ready = me and NS.spell_ready(SPELLS.HolyShield, me, { skip_range = true, expected_cooldown = 10 }) or false
-    prot_state.avenger_ready = me and NS.spell_ready(SPELLS.AvengerShield, me, { expected_cooldown = 30 }) or false
     prot_state.exorcism_ready = me and NS.spell_ready(SPELLS.Exorcism, me, { expected_cooldown = 15 }) or false
     prot_state.judgement_ready = me and NS.spell_ready(SPELLS.Judgement, me, { expected_cooldown = 10 }) or false
     prot_state.divine_shield_ready = me and NS.spell_ready(SPELLS.DivineShield, me, { skip_range = true, expected_cooldown = 300 }) or false
@@ -155,7 +153,7 @@ local function build_state(context)
         end
     end
 
-    -- CC proximity check (skip Avenger's Shield near controlled mobs)
+    -- CC proximity check (skip AoE near controlled mobs)
     prot_state.cc_nearby = false
     local enemies = context.enemies or context.enemy_list
     if enemies and target then
@@ -222,15 +220,6 @@ local function consecration_matches(context, state)
     -- AoE threshold: only use single-target if Consecration is already ticking
     local min_targets = get_setting(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
     if (state.enemy_count or 0) < min_targets and state.consecration_remains > 2 then return false end
-    return true
-end
-
-local function avenger_shield_matches(context, state)
-    if not get_setting(context, "prot_avenger_shield", true) then return false end
-    if not has_combat_target(context) then return false end
-    if not state.avenger_ready then return false end
-    -- Skip Avenger's Shield near CC'd mobs (bouncing breaks CC)
-    if state.cc_nearby then return false end
     return true
 end
 
@@ -374,7 +363,6 @@ local strategies = {
 { name = "RighteousFury", matches = righteous_fury_matches, execute = function(context) return NS.try_cast(SPELLS.RighteousFury, context.me, "[PROTECTION] RighteousFury") end },
     { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.try_cast(SPELLS.HolyShield, context.me, "[PROTECTION] HolyShield") end },
     { name = "Consecration", matches = consecration_matches, execute = function(context) return NS.try_cast(SPELLS.Consecration, context.me, "[PROTECTION] Consecration") end },
-    { name = "AvengerShield", matches = avenger_shield_matches, execute = function(context) return NS.try_cast(SPELLS.AvengerShield, context.target, "[PROTECTION] AvengerShield") end },
     { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(SPELLS.Judgement, context.target, "[PROTECTION] Judgement") end },
     { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.try_cast(SPELLS.SealRighteousness, context.me, "[PROTECTION] SealRighteousness") end },
     { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfWrath, context.target, "[PROTECTION] HammerOfWrath") end },
