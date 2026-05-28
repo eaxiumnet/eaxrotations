@@ -84,3 +84,23 @@ ulw-notepad-phase2.md
 balance_old.lua
 package.json
 package-lock.json
+
+# ---- EaxRotations internal (not customer-facing) ----
+EaxRotations/**/AGENTS.md
+EaxRotations/**/CLAUDE.md
+EaxRotations/**/CHANGELOG.md
+EaxRotations/**/debug_*.lua
+EaxRotations/**/debugui_*.lua
+EaxRotations/**/_debug_*.lua
+EaxRotations/**/*_edge_insert.lua
+EaxRotations/**/FROSTBYTE_GAP_ANALYSIS.md
+EaxRotations/docs/
+EaxRotations/tools/
+EaxRotations/community_profiles/
+EaxRotations/exporter.lua
+EaxRotations/optimizer.lua
+EaxRotations/optimizer_bridge.lua
+EaxRotations/api_probe_sylvanas.lua
+EaxRotations/explain_helpers_sylvanas.lua
+EaxRotations/sim_constants_sylvanas.lua
+EaxRotations/load_order_sylvanas.lua
