@@ -144,16 +144,7 @@ local function safe_method_arg(object, method_name, arg, fallback)
     return value
 end
 
-local function setting_bool(settings, key, default)
-    if not settings or settings[key] == nil then return default end
-    return settings[key] == true
-end
 
-local function setting_number(settings, key, default)
-    local value = settings and settings[key]
-    if type(value) ~= "number" then return default end
-    return value
-end
 
 local function spell_exists(spell)
     if spell == nil then return false end
@@ -224,7 +215,7 @@ local function get_target_range(me, target, context)
 end
 
 local function is_behind_target(target, context, settings)
-    if setting_bool(settings, "cat_shred_positional", true) == false then return true end
+    if NS.setting_bool(settings, "cat_shred_positional", true) == false then return true end
     if context and context.is_behind ~= nil then return context.is_behind == true end
     if NS.is_behind_target then return NS.is_behind_target(target) == true end
     return false

@@ -154,16 +154,7 @@ local bear_state = {
 
 local off_target_buffer = { n = 0 }
 
-local function setting_number(settings, key, default)
-    local value = settings and settings[key]
-    return type(value) == "number" and value or default
-end
 
-local function setting_bool(settings, key, default)
-    local value = settings and settings[key]
-    if value == nil then return default end
-    return value ~= false
-end
 
 local function spell_exists(spell)
     if not spell then return false end
@@ -366,11 +357,11 @@ local function build_state(context)
     state.target_range = context.target_range or context.target_distance or 40
     state.in_melee = context.in_melee_range == true or state.target_range <= MELEE_RANGE
     state.enemy_count = context.enemy_count or context.enemies_count or 1
-    state.aoe_threshold = setting_number(settings, "bear_aoe_threshold", setting_number(settings, "aoe_threshold", 3))
-    state.maul_rage = setting_number(settings, "bear_maul_rage", 40)
-    state.barkskin_hp = setting_number(settings, "bear_barkskin_hp", 55)
-    state.frenzied_regen_hp = setting_number(settings, "bear_frenzied_regen_hp", 35)
-    state.demo_roar_enabled = setting_bool(settings, "bear_demo_roar", true)
+    state.aoe_threshold = NS.setting_number(settings, "bear_aoe_threshold", NS.setting_number(settings, "aoe_threshold", 3))
+    state.maul_rage = NS.setting_number(settings, "bear_maul_rage", 40)
+    state.barkskin_hp = NS.setting_number(settings, "bear_barkskin_hp", 55)
+    state.frenzied_regen_hp = NS.setting_number(settings, "bear_frenzied_regen_hp", 35)
+    state.demo_roar_enabled = NS.setting_bool(settings, "bear_demo_roar", true)
     state.force_defensive = context.force_defensive == true
     state.force_gap = context.force_gap == true
     state.should_burst = context.should_burst == true or context.force_burst == true

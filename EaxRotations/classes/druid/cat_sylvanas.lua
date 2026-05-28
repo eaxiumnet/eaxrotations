@@ -163,16 +163,7 @@ local function safe_method_arg(object, method_name, arg, fallback)
     return value
 end
 
-local function setting_bool(settings, key, default)
-    if not settings or settings[key] == nil then return default end
-    return settings[key] == true
-end
 
-local function setting_number(settings, key, default)
-    local value = settings and settings[key]
-    if type(value) ~= "number" then return default end
-    return value
-end
 
 local function spell_exists(spell)
     if spell == nil then return false end
@@ -264,7 +255,7 @@ local function get_target_range(me, target, context)
 end
 
 local function is_behind_target(target, context, settings)
-    if setting_bool(settings, "cat_shred_positional", true) == false then return true end
+    if NS.setting_bool(settings, "cat_shred_positional", true) == false then return true end
     if context and context.is_behind ~= nil then return context.is_behind == true end
     if NS.is_behind_target then return NS.is_behind_target(target) == true end
     return false
@@ -394,7 +385,7 @@ function build_state(context)
         state.has_dash = buff_up(me, DASH_BUFF)
         state.has_barkskin = buff_up(me, BARKSKIN_BUFF)
         state.has_track_humanoids = buff_up(me, TRACK_HUMANOIDS_BUFF)
-        state.has_wolfshead = has_wolfshead_equipped(me) or buff_up(me, WOLFSHEAD_BUFF) or setting_bool(settings, "cat_wolfshead_helm", false)
+        state.has_wolfshead = has_wolfshead_equipped(me) or buff_up(me, WOLFSHEAD_BUFF) or NS.setting_bool(settings, "cat_wolfshead_helm", false)
         state.has_bloodlust = buff_up(me, BLOODLUST_BUFFS)
         state.rip_remains = debuff_remains(target, RIP_DEBUFF)
         state.rake_remains = debuff_remains(target, RAKE_DEBUFF)
@@ -412,15 +403,15 @@ function build_state(context)
     state.rake_ap = snapshot_state.rake_ap
     state.has_high_ap_window = state.has_bloodlust or (state.attack_power > 0 and state.rip_ap > 0 and state.attack_power >= state.rip_ap * AP_UPGRADE_RATIO) or (state.attack_power > 0 and state.rake_ap > 0 and state.attack_power >= state.rake_ap * AP_UPGRADE_RATIO)
     update_energy_tick(state)
-    state.should_execute = state.target_hp <= setting_number(settings, "cat_execute_hp", EXECUTE_HP)
+    state.should_execute = state.target_hp <= NS.setting_number(settings, "cat_execute_hp", EXECUTE_HP)
     state.should_aoe = state.enemy_count >= (settings.aoe_threshold or 3)
     state.should_tab_rake = state.enemy_count >= 2 and state.enemy_count <= 3
-    state.should_pool_for_rip = state.combo_points >= setting_number(settings, "cat_rip_cp", 5) and state.energy < RIP_COST and target_lives(state, MIN_RIP_TTD)
+    state.should_pool_for_rip = state.combo_points >= NS.setting_number(settings, "cat_rip_cp", 5) and state.energy < RIP_COST and target_lives(state, MIN_RIP_TTD)
     state.should_pool_for_shred = state.combo_points < 5 and state.energy < SHRED_COST and state.energy + ENERGY_PER_TICK >= SHRED_COST
     state.pooling = state.should_pool_for_rip or state.should_pool_for_shred
     state.should_powershift = false
-    if setting_bool(settings, "cat_powershift_enabled", true) and state.is_cat and state.in_combat then
-        local shift_energy = setting_number(settings, "cat_powershift_energy", 20)
+    if NS.setting_bool(settings, "cat_powershift_enabled", true) and state.is_cat and state.in_combat then
+        local shift_energy = NS.setting_number(settings, "cat_powershift_energy", 20)
         local shift_gain = state.has_wolfshead and POWERSHIFT_GAIN_WOLFSHEAD or POWERSHIFT_GAIN_FUROR
         local useful_after = state.energy + shift_gain >= math.min(ENERGY_CAP, SHRED_COST)
         state.should_powershift = state.energy <= shift_energy and state.combo_points <= POWERSHIFT_SAFE_CP and state.mana_pct >= POWERSHIFT_MIN_MANA and useful_after
@@ -483,7 +474,7 @@ end
 
 local function barkskin_matches(context, action)
     local state = build_state(context)
-    local threshold = setting_number(state.settings, "cat_barkskin_hp", 85)
+    local threshold = NS.setting_number(state.settings, "cat_barkskin_hp", 85)
     if (state.hp or 100) > threshold then return false end
     if state.has_barkskin then return false end
     return true
@@ -531,7 +522,7 @@ end
 
 local function rip_matches(context, action)
     local state = build_state(context)
-    local required_cp = setting_number(state.settings, "cat_rip_cp", 5)
+    local required_cp = NS.setting_number(state.settings, "cat_rip_cp", 5)
     if not state.target then return false end
     if context.combo_points ~= nil and state.combo_points < required_cp then return false end
     if not target_lives(state, MIN_RIP_TTD) then return false end
@@ -542,7 +533,7 @@ end
 
 local function rip_snapshot_matches(context, action)
     local state = build_state(context)
-    local required_cp = setting_number(state.settings, "cat_rip_cp", 5)
+    local required_cp = NS.setting_number(state.settings, "cat_rip_cp", 5)
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW then return false end
     if not target_lives(state, MIN_RIP_TTD) then return false end
@@ -555,7 +546,7 @@ end
 
 local function bite_matches(context, action)
     local state = build_state(context)
-    local required_cp = setting_number(state.settings, "cat_ferocious_bite_cp", 5)
+    local required_cp = NS.setting_number(state.settings, "cat_ferocious_bite_cp", 5)
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
     if not state.should_execute and state.target_ttd > SHORT_TTD then return false end
@@ -677,7 +668,7 @@ end
 
 local function emergency_powershift_matches(context, action)
     local state = build_state(context)
-    if not setting_bool(state.settings, "cat_powershift_enabled", true) then return false end
+    if not NS.setting_bool(state.settings, "cat_powershift_enabled", true) then return false end
     if not state.is_cat or not state.in_combat then return false end
     if state.energy > 10 then return false end
     if (state.mana_pct or 100) < POWERSHIFT_MIN_MANA then return false end
@@ -697,7 +688,7 @@ end
 local function wait_execute(context)
     local state = build_state(context)
     if not state.should_execute then return false end
-    if state.combo_points < setting_number(state.settings, "cat_ferocious_bite_cp", 5) then return false end
+    if state.combo_points < NS.setting_number(state.settings, "cat_ferocious_bite_cp", 5) then return false end
     if state.energy >= BITE_COST then return false end
     return true
 end
