@@ -611,9 +611,19 @@ function core.delete_data_file(filename)
     return false
 end
 
----@param id number
----@return nil
+--- Plays a sound by sound kit ID.
+---@param id integer The sound kit ID to play.
+---@return boolean will_play Whether the sound will play.
+---@return number handle The sound handle that can be passed to core.stop_sound_by_handle.
 function core.play_sound_by_id(id)
+    return false, 0
+end
+
+--- Stops a sound instance by handle.
+---@param handle integer The handle returned by core.play_sound_by_id.
+---@param fadeout_ms? integer Optional fadeout time in milliseconds.
+---@return nil
+function core.stop_sound_by_handle(handle, fadeout_ms)
     return nil
 end
 
@@ -1049,6 +1059,18 @@ end
 ---@param ui_map_id integer The UI map ID to query encounters for.
 ---@return encounter_info[] An array of encounter info tables.
 function core.world.get_encounters_on_map(ui_map_id)
+    return {}
+end
+
+---@class active_keystone_info
+---@field level integer Keystone level. Missing or 0 when no active keystone is available.
+---@field was_charged boolean Whether the keystone was charged when slotted.
+---@field affix_ids integer[] Array of active affix IDs.
+
+--- Returns the active Mythic+ keystone information.
+--- Returns an empty table on classic clients or when no active keystone is available.
+---@return active_keystone_info info The active keystone info table.
+function core.world.get_active_keystone_info()
     return {}
 end
 
@@ -1886,6 +1908,18 @@ end
 ---@param mount_index integer The index of the mount.
 ---@return mount_info|nil A table containing the mount information, or nil if the index is invalid.
 function core.spell_book.get_mount_info(mount_index)
+    return {}
+end
+
+---@class gliding_info
+---@field is_gliding boolean Whether the local player is currently gliding/skyriding.
+---@field can_glide boolean Whether the local player can currently glide.
+---@field forward_speed number The current forward speed in yards per second.
+
+--- Retrieves the local player's current gliding/skyriding state.
+--- Returns a fallback table with false/false/0 when gliding info is unavailable.
+---@return gliding_info info A table containing is_gliding, can_glide, and forward_speed.
+function core.spell_book.get_gliding_info()
     return {}
 end
 
@@ -4673,6 +4707,25 @@ end
 
 ---@return swing_timer_ranged_info info The ranged swing timer information.
 function core.addons.swing_timer.get_player_ranged_info()
+    return {}
+end
+
+---@class swing_timer_hand_info
+---@field expiration_time number The time when the current melee swing expires.
+---@field last_swing number The time of the last melee swing.
+---@field swing_speed number The current melee swing speed.
+---@field base_swing_speed number The base melee swing speed.
+
+--- Returns the player's main-hand melee swing timer information.
+---@return swing_timer_hand_info info The main-hand swing timer information.
+function core.addons.swing_timer.get_player_mainhand_info()
+    return {}
+end
+
+--- Returns the player's off-hand melee swing timer information.
+--- Returns nil when the player is not dual wielding.
+---@return swing_timer_hand_info|nil info The off-hand swing timer information, or nil when unavailable.
+function core.addons.swing_timer.get_player_offhand_info()
     return {}
 end
 

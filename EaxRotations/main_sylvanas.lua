@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "main_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- update dispatcher for class middleware and selected playstyle strategies.
 -- ============================================================================
 -- What: EaxRotations update dispatcher that runs middleware and playstyle priorities
@@ -65,6 +83,54 @@ local function safe(fn, ...)
 end
 
 if NS.init_izi_buff_events then pcall(NS.init_izi_buff_events) end
+
+-- ============================================================================
+-- Global Reaction Delay: simulates human reaction time for ALL classes.
+-- When active, blocks BOTH middleware and playstyle strategies.
+-- Read from NS.get_setting("reaction_delay_ms", 0). Default 0 = disabled.
+-- Burst windows (should_burst) bypass the delay unconditionally.
+-- ============================================================================
+local _reaction_delay_start = nil
+local _reaction_was_on_gcd = false
+
+local function reaction_delay_active(context)
+    local delay_ms = (NS.get_setting and NS.get_setting("reaction_delay_ms", 0)) or 0
+    if delay_ms <= 0 then
+        _reaction_delay_start = nil
+        _reaction_was_on_gcd = false
+        return false
+    end
+    -- Disable during burst windows (Bloodlust, trinkets, etc.)
+    if context.should_burst then
+        _reaction_delay_start = nil
+        _reaction_was_on_gcd = false
+        return false
+    end
+    -- Only gate when in combat with a valid target
+    if not context.in_combat or not context.has_valid_enemy_target then
+        _reaction_delay_start = nil
+        _reaction_was_on_gcd = false
+        return false
+    end
+    local gcd_remains = context.gcd_remains or 0
+    if gcd_remains > 0 then
+        _reaction_was_on_gcd = true
+        return false  -- Still on GCD, let rotation run normally
+    end
+    -- GCD just ended — start the reaction delay timer
+    if _reaction_was_on_gcd then
+        _reaction_delay_start = (NS.time_now and NS.time_now()) or 0
+        _reaction_was_on_gcd = false
+    end
+    if not _reaction_delay_start then return false end
+    -- Check if we're still within the delay window
+    local now = (NS.time_now and NS.time_now()) or 0
+    local elapsed_ms = (now - _reaction_delay_start) * 1000
+    if elapsed_ms < delay_ms then return true end
+    -- Delay expired, allow rotation
+    _reaction_delay_start = nil
+    return false
+end
 
 local function get_target(me)
     local fallback_get_target = NS.safe_field and NS.safe_field(me, "get_target") or nil
@@ -188,6 +254,7 @@ local function build_context()
     local player_level = unit_number(me, "get_effective_level") or unit_number(me, "get_level") or 70
     local target_level = target and (unit_number(target, "get_effective_level") or unit_number(target, "get_level")) or nil
     local target_classification = target and unit_number(target, "get_classification") or nil
+    local expansion_max_level = NS.get_expansion_max_level and NS.get_expansion_max_level() or 70
     _context.me = me
     _context.target = target
     _context.in_combat = in_combat
@@ -197,7 +264,8 @@ local function build_context()
     _context.target_hp = enemy_ok and NS.unit_health_pct(target) or 100
     _context.player_level = player_level
     _context.level = player_level
-    _context.is_leveling = player_level < 70
+    _context.expansion_max_level = expansion_max_level
+    _context.is_leveling = player_level < expansion_max_level
     _context.target_level = target_level
     _context.target_level_delta = target_level and (target_level - player_level) or 0
     _context.target_classification = target_classification
@@ -222,10 +290,10 @@ local function build_context()
     })
     _context.burst_reason = _context.should_burst and "burst_conditions_met" or nil
     -- target_distance uses get_distance when available, otherwise falls back to melee range check
+    _context.in_melee_range = target and target.is_in_melee_range and target:is_in_melee_range(5) or false
     local dist_ok, dist_val = pcall(function() return target and NS.safe_field(target, "get_distance") and target:get_distance(me) end)
     _context.target_range = (dist_ok and type(dist_val) == "number") and dist_val or (_context.in_melee_range and 5 or 40)
     _context.target_distance = _context.target_range
-    _context.in_melee_range = target and target.is_in_melee_range and target:is_in_melee_range(5) or false
     _context.combo_points = combo_points(me)
     _context.enemy_count = count
     _context.enemies_count = count
@@ -419,6 +487,7 @@ local function strategy_allowed(strategy, list_name, active, context)
     local category = strategy_category(strategy, list_name, active)
     local is_healer = HEALING_PLAYSTYLES[tostring(active or ""):lower()] == true
 
+    if is_healer and category == "damage" then return false, "healer_damage_blocked", category end
     if settings.utility_enabled == false and category == "utility" then return false, "utility_disabled", category end
     if settings.healing_enabled == false and (category == "healing" or (is_healer and category == "cooldown")) then return false, "healing_disabled", category end
     if settings.damage_enabled == false and (category == "damage" or (category == "cooldown" and not is_healer)) then return false, "damage_disabled", category end
@@ -495,6 +564,12 @@ function M.on_rotation_update()
         trace_no_action("none", context, "idle_no_enemy")
         return false
     end
+    -- Global reaction delay: blocks ALL middleware + playstyle strategies for reaction_delay_ms after GCD ends.
+    -- Applies to all 9 classes. Bypassed during burst windows and out of combat.
+    if reaction_delay_active(context) then
+        trace("gate:reaction_delay", "[EaxRotations:gate] REACTION DELAY active - blocking all strategies", 1000)
+        return true
+    end
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
     trace("registry:summary", "registry config=" .. tostring(config ~= nil) .. " class_key=" .. tostring(config and config.class_key) .. " playstyles=" .. tostring(registry and registry.playstyles ~= nil), 1000)
@@ -561,6 +636,11 @@ function M.on_rotation_update_unified()
         trace_no_action("none", context, "idle_no_enemy")
         return false
     end
+    -- Global reaction delay: blocks ALL middleware + playstyle strategies.
+    if reaction_delay_active(context) then
+        trace("unified:reaction_delay", "[EaxRotations:unified] REACTION DELAY active - blocking all strategies", 500)
+        return true
+    end
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
     local requested_playstyle = NS.get_setting("playstyle", nil)
@@ -592,4 +672,5 @@ end
 NS.on_rotation_update = M.on_rotation_update
 NS.on_rotation_update_unified = M.on_rotation_update_unified
 NS.log("Rotation dispatcher loaded")
+if type(core) == "table" and type(core.log) == "function" then pcall(core.log, "[EaxRotations] Loaded main_sylvanas.lua v1.1.1") end
 return M

@@ -1,6 +1,67 @@
 # Changelog
 
+## 1.1.1 - 2026-05-27
+
+- File versioning: added standardized `EaxRotations File Version: 1.1.1` headers and load-time `core.log` registration across all Lua files so in-game logs can confirm the active code after reboot.
+- Core: added `NS.dump_file_versions()` to print loaded Lua file versions, modified dates, and change notes.
+- Core: documented the cooldown tracker fallback fix that prevents tick-level retry spam when cooldown APIs report `0`.
+
+## 1.1.0 - 2026-05-26
+
+- Dashboard: removed WoW color-code artifacts (`|cff`) that rendered literally in ImGui HUD, replaced with plain text showing class name, playstyle, and clean separators.
+- Dashboard: removed duplicate "BURST" text label that appeared alongside burst indicator square, decluttering the display.
+- Dashboard: added class-name string validation before `CLASS_HEX`/`CLASS_RGB` lookup to prevent missing-class fallback.
+- Debug Log: fixed `ScrollDebugLogBottom` crash when `debug_window` size returns nil (nil-guard added).
+- Debug Log: fixed `handle_resize` crash when `get_size()` returns nil during resize drag.
+- Debug Log: guarded `core.game_ui.get_wow_cursor_position` access behind type-check to prevent crash on missing API.
+- Debug Log: reconciled `ALWAYS_AUTO_RESIZE` flag with manual resize logic — manual resize now works predictably without window system conflicts.
+- Debug Log: removed orphaned duplicate resize end-check blocks that caused syntax errors.
+- Healer Engine: verified `cast_duration > 0` guard exists at line 92 before division; no change needed.
+- Core: fixed `NS.action_execute` skip-GCD paths to route through `NS.evaluate_cast` (was bypassing cooldown/resource/range/anti-flicker/reagent checks).
+- Warrior Protection: fixed stance-swap return to use `NS.try_cast(...) == true` (was `~= nil` which treated `false` as success).
+- Debug Log: added `get_debug_window_size()` helper; all callers now guarded against nil size.
+- All 291 Lua files pass `luac -p`.
+- 11 leveling suites pass (11/11).
+- 104 rotation suites pass (104/104).
+- Release package: only `.lua` and `.md` files under `EaxRotations/`. Version bumped to 1.1.0.
+- Core: `cast_unit_spell` and `cast_position_spell` now fail-closed when IZI `cast_safe` rejects a cast — previously fell through to raw `core.input.cast_target_spell`, allowing spell spam.
+- Core: healing scan now falls back to visible friendly units when party APIs return only self, preventing healers from ignoring group allies.
+- Tests: fixed `run_rotation_tests.lua` exit-code detection to properly surface failures; removed duplicate `test_execute_phase.lua` entry.
+- Compliance: simplified `test_rotation_static_compliance` and `test_rotation_strategy_compliance` scanners to reduce false positives while still catching raw API casts and manual gating.
+- **v1.1.0-patch-1** — Core: added `NS.is_api_health_broken()` and `NS.recent_spell_cast(spell_id, seconds)` for broken-API throttling.
+- **v1.1.0-patch-1** — Warlock Affliction: fixed crash where `NS._api_health_broken` (local variable, not on NS table) was referenced; now uses `NS.is_api_health_broken()`.
+- **v1.1.0-patch-1** — Paladin Middleware: Combat Kings Refresh now returns `false` when `NS.is_api_health_broken()` is true, preventing infinite recasts when aura APIs can't detect existing buff.
+- **v1.1.0-patch-1** — Paladin Protection: HolyShield strategy now returns `false` when `NS.is_api_health_broken()` is true, preventing infinite recasts when buff detection is unreliable.
+- **v1.1.0-patch-2** — Core: `NS.spell_id_is_known()` now detects private server build `wow_tbc_ps` via `core.get_exact_game_version()` and skips broken `spell_book.is_spell_learned` entirely. Eliminates 12-tick deadzone and `[MISSING]` dump spam at init.
+- **v1.1.0-patch-2** — Core: `_last_cast_time_cooldown` now checks `_last_spell_cast[id]` (per-ID cooldown tracking) instead of stale global `_last_cast_id == id`. Prevents cooldown tracker from incorrectly returning cooldown=0 for alternating-spells (e.g. HolyShield/Consecration cooldown desync). Version logging also restored to `NS.dump_player_info()` and core init.
+
 ## 1.0.17 - 2026-05-21
+
+- Druid Balance: SP breakpoint research completed — TBC spell coefficients verified (Starfire ~1.0, Wrath ~0.571/0.671, Moonfire ~0.15 direct + ~0.52 DoT, Insect Swarm ~0.76) against Elitist Jerks, Wowhead, and wowsims sources.
+- Druid Balance: 800/1000/1200 SP breakpoints confirmed — these thresholds are DoT GCD-value decisions, not Starfire vs Wrath filler preference; Starfire wins at all SP levels on mana efficiency and crit synergy.
+- Docs: all three `[VERIFY]` tags in `Research.md` Angle 4 resolved to `verified`.
+- Docs: `SP_Breakpoints_Druid_Balance.md` blocker file rewritten with comprehensive coefficient analysis, corrected mathematical proof, and deferred-implementation recommendation (Option B).
+- Docs: `Druid_Balance_CHECKLIST.md` SP breakpoint row updated to verified status.
+
+## 1.0.16 - 2026-05-21
+
+- Druid Balance: smart Innervate targeting — party scan identifies healer-class units (Paladin/Priest/Shaman/Druid) and picks the lowest-effective-HP target for InnervateHealer strategy; InnervateSelf fallback when no suitable healer found.
+- Druid Balance: Hurricane Barkskin automation — Hurricane now defers when Barkskin is ready (not on cooldown), letting PreHurricaneBarkskin handle the Barkskin→Hurricane sequence for 20% damage reduction synergy.
+- Discipline: PW:S absorb tracking via `Healing.pws_absorb_remaining` — skips PW:S recast when remaining absorb exceeds 200 (prevents wasting mana and triggering Weakened Soul unnecessarily).
+- Core: `NS.buff_points`/`NS.debuff_points` read the `points` array from aura data, enabling variable-value tracking (Holy Shield charges, PW:S absorb remaining, etc.).
+- Tests: fixed `test_balance_custom_matches.lua` Hurricane cooldown mock for Barkskin-ready deferral logic.
+- Docs: AGENTS.md updated with Patterns 11–13 (buff_points, PW:S absorb tracking, smart Innervate targeting); all stale per-spec library references cleaned up for flat-file architecture.
+- Queue: 001_Druid_Balance moved from `blocked/` to `completed/` (2 of 3 blockers resolved); remaining SP breakpoints tracked in `SP_Breakpoints_Druid_Balance.md`.
+- All 106 regression suites (95 rotation + 11 leveling) pass with zero failures.
+
+## 1.0.15 - 2026-05-16
+
+- Improved TBC spell and aura coverage for racials, common crowd control, Druid utility, and Hunter abilities.
+- Improved Hunter leveling stability, including safer API fallbacks and correct Serpent Sting refresh timing.
+- Improved Warrior buff-cancel and Shaman totem handling through safer shared helpers.
+- Cleaned the release package so it contains only Lua source and Markdown documentation.
+- Added audit documentation for spell IDs, archive comparisons, and static behavior checks.
+- Verified release health: Lua syntax passes, all 106 regression suites pass, online TBC ID audit passes, and package file-type checks pass.
 
 - Druid Balance: SP breakpoint research completed — TBC spell coefficients verified (Starfire ~1.0, Wrath ~0.571/0.671, Moonfire ~0.15 direct + ~0.52 DoT, Insect Swarm ~0.76) against Elitist Jerks, Wowhead, and wowsims sources.
 - Druid Balance: 800/1000/1200 SP breakpoints confirmed — these thresholds are DoT GCD-value decisions, not Starfire vs Wrath filler preference; Starfire wins at all SP levels on mana efficiency and crit synergy.

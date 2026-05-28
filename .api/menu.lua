@@ -1,12 +1,14 @@
 
 ---@class tree_node
 ---@field is_open fun():boolean
+---@field get_type fun(self:tree_node):integer
 ---@field render fun(self:tree_node, header:string, callback:function):nil
 ---@field get_widget_bounds fun(self:tree_node):table -- Returns a table with 2 elements, min and max. get_widget_bounds().min is the left border of the widget, and .max is the right border.
 ---@field set_open_state fun(self:tree_node, state:boolean):nil
 ---@field just_issued_state_change fun(self:tree_node):boolean -- Returns whether the open/close state just changed.
 ---@field get_label fun(self:tree_node):string -- The menu element needs to be rendered for this to return a string different than ""
 ---@field set fun(self:checkbox, nil):nil -- Dummy function. Do not use. This is for you to be able to loop menu elements and set them all to default without any LUA errors.
+---@field get_default fun(self:tree_node):nil -- Dummy function. Do not use.
 ---@field get fun(self:checkbox):nil
 
 ---@class checkbox
@@ -33,6 +35,8 @@
 ---@field set_keybind_forced_state fun(self:key_checkbox, state:boolean):nil -- Forces the keybind to a specific state.
 ---@field stop_forcing_keybind_state fun(self:key_checkbox):nil -- Stops forcing the keybind state.
 ---@field get_label fun(self:key_checkbox):string -- The menu element needs to be rendered for this to return a string different than ""
+---@field set fun(self:key_checkbox):nil -- Dummy function. Do not use.
+---@field get_default fun(self:key_checkbox):nil -- Dummy function. Do not use.
 
 ---@class slider_int
 ---@field get fun():number
@@ -118,6 +122,7 @@
 ---@field get_label fun(self:button):string -- The menu element needs to be rendered for this to return a string different than ""
 ---@field set fun(self:checkbox, nil):nil -- Dummy function. Do not use. This is for you to be able to loop menu elements and set them all to default without any LUA errors.
 ---@field get fun(self:checkbox):nil
+---@field get_default fun(self:button):nil -- Dummy function. Do not use.
 
 ---@class text_input
 ---@field get_type fun(self:text_input)
@@ -128,6 +133,7 @@
 ---@field render_custom fun(self:text_input, label:string, tooltip:string, frame_bg:color, border_color:color, text_selected_bg_col:color, text_color:color, width_offset:number, height_offset:number|nil):nil
 ---@field set fun(self:text_input, val:string):nil
 ---@field get fun(self:text_input):integer
+---@field get_default fun(self:text_input):nil -- Dummy function. Do not use.
 ---@field is_reading_input fun(self:text_input):boolean -- Returns whether the text input is currently being edited/focused.
 ---@field set_buffer fun(self:text_input, text:string):nil -- Sets the text buffer content.
 ---@field copy_to_clipboard fun(self:text_input):nil -- Copies the current text to clipboard.
@@ -160,11 +166,16 @@
 ---@field set_next_window_min_size fun(self:window, min_size:vec2):nil
 ---@field set_next_window_items_spacing fun(self:window, spacing:vec2):nil
 ---@field set_next_window_items_inner_spacing fun(self:window, inner_spacing:vec2):nil
+---@field set_corner_rounding fun(self:window, rounding:number):nil
+---@field get_corner_rounding fun(self:window):number
+---@field set_block_movement fun(self:window, block:boolean):nil
+---@field set_draw_to_foreground fun(self:window, enabled:boolean):nil
 
 ---@class window
 ---@field get_size fun(self:window):vec2
 ---@field get_position fun(self:window):vec2
 ---@field get_mouse_pos fun(self:window):vec2
+---@field get_mouse_pos_local fun(self:window):vec2
 ---@field get_text_size fun(self:window, text:string):vec2
 ---@field get_wrapped_text_size fun(self:window, text:string, width:number):vec2 -- Returns the size of the text when wrapped to the given width
 ---@field force_window_size fun(self:window, size:vec2):nil
@@ -212,6 +223,15 @@
 ---@field render_rect_filled fun(self:window, pos_min_offset:vec2, pos_max_offset:vec2, col:color, rounding:number, flags:table|nil):nil
 --note: you can also pass special rect rounding flags after the thickness parameter (up to 4 flags, integers). Check enums to see what these flags mean.
 ---@field render_rect_filled_multicolor fun(self:window, pos_min_offset:vec2, pos_max_offset:vec2, col_upr_left:color, col_upr_right:color, col_bot_right:color, col_bot_left:color, rounding:number, flags:table|nil):nil
+---@field render_smooth_rect fun(self:window, p_min:vec2, p_max:vec2, col:color, rounding:number|nil, softness:number|nil):nil
+---@field render_drop_shadow fun(self:window, p_min:vec2, p_max:vec2, col:color, offset_x:number, offset_y:number, element_width:number, element_height:number, rounding:number|nil, softness:number|nil, spread:number|nil):nil
+---@field render_border_rect fun(self:window, p_min:vec2, p_max:vec2, fill:color, border:color, rounding:number|nil, softness:number|nil, thickness:number|nil):nil
+---@field render_linear_gradient fun(self:window, p_min:vec2, p_max:vec2, color_start:color, color_end:color, angle:number|nil, rounding:number|nil, softness:number|nil):nil
+---@field render_keybind_pill fun(self:window, p_min:vec2, p_max:vec2, base:color, elevated:color, accent:color, rounding:number|nil, hover:number|nil, listening:number|nil, time:number|nil, speed:number|nil):nil
+---@field render_dropdown_field fun(self:window, p_min:vec2, p_max:vec2, base:color, elevated:color, accent:color, rounding:number|nil, hover:number|nil, open:number|nil, time:number|nil, speed:number|nil):nil
+---@field render_section_header fun(self:window, p_min:vec2, p_max:vec2, primary:color, secondary:color, accent:color, head_split:number|nil, rounding:number|nil, hover:number|nil, open:number|nil, time:number|nil, speed:number|nil):nil
+---@field render_slider_track fun(self:window, p_min:vec2, p_max:vec2, fill_low:color, fill_high:color, rail:color, fill_t:number, rounding:number|nil, hover:number|nil, time:number|nil, speed:number|nil):nil
+---@field render_hover_pill fun(self:window, p_min:vec2, p_max:vec2, base:color, streak:color, rounding:number|nil, softness:number|nil, density:number|nil, time:number|nil, speed:number|nil):nil
 ---@field render_circle fun(self:window, center:vec2, radius:number, color:color, thickness:number):nil
 ---@field render_circle_filled fun(self:window, center:vec2, radius:number, color:color):nil
 ---@field render_bezier_quadratic fun(self:window, p1:vec2, p2:vec2, p3:vec2, color:color, thickness:number, num_segments:integer):nil
@@ -220,8 +240,22 @@
 ---@field render_triangle_filled fun(self:window, p1:vec2, p2:vec2, p3:vec2, col:color):nil
 ---@field render_triangle_filled_multi_color fun(self:window, p1:vec2, p2:vec2, p3:vec2, col_1:color, col_2:color, col_3:color):nil
 ---@field render_line fun(self:window, p1:vec2, p2:vec2, col:color, thickness:number):nil
+---@field render_polyline fun(self:window, points:number[], point_count:integer, col:color, thickness:number):nil
+---@field render_gif fun(self:window, gif_id:integer, p_min:vec2, p_max:vec2, tint:color|nil, speed:number|nil):nil
+---@field render_text_custom_size_xy fun(self:window, font_id:integer, x:number, y:number, col:integer, font_size:number, text:string):nil
+---@field render_text_centered_outlined_xy fun(self:window, font_id:integer, min_x:number, min_y:number, max_x:number, max_y:number, fill_col:integer, font_size:number, text:string, border_px:number|nil, outline_col:integer|nil):nil
+---@field render_line_xy fun(self:window, x1:number, y1:number, x2:number, y2:number, col:integer, thickness:number):nil
+---@field render_rect_xy fun(self:window, min_x:number, min_y:number, max_x:number, max_y:number, col:integer, rounding:number, thickness:number, flag_1:integer|nil, flag_2:integer|nil, flag_3:integer|nil, flag_4:integer|nil):nil
+---@field render_rect_filled_xy fun(self:window, min_x:number, min_y:number, max_x:number, max_y:number, col:integer, rounding:number, flag_1:integer|nil, flag_2:integer|nil, flag_3:integer|nil, flag_4:integer|nil):nil
+---@field render_rect_filled_multicolor_xy fun(self:window, min_x:number, min_y:number, max_x:number, max_y:number, col_upr_left:integer, col_upr_right:integer, col_bot_right:integer, col_bot_left:integer, rounding:number, flag_1:integer|nil, flag_2:integer|nil, flag_3:integer|nil, flag_4:integer|nil):nil
+---@field render_circle_filled_xy fun(self:window, center_x:number, center_y:number, radius:number, col:integer, num_segments:integer|nil):nil
+---@field push_clip_rect_xy fun(self:window, min_x:number, min_y:number, max_x:number, max_y:number, intersect:boolean):nil
+---@field force_next_begin_window_pos_xy fun(self:window, x:number, y:number):nil
+---@field force_window_size_xy fun(self:window, width:number, height:number):nil
+---@field set_next_window_padding_xy fun(self:window, x:number, y:number):nil
+---@field set_next_window_items_spacing_xy fun(self:window, x:number, y:number):nil
 --- sets the background of the window (call before begin) to a multi-colored rectangle with the given colors. If this function is called, the color passed to the begin function is ignored.
----@field set_background_multicolored fun(self:window, top_left_color:color, top_right_color:color, bot_right_color:color, bot_left_color:color)nil
+---@field set_background_multicolored fun(self:window, top_left_color:color, top_right_color:color, bot_right_color:color, bot_left_color:color):nil
 ---forces the next window position. Call before begin.
 ---@field force_next_begin_window_pos fun(self:window, position:vec2):nil
 ---stops forcing the next window position 
@@ -237,6 +271,10 @@
 ---@field add_menu_element_pos_offset fun(self:window, pos_offset:vec2):nil
 ---@field begin_group fun(self:window, begin_func:function):nil
 ---@field begin_window_sub_context fun(self:window, offset:vec2, add_flags:boolean, begin_func:function):nil
+---@field allocate_space fun(self:window, width:number, height:number, spacing:number|nil):vec2, vec2
+---@field begin_navbar fun(self:window, dock:integer, size:number, offset_or_callback:vec2|function, spacing_or_callback:number|function|nil, callback:function|nil):boolean
+---@field begin_navbar_at fun(self:window, position:vec2, size:vec2, callback:function):boolean
+---@field begin_content_area fun(self:window, callback:function):boolean
 ---@field set_next_window_close_cross_pos_offset fun(self:window, offset:vec2):nil
 ---@field render_text_clipped fun(self:window, rect_start:vec2, rect_end:vec2, text:string):nil
 ---@field block_input_capture fun(self:window):nil

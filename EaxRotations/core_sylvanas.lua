@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "core_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- shared runtime for settings, spell safety, aura helpers, healing scans, and strategy registration.
 -- ============================================================================
 -- What: EaxRotations core runtime for NS.* helpers, aura data, healing scans, and strategy registration
@@ -17,11 +35,115 @@ local _G = _G
 
 local core = _G.core or {}
 
+-- Cache version strings at module load to avoid race condition where
+-- core.get_exact_game_version() returns nil during class module init
+-- but becomes available later during combat.
+local _cached_game_version = core.get_game_version and core.get_game_version() or nil
+local _cached_exact_version = core.get_exact_game_version and core.get_exact_game_version() or nil
+
+-- API health tracking for broken spell_book / aura fallback (especially PS builds)
+local _api_health_broken = false
+local _api_health_calls = 0
+local _api_health_hits = 0
+local _api_health_warned = false
+
+--- Returns true only when we are running on a private-server build where
+-- spell_book, cooldown, and aura APIs are known to be broken.  This
+-- helper checks both the load-time cached version string (fast path)
+-- and the live API (handles the race where core.get_exact_game_version()
+-- was nil during class init).  Normal `wow_tbc` builds never match.
+local function _is_ps_build()
+    if _cached_exact_version == "wow_tbc_ps" then
+        return true
+    end
+    local live = core.get_exact_game_version and core.get_exact_game_version()
+    if live == "wow_tbc_ps" then
+        -- Cache the result so later calls stay fast.
+        _cached_exact_version = live
+        return true
+    end
+    return false
+end
+
+-- Expansion helpers (dual-version support for TBC and Classic)
+-- Normalized expansion key: "tbc" | "vanilla" | nil (unknown)
+local _expansion_key = nil
+local function _resolve_expansion_key()
+    if _expansion_key ~= nil then return _expansion_key end
+    local gv = _cached_game_version
+    if not gv then
+        gv = core.get_game_version and core.get_game_version()
+    end
+    if gv then
+        local s = tostring(gv):lower()
+        if s:find("vanilla") or s:find("classic") then
+            _expansion_key = "vanilla"
+        else
+            _expansion_key = "tbc"
+        end
+    else
+        _expansion_key = "tbc" -- safe default: unknown = TBC
+    end
+    return _expansion_key
+end
+
+-- On PS builds, aura/buff APIs are broken from the start.  Set the health
+-- flag immediately so the _buff_manager fallback in buff_up() et al.
+-- activates even before the first spell-known probe.
+if _is_ps_build() then
+    _api_health_broken = true
+    _api_health_warned = true
+end
+
 local NS = _G.EaxRotations or {}
 
 _G.EaxRotations = NS
 
 NS.core = core
+
+-- Expansion helpers (dual-version support for TBC and Classic)
+-- Normalized expansion key: "tbc" | "vanilla" | nil (unknown)
+local _expansion_key = nil
+local function _resolve_expansion_key()
+    if _expansion_key ~= nil then return _expansion_key end
+    local gv = _cached_game_version
+    if not gv then
+        gv = core.get_game_version and core.get_game_version()
+    end
+    if gv then
+        local s = tostring(gv):lower()
+        if s:find("vanilla") or s:find("classic") then
+            _expansion_key = "vanilla"
+        else
+            _expansion_key = "tbc"
+        end
+    else
+        _expansion_key = "tbc"
+    end
+    return _expansion_key
+end
+
+function NS.get_game_version()
+    return _cached_game_version or (core.get_game_version and core.get_game_version())
+end
+
+function NS.get_exact_game_version()
+    return _cached_exact_version or (core.get_exact_game_version and core.get_exact_game_version())
+end
+
+function NS.is_tbc()
+    local key = _resolve_expansion_key()
+    return key == "tbc" or key == nil
+end
+
+function NS.is_vanilla()
+    return _resolve_expansion_key() == "vanilla"
+end
+
+function NS.get_expansion_max_level()
+    if NS.is_vanilla() then return 60 end
+    return 70
+end
 
 NS.runtime_generation = (NS.runtime_generation or 0) + 1
 
@@ -38,8 +160,11 @@ local sort = table.sort
 local EMPTY = {}
 
 local _buff_db_ok, BUFF_DB = pcall(require, "common/buff_db")
-
 if not _buff_db_ok or type(BUFF_DB) ~= "table" then BUFF_DB = {} end
+
+-- buff_manager fallback for PS builds where unit:has_buff is broken
+local _buff_manager_ok, _buff_manager = pcall(require, "common/modules/buff_manager")
+if not _buff_manager_ok or type(_buff_manager) ~= "table" then _buff_manager = nil end
 
 
 
@@ -48,8 +173,6 @@ if not _buff_db_ok or type(BUFF_DB) ~= "table" then BUFF_DB = {} end
 -- Used as a final fallback when the engine cooldown APIs return 0
 
 -- (prevents tick-level retry spam for spells whose cooldowns aren't tracked).
-
-local _last_cast_id = nil; local _last_cast_time = 0
 
 local _last_action_exec = {} -- action_name -> timestamp for min_interval gating
 
@@ -280,6 +403,80 @@ function NS.log(msg) emit("log", "[EaxRotations] ", msg) end
 function NS.log_warning(msg) emit("log_warning", "[EaxRotations WARNING] ", msg) end
 
 function NS.log_error(msg) emit("log_error", "[EaxRotations ERROR] ", msg) end
+
+NS.file_versions = rawget(_G, "EaxRotationsFileVersions") or NS.file_versions or {}
+_G.EaxRotationsFileVersions = NS.file_versions
+
+function NS.dump_file_versions()
+    local versions = NS.file_versions or rawget(_G, "EaxRotationsFileVersions") or {}
+    local files = {}
+    local count = 0
+
+    for file in pairs(versions) do
+        count = count + 1
+        files[count] = file
+    end
+
+    sort(files)
+    NS.log("=== FILE VERSION DUMP: " .. tostring(count) .. " loaded Lua files ===")
+    for i = 1, count do
+        local file = files[i]
+        local info = versions[file] or EMPTY
+        NS.log("[FILE] " .. tostring(file) .. " v" .. tostring(info.version or "?") .. " modified=" .. tostring(info.modified or "?") .. " change=" .. tostring(info.change or "?"))
+    end
+    NS.log("=== END FILE VERSION DUMP ===")
+end
+
+-- Resets API health counters so a /reload starts with a clean slate.
+-- On PS builds the API is permanently broken, so we preserve the flag.
+function NS.reset_api_health()
+    _api_health_calls = 0
+    _api_health_hits = 0
+    _api_health_warned = false
+    if _is_ps_build() then
+        if not _api_health_broken then
+            _api_health_broken = true
+            NS.log("API health counters reset — PS build detected, preserving broken-API flag")
+        end
+    else
+        _api_health_broken = false
+        NS.log("API health counters reset (_api_health_broken -> false)")
+    end
+end
+
+--- Dumps every spell entry registered for `class_name` (e.g. "Paladin").
+--- Logs the table name, each spell name, and the first id that returns true from
+--- NS.spell_id_is_known (or "none" if all ids are unknown).
+--- Call as NS.dump_class_spells("Paladin") — must run after class module loads.
+function NS.dump_class_spells(class_name)
+    class_name = class_name or "Unknown"
+    local tbl_name = class_name .. "Spells"
+    local tbl = NS[tbl_name]
+    if not tbl then
+        NS.log("dump_class_spells: no table " .. tbl_name .. " found on NS")
+        return
+    end
+    NS.log("=== DUMP CLASS SPELLS: " .. class_name .. " ===")
+    for key, spell in pairs(tbl) do
+        if type(spell) == "table" then
+            local ids = spell.ids or (spell[1] and { spell[1] }) or {}
+            local name = spell.name or tostring(key)
+            local resolved = 0
+            for _, id in ipairs(ids) do
+                if NS.spell_id_is_known(id) then
+                    resolved = id
+                    break
+                end
+            end
+            if resolved ~= 0 then
+                NS.log("  [KNOWN]  " .. name .. " -> id=" .. tostring(resolved))
+            else
+                NS.log("  [MISSING] " .. name)
+            end
+        end
+    end
+    NS.log("=== END DUMP ===")
+end
 
 
 
@@ -831,7 +1028,15 @@ function NS.time_now()
 
         local v = safe(core.time)
 
-        if type(v) == "number" then return v end
+        if type(v) == "number" and v > 0 then return v end
+
+    end
+
+    if type(core.game_time) == "function" then
+
+        local v = safe(core.game_time)
+
+        if type(v) == "number" then return v / 1000 end
 
     end
 
@@ -937,6 +1142,54 @@ function NS.GetCurrentContext()
 
     return NS.current_context
 
+end
+
+--- Returns whether the spell_book API is flagged as broken.
+---@return boolean broken True if we have fallen back to level-based spell IDs.
+function NS.is_api_health_broken()
+    return _api_health_broken == true
+end
+
+--- Returns true if the given spell_id was recently cast within `seconds` ago.
+--- Useful for throttling strategies when aura APIs are broken and buff detection is unreliable.
+---@param spell_id number The spell ID to check.
+---@param seconds number Lookback window in seconds.
+---@return boolean recent True if cast was recorded within the window.
+function NS.recent_spell_cast(spell_id, seconds)
+    if type(spell_id) ~= "number" or type(seconds) ~= "number" then return false end
+    local last = _last_spell_cast[spell_id]
+    if not last then return false end
+    return (NS.time_now() - last) < seconds
+end
+
+--- Returns true when aura APIs are broken AND the spell was recently cast.
+--- Use this at the top of maintenance matches functions to prevent infinite
+--- recasts when buff/debuff detection is unreliable on private servers.
+---@param spell_id number The spell ID to throttle.
+---@param seconds number Lookback window in seconds (default 2.0).
+---@return boolean throttled True if broken API + recent cast.
+function NS.broken_api_throttled(spell_id, seconds)
+    local id = spell_id
+    if type(id) == "table" then
+        if id._meta then
+            local mid = id._meta.id or id._meta.ids
+            if type(mid) == "table" then
+                id = mid[1]
+            elseif type(mid) == "number" then
+                id = mid
+            else
+                id = nil
+            end
+        elseif id[1] then
+            id = id[1]
+        else
+            id = nil
+        end
+    end
+    if type(id) ~= "number" then return false end
+    if not _api_health_broken then return false end
+    local window = type(seconds) == "number" and seconds or 2.0
+    return NS.recent_spell_cast(id, window)
 end
 
 
@@ -1449,14 +1702,6 @@ end
 
 -- the spell_book API is likely broken/incompatible. Fall back to trusting IDs.
 
-local _api_health_calls = 0
-
-local _api_health_hits = 0
-
-local _api_health_broken = false
-
-local _api_health_warned = false
-
 
 
 local function player_level_fallback()
@@ -1549,6 +1794,18 @@ function NS.spell_id_is_known(spell_id)
 
     if type(spell_id) ~= "number" then return false end
 
+    -- On wow_tbc_ps private server builds, spell_book.is_spell_learned is known
+    -- to return false for every id. Set the broken-API flag so spec-level guards
+    -- still fire, then return true to avoid the 12-tick deadzone.
+    if _is_ps_build() then
+        if not _api_health_broken then
+            _api_health_broken = true
+            _api_health_warned = true
+            NS.log("Private server build detected (wow_tbc_ps) — using level-safe rank IDs; spell_book APIs are known-broken")
+        end
+        return true
+    end
+
     -- If API is confirmed broken, skip the expensive call and trust the ID
 
     if _api_health_broken then return true end
@@ -1564,11 +1821,8 @@ function NS.spell_id_is_known(spell_id)
         local ok, result = pcall(sb.is_spell_learned, spell_id)
 
         if not ok then
-
             if debug then NS.log("[DEBUG] spell_id_is_known(" .. tostring(spell_id) .. ") ERROR: " .. tostring(result)) end
-
             return false
-
         end
 
         _api_health_calls = _api_health_calls + 1
@@ -1581,9 +1835,11 @@ function NS.spell_id_is_known(spell_id)
 
         end
 
-        -- If we've made 12+ calls with zero successes, the API is broken
-
-        if _api_health_calls >= 12 and _api_health_hits == 0 then
+        -- If we've made 12+ calls with zero successes, the API is broken.
+        -- Only trust this heuristic on private-server builds where we know
+        -- spell_book.is_spell_learned is permanently broken; on normal builds
+        -- we keep trusting the API even if many unknown spells are queried.
+        if _api_health_calls >= 12 and _api_health_hits == 0 and _is_ps_build() then
 
             _api_health_broken = true
 
@@ -1602,8 +1858,6 @@ function NS.spell_id_is_known(spell_id)
     if type(sb.is_spell_known) == "function" and safe(sb.is_spell_known, spell_id) == true then return true end
 
     if type(sb.has_spell) == "function" and safe(sb.has_spell, spell_id) == true then return true end
-
-    if debug then NS.log("[DEBUG] spell_id_is_known(" .. tostring(spell_id) .. ")=false") end
 
     return false
 
@@ -1831,26 +2085,6 @@ end
 
 
 
-local _last_cast_time_cooldown
-
-
-
-local _last_cast_time_cooldown = function(id, expected_cooldown)
-
-    if _last_cast_id ~= id then return nil end
-
-    local throttle = expected_cooldown or 1.5
-
-    local elapsed = NS.time_now() - _last_cast_time
-
-    if elapsed < throttle then return throttle - elapsed end
-
-    return nil
-
-end
-
-
-
 function NS.cooldown_remains(spell, expected_cooldown)
 
     local id = type(spell) == "number" and spell or NS.get_spell_id(spell)
@@ -1889,7 +2123,11 @@ function NS.cooldown_remains(spell, expected_cooldown)
 
     end
 
-    if info.enabled == false then return 0 end
+    if info.enabled == false then
+
+        return _last_cast_time_cooldown(id, expected_cooldown) or 0
+
+    end
 
     local start_time = tonumber(info.start_time or info.start or 0) or 0
 
@@ -1961,11 +2199,39 @@ end
 
 _last_cast_time_cooldown = function(id, expected_cooldown)
 
-    if _last_cast_id ~= id then return nil end
+    local last_cast = _last_spell_cast[id]
 
-    local throttle = expected_cooldown or 1.5
+    if not last_cast then
 
-    local elapsed = NS.time_now() - _last_cast_time
+            return nil
+
+    end
+
+    -- Remember the longest expected_cooldown seen per spell; use it as default
+
+    -- so evaluate_cast and try_cast agree with build_state even when opts
+    -- doesn't pass expected_cooldown.
+
+    if expected_cooldown then
+
+        local prev = _last_spell_cast["_max_throttle_" .. id]
+
+        if not prev or expected_cooldown > prev then
+
+            _last_spell_cast["_max_throttle_" .. id] = expected_cooldown
+
+        end
+
+    end
+
+    -- On PS builds the engine cooldown API is completely broken, so we skip
+    -- the +1.0s safety buffer to avoid unnecessary delays. On normal builds
+    -- the buffer prevents "spell is not ready yet" race conditions.
+    -- PS builds get a small 0.15s buffer to account for game cooldown start delay.
+    local buffer = _api_health_broken and 0.15 or 1.0
+    local throttle = (expected_cooldown or _last_spell_cast["_max_throttle_" .. id] or 1.5) + buffer
+
+    local elapsed = NS.time_now() - last_cast
 
     if elapsed < throttle then return throttle - elapsed end
 
@@ -2175,12 +2441,23 @@ function NS.spell_ready(spell, target, opts)
 
         core_trace("ready:" .. label .. ":exists", label .. " ready=false reason=spell_exists_false", 700)
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":spell_exists", "[DEBUG] " .. label .. " blocked: spell_exists=false", 2000) end
+        if debug then core_trace("action:" .. tostring(label) .. ":spell_exists", "[DEBUG] " .. label .. " blocked: spell_exists=false", 2000) end
         return false
 
     end
 
     local gcd = NS.gcd_remains()
+
+    -- On PS builds gcd_remains() always returns 0 because the engine GCD API is broken.
+    -- Fall back to our manual GCD tracker when the engine reports no GCD but we know
+    -- a spell was recently cast.
+    if not opts.skip_gcd and _api_health_broken and gcd <= 0 then
+        local global_gcd = _last_spell_cast["_global_gcd"]
+        if global_gcd then
+            local manual_gcd = 1.5 + 0.15 - (NS.time_now() - global_gcd)
+            if manual_gcd > 0 then gcd = manual_gcd end
+        end
+    end
 
     if not opts.skip_gcd and gcd > 0 then
 
@@ -2194,7 +2471,7 @@ function NS.spell_ready(spell, target, opts)
 
         core_trace("ready:" .. label .. ":gcd", label .. " ready=false reason=gcd gcd=" .. tostring(gcd), 300)
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":gcd", "[DEBUG] " .. label .. " blocked: gcd=" .. tostring(gcd), 2000) end
+        if debug then core_trace("action:" .. tostring(label) .. ":gcd", "[DEBUG] " .. label .. " blocked: gcd=" .. tostring(gcd), 2000) end
         return false
 
     end
@@ -2207,7 +2484,8 @@ function NS.spell_ready(spell, target, opts)
 
         core_trace("ready:" .. label .. ":cd", label .. " ready=false reason=cooldown cd=" .. tostring(cd), 700)
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":cd", "[DEBUG] " .. label .. " blocked: cd=" .. tostring(cd), 2000) end
+        if debug then core_trace("action:" .. tostring(label) .. ":cd", "[DEBUG] " .. label .. " blocked: cd=" .. tostring(cd), 2000) end
+
         return false
 
     end
@@ -2218,7 +2496,7 @@ function NS.spell_ready(spell, target, opts)
 
         core_trace("ready:" .. label .. ":resource", label .. " ready=false reason=no_resource mana=" .. tostring(NS.mana_pct and NS.mana_pct(NS.GetPlayer()) or "?"), 700)
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":no_resource", "[DEBUG] " .. label .. " blocked: no_resource", 2000) end
+        if debug then core_trace("action:" .. tostring(label) .. ":no_resource", "[DEBUG] " .. label .. " blocked: no_resource", 2000) end
         return false
 
     end
@@ -2229,7 +2507,7 @@ function NS.spell_ready(spell, target, opts)
 
         core_trace("ready:" .. label .. ":range", label .. " ready=false reason=out_of_range target=" .. tostring(target ~= nil), 700)
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":out_of_range", "[DEBUG] " .. label .. " blocked: out_of_range", 2000) end
+        if debug then core_trace("action:" .. tostring(label) .. ":out_of_range", "[DEBUG] " .. label .. " blocked: out_of_range", 2000) end
         return false
 
     end
@@ -2245,16 +2523,13 @@ end
 
 
 local function mark_spell_cast(id)
-
-    _last_cast_id = id
-
-    _last_cast_time = NS.time_now()
-
-    _last_spell_cast[id] = _last_cast_time
-
+    _last_spell_cast[id] = NS.time_now()
+    -- On PS builds the engine GCD API is broken; track a global GCD timestamp
+    -- so other spells without their own cooldown entry know the game is busy.
+    if _api_health_broken then
+        _last_spell_cast["_global_gcd"] = _last_spell_cast[id]
+    end
 end
-
-
 
 local function izi_spell_for(id)
 
@@ -2288,6 +2563,8 @@ local function cast_unit_spell(id, target, label, reason)
 
         if ok and result ~= false and result ~= nil then
 
+            mark_spell_cast(id)
+
             core_trace("try:" .. tostring(id) .. ":izi_ok", "try_cast " .. tostring(label) .. " izi cast_safe ok id=" .. tostring(id) .. " result=" .. tostring(result), 300)
 
             return true
@@ -2296,9 +2573,33 @@ local function cast_unit_spell(id, target, label, reason)
 
         core_trace("try:" .. tostring(id) .. ":izi_false", "try_cast " .. tostring(label) .. " izi cast_safe failed ok=" .. tostring(ok) .. " result=" .. tostring(result), 300)
 
+        -- IZI is available but rejected the cast.  When the spell_book API is confirmed
+        -- broken, IZI may return false because the internal `is_spell_learned` call
+        -- returns false even though the player actually knows the spell.  In that case
+        -- we MUST fall back to the raw core API path to avoid infinite OOC loops and
+        -- completely blocked casts.
+        if _api_health_broken then
+            core_trace("try:" .. tostring(id) .. ":izi_fallback", "try_cast " .. tostring(label) .. " IZI rejected cast but API is broken, falling through to core API id=" .. tostring(id), 300)
+        else
+            return false
+        end
+
     end
 
+    -- IZI module exists but spell not found.
+    -- If the API is broken, again fall through (IZI may fail to resolve the spell).
+    local has_izi = NS and NS.izi and type(NS.izi.spell) == "function"
 
+    if has_izi then
+        if not _api_health_broken then
+            core_trace("try:" .. tostring(id) .. ":izi_spell_missing", "try_cast " .. tostring(label) .. " IZI active but spell not found id=" .. tostring(id), 700)
+
+            return false
+        end
+        core_trace("try:" .. tostring(id) .. ":izi_spell_missing_fb", "try_cast " .. tostring(label) .. " IZI spell lookup returned nil but API is broken, falling through to core API id=" .. tostring(id), 300)
+    end
+
+    -- IZI not installed (or API broken fallback): safe raw core API cast with prior evaluate_cast already performed
 
     local cast = core.input and core.input.cast_target_spell
 
@@ -2350,9 +2651,19 @@ local function cast_position_spell(id, position, label, reason)
 
         core_trace("pos:" .. tostring(id) .. ":izi_false", "try_cast_position " .. tostring(label) .. " izi cast_safe failed ok=" .. tostring(ok) .. " result=" .. tostring(result), 300)
 
+        return false
+
     end
 
+    local has_izi = NS and NS.izi and type(NS.izi.spell) == "function"
 
+    if has_izi then
+
+        core_trace("pos:" .. tostring(id) .. ":izi_spell_missing", "try_cast_position " .. tostring(label) .. " IZI active but spell not found id=" .. tostring(id), 700)
+
+        return false
+
+    end
 
     local cast = core.input and core.input.cast_position_spell
 
@@ -2379,6 +2690,9 @@ local function cast_position_spell(id, position, label, reason)
     return true
 
 end
+
+-- ============================================================================
+-- Central Cast Guard -- consolidate all pre-cast checks
 -- ============================================================================
 -- Central Cast Guard -- consolidate all pre-cast checks
 -- ============================================================================
@@ -2413,11 +2727,15 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     end
 
     -- 2. Anti-flicker: skip if same spell was cast within 0.3s
-    if _last_cast_id == id then
-        local elapsed = NS.time_now() - _last_cast_time
+    local last_cast = _last_spell_cast[id]
+    if last_cast then
+        local elapsed = NS.time_now() - last_cast
         if elapsed < 0.3 then
-            core_trace("eval:" .. tostring(id) .. ":sticky", "evaluate_cast " .. label .. " blocked: anti_flicker elapsed=" .. tostring(elapsed), 200)
+
+            core_trace("eval:" .. tostring(id) .. ":sticky", "evaluate_cast " .. label .. " blocked: ANTIFLICKER elapsed=" .. tostring(elapsed), 200)
+
             return false
+
         end
     end
 
@@ -2615,9 +2933,11 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
 
     end
 
-    if not NS.spell_ready(spell, range_target, opts) then
+    -- Position casts use the same central guard as unit casts so AoE/ground spells
+    -- cannot bypass GCD, cooldown, resource, anti-flicker, or reagent checks.
+    if not NS.evaluate_cast(spell, range_target, reason, opts) then
 
-        core_trace("pos:" .. tostring(id) .. ":not_ready", "try_cast_position " .. tostring(label) .. " failed: spell_ready=false id=" .. tostring(id), 300)
+        core_trace("pos:" .. tostring(id) .. ":not_ready", "try_cast_position " .. tostring(label) .. " failed: evaluate_cast=false id=" .. tostring(id), 300)
 
         return false
 
@@ -2887,21 +3207,25 @@ function NS.buff_up(unit, ids)
 
     local aura = aura_data(unit, ids, "buff")
 
-    if aura == nil then
+    if aura ~= nil then return true end
 
-        local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-
-        if debug and #list > 0 then
-
-            local id_str = table.concat(list, ",")
-
-            core_trace("diag:buff_up:" .. id_str, "[DIAG] buff_up(" .. id_str .. ") all checks failed: has_buff=false, buff_up=false, aura_data=nil", 2000)
-
+    -- PS build fallback: unit aura APIs are broken but buff_manager works
+    if _api_health_broken and _buff_manager then
+        -- get_aura_data/get_buff_data (per-ID) work on PS; get_aura_cache returns garbage
+        for i = 1, #list do
+            local id = list[i]
+            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                return true
+            end
+            ok, ad = pcall(_buff_manager.get_buff_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                return true
+            end
         end
-
     end
 
-    return aura ~= nil
+    return false
 
 end
 
@@ -3068,7 +3392,6 @@ end
 
 
 function NS.debuff_up(unit, ids)
-
     if not unit then return false end
 
     local list = collect_ids(ids, {})
@@ -3081,8 +3404,24 @@ function NS.debuff_up(unit, ids)
 
     end
 
-    return aura_data(unit, ids, "debuff") ~= nil
+    if aura_data(unit, ids, "debuff") ~= nil then return true end
 
+    -- PS build fallback: direct unit APIs return false, use buff_manager per-ID lookup
+    if _api_health_broken and _buff_manager then
+        for i = 1, #list do
+            local id = list[i]
+            local ok, dd = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
+            if ok and dd and dd.is_active ~= false then
+                return true
+            end
+            ok, dd = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, {id}, 50)
+            if ok and dd and dd.is_active ~= false then
+                return true
+            end
+        end
+    end
+
+    return false
 end
 
 
@@ -3103,29 +3442,23 @@ function NS.buff_remains(unit, ids)
 
     local data = aura_data(unit, ids, "buff")
 
-    return aura_remaining_seconds(data)
-
-end
-
-
-
-function NS.buff_stacks(unit, ids)
-
-    if not unit then return 0 end
-
-    local list = collect_ids(ids, {})
-
-    for i = 1, #list do
-
-        local v = safe(safe_field(unit, "get_buff_stacks"), unit, list[i])
-
-        if type(v) == "number" and v > 0 then return v end
-
+    if not data and _api_health_broken and _buff_manager then
+        for i = 1, #list do
+            local id = list[i]
+            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+            ok, ad = pcall(_buff_manager.get_buff_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+        end
     end
 
-    local data = aura_data(unit, ids, "buff")
-
-    return data and (data.count or data.stacks or 0) or 0
+    return aura_remaining_seconds(data)
 
 end
 
@@ -3147,6 +3480,22 @@ function NS.buff_points(unit, ids)
     if not unit then return nil end
 
     local data = aura_data(unit, ids, "buff")
+    if not data and _api_health_broken and _buff_manager then
+        local list = collect_ids(ids, {})
+        for i = 1, #list do
+            local id = list[i]
+            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+            ok, ad = pcall(_buff_manager.get_buff_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+        end
+    end
 
     if not data then return nil end
 
@@ -3169,6 +3518,22 @@ function NS.debuff_points(unit, ids)
     if not unit then return nil end
 
     local data = aura_data(unit, ids, "debuff")
+    if not data and _api_health_broken and _buff_manager then
+        local list = collect_ids(ids, {})
+        for i = 1, #list do
+            local id = list[i]
+            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+            ok, ad = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+        end
+    end
 
     if not data then return nil end
 
@@ -3197,6 +3562,21 @@ function NS.debuff_remains(unit, ids)
     end
 
     local data = aura_data(unit, ids, "debuff")
+    if not data and _api_health_broken and _buff_manager then
+        for i = 1, #list do
+            local id = list[i]
+            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+            ok, ad = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+        end
+    end
 
     return aura_remaining_seconds(data)
 
@@ -3219,6 +3599,21 @@ function NS.debuff_stacks(unit, ids)
     end
 
     local data = aura_data(unit, ids, "debuff")
+    if not data and _api_health_broken and _buff_manager then
+        for i = 1, #list do
+            local id = list[i]
+            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+            ok, ad = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, {id}, 50)
+            if ok and ad and ad.is_active ~= false then
+                data = ad
+                break
+            end
+        end
+    end
 
     return data and (data.count or data.stacks or 0) or 0
 
@@ -3227,34 +3622,18 @@ end
 
 
 function NS.get_debuff_stacks(unit, ids)
-
-    if not unit then return 0 end
-
-    local list = collect_ids(ids, {})
-
-    for i = 1, #list do
-
-        local id = list[i]
-
-        local v = safe(safe_field(unit, "get_debuff_stacks"), unit, id)
-
-        if type(v) == "number" and v > 0 then return v end
-
-        v = safe(safe_field(unit, "get_buff_stacks"), unit, id)
-
-        if type(v) == "number" and v > 0 then return v end
-
-    end
-
-    local data = aura_data(unit, ids, "debuff")
-
-    return data and (data.count or data.stacks or 0) or 0
-
+    return NS.debuff_stacks(unit, ids)
 end
 
 
 
 function NS.has_player_buff(ids) return NS.buff_up(NS.GetPlayer(), ids) end
+
+function NS.has_debuff(unit, ids) return NS.debuff_up(unit, ids) end
+
+function NS.has_player_debuff(ids) return NS.debuff_up(NS.GetPlayer(), ids) end
+
+function NS.has_target_debuff(target, ids) return NS.debuff_up(target, ids) end
 
 -- Alias: NS.has_buff is used by middleware and shared helpers but was never defined
 NS.has_buff = NS.buff_up
@@ -4707,9 +5086,9 @@ local function get_party_ally_list(me)
 
 
 
-    if added <= 0 then return nil, 0 end
-
     append_healing_source_unit(healing_source_units, me)
+
+    if healing_source_units.n <= 0 then return nil, 0 end
 
     return healing_source_units, healing_source_units.n
 
@@ -4729,9 +5108,33 @@ function NS.build_healing_entries(out, decorate)
 
     local units, count = get_party_ally_list(me)
 
-    if not units or count <= 0 then
+    -- Fallback: if party APIs returned only self, also scan visible friendlies
 
-        units, count = NS.get_visible_units(false, 200)
+    if (not units or count <= 1) then
+
+        local vis, vis_count = NS.get_visible_units(false, 200)
+
+        if vis and vis_count > 0 then
+
+            for i = 1, vis_count do
+
+                local u = vis[i]
+
+                local is_friend_with = safe_field(u, "is_friend_with")
+
+                if u and not NS.same_unit(u, me) and NS.unit_alive(u) and safe(is_friend_with, u, me) and (distance(u, me) or 999) <= 40 then
+
+                    count = count + 1
+
+                    units[count] = u
+
+                end
+
+            end
+
+            units.n = count
+
+        end
 
     end
 
@@ -4743,7 +5146,7 @@ function NS.build_healing_entries(out, decorate)
 
         local is_friend_with = safe_field(u, "is_friend_with")
 
-        if u and (NS.same_unit(u, me) or safe(is_friend_with, u, me)) and distance(u, me) <= 40 then
+        if NS.unit_alive(u) and (NS.same_unit(u, me) or safe(is_friend_with, u, me)) and distance(u, me) <= 40 then
 
             local hp = safe(safe_field(u, "get_health"), u) or 0
 
@@ -5622,15 +6025,8 @@ function NS.action_execute(context, action, prefix)
 
             if not id or not position then return false end
 
-            -- Anti-flicker: skip if same spell was cast within 0.3s
-
-            if _last_cast_id == id then
-
-                local elapsed = NS.time_now() - _last_cast_time
-
-                if elapsed < 0.3 then return false end
-
-            end
+            -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
+            if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
 
             if not cast_position_spell(id, position, action.name or tostring(id), reason) then return false end
 
@@ -5674,15 +6070,8 @@ function NS.action_execute(context, action, prefix)
 
         if not id or not target then return false end
 
-        -- Anti-flicker: skip if same spell was cast within 0.3s
-
-        if _last_cast_id == id then
-
-            local elapsed = NS.time_now() - _last_cast_time
-
-            if elapsed < 0.3 then return false end
-
-        end
+        -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
+        if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
 
         if not cast_unit_spell(id, target, action.name or tostring(id), reason) then return false end
 
@@ -5771,6 +6160,8 @@ end
 
 
 NS.log("Core runtime loaded")
+NS.log("GameVersion: " .. tostring(core.get_game_version and core.get_game_version() or "?"))
+NS.log("ExactVersion: " .. tostring(core.get_exact_game_version and core.get_exact_game_version() or "?"))
 
 
 
@@ -5797,6 +6188,9 @@ function NS.dump_player_info()
 
 
     NS.log("=== PLAYER DUMP ===")
+
+    NS.log("GameVersion: " .. tostring(core.get_game_version and core.get_game_version() or "?"))
+    NS.log("ExactVersion: " .. tostring(core.get_exact_game_version and core.get_exact_game_version() or "?"))
 
     NS.log("Name: " .. tostring(sf(me, "get_name") and me:get_name() or "?"))
 
@@ -5955,6 +6349,10 @@ function NS.dump_player_info()
     NS.log("=== END DUMP ===")
 
 end
+
+
+
+if type(core) == "table" and type(core.log) == "function" then pcall(core.log, "[EaxRotations] Loaded core_sylvanas.lua v1.1.1") end
 
 
 
