@@ -93,9 +93,7 @@ local sv_state = {
     feign_death_ready = false,
     freezing_trap_ready = false,
     viper_sting_ready = false,
-    wyvern_sting_ready = false,
     scorpid_sting_ready = false,
-    readiness_ready = false,
     raptor_strike_ready = false,
     wing_clip_ready = false,
     volley_ready = false,
@@ -140,12 +138,10 @@ local function build_state(context)
     sv_state.feign_death_ready = me and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
     sv_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     sv_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
-    sv_state.wyvern_sting_ready = target and NS.spell_ready(SPELLS.WyvernSting, target) or false
     sv_state.scorpid_sting_ready = target and NS.spell_ready(SPELLS.ScorpidSting, target) or false
     sv_state.raptor_strike_ready = target and NS.spell_ready(SPELLS.RaptorStrike, target) or false
     sv_state.wing_clip_ready = target and NS.spell_ready(SPELLS.WingClip, target) or false
     sv_state.volley_ready = target and NS.spell_ready(SPELLS.Volley, target) or false
-    sv_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 180 }) or false
     sv_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -263,23 +259,6 @@ local function viper_sting_matches(context, s)
     return true
 end
 
--- Wyvern Sting: CC + DoT; suppress if target already has a DoT (breaks sleep)
-local function wyvern_sting_matches(context, s)
-    if not s.wyvern_sting_ready then return false end
-    if s.has_serpent_sting then return false end
-    if s.has_scorpid_sting then return false end
-    return true
-end
-
-local function readiness_matches(context, s)
-    if not cooldowns_enabled(context) then return false end
-    if not s.in_combat then return false end
-    if not s.readiness_ready then return false end
-    -- Use after Rapid Fire has been used to reset it for 2nd burst window
-    if s.rapid_fire_ready then return false end
-    return true
-end
-
 local function leveling_arcane_shot_matches(context, s)
     if not s.pre_steady_leveling then return false end
     if not s.arcane_shot_ready then return false end
@@ -368,10 +347,8 @@ local strategies = {
     { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[SURVIVAL] Aspect of the Hawk", { skip_range = true }) end },
     { name = "UnavailableClassicHunterAspect", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterAspect, context.me, "[SURVIVAL] Aspect of the Viper", { skip_range = true }) end },
     { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[SURVIVAL] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "WyvernSting", matches = wyvern_sting_matches, execute = function(context) return NS.try_cast(SPELLS.WyvernSting, context.target, "[SURVIVAL] Wyvern Sting") end },
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[SURVIVAL] Hunter's Mark") end },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[SURVIVAL] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
-    { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[SURVIVAL] Readiness", { skip_range = true, expected_cooldown = 180 }) end },
     { name = "ExplosiveTrap", matches = explosive_trap_matches, execute = function(context) return NS.try_cast(SPELLS.ExplosiveTrap, context.me, "[SURVIVAL] Explosive Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "UnavailableClassicHunterShotB", matches = kill_command_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterShotB, context.target, "[SURVIVAL] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
     { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[SURVIVAL] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },

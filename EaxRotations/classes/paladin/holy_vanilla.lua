@@ -64,7 +64,6 @@ local HolyLightRank4 = spell_action({ 1042 }, "HolyLightRank4")
 local FlashOfLightRank6 = spell_action({ 25297 }, "FlashOfLightRank6")
 
 local BUFF_DIVINE_FAVOR = { 20216 }
-local BUFF_DIVINE_ILLUMINATION = { 31842 }
 local BUFF_FORBEARANCE = { 25771 }
 local BUFF_SEAL_WISDOM = { 27168, 20266, 15981 }
 local BUFF_SEAL_RIGHTEOUSNESS = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084 }
@@ -146,7 +145,6 @@ local state = {
     target_hp_pct = 100,
     moving = false,
     has_divine_favor = false,
-    has_divine_illumination = false,
     has_forbearance = false,
     has_seal_wisdom = false,
     has_seal_righteousness = false,
@@ -428,7 +426,6 @@ local function build_state(context)
     state.use_group_blessings = state.count >= 5
     if not skip_aura then
         state.has_divine_favor = NS.has_player_buff(BUFF_DIVINE_FAVOR)
-        state.has_divine_illumination = NS.has_player_buff(BUFF_DIVINE_ILLUMINATION)
         state.has_forbearance = NS.has_player_buff(BUFF_FORBEARANCE)
         state.has_seal_wisdom = NS.has_player_buff(BUFF_SEAL_WISDOM)
         state.has_seal_righteousness = NS.has_player_buff(BUFF_SEAL_RIGHTEOUSNESS)
@@ -563,17 +560,6 @@ local strategies = {
         end,
         execute = function()
             return NS.try_cast(SPELLS.DivineFavor, NS.PLAYER_UNIT, "[HOLY] Divine Favor before critical Holy Light", SELF_OPTS)
-        end,
-    },
-    {
-        name = "DivineIlluminationHeavyHealing",
-        matches = function(_, s)
-            if s.has_divine_illumination then return false end
-            if not s.heavy_healing and s.mana_pct > LOW_MANA_PCT then return false end
-            return NS.spell_ready(SPELLS.DivineIllumination, NS.PLAYER_UNIT, SELF_OPTS)
-        end,
-        execute = function(_, s)
-            return NS.try_cast(SPELLS.DivineIllumination, NS.PLAYER_UNIT, format("[HOLY] Divine Illumination mana %.0f%%", s.mana_pct), SELF_OPTS)
         end,
     },
     {
