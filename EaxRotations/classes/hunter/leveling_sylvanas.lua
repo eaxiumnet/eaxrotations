@@ -154,7 +154,7 @@ local function concussive_shot_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    if state.enemies < 2 and state.hp > 40 then return false end  -- Only when threatened
+    if (state.enemies or 0) < 2 and (state.hp or 100) > 40 then return false end  -- Only when threatened
     return state.concussive_shot_ready
 end
 
@@ -164,7 +164,7 @@ local function wing_clip_matches(context, state)
     if not state.target then return false end
     if not state.in_combat then return false end
     if not state.in_melee then return false end  -- Melee range only
-    if state.hp > 50 then return false end  -- Only when threatened
+    if (state.hp or 100) > 50 then return false end  -- Only when threatened
     return state.wing_clip_ready
 end
 
@@ -173,7 +173,7 @@ local function scare_beast_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    if state.enemies < 2 then return false end  -- Only when overwhelmed
+    if (state.enemies or 0) < 2 then return false end  -- Only when overwhelmed
     return state.scare_beast_ready
 end
 
@@ -182,7 +182,7 @@ local function freezing_trap_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return state.freezing_trap_ready
 end
 
@@ -227,7 +227,7 @@ local function multi_shot_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return state.multi_shot_ready
 end
 
@@ -244,7 +244,7 @@ local function feign_death_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
-    if state.hp > 30 then return false end
+    if (state.hp or 100) > 30 then return false end
     return state.feign_death_ready
 end
 

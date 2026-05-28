@@ -204,7 +204,7 @@ local execute_matches = function(context, state)
     if not state.target then return false end
     local ok, hp = pcall(function() return state.target:get_health_percentage() end)
     if not ok or not hp then return false end
-    if hp > state.exec_hp then return false end
+    if hp > (state.exec_hp or 20) then return false end
     return true
 end
 
@@ -213,7 +213,7 @@ local sweeping_strikes_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.sweeping_strikes_ready then return false end
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return true
 end
 
@@ -223,7 +223,7 @@ local whirlwind_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.whirlwind_ready then return false end
     if not state.target then return false end
-    if state.enemies < 3 then return false end
+    if (state.enemies or 0) < 3 then return false end
     return true
 end
 
@@ -233,7 +233,7 @@ local thunder_clap_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.thunder_clap_ready then return false end
     if not state.use_thunder_clap then return false end
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return true
 end
 
@@ -370,7 +370,7 @@ local demo_shout_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.demoralizing_shout_ready then return false end
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return true
 end
 
@@ -379,7 +379,7 @@ local shield_wall_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.shield_wall_ready then return false end
-    if state.hp > 20 then return false end
+    if (state.hp or 100) > 20 then return false end
     return true
 end
 
@@ -388,8 +388,8 @@ local intimidating_shout_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.intimidating_shout_ready then return false end
-    if state.enemies < 3 then return false end
-    if state.hp > 30 then return false end
+    if (state.enemies or 0) < 3 then return false end
+    if (state.hp or 100) > 30 then return false end
     return true
 end
 
@@ -399,7 +399,7 @@ local berserker_rage_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.berserker_rage_ready then return false end
     -- Use when facing fear-capable enemies or need rage
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return true
 end
 

@@ -183,7 +183,7 @@ local function health_funnel_matches(context, state)
     if not state.in_combat then return false end
     if not state.pet then return false end
     if state.pet_hp > 50 then return false end
-    if state.hp < 40 then return false end  -- Don't kill self healing pet
+    if (state.hp or 100) < 40 then return false end  -- Don't kill self healing pet
     return state.health_funnel_ready
 end
 
@@ -193,7 +193,7 @@ local function fear_matches(context, state)
     if not state.target then return false end
     if not state.in_combat then return false end
     -- Fear when overwhelmed (multiple enemies)
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     -- Don't re-fear if already feared
     local remains = safe_debuff_remains(state.target, FEAR_IDS)
     if remains > 8 then return false end
@@ -205,7 +205,7 @@ local function death_coil_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    if state.hp > 40 then return false end
+    if (state.hp or 100) > 40 then return false end
     return state.death_coil_ready
 end
 
@@ -213,8 +213,8 @@ local function life_tap_matches(context, state)
     if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
-    if state.mana_pct > (state.life_tap_mana or 30) then return false end
-    if state.hp < 30 then return false end  -- Don't kill self
+    if (state.mana_pct or 100) > (state.life_tap_mana or 30) then return false end
+    if (state.hp or 100) < 30 then return false end  -- Don't kill self
     return state.life_tap_ready
 end
 
@@ -267,8 +267,8 @@ local function howl_of_terror_matches(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.howl_of_terror_ready then return false end
-    if state.enemies < 3 then return false end
-    if state.hp > 40 then return false end
+    if (state.enemies or 0) < 3 then return false end
+    if (state.hp or 100) > 40 then return false end
     return true
 end
 
@@ -291,7 +291,7 @@ local function drain_life_matches(context, state)
     if not state.drain_life_ready then return false end
     if state.is_moving then return false end
     -- Only drain life when HP is below threshold
-    if state.hp > (state.drain_life_hp or 60) then return false end
+    if (state.hp or 100) > (state.drain_life_hp or 60) then return false end
     -- Don't drain if target is in execute range (Drain Soul handles that)
     local target_hp = 100
     if state.target then
@@ -300,7 +300,7 @@ local function drain_life_matches(context, state)
     end
     if target_hp <= (state.drain_soul_execute or 25) then return false end
     -- Don't drain if mana too low (keep reserve for Life Tap or wand)
-    if state.mana_pct < 10 then return false end
+    if (state.mana_pct or 100) < 10 then return false end
     return true
 end
 
@@ -315,7 +315,7 @@ local function drain_soul_matches(context, state)
         local ok, hp = pcall(function() return state.target:get_health_percentage() end)
         if ok and hp then target_hp = hp end
     end
-    if target_hp > (state.drain_soul_execute or 25) and state.mana_pct > 30 then return false end
+    if target_hp > (state.drain_soul_execute or 25) and (state.mana_pct or 100) > 30 then return false end
     return state.drain_soul_ready
 end
 
@@ -325,7 +325,7 @@ local function shadow_bolt_matches(context, state)
     if not state.target then return false end
     if not state.in_combat then return false end
     if state.is_moving then return false end
-    if state.mana_pct < 10 then return false end
+    if (state.mana_pct or 100) < 10 then return false end
     return state.shadow_bolt_ready
 end
 
@@ -335,7 +335,7 @@ local function wand_matches(context, state)
     if not state.target then return false end
     if not state.wand_learned then return false end
     if not state.in_combat then return false end
-    if state.mana_pct >= (state.wand_threshold or 30) then return false end
+    if (state.mana_pct or 100) >= (state.wand_threshold or 30) then return false end
     return true
 end
 

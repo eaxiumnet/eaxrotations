@@ -165,21 +165,21 @@ end
 local function shield_matches(context, state)
     if not state then return false end
     if not state.target then return false end
-    return state.shield_ready and not state.has_shield and state.hp < state.heal_hp
+    return state.shield_ready and not state.has_shield and (state.hp or 100) < state.heal_hp
 end
 
 local function renew_matches(context, state)
     if not state then return false end
     if not state.target then return false end
-    return state.renew_ready and not state.has_renew and state.hp < state.heal_hp
+    return state.renew_ready and not state.has_renew and (state.hp or 100) < state.heal_hp
 end
 
 local function flash_heal_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     -- Flash Heal when HP is low but not critical (Greater Heal is for emergencies)
-    if state.hp >= 50 then return false end
-    if state.hp < 30 then return false end  -- Use Greater Heal for critical HP
+    if (state.hp or 100) >= 50 then return false end
+    if (state.hp or 100) < 30 then return false end  -- Use Greater Heal for critical HP
     return state.flash_heal_ready
 end
 
@@ -187,7 +187,7 @@ local function heal_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if state.is_moving then return false end
-    return state.greater_heal_ready and state.hp < state.heal_hp
+    return state.greater_heal_ready and (state.hp or 100) < state.heal_hp
 end
 
 local function inner_focus_matches(context, state)
@@ -195,14 +195,14 @@ local function inner_focus_matches(context, state)
     if not state.inner_focus_ready then return false end
     -- Use Inner Focus before big heals or mind blast for free cast + crit
     if not state.in_combat then return false end
-    if state.hp > 50 then return false end  -- Save for when healing is needed
+    if (state.hp or 100) > 50 then return false end  -- Save for when healing is needed
     return true
 end
 
 local function scream_matches(context, state)
     if not state then return false end
     if not state.target then return false end
-    return state.scream_ready and state.enemies >= 3
+    return state.scream_ready and (state.enemies or 0) >= 3
 end
 
 local function fade_matches(context, state)
@@ -258,7 +258,7 @@ local function swd_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.swd_ready then return false end
-    return state.hp < 35
+    return (state.hp or 100) < 35
 end
 
 local function holy_nova_matches(context, state)
@@ -266,7 +266,7 @@ local function holy_nova_matches(context, state)
     if not state.target then return false end
     if not state.holy_nova_ready then return false end
     if state.is_moving then return false end
-    return state.enemies >= 3
+    return (state.enemies or 0) >= 3
 end
 
 local function smite_matches(context, state)
@@ -274,7 +274,7 @@ local function smite_matches(context, state)
     if not state.target then return false end
     if not state.smite_ready then return false end
     if state.is_moving then return false end
-    return state.mana_pct >= state.wand_threshold
+    return (state.mana_pct or 100) >= state.wand_threshold
 end
 
 local function shadowform_matches(context, state)
@@ -300,13 +300,13 @@ local function mind_flay_matches(context, state)
     if state.is_moving then return false end
     if state.is_channeling then return false end
     -- Mana gate: don't channel Mind Flay below MF_MANA_GATE % (wand instead)
-    return state.mana_pct >= MF_MANA_GATE
+    return (state.mana_pct or 100) >= MF_MANA_GATE
 end
 
 local function wand_matches_fn(context, state)
     if not state then return false end
     if not state.target then return false end
-    return state.mana_pct < state.wand_threshold
+    return (state.mana_pct or 100) < state.wand_threshold
 end
 
 -- ============================================================================

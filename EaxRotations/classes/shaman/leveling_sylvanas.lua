@@ -359,7 +359,7 @@ local healing_wave_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.healing_wave_ready then return false end
-    if state.hp > state.heal_hp then return false end
+    if (state.hp or 100) > state.heal_hp then return false end
     return true
 end
 
@@ -449,7 +449,7 @@ local chain_lightning_matches = function(context, state)
     if not has_enemy_target(context, state) then return false end
     if not state.chain_lightning_ready then return false end
     if not state.target then return false end
-    if state.enemies < 2 then return false end  -- CL on 2+ (splash)
+    if (state.enemies or 0) < 2 then return false end  -- CL on 2+ (splash)
     return true
 end
 
@@ -468,8 +468,8 @@ local earthbind_totem_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.earthbind_totem_ready then return false end
-    if state.enemies < 3 then return false end
-    if state.hp > 50 then return false end
+    if (state.enemies or 0) < 3 then return false end
+    if (state.hp or 100) > 50 then return false end
     return true
 end
 
@@ -512,7 +512,7 @@ local lesser_healing_wave_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.lesser_healing_wave_ready then return false end
-    if state.hp > 40 then return false end
+    if (state.hp or 100) > 40 then return false end
     return true
 end
 
@@ -521,8 +521,8 @@ local stoneclaw_totem_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.stoneclaw_totem_ready then return false end
-    if state.enemies < 3 then return false end
-    if state.hp > 50 then return false end
+    if (state.enemies or 0) < 3 then return false end
+    if (state.hp or 100) > 50 then return false end
     return true
 end
 
@@ -531,7 +531,7 @@ local grounding_totem_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.grounding_totem_ready then return false end
-    if state.enemies < 2 then return false end
+    if (state.enemies or 0) < 2 then return false end
     return can_drop_totem(state, "air", 0)
 end
 
