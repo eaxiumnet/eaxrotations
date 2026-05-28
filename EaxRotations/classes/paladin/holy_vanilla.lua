@@ -29,9 +29,9 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
 local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
-local _data_ok, Classic = pcall(require, "shared/tbc_data_sylvanas")
-if not _data_ok or type(Classic) ~= "table" then Classic = { ITEMS = { potions = {} } } end
-local CLASSIC_POTIONS = (Classic.ITEMS and Classic.ITEMS.potions) or {}
+local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
+if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
+local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
 local format = string.format
 local EMPTY_OPTS = {}
@@ -91,12 +91,12 @@ local SHADOW_DAMAGE_DEBUFFS = { 27216, 27243, 30910, 30414, 33676 }
 local ROOT_SNARE_DEBUFFS = { 122, 339, 512, 865, 1022, 116, 1715, 2974, 3409, 3600, 12494, 27088, 33395 }
 local PHYSICAL_FOCUS_DEBUFFS = { 26017, 12809, 25274, 25273, 30108 }
 local MANA_POTION_IDS = {
-    CLASSIC_POTIONS.crystal_mana or 33935,
-    CLASSIC_POTIONS.auchenai_mana or 32948,
-    CLASSIC_POTIONS.super_mana or 22832,
-    CLASSIC_POTIONS.super_rejuvenation or 22850,
-    CLASSIC_POTIONS.major_mana or 13444,
-    CLASSIC_POTIONS.superior_mana or 13443,
+    TBC_POTIONS.crystal_mana or 33935,
+    TBC_POTIONS.auchenai_mana or 32948,
+    TBC_POTIONS.super_mana or 22832,
+    TBC_POTIONS.super_rejuvenation or 22850,
+    TBC_POTIONS.major_mana or 13444,
+    TBC_POTIONS.superior_mana or 13443,
 }
 local DARK_RUNE_IDS = { 20520, 12662 }
 

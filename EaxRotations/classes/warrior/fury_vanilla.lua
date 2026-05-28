@@ -319,6 +319,6 @@ if ACTION.Cleave then
     })
 end
 
-NS.rotation_registry:register("fury_vanilla", strategies, { get_state = build_state })
+NS.rotation_registry:register("fury", strategies, { get_state = build_state })
 NS.log("[VANILLA] Warrior Fury rotation registered")
 return strategies
