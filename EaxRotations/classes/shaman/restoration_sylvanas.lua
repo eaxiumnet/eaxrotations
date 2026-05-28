@@ -207,7 +207,7 @@ local function lightning_shield_matches(context, state)
     local shield_type = (context.settings and context.settings.restoration_shield_type) or "water"
     if shield_type ~= "lightning" then return false end
     if state.has_lightning_shield then return false end
-    if state.enemy_count < 1 then return false end
+    if (state.enemy_count or 0) < 1 then return false end
     return true
 end
 
@@ -305,7 +305,7 @@ end
 local function lightning_bolt_matches(context, state)
     if not state.lightning_bolt_ready then return false end
     if context.is_moving then return false end
-    if state.enemy_count < 1 then return false end
+    if (state.enemy_count or 0) < 1 then return false end
     if state.mana_emergency then return false end
     if not solo_damage_enabled(context, state, 35) then return false end
     return true
@@ -336,7 +336,7 @@ end
 local function grounding_totem_matches(context, state)
     if not state.grounding_totem_ready then return false end
     if not state.in_combat then return false end
-    if state.enemy_count < 1 then return false end
+    if (state.enemy_count or 0) < 1 then return false end
     -- Drop Grounding when facing caster mobs (enemy casting or PvP)
     if not (context.is_pvp == true or context.target_casting == true) then return false end
     return true

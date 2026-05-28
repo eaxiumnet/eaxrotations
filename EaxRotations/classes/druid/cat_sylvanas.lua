@@ -291,7 +291,7 @@ local function update_energy_tick(state)
 end
 
 local function should_wait_for_tick(state, required_energy)
-    if state.energy >= required_energy then return false end
+    if (state.energy or 0) >= required_energy then return false end
     if state.next_tick_in > 0.45 then return false end
     return state.energy + ENERGY_PER_TICK >= required_energy
 end
@@ -484,7 +484,7 @@ end
 local function barkskin_matches(context, action)
     local state = build_state(context)
     local threshold = setting_number(state.settings, "cat_barkskin_hp", 85)
-    if state.hp > threshold then return false end
+    if (state.hp or 100) > threshold then return false end
     if state.has_barkskin then return false end
     return true
 end
@@ -680,7 +680,7 @@ local function emergency_powershift_matches(context, action)
     if not setting_bool(state.settings, "cat_powershift_enabled", true) then return false end
     if not state.is_cat or not state.in_combat then return false end
     if state.energy > 10 then return false end
-    if state.mana_pct < POWERSHIFT_MIN_MANA then return false end
+    if (state.mana_pct or 100) < POWERSHIFT_MIN_MANA then return false end
     if state.combo_points >= 5 then return false end
     if state.next_tick_in <= 0.2 then return false end
     return true

@@ -369,13 +369,13 @@ end
 
 local function cloak_matches(context, state)
     if setting(context, "rogue_use_cloak", true) == false then return false end
-    if state.hp > setting(context, "rogue_cloak_hp", 45) and not state.is_caster_target then return false end
+    if (state.hp or 100) > setting(context, "rogue_cloak_hp", 45) and not state.is_caster_target then return false end
     return NS.spell_ready(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function evasion_matches(context, state)
     if setting(context, "rogue_use_evasion", true) == false then return false end
-    if state.hp > setting(context, "rogue_evasion_hp", 35) then return false end
+    if (state.hp or 100) > setting(context, "rogue_evasion_hp", 35) then return false end
     return NS.spell_ready(SPELLS.Evasion, NS.PLAYER_UNIT, { skip_range = true })
 end
 

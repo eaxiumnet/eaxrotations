@@ -380,7 +380,7 @@ end
 local function execute_matches(context, state)
     if not execute_phase(context, state) then return false end
     local min_rage = setting(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
-    if context.rage ~= nil and state.rage < min_rage then return false end
+    if context.rage ~= nil and (state.rage or 0) < min_rage then return false end
     return action(context, build_action("Execute", ACTION.Execute, { min_rage = 15 }))
 end
 
@@ -405,7 +405,7 @@ local function slam_matches(context, state)
     if setting(context, "slam_weave_enabled", true) == false then return false end
     if not SwingTimer then return false end
     if state.is_moving then return false end
-    if state.rage < SLAM_RAGE then return false end
+    if (state.rage or 0) < SLAM_RAGE then return false end
     if state.ms_cd <= 1.0 or state.overpower_ready then return false end
     if state.mh_until <= SLAM_CAST_TIME + SLAM_SAFETY then return false end
     if state.mh_until > 1.5 then return false end
@@ -415,7 +415,7 @@ end
 local function sweeping_strikes_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SweepingStrikes, 3.0) then return false end
     local min_count = setting(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
-    if state.enemy_count < min_count then return false end
+    if (state.enemy_count or 0) < min_count then return false end
     if state.has_sweeping_strikes then return false end
     return action(context, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false, enemy_count = min_count, cooldown = 30 }))
 end
@@ -439,7 +439,7 @@ end
 
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
-    if state.enemy_count < 2 and state.rage < 45 then return false end
+    if (state.enemy_count or 0) < 2 and (state.rage or 0) < 45 then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
@@ -483,14 +483,14 @@ end
 local function demo_shout_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
     if state.demo_remains > 5 then return false end
-    if not state.is_pvp and state.enemy_count < 2 and state.hp > 70 then return false end
+    if not state.is_pvp and (state.enemy_count or 0) < 2 and (state.hp or 100) > 70 then return false end
     return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false, debuff = DEMO_SHOUT_DEBUFF, refresh = 5 }))
 end
 
 local function thunder_clap_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
     if state.tclap_remains > 5 then return false end
-    if not state.is_pvp and state.hp > 65 and state.enemy_count < 2 then return false end
+    if not state.is_pvp and (state.hp or 100) > 65 and (state.enemy_count or 0) < 2 then return false end
     return action(context, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4 }))
 end
 

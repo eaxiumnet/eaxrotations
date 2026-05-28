@@ -596,7 +596,7 @@ local function shamanistic_rage_matches(ctx)
     -- v1.2.1: per-CD toggle
     if ctx.settings and ctx.settings.enhancement_cd_shamanistic_rage == false then return false end
     -- Gate: use when mana is low (Research) or during defensive need (hp < 40%); skip at high mana + high hp
-    if enh_state.mana_pct > 40 and enh_state.hp_pct > 40 then return false end
+    if (enh_state.mana_pct or 100) > 40 and (enh_state.hp_pct or 100) > 40 then return false end
     -- v1.2.4: SR melee range check — only fire if target within 8 yd
     if enh_state.sr_melee_only then
         local target = ctx.target
@@ -688,7 +688,7 @@ end
 local function chain_lightning_matches(ctx)
     if not enh_state.chain_lightning_ready then return false end
     -- AoE mode: CL if enough enemies
-    if enh_state.effective_mode == "single" and enh_state.enemy_count < 2 then return false end
+    if enh_state.effective_mode == "single" and (enh_state.enemy_count or 0) < 2 then return false end
     return true
 end
 

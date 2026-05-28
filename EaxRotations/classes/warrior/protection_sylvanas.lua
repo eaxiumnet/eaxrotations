@@ -229,7 +229,7 @@ end
 
 local function thunderclap_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     return true
 end
 
@@ -240,15 +240,15 @@ local function demo_shout_matches_fn(context, state)
 end
 
 local function heroic_strike_matches_fn(context, state)
-    if state.rage < HEROIC_STRIKE_RAGE_DUMP then return false end
+    if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
     if state.ss_ready then return false end
     if state.revenge_ready then return false end
     return true
 end
 
 local function cleave_matches_fn(context, state)
-    if state.enemy_count < 2 then return false end
-    if state.rage < HEROIC_STRIKE_RAGE_DUMP then return false end
+    if (state.enemy_count or 0) < 2 then return false end
+    if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
     return true
 end
 
@@ -276,14 +276,14 @@ end
 
 local function shield_wall_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShieldWall, 3.0) then return false end
-    if state.hp > LOW_HP_LIMIT then return false end
+    if (state.hp or 100) > LOW_HP_LIMIT then return false end
     if state.has_shield_wall then return false end
     return true
 end
 
 local function last_stand_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LastStand, 3.0) then return false end
-    if state.hp > LOW_HP_LIMIT then return false end
+    if (state.hp or 100) > LOW_HP_LIMIT then return false end
     if state.has_last_stand then return false end
     return true
 end
@@ -304,13 +304,13 @@ end
 
 local function taunt_matches_fn(context, state)
     if not state.taunt_ready then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     return true
 end
 
 local function mocking_blow_matches_fn(context, state)
     if not state.mocking_ready then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     return true
 end
 

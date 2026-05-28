@@ -521,9 +521,9 @@ local function would_starve_mangle(state, rage_cost)
     if state.has_clearcasting then return false end
     if not spell_exists(SPELLS.MangleBear) then return false end
     if state.rage - rage_cost >= RAGE_MANGLE_RESERVE then return false end
-    if state.mangle_ready then return state.rage < RAGE_MANGLE_RESERVE + rage_cost end
+    if state.mangle_ready then return (state.rage or 0) < RAGE_MANGLE_RESERVE + rage_cost end
     if state.mangle_cd > MANGLE_HOLD_WINDOW then return false end
-    if state.rage_per_second > 8 and state.rage >= rage_cost + 5 then return false end
+    if state.rage_per_second > 8 and (state.rage or 0) >= rage_cost + 5 then return false end
     return true
 end
 
@@ -588,7 +588,7 @@ end
 local function healthstone_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
-    if state.hp > 28 and not state.force_defensive then return false end
+    if (state.hp or 100) > 28 and not state.force_defensive then return false end
     return state.healthstone_ready > 0
 end
 
@@ -604,7 +604,7 @@ local function frenzied_regen_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
     if state.has_frenzied_regen then return false end
-    if state.rage < RAGE_FRENZIED_REGEN then return false end
+    if (state.rage or 0) < RAGE_FRENZIED_REGEN then return false end
     if state.hp > state.frenzied_regen_hp and not (state.force_defensive and state.hp <= 60) then return false end
     return action_ready(context, action)
 end
@@ -621,7 +621,7 @@ end
 local function challenging_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
-    if state.enemy_count < CHALLENGING_ROAR_ENEMY_COUNT and state.pack_loose < 2 then return false end
+    if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and state.pack_loose < 2 then return false end
     if state.pack_loose < 2 and state.hp > 45 and not state.force_defensive then return false end
     return action_ready(context, action)
 end
@@ -756,7 +756,7 @@ end
 local function enrage_combat_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
-    if state.rage > RAGE_LOW then return false end
+    if (state.rage or 0) > RAGE_LOW then return false end
     if state.hp < 60 and state.enemy_count >= 2 then return false end
     if state.mangle_ready and state.rage < RAGE_MANGLE then return action_ready(context, action) end
     if state.lacerate_stacks < LACERATE_MAX_STACKS and state.rage < RAGE_LACERATE then return action_ready(context, action) end

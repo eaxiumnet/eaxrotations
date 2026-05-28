@@ -165,8 +165,10 @@ local fury_state = {
 }
 
 -- Helper functions
+-- Uses NS.setting when available (loaded by core_sylvanas); falls back inline for isolated tests.
 local function setting(context, key, fallback)
-    local settings = context.settings
+    if NS.setting then return NS.setting(context, key, fallback) end
+    local settings = context and context.settings
     if settings and settings[key] ~= nil then return settings[key] end
     if NS.get_setting then return NS.get_setting(key, fallback) end
     return fallback
@@ -383,8 +385,8 @@ local function charge_matches(context, state)
     if state.in_combat then return false end
     -- Charge Only OOC Mobs protection: skip if target is already in combat
     local ooc_only = setting(context, "charge_ooc_only", true)
-    if ooc_only and target then
-        local target_in_combat = bool_call(target, "is_in_combat") or false
+    if ooc_only and context.target then
+        local target_in_combat = bool_call(context.target, "is_in_combat") or false
         if target_in_combat then return false end
     end
     if state.target_distance < 8 or state.target_distance > 25 then return false end
@@ -402,8 +404,8 @@ end
 
 -- Bloodrage: low rage generation
 local function bloodrage_matches(context, state)
-    if state.rage >= 20 then return false end
-    if not state.in_combat and state.hp < 90 then return false end
+    if (state.rage or 0) >= 20 then return false end
+    if not state.in_combat and (state.hp or 100) < 90 then return false end
     return action(context, build_action("Bloodrage", ACTION.Bloodrage, { target = "self", requires_target = false, skip_gcd = true, cooldown = 60 }))
 end
 
@@ -419,7 +421,7 @@ local function healthstone_matches(context, state)
     local hs_enabled = setting(context, "use_healthstones", true)
     if not hs_enabled then return false end
     local hs_hp = setting(context, "healthstone_hp", 35)
-    if state.hp > hs_hp then return false end
+    if (state.hp or 100) > hs_hp then return false end
     -- Healthstone preferred, then health potion as fallback
     if state.healthstone_ready and state.healthstone_id then
         return true
@@ -444,7 +446,7 @@ local function death_wish_matches(context, state)
     local cds_enabled = setting(context, "use_cooldowns", true)
     if not cds_enabled or not state.death_wish_ready then return false end
     if state.hp < 45 then return false end
-    if state.target_hp < 20 and state.rage < 25 then return false end
+    if state.target_hp < 20 and (state.rage or 0) < 25 then return false end
     return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
 end
 
@@ -505,7 +507,7 @@ end
 -- Sweeping Strikes: AoE prep
 local function sweeping_strikes_matches(context, state)
     local min_count = setting(context, "sweeping_strikes_count", 2)
-    if state.enemy_count < min_count then return false end
+    if (state.enemy_count or 0) < min_count then return false end
     if state.has_sweeping_strikes then return false end
     return action(context, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BERSERKER, min_rage = 30, requires_target = false, enemy_count = min_count, cooldown = 30 }))
 end
@@ -513,7 +515,7 @@ end
 -- Whirlwind: filler + AoE
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
-    if state.enemy_count < 2 and state.rage < 45 then return false end
+    if (state.enemy_count or 0) < 2 and (state.rage or 0) < 45 then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
