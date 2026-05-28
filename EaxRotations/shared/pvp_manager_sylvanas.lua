@@ -90,8 +90,11 @@ function M.get_enemy_players(context)
     if type(list) ~= "table" then return {} end
     for i = 1, #list do
         local unit = list[i]
-        if unit and pcall(unit.is_player, unit) then
-            enemies[#enemies + 1] = unit
+        if unit then
+            local ok, is_player = pcall(unit.is_player, unit)
+            if ok and is_player then
+                enemies[#enemies + 1] = unit
+            end
         end
     end
     return enemies
@@ -104,7 +107,8 @@ function M.pick_priority_target(context)
     local healer, caster, melee
     for i = 1, #enemies do
         local unit = enemies[i]
-        local class_id = pcall(unit.get_class, unit) and unit:get_class() or nil
+        local ok, class_id = pcall(unit.get_class, unit)
+        if not ok then class_id = nil end
 
         if HEALER_CLASS_IDS[class_id] then
             healer = unit
@@ -130,7 +134,8 @@ function M.has_pvp_trinket()
     for i = 1, #items do
         local item = items[i]
         if item then
-            local id = pcall(item.get_item_id, item) and item:get_item_id() or 0
+            local ok, id = pcall(item.get_item_id, item)
+            if not ok then id = 0 end
             for j = 1, #trinket_ids do
                 if id == trinket_ids[j] then return true end
             end

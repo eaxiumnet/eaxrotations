@@ -60,6 +60,8 @@ NS.spell_queue = spell_queue_module
 local _last_error_time = 0
 local _trace_times = {}
 
+local _cached_tank_alive, _cached_tank_alive_time = true, -1
+
 local function trace(key, message, interval_ms)
     if not NS.get_setting("debug_system", false) then return end
     local now = NS.game_time_ms and NS.game_time_ms() or 0
@@ -312,23 +314,29 @@ local function build_context()
     _context.is_battleground = instance_type == "pvp"
     _context.is_group = _context.is_dungeon or _context.is_raid or (NS.is_in_party and NS.is_in_party() or false)
     _context.is_solo = not _context.is_group
-    -- Tank-alive detection for Rebirth safety gating
-    local tank_alive = true
+    -- Tank-alive detection for Rebirth safety gating (throttled to 500ms)
+    local tank_alive = _cached_tank_alive
     if _context.is_group then
-        local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-        if party then
-            for _, u in ipairs(party) do
-                if u then
-                    local ok, is_tank = pcall(function() return u.is_tank and u:is_tank() end)
-                    if ok and is_tank then
-                        local ok2, alive = pcall(function() return u.is_alive and u:is_alive() end)
-                        if ok2 and not alive then
-                            tank_alive = false
-                            break
+        local now = NS.game_time_ms and NS.game_time_ms() or 0
+        if now - _cached_tank_alive_time > 500 then
+            tank_alive = true
+            local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+            if party then
+                for _, u in ipairs(party) do
+                    if u then
+                        local ok, is_tank = pcall(function() return u.is_tank and u:is_tank() end)
+                        if ok and is_tank then
+                            local ok2, alive = pcall(function() return u.is_alive and u:is_alive() end)
+                            if ok2 and not alive then
+                                tank_alive = false
+                                break
+                            end
                         end
                     end
                 end
             end
+            _cached_tank_alive = tank_alive
+            _cached_tank_alive_time = now
         end
     end
     _context.tank_alive = tank_alive

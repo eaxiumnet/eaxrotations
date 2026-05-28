@@ -184,9 +184,9 @@
 -- will replace the originals.
 
 -- ============================================================================
--- MIGRATION STATUS
+-- MIGRATION STATUS (documentation only — all migrations completed)
 -- ============================================================================
--- luacheck: ignore 221 SYLVANAS_MIGRATION_STATUS
+--[[
 SYLVANAS_MIGRATION_STATUS = {
     framework = {
         core_sylvanas = "COMPLETED",
@@ -209,6 +209,7 @@ SYLVANAS_MIGRATION_STATUS = {
         warrior = { all = "COMPLETED" },
     }
 }
+--]]
 
 -- ============================================================================
 -- API BOUNDARY NOTES
