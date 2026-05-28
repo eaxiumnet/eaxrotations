@@ -65,28 +65,6 @@ local function _is_ps_build()
     return false
 end
 
--- Expansion helpers (dual-version support for TBC and Classic)
--- Normalized expansion key: "tbc" | "vanilla" | nil (unknown)
-local _expansion_key = nil
-local function _resolve_expansion_key()
-    if _expansion_key ~= nil then return _expansion_key end
-    local gv = _cached_game_version
-    if not gv then
-        gv = core.get_game_version and core.get_game_version()
-    end
-    if gv then
-        local s = tostring(gv):lower()
-        if s:find("vanilla") or s:find("classic") then
-            _expansion_key = "vanilla"
-        else
-            _expansion_key = "tbc"
-        end
-    else
-        _expansion_key = "tbc" -- safe default: unknown = TBC
-    end
-    return _expansion_key
-end
-
 -- On PS builds, aura/buff APIs are broken from the start.  Set the health
 -- flag immediately so the _buff_manager fallback in buff_up() et al.
 -- activates even before the first spell-known probe.
@@ -165,6 +143,16 @@ if not _buff_db_ok or type(BUFF_DB) ~= "table" then BUFF_DB = {} end
 -- buff_manager fallback for PS builds where unit:has_buff is broken
 local _buff_manager_ok, _buff_manager = pcall(require, "common/modules/buff_manager")
 if not _buff_manager_ok or type(_buff_manager) ~= "table" then _buff_manager = nil end
+
+-- Cache lazy-loaded shared helpers at module load time to avoid repeated pcall(require) overhead in hot paths
+local _reagent_guard_ok, _reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
+if not _reagent_guard_ok or type(_reagent_guard) ~= "table" then _reagent_guard = nil end
+
+local _spell_queue_ok, _spell_queue = pcall(require, "common/modules/spell_queue")
+if not _spell_queue_ok or type(_spell_queue) ~= "table" then _spell_queue = nil end
+
+local _find_dead_ok, _find_dead_scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
+if not _find_dead_ok or type(_find_dead_scan) ~= "table" then _find_dead_scan = nil end
 
 
 
@@ -1122,7 +1110,19 @@ function NS.set_setting(key, value)
 
 end
 
-
+--- Centralized helper for safe setting access from spec files.
+-- Checks context.settings first, then NS.get_setting, then fallback.
+-- Replaces the copy-pasted local function setting(...) in each spec.
+--@param context table  Current rotation context (may be nil in tests).
+--@param key     string Setting key to look up.
+--@param default any    Fallback value when key is missing.
+--@return any The resolved setting value.
+function NS.setting(context, key, default)
+    local settings = context and context.settings
+    if settings and settings[key] ~= nil then return settings[key] end
+    if NS.get_setting then return NS.get_setting(key, default) end
+    return default
+end
 
 function NS.refresh_settings_cache()
 
@@ -2751,9 +2751,9 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     end
 
     -- 4. Reagent guard
-    -- Lazily loaded on demand; no hard-dependency on the module.
-    local reagent_ok, reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
-    if reagent_ok and reagent_guard and reagent_guard.check_reagent then
+    -- Uses module pre-cached at load time to avoid per-cast pcall(require) overhead.
+    local reagent_guard = _reagent_guard
+    if reagent_guard and reagent_guard.check_reagent then
         if not reagent_guard.check_reagent(id) then
             if debug then
                 core.log("[EaxRotations:evaluate_cast] " .. label .. " blocked: missing reagent (spell_id=" .. tostring(id) .. ")")
@@ -2831,9 +2831,9 @@ function NS.try_cast(spell, unit, reason, opts)
 
     if cast_backend == "queue" then
 
-        local queue_ok, spell_queue = pcall(require, "common/modules/spell_queue")
+        local spell_queue = _spell_queue
 
-        if queue_ok and spell_queue and type(spell_queue.queue_spell_target) == "function" then
+        if spell_queue and type(spell_queue.queue_spell_target) == "function" then
 
             local queued = spell_queue:queue_spell_target(id, target, 1, label, false)
 
@@ -5208,9 +5208,9 @@ end
 
 function NS.find_dead_party_ally()
 
-    local ok, scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
+    local scan = _find_dead_scan
 
-    if ok and scan and scan.find_dead_party_ally then
+    if scan and scan.find_dead_party_ally then
 
         return scan.find_dead_party_ally({
 
