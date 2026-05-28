@@ -1,5 +1,23 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_leveling_paladin.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Unit tests for Paladin leveling rotation
--- Tests build_state, all 12 match functions, strategy ordering,
+-- Tests build_state, all 16 match functions, strategy ordering,
 -- helper functions, and edge case handling
 
 local EAXROTATIONS_DIR = "C:/newbot/scripts/EaxRotations"
@@ -55,6 +73,7 @@ end
 
 local MOCK_PALADIN_SPELLS = {
     BlessingOfMight = { 27140 },
+    BlessingOfWisdom = { 27142 },
     DevotionAura = { 27149 },
     SealRighteousness = { 20154 },
     SealCommand = { 20375 },
@@ -68,6 +87,9 @@ local MOCK_PALADIN_SPELLS = {
     DivineShield = { 642 },
     LayOnHands = { 27154 },
     FlashOfLight = { 27137 },
+    HolyLight = { 27135 },
+    HolyShield = { 27179 },
+    Cleanse = { 4987 },
     Shoot = { 5019 },
 }
 
@@ -293,6 +315,7 @@ test("build_state: spell readiness fields populated", function()
     local ctx = make_context()
     local state = get_state(ctx)
     assert_true(state.blessing_might_ready, "blessing_might_ready")
+    assert_true(state.blessing_wisdom_ready, "blessing_wisdom_ready")
     assert_true(state.devotion_aura_ready, "devotion_aura_ready")
     assert_true(state.seal_righteousness_ready, "seal_righteousness_ready")
     assert_true(state.seal_command_ready, "seal_command_ready")
@@ -305,7 +328,10 @@ test("build_state: spell readiness fields populated", function()
     assert_true(state.exorcism_ready, "exorcism_ready")
     assert_true(state.divine_shield_ready, "divine_shield_ready")
     assert_true(state.lay_on_hands_ready, "lay_on_hands_ready")
+    assert_true(state.holy_shield_ready, "holy_shield_ready")
     assert_true(state.flash_light_ready, "flash_light_ready")
+    assert_true(state.holy_light_ready, "holy_light_ready")
+    assert_true(state.cleanse_ready, "cleanse_ready")
 end)
 
 test("build_state: buff checks from context", function()
@@ -313,6 +339,7 @@ test("build_state: buff checks from context", function()
     local state = get_state(ctx)
     -- Buff states depend on ctx.me.has_buff which returns false in mock
     assert_false(state.has_blessing_might, "has_blessing_might from buff check")
+    assert_false(state.has_blessing_wisdom, "has_blessing_wisdom from buff check")
     assert_false(state.has_devotion_aura, "has_devotion_aura from buff check")
 end)
 
@@ -360,7 +387,7 @@ test("blessing_might_matches: not ready -> false", function()
 end)
 
 -- ============================================================================
--- Test: devotion_aura_matches (strategy #2)
+-- Test: devotion_aura_matches (strategy #3)
 -- ============================================================================
 
 test("devotion_aura_matches: OOC, no buff, ready -> true", function()
@@ -368,7 +395,7 @@ test("devotion_aura_matches: OOC, no buff, ready -> true", function()
     local state = get_state(ctx)
     state.has_devotion_aura = false
     state.devotion_aura_ready = true
-    assert_true(strategies[2].matches(ctx, state), "OOC without buff should match")
+    assert_true(strategies[3].matches(ctx, state), "OOC without buff should match")
 end)
 
 test("devotion_aura_matches: in combat -> false", function()
@@ -376,7 +403,7 @@ test("devotion_aura_matches: in combat -> false", function()
     local state = get_state(ctx)
     state.has_devotion_aura = false
     state.devotion_aura_ready = true
-    assert_false(strategies[2].matches(ctx, state), "in combat should not match")
+    assert_false(strategies[3].matches(ctx, state), "in combat should not match")
 end)
 
 test("devotion_aura_matches: already has buff -> false", function()
@@ -384,7 +411,7 @@ test("devotion_aura_matches: already has buff -> false", function()
     local state = get_state(ctx)
     state.has_devotion_aura = true
     state.devotion_aura_ready = true
-    assert_false(strategies[2].matches(ctx, state), "already has buff should not match")
+    assert_false(strategies[3].matches(ctx, state), "already has buff should not match")
 end)
 
 test("devotion_aura_matches: not ready -> false", function()
@@ -392,11 +419,52 @@ test("devotion_aura_matches: not ready -> false", function()
     local state = get_state(ctx)
     state.has_devotion_aura = false
     state.devotion_aura_ready = false
-    assert_false(strategies[2].matches(ctx, state), "not ready should not match")
+    assert_false(strategies[3].matches(ctx, state), "not ready should not match")
 end)
 
 -- ============================================================================
--- Test: flash_light_matches (strategy #3)
+-- Test: holy_shield_matches (strategy #4)
+-- ============================================================================
+
+test("holy_shield_matches: in combat, no buff, ready -> true", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.has_holy_shield = false
+    state.holy_shield_ready = true
+    assert_true(strategies[4].matches(ctx, state), "in combat without buff should match")
+end)
+
+test("holy_shield_matches: already has buff -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.has_holy_shield = true
+    state.holy_shield_ready = true
+    assert_false(strategies[4].matches(ctx, state), "already has buff should not match")
+end)
+
+test("holy_shield_matches: not in combat -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_holy_shield = false
+    state.holy_shield_ready = true
+    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+end)
+
+test("holy_shield_matches: not ready -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.has_holy_shield = false
+    state.holy_shield_ready = false
+    assert_false(strategies[4].matches(ctx, state), "not ready should not match")
+end)
+
+test("holy_shield_matches: nil state -> false", function()
+    local ctx = make_context()
+    assert_false(strategies[4].matches(ctx, nil), "nil state should return false")
+end)
+
+-- ============================================================================
+-- Test: flash_light_matches (strategy #6)
 -- ============================================================================
 
 test("flash_light_matches: in combat, HP below 60, ready -> true", function()
@@ -404,7 +472,7 @@ test("flash_light_matches: in combat, HP below 60, ready -> true", function()
     local state = get_state(ctx)
     state.flash_light_ready = true
     state.hp = 40
-    assert_true(strategies[3].matches(ctx, state), "HP below 60 should match")
+    assert_true(strategies[6].matches(ctx, state), "HP below 60 should match")
 end)
 
 test("flash_light_matches: HP above 60 -> false", function()
@@ -412,7 +480,7 @@ test("flash_light_matches: HP above 60 -> false", function()
     local state = get_state(ctx)
     state.flash_light_ready = true
     state.hp = 80
-    assert_false(strategies[3].matches(ctx, state), "HP above 60 should not match")
+    assert_false(strategies[6].matches(ctx, state), "HP above 60 should not match")
 end)
 
 test("flash_light_matches: not in combat -> false", function()
@@ -420,7 +488,7 @@ test("flash_light_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.flash_light_ready = true
     state.hp = 40
-    assert_false(strategies[3].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
 end)
 
 test("flash_light_matches: not ready -> false", function()
@@ -428,11 +496,11 @@ test("flash_light_matches: not ready -> false", function()
     local state = get_state(ctx)
     state.flash_light_ready = false
     state.hp = 40
-    assert_false(strategies[3].matches(ctx, state), "not ready should not match")
+    assert_false(strategies[6].matches(ctx, state), "not ready should not match")
 end)
 
 -- ============================================================================
--- Test: divine_shield_matches (strategy #4)
+-- Test: divine_shield_matches (strategy #8)
 -- ============================================================================
 
 test("divine_shield_matches: in combat, HP below 20, ready -> true", function()
@@ -440,7 +508,7 @@ test("divine_shield_matches: in combat, HP below 20, ready -> true", function()
     local state = get_state(ctx)
     state.divine_shield_ready = true
     state.hp = 15
-    assert_true(strategies[4].matches(ctx, state), "HP below 20 should match")
+    assert_true(strategies[8].matches(ctx, state), "HP below 20 should match")
 end)
 
 test("divine_shield_matches: HP above 20 -> false", function()
@@ -448,7 +516,7 @@ test("divine_shield_matches: HP above 20 -> false", function()
     local state = get_state(ctx)
     state.divine_shield_ready = true
     state.hp = 50
-    assert_false(strategies[4].matches(ctx, state), "HP above 20 should not match")
+    assert_false(strategies[8].matches(ctx, state), "HP above 20 should not match")
 end)
 
 test("divine_shield_matches: not in combat -> false", function()
@@ -456,11 +524,11 @@ test("divine_shield_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.divine_shield_ready = true
     state.hp = 15
-    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[8].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: lay_on_hands_matches (strategy #5)
+-- Test: lay_on_hands_matches (strategy #9)
 -- ============================================================================
 
 test("lay_on_hands_matches: in combat, HP below 15, ready -> true", function()
@@ -468,7 +536,7 @@ test("lay_on_hands_matches: in combat, HP below 15, ready -> true", function()
     local state = get_state(ctx)
     state.lay_on_hands_ready = true
     state.hp = 10
-    assert_true(strategies[5].matches(ctx, state), "HP below 15 should match")
+    assert_true(strategies[9].matches(ctx, state), "HP below 15 should match")
 end)
 
 test("lay_on_hands_matches: HP above 15 -> false", function()
@@ -476,7 +544,7 @@ test("lay_on_hands_matches: HP above 15 -> false", function()
     local state = get_state(ctx)
     state.lay_on_hands_ready = true
     state.hp = 50
-    assert_false(strategies[5].matches(ctx, state), "HP above 15 should not match")
+    assert_false(strategies[9].matches(ctx, state), "HP above 15 should not match")
 end)
 
 test("lay_on_hands_matches: not in combat -> false", function()
@@ -484,11 +552,11 @@ test("lay_on_hands_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.lay_on_hands_ready = true
     state.hp = 10
-    assert_false(strategies[5].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
--- Test: hammer_justice_matches (strategy #6)
+-- Test: hammer_justice_matches (strategy #10)
 -- ============================================================================
 
 test("hammer_justice_matches: in combat, 2+ enemies, ready -> true", function()
@@ -496,7 +564,7 @@ test("hammer_justice_matches: in combat, 2+ enemies, ready -> true", function()
     local state = get_state(ctx)
     state.hammer_justice_ready = true
     state.enemies = 3
-    assert_true(strategies[6].matches(ctx, state), "2+ enemies should match")
+    assert_true(strategies[10].matches(ctx, state), "2+ enemies should match")
 end)
 
 test("hammer_justice_matches: single enemy -> false", function()
@@ -504,7 +572,7 @@ test("hammer_justice_matches: single enemy -> false", function()
     local state = get_state(ctx)
     state.hammer_justice_ready = true
     state.enemies = 1
-    assert_false(strategies[6].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[10].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("hammer_justice_matches: not in combat -> false", function()
@@ -512,7 +580,7 @@ test("hammer_justice_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.hammer_justice_ready = true
     state.enemies = 3
-    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[10].matches(ctx, state), "OOC should not match")
 end)
 
 test("hammer_justice_matches: no target -> false", function()
@@ -521,25 +589,25 @@ test("hammer_justice_matches: no target -> false", function()
     state.hammer_justice_ready = true
     state.enemies = 3
     state.target = nil
-    assert_false(strategies[6].matches(ctx, state), "no target should not match")
+    assert_false(strategies[10].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
--- Test: judgement_matches (strategy #7)
+-- Test: judgement_matches (strategy #11)
 -- ============================================================================
 
 test("judgement_matches: in combat, ready -> true", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.judgement_ready = true
-    assert_true(strategies[7].matches(ctx, state), "in combat ready should match")
+    assert_true(strategies[11].matches(ctx, state), "in combat ready should match")
 end)
 
 test("judgement_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.judgement_ready = true
-    assert_false(strategies[7].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[11].matches(ctx, state), "OOC should not match")
 end)
 
 test("judgement_matches: no target -> false", function()
@@ -547,18 +615,18 @@ test("judgement_matches: no target -> false", function()
     local state = get_state(ctx)
     state.judgement_ready = true
     state.target = nil
-    assert_false(strategies[7].matches(ctx, state), "no target should not match")
+    assert_false(strategies[11].matches(ctx, state), "no target should not match")
 end)
 
 test("judgement_matches: not ready -> false", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.judgement_ready = false
-    assert_false(strategies[7].matches(ctx, state), "not ready should not match")
+    assert_false(strategies[11].matches(ctx, state), "not ready should not match")
 end)
 
 -- ============================================================================
--- Test: hammer_wrath_matches (strategy #8)
+-- Test: hammer_wrath_matches (strategy #12)
 -- ============================================================================
 
 test("hammer_wrath_matches: in combat, target HP below 20, ready -> true", function()
@@ -566,14 +634,14 @@ test("hammer_wrath_matches: in combat, target HP below 20, ready -> true", funct
     ctx.target.get_health_percentage = function() return 15 end
     local state = get_state(ctx)
     state.hammer_wrath_ready = true
-    assert_true(strategies[8].matches(ctx, state), "target HP below 20 should match")
+    assert_true(strategies[12].matches(ctx, state), "target HP below 20 should match")
 end)
 
 test("hammer_wrath_matches: target HP above 20 -> false", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.hammer_wrath_ready = true
-    assert_false(strategies[8].matches(ctx, state), "target HP above 20 should not match")
+    assert_false(strategies[12].matches(ctx, state), "target HP above 20 should not match")
 end)
 
 test("hammer_wrath_matches: not in combat -> false", function()
@@ -581,7 +649,7 @@ test("hammer_wrath_matches: not in combat -> false", function()
     ctx.target.get_health_percentage = function() return 15 end
     local state = get_state(ctx)
     state.hammer_wrath_ready = true
-    assert_false(strategies[8].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[12].matches(ctx, state), "OOC should not match")
 end)
 
 test("hammer_wrath_matches: no target -> false", function()
@@ -589,25 +657,25 @@ test("hammer_wrath_matches: no target -> false", function()
     local state = get_state(ctx)
     state.hammer_wrath_ready = true
     state.target = nil
-    assert_false(strategies[8].matches(ctx, state), "no target should not match")
+    assert_false(strategies[12].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
--- Test: crusader_strike_matches (strategy #9)
+-- Test: crusader_strike_matches (strategy #13)
 -- ============================================================================
 
 test("crusader_strike_matches: in combat, ready -> true", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.crusader_strike_ready = true
-    assert_true(strategies[9].matches(ctx, state), "in combat ready should match")
+    assert_true(strategies[13].matches(ctx, state), "in combat ready should match")
 end)
 
 test("crusader_strike_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.crusader_strike_ready = true
-    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[13].matches(ctx, state), "OOC should not match")
 end)
 
 test("crusader_strike_matches: no target -> false", function()
@@ -615,18 +683,18 @@ test("crusader_strike_matches: no target -> false", function()
     local state = get_state(ctx)
     state.crusader_strike_ready = true
     state.target = nil
-    assert_false(strategies[9].matches(ctx, state), "no target should not match")
+    assert_false(strategies[13].matches(ctx, state), "no target should not match")
 end)
 
 test("crusader_strike_matches: not ready -> false", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.crusader_strike_ready = false
-    assert_false(strategies[9].matches(ctx, state), "not ready should not match")
+    assert_false(strategies[13].matches(ctx, state), "not ready should not match")
 end)
 
 -- ============================================================================
--- Test: exorcism_matches (strategy #10)
+-- Test: exorcism_matches (strategy #14)
 -- ============================================================================
 
 test("exorcism_matches: in combat, not moving, ready -> true", function()
@@ -634,7 +702,7 @@ test("exorcism_matches: in combat, not moving, ready -> true", function()
     local state = get_state(ctx)
     state.exorcism_ready = true
     state.is_moving = false
-    assert_true(strategies[10].matches(ctx, state), "stationary should match")
+    assert_true(strategies[14].matches(ctx, state), "stationary should match")
 end)
 
 test("exorcism_matches: moving -> false", function()
@@ -642,14 +710,14 @@ test("exorcism_matches: moving -> false", function()
     local state = get_state(ctx)
     state.exorcism_ready = true
     state.is_moving = true
-    assert_false(strategies[10].matches(ctx, state), "moving should not match")
+    assert_false(strategies[14].matches(ctx, state), "moving should not match")
 end)
 
 test("exorcism_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.exorcism_ready = true
-    assert_false(strategies[10].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[14].matches(ctx, state), "OOC should not match")
 end)
 
 test("exorcism_matches: no target -> false", function()
@@ -657,11 +725,11 @@ test("exorcism_matches: no target -> false", function()
     local state = get_state(ctx)
     state.exorcism_ready = true
     state.target = nil
-    assert_false(strategies[10].matches(ctx, state), "no target should not match")
+    assert_false(strategies[14].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
--- Test: consecration_matches (strategy #11)
+-- Test: consecration_matches (strategy #15)
 -- ============================================================================
 
 test("consecration_matches: 2+ enemies, not moving, ready -> true", function()
@@ -670,7 +738,7 @@ test("consecration_matches: 2+ enemies, not moving, ready -> true", function()
     state.consecration_ready = true
     state.enemies = 3
     state.is_moving = false
-    assert_true(strategies[11].matches(ctx, state), "2+ enemies stationary should match")
+    assert_true(strategies[15].matches(ctx, state), "2+ enemies stationary should match")
 end)
 
 test("consecration_matches: single enemy -> false", function()
@@ -678,7 +746,7 @@ test("consecration_matches: single enemy -> false", function()
     local state = get_state(ctx)
     state.consecration_ready = true
     state.enemies = 1
-    assert_false(strategies[11].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[15].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("consecration_matches: moving -> false", function()
@@ -687,7 +755,7 @@ test("consecration_matches: moving -> false", function()
     state.consecration_ready = true
     state.enemies = 3
     state.is_moving = true
-    assert_false(strategies[11].matches(ctx, state), "moving should not match")
+    assert_false(strategies[15].matches(ctx, state), "moving should not match")
 end)
 
 test("consecration_matches: not in combat -> false", function()
@@ -695,7 +763,7 @@ test("consecration_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.consecration_ready = true
     state.enemies = 3
-    assert_false(strategies[11].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[15].matches(ctx, state), "OOC should not match")
 end)
 
 test("consecration_matches: no target -> false", function()
@@ -704,11 +772,11 @@ test("consecration_matches: no target -> false", function()
     state.consecration_ready = true
     state.enemies = 3
     state.target = nil
-    assert_false(strategies[11].matches(ctx, state), "no target should not match")
+    assert_false(strategies[15].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
--- Test: seal_matches (strategy #12)
+-- Test: seal_matches (strategy #16)
 -- ============================================================================
 
 test("seal_matches: in combat, target, ready -> true", function()
@@ -716,7 +784,7 @@ test("seal_matches: in combat, target, ready -> true", function()
     local state = get_state(ctx)
     state.seal_command_ready = true
     -- Prefers Command/Blood first
-    assert_true(strategies[12].matches(ctx, state), "seal command ready should match")
+    assert_true(strategies[16].matches(ctx, state), "seal command ready should match")
 end)
 
 test("seal_matches: only righteous ready -> true", function()
@@ -725,7 +793,7 @@ test("seal_matches: only righteous ready -> true", function()
     state.seal_command_ready = false
     state.seal_blood_ready = false
     state.seal_righteousness_ready = true
-    assert_true(strategies[12].matches(ctx, state), "only seal righteous should match")
+    assert_true(strategies[16].matches(ctx, state), "only seal righteous should match")
 end)
 
 test("seal_matches: no seal ready -> false", function()
@@ -734,14 +802,14 @@ test("seal_matches: no seal ready -> false", function()
     state.seal_command_ready = false
     state.seal_blood_ready = false
     state.seal_righteousness_ready = false
-    assert_false(strategies[12].matches(ctx, state), "no seal ready should not match")
+    assert_false(strategies[16].matches(ctx, state), "no seal ready should not match")
 end)
 
 test("seal_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.seal_command_ready = true
-    assert_false(strategies[12].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[16].matches(ctx, state), "OOC should not match")
 end)
 
 test("seal_matches: no target -> false", function()
@@ -749,18 +817,22 @@ test("seal_matches: no target -> false", function()
     local state = get_state(ctx)
     state.seal_command_ready = true
     state.target = nil
-    assert_false(strategies[12].matches(ctx, state), "no target should not match")
+    assert_false(strategies[16].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 12 strategies in correct priority order", function()
+test("strategies: 16 strategies in correct priority order", function()
     local expected = {
         "BlessingMight",
+        "BlessingWisdom",
         "DevotionAura",
+        "HolyShield",
+        "Cleanse",
         "FlashOfLight",
+        "HolyLight",
         "DivineShield",
         "LayOnHands",
         "HammerOfJustice",
@@ -771,7 +843,7 @@ test("strategies: 12 strategies in correct priority order", function()
         "Consecration",
         "Seal",
     }
-    assert_eq(#strategies, 12, "should have 12 strategies")
+    assert_eq(#strategies, 16, "should have 16 strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -796,7 +868,7 @@ end)
 
 test("execute_CrusaderStrike: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[9].execute, ctx)
+    local ok, result = pcall(strategies[13].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
@@ -850,16 +922,22 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     state.blessing_might_ready = true
     state.has_devotion_aura = false
     state.devotion_aura_ready = true
+    state.has_blessing_wisdom = false
+    state.blessing_wisdom_ready = true
+    state.cleanse_ready = true
 
     -- OOC buffs should match
     assert_true(strategies[1].matches(ctx, state), "BlessingMight should match OOC")
-    assert_true(strategies[2].matches(ctx, state), "DevotionAura should match OOC")
+    assert_true(strategies[2].matches(ctx, state), "BlessingWisdom should match OOC")
+    assert_true(strategies[3].matches(ctx, state), "DevotionAura should match OOC")
+    assert_true(strategies[5].matches(ctx, state), "Cleanse should match OOC")
 
     -- Combat abilities should not match OOC
-    for i = 3, 12 do
+    local combat_indices = {4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+    for _, i in ipairs(combat_indices) do
         local ok, matched = pcall(strategies[i].matches, ctx, state)
         assert_true(ok, "strategy[" .. i .. "] matches should not throw")
-        assert_false(matched, "strategy[" .. i .. "] should not match OOC")
+        assert_false(matched, "strategy[" .. i .. "] (" .. strategies[i].name .. ") should not match OOC")
     end
 end)
 
@@ -869,7 +947,7 @@ test("rotation: execute scenario - hammer_wrath should match when target < 20%",
     local state = get_state(ctx)
     state.hammer_wrath_ready = true
 
-    assert_true(strategies[8].matches(ctx, state), "HammerOfWrath should match when target < 20% HP")
+    assert_true(strategies[12].matches(ctx, state), "HammerOfWrath should match when target < 20% HP")
 end)
 
 test("rotation: low HP scenario - flash_light should match", function()
@@ -878,7 +956,7 @@ test("rotation: low HP scenario - flash_light should match", function()
     state.flash_light_ready = true
     state.hp = 40
 
-    assert_true(strategies[3].matches(ctx, state), "FlashOfLight should match when HP < 60")
+    assert_true(strategies[6].matches(ctx, state), "FlashOfLight should match when HP < 60")
 end)
 
 -- ============================================================================
@@ -891,7 +969,7 @@ test("edge_seal: Command preferred over Blood and Righteousness", function()
     state.seal_command_ready = true
     state.seal_blood_ready = true
     state.seal_righteousness_ready = true
-    assert_true(strategies[12].matches(ctx, state), "Command ready should match")
+    assert_true(strategies[16].matches(ctx, state), "Command ready should match")
 end)
 
 test("edge_seal: Blood fallback when Command not ready", function()
@@ -900,7 +978,7 @@ test("edge_seal: Blood fallback when Command not ready", function()
     state.seal_command_ready = false
     state.seal_blood_ready = true
     state.seal_righteousness_ready = true
-    assert_true(strategies[12].matches(ctx, state), "Blood ready should match when Command not ready")
+    assert_true(strategies[16].matches(ctx, state), "Blood ready should match when Command not ready")
 end)
 
 test("edge_seal: Righteousness fallback when Command and Blood not ready", function()
@@ -909,7 +987,7 @@ test("edge_seal: Righteousness fallback when Command and Blood not ready", funct
     state.seal_command_ready = false
     state.seal_blood_ready = false
     state.seal_righteousness_ready = true
-    assert_true(strategies[12].matches(ctx, state), "Righteousness ready should match when others not ready")
+    assert_true(strategies[16].matches(ctx, state), "Righteousness ready should match when others not ready")
 end)
 
 test("edge_seal: no seal ready returns false", function()
@@ -918,7 +996,7 @@ test("edge_seal: no seal ready returns false", function()
     state.seal_command_ready = false
     state.seal_blood_ready = false
     state.seal_righteousness_ready = false
-    assert_false(strategies[12].matches(ctx, state), "no seal ready should not match")
+    assert_false(strategies[16].matches(ctx, state), "no seal ready should not match")
 end)
 
 -- ============================================================================
@@ -931,7 +1009,7 @@ test("edge_consecration: exactly 2 enemies -> true", function()
     state.consecration_ready = true
     state.enemies = 2
     state.is_moving = false
-    assert_true(strategies[11].matches(ctx, state), "exactly 2 enemies should match")
+    assert_true(strategies[15].matches(ctx, state), "exactly 2 enemies should match")
 end)
 
 test("edge_consecration: exactly 1 enemy -> false", function()
@@ -940,7 +1018,7 @@ test("edge_consecration: exactly 1 enemy -> false", function()
     state.consecration_ready = true
     state.enemies = 1
     state.is_moving = false
-    assert_false(strategies[11].matches(ctx, state), "exactly 1 enemy should not match")
+    assert_false(strategies[15].matches(ctx, state), "exactly 1 enemy should not match")
 end)
 
 -- ============================================================================
@@ -952,7 +1030,7 @@ test("edge_flash_light: HP exactly 60 -> true", function()
     local state = get_state(ctx)
     state.flash_light_ready = true
     state.hp = 60
-    assert_true(strategies[3].matches(ctx, state), "HP exactly 60 should match (<= check)")
+    assert_true(strategies[6].matches(ctx, state), "HP exactly 60 should match (<= check)")
 end)
 
 test("edge_flash_light: HP exactly 61 -> false", function()
@@ -960,7 +1038,7 @@ test("edge_flash_light: HP exactly 61 -> false", function()
     local state = get_state(ctx)
     state.flash_light_ready = true
     state.hp = 61
-    assert_false(strategies[3].matches(ctx, state), "HP exactly 61 should not match")
+    assert_false(strategies[6].matches(ctx, state), "HP exactly 61 should not match")
 end)
 
 test("edge_divine_shield: HP exactly 20 -> true", function()
@@ -968,7 +1046,7 @@ test("edge_divine_shield: HP exactly 20 -> true", function()
     local state = get_state(ctx)
     state.divine_shield_ready = true
     state.hp = 20
-    assert_true(strategies[4].matches(ctx, state), "HP exactly 20 should match (<= check)")
+    assert_true(strategies[8].matches(ctx, state), "HP exactly 20 should match (<= check)")
 end)
 
 test("edge_divine_shield: HP exactly 21 -> false", function()
@@ -976,7 +1054,7 @@ test("edge_divine_shield: HP exactly 21 -> false", function()
     local state = get_state(ctx)
     state.divine_shield_ready = true
     state.hp = 21
-    assert_false(strategies[4].matches(ctx, state), "HP exactly 21 should not match")
+    assert_false(strategies[8].matches(ctx, state), "HP exactly 21 should not match")
 end)
 
 test("edge_lay_on_hands: HP exactly 15 -> true", function()
@@ -984,7 +1062,7 @@ test("edge_lay_on_hands: HP exactly 15 -> true", function()
     local state = get_state(ctx)
     state.lay_on_hands_ready = true
     state.hp = 15
-    assert_true(strategies[5].matches(ctx, state), "HP exactly 15 should match (<= check)")
+    assert_true(strategies[9].matches(ctx, state), "HP exactly 15 should match (<= check)")
 end)
 
 test("edge_lay_on_hands: HP exactly 16 -> false", function()
@@ -992,7 +1070,7 @@ test("edge_lay_on_hands: HP exactly 16 -> false", function()
     local state = get_state(ctx)
     state.lay_on_hands_ready = true
     state.hp = 16
-    assert_false(strategies[5].matches(ctx, state), "HP exactly 16 should not match")
+    assert_false(strategies[9].matches(ctx, state), "HP exactly 16 should not match")
 end)
 
 -- ============================================================================
@@ -1004,7 +1082,7 @@ test("edge_hammer_wrath: target HP exactly 20 -> true", function()
     ctx.target.get_health_percentage = function() return 20 end
     local state = get_state(ctx)
     state.hammer_wrath_ready = true
-    assert_true(strategies[8].matches(ctx, state), "target HP exactly 20 should match (<= check)")
+    assert_true(strategies[12].matches(ctx, state), "target HP exactly 20 should match (<= check)")
 end)
 
 test("edge_hammer_wrath: target HP exactly 21 -> false", function()
@@ -1012,7 +1090,7 @@ test("edge_hammer_wrath: target HP exactly 21 -> false", function()
     ctx.target.get_health_percentage = function() return 21 end
     local state = get_state(ctx)
     state.hammer_wrath_ready = true
-    assert_false(strategies[8].matches(ctx, state), "target HP exactly 21 should not match")
+    assert_false(strategies[12].matches(ctx, state), "target HP exactly 21 should not match")
 end)
 
 -- ============================================================================
@@ -1024,7 +1102,7 @@ test("edge_hammer_justice: exactly 2 enemies -> true", function()
     local state = get_state(ctx)
     state.hammer_justice_ready = true
     state.enemies = 2
-    assert_true(strategies[6].matches(ctx, state), "exactly 2 enemies should match")
+    assert_true(strategies[10].matches(ctx, state), "exactly 2 enemies should match")
 end)
 
 test("edge_hammer_justice: exactly 1 enemy -> false", function()
@@ -1032,7 +1110,7 @@ test("edge_hammer_justice: exactly 1 enemy -> false", function()
     local state = get_state(ctx)
     state.hammer_justice_ready = true
     state.enemies = 1
-    assert_false(strategies[6].matches(ctx, state), "exactly 1 enemy should not match")
+    assert_false(strategies[10].matches(ctx, state), "exactly 1 enemy should not match")
 end)
 
 -- ============================================================================
@@ -1044,7 +1122,7 @@ test("edge_exorcism: stationary -> true", function()
     local state = get_state(ctx)
     state.exorcism_ready = true
     state.is_moving = false
-    assert_true(strategies[10].matches(ctx, state), "stationary should match")
+    assert_true(strategies[14].matches(ctx, state), "stationary should match")
 end)
 
 test("edge_exorcism: moving -> false", function()
@@ -1052,7 +1130,7 @@ test("edge_exorcism: moving -> false", function()
     local state = get_state(ctx)
     state.exorcism_ready = true
     state.is_moving = true
-    assert_false(strategies[10].matches(ctx, state), "moving should not match")
+    assert_false(strategies[14].matches(ctx, state), "moving should not match")
 end)
 
 -- ============================================================================
@@ -1065,6 +1143,7 @@ test("edge_buff: NS.buff_up nil in build_state returns false for all buffs", fun
     NS.buff_up = nil
     local state = get_state(ctx)
     assert_false(state.has_blessing_might, "has_blessing_might false when NS.buff_up nil")
+    assert_false(state.has_blessing_wisdom, "has_blessing_wisdom false when NS.buff_up nil")
     assert_false(state.has_devotion_aura, "has_devotion_aura false when NS.buff_up nil")
     NS.buff_up = saved
 end)
@@ -1075,6 +1154,7 @@ test("edge_buff: NS.buff_up throws in build_state does not crash", function()
     NS.buff_up = function() error("mock crash") end
     local state = get_state(ctx)
     assert_false(state.has_blessing_might, "has_blessing_might false when NS.buff_up throws")
+    assert_false(state.has_blessing_wisdom, "has_blessing_wisdom false when NS.buff_up throws")
     assert_false(state.has_devotion_aura, "has_devotion_aura false when NS.buff_up throws")
     NS.buff_up = saved
 end)

@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_leveling_druid.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Unit tests for Druid leveling rotation
 -- Tests build_state, all 12 match functions, strategy ordering,
 -- helper functions, and edge case handling
@@ -67,6 +85,23 @@ local MOCK_DRUID_SPELLS = {
     EntanglingRoots = { 26990 },
     NaturesGrasp = { 26994 },
     FaerieFire = { 26993 },
+    -- Feral spells
+    CatForm = { 768 },
+    BearForm = { 9634 },
+    Prowl = { 9913 },
+    Pounce = { 27006 },
+    Ravage = { 27005 },
+    Rake = { 27003 },
+    MangleCat = { 33983 },
+    Shred = { 27002 },
+    Rip = { 27008 },
+    FerociousBite = { 27012 },
+    Claw = { 27001 },
+    MangleBear = { 33983 },
+    SwipeBear = { 26998 },
+    Maul = { 26996 },
+    FrenziedRegeneration = { 26999 },
+    FaerieFireFeral = { 27011 },
 }
 
 --- Create a fresh mock environment. Returns (NS, core, mock_player, mock_target).
@@ -158,6 +193,8 @@ local function build_mock_env()
     end
     NS.buff_remains = function(unit, buff_ids) return 0 end
     NS.buff_up = function(unit, buff_ids) return false end
+    NS.has_form = function(form) return false end
+    NS.is_behind_target = function(target) return false end
 
     -- rotation_registry mock that captures registrations
     NS.rotation_registry = {
@@ -244,6 +281,46 @@ if not reg then
 end
 local strategies = reg.strategies
 local get_state = reg.opts.get_state
+
+-- Strategy lookup helper (avoids hardcoded indices)
+local function find_strategy(name)
+    for i, s in ipairs(strategies) do
+        if s.name == name then return s end
+    end
+    return nil
+end
+
+-- Strategy aliases for ergonomic test access
+local S_BearSurvival = find_strategy("BearFormSurvival")
+local S_FrenziedRegen = find_strategy("FrenziedRegeneration")
+local S_CatFormEntry = find_strategy("CatFormEntry")
+local S_ProwlOpener = find_strategy("ProwlOpener")
+local S_Pounce = find_strategy("Pounce")
+local S_Ravage = find_strategy("Ravage")
+local S_FaerieFireFeral = find_strategy("FaerieFireFeral")
+local S_Rake = find_strategy("Rake")
+local S_MangleCat = find_strategy("MangleCat")
+local S_Shred = find_strategy("Shred")
+local S_Rip = find_strategy("Rip")
+local S_FerociousBite = find_strategy("FerociousBite")
+local S_Claw = find_strategy("Claw")
+local S_MangleBear = find_strategy("MangleBear")
+local S_SwipeBear = find_strategy("SwipeBear")
+local S_Maul = find_strategy("Maul")
+local S_MOTW = find_strategy("MarkOfTheWild")
+local S_THORNS = find_strategy("Thorns")
+local S_NATURESGRASP = find_strategy("NaturesGrasp")
+local S_BARKSKIN = find_strategy("Barkskin")
+local S_HEALINGTOUCH = find_strategy("HealingTouch")
+local S_REJUV = find_strategy("Rejuvenation")
+local S_ROOTS = find_strategy("EntanglingRoots")
+local S_MOONFIRE = find_strategy("Moonfire")
+local S_IS = find_strategy("InsectSwarm")
+local S_FF = find_strategy("FaerieFire")
+local S_HURRICANE = find_strategy("Hurricane")
+local S_STARFIRE = find_strategy("Starfire")
+local S_WRATH = find_strategy("Wrath")
+local S_WAND = find_strategy("Wand")
 
 print("=== Druid Leveling Unit Tests ===\n")
 print("Loaded " .. tostring(#strategies) .. " strategies\n")
@@ -335,7 +412,7 @@ test("motw_matches: OOC, ready, no buff -> true", function()
     local state = get_state(ctx)
     state.has_mark_of_wild = false
     state.mark_of_the_wild_ready = true
-    assert_true(strategies[1].matches(ctx, state), "should match OOC without buff")
+    assert_true(S_MOTW.matches(ctx, state), "should match OOC without buff")
 end)
 
 test("motw_matches: in combat -> false", function()
@@ -343,7 +420,7 @@ test("motw_matches: in combat -> false", function()
     local state = get_state(ctx)
     state.has_mark_of_wild = false
     state.mark_of_the_wild_ready = true
-    assert_false(strategies[1].matches(ctx, state), "should not match in combat")
+    assert_false(S_MOTW.matches(ctx, state), "should not match in combat")
 end)
 
 test("motw_matches: already has buff -> false", function()
@@ -351,11 +428,11 @@ test("motw_matches: already has buff -> false", function()
     local state = get_state(ctx)
     state.has_mark_of_wild = true
     state.mark_of_the_wild_ready = true
-    assert_false(strategies[1].matches(ctx, state), "should not match if buff active")
+    assert_false(S_MOTW.matches(ctx, state), "should not match if buff active")
 end)
 
 test("motw_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[1].matches, make_context({in_combat = false}), nil)
+    local ok, result = pcall(S_MOTW.matches, make_context({in_combat = false}), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
@@ -368,7 +445,7 @@ test("thorns_matches: OOC, ready, no buff -> true", function()
     local state = get_state(ctx)
     state.has_thorns = false
     state.thorns_ready = true
-    assert_true(strategies[2].matches(ctx, state), "should match OOC without buff")
+    assert_true(S_THORNS.matches(ctx, state), "should match OOC without buff")
 end)
 
 test("thorns_matches: in combat -> false", function()
@@ -376,7 +453,7 @@ test("thorns_matches: in combat -> false", function()
     local state = get_state(ctx)
     state.has_thorns = false
     state.thorns_ready = true
-    assert_false(strategies[2].matches(ctx, state), "should not match in combat")
+    assert_false(S_THORNS.matches(ctx, state), "should not match in combat")
 end)
 
 test("thorns_matches: already has buff -> false", function()
@@ -384,16 +461,102 @@ test("thorns_matches: already has buff -> false", function()
     local state = get_state(ctx)
     state.has_thorns = true
     state.thorns_ready = true
-    assert_false(strategies[2].matches(ctx, state), "should not match if buff active")
+    assert_false(S_THORNS.matches(ctx, state), "should not match if buff active")
 end)
 
 test("thorns_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[2].matches, make_context({in_combat = false}), nil)
+    local ok, result = pcall(S_THORNS.matches, make_context({in_combat = false}), nil)
+    assert_true(ok, "nil state should not throw")
+end)
+
+-- Test: natures_grasp_matches (strategy #3)
+-- ============================================================================
+
+test("natures_grasp_matches: low HP, in combat, ready -> true", function()
+    local ctx = make_context({hp = 30})
+    local state = get_state(ctx)
+    state.natures_grasp_ready = true
+    state.hp = 30
+    state.in_combat = true
+    state.enemies = 1
+    assert_true(S_NATURESGRASP.matches(ctx, state), "low HP should trigger Nature's Grasp")
+end)
+
+test("natures_grasp_matches: overwhelmed (2+ enemies) -> true even at decent HP", function()
+    local ctx = make_context({hp = 60, enemies_count = 3})
+    local state = get_state(ctx)
+    state.natures_grasp_ready = true
+    state.hp = 60
+    state.in_combat = true
+    state.enemies = 3
+    assert_true(S_NATURESGRASP.matches(ctx, state), "overwhelmed should trigger Nature's Grasp")
+end)
+
+test("natures_grasp_matches: high HP, 1 enemy -> false", function()
+    local ctx = make_context({hp = 80})
+    local state = get_state(ctx)
+    state.natures_grasp_ready = true
+    state.hp = 80
+    state.in_combat = true
+    state.enemies = 1
+    assert_false(S_NATURESGRASP.matches(ctx, state), "safe HP with 1 enemy should not match")
+end)
+
+test("natures_grasp_matches: OOC -> false", function()
+    local ctx = make_context({in_combat = false, hp = 30})
+    local state = get_state(ctx)
+    state.natures_grasp_ready = true
+    state.hp = 30
+    state.in_combat = false
+    state.enemies = 1
+    assert_false(S_NATURESGRASP.matches(ctx, state), "OOC should not match")
+end)
+
+test("natures_grasp_matches: nil state -> does not crash", function()
+    local ok, result = pcall(S_NATURESGRASP.matches, make_context({hp = 30}), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: barkskin_matches (strategy #3)
+-- Test: healing_touch_matches (strategy #5)
+-- ============================================================================
+
+test("healing_touch_matches: very low HP, in combat, ready -> true", function()
+    local ctx = make_context({hp = 25})
+    local state = get_state(ctx)
+    state.healing_touch_ready = true
+    state.hp = 25
+    state.heal_hp = 40
+    state.in_combat = true
+    assert_true(S_HEALINGTOUCH.matches(ctx, state), "very low HP should trigger Healing Touch")
+end)
+
+test("healing_touch_matches: HP above (heal_hp - 10) -> false", function()
+    local ctx = make_context({hp = 50})
+    local state = get_state(ctx)
+    state.healing_touch_ready = true
+    state.hp = 50
+    state.heal_hp = 40
+    state.in_combat = true
+    assert_false(S_HEALINGTOUCH.matches(ctx, state), "HP above heal_hp-10 should not match")
+end)
+
+test("healing_touch_matches: OOC -> false", function()
+    local ctx = make_context({in_combat = false, hp = 25})
+    local state = get_state(ctx)
+    state.healing_touch_ready = true
+    state.hp = 25
+    state.in_combat = false
+    assert_false(S_HEALINGTOUCH.matches(ctx, state), "OOC should not match")
+end)
+
+test("healing_touch_matches: nil state -> does not crash", function()
+    local ok, result = pcall(S_HEALINGTOUCH.matches, make_context({hp = 25}), nil)
+    assert_true(ok, "nil state should not throw")
+end)
+
+-- ============================================================================
+-- Test: barkskin_matches (strategy #4)
 -- ============================================================================
 
 test("barkskin_matches: in combat, low HP, ready -> true", function()
@@ -401,7 +564,7 @@ test("barkskin_matches: in combat, low HP, ready -> true", function()
     local state = get_state(ctx)
     state.barkskin_ready = true
     state.hp = 35
-    assert_true(strategies[3].matches(ctx, state), "low HP in combat should match")
+    assert_true(S_BARKSKIN.matches(ctx, state), "low HP in combat should match")
 end)
 
 test("barkskin_matches: HP above 50 -> false", function()
@@ -409,7 +572,7 @@ test("barkskin_matches: HP above 50 -> false", function()
     local state = get_state(ctx)
     state.barkskin_ready = true
     state.hp = 80
-    assert_false(strategies[3].matches(ctx, state), "HP above 50 should not match")
+    assert_false(S_BARKSKIN.matches(ctx, state), "HP above 50 should not match")
 end)
 
 test("barkskin_matches: not in combat -> false", function()
@@ -418,16 +581,16 @@ test("barkskin_matches: not in combat -> false", function()
     state.barkskin_ready = true
     state.in_combat = false
     state.hp = 35
-    assert_false(strategies[3].matches(ctx, state), "OOC should not match")
+    assert_false(S_BARKSKIN.matches(ctx, state), "OOC should not match")
 end)
 
 test("barkskin_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[3].matches, make_context({hp = 35}), nil)
+    local ok, result = pcall(S_BARKSKIN.matches, make_context({hp = 35}), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: rejuvenation_matches (strategy #4)
+-- Test: rejuvenation_matches (strategy #6)
 -- ============================================================================
 
 test("rejuvenation_matches: in combat, low HP, ready -> true", function()
@@ -436,7 +599,7 @@ test("rejuvenation_matches: in combat, low HP, ready -> true", function()
     state.rejuvenation_ready = true
     state.hp = 30
     state.heal_hp = 40
-    assert_true(strategies[4].matches(ctx, state), "low HP in combat should match")
+    assert_true(S_REJUV.matches(ctx, state), "low HP in combat should match")
 end)
 
 test("rejuvenation_matches: HP above heal_hp -> false", function()
@@ -445,7 +608,7 @@ test("rejuvenation_matches: HP above heal_hp -> false", function()
     state.rejuvenation_ready = true
     state.hp = 80
     state.heal_hp = 40
-    assert_false(strategies[4].matches(ctx, state), "HP above threshold should not match")
+    assert_false(S_REJUV.matches(ctx, state), "HP above threshold should not match")
 end)
 
 test("rejuvenation_matches: not in combat -> false", function()
@@ -455,16 +618,16 @@ test("rejuvenation_matches: not in combat -> false", function()
     state.in_combat = false
     state.hp = 30
     state.heal_hp = 40
-    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+    assert_false(S_REJUV.matches(ctx, state), "OOC should not match")
 end)
 
 test("rejuvenation_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[4].matches, make_context({hp = 30}), nil)
+    local ok, result = pcall(S_REJUV.matches, make_context({hp = 30}), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: entangling_roots_matches (strategy #5)
+-- Test: entangling_roots_matches (strategy #7)
 -- ============================================================================
 
 test("entangling_roots_matches: overwhelmed (3+ enemies, low HP) -> true", function()
@@ -473,7 +636,7 @@ test("entangling_roots_matches: overwhelmed (3+ enemies, low HP) -> true", funct
     state.entangling_roots_ready = true
     state.enemies = 4
     state.hp = 25
-    assert_true(strategies[5].matches(ctx, state), "overwhelmed with 4 enemies and low HP should match")
+    assert_true(S_ROOTS.matches(ctx, state), "overwhelmed with 4 enemies and low HP should match")
 end)
 
 test("entangling_roots_matches: single enemy, high HP -> false", function()
@@ -482,7 +645,7 @@ test("entangling_roots_matches: single enemy, high HP -> false", function()
     state.entangling_roots_ready = true
     state.enemies = 1
     state.hp = 80
-    assert_false(strategies[5].matches(ctx, state), "1 enemy high HP should not match")
+    assert_false(S_ROOTS.matches(ctx, state), "1 enemy high HP should not match")
 end)
 
 test("entangling_roots_matches: not in combat -> false", function()
@@ -492,7 +655,7 @@ test("entangling_roots_matches: not in combat -> false", function()
     state.in_combat = false
     state.enemies = 4
     state.hp = 25
-    assert_false(strategies[5].matches(ctx, state), "OOC should not match")
+    assert_false(S_ROOTS.matches(ctx, state), "OOC should not match")
 end)
 
 test("entangling_roots_matches: no target -> false", function()
@@ -502,16 +665,16 @@ test("entangling_roots_matches: no target -> false", function()
     state.target = nil
     state.enemies = 4
     state.hp = 25
-    assert_false(strategies[5].matches(ctx, state), "no target should not match")
+    assert_false(S_ROOTS.matches(ctx, state), "no target should not match")
 end)
 
 test("entangling_roots_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[5].matches, make_context({enemies_count = 4, hp = 25}), nil)
+    local ok, result = pcall(S_ROOTS.matches, make_context({enemies_count = 4, hp = 25}), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: moonfire_matches (strategy #6)
+-- Test: moonfire_matches (strategy #8)
 -- ============================================================================
 
 test("moonfire_matches: ready, target, DoT expiring -> true", function()
@@ -519,7 +682,7 @@ test("moonfire_matches: ready, target, DoT expiring -> true", function()
     local state = get_state(ctx)
     state.moonfire_ready = true
     NS.debuff_remains = function(target, ids) return 2 end
-    assert_true(strategies[6].matches(ctx, state), "DoT expiring should match")
+    assert_true(S_MOONFIRE.matches(ctx, state), "DoT expiring should match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -528,7 +691,7 @@ test("moonfire_matches: DoT still active -> false", function()
     local state = get_state(ctx)
     state.moonfire_ready = true
     NS.debuff_remains = function(target, ids) return 8 end
-    assert_false(strategies[6].matches(ctx, state), "DoT still active (8s > 4s) should not match")
+    assert_false(S_MOONFIRE.matches(ctx, state), "DoT still active (8s > 4s) should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -536,7 +699,7 @@ test("moonfire_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.moonfire_ready = true
-    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
+    assert_false(S_MOONFIRE.matches(ctx, state), "OOC should not match")
 end)
 
 test("moonfire_matches: no target -> false", function()
@@ -544,16 +707,16 @@ test("moonfire_matches: no target -> false", function()
     local state = get_state(ctx)
     state.moonfire_ready = true
     state.target = nil
-    assert_false(strategies[6].matches(ctx, state), "no target should not match")
+    assert_false(S_MOONFIRE.matches(ctx, state), "no target should not match")
 end)
 
 test("moonfire_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[6].matches, make_context(), nil)
+    local ok, result = pcall(S_MOONFIRE.matches, make_context(), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: insect_swarm_matches (strategy #7)
+-- Test: insect_swarm_matches (strategy #9)
 -- ============================================================================
 
 test("insect_swarm_matches: ready, target, DoT expiring -> true", function()
@@ -561,7 +724,7 @@ test("insect_swarm_matches: ready, target, DoT expiring -> true", function()
     local state = get_state(ctx)
     state.insect_swarm_ready = true
     NS.debuff_remains = function(target, ids) return 2 end
-    assert_true(strategies[7].matches(ctx, state), "DoT expiring should match")
+    assert_true(S_IS.matches(ctx, state), "DoT expiring should match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -570,7 +733,7 @@ test("insect_swarm_matches: DoT still active -> false", function()
     local state = get_state(ctx)
     state.insect_swarm_ready = true
     NS.debuff_remains = function(target, ids) return 8 end
-    assert_false(strategies[7].matches(ctx, state), "DoT still active (8s > 4s) should not match")
+    assert_false(S_IS.matches(ctx, state), "DoT still active (8s > 4s) should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -578,7 +741,7 @@ test("insect_swarm_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.insect_swarm_ready = true
-    assert_false(strategies[7].matches(ctx, state), "OOC should not match")
+    assert_false(S_IS.matches(ctx, state), "OOC should not match")
 end)
 
 test("insect_swarm_matches: no target -> false", function()
@@ -586,16 +749,16 @@ test("insect_swarm_matches: no target -> false", function()
     local state = get_state(ctx)
     state.insect_swarm_ready = true
     state.target = nil
-    assert_false(strategies[7].matches(ctx, state), "no target should not match")
+    assert_false(S_IS.matches(ctx, state), "no target should not match")
 end)
 
 test("insect_swarm_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[7].matches, make_context(), nil)
+    local ok, result = pcall(S_IS.matches, make_context(), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: faerie_fire_matches (strategy #8)
+-- Test: faerie_fire_matches (strategy #10)
 -- ============================================================================
 
 test("faerie_fire_matches: ready, target, no debuff -> true", function()
@@ -603,7 +766,7 @@ test("faerie_fire_matches: ready, target, no debuff -> true", function()
     local state = get_state(ctx)
     state.faerie_fire_ready = true
     NS.debuff_remains = function(target, ids) return 0 end
-    assert_true(strategies[8].matches(ctx, state), "no debuff should match")
+    assert_true(S_FF.matches(ctx, state), "no debuff should match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -612,7 +775,7 @@ test("faerie_fire_matches: debuff still active -> false", function()
     local state = get_state(ctx)
     state.faerie_fire_ready = true
     NS.debuff_remains = function(target, ids) return 20 end
-    assert_false(strategies[8].matches(ctx, state), "debuff active (20s > 10s) should not match")
+    assert_false(S_FF.matches(ctx, state), "debuff active (20s > 10s) should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -620,7 +783,7 @@ test("faerie_fire_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.faerie_fire_ready = true
-    assert_false(strategies[8].matches(ctx, state), "OOC should not match")
+    assert_false(S_FF.matches(ctx, state), "OOC should not match")
 end)
 
 test("faerie_fire_matches: no target -> false", function()
@@ -628,16 +791,16 @@ test("faerie_fire_matches: no target -> false", function()
     local state = get_state(ctx)
     state.faerie_fire_ready = true
     state.target = nil
-    assert_false(strategies[8].matches(ctx, state), "no target should not match")
+    assert_false(S_FF.matches(ctx, state), "no target should not match")
 end)
 
 test("faerie_fire_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[8].matches, make_context(), nil)
+    local ok, result = pcall(S_FF.matches, make_context(), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: hurricane_matches (strategy #9)
+-- Test: hurricane_matches (strategy #11)
 -- ============================================================================
 
 test("hurricane_matches: 3+ enemies, not moving, ready -> true", function()
@@ -646,7 +809,7 @@ test("hurricane_matches: 3+ enemies, not moving, ready -> true", function()
     state.hurricane_ready = true
     state.enemies = 4
     state.is_moving = false
-    assert_true(strategies[9].matches(ctx, state), "3+ enemies stationary should match")
+    assert_true(S_HURRICANE.matches(ctx, state), "3+ enemies stationary should match")
 end)
 
 test("hurricane_matches: 1 enemy -> false", function()
@@ -654,7 +817,7 @@ test("hurricane_matches: 1 enemy -> false", function()
     local state = get_state(ctx)
     state.hurricane_ready = true
     state.enemies = 1
-    assert_false(strategies[9].matches(ctx, state), "1 enemy should not match")
+    assert_false(S_HURRICANE.matches(ctx, state), "1 enemy should not match")
 end)
 
 test("hurricane_matches: moving -> false", function()
@@ -663,7 +826,7 @@ test("hurricane_matches: moving -> false", function()
     state.hurricane_ready = true
     state.enemies = 4
     state.is_moving = true
-    assert_false(strategies[9].matches(ctx, state), "moving should not match")
+    assert_false(S_HURRICANE.matches(ctx, state), "moving should not match")
 end)
 
 test("hurricane_matches: not in combat -> false", function()
@@ -672,7 +835,7 @@ test("hurricane_matches: not in combat -> false", function()
     state.hurricane_ready = true
     state.in_combat = false
     state.enemies = 4
-    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
+    assert_false(S_HURRICANE.matches(ctx, state), "OOC should not match")
 end)
 
 test("hurricane_matches: no target -> false", function()
@@ -681,16 +844,16 @@ test("hurricane_matches: no target -> false", function()
     state.hurricane_ready = true
     state.target = nil
     state.enemies = 4
-    assert_false(strategies[9].matches(ctx, state), "no target should not match")
+    assert_false(S_HURRICANE.matches(ctx, state), "no target should not match")
 end)
 
 test("hurricane_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[9].matches, make_context({enemies_count = 4}), nil)
+    local ok, result = pcall(S_HURRICANE.matches, make_context({enemies_count = 4}), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: starfire_matches (strategy #10)
+-- Test: starfire_matches (strategy #12)
 -- ============================================================================
 
 test("starfire_matches: ready, target, not moving -> true", function()
@@ -698,7 +861,7 @@ test("starfire_matches: ready, target, not moving -> true", function()
     local state = get_state(ctx)
     state.starfire_ready = true
     state.is_moving = false
-    assert_true(strategies[10].matches(ctx, state), "stationary should match")
+    assert_true(S_STARFIRE.matches(ctx, state), "stationary should match")
 end)
 
 test("starfire_matches: moving -> false", function()
@@ -706,7 +869,7 @@ test("starfire_matches: moving -> false", function()
     local state = get_state(ctx)
     state.starfire_ready = true
     state.is_moving = true
-    assert_false(strategies[10].matches(ctx, state), "moving should not match")
+    assert_false(S_STARFIRE.matches(ctx, state), "moving should not match")
 end)
 
 test("starfire_matches: not in combat -> false", function()
@@ -714,7 +877,7 @@ test("starfire_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.starfire_ready = true
     state.in_combat = false
-    assert_false(strategies[10].matches(ctx, state), "OOC should not match")
+    assert_false(S_STARFIRE.matches(ctx, state), "OOC should not match")
 end)
 
 test("starfire_matches: no target -> false", function()
@@ -722,23 +885,23 @@ test("starfire_matches: no target -> false", function()
     local state = get_state(ctx)
     state.starfire_ready = true
     state.target = nil
-    assert_false(strategies[10].matches(ctx, state), "no target should not match")
+    assert_false(S_STARFIRE.matches(ctx, state), "no target should not match")
 end)
 
 test("starfire_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[10].matches, make_context(), nil)
+    local ok, result = pcall(S_STARFIRE.matches, make_context(), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: wrath_matches (strategy #11)
+-- Test: wrath_matches (strategy #13)
 -- ============================================================================
 
 test("wrath_matches: ready, target, in combat -> true", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.wrath_ready = true
-    assert_true(strategies[11].matches(ctx, state), "ready with target should match")
+    assert_true(S_WRATH.matches(ctx, state), "ready with target should match")
 end)
 
 test("wrath_matches: not in combat -> false", function()
@@ -746,7 +909,7 @@ test("wrath_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.wrath_ready = true
     state.in_combat = false
-    assert_false(strategies[11].matches(ctx, state), "OOC should not match")
+    assert_false(S_WRATH.matches(ctx, state), "OOC should not match")
 end)
 
 test("wrath_matches: no target -> false", function()
@@ -754,16 +917,16 @@ test("wrath_matches: no target -> false", function()
     local state = get_state(ctx)
     state.wrath_ready = true
     state.target = nil
-    assert_false(strategies[11].matches(ctx, state), "no target should not match")
+    assert_false(S_WRATH.matches(ctx, state), "no target should not match")
 end)
 
 test("wrath_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[11].matches, make_context(), nil)
+    local ok, result = pcall(S_WRATH.matches, make_context(), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
 -- ============================================================================
--- Test: wand_matches (strategy #12) - uses create_wand_matches from shared module
+-- Test: wand_matches (strategy #14) - uses create_wand_matches from shared module
 -- ============================================================================
 
 test("wand_matches: low mana, in combat, has target -> true", function()
@@ -772,7 +935,7 @@ test("wand_matches: low mana, in combat, has target -> true", function()
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[12].matches(ctx, state), "low mana should match")
+    assert_true(S_WAND.matches(ctx, state), "low mana should match")
 end)
 
 test("wand_matches: enough mana -> false", function()
@@ -781,7 +944,7 @@ test("wand_matches: enough mana -> false", function()
     state.mana_pct = 80
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_false(strategies[12].matches(ctx, state), "enough mana should not match")
+    assert_false(S_WAND.matches(ctx, state), "enough mana should not match")
 end)
 
 test("wand_matches: no target -> false", function()
@@ -791,7 +954,7 @@ test("wand_matches: no target -> false", function()
     state.mana_pct = 10
     state.target = nil
     state.wand_learned = true
-    assert_false(strategies[12].matches(ctx, state), "no target should not match")
+    assert_false(S_WAND.matches(ctx, state), "no target should not match")
 end)
 
 test("wand_matches: wand not learned -> false", function()
@@ -799,18 +962,38 @@ test("wand_matches: wand not learned -> false", function()
     local state = get_state(ctx)
     state.mana_pct = 10
     state.wand_learned = false
-    assert_false(strategies[12].matches(ctx, state), "wand not learned should not match")
+    assert_false(S_WAND.matches(ctx, state), "wand not learned should not match")
 end)
 
 -- ============================================================================
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 12 strategies in correct priority order", function()
+test("strategies: 30 strategies in correct priority order", function()
     local expected = {
+        -- Feral (16 strategies: Bear survival → Cat DPS → utility)
+        "BearFormSurvival",
+        "FrenziedRegeneration",
+        "CatFormEntry",
+        "ProwlOpener",
+        "Pounce",
+        "Ravage",
+        "FaerieFireFeral",
+        "Rake",
+        "MangleCat",
+        "Shred",
+        "Rip",
+        "FerociousBite",
+        "Claw",
+        "MangleBear",
+        "SwipeBear",
+        "Maul",
+        -- Caster fallback (14 strategies)
         "MarkOfTheWild",
         "Thorns",
+        "NaturesGrasp",
         "Barkskin",
+        "HealingTouch",
         "Rejuvenation",
         "EntanglingRoots",
         "Moonfire",
@@ -821,7 +1004,7 @@ test("strategies: 12 strategies in correct priority order", function()
         "Wrath",
         "Wand",
     }
-    assert_eq(#strategies, 12, "should have 12 strategies")
+    assert_eq(#strategies, #expected, "should have " .. #expected .. " strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -840,18 +1023,18 @@ end)
 -- ============================================================================
 
 test("execute_MarkOfTheWild: does not crash", function()
-    local ok, result = pcall(strategies[1].execute)
+    local ok, result = pcall(S_MOTW.execute)
     assert_true(ok, "execute should not throw")
 end)
 
 test("execute_Wand: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[12].execute, ctx)
+    local ok, result = pcall(S_WAND.execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
 test("execute_Wand: does not crash without context", function()
-    local ok, result = pcall(strategies[12].execute)
+    local ok, result = pcall(S_WAND.execute)
     assert_true(ok, "execute without context should not throw")
 end)
 
@@ -887,6 +1070,216 @@ test("match_functions: all handle nil state -> no crash", function()
 end)
 
 -- ============================================================================
+-- Test: build_state Feral fields
+-- ============================================================================
+
+test("build_state: Feral form fields default to false/caster", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    assert_false(state.is_bear, "is_bear default false")
+    assert_false(state.is_cat, "is_cat default false")
+    assert_true(state.in_caster, "in_caster default true when no forms")
+    assert_eq(state.energy, 0, "energy default 0")
+    assert_eq(state.combo_points, 0, "combo_points default 0")
+    assert_eq(state.rage, 0, "rage default 0")
+    assert_false(state.is_behind, "is_behind default false")
+    assert_false(state.is_stealthed, "is_stealthed default false")
+end)
+
+test("build_state: Feral spell readiness fields populated", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    assert_true(state.cat_form_ready, "cat_form_ready should be true")
+    assert_true(state.bear_form_ready, "bear_form_ready should be true")
+    assert_true(state.prowl_ready, "prowl_ready should be true")
+    assert_true(state.pounce_ready, "pounce_ready should be true")
+    assert_true(state.ravage_ready, "ravage_ready should be true")
+    assert_true(state.rake_ready, "rake_ready should be true")
+    assert_true(state.mangle_cat_ready, "mangle_cat_ready should be true")
+    assert_true(state.shred_ready, "shred_ready should be true")
+    assert_true(state.rip_ready, "rip_ready should be true")
+    assert_true(state.bite_ready, "bite_ready should be true")
+    assert_true(state.claw_ready, "claw_ready should be true")
+    assert_true(state.frenzied_regen_ready, "frenzied_regen_ready should be true")
+end)
+
+test("build_state: Feral debuff fields populated", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    assert_eq(state.rake_remains, 0, "rake_remains default 0")
+    assert_eq(state.rip_remains, 0, "rip_remains default 0")
+    assert_eq(state.mangle_remains, 0, "mangle_remains default 0")
+    assert_eq(state.faerie_fire_feral_remains, 0, "faerie_fire_feral_remains default 0")
+end)
+
+test("build_state: leveling_use_feral and leveling_bear_hp from settings", function()
+    local ctx = make_context()
+    ctx.settings.leveling_use_feral = false
+    ctx.settings.leveling_bear_hp = 30
+    local state = get_state(ctx)
+    assert_false(state.use_feral, "use_feral from settings")
+    assert_eq(state.bear_hp, 30, "bear_hp from settings")
+end)
+
+test("build_state: use_feral defaults to true when setting missing", function()
+    local ctx = make_context({settings = {}})
+    local state = get_state(ctx)
+    assert_true(state.use_feral, "use_feral default true")
+    assert_eq(state.bear_hp, 40, "bear_hp default 40")
+end)
+
+-- ============================================================================
+-- Test: Feral match functions
+-- ============================================================================
+
+test("BearFormSurvival: low HP, not in bear, in combat, form ready -> true", function()
+    local ctx = make_context({hp = 25})
+    local state = get_state(ctx)
+    state.hp = 25
+    state.bear_hp = 40
+    state.bear_form_ready = true
+    state.is_bear = false
+    state.use_feral = true
+    state.in_combat = true
+    assert_not_nil(S_BearSurvival, "BearFormSurvival strategy should exist")
+    assert_true(S_BearSurvival.matches(ctx, state), "low HP should trigger bear form")
+end)
+
+test("BearFormSurvival: HP above bear_hp -> false", function()
+    local ctx = make_context({hp = 60})
+    local state = get_state(ctx)
+    state.hp = 60
+    state.bear_hp = 40
+    state.bear_form_ready = true
+    state.is_bear = false
+    state.use_feral = true
+    state.in_combat = true
+    assert_false(S_BearSurvival.matches(ctx, state), "HP above threshold should not match")
+end)
+
+test("BearFormSurvival: already in bear -> false", function()
+    local ctx = make_context({hp = 25})
+    local state = get_state(ctx)
+    state.hp = 25
+    state.bear_hp = 40
+    state.bear_form_ready = true
+    state.is_bear = true
+    state.use_feral = true
+    state.in_combat = true
+    assert_false(S_BearSurvival.matches(ctx, state), "already in bear should not match")
+end)
+
+test("BearFormSurvival: use_feral disabled -> false", function()
+    local ctx = make_context({hp = 25})
+    local state = get_state(ctx)
+    state.hp = 25
+    state.bear_hp = 40
+    state.bear_form_ready = true
+    state.is_bear = false
+    state.use_feral = false
+    state.in_combat = true
+    assert_false(S_BearSurvival.matches(ctx, state), "feral disabled should not match")
+end)
+
+test("CatFormEntry: in combat, not cat, in melee, form ready -> true", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.in_combat = true
+    state.use_feral = true
+    state.cat_form_ready = true
+    state.is_cat = false
+    state.is_bear = false
+    state.target = ctx.target
+    state.in_melee = true
+    assert_not_nil(S_CatFormEntry, "CatFormEntry strategy should exist")
+    assert_true(S_CatFormEntry.matches(ctx, state), "should enter cat in combat")
+end)
+
+test("CatFormEntry: not in melee range -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.in_combat = true
+    state.use_feral = true
+    state.cat_form_ready = true
+    state.is_cat = false
+    state.is_bear = false
+    state.target = ctx.target
+    state.in_melee = false
+    assert_false(S_CatFormEntry.matches(ctx, state), "not in melee should not match")
+end)
+
+test("CatFormEntry: already in cat -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.in_combat = true
+    state.use_feral = true
+    state.cat_form_ready = true
+    state.is_cat = true
+    state.is_bear = false
+    state.target = ctx.target
+    state.in_melee = true
+    assert_false(S_CatFormEntry.matches(ctx, state), "already in cat should not match")
+end)
+
+test("ProwlOpener: OOC, prowl ready, cat form ready, target in range -> true", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.in_combat = false
+    state.use_feral = true
+    state.prowl_ready = true
+    state.is_cat = false
+    state.cat_form_ready = true
+    state.is_stealthed = false
+    state.target = ctx.target
+    state.target_range = 15
+    assert_not_nil(S_ProwlOpener, "ProwlOpener strategy should exist")
+    assert_true(S_ProwlOpener.matches(ctx, state), "should prowl OOC with target")
+end)
+
+test("ProwlOpener: in combat -> false", function()
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.in_combat = true
+    state.use_feral = true
+    state.prowl_ready = true
+    state.is_cat = false
+    state.cat_form_ready = true
+    state.is_stealthed = false
+    state.target = ctx.target
+    state.target_range = 15
+    assert_false(S_ProwlOpener.matches(ctx, state), "in combat should not match")
+end)
+
+test("ProwlOpener: target too far -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.in_combat = false
+    state.use_feral = true
+    state.prowl_ready = true
+    state.is_cat = false
+    state.cat_form_ready = true
+    state.is_stealthed = false
+    state.target = ctx.target
+    state.target_range = 25
+    assert_false(S_ProwlOpener.matches(ctx, state), "target too far (25yd > 18yd) should not match")
+end)
+
+test("Feral: nil state -> does not crash (all Feral strategies)", function()
+    local feral_names = {
+        "BearFormSurvival", "FrenziedRegeneration", "CatFormEntry",
+        "ProwlOpener", "Pounce", "Ravage", "FaerieFireFeral",
+        "Rake", "MangleCat", "Shred", "Rip", "FerociousBite",
+        "Claw", "MangleBear", "SwipeBear", "Maul",
+    }
+    for _, name in ipairs(feral_names) do
+        local s = find_strategy(name)
+        assert_not_nil(s, name .. " strategy should exist")
+        local ok = pcall(s.matches, make_context(), nil)
+        assert_true(ok, name .. " matches(ctx, nil) should not throw")
+    end
+end)
+
+-- ============================================================================
 -- Test: Scenario integration - full rotation cycle
 -- ============================================================================
 
@@ -911,16 +1304,24 @@ test("rotation: OOC scenario - OOC buffs should match first", function()
     state.has_thorns = false
     state.thorns_ready = true
 
-    -- MarkOfTheWild should match OOC
-    assert_true(strategies[1].matches(ctx, state), "MarkOfTheWild should match OOC without buff")
-    -- Thorns should match OOC
-    assert_true(strategies[2].matches(ctx, state), "Thorns should match OOC without buff")
+    -- OOC buffs from caster section should match
+    assert_true(S_MOTW.matches(ctx, state), "MarkOfTheWild should match OOC without buff")
+    assert_true(S_THORNS.matches(ctx, state), "Thorns should match OOC without buff")
 
-    -- Combat abilities should not match OOC
-    for i = 3, 11 do
-        local ok, matched = pcall(strategies[i].matches, ctx, state)
-        assert_true(ok, "strategy[" .. i .. "] matches should not throw")
-        assert_false(matched, "strategy[" .. i .. "] should not match OOC")
+    -- Combat abilities should not match OOC (skip Feral openers: Prowl, Pounce, Ravage)
+    local ooc_mismatch_names = {
+        "BearFormSurvival", "FrenziedRegeneration", "CatFormEntry",
+        "FaerieFireFeral", "Rake", "MangleCat", "Shred", "Rip", "FerociousBite",
+        "Claw", "MangleBear", "SwipeBear", "Maul",
+        "NaturesGrasp", "Barkskin", "HealingTouch", "Rejuvenation", "EntanglingRoots", "Moonfire",
+        "InsectSwarm", "FaerieFire", "Hurricane", "Starfire", "Wrath",
+    }
+    for _, name in ipairs(ooc_mismatch_names) do
+        local s = find_strategy(name)
+        assert_not_nil(s, name .. " should exist")
+        local ok, matched = pcall(s.matches, ctx, state)
+        assert_true(ok, name .. " matches should not throw")
+        assert_false(matched, name .. " should not match OOC")
     end
 end)
 
@@ -929,9 +1330,10 @@ test("rotation: low HP scenario - barkskin should match", function()
     local state = get_state(ctx)
     state.barkskin_ready = true
     state.hp = 35
-
+    -- Bear won't trigger because has_form returns false (not in bear form)
+    -- and in_melee defaults false, so CatFormEntry won't match
     -- Barkskin should match when HP < 50
-    assert_true(strategies[3].matches(ctx, state), "Barkskin should match when HP < 50")
+    assert_true(S_BARKSKIN.matches(ctx, state), "Barkskin should match when HP < 50")
 end)
 
 test("rotation: AoE scenario - hurricane should match with 3+ enemies", function()
@@ -942,7 +1344,7 @@ test("rotation: AoE scenario - hurricane should match with 3+ enemies", function
     state.is_moving = false
 
     -- Hurricane should match with 3+ enemies stationary
-    assert_true(strategies[9].matches(ctx, state), "Hurricane should match with 3+ enemies")
+    assert_true(S_HURRICANE.matches(ctx, state), "Hurricane should match with 3+ enemies")
 end)
 
 test("rotation: low mana scenario - wand should match", function()
@@ -953,7 +1355,7 @@ test("rotation: low mana scenario - wand should match", function()
     state.wand_learned = true
 
     -- Wand should match when mana below threshold
-    assert_true(strategies[12].matches(ctx, state), "Wand should match when mana below threshold")
+    assert_true(S_WAND.matches(ctx, state), "Wand should match when mana below threshold")
 end)
 
 -- ============================================================================
@@ -993,8 +1395,8 @@ test("edge_form: OOC buff matches return false when in cat form via has_buff moc
 
     -- Without buff tracking, match functions should still evaluate correctly
     -- has_mark_of_wild = false (no buff), mark_of_the_wild_ready = true -> should match
-    assert_true(strategies[1].matches(ctx, state), "MotW should match when no buff and OOC")
-    assert_true(strategies[2].matches(ctx, state), "Thorns should match when no buff and OOC")
+    assert_true(S_MOTW.matches(ctx, state), "MotW should match when no buff and OOC")
+    assert_true(S_THORNS.matches(ctx, state), "Thorns should match when no buff and OOC")
 end)
 
 test("edge_form: travel_form caster rotation still evaluates safely", function()
@@ -1002,9 +1404,9 @@ test("edge_form: travel_form caster rotation still evaluates safely", function()
     local ctx = make_context({in_combat = true, is_moving = true})
     local state = get_state(ctx)
     -- Wrath allows moving cast, Starfire/Hurricane do not
-    local ok1, wrath_result = pcall(strategies[11].matches, ctx, state)  -- Wrath
+    local ok1, wrath_result = pcall(S_WRATH.matches, ctx, state)
     assert_true(ok1, "Wrath matches should not throw while moving/in travel form")
-    local ok2, sf_result = pcall(strategies[10].matches, ctx, state)   -- Starfire
+    local ok2, sf_result = pcall(S_STARFIRE.matches, ctx, state)
     assert_true(ok2, "Starfire matches should not throw while moving")
 end)
 
@@ -1019,7 +1421,7 @@ test("edge_mana: wand_threshold = 0 means never wand (always enough mana)", func
     state.mana_pct = 1
     state.wand_threshold = 0
     state.wand_learned = true
-    assert_false(strategies[12].matches(ctx, state), "threshold=0 with 1% mana should NOT match wand (1 >= 0 means enough mana)")
+    assert_false(S_WAND.matches(ctx, state), "threshold=0 with 1% mana should NOT match wand (1 >= 0 means enough mana)")
 end)
 
 test("edge_mana: wand_threshold = 100 means always wand (never enough mana)", function()
@@ -1029,10 +1431,9 @@ test("edge_mana: wand_threshold = 100 means always wand (never enough mana)", fu
     state.mana_pct = 50
     state.wand_threshold = 100
     state.wand_learned = true
-    assert_true(strategies[12].matches(ctx, state), "threshold=100 with 50% mana should match wand (50 < 100 means too little mana)")
+    assert_true(S_WAND.matches(ctx, state), "threshold=100 with 50% mana should match wand (50 < 100 means too little mana)")
 end)
 
--- Also verify threshold=100 with full mana does NOT wand
 test("edge_mana: wand_threshold = 100 with full mana (100%) does not wand", function()
     local ctx = make_context({mana_pct = 50})
     ctx.settings.leveling_wand_threshold = 100
@@ -1040,7 +1441,7 @@ test("edge_mana: wand_threshold = 100 with full mana (100%) does not wand", func
     state.mana_pct = 100
     state.wand_threshold = 100
     state.wand_learned = true
-    assert_false(strategies[12].matches(ctx, state), "threshold=100 with 100% mana should NOT match wand (100 >= 100 means enough mana)")
+    assert_false(S_WAND.matches(ctx, state), "threshold=100 with 100% mana should NOT match wand (100 >= 100 means enough mana)")
 end)
 
 test("edge_mana: complete OOM with wand not learned -> no wand fallback", function()
@@ -1049,24 +1450,23 @@ test("edge_mana: complete OOM with wand not learned -> no wand fallback", functi
     state.mana_pct = 0
     state.wand_threshold = 30
     state.wand_learned = false
-    assert_false(strategies[12].matches(ctx, state), "OOM without wand should not match wand")
+    assert_false(S_WAND.matches(ctx, state), "OOM without wand should not match wand")
 end)
 
 test("edge_mana: rapid mana changes handled gracefully", function()
-    -- Simulate mana potion coming off CD: mana goes from 0 to 100
     local ctx1 = make_context({mana_pct = 0})
     local state1 = get_state(ctx1)
     state1.mana_pct = 0
     state1.wand_threshold = 30
     state1.wand_learned = true
-    assert_true(strategies[12].matches(ctx1, state1), "0% mana should match wand")
+    assert_true(S_WAND.matches(ctx1, state1), "0% mana should match wand")
 
     local ctx2 = make_context({mana_pct = 100})
     local state2 = get_state(ctx2)
     state2.mana_pct = 100
     state2.wand_threshold = 30
     state2.wand_learned = true
-    assert_false(strategies[12].matches(ctx2, state2), "100% mana should not match wand")
+    assert_false(S_WAND.matches(ctx2, state2), "100% mana should not match wand")
 end)
 
 test("edge_mana: low mana with all spells ready -> damage spells still preferred over wand", function()
@@ -1079,11 +1479,11 @@ test("edge_mana: low mana with all spells ready -> damage spells still preferred
     state.starfire_ready = true
 
     -- Mana at 35, threshold at 30. wand_threshold check: mana_pct >= threshold so wand should NOT match
-    assert_false(strategies[12].matches(ctx, state), "wand should not match when mana (35) >= threshold (30)")
+    assert_false(S_WAND.matches(ctx, state), "wand should not match when mana (35) >= threshold (30)")
 
     -- Damage spells should still work
-    assert_true(strategies[10].matches(ctx, state), "Starfire should match at 35% mana (above threshold)")
-    assert_true(strategies[11].matches(ctx, state), "Wrath should match at 35% mana")
+    assert_true(S_STARFIRE.matches(ctx, state), "Starfire should match at 35% mana (above threshold)")
+    assert_true(S_WRATH.matches(ctx, state), "Wrath should match at 35% mana")
 end)
 
 -- ============================================================================
@@ -1145,8 +1545,11 @@ test("edge_helper: try_cast pcall catches failure gracefully", function()
     if mod2 then
         local reg2 = NS2.rotation_registry._registrations["leveling"]
         if reg2 then
-            local _, ok = pcall(reg2.strategies[1].execute, make_context())
-            assert_true(true, "execute with nil try_cast should not throw")
+            local s1 = reg2.strategies[1]
+            if s1 then
+                local _, ok = pcall(s1.execute, make_context())
+                assert_true(true, "execute with nil try_cast should not throw")
+            end
         end
     end
 

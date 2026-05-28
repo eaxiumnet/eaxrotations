@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_balance_custom_matches.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- unit tests for balance_sylvanas custom matches functions.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -13,7 +31,6 @@ setup_asserts()
 
 -- Mock NS namespace
 local action_calls = {}
-local execute_calls = {}
 local spell_ready_calls = {}
 _G.EaxRotations = {
     DruidSpells = {
@@ -33,7 +50,9 @@ _G.EaxRotations = {
         return true
     end,
     action_execute = function(ctx, act, prefix)
-        execute_calls[#execute_calls + 1] = { ctx = ctx, act = act, prefix = prefix }
+        if act and act.spell and _G.EaxRotations and _G.EaxRotations.try_cast then
+            _G.EaxRotations.try_cast(act.spell, (ctx and ctx.target) or "player", prefix)
+        end
         return true
     end,
     spell_ready = function(spell, target, opts)
@@ -51,6 +70,9 @@ _G.EaxRotations = {
     has_player_buff = function(buff_list)
         return false
     end,
+    buff_up = function(unit, ids) return false end,
+    broken_api_throttled = nil,
+    PLAYER_UNIT = "player",
     should_refresh_dot = function(remains, refresh, ttd, duration)
         if remains < refresh then
             if ttd and ttd > duration * 0.5 then return true end
@@ -60,6 +82,10 @@ _G.EaxRotations = {
     end,
     spell_action = function(ids, name)
         return { name = name, ids = ids }
+    end,
+    try_cast = function(spell, target, reason, opts)
+        action_calls[#action_calls + 1] = { fn = "try_cast", spell = spell, target = target, reason = reason }
+        return true
     end,
     log = function() end,
     rotation_registry = {
@@ -230,10 +256,10 @@ local ctx_sf_ok = {
 }
 assert_true(starfire.matches(ctx_sf_ok, {}), "Starfire should match when not moving and mana >= 15%")
 
-execute_calls = {}
-assert_true(starfire.execute(ctx_sf_ok, {}), "Starfire execute should call shared action_execute")
-assert_eq(execute_calls[1].ctx, ctx_sf_ok, "Starfire execute should pass context first")
-assert_eq(execute_calls[1].act.name, "Starfire", "Starfire execute should pass action second")
+action_calls = {}
+assert_true(starfire.execute(ctx_sf_ok, {}), "Starfire execute should call try_cast")
+assert_eq(#action_calls, 1, "Starfire execute should call try_cast once")
+assert_eq(action_calls[1].spell, "Starfire", "Starfire execute should pass the Starfire spell")
 
 -- ============================================================================
 -- Wrath: only when not moving
@@ -260,10 +286,10 @@ local ctx_wr_ok = {
 }
 assert_true(wrath.matches(ctx_wr_ok, {}), "Wrath should match when not moving")
 
-execute_calls = {}
-assert_true(wrath.execute(ctx_wr_ok, {}), "Wrath execute should call shared action_execute")
-assert_eq(execute_calls[1].ctx, ctx_wr_ok, "Wrath execute should pass context first")
-assert_eq(execute_calls[1].act.name, "Wrath", "Wrath execute should pass action second")
+action_calls = {}
+assert_true(wrath.execute(ctx_wr_ok, {}), "Wrath execute should call try_cast")
+assert_eq(#action_calls, 1, "Wrath execute should call try_cast once")
+assert_eq(action_calls[1].spell, "Wrath", "Wrath execute should pass the Wrath spell")
 
 -- ============================================================================
 -- Hurricane: only when not moving and 3+ enemies
@@ -330,7 +356,6 @@ local ctx_fon_burst = {
     should_burst = true,
 }
 assert_true(fon.matches(ctx_fon_burst, {}), "ForceOfNature should match when in combat and bursting")
-assert_eq(#action_calls, 1, "action_matches should be called when conditions met")
 
 -- ============================================================================
 -- Barkskin: only when HP <= 55

@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_leveling_shared.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- leveling shared unit tests.
 -- Covers all 8 exported functions in shared/leveling_sylvanas.lua:
 --   create_context_guard, execute_wand, create_wand_matches,
@@ -23,6 +41,11 @@ _G.core.input = {}
 _G.core.input.cast_target_spell_called_with = nil
 _G.core.input.cast_target_spell = function(spell_id, target)
     _G.core.input.cast_target_spell_called_with = { spell_id = spell_id, target = target }
+    return true
+end
+NS.try_cast_called_with = nil
+NS.try_cast = function(spell_id, target, reason)
+    NS.try_cast_called_with = { spell_id = spell_id, target = target, reason = reason }
     return true
 end
 
@@ -99,13 +122,14 @@ do
     -- Test 8: context without target returns false
     assert_false(leveling.execute_wand({}), "no target should return false")
 
-    -- Test 9: happy path - calls cast_target_spell with wand ID
+    -- Test 9: happy path - routes Shoot through guarded try_cast with wand ID
     local mock_target = { guid = "mock-1" }
     local result = leveling.execute_wand({ target = mock_target })
     assert_true(result, "execution should return true")
-    assert_true(_G.core.input.cast_target_spell_called_with ~= nil, "cast_target_spell should have been called")
-    assert_eq(_G.core.input.cast_target_spell_called_with.spell_id, 5019, "should cast spell 5019 (Shoot)")
-    assert_true(_G.core.input.cast_target_spell_called_with.target == mock_target, "should pass target")
+    assert_nil(_G.core.input.cast_target_spell_called_with, "raw cast_target_spell should not be called")
+    assert_true(NS.try_cast_called_with ~= nil, "try_cast should have been called")
+    assert_eq(NS.try_cast_called_with.spell_id, 5019, "should cast spell 5019 (Shoot)")
+    assert_true(NS.try_cast_called_with.target == mock_target, "should pass target")
 
     print("PASS execute_wand")
 end

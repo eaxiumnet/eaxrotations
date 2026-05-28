@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "main.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- bootstrap for shared runtime, UI, and class loading.
 -- ============================================================================
 -- What: EaxRotations bootstrap that loads shared runtime, UI, and class modules
@@ -37,9 +55,8 @@ end
 core.log("[EaxRotations] Initializing framework for " .. plugin_info.player_class_name)
 core.log("[EaxRotations] Version " .. tostring(plugin_info.version or "unknown") .. " loaded")
 
--- Load core framework components in dependency order (matches load_order_sylvanas.lua)
--- The runtime only loads header.lua + main.lua; SYLVANAS_API_LOAD_ORDER is NOT auto-processed.
--- All framework files must be explicitly require()'d here.
+-- Load core framework components in dependency order.
+-- The runtime only loads header.lua + main.lua; all framework files must be explicitly require()'d here.
 local framework_core = require("core_sylvanas")          -- order 10 (creates _G.EaxRotations namespace)
 framework_core.core = core
 framework_core.izi = izi
@@ -565,7 +582,27 @@ local function on_control_panel_render()
         end
     end
 
-
+    -- Expose key schema checkbox settings on the control panel
+    local CP_SCHEMA_KEYS = { "disc_shield_tank_only" }
+    for _, key in ipairs(CP_SCHEMA_KEYS) do
+        local widget = schema_widgets[key]
+        if widget and widget.control then
+            local label = "[Eax] " .. (widget.label or key)
+            local inserted = false
+            if control_panel_helper and control_panel_helper.insert_toggle_ then
+                local ok, result = pcall(function()
+                    return control_panel_helper:insert_toggle_(control_panel_elements, label, widget.control, false, true)
+                end)
+                inserted = ok and result == true
+            end
+            if not inserted then
+                control_panel_elements[#control_panel_elements + 1] = {
+                    name = label,
+                    keybind = widget.control,
+                }
+            end
+        end
+    end
 
     return control_panel_elements
 end

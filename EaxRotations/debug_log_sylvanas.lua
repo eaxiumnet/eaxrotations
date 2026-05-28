@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "debug_log_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- diagnostic helper.
 -- ============================================================================
 -- What: Debug log frame used for visual runtime diagnostics
@@ -66,11 +84,27 @@ local THEME = {
     button_bg = color.new(30, 30, 40, 255),
     button_hover = color.new(45, 45, 60, 255),
     resize_grip = color.new(60, 60, 70, 255),
+    resize_grip_shadow = color.new(0, 0, 0, 100),
 }
+
+local function get_actual_visible(win_h)
+    local content_height = win_h - 90
+    local line_height = 12
+    local actual_visible = math.floor(content_height / line_height)
+    return math.max(1, actual_visible)
+end
+
+local function get_debug_window_size()
+    if not debug_window or type(debug_window.get_size) ~= "function" then return nil end
+    local size = debug_window:get_size()
+    if not size or not size.x or not size.y then return nil end
+    return size
+end
 
 local function load_debug_position()
     local _, result = pcall(function()  -- success unused: only result needed
-        local data = core.read_data_file(DEBUG_SETTINGS_FILE)
+        if not NS.core or not NS.core.read_data_file then return nil end
+        local data = NS.core.read_data_file(DEBUG_SETTINGS_FILE)
         if data and #data > 0 then
             local pos_x, pos_y = string.match(data, '"x":(%d+),"y":(%d+)')
             if pos_x and pos_y then
@@ -87,7 +121,10 @@ local function create_debug_window()
 
     local saved_pos = load_debug_position()
 
-    debug_window = core.menu.window(DEBUG_WINDOW_ID)
+    if not NS.core or not NS.core.menu or not NS.core.menu.window then return nil end
+    debug_window = NS.core.menu.window(DEBUG_WINDOW_ID)
+    if not debug_window then return nil end
+
     debug_window:set_initial_size(vec2.new(WINDOW_WIDTH, WINDOW_HEIGHT))
 
     if saved_pos then
@@ -103,15 +140,18 @@ local function create_debug_window()
 end
 
 local function save_debug_position()
-    if not debug_window then return end
+    if not debug_window or not NS.core or not NS.core.write_data_file then return end
 
     local pos = debug_window:get_position()
     if pos then
-        local data = '{"x":' .. tostring(math.floor(pos.x)) .. ',"y":' .. tostring(math.floor(pos.y)) .. '}'
+        local size = get_debug_window_size()
+        if not size then return end
+        local data = format('{"x":%d,"y":%d,"w":%d,"h":%d}', 
+            math.floor(pos.x), math.floor(pos.y), math.floor(size.x), math.floor(size.y))
         pcall(function()
-            core.create_data_folder("eaxrotations")
-            core.create_data_file(DEBUG_SETTINGS_FILE)
-            core.write_data_file(DEBUG_SETTINGS_FILE, data)
+            NS.core.create_data_folder("eaxrotations")
+            NS.core.create_data_file(DEBUG_SETTINGS_FILE)
+            NS.core.write_data_file(DEBUG_SETTINGS_FILE, data)
         end)
     end
 end
@@ -166,10 +206,14 @@ function NS.AddDebugLogLine(message, level)
         tremove(debug_log_lines, 1)
     end
 
+    local size = get_debug_window_size()
+    local win_h = size and size.y or WINDOW_HEIGHT
+    local actual_visible = get_actual_visible(win_h)
+
     if auto_scroll then
-        scroll_offset = math.max(0, #debug_log_lines - MAX_VISIBLE_LINES)
+        scroll_offset = math.max(0, #debug_log_lines - actual_visible)
     else
-        local max_offset = math.max(0, #debug_log_lines - MAX_VISIBLE_LINES)
+        local max_offset = math.max(0, #debug_log_lines - actual_visible)
         if scroll_offset > max_offset then
             scroll_offset = max_offset
         end
@@ -213,7 +257,10 @@ function NS.GetDebugLogAsString()
 end
 
 function NS.ScrollDebugLogUp()
-    local max_offset = math.max(0, #debug_log_lines - MAX_VISIBLE_LINES)
+    local size = get_debug_window_size()
+    local win_h = size and size.y or WINDOW_HEIGHT
+    local actual_visible = get_actual_visible(win_h)
+    local max_offset = math.max(0, #debug_log_lines - actual_visible)
     if scroll_offset < max_offset then
         scroll_offset = scroll_offset + SCROLL_LINES
         if scroll_offset > max_offset then
@@ -236,12 +283,16 @@ function NS.ScrollDebugLogTop()
 end
 
 function NS.ScrollDebugLogBottom()
-    scroll_offset = math.max(0, #debug_log_lines - MAX_VISIBLE_LINES)
+    if not debug_window then return end
+    local size = get_debug_window_size()
+    local win_h = size and size.y or WINDOW_HEIGHT
+    local actual_visible = get_actual_visible(win_h)
+    scroll_offset = math.max(0, #debug_log_lines - actual_visible)
     auto_scroll = true
 end
 
 local function render_buttons(win_w, win_h)
-    local btn_y = -30
+    local btn_y = win_h - 35
     local btn_width = 50
     local btn_height = 20
     local btn_spacing = 5
@@ -301,13 +352,13 @@ local function render_buttons(win_w, win_h)
         local line_start = vec2.new(line_x, win_h - grip_size + 1)
         local line_end = vec2.new(line_x, win_h - 1)
         if line_x > win_w - grip_size - 2 then
-            debug_window:render_line(line_start, line_end, color.new(0, 0, 0, 100), 1)
+            debug_window:render_line(line_start, line_end, THEME.resize_grip_shadow, 1)
         end
     end
 end
 
 local function handle_button_clicks(win_w, win_h)
-    local btn_y = -30
+    local btn_y = win_h - 35
     local btn_height = 20
     local start_x = win_w - 180
     local btn_width = 50
@@ -355,8 +406,10 @@ local function handle_button_clicks(win_w, win_h)
     local grip_rect_max = vec2.new(win_w, win_h)
     if debug_window:is_rect_clicked(grip_rect_min, grip_rect_max) then
         is_resizing = true
-        resize_start_pos = core.game_ui.get_wow_cursor_position and core.game_ui.get_wow_cursor_position()
-        resize_start_size = debug_window:get_size()
+        if NS.core and NS.core.game_ui and NS.core.game_ui.get_wow_cursor_position then
+            resize_start_pos = NS.core.game_ui.get_wow_cursor_position()
+        end
+        resize_start_size = get_debug_window_size()
     end
 end
 
@@ -372,16 +425,19 @@ local function handle_mouse_wheel()
 end
 
 local function handle_resize()
-    local current_mouse_down = core.input and core.input.is_key_pressed and core.input.is_key_pressed(0x01) or false
+    local current_mouse_down = NS.core and NS.core.input and NS.core.input.is_key_pressed and NS.core.input.is_key_pressed(0x01) or false
     if was_mouse_down and not current_mouse_down and is_resizing then
         is_resizing = false
         resize_start_pos = nil
         resize_start_size = nil
+        save_debug_position()
     end
     was_mouse_down = current_mouse_down
 
     if is_resizing and resize_start_pos and resize_start_size then
-        local current_pos = core.game_ui.get_wow_cursor_position and core.game_ui.get_wow_cursor_position()
+        local get_pos = core.game_ui and core.game_ui.get_wow_cursor_position
+        if type(get_pos) ~= "function" then return end
+        local current_pos = get_pos()
         if current_pos then
             local start_w = resize_start_size.x
             local start_h = resize_start_size.y
@@ -406,7 +462,13 @@ local function handle_resize()
         return
     end
 
-    local win_size = debug_window:get_size()
+    local win_size = get_debug_window_size()
+    if not win_size then
+        is_resizing = false
+        resize_start_pos = nil
+        resize_start_size = nil
+        return
+    end
     local win_w = win_size.x
     local win_h = win_size.y
 
@@ -423,7 +485,7 @@ local function render_debug_log()
 
     local pos = debug_window:get_position()
     if pos and last_debug_pos then
-        if pos.x ~= last_debug_pos.x or pos.y ~= last_debug_pos.y then
+        if math.abs(pos.x - last_debug_pos.x) > 1 or math.abs(pos.y - last_debug_pos.y) > 1 then
             save_debug_position()
         end
     end
@@ -434,13 +496,14 @@ local function render_debug_log()
     handle_mouse_wheel()
     handle_resize()
 
-    local window_size = debug_window:get_size()
+    local window_size = get_debug_window_size()
+    if not window_size then return end
     local win_w = window_size.x
     local win_h = window_size.y
 
     handle_button_clicks(win_w, win_h)
 
-    local y_offset = vec2.new(10, -55)
+    local y_offset = vec2.new(10, 10)
     debug_window:add_menu_element_pos_offset(y_offset)
 
     debug_window:add_text_on_dynamic_pos(THEME.text, "Debug Log")
@@ -449,10 +512,12 @@ local function render_debug_log()
     debug_window:add_separator(-win_w + 20, 0, 0, 0, THEME.border)
     debug_window:draw_next_dynamic_widget_on_new_line()
 
-    local content_height = win_h - 90
-    local line_height = 12
-    local actual_visible = math.min(MAX_VISIBLE_LINES, math.floor(content_height / line_height))
-    if actual_visible < 1 then actual_visible = 1 end
+    local actual_visible = get_actual_visible(win_h)
+    
+    local max_offset = math.max(0, #debug_log_lines - actual_visible)
+    if scroll_offset > max_offset then
+        scroll_offset = max_offset
+    end
 
     local start_idx = scroll_offset + 1
     local end_idx = math.min(start_idx + actual_visible - 1, #debug_log_lines)
@@ -465,22 +530,25 @@ local function render_debug_log()
         end
     end
 
-    for i = end_idx + 1, start_idx + actual_visible - 1 do
-        debug_window:add_text_on_dynamic_pos(THEME.text_dim, " ")
-        debug_window:draw_next_dynamic_widget_on_new_line()
+    -- Fill remaining space to keep layout stable
+    local rendered_count = end_idx - start_idx + 1
+    if rendered_count < actual_visible then
+        for i = 1, actual_visible - rendered_count do
+            debug_window:add_text_on_dynamic_pos(THEME.text_dim, " ")
+            debug_window:draw_next_dynamic_widget_on_new_line()
+        end
     end
 
     debug_window:add_separator(-win_w + 20, 0, 0, 0, THEME.border)
     debug_window:draw_next_dynamic_widget_on_new_line()
 
     local total_lines = #debug_log_lines
-    local max_offset = math.max(0, total_lines - actual_visible)
     local scroll_info = format("Lines: %d | Scroll: %d/%d | Auto: %s",
         total_lines, scroll_offset, max_offset, auto_scroll and "ON" or "OFF")
     debug_window:add_text_on_dynamic_pos(THEME.text_dim, scroll_info)
     debug_window:draw_next_dynamic_widget_on_new_line()
 
-    debug_window:add_text_on_dynamic_pos(THEME.text_dim, "Use menu to toggle debug log")
+    debug_window:add_text_on_dynamic_pos(THEME.text_dim, "Use settings to toggle debug log")
     debug_window:draw_next_dynamic_widget_on_new_line()
 
     render_buttons(win_w, win_h)
@@ -494,7 +562,7 @@ core.register_on_render_window_callback(function()
             THEME.bg,
             THEME.border,
             enums.window_enums.window_cross_visuals.BLUE_THEME,
-            enums.window_enums.window_behaviour_flags.ALWAYS_AUTO_RESIZE,
+            0, -- behaviour_flags (removed ALWAYS_AUTO_RESIZE to reconcile manual resize)
             function()
                 render_debug_log()
             end

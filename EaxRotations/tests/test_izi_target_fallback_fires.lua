@@ -1,5 +1,21 @@
--- regression test for selected-target fallback through IZI helpers.
-
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_izi_target_fallback_fires.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local casts = {}
@@ -28,9 +44,9 @@ local player = {
 _G.core = {
     time = function() return 0 end,
     game_time = function() return 0 end,
-    log = function() end,
-    log_warning = function() end,
-    log_error = function() end,
+    log = function(...) end,
+    log_warning = function(...) end,
+    log_error = function(...) end,
     object_manager = {
         get_local_player = function() return player end,
         get_visible_objects = function() return { target } end,
@@ -42,30 +58,42 @@ _G.core = {
         get_spell_costs = function() return {} end,
         is_spell_in_range = function() return true end,
     },
-    input = {
-        cast_target_spell = function(spell_id, unit)
-            -- Silently drop Shadow Ward self-buff; middleware casts it before
-            -- spec-level damaging spells can fire, consuming the rotation tick.
-            if spell_id == 28610 then return false end
-            casts[#casts + 1] = { spell_id = spell_id, unit = unit }
-            return true
-        end,
-    },
+    input = {},
 }
 
 package.loaded.core_sylvanas = nil
 package.loaded.main_sylvanas = nil
 package.loaded["classes/warlock/class_sylvanas"] = nil
-_G.EaxRotations = nil	local NS = require("core_sylvanas")
-	NS.has_player_buff = function() return true end  -- suppress Phase 1 middleware self-buffs
-	NS.buff_up = function() return true end  -- suppress spec-level Shadow Ward (uses NS.buff_up, not has_buff)
-	NS.is_hostile_unit = function() return true end  -- required for valid_enemy check in dispatcher
-	NS.izi = { target = function() return target end, ts = function() return nil end }
-require("classes/warlock/class_sylvanas")	NS.set_setting("playstyle", "affliction")
+_G.EaxRotations = nil
+
+local NS = require("core_sylvanas")
+NS.has_player_buff = function() return true end
+NS.buff_up = function() return true end
+NS.is_hostile_unit = function() return true end
+
+NS.izi = {
+    target = function() return target end,
+    ts = function() return nil end,
+    spell = function(spell_id)
+        return {
+            is_castable_to_unit = function(_, unit, opts)
+                return true, nil
+            end,
+            cast_safe = function(_, unit, reason)
+                if spell_id == 28610 then return false end
+                casts[#casts + 1] = { spell_id = spell_id, unit = unit }
+                return true
+            end,
+        }
+    end,
+}
+
+require("classes/warlock/class_sylvanas")
+NS.set_setting("playstyle", "affliction")
 
 local dispatcher = require("main_sylvanas")
 assert(dispatcher.on_rotation_update() == true, "IZI selected target fallback should execute")
--- Middleware may fire self-buffs first; at least one damaging cast must hit the target
+
 local hit_target = false
 for i = 1, #casts do
     if casts[i].unit == target then hit_target = true; break end

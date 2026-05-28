@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "dashboard_sylvanas.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- render/menu helper.
 -- ============================================================================
 -- What: Combat dashboard and overlay helper built on the core.menu window API
@@ -348,6 +366,19 @@ function NS.set_action_history(spell_name, spell_id)
     end
 end
 
+local CLASS_ID_TO_NAME = {
+    [1] = "Warrior", [2] = "Paladin", [3] = "Hunter", [4] = "Rogue",
+    [5] = "Priest", [7] = "Shaman", [8] = "Mage", [9] = "Warlock", [11] = "Druid"
+}
+
+local function get_class_name(unit)
+    local raw_class = safe_object_call(unit, "get_class", "Warrior")
+    if type(raw_class) == "number" then
+        return CLASS_ID_TO_NAME[raw_class] or "Warrior"
+    end
+    return raw_class or "Warrior"
+end
+
 local function get_player_resources()
     local me = NS.GetPlayer()
     if not me then
@@ -357,19 +388,32 @@ local function get_player_resources()
     local hp_pct = NS.unit_health_pct and NS.unit_health_pct(me) or safe_object_call(me, "get_health_percentage", 100)
     local max_hp = safe_object_call(me, "get_max_health", 100)
     local mana_pct = NS.mana_pct and NS.mana_pct(me) or safe_object_call(me, "get_mana_percentage", 100)
-    local energy = NS.power_current and NS.power_current(NS.POWER_ENERGY) or 0
-    local energy_max = safe_object_call(me, "get_max_power", 100, NS.POWER_ENERGY)
-    local rage = NS.power_current and NS.power_current(NS.POWER_RAGE) or 0
+    
+    local energy = 0
+    if NS.power_current and NS.POWER_ENERGY then
+        energy = NS.power_current(NS.POWER_ENERGY) or 0
+    end
+    
+    local energy_max = 100
+    if NS.POWER_ENERGY then
+        energy_max = safe_object_call(me, "get_max_power", 100, NS.POWER_ENERGY) or 100
+    end
+
+    local rage = 0
+    if NS.power_current and NS.POWER_RAGE then
+        rage = NS.power_current(NS.POWER_RAGE) or 0
+    end
+    
     local stance = 0  -- No generic IZI stance accessor; class context owns stance-sensitive decisions.
 
     return {
-        hp_pct = hp_pct,
-        max_hp = max_hp,
-        mana_pct = mana_pct,
-        energy = energy,
-        energy_max = energy_max,
-        rage = rage,
-        stance = stance,
+        hp_pct = hp_pct or 100,
+        max_hp = max_hp or 100,
+        mana_pct = mana_pct or 100,
+        energy = energy or 0,
+        energy_max = energy_max or 100,
+        rage = rage or 0,
+        stance = stance or 0,
     }
 end
 
@@ -380,6 +424,10 @@ local function get_target_info()
     end
 
     local target = context.target
+    if not target then
+        return { name = nil, hp = 0, ttd = 0, in_range = false, min_range = 0, max_range = 0, threat = 0, threat_situation = 0 }
+    end
+
     local target_name = safe_object_call(target, "get_name", nil)
     local target_hp = safe_object_call(target, "get_health_percentage", 0)
     local ttd = safe_object_call(target, "time_to_die", 0)
@@ -390,30 +438,29 @@ local function get_target_info()
     -- Prefer IZI distance helpers documented in common/izi_sdk.lua.
     if target and target.distance then
         local dist = safe_object_call(target, "distance", nil)
-        in_range = dist and dist < 40
-        max_range = dist or 0
+        in_range = (type(dist) == "number") and dist < 40
+        max_range = (type(dist) == "number") and dist or 0
     end
 
     local threat = 0
     local threat_situation = 0  -- 0=none, 1=low, 2=medium, 3=tank/high
     local me = NS.GetPlayer and NS.GetPlayer() or nil
     if target and me then
-        if target.get_threat_situation then
-            local raw = safe_object_call(target, "get_threat_situation", 0, me)
-            threat_situation = (type(raw) == "number" and raw) or 0
-        end
-        if target.get_threat_percentage then
-            local raw_pct = safe_object_call(target, "get_threat_percentage", 0, me)
-            threat = (type(raw_pct) == "number" and raw_pct) or 0
-        elseif type(threat_situation) == "number" and threat_situation > 0 then
+        local raw = safe_object_call(target, "get_threat_situation", 0, me)
+        threat_situation = (type(raw) == "number" and raw) or 0
+        
+        local raw_pct = safe_object_call(target, "get_threat_percentage", 0, me)
+        threat = (type(raw_pct) == "number" and raw_pct) or 0
+        
+        if threat == 0 and threat_situation > 0 then
             threat = (threat_situation / 3) * 100
         end
     end
 
     return {
         name = target_name,
-        hp = target_hp,
-        ttd = ttd,
+        hp = target_hp or 0,
+        ttd = ttd or 0,
         in_range = in_range,
         max_range = max_range,
         threat = threat,
@@ -451,9 +498,12 @@ end
 local function get_swing_timer()
     local me = NS.GetPlayer()
     if not me then return nil end
-    local remains = NS.get_time_until_swing and NS.get_time_until_swing()
-    if remains and remains > 0 then return remains end
-    return nil  -- nil when unknown or no swing pending
+    local remains = nil
+    if NS.get_time_until_swing then
+        remains = NS.get_time_until_swing()
+    end
+    if type(remains) == "number" and remains > 0 then return remains end
+    return nil
 end
 
 local function get_active_playstyle()
@@ -476,7 +526,10 @@ local function get_cooldowns()
 
     for i, cd in ipairs(cd_config) do
         local remaining = 0
-        if NS.cooldown_remains then remaining = NS.cooldown_remains(cd.id) or 0 end
+        if NS.cooldown_remains then
+            local raw = NS.cooldown_remains(cd.id)
+            remaining = (type(raw) == "number") and raw or 0
+        end
         _cd_buffer.n = _cd_buffer.n + 1
         _cd_buffer[_cd_buffer.n] = { id = cd.id, remaining = remaining, name = cd.name or "CD" }
     end
@@ -495,7 +548,10 @@ local function get_buffs()
 
     for i, buff in ipairs(buff_config) do
         local duration = 0
-        duration = NS.buff_remains and NS.buff_remains(me, buff.id) or 0
+        if NS.buff_remains then
+            local raw = NS.buff_remains(me, buff.id)
+            duration = (type(raw) == "number") and raw or 0
+        end
         _buff_buffer.n = _buff_buffer.n + 1
         _buff_buffer[_buff_buffer.n] = { id = buff.id, duration = duration }
     end
@@ -515,7 +571,10 @@ local function get_debuffs()
 
     for i, debuff in ipairs(debuff_config) do
         local duration = 0
-        duration = NS.debuff_remains and NS.debuff_remains(target, debuff.id) or 0
+        if NS.debuff_remains then
+            local raw = NS.debuff_remains(target, debuff.id)
+            duration = (type(raw) == "number") and raw or 0
+        end
         _debuff_buffer.n = _debuff_buffer.n + 1
         _debuff_buffer[_debuff_buffer.n] = { id = debuff.id, duration = duration, name = debuff.name or "DoT" }
     end
@@ -626,20 +685,19 @@ local function update_dashboard(context)
 
     ensure_player_guid()
 
-    local class_name = safe_object_call(me, "get_class", "Warrior")
-    local class_hex = CLASS_HEX[class_name] or "6c63ff"
+    local class_name = get_class_name(me)
 
     local res = get_player_resources()
     local target = get_target_info()
-    local cp = get_combo_points()
-    local gcd_info = get_gcd_info()
+    local cp = get_combo_points() or 0
+    local gcd_info = get_gcd_info() or { total = 1.5, remaining = 0 }
     local swing_timer = get_swing_timer()
-    local cooldowns = get_cooldowns()
-    local buffs = get_buffs()
-    local debuffs = get_debuffs()
-    local custom_lines = get_custom_lines()
+    local cooldowns = get_cooldowns() or EMPTY_TABLE
+    local buffs = get_buffs() or EMPTY_TABLE
+    local debuffs = get_debuffs() or EMPTY_TABLE
+    local custom_lines = get_custom_lines() or EMPTY_TABLE
 
-    local active_ps = get_active_playstyle()
+    local active_ps = get_active_playstyle() or "combat"
 
     local calculated_height = calculate_content_height(res, target, cooldowns, buffs, debuffs, custom_lines, history_count, cp, class_name, gcd_info, swing_timer, context)
 
@@ -662,7 +720,7 @@ local function update_dashboard(context)
     end
 
     local function render_bar(width, height, bar_color)
-        if width < 1 then width = 1 end
+        if not width or width < 1 then width = 1 end
         bar_color = bar_color or RENDER_COLORS.bar_bg
         local bar_min = vec2.new(0, 0)
         local bar_max_vec = vec2.new(width, height)
@@ -670,10 +728,8 @@ local function update_dashboard(context)
         dashboard_window:render_rect(bar_min, bar_max_vec, bar_color, 1)
     end
 
-    local accent_hex = "6c63ff"
     local ps_display = active_ps:sub(1, 1):upper() .. active_ps:sub(2)
-    local title_text = format("|cff%s%s \xC2\xB6 |cff%s%s",
-        class_hex, class_name, accent_hex, ps_display)
+    local title_text = class_name .. " | " .. ps_display
     add_text(title_text, THEME.text)
 
     local class_stripe_color = CLASS_RGB[class_name] or CLASS_RGB.Warrior
@@ -687,7 +743,6 @@ local function update_dashboard(context)
         local burst_max = vec2.new(FRAME_WIDTH - 8, BURST_INDICATOR_SIZE + 4)
         dashboard_window:render_rect_filled(burst_min, burst_max, RENDER_COLORS.burst_green, 0)
         dashboard_window:render_rect(burst_min, burst_max, RENDER_COLORS.icon_white, 1)
-        add_text("BURST", RENDER_COLORS.burst_green)
     end
 
     add_sep()
@@ -700,24 +755,31 @@ local function update_dashboard(context)
     dashboard_window:draw_next_dynamic_widget_on_new_line()
     add_text(format("HP: %.0f%%", res.hp_pct), THEME.text)
 
-    local resource_type  -- assigned in all branches below (initial nil unused)
-    local resource_value   -- assigned in all branches below (initial 0 unused)
+    local resource_type  -- assigned in all branches below
+    local resource_value   -- assigned in all branches below
     local resource_max = 100
 
     if class_name == "Rogue" or class_name == "Druid" then
         resource_type = "energy"
-        resource_value = res.energy
-        resource_max = res.energy_max
+        resource_value = res.energy or 0
+        resource_max = math.max(1, res.energy_max or 100)
     elseif class_name == "Warrior" then
         resource_type = "rage"
-        resource_value = res.rage
+        resource_value = res.rage or 0
+        resource_max = 100
     else
         resource_type = "mana"
-        resource_value = res.mana_pct
+        resource_value = res.mana_pct or 0
+        resource_max = 100
     end
 
     local res_color = RESOURCE_COLORS[resource_type] or RESOURCE_COLORS.mana
-    local res_fill_pct = resource_type == "mana" and resource_value / 100 or resource_value / resource_max
+    local res_fill_pct = 0
+    if resource_type == "mana" then
+        res_fill_pct = (resource_value or 0) / 100
+    else
+        res_fill_pct = (resource_value or 0) / resource_max
+    end
     local res_bar_width = bar_max * res_fill_pct
 
     render_bar(res_bar_width, bar_height, res_color)
@@ -789,19 +851,22 @@ local function update_dashboard(context)
 
     local timer_bar_height = 8
 
-    local gcd_pct = gcd_info.total > 0 and gcd_info.remaining > 0 and (gcd_info.remaining / gcd_info.total) or 0
-    if gcd_pct > 1 then gcd_pct = 1 end
+    local gcd_total = (type(gcd_info.total) == "number" and gcd_info.total > 0) and gcd_info.total or 1.5
+    local gcd_rem = (type(gcd_info.remaining) == "number") and gcd_info.remaining or 0
+    local gcd_pct = math.min(1, math.max(0, gcd_rem / gcd_total))
+    
     if gcd_pct > 0 then
         local gcd_bar_width = bar_max * gcd_pct
         render_bar(gcd_bar_width, timer_bar_height, THEME.accent)
         dashboard_window:draw_next_dynamic_widget_on_new_line()
-        add_text(format("GCD: %.1f", gcd_info.remaining), THEME.text_dim)
+        add_text(format("GCD: %.1f", gcd_rem), THEME.text_dim)
     end
 
-    if swing_timer then
+    if swing_timer and type(swing_timer) == "number" and swing_timer > 0 then
         -- [#swing] Swing timer bar: fill shows elapsed progress (1 - remains/period).
         -- swing_timer is seconds until next swing; bar fills from left as swing approaches.
         local swing_period = (NS.swing_period and NS.swing_period()) or ESTIMATED_SWING_PERIOD
+        if not swing_period or swing_period <= 0 then swing_period = ESTIMATED_SWING_PERIOD end
         local swing_fill = math.max(0, 1 - (swing_timer / swing_period))
         if swing_fill > 1 then swing_fill = 1 end
         local swing_bar_width = bar_max * swing_fill
@@ -812,23 +877,11 @@ local function update_dashboard(context)
 
     add_sep()
 
-    -- Burst Window Indicator
-    if context and context.should_burst then
-        local burst_min = vec2.new(0, 0)
-        local burst_max = vec2.new(BURST_INDICATOR_SIZE, BURST_INDICATOR_SIZE)
-        dashboard_window:render_rect_filled(burst_min, burst_max, RENDER_COLORS.burst_active, 0)
-        dashboard_window:draw_next_dynamic_widget_on_new_line()
-        add_text("BURST", RENDER_COLORS.burst_active)
-        add_sep()
-    end
-
     local la = last_action
     if la and la.name then
-        local priority_text = format("|cff%sPriority  > %s", accent_hex, la.name)
-        add_text(priority_text, THEME.text)
+        add_text("Priority  > " .. la.name, THEME.text)
     else
-        local priority_text = format("|cff%sPriority  Idle", accent_hex)
-        add_text(priority_text, THEME.text_dim)
+        add_text("Priority  Idle", THEME.text_dim)
     end
 
     add_sep()
@@ -992,8 +1045,7 @@ local function update_dashboard(context)
     add_sep()
 
     if target.name then
-        local target_text = format("|cff%sTarget  %s", accent_hex, target.name)
-        add_text(target_text, THEME.text)
+        add_text("Target  " .. target.name, THEME.text)
 
         local stats_text = ""
         if target.ttd > 0 then
@@ -1028,8 +1080,7 @@ local function update_dashboard(context)
             add_text(format("Threat: %.0f%%", threat_pct), THEME.text_dim)
         end
     else
-        local target_text = format("|cff%sTarget  N/A", accent_hex)
-        add_text(target_text, THEME.text_dim)
+        add_text("Target  N/A", THEME.text_dim)
     end
 
     local current_time = NS.time_now and NS.time_now() or 0

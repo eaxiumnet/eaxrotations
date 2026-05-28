@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_arms_healthstone.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Unit tests for arms_sylvanas auto_charge gate and use_cooldowns gate.
 -- Tests: auto_charge setting gates Charge/Intercept, use_cooldowns gates cooldown abilities
 -- Note: Healthstone auto-use is not yet implemented in arms_sylvanas.lua (FrostByte gap)
@@ -15,6 +33,7 @@ setup_asserts()
 
 -- Mock NS namespace
 local action_calls = {}
+local spell_ready_calls = {}
 _G.EaxRotations = {
     WarriorSpells = {
         BattleShout = 6673,
@@ -57,7 +76,10 @@ _G.EaxRotations = {
         return true
     end,
     action_execute = function(ctx, act, prefix) return true end,
-    spell_ready = function(spell, target, opts) return true end,
+    spell_ready = function(spell, target, opts)
+        spell_ready_calls[#spell_ready_calls + 1] = { spell = spell, target = target, opts = opts }
+        return true
+    end,
     spell_action = function(ids, name) return { name = name, ids = ids } end,
     buff_up = function(unit, buff_list) return false end,
     debuff_remains = function(unit, ids) return 0 end,
@@ -91,6 +113,7 @@ local charge = find_strategy("Charge")
 
 -- Case 1: auto_charge enabled, OOC, in range -> should match
 action_calls = {}
+spell_ready_calls = {}
 local ctx_charge_enabled = {
     in_combat = false,
     settings = { auto_charge = true, charge_only_ooc = false },
@@ -100,7 +123,7 @@ local ctx_charge_enabled = {
     stance = 1,
 }
 assert_true(charge.matches(ctx_charge_enabled), "Charge should match when auto_charge enabled")
-assert_eq(#action_calls, 1, "action_matches should be called for Charge")
+assert_true(#spell_ready_calls > 0, "spell_ready should be called for Charge (build_state + match)")
 
 -- Case 2: auto_charge disabled -> should NOT match
 action_calls = {}
@@ -135,6 +158,7 @@ local intercept = find_strategy("Intercept")
 
 -- Case 4: auto_charge enabled, in combat, in range -> should match
 action_calls = {}
+spell_ready_calls = {}
 local ctx_intercept_enabled = {
     in_combat = true,
     settings = { auto_charge = true },
@@ -146,7 +170,7 @@ local ctx_intercept_enabled = {
 -- Need to mock game_time_ms to return a time far enough past last_charge_time
 _G.EaxRotations.game_time_ms = function() return 10000 end
 assert_true(intercept.matches(ctx_intercept_enabled), "Intercept should match when auto_charge enabled")
-assert_eq(#action_calls, 1, "action_matches should be called for Intercept")
+assert_true(#spell_ready_calls > 0, "spell_ready should be called for Intercept (build_state + match)")
 
 -- Case 5: auto_charge disabled -> should NOT match
 action_calls = {}
@@ -182,6 +206,7 @@ local bloodrage = find_strategy("Bloodrage")
 
 -- Case 7: use_cooldowns enabled, not full rage -> should match
 action_calls = {}
+spell_ready_calls = {}
 local ctx_cds_on = {
     in_combat = true,
     settings = { use_cooldowns = true },
@@ -191,7 +216,7 @@ local ctx_cds_on = {
     stance = 1,
 }
 assert_true(bloodrage.matches(ctx_cds_on), "Bloodrage should match when use_cooldowns enabled")
-assert_eq(#action_calls, 1, "action_matches should be called for Bloodrage")
+assert_true(#spell_ready_calls > 0, "spell_ready should be called for Bloodrage (build_state + match)")
 
 -- Case 8: use_cooldowns disabled -> should NOT match
 action_calls = {}
