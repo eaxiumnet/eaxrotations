@@ -56,6 +56,14 @@ _G.EaxRotations = {
     is_spell_learned = function(spell_id)
         return true
     end,
+    setting_number = function(settings, key, default)
+        return type(settings) == "table" and type(settings[key]) == "number" and settings[key] or default
+    end,
+    setting_bool = function(settings, key, default)
+        local value = settings and settings[key]
+        if value == nil then return default end
+        return value ~= false
+    end,
     log = function() end,
     rotation_registry = {
         register = function() end,

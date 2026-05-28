@@ -72,6 +72,14 @@ _G.EaxRotations = {
     log = function() end,
     time_now = function() return 0 end,
     try_cast = function() return true end,
+    setting_number = function(settings, key, default)
+        return type(settings) == "table" and type(settings[key]) == "number" and settings[key] or default
+    end,
+    setting_bool = function(settings, key, default)
+        local value = settings and settings[key]
+        if value == nil then return default end
+        return value ~= false
+    end,
     rotation_registry = { register = function() end },
 }
 
