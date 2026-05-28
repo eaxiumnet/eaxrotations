@@ -1,5 +1,21 @@
--- Regression: hostile reaction should rescue target validation when can_attack is stale false.
-
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_can_attack_false_reaction_hostile_fires.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local casts = {}
@@ -42,23 +58,37 @@ _G.core = {
         get_spell_costs = function() return {} end,
         is_spell_in_range = function() return true end,
     },
-    input = {
-        cast_target_spell = function(spell_id, unit)
-            if spell_id == 28610 then return false end
-            casts[#casts + 1] = { spell_id = spell_id, unit = unit }
-            return true
-        end,
-    },
+    input = {},
 }
 
 package.loaded.core_sylvanas = nil
 package.loaded.main_sylvanas = nil
 package.loaded["classes/warlock/class_sylvanas"] = nil
-_G.EaxRotations = nil	local NS = require("core_sylvanas")
-	NS.has_player_buff = function() return true end
-	NS.buff_up = function() return true end
-	NS.is_hostile_unit = function() return true end  -- required for valid_enemy check in dispatcher
-require("classes/warlock/class_sylvanas")	NS.set_setting("playstyle", "destruction")
+_G.EaxRotations = nil
+
+local NS = require("core_sylvanas")
+NS.has_player_buff = function() return true end
+NS.buff_up = function() return true end
+NS.is_hostile_unit = function() return true end
+
+-- IZI mock so casts go through the API surface instead of raw fallback
+NS.izi = {
+    spell = function(spell_id)
+        return {
+            is_castable_to_unit = function(_, unit, opts)
+                return true, nil
+            end,
+            cast_safe = function(_, unit, reason)
+                if spell_id == 28610 then return false end
+                casts[#casts + 1] = { spell_id = spell_id, unit = unit }
+                return true
+            end,
+        }
+    end,
+}
+
+require("classes/warlock/class_sylvanas")
+NS.set_setting("playstyle", "destruction")
 
 local dispatcher = require("main_sylvanas")
 assert(dispatcher.on_rotation_update() == true, "hostile reaction should override stale can_attack=false")

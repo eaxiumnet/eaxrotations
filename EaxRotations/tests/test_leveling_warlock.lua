@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_leveling_warlock.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Unit tests for Warlock leveling rotation
 -- Tests build_state, all 13 match functions, strategy ordering,
 -- helper functions, and edge case handling
@@ -65,6 +83,10 @@ local MOCK_WARLOCK_SPELLS = {
     HealthFunnel = { 27259 },
     FelArmor = { 28189 },
     CreateHealthstone = { 6201 },
+    CreateSoulstone = { 20756 },
+    HowlOfTerror = { 17928 },
+    SiphonLife = { 27226 },
+    DrainLife = { 27220 },
     SpellLock = { 19647 },
     Shoot = { 5019 },
 }
@@ -420,14 +442,14 @@ test("spell_lock_matches: ready, target casting -> true", function()
         get_guid = function() return "mock-target" end,
         get_health_percentage = function() return 80 end,
     }
-    assert_true(strategies[3].matches(ctx, state), "target casting should match")
+    assert_true(strategies[4].matches(ctx, state), "target casting should match")
 end)
 
 test("spell_lock_matches: target not casting -> false", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.spell_lock_ready = true
-    assert_false(strategies[3].matches(ctx, state), "target not casting should not match")
+    assert_false(strategies[4].matches(ctx, state), "target not casting should not match")
 end)
 
 test("spell_lock_matches: no target -> false", function()
@@ -435,7 +457,7 @@ test("spell_lock_matches: no target -> false", function()
     local state = get_state(ctx)
     state.spell_lock_ready = true
     state.target = nil
-    assert_false(strategies[3].matches(ctx, state), "no target should return false")
+    assert_false(strategies[4].matches(ctx, state), "no target should return false")
 end)
 
 test("spell_lock_matches: interrupt disabled -> false", function()
@@ -449,7 +471,7 @@ test("spell_lock_matches: interrupt disabled -> false", function()
         is_casting = function() return true end,
         get_guid = function() return "mock-target" end,
     }
-    assert_false(strategies[3].matches(ctx, state), "interrupt disabled should not match")
+    assert_false(strategies[4].matches(ctx, state), "interrupt disabled should not match")
 end)
 
 -- ============================================================================
@@ -463,7 +485,7 @@ test("health_funnel_matches: ready, pet low HP, self HP ok -> true", function()
     state.pet_hp = 30
     state.hp = 80
     state.pet = { is_valid = function() return true end }
-    assert_true(strategies[4].matches(ctx, state), "should match when pet needs healing")
+    assert_true(strategies[5].matches(ctx, state), "should match when pet needs healing")
 end)
 
 test("health_funnel_matches: pet HP > 50 -> false", function()
@@ -472,7 +494,7 @@ test("health_funnel_matches: pet HP > 50 -> false", function()
     state.health_funnel_ready = true
     state.pet_hp = 80
     state.pet = { is_valid = function() return true end }
-    assert_false(strategies[4].matches(ctx, state), "pet HP above 50 should not match")
+    assert_false(strategies[5].matches(ctx, state), "pet HP above 50 should not match")
 end)
 
 test("health_funnel_matches: self HP too low -> false", function()
@@ -482,7 +504,7 @@ test("health_funnel_matches: self HP too low -> false", function()
     state.pet_hp = 30
     state.hp = 30
     state.pet = { is_valid = function() return true end }
-    assert_false(strategies[4].matches(ctx, state), "self HP below 40 should not match")
+    assert_false(strategies[5].matches(ctx, state), "self HP below 40 should not match")
 end)
 
 test("health_funnel_matches: no pet -> false", function()
@@ -490,7 +512,7 @@ test("health_funnel_matches: no pet -> false", function()
     local state = get_state(ctx)
     state.health_funnel_ready = true
     state.pet = nil
-    assert_false(strategies[4].matches(ctx, state), "no pet should not match")
+    assert_false(strategies[5].matches(ctx, state), "no pet should not match")
 end)
 
 test("health_funnel_matches: not in combat -> false", function()
@@ -500,7 +522,7 @@ test("health_funnel_matches: not in combat -> false", function()
     state.pet_hp = 30
     state.hp = 80
     state.pet = { is_valid = function() return true end }
-    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[5].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -512,7 +534,7 @@ test("fear_matches: ready, 2+ enemies, debuff expiring -> true", function()
     local state = get_state(ctx)
     state.fear_ready = true
     state.enemies = 3
-    assert_true(strategies[5].matches(ctx, state), "3 enemies should match")
+    assert_true(strategies[6].matches(ctx, state), "3 enemies should match")
 end)
 
 test("fear_matches: 1 enemy -> false", function()
@@ -520,7 +542,7 @@ test("fear_matches: 1 enemy -> false", function()
     local state = get_state(ctx)
     state.fear_ready = true
     state.enemies = 1
-    assert_false(strategies[5].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[6].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("fear_matches: debuff still fresh -> false", function()
@@ -529,7 +551,7 @@ test("fear_matches: debuff still fresh -> false", function()
     state.fear_ready = true
     state.enemies = 3
     NS.debuff_remains = function(target, ids) return 12 end
-    assert_false(strategies[5].matches(ctx, state), "fresh fear should not match")
+    assert_false(strategies[6].matches(ctx, state), "fresh fear should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -538,7 +560,7 @@ test("fear_matches: no target -> false", function()
     local state = get_state(ctx)
     state.fear_ready = true
     state.target = nil
-    assert_false(strategies[5].matches(ctx, state), "no target should not match")
+    assert_false(strategies[6].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
@@ -550,7 +572,7 @@ test("death_coil_matches: ready, HP below 40% -> true", function()
     local state = get_state(ctx)
     state.death_coil_ready = true
     state.hp = 30
-    assert_true(strategies[6].matches(ctx, state), "low HP should match")
+    assert_true(strategies[8].matches(ctx, state), "low HP should match")
 end)
 
 test("death_coil_matches: HP above 40% -> false", function()
@@ -558,7 +580,7 @@ test("death_coil_matches: HP above 40% -> false", function()
     local state = get_state(ctx)
     state.death_coil_ready = true
     state.hp = 80
-    assert_false(strategies[6].matches(ctx, state), "HP above 40 should not match")
+    assert_false(strategies[8].matches(ctx, state), "HP above 40 should not match")
 end)
 
 test("death_coil_matches: no target -> false", function()
@@ -567,7 +589,7 @@ test("death_coil_matches: no target -> false", function()
     state.death_coil_ready = true
     state.target = nil
     state.hp = 30
-    assert_false(strategies[6].matches(ctx, state), "no target should not match")
+    assert_false(strategies[8].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
@@ -581,7 +603,7 @@ test("life_tap_matches: ready, low mana, self HP ok -> true", function()
     state.mana_pct = 20
     state.hp = 60
     state.life_tap_mana = 30
-    assert_true(strategies[7].matches(ctx, state), "low mana with enough HP should match")
+    assert_true(strategies[9].matches(ctx, state), "low mana with enough HP should match")
 end)
 
 test("life_tap_matches: mana above threshold -> false", function()
@@ -590,7 +612,7 @@ test("life_tap_matches: mana above threshold -> false", function()
     state.life_tap_ready = true
     state.mana_pct = 50
     state.life_tap_mana = 30
-    assert_false(strategies[7].matches(ctx, state), "mana above threshold should not match")
+    assert_false(strategies[9].matches(ctx, state), "mana above threshold should not match")
 end)
 
 test("life_tap_matches: self HP too low -> false", function()
@@ -600,7 +622,7 @@ test("life_tap_matches: self HP too low -> false", function()
     state.mana_pct = 20
     state.hp = 20
     state.life_tap_mana = 30
-    assert_false(strategies[7].matches(ctx, state), "HP below 30 should not match")
+    assert_false(strategies[9].matches(ctx, state), "HP below 30 should not match")
 end)
 
 test("life_tap_matches: not in combat -> false", function()
@@ -610,7 +632,7 @@ test("life_tap_matches: not in combat -> false", function()
     state.in_combat = false
     state.mana_pct = 20
     state.hp = 60
-    assert_false(strategies[7].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -622,7 +644,7 @@ test("corruption_matches: ready, enabled, debuff expiring -> true", function()
     local state = get_state(ctx)
     state.corruption_ready = true
     state.use_corruption = true
-    assert_true(strategies[8].matches(ctx, state), "expired corruption should match")
+    assert_true(strategies[10].matches(ctx, state), "expired corruption should match")
 end)
 
 test("corruption_matches: debuff fresh -> false", function()
@@ -631,7 +653,7 @@ test("corruption_matches: debuff fresh -> false", function()
     state.corruption_ready = true
     state.use_corruption = true
     NS.debuff_remains = function(target, ids) return 10 end
-    assert_false(strategies[8].matches(ctx, state), "fresh corruption should not match")
+    assert_false(strategies[10].matches(ctx, state), "fresh corruption should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -640,7 +662,7 @@ test("corruption_matches: disabled -> false", function()
     local state = get_state(ctx)
     state.corruption_ready = true
     state.use_corruption = false
-    assert_false(strategies[8].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[10].matches(ctx, state), "disabled should not match")
 end)
 
 test("corruption_matches: not in combat -> false", function()
@@ -648,7 +670,7 @@ test("corruption_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.corruption_ready = true
     state.use_corruption = true
-    assert_false(strategies[8].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[10].matches(ctx, state), "OOC should not match")
 end)
 
 test("corruption_matches: no target -> false", function()
@@ -657,7 +679,7 @@ test("corruption_matches: no target -> false", function()
     state.corruption_ready = true
     state.target = nil
     state.use_corruption = true
-    assert_false(strategies[8].matches(ctx, state), "no target should not match")
+    assert_false(strategies[10].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
@@ -670,7 +692,7 @@ test("immolate_matches: ready, enabled, not moving, debuff expiring -> true", fu
     state.immolate_ready = true
     state.use_immolate = true
     state.is_moving = false
-    assert_true(strategies[9].matches(ctx, state), "should match when ready and stationary")
+    assert_true(strategies[11].matches(ctx, state), "should match when ready and stationary")
 end)
 
 test("immolate_matches: moving -> false", function()
@@ -679,7 +701,7 @@ test("immolate_matches: moving -> false", function()
     state.immolate_ready = true
     state.use_immolate = true
     state.is_moving = true
-    assert_false(strategies[9].matches(ctx, state), "moving should not match")
+    assert_false(strategies[11].matches(ctx, state), "moving should not match")
 end)
 
 test("immolate_matches: disabled -> false", function()
@@ -687,7 +709,7 @@ test("immolate_matches: disabled -> false", function()
     local state = get_state(ctx)
     state.immolate_ready = true
     state.use_immolate = false
-    assert_false(strategies[9].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[11].matches(ctx, state), "disabled should not match")
 end)
 
 test("immolate_matches: debuff fresh -> false", function()
@@ -697,7 +719,7 @@ test("immolate_matches: debuff fresh -> false", function()
     state.use_immolate = true
     state.is_moving = false
     NS.debuff_remains = function(target, ids) return 10 end
-    assert_false(strategies[9].matches(ctx, state), "fresh immolate should not match")
+    assert_false(strategies[11].matches(ctx, state), "fresh immolate should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -710,7 +732,7 @@ test("curse_of_agony_matches: ready, enabled, debuff expiring -> true", function
     local state = get_state(ctx)
     state.curse_of_agony_ready = true
     state.use_curse_of_agony = true
-    assert_true(strategies[10].matches(ctx, state), "expired curse should match")
+    assert_true(strategies[12].matches(ctx, state), "expired curse should match")
 end)
 
 test("curse_of_agony_matches: debuff fresh -> false", function()
@@ -719,7 +741,7 @@ test("curse_of_agony_matches: debuff fresh -> false", function()
     state.curse_of_agony_ready = true
     state.use_curse_of_agony = true
     NS.debuff_remains = function(target, ids) return 10 end
-    assert_false(strategies[10].matches(ctx, state), "fresh curse should not match")
+    assert_false(strategies[12].matches(ctx, state), "fresh curse should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -728,7 +750,7 @@ test("curse_of_agony_matches: disabled -> false", function()
     local state = get_state(ctx)
     state.curse_of_agony_ready = true
     state.use_curse_of_agony = false
-    assert_false(strategies[10].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[12].matches(ctx, state), "disabled should not match")
 end)
 
 -- ============================================================================
@@ -741,7 +763,7 @@ test("drain_soul_matches: ready, execute range target -> true", function()
     state.drain_soul_ready = true
     state.drain_soul_execute = 25
     ctx.target.get_health_percentage = function() return 15 end
-    assert_true(strategies[11].matches(ctx, state), "execute range should match")
+    assert_true(strategies[15].matches(ctx, state), "execute range should match")
 end)
 
 test("drain_soul_matches: target above execute range but low mana -> true", function()
@@ -751,7 +773,7 @@ test("drain_soul_matches: target above execute range but low mana -> true", func
     state.drain_soul_execute = 25
     state.mana_pct = 20
     ctx.target.get_health_percentage = function() return 50 end
-    assert_true(strategies[11].matches(ctx, state), "low mana should match")
+    assert_true(strategies[15].matches(ctx, state), "low mana should match")
 end)
 
 test("drain_soul_matches: target above execute range, mana ok -> false", function()
@@ -761,14 +783,14 @@ test("drain_soul_matches: target above execute range, mana ok -> false", functio
     state.drain_soul_execute = 25
     state.mana_pct = 50
     ctx.target.get_health_percentage = function() return 50 end
-    assert_false(strategies[11].matches(ctx, state), "not execute range and enough mana should not match")
+    assert_false(strategies[15].matches(ctx, state), "not execute range and enough mana should not match")
 end)
 
 test("drain_soul_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.drain_soul_ready = true
-    assert_false(strategies[11].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[15].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -781,7 +803,7 @@ test("shadow_bolt_matches: ready, not moving, enough mana -> true", function()
     state.shadow_bolt_ready = true
     state.is_moving = false
     state.mana_pct = 50
-    assert_true(strategies[12].matches(ctx, state), "should match when ready and stationary")
+    assert_true(strategies[16].matches(ctx, state), "should match when ready and stationary")
 end)
 
 test("shadow_bolt_matches: moving -> false", function()
@@ -789,7 +811,7 @@ test("shadow_bolt_matches: moving -> false", function()
     local state = get_state(ctx)
     state.shadow_bolt_ready = true
     state.is_moving = true
-    assert_false(strategies[12].matches(ctx, state), "moving should not match")
+    assert_false(strategies[16].matches(ctx, state), "moving should not match")
 end)
 
 test("shadow_bolt_matches: low mana -> false", function()
@@ -797,7 +819,7 @@ test("shadow_bolt_matches: low mana -> false", function()
     local state = get_state(ctx)
     state.shadow_bolt_ready = true
     state.mana_pct = 5
-    assert_false(strategies[12].matches(ctx, state), "low mana should not match")
+    assert_false(strategies[16].matches(ctx, state), "low mana should not match")
 end)
 
 test("shadow_bolt_matches: no target -> false", function()
@@ -805,7 +827,7 @@ test("shadow_bolt_matches: no target -> false", function()
     local state = get_state(ctx)
     state.shadow_bolt_ready = true
     state.target = nil
-    assert_false(strategies[12].matches(ctx, state), "no target should not match")
+    assert_false(strategies[16].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
@@ -818,7 +840,7 @@ test("wand_matches: low mana, in combat, wand learned -> true", function()
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[13].matches(ctx, state), "low mana should match")
+    assert_true(strategies[17].matches(ctx, state), "low mana should match")
 end)
 
 test("wand_matches: enough mana -> false", function()
@@ -827,7 +849,7 @@ test("wand_matches: enough mana -> false", function()
     state.mana_pct = 80
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_false(strategies[13].matches(ctx, state), "enough mana should not match")
+    assert_false(strategies[17].matches(ctx, state), "enough mana should not match")
 end)
 
 test("wand_matches: no target -> false", function()
@@ -836,7 +858,7 @@ test("wand_matches: no target -> false", function()
     state.mana_pct = 10
     state.target = nil
     state.wand_learned = true
-    assert_false(strategies[13].matches(ctx, state), "no target should not match")
+    assert_false(strategies[16].matches(ctx, state), "no target should not match")
 end)
 
 test("wand_matches: not in combat -> false", function()
@@ -846,7 +868,7 @@ test("wand_matches: not in combat -> false", function()
     state.wand_threshold = 30
     state.wand_learned = true
     state.in_combat = false
-    assert_false(strategies[13].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[17].matches(ctx, state), "OOC should not match")
 end)
 
 test("wand_matches: wand not learned -> false", function()
@@ -854,30 +876,34 @@ test("wand_matches: wand not learned -> false", function()
     local state = get_state(ctx)
     state.mana_pct = 10
     state.wand_learned = false
-    assert_false(strategies[13].matches(ctx, state), "wand not learned should not match")
+    assert_false(strategies[17].matches(ctx, state), "wand not learned should not match")
 end)
 
 -- ============================================================================
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 13 strategies in correct priority order", function()
+test("strategies: 16 strategies in correct priority order", function()
     local expected = {
         "FelArmor",
         "CreateHealthstone",
+        "CreateSoulstone",
         "SpellLock",
         "HealthFunnel",
         "Fear",
+        "HowlOfTerror",
         "DeathCoil",
         "LifeTap",
         "Corruption",
         "Immolate",
         "CurseOfAgony",
+        "SiphonLife",
+        "DrainLife",
         "DrainSoul",
         "ShadowBolt",
         "Wand",
     }
-    assert_eq(#strategies, 13, "should have 13 strategies")
+    assert_eq(#strategies, 17, "should have 17 strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -902,12 +928,12 @@ end)
 
 test("execute_Wand: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[13].execute, ctx)
+    local ok, result = pcall(strategies[17].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
 test("execute_Wand: does not crash without context", function()
-    local ok, result = pcall(strategies[13].execute)
+    local ok, result = pcall(strategies[17].execute)
     assert_true(ok, "execute without context should not throw")
 end)
 
@@ -973,8 +999,11 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     -- Healthstone should match (OOC)
     assert_true(strategies[2].matches(ctx, state), "Healthstone should match OOC")
 
-    -- Combat abilities should not match OOC
-    for i = 3, 13 do
+    -- Soulstone should match (OOC)
+    assert_true(strategies[3].matches(ctx, state), "CreateSoulstone should match OOC")
+
+    -- Combat abilities should not match OOC (start from SpellLock at index 4)
+    for i = 4, 17 do
         local ok, matched = pcall(strategies[i].matches, ctx, state)
         assert_true(ok, "strategy[" .. i .. "] matches should not throw")
         assert_false(matched, "strategy[" .. i .. "] (" .. strategies[i].name .. ") should not match OOC")
@@ -988,7 +1017,7 @@ test("rotation: low HP scenario - death coil should match", function()
     state.hp = 30
 
     -- DeathCoil should match when HP < 40
-    assert_true(strategies[6].matches(ctx, state), "DeathCoil should match when HP < 40")
+    assert_true(strategies[8].matches(ctx, state), "DeathCoil should match when HP < 40")
 end)
 
 test("rotation: low mana scenario - life tap + wand should be possible", function()
@@ -1002,10 +1031,10 @@ test("rotation: low mana scenario - life tap + wand should be possible", functio
     state.wand_learned = true
 
     -- LifeTap should match (low mana, enough HP)
-    assert_true(strategies[7].matches(ctx, state), "LifeTap should match when low mana")
+    assert_true(strategies[9].matches(ctx, state), "LifeTap should match when low mana")
 
     -- Wand should also be a fallback option
-    assert_true(strategies[13].matches(ctx, state), "Wand should match when mana below threshold")
+    assert_true(strategies[17].matches(ctx, state), "Wand should match when mana below threshold")
 end)
 
 -- ============================================================================
@@ -1020,7 +1049,7 @@ do -- edge_corruption
         state.use_corruption = true
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 0 end
-        assert_true(strategies[8].matches(ctx, state), "remains 0 should match (<= 4)")
+        assert_true(strategies[10].matches(ctx, state), "remains 0 should match (<= 4)")
         NS.debuff_remains = saved
     end)
 
@@ -1031,7 +1060,7 @@ do -- edge_corruption
         state.use_corruption = true
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 5 end
-        assert_false(strategies[8].matches(ctx, state), "remains 5 should not match (> 4)")
+        assert_false(strategies[10].matches(ctx, state), "remains 5 should not match (> 4)")
         NS.debuff_remains = saved
     end)
 
@@ -1040,7 +1069,7 @@ do -- edge_corruption
         local state = get_state(ctx)
         state.corruption_ready = true
         state.use_corruption = false
-        assert_false(strategies[8].matches(ctx, state), "disabled should not match")
+        assert_false(strategies[10].matches(ctx, state), "disabled should not match")
     end)
 end
 
@@ -1057,7 +1086,7 @@ do -- edge_immolate
         state.is_moving = false
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 0 end
-        assert_true(strategies[9].matches(ctx, state), "remains 0 should match (<= 4)")
+        assert_true(strategies[11].matches(ctx, state), "remains 0 should match (<= 4)")
         NS.debuff_remains = saved
     end)
 
@@ -1069,7 +1098,7 @@ do -- edge_immolate
         state.is_moving = false
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 5 end
-        assert_false(strategies[9].matches(ctx, state), "remains 5 should not match (> 4)")
+        assert_false(strategies[11].matches(ctx, state), "remains 5 should not match (> 4)")
         NS.debuff_remains = saved
     end)
 
@@ -1079,7 +1108,7 @@ do -- edge_immolate
         state.immolate_ready = true
         state.use_immolate = true
         state.is_moving = true
-        assert_false(strategies[9].matches(ctx, state), "moving should not match")
+        assert_false(strategies[11].matches(ctx, state), "moving should not match")
     end)
 end
 
@@ -1095,7 +1124,7 @@ do -- edge_curse
         state.use_curse_of_agony = true
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 0 end
-        assert_true(strategies[10].matches(ctx, state), "remains 0 should match (<= 4)")
+        assert_true(strategies[12].matches(ctx, state), "remains 0 should match (<= 4)")
         NS.debuff_remains = saved
     end)
 
@@ -1106,7 +1135,7 @@ do -- edge_curse
         state.use_curse_of_agony = true
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 5 end
-        assert_false(strategies[10].matches(ctx, state), "remains 5 should not match (> 4)")
+        assert_false(strategies[12].matches(ctx, state), "remains 5 should not match (> 4)")
         NS.debuff_remains = saved
     end)
 end
@@ -1123,7 +1152,7 @@ do -- edge_life_tap
         state.mana_pct = 30
         state.life_tap_mana = 30
         state.hp = 50
-        assert_true(strategies[7].matches(ctx, state), "mana at threshold should match")
+        assert_true(strategies[9].matches(ctx, state), "mana at threshold should match")
     end)
 
     test("edge_life_tap: mana exactly 31 (above threshold) -> no match", function()
@@ -1133,7 +1162,7 @@ do -- edge_life_tap
         state.mana_pct = 31
         state.life_tap_mana = 30
         state.hp = 50
-        assert_false(strategies[7].matches(ctx, state), "mana above threshold should not match")
+        assert_false(strategies[9].matches(ctx, state), "mana above threshold should not match")
     end)
 
     test("edge_life_tap: HP exactly 29 -> no match (< 30 guard)", function()
@@ -1143,7 +1172,7 @@ do -- edge_life_tap
         state.mana_pct = 20
         state.life_tap_mana = 30
         state.hp = 29
-        assert_false(strategies[7].matches(ctx, state), "HP 29 should not match (hp < 30 guard)")
+        assert_false(strategies[9].matches(ctx, state), "HP 29 should not match (hp < 30 guard)")
     end)
 
     test("edge_life_tap: HP exactly 30 -> match", function()
@@ -1153,7 +1182,7 @@ do -- edge_life_tap
         state.mana_pct = 20
         state.life_tap_mana = 30
         state.hp = 30
-        assert_true(strategies[7].matches(ctx, state), "HP 30 should match (hp >= 30)")
+        assert_true(strategies[9].matches(ctx, state), "HP 30 should match (hp >= 30)")
     end)
 end
 
@@ -1183,7 +1212,7 @@ do -- edge_drain_soul
         state.drain_soul_ready = true
         state.drain_soul_execute = 25
         state.mana_pct = 50
-        assert_true(strategies[11].matches(ctx, state), "target HP 25 should match (<= threshold)")
+        assert_true(strategies[15].matches(ctx, state), "target HP 25 should match (<= threshold)")
         ctx.target.get_health_percentage = saved
     end)
 
@@ -1199,7 +1228,7 @@ do -- edge_drain_soul
         state.drain_soul_ready = true
         state.drain_soul_execute = 25
         state.mana_pct = 50
-        assert_false(strategies[11].matches(ctx, state), "target HP 26 should not match (> threshold)")
+        assert_false(strategies[15].matches(ctx, state), "target HP 26 should not match (> threshold)")
         ctx.target.get_health_percentage = saved
     end)
 
@@ -1215,7 +1244,7 @@ do -- edge_drain_soul
         state.drain_soul_ready = true
         state.drain_soul_execute = 25
         state.mana_pct = 30
-        assert_true(strategies[11].matches(ctx, state), "mana 30 should match (<= 30)")
+        assert_true(strategies[15].matches(ctx, state), "mana 30 should match (<= 30)")
         ctx.target.get_health_percentage = saved
     end)
 
@@ -1231,7 +1260,7 @@ do -- edge_drain_soul
         state.drain_soul_ready = true
         state.drain_soul_execute = 25
         state.mana_pct = 31
-        assert_false(strategies[11].matches(ctx, state), "mana 31 should not match (> 30)")
+        assert_false(strategies[15].matches(ctx, state), "mana 31 should not match (> 30)")
         ctx.target.get_health_percentage = saved
     end)
 end
@@ -1246,7 +1275,7 @@ do -- edge_death_coil
         local state = get_state(ctx)
         state.death_coil_ready = true
         state.hp = 40
-        assert_true(strategies[6].matches(ctx, state), "HP 40 should match (<= 40)")
+        assert_true(strategies[8].matches(ctx, state), "HP 40 should match (<= 40)")
     end)
 
     test("edge_death_coil: HP exactly 41 -> no match", function()
@@ -1254,7 +1283,7 @@ do -- edge_death_coil
         local state = get_state(ctx)
         state.death_coil_ready = true
         state.hp = 41
-        assert_false(strategies[6].matches(ctx, state), "HP 41 should not match (> 40)")
+        assert_false(strategies[8].matches(ctx, state), "HP 41 should not match (> 40)")
     end)
 end
 
@@ -1270,7 +1299,7 @@ do -- edge_fear
         state.enemies = 2
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 0 end
-        assert_true(strategies[5].matches(ctx, state), "2 enemies should match (>= 2)")
+        assert_true(strategies[6].matches(ctx, state), "2 enemies should match (>= 2)")
         NS.debuff_remains = saved
     end)
 
@@ -1279,7 +1308,7 @@ do -- edge_fear
         local state = get_state(ctx)
         state.fear_ready = true
         state.enemies = 1
-        assert_false(strategies[5].matches(ctx, state), "1 enemy should not match (< 2)")
+        assert_false(strategies[6].matches(ctx, state), "1 enemy should not match (< 2)")
     end)
 
     test("edge_fear: debuff remains exactly 8 -> match", function()
@@ -1289,7 +1318,7 @@ do -- edge_fear
         state.enemies = 2
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 8 end
-        assert_true(strategies[5].matches(ctx, state), "remains 8 should match (<= 8)")
+        assert_true(strategies[6].matches(ctx, state), "remains 8 should match (<= 8)")
         NS.debuff_remains = saved
     end)
 
@@ -1300,7 +1329,7 @@ do -- edge_fear
         state.enemies = 2
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 9 end
-        assert_false(strategies[5].matches(ctx, state), "remains 9 should not match (> 8)")
+        assert_false(strategies[6].matches(ctx, state), "remains 9 should not match (> 8)")
         NS.debuff_remains = saved
     end)
 end
@@ -1316,7 +1345,7 @@ do -- edge_health_funnel
         state.health_funnel_ready = true
         state.pet_hp = 50
         state.hp = 80
-        assert_true(strategies[4].matches(ctx, state), "pet HP 50 should match (<= 50)")
+        assert_true(strategies[5].matches(ctx, state), "pet HP 50 should match (<= 50)")
     end)
 
     test("edge_health_funnel: pet HP exactly 51 -> no match", function()
@@ -1325,7 +1354,7 @@ do -- edge_health_funnel
         state.health_funnel_ready = true
         state.pet_hp = 51
         state.hp = 80
-        assert_false(strategies[4].matches(ctx, state), "pet HP 51 should not match (> 50)")
+        assert_false(strategies[5].matches(ctx, state), "pet HP 51 should not match (> 50)")
     end)
 
     test("edge_health_funnel: player HP exactly 39 -> no match (hp < 40 guard)", function()
@@ -1334,7 +1363,7 @@ do -- edge_health_funnel
         state.health_funnel_ready = true
         state.pet_hp = 30
         state.hp = 39
-        assert_false(strategies[4].matches(ctx, state), "player HP 39 should not match (hp < 40 guard)")
+        assert_false(strategies[5].matches(ctx, state), "player HP 39 should not match (hp < 40 guard)")
     end)
 
     test("edge_health_funnel: player HP exactly 40 -> match", function()
@@ -1343,7 +1372,7 @@ do -- edge_health_funnel
         state.health_funnel_ready = true
         state.pet_hp = 30
         state.hp = 40
-        assert_true(strategies[4].matches(ctx, state), "player HP 40 should match (hp >= 40)")
+        assert_true(strategies[5].matches(ctx, state), "player HP 40 should match (hp >= 40)")
     end)
 end
 
@@ -1358,7 +1387,7 @@ do -- edge_wand
         state.wand_learned = true
         state.wand_threshold = 30
         state.mana_pct = 29
-        assert_true(strategies[13].matches(ctx, state), "mana 29 should match (< threshold)")
+        assert_true(strategies[17].matches(ctx, state), "mana 29 should match (< threshold)")
     end)
 
     test("edge_wand: mana exactly 30 (at threshold) -> no match", function()
@@ -1367,7 +1396,7 @@ do -- edge_wand
         state.wand_learned = true
         state.wand_threshold = 30
         state.mana_pct = 30
-        assert_false(strategies[13].matches(ctx, state), "mana 30 should not match (>= threshold)")
+        assert_false(strategies[17].matches(ctx, state), "mana 30 should not match (>= threshold)")
     end)
 
     test("edge_wand: wand not learned -> no match", function()
@@ -1376,7 +1405,7 @@ do -- edge_wand
         state.wand_learned = false
         state.wand_threshold = 30
         state.mana_pct = 10
-        assert_false(strategies[13].matches(ctx, state), "wand not learned should not match")
+        assert_false(strategies[17].matches(ctx, state), "wand not learned should not match")
     end)
 end
 
@@ -1391,7 +1420,7 @@ do -- edge_shadow_bolt
         state.shadow_bolt_ready = true
         state.mana_pct = 9
         state.is_moving = false
-        assert_false(strategies[12].matches(ctx, state), "mana 9 should not match (mana < 10 guard)")
+        assert_false(strategies[16].matches(ctx, state), "mana 9 should not match (mana < 10 guard)")
     end)
 
     test("edge_shadow_bolt: mana exactly 10 -> match", function()
@@ -1400,7 +1429,7 @@ do -- edge_shadow_bolt
         state.shadow_bolt_ready = true
         state.mana_pct = 10
         state.is_moving = false
-        assert_true(strategies[12].matches(ctx, state), "mana 10 should match (mana >= 10)")
+        assert_true(strategies[16].matches(ctx, state), "mana 10 should match (mana >= 10)")
     end)
 
     test("edge_shadow_bolt: moving -> no match", function()
@@ -1409,7 +1438,7 @@ do -- edge_shadow_bolt
         state.shadow_bolt_ready = true
         state.mana_pct = 50
         state.is_moving = true
-        assert_false(strategies[12].matches(ctx, state), "moving should not match")
+        assert_false(strategies[16].matches(ctx, state), "moving should not match")
     end)
 end
 
@@ -1463,7 +1492,7 @@ do -- edge_spell_lock
         state.spell_lock_ready = true
         state.target = ctx.target
         state.use_interrupt = true
-        assert_true(strategies[3].matches(ctx, state), "target casting should match")
+        assert_true(strategies[4].matches(ctx, state), "target casting should match")
     end)
 
     test("edge_spell_lock: target not casting -> no match", function()
@@ -1472,7 +1501,7 @@ do -- edge_spell_lock
         state.spell_lock_ready = true
         state.target = ctx.target
         state.use_interrupt = true
-        assert_false(strategies[3].matches(ctx, state), "target not casting should not match")
+        assert_false(strategies[4].matches(ctx, state), "target not casting should not match")
     end)
 end
 
@@ -1534,7 +1563,7 @@ do -- edge_api
         local saved = NS.try_cast
         NS.try_cast = nil
         local ctx = make_context()
-        for i = 1, 13 do
+        for i = 1, #strategies do
             local ok, result = pcall(strategies[i].execute, ctx)
             assert_true(ok, string.format("strategies[%d].execute should not crash with NS.try_cast nil", i))
         end
@@ -1548,14 +1577,14 @@ end
 
 do -- edge_rotation_crash
     test("edge_rotation_crash: all execute functions handle nil context", function()
-        for i = 1, 13 do
+        for i = 1, #strategies do
             local ok, result = pcall(strategies[i].execute)
             assert_true(ok, string.format("strategies[%d].execute should not crash with nil context", i))
         end
     end)
 
     test("edge_rotation_crash: all match functions handle nil context", function()
-        for i = 1, 13 do
+        for i = 1, #strategies do
             local ok, result = pcall(strategies[i].matches, nil, {})
             assert_true(ok, string.format("strategies[%d].matches should not crash with nil context", i))
         end
@@ -1563,7 +1592,7 @@ do -- edge_rotation_crash
 
     test("edge_rotation_crash: all match functions handle nil state", function()
         local ctx = make_context()
-        for i = 1, 13 do
+        for i = 1, #strategies do
             local ok, result = pcall(strategies[i].matches, ctx, nil)
             assert_true(ok, string.format("strategies[%d].matches should not crash with nil state", i))
         end

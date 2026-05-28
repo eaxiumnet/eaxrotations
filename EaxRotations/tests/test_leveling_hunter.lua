@@ -1,5 +1,23 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_leveling_hunter.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Unit tests for Hunter leveling rotation
--- Tests build_state, all 10 match functions, strategy ordering,
+-- Tests build_state, all 11 match functions, strategy ordering,
 -- helper functions, and edge case handling
 
 local EAXROTATIONS_DIR = "C:/newbot/scripts/EaxRotations"
@@ -56,6 +74,11 @@ end
 local MOCK_HUNTER_SPELLS = {
     SerpentSting = { 27016 },
     HuntersMark = { 14325 },
+    AimedShot = { 19434 },
+    ConcussiveShot = { 27019 },
+    WingClip = { 27020 },
+    RapidFire = { 3045 },
+    ScareBeast = { 14327 },
     ArcaneShot = { 27019 },
     SteadyShot = { 34120 },
     MultiShot = { 27021 },
@@ -295,10 +318,14 @@ test("build_state: spell readiness fields populated", function()
     assert_true(state.arcane_shot_ready, "arcane_shot_ready")
     assert_true(state.steady_shot_ready, "steady_shot_ready")
     assert_true(state.multi_shot_ready, "multi_shot_ready")
+    assert_true(state.aimed_shot_ready, "aimed_shot_ready")
     assert_true(state.mend_pet_ready, "mend_pet_ready")
     assert_true(state.call_pet_ready, "call_pet_ready")
     assert_true(state.aspect_hawk_ready, "aspect_hawk_ready")
-    assert_true(state.feign_death_ready, "feign_death_ready")
+    assert_true(state.concussive_shot_ready, "concussive_shot_ready")
+    assert_true(state.wing_clip_ready, "wing_clip_ready")
+    assert_true(state.rapid_fire_ready, "rapid_fire_ready")
+    assert_true(state.scare_beast_ready, "scare_beast_ready")
     assert_true(state.freezing_trap_ready, "freezing_trap_ready")
 end)
 
@@ -456,17 +483,84 @@ test("hunters_mark_matches: no target -> false", function()
     assert_false(strategies[3].matches(ctx, state), "no target should not match")
 end)
 
+-- ============================================================================-- Test: aimed_shot_matches (strategy #5)
 -- ============================================================================
--- Test: mend_pet_matches (strategy #4)
--- ============================================================================
+test("aimed_shot_matches: in combat, not moving, ready -> true", function()
+    local ctx = make_context({in_combat = true, is_moving = false})
+    local state = get_state(ctx)
+    state.aimed_shot_ready = true
+    state.is_moving = false
+    assert_true(strategies[5].matches(ctx, state), "ready and stationary should match")
+end)
 
+test("aimed_shot_matches: moving -> false", function()
+    local ctx = make_context({is_moving = true})
+    local state = get_state(ctx)
+    state.aimed_shot_ready = true
+    state.is_moving = true
+    assert_false(strategies[5].matches(ctx, state), "moving should not match")
+end)
+
+test("aimed_shot_matches: not ready -> false", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.aimed_shot_ready = false
+    assert_false(strategies[5].matches(ctx, state), "not ready should not match")
+end)
+
+test("aimed_shot_matches: no target -> false", function()
+    local ctx = make_context({target = nil})
+    local state = get_state(ctx)
+    state.aimed_shot_ready = true
+    state.target = nil
+    assert_false(strategies[5].matches(ctx, state), "no target should not match")
+end)
+
+test("aimed_shot_matches: nil state -> false", function()
+    local ctx = make_context()
+    assert_false(strategies[5].matches(ctx, nil), "nil state returns false")
+end)
+
+-- ============================================================================
+-- Test: rapid_fire_matches (strategy #4)
+-- ============================================================================
+test("rapid_fire_matches: in combat, ready -> true", function()
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.rapid_fire_ready = true
+    assert_true(strategies[4].matches(ctx, state), "in combat ready should match")
+end)
+
+test("rapid_fire_matches: not in combat -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.rapid_fire_ready = true
+    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+end)
+
+test("rapid_fire_matches: no target -> false", function()
+    local ctx = make_context({target = nil})
+    local state = get_state(ctx)
+    state.rapid_fire_ready = true
+    state.target = nil
+    assert_false(strategies[4].matches(ctx, state), "no target should not match")
+end)
+
+test("rapid_fire_matches: nil state -> false", function()
+    local ctx = make_context()
+    assert_false(strategies[4].matches(ctx, nil), "nil state returns false")
+end)
+
+-- ============================================================================
+-- Test: mend_pet_matches (strategy #6)
+-- ============================================================================
 test("mend_pet_matches: in combat, pet low HP, ready -> true", function()
     local ctx = make_context()
     ctx.pet = { get_health_percentage = function() return 40 end }
     local state = get_state(ctx)
     state.mend_pet_ready = true
     state.pet_hp = 40
-    assert_true(strategies[4].matches(ctx, state), "low pet HP should match")
+    assert_true(strategies[6].matches(ctx, state), "low pet HP should match")
 end)
 
 test("mend_pet_matches: pet HP above 60 -> false", function()
@@ -474,7 +568,7 @@ test("mend_pet_matches: pet HP above 60 -> false", function()
     local state = get_state(ctx)
     state.mend_pet_ready = true
     state.pet_hp = 80
-    assert_false(strategies[4].matches(ctx, state), "high pet HP should not match")
+    assert_false(strategies[6].matches(ctx, state), "high pet HP should not match")
 end)
 
 test("mend_pet_matches: not in combat -> false", function()
@@ -483,26 +577,24 @@ test("mend_pet_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.mend_pet_ready = true
     state.pet_hp = 40
-    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
 end)
 
 test("mend_pet_matches: no pet -> false", function()
     local ctx = make_context({pet = nil})
     local state = get_state(ctx)
     state.mend_pet_ready = true
-    assert_false(strategies[4].matches(ctx, state), "no pet should not match")
+    assert_false(strategies[6].matches(ctx, state), "no pet should not match")
 end)
 
+-- ============================================================================-- Test: freezing_trap_matches (strategy #10)
 -- ============================================================================
--- Test: freezing_trap_matches (strategy #5)
--- ============================================================================
-
 test("freezing_trap_matches: in combat, 2+ enemies, ready -> true", function()
     local ctx = make_context({enemies_count = 3})
     local state = get_state(ctx)
     state.freezing_trap_ready = true
     state.enemies = 3
-    assert_true(strategies[5].matches(ctx, state), "2+ enemies should match")
+    assert_true(strategies[10].matches(ctx, state), "2+ enemies should match")
 end)
 
 test("freezing_trap_matches: single enemy -> false", function()
@@ -510,7 +602,7 @@ test("freezing_trap_matches: single enemy -> false", function()
     local state = get_state(ctx)
     state.freezing_trap_ready = true
     state.enemies = 1
-    assert_false(strategies[5].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[10].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("freezing_trap_matches: not in combat -> false", function()
@@ -518,7 +610,7 @@ test("freezing_trap_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.freezing_trap_ready = true
     state.enemies = 3
-    assert_false(strategies[5].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[10].matches(ctx, state), "OOC should not match")
 end)
 
 test("freezing_trap_matches: no target -> false", function()
@@ -527,19 +619,17 @@ test("freezing_trap_matches: no target -> false", function()
     state.freezing_trap_ready = true
     state.enemies = 3
     state.target = nil
-    assert_false(strategies[5].matches(ctx, state), "no target should not match")
+    assert_false(strategies[10].matches(ctx, state), "no target should not match")
 end)
 
+-- ============================================================================-- Test: feign_death_matches (strategy #11)
 -- ============================================================================
--- Test: feign_death_matches (strategy #6)
--- ============================================================================
-
 test("feign_death_matches: in combat, low HP, ready -> true", function()
     local ctx = make_context({hp = 20})
     local state = get_state(ctx)
     state.feign_death_ready = true
     state.hp = 20
-    assert_true(strategies[6].matches(ctx, state), "low HP in combat should match")
+    assert_true(strategies[11].matches(ctx, state), "low HP in combat should match")
 end)
 
 test("feign_death_matches: HP above 30 -> false", function()
@@ -547,7 +637,7 @@ test("feign_death_matches: HP above 30 -> false", function()
     local state = get_state(ctx)
     state.feign_death_ready = true
     state.hp = 80
-    assert_false(strategies[6].matches(ctx, state), "HP above 30 should not match")
+    assert_false(strategies[11].matches(ctx, state), "HP above 30 should not match")
 end)
 
 test("feign_death_matches: not in combat -> false", function()
@@ -555,20 +645,18 @@ test("feign_death_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.feign_death_ready = true
     state.hp = 20
-    assert_false(strategies[6].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[11].matches(ctx, state), "OOC should not match")
 end)
 
+-- ============================================================================-- Test: serpent_sting_matches (strategy #12)
 -- ============================================================================
--- Test: serpent_sting_matches (strategy #7)
--- ============================================================================
-
 test("serpent_sting_matches: in combat, DoT expired, ready -> true", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.serpent_sting_ready = true
     state.serpent_sting_use = true
     NS.debuff_remains = function(target, spell) return 0 end
-    assert_true(strategies[7].matches(ctx, state), "DoT expired should match")
+    assert_true(strategies[12].matches(ctx, state), "DoT expired should match")
 end)
 
 test("serpent_sting_matches: DoT still active -> false", function()
@@ -577,7 +665,7 @@ test("serpent_sting_matches: DoT still active -> false", function()
     state.serpent_sting_ready = true
     state.serpent_sting_use = true
     NS.debuff_remains = function(target, spell) return 10 end
-    assert_false(strategies[7].matches(ctx, state), "active DoT should not match")
+    assert_false(strategies[12].matches(ctx, state), "active DoT should not match")
     NS.debuff_remains = function(target, spell) return 0 end
 end)
 
@@ -586,7 +674,7 @@ test("serpent_sting_matches: disabled -> false", function()
     local state = get_state(ctx)
     state.serpent_sting_ready = true
     state.serpent_sting_use = false
-    assert_false(strategies[7].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[12].matches(ctx, state), "disabled should not match")
 end)
 
 test("serpent_sting_matches: not in combat -> false", function()
@@ -594,7 +682,7 @@ test("serpent_sting_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.serpent_sting_ready = true
     state.serpent_sting_use = true
-    assert_false(strategies[7].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[12].matches(ctx, state), "OOC should not match")
 end)
 
 test("serpent_sting_matches: no target -> false", function()
@@ -603,25 +691,23 @@ test("serpent_sting_matches: no target -> false", function()
     state.serpent_sting_ready = true
     state.serpent_sting_use = true
     state.target = nil
-    assert_false(strategies[7].matches(ctx, state), "no target should not match")
+    assert_false(strategies[12].matches(ctx, state), "no target should not match")
 end)
 
+-- ============================================================================-- Test: arcane_shot_matches (strategy #13)
 -- ============================================================================
--- Test: arcane_shot_matches (strategy #8)
--- ============================================================================
-
 test("arcane_shot_matches: in combat, ready -> true", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.arcane_shot_ready = true
-    assert_true(strategies[8].matches(ctx, state), "in combat ready should match")
+    assert_true(strategies[13].matches(ctx, state), "in combat ready should match")
 end)
 
 test("arcane_shot_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.arcane_shot_ready = true
-    assert_false(strategies[8].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[13].matches(ctx, state), "OOC should not match")
 end)
 
 test("arcane_shot_matches: no target -> false", function()
@@ -629,26 +715,24 @@ test("arcane_shot_matches: no target -> false", function()
     local state = get_state(ctx)
     state.arcane_shot_ready = true
     state.target = nil
-    assert_false(strategies[8].matches(ctx, state), "no target should not match")
+    assert_false(strategies[13].matches(ctx, state), "no target should not match")
 end)
 
 test("arcane_shot_matches: not ready -> false", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.arcane_shot_ready = false
-    assert_false(strategies[8].matches(ctx, state), "not ready should not match")
+    assert_false(strategies[13].matches(ctx, state), "not ready should not match")
 end)
 
+-- ============================================================================-- Test: multi_shot_matches (strategy #14)
 -- ============================================================================
--- Test: multi_shot_matches (strategy #9)
--- ============================================================================
-
 test("multi_shot_matches: in combat, 2+ enemies, ready -> true", function()
     local ctx = make_context({enemies_count = 3})
     local state = get_state(ctx)
     state.multi_shot_ready = true
     state.enemies = 3
-    assert_true(strategies[9].matches(ctx, state), "2+ enemies should match")
+    assert_true(strategies[14].matches(ctx, state), "2+ enemies should match")
 end)
 
 test("multi_shot_matches: single enemy -> false", function()
@@ -656,7 +740,7 @@ test("multi_shot_matches: single enemy -> false", function()
     local state = get_state(ctx)
     state.multi_shot_ready = true
     state.enemies = 1
-    assert_false(strategies[9].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[14].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("multi_shot_matches: not in combat -> false", function()
@@ -664,7 +748,7 @@ test("multi_shot_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.multi_shot_ready = true
     state.enemies = 3
-    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[14].matches(ctx, state), "OOC should not match")
 end)
 
 test("multi_shot_matches: no target -> false", function()
@@ -673,19 +757,17 @@ test("multi_shot_matches: no target -> false", function()
     state.multi_shot_ready = true
     state.enemies = 3
     state.target = nil
-    assert_false(strategies[9].matches(ctx, state), "no target should not match")
+    assert_false(strategies[14].matches(ctx, state), "no target should not match")
 end)
 
+-- ============================================================================-- Test: steady_shot_matches (strategy #15)
 -- ============================================================================
--- Test: steady_shot_matches (strategy #10)
--- ============================================================================
-
 test("steady_shot_matches: in combat, not moving, ready -> true", function()
     local ctx = make_context({is_moving = false})
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.is_moving = false
-    assert_true(strategies[10].matches(ctx, state), "stationary should match")
+    assert_true(strategies[15].matches(ctx, state), "stationary should match")
 end)
 
 test("steady_shot_matches: moving -> false", function()
@@ -693,14 +775,14 @@ test("steady_shot_matches: moving -> false", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.is_moving = true
-    assert_false(strategies[10].matches(ctx, state), "moving should not match")
+    assert_false(strategies[15].matches(ctx, state), "moving should not match")
 end)
 
 test("steady_shot_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.steady_shot_ready = true
-    assert_false(strategies[10].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[15].matches(ctx, state), "OOC should not match")
 end)
 
 test("steady_shot_matches: no target -> false", function()
@@ -708,19 +790,24 @@ test("steady_shot_matches: no target -> false", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.target = nil
-    assert_false(strategies[10].matches(ctx, state), "no target should not match")
+    assert_false(strategies[15].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 10 strategies in correct priority order", function()
+test("strategies: 15 strategies in correct priority order", function()
     local expected = {
         "AspectHawk",
         "CallPet",
         "HuntersMark",
+        "RapidFire",
+        "AimedShot",
         "MendPet",
+        "ConcussiveShot",
+        "WingClip",
+        "ScareBeast",
         "FreezingTrap",
         "FeignDeath",
         "SerpentSting",
@@ -728,7 +815,7 @@ test("strategies: 10 strategies in correct priority order", function()
         "MultiShot",
         "SteadyShot",
     }
-    assert_eq(#strategies, 10, "should have 10 strategies")
+    assert_eq(#strategies, 15, "should have 15 strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -751,9 +838,27 @@ test("execute_AspectHawk: does not crash", function()
     assert_true(ok, "execute should not throw")
 end)
 
+test("execute_AimedShot: does not crash with context", function()
+    local ctx = make_context()
+    local ok, result = pcall(strategies[5].execute, ctx)
+    assert_true(ok, "AimedShot execute with context should not throw")
+end)
+
+test("execute_ConcussiveShot: does not crash with context", function()
+    local ctx = make_context({enemies_count = 3, hp = 30})
+    local ok, result = pcall(strategies[7].execute, ctx)
+    assert_true(ok, "ConcussiveShot execute with context should not throw")
+end)
+
+test("execute_ScareBeast: does not crash with context", function()
+    local ctx = make_context({enemies_count = 3})
+    local ok, result = pcall(strategies[9].execute, ctx)
+    assert_true(ok, "ScareBeast execute with context should not throw")
+end)
+
 test("execute_ArcaneShot: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[8].execute, ctx)
+    local ok, result = pcall(strategies[13].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
@@ -815,8 +920,10 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     assert_true(strategies[2].matches(ctx, state), "CallPet should match OOC")
     -- HuntersMark checks debuff remains, may or may not match depending on mock
 
-    -- Combat abilities should not match OOC
-    for i = 4, 10 do
+    -- RapidFire (4) is combat-gated, AimedShot (5) is OOC-compatible opener
+    assert_false(strategies[4].matches(ctx, state), "RapidFire should not match OOC")
+    -- Combat abilities (6-15) should not match OOC
+    for i = 6, 15 do
         local ok, matched = pcall(strategies[i].matches, ctx, state)
         assert_true(ok, "strategy[" .. i .. "] matches should not throw")
         assert_false(matched, "strategy[" .. i .. "] should not match OOC")
@@ -829,7 +936,7 @@ test("rotation: AoE scenario - multi_shot should match with 2+ enemies", functio
     state.multi_shot_ready = true
     state.enemies = 3
 
-    assert_true(strategies[9].matches(ctx, state), "MultiShot should match with 3 enemies")
+    assert_true(strategies[14].matches(ctx, state), "MultiShot should match with 3 enemies")
 end)
 
 test("rotation: low HP scenario - feign_death should match", function()
@@ -838,7 +945,7 @@ test("rotation: low HP scenario - feign_death should match", function()
     state.feign_death_ready = true
     state.hp = 20
 
-    assert_true(strategies[6].matches(ctx, state), "FeignDeath should match when HP < 30")
+    assert_true(strategies[11].matches(ctx, state), "FeignDeath should match when HP < 30")
 end)
 
 -- ============================================================================
@@ -888,7 +995,7 @@ test("edge_pet: mend_pet HP at exactly 60 boundary (not > 60, so should match)",
     local state = get_state(ctx)
     state.mend_pet_ready = true
     state.pet_hp = 60
-    assert_true(strategies[4].matches(ctx, state), "pet HP = 60 should match (not > 60)")
+    assert_true(strategies[6].matches(ctx, state), "pet HP = 60 should match (not > 60)")
 end)
 
 test("edge_pet: mend_pet HP at 61 just above boundary", function()
@@ -897,7 +1004,7 @@ test("edge_pet: mend_pet HP at 61 just above boundary", function()
     local state = get_state(ctx)
     state.mend_pet_ready = true
     state.pet_hp = 61
-    assert_false(strategies[4].matches(ctx, state), "pet HP = 61 should NOT match (> 60)")
+    assert_false(strategies[6].matches(ctx, state), "pet HP = 61 should NOT match (> 60)")
 end)
 
 test("edge_pet: mend_pet HP = 0 (dead pet) should match", function()
@@ -906,7 +1013,7 @@ test("edge_pet: mend_pet HP = 0 (dead pet) should match", function()
     local state = get_state(ctx)
     state.mend_pet_ready = true
     state.pet_hp = 0
-    assert_true(strategies[4].matches(ctx, state), "pet HP = 0 should match (needs mend)")
+    assert_true(strategies[6].matches(ctx, state), "pet HP = 0 should match (needs mend)")
 end)
 
 test("edge_pet: mend_pet no pet should not match", function()
@@ -914,7 +1021,7 @@ test("edge_pet: mend_pet no pet should not match", function()
     local state = get_state(ctx)
     state.mend_pet_ready = true
     state.pet_hp = 100
-    assert_false(strategies[4].matches(ctx, state), "no pet should not match mend_pet")
+    assert_false(strategies[6].matches(ctx, state), "no pet should not match mend_pet")
 end)
 
 test("edge_pet: call_pet already has pet should not match", function()
@@ -942,7 +1049,7 @@ test("edge_debuff: serpent_sting remains at exactly 4 boundary should not refres
     local state = get_state(ctx)
     state.serpent_sting_ready = true
     state.serpent_sting_use = true
-    assert_false(strategies[7].matches(ctx, state), "remains = 4 should NOT match (4 >= 4 means DoT still active)")
+    assert_false(strategies[12].matches(ctx, state), "remains = 4 should NOT match (4 >= 4 means DoT still active)")
     NS.debuff_remains = saved
 end)
 
@@ -953,7 +1060,7 @@ test("edge_debuff: serpent_sting remains at 3 should refresh", function()
     local state = get_state(ctx)
     state.serpent_sting_ready = true
     state.serpent_sting_use = true
-    assert_true(strategies[7].matches(ctx, state), "remains = 3 should match")
+    assert_true(strategies[12].matches(ctx, state), "remains = 3 should match")
     NS.debuff_remains = saved
 end)
 
@@ -964,7 +1071,7 @@ test("edge_debuff: hunters_mark remains at exactly 30 boundary should not reappl
     local state = get_state(ctx)
     state.hunters_mark_ready = true
     state.hunters_mark_use = true
-    assert_true(strategies[3].matches(ctx, state), "remains = 30 should match (> 30 is false, so 30 stays)")
+    assert_true(strategies[3].matches(ctx, state), "remains = 30 should match (30 is not > 30, so reapply)")
     NS.debuff_remains = saved
 end)
 
@@ -988,7 +1095,7 @@ test("edge_aoe: freezing_trap with exactly 2 enemies matches", function()
     local state = get_state(ctx)
     state.freezing_trap_ready = true
     state.enemies = 2
-    assert_true(strategies[5].matches(ctx, state), "freezing_trap with 2 enemies should match")
+    assert_true(strategies[10].matches(ctx, state), "freezing_trap with 2 enemies should match")
 end)
 
 test("edge_aoe: freezing_trap with exactly 1 enemy does not match", function()
@@ -996,7 +1103,7 @@ test("edge_aoe: freezing_trap with exactly 1 enemy does not match", function()
     local state = get_state(ctx)
     state.freezing_trap_ready = true
     state.enemies = 1
-    assert_false(strategies[5].matches(ctx, state), "freezing_trap with 1 enemy should NOT match")
+    assert_false(strategies[10].matches(ctx, state), "freezing_trap with 1 enemy should NOT match")
 end)
 
 test("edge_aoe: multi_shot with exactly 2 enemies matches", function()
@@ -1004,7 +1111,7 @@ test("edge_aoe: multi_shot with exactly 2 enemies matches", function()
     local state = get_state(ctx)
     state.multi_shot_ready = true
     state.enemies = 2
-    assert_true(strategies[9].matches(ctx, state), "multi_shot with 2 enemies should match")
+    assert_true(strategies[14].matches(ctx, state), "multi_shot with 2 enemies should match")
 end)
 
 test("edge_aoe: multi_shot with 1 enemy does not match", function()
@@ -1012,7 +1119,7 @@ test("edge_aoe: multi_shot with 1 enemy does not match", function()
     local state = get_state(ctx)
     state.multi_shot_ready = true
     state.enemies = 1
-    assert_false(strategies[9].matches(ctx, state), "multi_shot with 1 enemy should NOT match")
+    assert_false(strategies[14].matches(ctx, state), "multi_shot with 1 enemy should NOT match")
 end)
 
 -- ============================================================================
@@ -1024,7 +1131,7 @@ test("edge_feign: HP exactly at 30 boundary should match", function()
     local state = get_state(ctx)
     state.feign_death_ready = true
     state.hp = 30
-    assert_true(strategies[6].matches(ctx, state), "hp = 30 should match (not > 30)")
+    assert_true(strategies[11].matches(ctx, state), "hp = 30 should match (not > 30)")
 end)
 
 test("edge_feign: HP = 31 just above boundary should not match", function()
@@ -1032,7 +1139,7 @@ test("edge_feign: HP = 31 just above boundary should not match", function()
     local state = get_state(ctx)
     state.feign_death_ready = true
     state.hp = 31
-    assert_false(strategies[6].matches(ctx, state), "hp = 31 should NOT match (> 30)")
+    assert_false(strategies[11].matches(ctx, state), "hp = 31 should NOT match (> 30)")
 end)
 
 test("edge_feign: HP = 0 (just barely alive) should match", function()
@@ -1040,7 +1147,7 @@ test("edge_feign: HP = 0 (just barely alive) should match", function()
     local state = get_state(ctx)
     state.feign_death_ready = true
     state.hp = 0
-    assert_true(strategies[6].matches(ctx, state), "hp = 0 should match")
+    assert_true(strategies[11].matches(ctx, state), "hp = 0 should match")
 end)
 
 -- ============================================================================
@@ -1052,7 +1159,7 @@ test("edge_movement: steady_shot while stationary matches", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.is_moving = false
-    assert_true(strategies[10].matches(ctx, state), "steady_shot stationary should match")
+    assert_true(strategies[15].matches(ctx, state), "steady_shot stationary should match")
 end)
 
 test("edge_movement: steady_shot while moving does not match", function()
@@ -1060,7 +1167,7 @@ test("edge_movement: steady_shot while moving does not match", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.is_moving = true
-    assert_false(strategies[10].matches(ctx, state), "steady_shot moving should NOT match")
+    assert_false(strategies[15].matches(ctx, state), "steady_shot moving should NOT match")
 end)
 
 test("edge_movement: arcane_shot still works while moving (no movement restriction)", function()
@@ -1068,7 +1175,7 @@ test("edge_movement: arcane_shot still works while moving (no movement restricti
     local state = get_state(ctx)
     state.arcane_shot_ready = true
     state.is_moving = true
-    assert_true(strategies[8].matches(ctx, state), "arcane_shot works while moving")
+    assert_true(strategies[13].matches(ctx, state), "arcane_shot works while moving")
 end)
 
 -- ============================================================================
@@ -1100,7 +1207,7 @@ test("edge_api: NS.debuff_remains is nil in serpent_sting_matches", function()
     local state = get_state(ctx)
     state.serpent_sting_ready = true
     state.serpent_sting_use = true
-    local ok, result = pcall(strategies[7].matches, ctx, state)
+    local ok, result = pcall(strategies[12].matches, ctx, state)
     assert_true(ok, "nil NS.debuff_remains should not throw")
     NS.debuff_remains = saved
 end)
@@ -1112,7 +1219,7 @@ test("edge_api: NS.debuff_remains throws in serpent_sting_matches", function()
     local state = get_state(ctx)
     state.serpent_sting_ready = true
     state.serpent_sting_use = true
-    local ok, result = pcall(strategies[7].matches, ctx, state)
+    local ok, result = pcall(strategies[12].matches, ctx, state)
     assert_true(ok, "throwing NS.debuff_remains should not crash")
     NS.debuff_remains = saved
 end)
@@ -1163,6 +1270,11 @@ end)
 test("edge_all_disabled: all ready fields false, match functions still return false", function()
     local ctx = make_context({in_combat = true})
     local state = get_state(ctx)
+    state.aimed_shot_ready = false
+    state.rapid_fire_ready = false
+    state.concussive_shot_ready = false
+    state.wing_clip_ready = false
+    state.scare_beast_ready = false
     state.serpent_sting_ready = false
     state.arcane_shot_ready = false
     state.steady_shot_ready = false
@@ -1170,11 +1282,14 @@ test("edge_all_disabled: all ready fields false, match functions still return fa
     state.freezing_trap_ready = false
     state.feign_death_ready = false
     state.mend_pet_ready = false
-    for i = 4, 10 do
+    for i = 6, 15 do
         local ok, matched = pcall(strategies[i].matches, ctx, state)
         assert_true(ok, "strategy[" .. i .. "] matches should not throw")
         assert_false(matched, "strategy[" .. i .. "] should not match when not ready")
     end
+    -- RapidFire (4) and AimedShot (5) also checked separately
+    assert_false(strategies[4].matches(ctx, state), "strategy[4] (RapidFire) should not match when not ready")
+    assert_false(strategies[5].matches(ctx, state), "strategy[5] (AimedShot) should not match when not ready")
 end)
 
 -- ============================================================================
@@ -1205,7 +1320,7 @@ test("edge_settings: serpent_sting disabled via settings", function()
     ctx.settings.leveling_serpent_sting_use = false
     local state = get_state(ctx)
     state.serpent_sting_ready = true
-    assert_false(strategies[7].matches(ctx, state), "disabled serpent sting should not match")
+    assert_false(strategies[12].matches(ctx, state), "disabled serpent sting should not match")
 end)
 
 test("edge_settings: hunters_mark disabled via settings", function()
@@ -1238,16 +1353,9 @@ test("edge_range: all damage matches work when target in melee range", function(
     state.multi_shot_ready = true
     state.is_moving = false
     state.enemies = 1
-    io.stderr:write("DEBUG state.in_combat=" .. tostring(state.in_combat) .. "\\n")
-    io.stderr:write("DEBUG state.target=" .. tostring(state.target) .. "\\n")
-    io.stderr:write("DEBUG state.serpent_sting_use=" .. tostring(state.serpent_sting_use) .. "\\n")
-    io.stderr:write("DEBUG state.serpent_sting_ready=" .. tostring(state.serpent_sting_ready) .. "\\n")
-    io.stderr:write("DEBUG state.hp=" .. tostring(state.hp) .. "\\n")
-    local match_ok, match_r = pcall(strategies[7].matches, ctx, state)
-    io.stderr:write("DEBUG pcall match_ok=" .. tostring(match_ok) .. " match_r=" .. tostring(match_r) .. "\\n")
-    assert_true(match_r, "serpent sting works at melee range")
-    assert_true(strategies[8].matches(ctx, state), "arcane shot works at melee range")
-    assert_true(strategies[10].matches(ctx, state), "steady shot works at melee range")
+    assert_true(strategies[12].matches(ctx, state), "serpent sting works at melee range")
+    assert_true(strategies[13].matches(ctx, state), "arcane shot works at melee range")
+    assert_true(strategies[15].matches(ctx, state), "steady shot works at melee range")
 end)
 
 test("edge_range: utility matches work when target in melee range", function()
@@ -1257,13 +1365,13 @@ test("edge_range: utility matches work when target in melee range", function()
     state.enemies = 2
     state.feign_death_ready = true
     state.hp = 20
-    assert_true(strategies[5].matches(ctx, state), "freezing trap works at melee range")
-    assert_true(strategies[6].matches(ctx, state), "feign death works at any range")
+    assert_true(strategies[10].matches(ctx, state), "freezing trap works at melee range")
+    assert_true(strategies[11].matches(ctx, state), "feign death works at any range")
 end)
 
 test("edge_range: execute functions do not crash at any target distance", function()
     local ctx = make_context()
-    for i = 3, 10 do
+    for i = 4, 15 do
         local ok, result = pcall(strategies[i].execute, ctx)
         assert_true(ok, "strategy[" .. i .. "] execute at range should not throw")
     end

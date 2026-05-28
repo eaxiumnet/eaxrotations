@@ -1,12 +1,12 @@
 # EaxRotations Sylvanas API Edition
 
-Last reviewed: 2026-04-27
+Last reviewed: 2026-05-21
 
 ## Summary
 
-EaxRotations is a TBC rotation addon built for Project Sylvanas. Live code is
-bound to the local Project Sylvanas API in `api/` and the local documentation
-mirror in `apidocs/`.
+EaxRotations is a TBC rotation framework for Project Sylvanas. Live code
+is bound to the local Project Sylvanas API in `api/` and the local
+documentation mirror in `apidocs/`.
 
 The public project identity is EaxRotations.
 
@@ -14,72 +14,68 @@ The public project identity is EaxRotations.
 
 | Area | State |
 | --- | --- |
-| Classes | All 9 classes converted: Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, Warrior. |
-| Runtime API | Uses `NS.*` wrappers over Project Sylvanas `api/` modules. |
-| External runtime calls | Not allowed in live code. Static API lint passes. |
-| Post-TBC cleanup | non-TBC+ spells are removed or documented as unavailable where relevant. |
-| Cast path | `NS.try_cast()` owns rotation casting. Legacy cast queues are not used. |
-| Time source | `NS.time_now()` is the project time helper; stale `GetTime()` call sites were swept. |
-| Branding | Plugin metadata, menus, windows, logs, and exports use EaxRotations/Eax branding. |
-| Tests | 16/16 standalone Lua 5.1 suites pass on 2026-04-27. |
+| Classes | All 9 classes: Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, Warrior |
+| Playstyles | 29 talent specs + 2 extra (caster, kebab) + 9 leveling = 40 registered |
+| Runtime API | Uses `NS.*` wrappers over Project Sylvanas `api/` modules |
+| External runtime calls | Not allowed in live code. Static API lint passes |
+| Post-TBC cleanup | non-TBC spells removed or documented as unavailable |
+| Cast path | `NS.try_cast()` owns rotation casting |
+| Time source | `NS.time_now()` is the project time helper |
+| Branding | Plugin metadata, menus, windows, logs, and exports use EaxRotations/Eax branding |
+| Tests | ~110 suites (100 rotation entries [99 unique] + 11 leveling) |
+| Docs | `README.md`, `AGENTS.md`, `docs/TECHNICAL_GUIDE.md` |
 
 ## Load Path
 
-Project Sylvanas loads `header.lua` and `main.lua`. The bootstrap in `main.lua`
-requires the EaxRotations modules explicitly:
+Project Sylvanas loads `header.lua` and `main.lua`. `main.lua` requires the
+EaxRotations modules explicitly; `load_order_sylvanas.lua` is documentation-only.
 
 ```text
 header.lua
 main.lua
-  core_sylvanas.lua
+  common/izi_sdk
+  core_sylvanas.lua        -- creates _G.EaxRotations
   helpers_sylvanas.lua
   explain_helpers_sylvanas.lua
   optimizer.lua
-  damage_meter_sylvanas.lua
-  dashboard_sylvanas.lua
-  debug_log_sylvanas.lua
-  api_probe_sylvanas.lua
-  sim_constants_sylvanas.lua
-  shared/*
-  main_sylvanas.lua
-  classes/<class>/*
+  shared/* (~24 modules)
+  main_sylvanas.lua        -- dispatcher
+  classes/<class>/class_sylvanas.lua
+  classes/<class>/schema_sylvanas.lua
 ```
-
-`load_order_sylvanas.lua` is documentation and status metadata. The actual
-runtime order is the `require()` sequence in `main.lua`.
 
 ## Runtime Boundary
 
 Most class files should only need:
 
-- `NS.CreateSpell`
 - `NS.GetPlayer`
 - `NS.GetTarget`
 - `NS.try_cast`
+- `NS.buff_up`
 - `NS.import_helpers`
-- `NS.GetAPIModule`
 - `NS.rotation_registry`
 - `context.settings`
 
-If a class needs a lower-level API call, prefer adding a focused wrapper in
-`core_sylvanas.lua` so the Project Sylvanas boundary stays centralized.
+If a class needs a lower-level API call, prefer adding a wrapper in
+`core_sylvanas.lua` so the boundary stays centralized.
 
 ## Tests
 
-Preferred:
-
-```bash
-make test
-make check
-```
-
-Windows fallback used for this cleanup:
-
 ```powershell
-Get-ChildItem EaxRotations/tests -Filter test_*.lua | ForEach-Object {
-    lua.exe $_.FullName
-    if ($LASTEXITCODE -ne 0) { throw "failed: $($_.Name)" }
-}
+# Rotation tests (100 entries, 99 unique)
+lua EaxRotations/tests/run_rotation_tests.lua
+
+# Leveling tests (11 entries)
+lua EaxRotations/tests/run_leveling_tests.lua
+
+# Syntax check all files
+Get-ChildItem EaxRotations -Recurse -Filter *.lua | ForEach-Object { luac -p $_.FullName }
 ```
 
-Verified on 2026-04-27: 16/16 suites passed.
+Verified on 2026-05-21: all entries run, 99 unique rotation test files exist.
+
+## Technical Guide
+
+For the complete technical guide covering boot sequence, tick trace, all 40
+playstyles, settings lifecycle, and how to modify a rotation, see:
+`docs/TECHNICAL_GUIDE.md`.

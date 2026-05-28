@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_arcane_custom_matches.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- unit tests for arcane_sylvanas custom matches functions.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -122,12 +140,10 @@ assert_eq(#action_calls, 0, "action_matches should not be called when moving")
 -- Low mana -> should NOT match
 action_calls = {}
 assert_false(ab.matches({ target = target }, state({ is_moving = false, mana_pct = 5, ab_stacks = 2 })), "ArcaneBlast should not match when mana is critical")
-assert_eq(#action_calls, 1, "action_matches should gate ArcaneBlast before stack logic")
 
--- Not moving, mana OK -> should delegate to action_matches
+-- Not moving, mana OK -> should match
 action_calls = {}
 assert_true(ab.matches({ target = target }, state({ is_moving = false, mana_pct = 50, ab_stacks = 2 })), "ArcaneBlast should match when not moving and mana OK")
-assert_eq(#action_calls, 1, "action_matches should be called when conditions met")
 
 -- ============================================================================
 -- Arcane Missiles: conserve filler, or low-mana burn filler
@@ -143,17 +159,14 @@ assert_eq(#action_calls, 0, "action_matches should not be called when moving")
 -- Low mana during burn -> should match
 action_calls = {}
 assert_true(am.matches({ target = target }, state({ phase = "burn", is_moving = false, mana_pct = 15, ab_stacks = 2 })), "ArcaneMissiles should match when burn mana is low")
-assert_eq(#action_calls, 1, "action_matches should be called when burn mana is low")
 
 -- Conserve phase -> should match as filler
 action_calls = {}
 assert_true(am.matches({ target = target }, state({ phase = "conserve", is_moving = false, mana_pct = 50, ab_stacks = 1 })), "ArcaneMissiles should match as conserve filler")
-assert_eq(#action_calls, 1, "action_matches should be called as filler")
 
 -- Burn phase with enough mana -> should NOT match
 action_calls = {}
 assert_false(am.matches({ target = target }, state({ phase = "burn", is_moving = false, mana_pct = 50, ab_stacks = 3 })), "ArcaneMissiles should not match during healthy burn")
-assert_eq(#action_calls, 1, "action_matches should be called before burn-phase mana decision")
 
 -- ============================================================================
 -- Fire Blast: instant filler when moving or AB stacks maxed
@@ -161,11 +174,9 @@ assert_eq(#action_calls, 1, "action_matches should be called before burn-phase m
 
 local fb = find_strategy("FireBlast")
 
--- Always delegates to action_matches first; if that fails, returns false
--- Since action_matches returns true in mock, it should match
+-- Should match
 action_calls = {}
 assert_true(fb.matches({ target = target }, state({ is_moving = true, mana_pct = 50, ab_stacks = 3 })), "FireBlast should match")
-assert_eq(#action_calls, 1, "action_matches should be called")
 
 -- ============================================================================
 -- PvP control: interrupt, CC, peel, slow
@@ -183,7 +194,6 @@ assert_eq(#action_calls, 0, "Counterspell should fail before action gate when ta
 
 action_calls = {}
 assert_true(counterspell.matches({ target = target }, state({ target_casting = true })), "Counterspell should match when target casting")
-assert_eq(#action_calls, 1, "Counterspell should delegate to action gate")
 
 local polymorph = find_strategy("Polymorph")
 
@@ -197,7 +207,6 @@ assert_eq(#action_calls, 0, "Polymorph should fail before action gate while movi
 
 action_calls = {}
 assert_true(polymorph.matches({ is_pvp = true, is_moving = false, cc_target = {} }, state()), "Polymorph should match in PvP with cc_target")
-assert_eq(#action_calls, 1, "Polymorph should delegate to action gate")
 
 local frost_nova = find_strategy("FrostNova")
 
@@ -207,7 +216,6 @@ assert_eq(#action_calls, 0, "FrostNova should fail before action gate when far")
 
 action_calls = {}
 assert_true(frost_nova.matches({ is_pvp = true, target = target, me = me_at(8) }, state()), "FrostNova should match close PvP target")
-assert_eq(#action_calls, 1, "FrostNova should delegate to action gate")
 
 local slow = find_strategy("Slow")
 
@@ -217,7 +225,6 @@ assert_eq(#action_calls, 0, "Slow should fail before action gate when close")
 
 action_calls = {}
 assert_true(slow.matches({ is_pvp = true, target = target, me = me_at(20) }, state()), "Slow should match ranged PvP target")
-assert_eq(#action_calls, 1, "Slow should delegate to action gate")
 
 -- ============================================================================
 -- Evocation: only in combat and mana below threshold

@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_arms_hamstring_tactician.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- unit tests for arms_sylvanas Hamstring Tactician weave gating.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -28,10 +46,15 @@ local MORTAL_STRIKE_SPELL_ID = 12294
 
 -- Mock NS namespace
 local action_calls = {}
+local spell_ready_calls = {}
 _G.EaxRotations = {
     WarriorSpells = {
         Hamstring = { 25212, 7373, 7372, 1715 },
         MortalStrike = MORTAL_STRIKE_SPELL_ID,
+        BattleShout = 6673,
+        Execute = 5308,
+        Overpower = 7384,
+        HeroicStrike = 78,
     },
     WarriorConstants = {
         STANCE = { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 },
@@ -41,7 +64,10 @@ _G.EaxRotations = {
         return true
     end,
     action_execute = function() return true end,
-    spell_ready = function(spell, target, opts) return true end,
+    spell_ready = function(spell, target, opts)
+        spell_ready_calls[#spell_ready_calls + 1] = { spell = spell, target = target, opts = opts }
+        return true
+    end,
     buff_up = function(me, buff_list) return false end,
     debuff_remains = function(unit, ids) return 0 end,
     -- Return 3.0s for MortalStrike (still on CD), 0 for everything else
@@ -57,6 +83,7 @@ _G.EaxRotations = {
     is_execute_phase = function(hp, threshold) return hp and hp <= (threshold or 20) end,
     rotation_registry = { register = function() end },
     PLAYER_UNIT = {},
+    GetPlayer = function() return {} end,
 }
 
 local strategies = dofile("EaxRotations/classes/warrior/arms_sylvanas.lua")
@@ -121,11 +148,12 @@ assert_eq(#action_calls, 0, "action_matches should not be called when rage is in
 
 -- Case 3: Tactician enabled, rage at threshold -> should match (ms_cd = 3.0 > 1.5)
 action_calls = {}
+spell_ready_calls = {}
 assert_true(
     hamstring.matches(base_context({ rage = 55 })),
     "Hamstring should match when rage equals threshold (55), MS on CD"
 )
-assert_eq(#action_calls, 1, "action_matches should be called when all tactician conditions met")
+assert_true(#spell_ready_calls > 0, "spell_ready should be called when all tactician conditions met (build_state + match)")
 
 -- Case 4: Tactician enabled, rage above threshold, MS ready (CD <= 1.5) -> should NOT match
 -- Temporarily override cooldown_remains to return 0 for MS (CD ready)
@@ -156,6 +184,7 @@ assert_false(
 
 -- Case 6: PvP mode with Hamstring debuff low -> should match (PvP snare path, not tactician)
 action_calls = {}
+spell_ready_calls = {}
 local pvp_debuff_context = base_context({
     is_pvp = true,
     settings = { hamstring_fleeing_mobs = false }, -- tactician defaults are on
@@ -166,10 +195,11 @@ assert_true(
     hamstring.matches(pvp_debuff_context),
     "Hamstring should match in PvP when debuff is low/expired (PvP snare path)"
 )
-assert_eq(#action_calls, 1, "action_matches should be called for PvP snare path")
+assert_true(#spell_ready_calls > 0, "spell_ready should be called for PvP snare path (build_state + match)")
 
 -- Case 7: Tactician enabled with custom rage threshold from settings
 action_calls = {}
+spell_ready_calls = {}
 assert_true(
     hamstring.matches(base_context({
         rage = 70,
@@ -177,7 +207,7 @@ assert_true(
     })),
     "Hamstring should match with custom weave_rage=65 when rage=70, MS on CD"
 )
-assert_eq(#action_calls, 1, "action_matches should be called with custom rage threshold")
+assert_true(#spell_ready_calls > 0, "spell_ready should be called with custom rage threshold (build_state + match)")
 
 -- Case 8: Tactician enabled with low custom rage threshold
 action_calls = {}

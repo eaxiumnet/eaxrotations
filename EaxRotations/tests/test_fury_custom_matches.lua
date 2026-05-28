@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/test_fury_custom_matches.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- unit tests for fury_sylvanas custom matches functions.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -36,6 +54,17 @@ _G.EaxRotations = {
         Rampage = 29801,
         SweepingStrikes = 12292,
         Cleave = 845,
+        BattleStance = 2458,
+        Overpower = 7384,
+        Rend = 772,
+        SunderArmor = 7386,
+        DemoralizingShout = 1160,
+        ThunderClap = 6343,
+        Charge = 100,
+        VictoryRush = 34428,
+    },
+    WarriorConstants = {
+        STANCE = { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 },
     },
     PLAYER_UNIT = {},
     action_matches = function(ctx, act)
@@ -46,17 +75,24 @@ _G.EaxRotations = {
         spell_ready_calls[#spell_ready_calls + 1] = { spell = spell, target = target, opts = opts }
         return true
     end,
+    buff_up = function(unit, buff_list) return false end,
     has_player_buff = function(buff_list)
         return false
     end,
+    buff_remains = function(unit, buff_list) return 0 end,
     debuff_remains = function(target, debuff_list)
         return 0
     end,
+    debuff_stacks = function(unit, ids) return 0 end,
+    buff_stacks = function(unit, ids) return 0 end,
     cooldown_remains = function(spell, duration)
         return 99
     end,
+    is_execute_phase = function(hp, threshold) return hp and hp <= (threshold or 20) end,
     log = function() end,
     time = function() return 1000 end,
+    GetPlayer = function() return {} end,
+    get_tactical_mastery_cap = function() return 25 end,
     rotation_registry = {
         register = function() end,
     },
@@ -78,11 +114,13 @@ end
 -- Execute: only when target HP <= 20%
 -- ============================================================================
 
-local execute = find_strategy("Execute")	-- Target HP high -> should NOT match
-	spell_ready_calls = {}
-	assert_false(execute.matches({ target_hp = 30, rage = 50 }, { execute_phase = false }), "Execute should not match when target HP > 20%")	-- Target HP low -> should match
-	spell_ready_calls = {}
-	assert_true(execute.matches({ target_hp = 15, rage = 50 }, { execute_phase = true }), "Execute should match when target HP <= 20%")
+local execute = find_strategy("Execute")-- Target HP high -> should NOT match
+spell_ready_calls = {}
+assert_false(execute.matches({ target_hp = 30, rage = 50, target = {} }), "Execute should not match when target HP > 20%")
+
+-- Target HP low -> should match
+spell_ready_calls = {}
+assert_true(execute.matches({ target_hp = 15, rage = 50, target = {} }), "Execute should match when target HP <= 20%")
 
 -- ============================================================================
 -- Slam: only when not moving and rage-safe for upcoming core abilities
@@ -103,7 +141,7 @@ assert_false(slam.matches({ is_moving = false, rage = 50 }, { rage = 50, bt_cd =
 _G.EaxRotations.cooldown_remains = function(spell, duration) return 99 end	-- Rage OK, BT/WW far from ready -> should match
 		action_calls = {}
 		spell_ready_calls = {}
-		assert_true(slam.matches({ is_moving = false, rage = 50 }, { rage = 50, bt_cd = 99, ww_cd = 99, mh_until = 1.0 }), "Slam should match when rage safe and BT/WW far")
+		assert_true(slam.matches({ is_moving = false, rage = 50, target = {}, me = {} }, { rage = 50, bt_cd = 99, ww_cd = 99, mh_until = 1.0 }), "Slam should match when rage safe and BT/WW far")
 
 -- ============================================================================
 -- Heroic Strike: only when rage >= 50 and core abilities not ready
@@ -151,8 +189,9 @@ assert_false(intercept.matches({ is_pvp = true, target_distance = 5 }), "Interce
 
 -- Too far -> should NOT match
 spell_ready_calls = {}
-assert_false(intercept.matches({ is_pvp = true, target_distance = 30 }), "Intercept should not match when target > 25 yards")	-- Range OK -> should match
-	spell_ready_calls = {}		assert_true(intercept.matches({ is_pvp = true, target_distance = 15, in_combat = true }), "Intercept should match at 8-25 yards")
+assert_false(intercept.matches({ is_pvp = true, target_distance = 30 }), "Intercept should not match when target > 25 yards")-- Range OK -> should match
+	spell_ready_calls = {}		
+	assert_true(intercept.matches({ is_pvp = true, target_distance = 15, in_combat = true, target = {}, me = {} }), "Intercept should match at 8-25 yards")
 
 -- ============================================================================
 -- Pummel: only when target is casting
@@ -190,6 +229,6 @@ local cleave = find_strategy("Cleave")	-- Too few enemies -> should NOT match
 spell_ready_calls = {}
 assert_false(cleave.matches({ enemy_count = 3, rage = 50 }, { rage = 50 }), "Cleave should not match when rage < 60")	-- 2+ enemies, rage OK -> should match
 	spell_ready_calls = {}
-	assert_true(cleave.matches({ enemy_count = 3, rage = 70 }, { rage = 70 }), "Cleave should match with >= 2 enemies and rage >= 60")
+	assert_true(cleave.matches({ enemy_count = 3, rage = 70, target = {}, me = {} }, { rage = 70 }), "Cleave should match with >= 2 enemies and rage >= 60")
 
 print("PASS test_fury_custom_matches")

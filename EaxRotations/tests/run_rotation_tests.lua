@@ -1,3 +1,21 @@
+-- =========================================================================
+-- EaxRotations File Version: 1.1.1
+-- Last Modified: 2026-05-27
+-- Change: File version stamp for runtime load verification
+-- =========================================================================
+local __eax_file = "tests/run_rotation_tests.lua"
+local __eax_version = "1.1.1"
+local __eax_modified = "2026-05-27"
+local __eax_change = "File version stamp for runtime load verification"
+local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
+_G.EaxRotationsFileVersions = __eax_versions
+__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
+local __eax_core = rawget(_G, "core")
+if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
+    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
+end
+local __eax_ns = rawget(_G, "EaxRotations")
+if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local root = "EaxRotations"
 local mode = "normal"
 
@@ -14,6 +32,13 @@ if arg then
 end
 
 local tests = {
+    "test_try_cast_izi_primary.lua",
+    "test_pre_heal_cooldown_gate.lua",
+
+    -- Dispatcher + loader regressions
+    "test_dispatcher_role_mode.lua",
+    "test_class_loader_fail_closed.lua",
+
     -- New feature tests (FrostByte parity)
     "test_shadow_silence_interrupt.lua",
     "test_arms_healthstone.lua",
@@ -44,7 +69,7 @@ local tests = {
     "test_cooldown_registry.lua",
     "test_runtime_compat_aliases.lua",
     "test_archive_self_buff_aliases.lua",
-    "test_execute_phase.lua",
+    "test_expansion_helpers.lua",    "test_execute_phase.lua",
     "test_spell_rank_fallback.lua",
     "test_spell_id_table_regressions.lua",
     "test_ooc_manager.lua",
@@ -55,6 +80,8 @@ local tests = {
     "test_force_command_activation.lua",
     "test_mage_tbc_corrections.lua",
     "test_api_lint.lua",
+    "test_rotation_static_compliance.lua",
+    "test_rotation_strategy_compliance.lua",
     "test_vec2_api_lint.lua",
     "test_fire_scorch_maintenance.lua",
     "test_frost_shatter_combo.lua",
@@ -73,7 +100,6 @@ local tests = {
 
     -- Edge / regression tests
     "test_combat_state_unknown_no_ooc.lua",
-    "test_execute_phase.lua",
     "test_can_attack_false_enemy_with_fires.lua",
     "test_can_attack_false_reaction_hostile_fires.lua",
     "test_invalid_visible_object_skipped.lua",
@@ -90,7 +116,6 @@ local tests = {
     "test_warlock_selected_target_fires.lua",
     "test_warlock_focus_target_fires.lua",
     "test_warlock_enemy_scan_fallback_fires.lua",
-    "test_try_cast_izi_primary.lua",
     "test_try_cast_no_global_5s_lockout.lua",
     "test_try_cast_reason.lua",
     "test_action_execute_skip_gcd_izi_primary.lua",
@@ -161,8 +186,22 @@ local function read_command(command)
     local pipe = io.popen(command .. " 2>&1")
     if not pipe then return "", false end
     local output = pipe:read("*a") or ""
-    local ok = pipe:close()
-    return output, ok == true
+    local _, _, code = pipe:close()
+    local ok = (code == nil or code == 0)
+    -- Fallback: scan output for failure markers if exit code is unreliable
+    if ok then
+        local lower = output:lower()
+        if lower:match("^%s*%[?%s*fail")
+            or lower:match("^lua:%s")
+            or lower:find("assertion failed", 1, true)
+            or lower:find("stack traceback", 1, true)
+        then
+            local lines = 0
+            for _ in output:gmatch("[^\r\n]+") do lines = lines + 1 end
+            if lines > 3 or output:find("assertion failed", 1, true) then ok = false end
+        end
+    end
+    return output, ok
 end
 
 local function file_exists(path)
@@ -175,7 +214,11 @@ end
 local function first_failure_line(output)
     for line in output:gmatch("[^\r\n]+") do
         local lower = line:lower()
-        if lower:find("fail", 1, true) or lower:find("error", 1, true) or lower:find("assert", 1, true) then
+        if lower:match("^%s*%[?%s*fail")
+            or lower:match("^lua:%s")
+            or lower:find("assertion failed", 1, true)
+            or lower:find("stack traceback", 1, true)
+        then
             return line
         end
     end
