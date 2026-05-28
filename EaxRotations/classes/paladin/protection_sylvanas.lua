@@ -223,10 +223,10 @@ local function consecration_matches(context, state)
     if state.cc_nearby then return false end
     -- Mana conservation: skip Consecration below configurable floor
     local min_mana = get_setting(context, "prot_consecration_min_mana", CONSECRATION_MIN_MANA)
-    if state.mana_pct < min_mana then return false end
+    if (state.mana_pct or 100) < min_mana then return false end
     -- AoE threshold: only use single-target if Consecration is already ticking
     local min_targets = get_setting(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
-    if state.enemy_count < min_targets and state.consecration_remains > 2 then return false end
+    if (state.enemy_count or 0) < min_targets and state.consecration_remains > 2 then return false end
     return true
 end
 
@@ -282,7 +282,7 @@ local function holy_wrath_matches(context, state)
     if not get_setting(context, "prot_holy_wrath", true) then return false end
     if not has_combat_target(context) then return false end
     -- Holy Wrath is AoE; only cast when 2+ demon/undead targets present
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     if not state.target_creature_type then return false end
     if not DEMON_OR_UNDEAD[state.target_creature_type] then return false end
     return true
@@ -290,7 +290,7 @@ end
 
 local function divine_shield_matches(context, state)
     local threshold = get_setting(context, "prot_divine_shield_hp", 15)
-    if state.hp_pct > threshold then return false end
+    if (state.hp_pct or 100) > threshold then return false end
     if state.has_divine_shield then return false end
     if not state.divine_shield_ready then return false end
     return true
@@ -298,7 +298,7 @@ end
 
 local function lay_on_hands_matches(context, state)
     local threshold = get_setting(context, "prot_lay_on_hands_hp", 10)
-    if state.hp_pct > threshold then return false end
+    if (state.hp_pct or 100) > threshold then return false end
     if not state.lay_on_hands_ready then return false end
     return true
 end
@@ -317,14 +317,14 @@ end
 
 local function flash_of_light_matches(context, state)
     local threshold = get_setting(context, "prot_flash_of_light_hp", 40)
-    if state.hp_pct > threshold then return false end
+    if (state.hp_pct or 100) > threshold then return false end
     if not state.flash_of_light_ready then return false end
     return true
 end
 
 local function holy_light_matches(context, state)
     local threshold = get_setting(context, "prot_holy_light_hp", 25)
-    if state.hp_pct > threshold then return false end
+    if (state.hp_pct or 100) > threshold then return false end
     if not state.holy_light_ready then return false end
     return true
 end
@@ -338,7 +338,7 @@ end
 local function seal_of_wisdom_matches(context, state)
     if not get_setting(context, "prot_seal_of_wisdom", true) then return false end
     local mana_threshold = get_setting(context, "prot_seal_of_wisdom_mana", 30)
-    if state.mana_pct > mana_threshold then return false end
+    if (state.mana_pct or 100) > mana_threshold then return false end
     if state.has_seal then return false end
     if not state.seal_of_wisdom_ready then return false end
     return true

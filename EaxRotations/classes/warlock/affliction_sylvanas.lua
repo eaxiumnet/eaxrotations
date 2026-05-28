@@ -231,7 +231,7 @@ local function select_curse(context, state)
         if context.enemy_healer then return "tongues" end
         if context.melee_on_you then return "exhaustion" end
     end
-    if state.enemy_count >= 3 then return "elements" end  -- AoE benefit
+    if (state.enemy_count or 0) >= 3 then return "elements" end  -- AoE benefit
     return "agony"  -- default: damage
 end
 
@@ -257,7 +257,7 @@ local strategies = {
         name = "DeathCoilSurvival",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if state.hp_pct > 30 then return false end
+            if (state.hp_pct or 100) > 30 then return false end
             return NS.spell_ready(LOCAL_SPELLS.DeathCoil, context.target)
         end,
         execute = function(context)
@@ -321,7 +321,7 @@ local strategies = {
         name = "DrainLife",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if state.hp_pct > 55 then return false end
+            if (state.hp_pct or 100) > 55 then return false end
             if context.is_channeling then return false end
             return NS.spell_ready(LOCAL_SPELLS.DrainLife, context.target)
         end,
@@ -486,7 +486,7 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             local min_targets = context.settings and context.settings.aff_seed_targets or 3
-            if state.enemy_count < min_targets then return false end
+            if (state.enemy_count or 0) < min_targets then return false end
             return NS.spell_ready(SPELLS.SeedOfCorruption, context.target)
         end,
         execute = function(context)
@@ -548,7 +548,7 @@ local strategies = {
         max_mana = 65,
         matches = function(context, state)
             local threshold = math.min(context.settings and context.settings.aff_life_tap_mana or 30, 65)
-            if state.mana_pct > threshold then return false end
+            if (state.mana_pct or 100) > threshold then return false end
             if state.hp_pct < LIFE_TAP_SAFETY_HP then return false end
             return NS.spell_ready(SPELLS.LifeTap, NS.PLAYER_UNIT, { skip_range = true })
         end,
@@ -564,7 +564,7 @@ local strategies = {
         name = "DarkPact",
         matches = function(context, state)
             local threshold = context.settings and context.settings.aff_dark_pact_mana or 20
-            if state.mana_pct > threshold then return false end
+            if (state.mana_pct or 100) > threshold then return false end
             if not state.pet_alive then return false end
             if state.pet_mana < 20 then return false end
             return NS.spell_ready(LOCAL_SPELLS.DarkPact, NS.PLAYER_UNIT, { skip_range = true })
@@ -581,7 +581,7 @@ local strategies = {
         name = "ManaPotion",
         matches = function(context, state)
             local threshold = context.settings and context.settings.aff_mana_potion or 15
-            if state.mana_pct > threshold then return false end
+            if (state.mana_pct or 100) > threshold then return false end
             return state.mana_potion_id ~= nil
         end,
         execute = function(_, state)

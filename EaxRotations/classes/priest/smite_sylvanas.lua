@@ -215,7 +215,7 @@ local strategies = {
             if not solo_like_context(context) then return false end
             if state.has_weakened_soul then return false end
             local settings = context.settings or EMPTY_SETTINGS
-            if state.hp_pct > (settings.smite_solo_pws_hp or 55) then return false end
+            if (state.hp_pct or 100) > (settings.smite_solo_pws_hp or 55) then return false end
             return state.power_word_shield_ready
         end,
         execute = function(context, state)
@@ -231,7 +231,7 @@ local strategies = {
             if not solo_like_context(context) then return false end
             if state.has_renew then return false end
             local settings = context.settings or EMPTY_SETTINGS
-            if state.hp_pct > (settings.smite_solo_renew_hp or 72) then return false end
+            if (state.hp_pct or 100) > (settings.smite_solo_renew_hp or 72) then return false end
             return state.renew_ready
         end,
         execute = function(context, state)
@@ -247,10 +247,10 @@ local strategies = {
             if context.player_control_locked then return false end
             if not solo_like_context(context) then return false end
             local settings = context.settings or EMPTY_SETTINGS
-            if context.is_pvp and state.hp_pct <= (settings.smite_pvp_scream_hp or 65) then
+            if context.is_pvp and (state.hp_pct or 100) <= (settings.smite_pvp_scream_hp or 65) then
                 return state.psychic_scream_ready
             end
-            if state.enemy_count >= (settings.smite_solo_scream_enemies or 2) and state.hp_pct <= (settings.smite_solo_scream_hp or 75) then
+            if (state.enemy_count or 0) >= (settings.smite_solo_scream_enemies or 2) and (state.hp_pct or 100) <= (settings.smite_solo_scream_hp or 75) then
                 return state.psychic_scream_ready
             end
             return false
@@ -450,7 +450,7 @@ local strategies = {
             if context.is_moving then return false end
             if state.mana_emergency then return false end
             if state.mana_low then return false end
-            return state.enemy_count >= 3 and spell_exists(SPELLS.HolyNova) and spell_ready(SPELLS.HolyNova, PLAYER_UNIT, { skip_range = true })
+            return (state.enemy_count or 0) >= 3 and spell_exists(SPELLS.HolyNova) and spell_ready(SPELLS.HolyNova, PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(context)
             return try_cast(SPELLS.HolyNova, context.target, "[SMITE] Holy Nova (3+)")

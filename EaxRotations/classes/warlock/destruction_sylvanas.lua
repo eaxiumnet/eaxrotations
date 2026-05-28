@@ -226,7 +226,7 @@ local function drain_life_matches(context, action, state)
     if context.is_channeling then return false end
     if not state then return false end
     state = state or {}
-    if state.hp > DRAIN_LIFE_HP_THRESHOLD then return false end
+    if (state.hp or 100) > DRAIN_LIFE_HP_THRESHOLD then return false end
     return true
 end
 
@@ -240,7 +240,7 @@ end
 local function dark_pact_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    if state.mana_pct > DARK_PACT_MANA_THRESHOLD then return false end
+    if (state.mana_pct or 100) > DARK_PACT_MANA_THRESHOLD then return false end
     return true
 end
 
@@ -279,7 +279,7 @@ end
 local function life_tap_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    if state.mana_pct > MANA_LIFE_TAP_THRESHOLD then return false end
+    if (state.mana_pct or 100) > MANA_LIFE_TAP_THRESHOLD then return false end
     return true
 end
 
@@ -294,7 +294,7 @@ end
 local function death_coil_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    if state.hp > 35 then return false end
+    if (state.hp or 100) > 35 then return false end
     return true
 end
 

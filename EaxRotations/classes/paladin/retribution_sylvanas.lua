@@ -303,12 +303,12 @@ local strategies = {}
 
 add_strategy(strategies, "Ret_DivineShield_Emergency", 1000, function(context, state)
     local threshold = get_setting(context, "divine_shield_hp", get_setting(context, "retri_ds_hp", 15))
-    return state.hp_pct <= threshold and not state.has_forbearance and ready(SPELLS.DivineShield, PLAYER, { skip_range = true })
+    return (state.hp_pct or 100) <= threshold and not state.has_forbearance and ready(SPELLS.DivineShield, PLAYER, { skip_range = true })
 end, function() return cast(SPELLS.DivineShield, PLAYER, "[RET] Divine Shield emergency", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_LayOnHands_LastResort", 990, function(context, state)
     local threshold = get_setting(context, "lay_on_hands_hp", 8)
-    return state.hp_pct <= threshold and ready(SPELLS.LayOnHands, PLAYER, { skip_range = true, expected_cooldown = 2400 })
+    return (state.hp_pct or 100) <= threshold and ready(SPELLS.LayOnHands, PLAYER, { skip_range = true, expected_cooldown = 2400 })
 end, function() return cast(SPELLS.LayOnHands, PLAYER, "[RET] Lay on Hands last resort", { skip_range = true, expected_cooldown = 2400 }) end)
 
 add_strategy(strategies, "Ret_SanctityAura", 550, function(context, state)
@@ -443,7 +443,7 @@ strategies[#strategies + 1] = {
 }
 
 add_strategy(strategies, "Ret_JudgeDamageSeal", 690, function(context, state)
-    return state.has_damage_seal and state.mana_pct >= 12 and ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 })
+    return state.has_damage_seal and (state.mana_pct or 100) >= 12 and ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 })
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judgement damage seal", { expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_SealBlood_Primary", 670, function(_, state)
@@ -478,7 +478,7 @@ strategies[#strategies + 1] = {
     cooldown = 8,
     matches = function(context, state)
         local min_targets = get_setting(context, "consecration_min_targets", get_setting(context, "retri_consecration_targets", 3))
-        return state.enemy_count >= min_targets and state.mana_pct >= 35 and ready(SPELLS.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 })
+        return (state.enemy_count or 0) >= min_targets and (state.mana_pct or 100) >= 35 and ready(SPELLS.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 })
     end,
     execute = function()
         return cast(SPELLS.Consecration, PLAYER, "[RET] Consecration AoE", { skip_range = true, expected_cooldown = 8 })
@@ -498,7 +498,7 @@ end, function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[RET
 
 add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
     -- [ARTISTRY] Improved: TBC Holy Wrath works on Undead/Demon groups.
-    if state.enemy_count < 2 or state.mana_pct < 40 then return false end
+    if (state.enemy_count or 0) < 2 or (state.mana_pct or 100) < 40 then return false end
     if not ready(SPELLS.HolyWrath, PLAYER, { skip_range = true }) then return false end
     -- Check if target is undead/demon
     local type = context.target and context.target.get_creature_type and context.target:get_creature_type()
