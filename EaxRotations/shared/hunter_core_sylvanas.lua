@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/hunter_core_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Hunter Core: auto-shot timer, shot weaving, sting/aspect/pet helpers
 -- ============================================================================
@@ -23,6 +5,13 @@ local M = {}
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return M end
+
+-- IZI SDK cache for spell sequences
+local _izi = nil
+do
+    local ok, mod = pcall(require, "common/izi_sdk")
+    if ok and type(mod) == "table" then _izi = mod end
+end
 
 -- ============================================================================
 -- Auto-shot timer state (prevents clipping)
@@ -184,7 +173,7 @@ end
 -- ============================================================================
 local STING_IDS = {
     serpent = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 },
-    scorpid = { 27015, 14601, 14600, 14599, 14598, 14597, 14596, 14595 },
+    scorpid = { 3043 },
     viper   = { 27018, 14280, 14279, 3034 },
 }
 
@@ -295,6 +284,26 @@ end
 
 function M.record_mend()
     _last_mend_time = now()
+end
+
+-- ============================================================================
+-- IZI SDK Spell Sequences
+-- ============================================================================
+
+--- Cast a two-spell sequence using IZI SDK.
+-- Returns true if sequence was started, false otherwise.
+---@param spell_a number First spell ID
+---@param target_a game_object First target
+---@param spell_b number Second spell ID
+---@param target_b game_object Second target
+---@return boolean
+function M.cast_shot_sequence(spell_a, target_a, spell_b, target_b)
+    if not _izi or not target_a then return false end
+    local izi_a = _izi.spell(spell_a)
+    local izi_b = _izi.spell(spell_b)
+    if not izi_a or not izi_b then return false end
+    local ok, result = pcall(_izi.a_into_b, izi_a, target_a, izi_b, target_b, 0, 3.0, "ShotSequence")
+    return ok and result == true
 end
 
 -- ============================================================================

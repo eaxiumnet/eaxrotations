@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/druid/cat_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Druid Cat priority list for TBC melee DPS.
 
--- ============================================================================
--- What: TBC Druid Cat priority list with powershift, bleed upkeep, and melee burst
--- When: Evaluated every tick via main_sylvanas.lua dispatcher
--- Why: Priority-list early-exit keeps energy and positional checks cheap
--- Safety: Nil-guarded settings; NS.* wrappers; conservative defaults for movement and form handling
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -70,10 +46,18 @@ local AP_UPGRADE_RATIO = 1.08
 local STRONG_AP_UPGRADE_RATIO = 1.15
 local HIGH_AP_UPGRADE_RATIO = 1.05
 
+-- IZI SDK cache for energy prediction (optional, falls back to manual)
+local _izi = nil
+do
+    local ok, mod = pcall(require, "common/izi_sdk")
+    if ok and type(mod) == "table" then _izi = mod end
+end
+
 local RIP_DEBUFF = { 27008, 1079 }
 local RAKE_DEBUFF = { 27003, 9904, 1824, 1823, 1822 }
 local MANGLE_DEBUFF = { 33876, 33983, 33982, 33878, 33986, 33987 }
 local FAERIE_FIRE_DEBUFF = { 27011, 17392, 17391, 17390, 16857, 26993, 9907, 9749, 778, 770 }
+local BLOODLUST_BUFFS = { 2825, 32182, 27641 }
 local PROWL_BUFF = { 9913, 6783, 5215 }
 local POUNCE_DEBUFF = { 27006, 9827, 9005 }
 local MAIM_DEBUFF = { 22570 }
@@ -83,6 +67,8 @@ local DASH_BUFF = { 33357, 9821, 1850 }
 local BARKSKIN_BUFF = { 22812 }
 local TRACK_HUMANOIDS_BUFF = { 5225 }
 local WOLFSHEAD_BUFF = { 29940, 17770 }
+local WOLFSHEAD_HELM_ID = 8345
+local CLEARCASTING_COST_FLOOR = 0
 local STEALTH_PREVENT_TYPES = { ["Humanoid"] = true, ["Beast"] = true }
 
 local cat_state = {
@@ -197,16 +183,33 @@ local function get_attack_power(context, me)
     return 0
 end
 
----Check if Wolfshead Helm (8345) is equipped via item-based detection.
----Falls back to checking me:get_equipped_item for the head slot (inventory slot 1).
+---Check if Wolfshead Helm (8345, item_id=8345) is equipped using NS.get_equipped_item_id.
+---@param me game_object|nil Local player
+---@return boolean
 local function has_wolfshead_equipped(me)
     if not me then
         if NS.GetPlayer then me = NS.GetPlayer() end
         if not me then return false end
     end
-    if type(me.get_equipped_item) ~= "function" then return false end
-    local ok, item_id = pcall(function() return me:get_equipped_item(1) end)
-    return ok and type(item_id) == "number" and item_id == WOLFSHEAD_HELM_ID
+    -- Use documented Sylvanas API: get_item_at_inventory_slot, exposed via NS.get_equipped_item_id
+    if NS.get_equipped_item_id and NS.EQUIPMENT_SLOTS then
+        local id = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.HEAD)
+        return id == WOLFSHEAD_HELM_ID
+    end
+    -- Fallback: direct unit method
+    if type(me.get_equipped_item) == "function" then
+        local ok, item_id = pcall(function() return me:get_equipped_item(1) end)
+        return ok and type(item_id) == "number" and item_id == WOLFSHEAD_HELM_ID
+    end
+    if type(me.get_item_at_inventory_slot) == "function" then
+        local ok, slot_info = pcall(function() return me:get_item_at_inventory_slot(1) end)
+        if ok and slot_info then
+            if type(slot_info) == "number" then return slot_info == WOLFSHEAD_HELM_ID end
+            local id = slot_info.item_id or slot_info.entry or (slot_info.object and slot_info.object.get_item_id and slot_info.object:get_item_id())
+            return type(id) == "number" and id == WOLFSHEAD_HELM_ID
+        end
+    end
+    return false
 end
 
 local function get_combo_points(context, target)
@@ -271,14 +274,31 @@ local function estimate_next_tick(state)
 end
 
 local function update_energy_tick(state)
-    local delta = state.energy - state.last_energy
-    if delta > 0 and delta <= 25 and (state.now - state.last_shift_time) > POWERSHIFT_IGNORE_WINDOW then
-        state.last_tick_time = state.now
+    local me = state.me
+    -- IZI SDK fast path: use native energy prediction when available
+    if me and type(me.energy_predicted) == "function" then
+        state.projected_energy = me:energy_predicted(ENERGY_TICK_INTERVAL) or
+            math.min(ENERGY_CAP, state.energy + ENERGY_PER_TICK)
         state.tick_confident = true
+        -- Try to get time-to-next-tick from IZI
+        if type(me.energy_time_to_x) == "function" then
+            state.next_tick_in = me:energy_time_to_x(
+                math.min(ENERGY_CAP, state.energy + ENERGY_PER_TICK)
+            ) or ENERGY_TICK_INTERVAL
+        else
+            state.next_tick_in = estimate_next_tick(state)
+        end
+    else
+        -- Legacy manual tick detection
+        local delta = state.energy - state.last_energy
+        if delta > 0 and delta <= 25 and (state.now - state.last_shift_time) > POWERSHIFT_IGNORE_WINDOW then
+            state.last_tick_time = state.now
+            state.tick_confident = true
+        end
+        state.last_energy = state.energy
+        state.next_tick_in = estimate_next_tick(state)
+        state.projected_energy = math.min(ENERGY_CAP, state.energy + ENERGY_PER_TICK)
     end
-    state.last_energy = state.energy
-    state.next_tick_in = estimate_next_tick(state)
-    state.projected_energy = math.min(ENERGY_CAP, state.energy + ENERGY_PER_TICK)
 end
 
 local function should_wait_for_tick(state, required_energy)
@@ -711,7 +731,7 @@ local ACTIONS = {
     { name = "StealthMangle", spell = SPELLS.MangleCat, requires_buff = PROWL_BUFF, required_form = "cat", min_energy = MANGLE_COST, matches = stealth_mangle_matches },
 
     { name = "Dash", spell = SPELLS.Dash, target = "self", required_form = "cat", requires_target = false, matches = dash_matches },
-    { name = "FeralChargeCat", spell = FERAL_CHARGE_CAT, required_form = "cat", matches = feral_charge_cat_matches },
+    { name = "FeralChargeCat", spell = SPELLS.FeralCharge, target = "self", required_form = "cat", requires_target = false, matches = function(context) return context.in_combat and context.target and context.target_range and context.target_range >= 8 and context.target_range <= 25 end },
 
     { name = "MaimInterrupt", spell = MAIM, required_form = "cat", min_energy = MAIM_COST, min_combo = 1, matches = maim_interrupt_matches },
     { name = "FaerieFireStealthLock", spell = SPELLS.FaerieFireFeral, required_form = "cat", matches = faerie_fire_stealth_matches },
@@ -738,7 +758,7 @@ local ACTIONS = {
 }
 
 local strategies = {
-    { name = "PoolForRip", matches = pool_for_finisher_matches, execute = wait_execute_execute },
+    { name = "PoolForRip", matches = pool_for_builder_matches, execute = wait_execute_execute },
     { name = "PoolForBuilderTick", matches = pool_for_builder_matches, execute = wait_execute_execute },
     { name = "PoolForExecuteBite", matches = wait_execute, execute = wait_execute_execute },
 }

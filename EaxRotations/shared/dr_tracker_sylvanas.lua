@@ -1,27 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/dr_tracker_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- ============================================================================
--- What: Shared helper for diminishing-return tracking on crowd control
--- When: On spell-cast events and DR queries
--- Why: Decide when a CC target is still affected or immune
--- Safety: GUID nil-guards, expiry cleanup, and conservative unknown-state handling
--- ============================================================================
 -- Shared Helper: DR Tracker (Diminishing Returns)
 -- ============================================================================
 local M = {}
@@ -209,6 +185,14 @@ end
 -- Get the current DR multiplier for a spell cast on a target
 -- Returns: 1.0 (full), 0.5 (half), 0.25 (quarter), 0.0 (immune)
 function M.get_dr_multiplier(unit_or_guid, category)
+    -- IZI SDK path: use native DR query when available
+    if type(unit_or_guid) == "table" and type(unit_or_guid.get_dr) == "function" then
+        local ok, dr = pcall(unit_or_guid.get_dr, unit_or_guid, category)
+        if ok and type(dr) == "number" and dr <= 1.0 then
+            return dr
+        end
+    end
+    -- Manual tracker fallback
     local state = M.get_dr_state(unit_or_guid, category)
     if not state then return 1.0 end
     
