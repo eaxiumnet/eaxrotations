@@ -355,6 +355,33 @@ local function build_state(context)
         resto_state.moonfire_remains = context.target and debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
         resto_state.insect_swarm_remains = context.target and debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
     end
+    -- Tree of Life talent detection
+    if NS.spell_book and NS.spell_book.is_spell_learned then
+        resto_state.can_tree = NS.spell_book.is_spell_learned(33891) == true
+    elseif NS.spell_exists then
+        resto_state.can_tree = NS.spell_exists(LOCAL_SPELLS.TreeOfLifeForm) == true
+    end
+    -- Wire NS.Triage for intelligent target ranking (if available)
+    if NS.Triage and NS.Triage.rank and count > 0 then
+        local ranked = NS.Triage.rank(entries, count)
+        if ranked and ranked[1] then
+            resto_state.lowest = ranked[1]
+        end
+    end
+    -- Wire NS.AoEHeal for Tranquility cluster targeting (if available)
+    if NS.AoEHeal and NS.AoEHeal.best_target and count > 0 then
+        local best_cluster, cluster_count = NS.AoEHeal.best_target(entries, count, 40, 3)
+        if best_cluster and cluster_count >= 3 then
+            resto_state.tranquility_best_target = best_cluster
+            if cluster_count > resto_state.tranquility_count then
+                resto_state.tranquility_count = cluster_count
+            end
+        else
+            resto_state.tranquility_best_target = nil
+        end
+    else
+        resto_state.tranquility_best_target = nil
+    end
     resto_state.mana_pct = context.mana_pct or context.player_mana_pct or 100
     local mana_conserve_pct = (settings.resto_mana_conserve_pct ~= nil and settings.resto_mana_conserve_pct) or MANA_CONSERVE_PCT
     local mana_emergency_pct = (settings.resto_mana_emergency_pct ~= nil and settings.resto_mana_emergency_pct) or MANA_EMERGENCY_PCT
