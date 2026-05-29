@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/pvp_manager_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Helper: PvP Manager
 -- ============================================================================
@@ -86,7 +68,11 @@ function M.get_enemy_players(context)
     local me = context.me
     if not me then return {} end
     local enemies = {}
-    local list = core.object_manager and core.object_manager.get_enemy_list()
+    local list = nil
+    if NS.get_visible_units then
+        local ok, units, count = pcall(NS.get_visible_units)
+        if ok and type(units) == "table" then list = units end
+    end
     if type(list) ~= "table" then return {} end
     for i = 1, #list do
         local unit = list[i]

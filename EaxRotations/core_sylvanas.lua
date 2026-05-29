@@ -1,35 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "core_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- shared runtime for settings, spell safety, aura helpers, healing scans, and strategy registration.
--- ============================================================================
--- What: EaxRotations core runtime for NS.* helpers, aura data, healing scans, and strategy registration
--- When: Loaded once at plugin startup by main.lua
--- Why: Centralize risky API calls for nil safety and cache hot references for performance
--- Safety: API calls are cached at load, pcall guards are used, and graceful fallbacks avoid crashes
--- ============================================================================
--- ============================================================================
--- What: EaxRotations core runtime — NS.* API boundary, aura helpers, healing scans, strategy registry
--- When: Loaded once at plugin startup by main.lua
--- Why: Centralizes risky API calls for nil safety; caches refs for performance
--- Safety: All API cached at module load; pcall guards; graceful fallbacks; no raw API calls
--- ============================================================================
-
 
 local _G = _G
 
@@ -125,8 +94,6 @@ end
 
 NS.runtime_generation = (NS.runtime_generation or 0) + 1
 
-
-
 local type, pairs, ipairs, tostring = type, pairs, ipairs, tostring
 
 local format = string.format
@@ -151,10 +118,41 @@ if not _reagent_guard_ok or type(_reagent_guard) ~= "table" then _reagent_guard 
 local _spell_queue_ok, _spell_queue = pcall(require, "common/modules/spell_queue")
 if not _spell_queue_ok or type(_spell_queue) ~= "table" then _spell_queue = nil end
 
+-- cooldown_tracker: native engine-level cooldown observation (replaces enemy_cd_tracker)
+local _ct_ok, _cooldown_tracker = pcall(require, "common/utility/cooldown_tracker")
+if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil end
+
+-- settings_manager: native settings persistence (replaces profile_manager)
+local _settings_ok, _settings_manager = pcall(require, "common/modules/settings_manager")
+if not _settings_ok or type(_settings_manager) ~= "table" then _settings_manager = nil end
+
 local _find_dead_ok, _find_dead_scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
 if not _find_dead_ok or type(_find_dead_scan) ~= "table" then _find_dead_scan = nil end
 
-
+-- EnemyCDTracker adapter: preserves API compatibility while delegating to native cooldown_tracker
+-- Replaces EaxRotations/shared/enemy_cd_tracker_sylvanas.lua (deleted)
+if _cooldown_tracker then
+    NS.EnemyCDTracker = {
+        has_defensive_available = function(unit)
+            if not unit then return false end
+            return _cooldown_tracker:has_any_relevant_defensive_up(unit) or false
+        end,
+        is_enemy_cd_ready = function(unit, spell_id)
+            if not unit or not spell_id then return nil end
+            return _cooldown_tracker:is_spell_ready(unit, spell_id)
+        end,
+        get_cd_remaining = function(unit, spell_id)
+            if not unit or not spell_id then return nil end
+            return _cooldown_tracker:get_remaining_cooldown(unit, spell_id)
+        end,
+        has_major_offensive_active_or_recent = function(unit, recent_seconds)
+            return false  -- cooldown_tracker has no equivalent; simplified to false
+        end,
+        get_enemy_cds = function(unit)
+            return EMPTY  -- cooldown_tracker has no equivalent; legacy API preserved
+        end,
+    }
+end
 
 -- Manual cooldown tracker: records last cast time per spell ID.
 
@@ -170,8 +168,6 @@ local _core_trace_times = {}
 
 local _last_gcd_log = 0 -- throttle for spell_ready GCD log spam
 
-
-
 -- Spell ID resolver cache: avoids repeated is_spell_learned() calls.
 
 -- Keys are colon-joined rank ID lists; values are { id=resolved_id, ts=timestamp }.
@@ -182,15 +178,11 @@ local _spell_id_cache = {}
 
 local _SPELL_ID_CACHE_TTL = 30
 
-
-
 -- One-shot diagnostic log tracker: prevents repeated API dump spam.
 
 -- Keys are spell labels; once logged, won't repeat until next session.
 
 local _api_diag_logged = {}
-
-
 
 NS.settings = NS.settings or {}
 
@@ -200,13 +192,97 @@ NS.POWER_MANA, NS.POWER_RAGE, NS.POWER_FOCUS, NS.POWER_ENERGY = 0, 1, 2, 3
 
 NS.CLASS_ID = NS.CLASS_ID or { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11 }
 
+local VANILLA_HIGH_SPELL_ALLOWLIST = {
+
+    [27799] = true, [27800] = true, [27801] = true, [27803] = true, [27804] = true, [27805] = true, -- Holy Nova ranks
+
+    [27819] = true, -- Mana Detonation (Classic Naxxramas debuff)
+
+    [28271] = true, [28272] = true, -- Classic Polymorph variants
+
+    [28610] = true, -- Shadow Ward high Classic rank
+
+    [29166] = true, -- Innervate
+
+}
+
+local VANILLA_TBC_SPELL_BLOCKLIST = {
+
+    [469] = true, -- Commanding Shout
+
+    [974] = true, -- Earth Shield
+
+    [1329] = true, -- Mutilate
+
+    [2825] = true, -- Bloodlust
+
+    [3738] = true, -- Wrath of Air Totem
+
+    [5938] = true, -- Shiv
+
+    [12472] = true, -- Icy Veins
+
+    [20243] = true, -- Devastate
+
+    [22570] = true, -- Maim
+
+    [23920] = true, -- Spell Reflection
+
+    [23575] = true, [24398] = true, -- Water Shield
+
+    [25046] = true, -- Arcane Torrent
+
+    [26679] = true, -- Deadly Throw
+
+    [25289] = true, -- Battle Shout rank 8
+
+    [25429] = true, [25431] = true, [25446] = true, [25448] = true, [25457] = true, [25467] = true,
+
+    [25469] = true, [25472] = true, [25479] = true, [25485] = true, [25489] = true,
+
+    [25500] = true, [25505] = true, [25552] = true, [25560] = true, [25563] = true, [25570] = true, [25574] = true,
+
+    [26967] = true, [26968] = true, [26980] = true, [26981] = true, [26982] = true, [26983] = true,
+
+    [26987] = true, [26988] = true, [26989] = true, [26990] = true, [26991] = true, [26992] = true, [26993] = true,
+
+    [26994] = true, [26998] = true,
+
+    [27131] = true, [27126] = true, [27127] = true, [27136] = true, [27137] = true, [27138] = true, [27139] = true,
+
+    [27173] = true, [27179] = true, [30146] = true, [31016] = true, [31589] = true, [33206] = true,
+
+    [33831] = true, [33876] = true, [33878] = true, [33891] = true,
+
+    [34914] = true, [34916] = true, [34917] = true, [35395] = true, [36554] = true,
+
+}
+
+local function vanilla_spell_id_allowed(id)
+
+    if type(id) ~= "number" then return false end
+
+    if not (NS.is_vanilla and NS.is_vanilla()) then return true end
+
+    if VANILLA_TBC_SPELL_BLOCKLIST[id] then return false end
+
+    if id >= 27000 and not VANILLA_HIGH_SPELL_ALLOWLIST[id] then return false end
+
+    return true
+
+end
+
+function NS.vanilla_spell_id_allowed(id)
+
+    return vanilla_spell_id_allowed(id)
+
+end
+
 NS.current_context = NS.current_context or nil
 
 NS._manual_item_cooldowns = NS._manual_item_cooldowns or {}
 
 NS._last_item_use = NS._last_item_use or {}
-
-
 
 local _settings_cache = {}
 
@@ -215,8 +291,6 @@ local _settings_cache_last_update = 0
 local _SETTINGS_CACHE_TTL = 0.05
 
 local _settings_cache_time
-
-
 
 NS.CC_DEBUFFS = NS.CC_DEBUFFS or {
 
@@ -238,8 +312,6 @@ NS.CC_DEBUFFS = NS.CC_DEBUFFS or {
 
 }
 
-
-
 local PVP_BURST_BUFFS = {
 
     { 1719 }, -- Recklessness
@@ -260,11 +332,9 @@ local PVP_BURST_BUFFS = {
 
 }
 
-
-
 local PLAYER_DEFENSIVE_BUFFS = {
 
-    { 45438, 27619, 11958 }, -- Ice Block
+    { 11958, 45438, 27619 }, -- Ice Block
 
     { 642, 1020 }, -- Divine Shield
 
@@ -277,8 +347,6 @@ local PLAYER_DEFENSIVE_BUFFS = {
     { 22812 }, -- Barkskin
 
 }
-
-
 
 local MELEE_CLASS_IDS = {
 
@@ -293,8 +361,6 @@ local MELEE_CLASS_IDS = {
     [NS.CLASS_ID.DRUID] = true,
 
 }
-
-
 
 local MELEE_SIGNAL_BUFFS = {
 
@@ -314,8 +380,6 @@ local MELEE_SIGNAL_BUFFS = {
 
 }
 
-
-
 local function safe(fn, ...)
 
     if type(fn) ~= "function" then return nil end
@@ -328,8 +392,6 @@ local function safe(fn, ...)
 
 end
 
-
-
 local function safe_field(obj, key)
 
     if not obj then return nil end
@@ -340,8 +402,6 @@ local function safe_field(obj, key)
 
 end
 
-
-
 function NS.same_unit(a, b)
 
     if not a or not b then return false end
@@ -351,8 +411,6 @@ function NS.same_unit(a, b)
     return ok and same == true or false
 
 end
-
-
 
 function NS.not_same_unit(a, b)
 
@@ -366,11 +424,7 @@ function NS.not_same_unit(a, b)
 
 end
 
-
-
 NS.safe_field = safe_field
-
-
 
 local function emit(kind, prefix, msg)
 
@@ -384,36 +438,11 @@ local function emit(kind, prefix, msg)
 
 end
 
-
-
 function NS.log(msg) emit("log", "[EaxRotations] ", msg) end
 
 function NS.log_warning(msg) emit("log_warning", "[EaxRotations WARNING] ", msg) end
 
 function NS.log_error(msg) emit("log_error", "[EaxRotations ERROR] ", msg) end
-
-NS.file_versions = rawget(_G, "EaxRotationsFileVersions") or NS.file_versions or {}
-_G.EaxRotationsFileVersions = NS.file_versions
-
-function NS.dump_file_versions()
-    local versions = NS.file_versions or rawget(_G, "EaxRotationsFileVersions") or {}
-    local files = {}
-    local count = 0
-
-    for file in pairs(versions) do
-        count = count + 1
-        files[count] = file
-    end
-
-    sort(files)
-    NS.log("=== FILE VERSION DUMP: " .. tostring(count) .. " loaded Lua files ===")
-    for i = 1, count do
-        local file = files[i]
-        local info = versions[file] or EMPTY
-        NS.log("[FILE] " .. tostring(file) .. " v" .. tostring(info.version or "?") .. " modified=" .. tostring(info.modified or "?") .. " change=" .. tostring(info.change or "?"))
-    end
-    NS.log("=== END FILE VERSION DUMP ===")
-end
 
 -- Resets API health counters so a /reload starts with a clean slate.
 -- On PS builds the API is permanently broken, so we preserve the flag.
@@ -466,8 +495,6 @@ function NS.dump_class_spells(class_name)
     NS.log("=== END DUMP ===")
 end
 
-
-
 local function core_trace(key, msg, interval_ms)
 
     local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
@@ -503,8 +530,6 @@ local function core_trace(key, msg, interval_ms)
     NS.log("[CASTDBG] " .. tostring(msg))
 
 end
-
-
 
 function NS.GetPlayer()
 
@@ -550,8 +575,6 @@ function NS.GetPlayer()
 
 end
 
-
-
 function NS.GetPet()
 
     local player = NS.GetPlayer()
@@ -566,19 +589,13 @@ function NS.GetPet()
 
 end
 
-
-
 NS.get_pet = NS.GetPet
-
-
 
 function NS.has_pet()
 
     return NS.GetPet() ~= nil
 
 end
-
-
 
 function NS.get_pet_hp()
 
@@ -587,8 +604,6 @@ function NS.get_pet_hp()
     return pet and NS.unit_health_pct(pet) or 100
 
 end
-
-
 
 NS.EQUIPMENT_SLOTS = NS.EQUIPMENT_SLOTS or {
 
@@ -601,8 +616,6 @@ NS.EQUIPMENT_SLOTS = NS.EQUIPMENT_SLOTS or {
     BACK = 15, MAIN_HAND = 16, OFF_HAND = 17, RANGED = 18, TABARD = 19,
 
 }
-
-
 
 local function item_id_from_slot_info(slot_info)
 
@@ -624,8 +637,6 @@ local function item_id_from_slot_info(slot_info)
 
 end
 
-
-
 function NS.get_equipped_item_id(slot)
 
     local player = NS.GetPlayer()
@@ -637,8 +648,6 @@ function NS.get_equipped_item_id(slot)
     return item_id_from_slot_info(slot_info)
 
 end
-
-
 
 function NS.get_equipped_item_ids(out)
 
@@ -666,8 +675,6 @@ function NS.get_equipped_item_ids(out)
 
 end
 
-
-
 function NS.is_item_equipped(item_ids)
 
     if type(item_ids) == "number" then item_ids = { item_ids } end
@@ -693,8 +700,6 @@ function NS.is_item_equipped(item_ids)
     return false
 
 end
-
-
 
 function NS.is_item_ready(item_id)
 
@@ -722,8 +727,6 @@ function NS.is_item_ready(item_id)
 
 end
 
-
-
 function NS.register_item_manual_cooldown(item_id, cooldown)
 
     if type(item_id) ~= "number" or item_id <= 0 then return false end
@@ -733,8 +736,6 @@ function NS.register_item_manual_cooldown(item_id, cooldown)
     return true
 
 end
-
-
 
 function NS.use_item_by_id(item_id, target)
 
@@ -762,11 +763,7 @@ function NS.use_item_by_id(item_id, target)
 
 end
 
-
-
 NS.use_item = NS.use_item_by_id
-
-
 
 function NS.has_item(item_id)
 
@@ -798,8 +795,6 @@ function NS.has_item(item_id)
 
 end
 
-
-
 function NS.count_equipped_set(item_ids)
 
     if type(item_ids) ~= "table" then return 0 end
@@ -826,15 +821,11 @@ function NS.count_equipped_set(item_ids)
 
 end
 
-
-
 function NS.has_set_bonus(item_ids, pieces)
 
     return NS.count_equipped_set(item_ids) >= (pieces or 2)
 
 end
-
-
 
 function NS.GetTarget()
 
@@ -845,8 +836,6 @@ function NS.GetTarget()
     local target = get_target and safe(get_target, player) or nil
 
     if target and NS.unit_alive(target) then return target end
-
-
 
     -- Some Sylvanas builds expose the selected target through the IZI helper
 
@@ -867,8 +856,6 @@ function NS.GetTarget()
     return nil
 
 end
-
-
 
 function NS.GetFocus()
 
@@ -944,8 +931,6 @@ function NS.GetFocus()
 
 end
 
-
-
 function NS.GetPartyMembers()
 
     local me = NS.GetPlayer()
@@ -1010,8 +995,6 @@ function NS.GetPartyMembers()
 
 end
 
-
-
 function NS.time_now()
 
     if type(core.time) == "function" then
@@ -1035,8 +1018,6 @@ function NS.time_now()
 
 end
 
-
-
 function NS.game_time_ms()
 
     if type(core.game_time) == "function" then
@@ -1059,11 +1040,7 @@ function NS.game_time_ms()
 
 end
 
-
-
 _settings_cache_time = NS.time_now
-
-
 
 function NS.get_setting_cached(key, default)
 
@@ -1071,18 +1048,20 @@ function NS.get_setting_cached(key, default)
 
 end
 
-
-
 function NS.register_izi_buff_events()
-
-    return NS.init_izi_buff_events and NS.init_izi_buff_events() or false
-
+    -- No-op: buff_manager handles caching internally
+    return true
 end
-
-
 
 function NS.get_setting(key, default)
 
+    -- Primary path: settings_manager with engine-level caching
+    if _settings_manager then
+        local v = _settings_manager:get(key)
+        if v ~= nil then return v end
+    end
+
+    -- Fallback: manual cache from NS.settings table
     local now = _settings_cache_time()
 
     if now - _settings_cache_last_update > _SETTINGS_CACHE_TTL then
@@ -1103,13 +1082,15 @@ function NS.get_setting(key, default)
 
 end
 
-
-
 function NS.set_setting(key, value)
 
     NS.settings[key] = value
 
     _settings_cache[key] = value
+
+    if _settings_manager then
+        _settings_manager:set(key, value)
+    end
 
 end
 
@@ -1125,7 +1106,6 @@ function NS.setting(context, key, default)
     if settings and settings[key] ~= nil then return settings[key] end
     if NS.get_setting then return NS.get_setting(key, default) end
 end
-
 
 --- Safe number setting access. Returns the value if it's a number, otherwise the default.
 --- Replaces copy-pasted local setting_number(...) functions in spec files.
@@ -1171,11 +1151,13 @@ function NS.refresh_settings_cache()
 
     _settings_cache_last_update = _settings_cache_time()
 
+    if _settings_manager then
+        _settings_manager:load()
+    end
+
     return true
 
 end
-
-
 
 function NS.GetCurrentContext()
 
@@ -1231,8 +1213,6 @@ function NS.broken_api_throttled(spell_id, seconds)
     return NS.recent_spell_cast(id, window)
 end
 
-
-
 -- ============================================================================
 
 -- Sticky Spell Anti-Flicker System
@@ -1240,8 +1220,6 @@ end
 -- ============================================================================
 
 local _sticky = { spell_id = nil, spell_name = nil, set_time = 0, min_duration = 0.3, priority = 0 }
-
-
 
 function NS.sticky_spell_should_override(spell_id, spell_name, new_priority)
 
@@ -1309,15 +1287,11 @@ function NS.sticky_spell_should_override(spell_id, spell_name, new_priority)
 
 end
 
-
-
 function NS.sticky_spell_get()
 
     return _sticky.spell_id, _sticky.spell_name
 
 end
-
-
 
 function NS.sticky_spell_reset()
 
@@ -1331,8 +1305,6 @@ function NS.sticky_spell_reset()
 
 end
 
-
-
 -- ============================================================================
 
 -- Cooldown Suggestion Registry
@@ -1340,8 +1312,6 @@ end
 -- ============================================================================
 
 NS.cooldown_registry = {}
-
-
 
 function NS.register_cooldown(entry)
 
@@ -1356,8 +1326,6 @@ function NS.register_cooldown(entry)
     return true
 
 end
-
-
 
 function NS.unregister_cooldown(name)
 
@@ -1377,11 +1345,7 @@ function NS.unregister_cooldown(name)
 
 end
 
-
-
 local _cd_suggestion_buffer = { n = 0 }
-
-
 
 function NS.get_cooldown_suggestions(context, category_filter)
 
@@ -1447,8 +1411,6 @@ function NS.get_cooldown_suggestions(context, category_filter)
 
 end
 
-
-
 function NS.get_best_offensive_cooldown(context)
 
     local suggestions = NS.get_cooldown_suggestions(context, "offensive")
@@ -1456,8 +1418,6 @@ function NS.get_best_offensive_cooldown(context)
     return suggestions.n > 0 and suggestions[1] or nil
 
 end
-
-
 
 function NS.get_best_defensive_cooldown(context)
 
@@ -1467,15 +1427,11 @@ function NS.get_best_defensive_cooldown(context)
 
 end
 
-
-
 function NS.clear_cooldown_registry()
 
     for i = 1, #NS.cooldown_registry do NS.cooldown_registry[i] = nil end
 
 end
-
-
 
 function NS.register_on_update_callback(callback)
 
@@ -1494,8 +1450,6 @@ function NS.register_on_update_callback(callback)
     end) ~= false
 
 end
-
-
 
 function NS.register_on_spell_cast(callback)
 
@@ -1517,8 +1471,6 @@ function NS.register_on_spell_cast(callback)
 
 end
 
-
-
 -- Combat start/end callbacks (manual - no native Sylvanas API)
 
 local combat_start_callbacks = {}
@@ -1526,8 +1478,6 @@ local combat_start_callbacks = {}
 local combat_end_callbacks = {}
 
 local was_in_combat = false
-
-
 
 function NS.register_on_combat_start(callback)
 
@@ -1539,8 +1489,6 @@ function NS.register_on_combat_start(callback)
 
 end
 
-
-
 function NS.register_on_combat_end(callback)
 
     if type(callback) ~= "function" then return false end
@@ -1550,8 +1498,6 @@ function NS.register_on_combat_end(callback)
     return true
 
 end
-
-
 
 -- Internal: fire combat start callbacks
 
@@ -1568,8 +1514,6 @@ function NS._fire_combat_start(context)
 
 end
 
-
-
 -- Internal: fire combat end callbacks
 
 function NS._fire_combat_end(context)
@@ -1585,8 +1529,6 @@ function NS._fire_combat_end(context)
 
 end
 
-
-
 --- Create a spell action object.
 
 -- Accepts two formats:
@@ -1601,6 +1543,34 @@ end
 
 -- @return table - Spell object with _meta metadata
 
+local function filter_spell_ids_for_expansion(ids, levels)
+
+    if type(ids) ~= "table" then return ids, levels end
+
+    if not (NS.is_vanilla and NS.is_vanilla()) then return ids, levels end
+
+    local filtered_ids = {}
+
+    local filtered_levels = type(levels) == "table" and {} or nil
+
+    for i = 1, #ids do
+
+        local spell_id = ids[i]
+
+        if vanilla_spell_id_allowed(spell_id) then
+
+            filtered_ids[#filtered_ids + 1] = spell_id
+
+            if filtered_levels then filtered_levels[#filtered_levels + 1] = levels[i] end
+
+        end
+
+    end
+
+    return filtered_ids, filtered_levels or levels
+
+end
+
 function NS.spell_action(id, label)
 
     local spell
@@ -1613,19 +1583,23 @@ function NS.spell_action(id, label)
 
         local ids = type(cfg.ids) == "table" and cfg.ids or (cfg.id and { cfg.id } or {})
 
+        local levels = cfg.levels
+
+        ids, levels = filter_spell_ids_for_expansion(ids, levels)
+
         local name = cfg.name or tostring(cfg.ids or cfg.id or "")
 
         spell = {
 
             _meta = {
 
-                id = cfg.ids or cfg.id,
+                id = ids,
 
                 ids = ids,
 
                 label = name,
 
-                levels = cfg.levels,
+                levels = levels,
 
                 cast_time = cfg.cast_time or 0,
 
@@ -1647,13 +1621,13 @@ function NS.spell_action(id, label)
 
         local ids = type(id) == "table" and id or { id }
 
+        ids = filter_spell_ids_for_expansion(ids)
+
         local lbl = label or tostring(id)
 
-        spell = { _meta = { id = id, ids = ids, label = lbl } }
+        spell = { _meta = { id = type(id) == "table" and ids or ids[1], ids = ids, label = lbl } }
 
     end
-
-
 
     -- Add methods
 
@@ -1707,15 +1681,13 @@ function NS.spell_action(id, label)
 
 end
 
-
-
 local function collect_ids(spell, out)
 
     out = out or {}
 
     if type(spell) == "number" then
 
-        out[#out + 1] = spell
+        if vanilla_spell_id_allowed(spell) then out[#out + 1] = spell end
 
     elseif type(spell) == "table" then
 
@@ -1729,11 +1701,11 @@ local function collect_ids(spell, out)
 
             elseif type(id) == "table" then collect_ids(id, out) end
 
-        elseif type(spell.id) == "number" then out[#out + 1] = spell.id
+        elseif type(spell.id) == "number" then if vanilla_spell_id_allowed(spell.id) then out[#out + 1] = spell.id end
 
-        elseif type(spell.spell_id) == "number" then out[#out + 1] = spell.spell_id end
+        elseif type(spell.spell_id) == "number" then if vanilla_spell_id_allowed(spell.spell_id) then out[#out + 1] = spell.spell_id end end
 
-        for i = 1, #spell do if type(spell[i]) == "number" then out[#out + 1] = spell[i] end end
+        for i = 1, #spell do if type(spell[i]) == "number" and vanilla_spell_id_allowed(spell[i]) then out[#out + 1] = spell[i] end end
 
     end
 
@@ -1741,13 +1713,9 @@ local function collect_ids(spell, out)
 
 end
 
-
-
 -- Track API health: if is_spell_learned returns false for many consecutive calls,
 
 -- the spell_book API is likely broken/incompatible. Fall back to trusting IDs.
-
-
 
 local function player_level_fallback()
 
@@ -1768,8 +1736,6 @@ local function player_level_fallback()
     return type(level) == "number" and level or 70
 
 end
-
-
 
 local function fallback_spell_id(spell, ids)
 
@@ -1801,8 +1767,6 @@ local function fallback_spell_id(spell, ids)
 
 end
 
-
-
 local function spell_cache_key(spell, ids)
 
     local key = table.concat(ids, ":")
@@ -1819,8 +1783,6 @@ local function spell_cache_key(spell, ids)
 
 end
 
-
-
 local function spell_label(spell, fallback)
 
     if type(spell) == "table" and spell._meta and spell._meta.label then
@@ -1833,11 +1795,11 @@ local function spell_label(spell, fallback)
 
 end
 
-
-
 function NS.spell_id_is_known(spell_id)
 
     if type(spell_id) ~= "number" then return false end
+
+    if not vanilla_spell_id_allowed(spell_id) then return false end
 
     -- On wow_tbc_ps private server builds, spell_book.is_spell_learned is known
     -- to return false for every id. Set the broken-API flag so spec-level guards
@@ -1908,8 +1870,6 @@ function NS.spell_id_is_known(spell_id)
 
 end
 
-
-
 function NS.get_spell_id(spell)
 
     local ids = collect_ids(spell, {})
@@ -1972,15 +1932,11 @@ function NS.get_spell_id(spell)
 
 end
 
-
-
 function NS.refresh_spell_cache()
 
     for k in pairs(_spell_id_cache) do _spell_id_cache[k] = nil end
 
 end
-
-
 
 -- Batch resolve multiple spell rank arrays at once.
 
@@ -2020,8 +1976,6 @@ function NS._resolve_spell_batch(specs, out)
 
 end
 
-
-
 -- Batch load a class spell table from a spells.lua module.
 
 -- `class_spells` is the spells table (e.g. `require("libraries/spells")`).
@@ -2050,8 +2004,6 @@ function NS._load_class_spells_batch(class_spells, runtime, keys)
 
 end
 
-
-
 -- Invalidate spell cache on any spell cast (new spells may have been learned)
 
 if core.register_on_spell_cast_callback then
@@ -2064,8 +2016,6 @@ if core.register_on_spell_cast_callback then
 
 end
 
-
-
 function NS.is_spell_learned(spell)
 
     local id = NS.get_spell_id(spell)
@@ -2075,8 +2025,6 @@ function NS.is_spell_learned(spell)
     return NS.spell_id_is_known(id)
 
 end
-
-
 
 function NS.spell_exists(spell)
 
@@ -2088,8 +2036,6 @@ end
 
 function NS.CreateSpell(id, opts) return NS.spell_action(id, opts and (opts.label or opts.Desc) or tostring(id)) end
 
-
-
 function NS.get_global_cooldown()
 
     local fn = core.spell_book and core.spell_book.get_global_cooldown
@@ -2099,8 +2045,6 @@ function NS.get_global_cooldown()
     return type(v) == "number" and v or 0
 
 end
-
-
 
 function NS.gcd_remains()
 
@@ -2114,8 +2058,6 @@ function NS.gcd_remains()
 
 end
 
-
-
 function NS.get_spell_cooldown(spell)
 
     local id = NS.get_spell_id(spell)
@@ -2127,8 +2069,6 @@ function NS.get_spell_cooldown(spell)
     return type(v) == "number" and v or 0
 
 end
-
-
 
 function NS.cooldown_remains(spell, expected_cooldown)
 
@@ -2194,8 +2134,6 @@ function NS.cooldown_remains(spell, expected_cooldown)
 
     end
 
-
-
     -- Sylvanas docs describe duration as seconds, while examples use game
 
     -- time in milliseconds. Support both shapes without permanently blocking
@@ -2233,8 +2171,6 @@ function NS.cooldown_remains(spell, expected_cooldown)
     return _last_cast_time_cooldown(id, expected_cooldown) or 0
 
 end
-
-
 
 -- Manual cast-history cooldown throttle.
 
@@ -2284,11 +2220,7 @@ _last_cast_time_cooldown = function(id, expected_cooldown)
 
 end
 
-
-
 NS.get_spell_cooldown_remaining = NS.cooldown_remains
-
-
 
 local function power(unit, power_type)
 
@@ -2306,11 +2238,7 @@ local function power(unit, power_type)
 
 end
 
-
-
 function NS.power_current(power_type) return power(NS.GetPlayer(), power_type) end
-
-
 
 local function has_resource(spell)
 
@@ -2392,8 +2320,6 @@ local function has_resource(spell)
 
 end
 
-
-
 function NS.is_spell_in_range(spell, target)
 
     if not target then return true end
@@ -2466,11 +2392,7 @@ function NS.is_spell_in_range(spell, target)
 
 end
 
-
-
 NS.spell_in_range = NS.is_spell_in_range
-
-
 
 function NS.spell_ready(spell, target, opts)
 
@@ -2559,13 +2481,9 @@ function NS.spell_ready(spell, target, opts)
 
     core_trace("ready:" .. label .. ":ok", label .. " ready=true target=" .. tostring(target ~= nil) .. " skip_range=" .. tostring(opts.skip_range == true), 700)
 
-
-
     return true
 
 end
-
-
 
 local function mark_spell_cast(id)
     _last_spell_cast[id] = NS.time_now()
@@ -2591,8 +2509,6 @@ local function izi_spell_for(id)
     return nil
 
 end
-
-
 
 local function cast_unit_spell(id, target, label, reason)
 
@@ -2671,8 +2587,6 @@ local function cast_unit_spell(id, target, label, reason)
     return true
 
 end
-
-
 
 local function cast_position_spell(id, position, label, reason)
 
@@ -2808,11 +2722,26 @@ function NS.evaluate_cast(spell, unit, reason, opts)
         end
     end
 
+    -- 5. Target immunity gating (Divine Shield, Ice Block, Blessing of Protection)
+    if not opts.skip_immunity_check and target and NS.not_same_unit(target, NS.GetPlayer()) then
+        local has_divine_shield = NS.buff_up(target, {642, 1020})
+        local has_ice_block = NS.buff_up(target, {27619, 45438})
+        local has_bop = NS.buff_up(target, {1022, 5599, 10278})
+        if has_divine_shield or has_ice_block then
+            core_trace("eval:" .. tostring(id) .. ":immune", "evaluate_cast " .. label .. " blocked: target has Divine Shield or Ice Block", 500)
+            return false
+        end
+        if has_bop then
+            local spell_school = type(spell) == "table" and spell._meta and spell._meta.school or nil
+            if spell_school == "physical" then
+                core_trace("eval:" .. tostring(id) .. ":bop", "evaluate_cast " .. label .. " blocked: target has Blessing of Protection (physical spell)", 500)
+                return false
+            end
+        end
+    end
+
     return true
 end
-
-
-
 
 function NS.try_cast(spell, unit, reason, opts)
 
@@ -2960,8 +2889,6 @@ function NS.try_cast(spell, unit, reason, opts)
 
 end
 
-
-
 function NS.try_cast_position(spell, position, range_target, reason, opts)
 
     opts = opts or EMPTY
@@ -3000,11 +2927,7 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
 
 end
 
-
-
 NS.cast_position = NS.try_cast_position
-
-
 
 function NS.cancel_spells()
 
@@ -3016,8 +2939,6 @@ function NS.cancel_spells()
 
 end
 
-
-
 function NS.cancel_buff(buff_otr)
 
     local fn = core.input and core.input.cancel_buff
@@ -3027,8 +2948,6 @@ function NS.cancel_buff(buff_otr)
     return safe(fn, buff_otr) ~= false
 
 end
-
-
 
 function NS.get_totem_info(slot)
 
@@ -3064,8 +2983,6 @@ function NS.get_totem_info(slot)
 
     end
 
-
-
     local fn = core.spell_book and core.spell_book.get_totem_info
 
     if type(fn) ~= "function" then return nil end
@@ -3077,8 +2994,6 @@ function NS.get_totem_info(slot)
     return nil
 
 end
-
-
 
 local function unit_alive_inner(unit)
 
@@ -3104,8 +3019,6 @@ local function unit_alive_inner(unit)
 
 end
 
-
-
 function NS.unit_alive(unit)
 
     local ok, alive = pcall(unit_alive_inner, unit)
@@ -3113,8 +3026,6 @@ function NS.unit_alive(unit)
     return ok and alive == true or false
 
 end
-
-
 
 function NS.unit_health_pct(unit)
 
@@ -3144,8 +3055,6 @@ function NS.unit_health_pct(unit)
 
 end
 
-
-
 function NS.mana_pct(unit)
 
     unit = unit or NS.GetPlayer()
@@ -3172,505 +3081,171 @@ end
 
 
 
-local function aura_data(unit, ids, kind)
-
-    if not unit then return nil end
-
-    local list = collect_ids(ids, {})
-
-    for i = 1, #list do
-
-        local id = list[i]
-
-        local data = kind == "buff"
-
-            and safe(safe_field(unit, "get_buff_data"), unit, id)
-
-            or safe(safe_field(unit, "get_debuff_data"), unit, id)
-
-        -- Project Sylvanas buff_manager returns a table even for missed
-
-        -- lookups on some builds. The documented `is_active` field is the
-
-        -- source of truth when present; nil means an IZI object-extension
-
-        -- lookup returned only active aura data.
-
-        if data and data.is_active ~= false then return data end
-
-    end
-
-    return nil
-
-end
-
-
-
-local function aura_remaining_seconds(data)
-
-    if not data then return 0 end
-
-
-
-    -- The local .api and buffs.md document buff_manager.remaining and
-
-    -- expire_time in milliseconds. Convert that fallback to the seconds
-
-    -- contract used by IZI `buff_remains`/`debuff_remains` and rotations.
-
-    local expire_time = tonumber(data.expire_time)
-
-    if expire_time and expire_time > 0 then
-
-        return math.max(0, (expire_time - NS.game_time_ms()) / 1000)
-
-    end
-
-
-
-    local remaining = tonumber(data.remaining or data.remains or 0) or 0
-
-    return remaining > 0 and (remaining / 1000) or 0
-
-end
-
 
 
 function NS.buff_up(unit, ids)
-
     if not unit then return false end
-
     local list = collect_ids(ids, {})
+    if #list == 0 then return false end
 
-    for i = 1, #list do
-
-        local id = list[i]
-
-        if safe(safe_field(unit, "has_buff"), unit, id) or safe(safe_field(unit, "buff_up"), unit, id) then return true end
-
+    -- Primary path: buff_manager with 50ms cache
+    if _buff_manager then
+        local data = _buff_manager:get_buff_data(unit, list, 50)
+        if data and data.is_active ~= false then return true end
     end
 
-    local aura = aura_data(unit, ids, "buff")
-
-    if aura ~= nil then return true end
-
-    -- PS build fallback: unit aura APIs are broken but buff_manager works
-    if _api_health_broken and _buff_manager then
-        -- get_aura_data/get_buff_data (per-ID) work on PS; get_aura_cache returns garbage
-        for i = 1, #list do
-            local id = list[i]
-            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                return true
-            end
-            ok, ad = pcall(_buff_manager.get_buff_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                return true
-            end
-        end
+    -- Fallback: direct unit API
+    for i = 1, #list do
+        local id = list[i]
+        if safe(safe_field(unit, "has_buff"), unit, id) or safe(safe_field(unit, "buff_up"), unit, id) then return true end
+        local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+        if fd and fd.is_active ~= false then return true end
     end
 
     return false
-
-end
-
-
-
-local _izi_dirty_buffs = {}
-
-local _izi_dirty_debuffs = {}
-
-local _izi_buff_events_registered = false
-
-
-
-local function aura_event_unit_id(a, b, c)
-
-    if type(a) == "table" and (a.spell_id or a.buff_id or a.id or a.unit or a.target) then
-
-        return a.unit or a.target or a.caster, a.spell_id or a.buff_id or a.debuff_id or a.id
-
-    end
-
-    if type(b) == "number" then return a, b end
-
-    if type(c) == "number" then return b or a, c end
-
-    return a, nil
-
-end
-
-
-
-local function mark_dirty_aura(store, active, a, b, c)
-
-    local unit, id = aura_event_unit_id(a, b, c)
-
-    if not unit or type(id) ~= "number" then return end
-
-    local key = tostring(unit)
-
-    local unit_store = store[key]
-
-    if not unit_store then
-
-        unit_store = {}
-
-        store[key] = unit_store
-
-    end
-
-    unit_store[id] = active == true
-
-end
-
-
-
-local function dirty_aura_state(store, unit, ids)
-
-    if not unit then return nil end
-
-    local unit_store = store[tostring(unit)]
-
-    if not unit_store then return nil end
-
-    local list = collect_ids(ids, {})
-
-    for i = 1, #list do
-
-        local state = unit_store[list[i]]
-
-        if state ~= nil then return state end
-
-    end
-
-    return nil
-
-end
-
-
-
-function NS.init_izi_buff_events()
-
-    if _izi_buff_events_registered then return true end
-
-    local izi = NS.izi
-
-    if not izi then
-
-        local ok, module = pcall(require, "common/izi_sdk")
-
-        if ok then izi = module end
-
-    end
-
-    if type(izi) ~= "table" then return false end
-
-    local ok = true
-
-    if type(izi.on_buff_gain) == "function" then
-
-        ok = pcall(izi.on_buff_gain, function(a, b, c) mark_dirty_aura(_izi_dirty_buffs, true, a, b, c) end) and ok
-
-    end
-
-    if type(izi.on_buff_lose) == "function" then
-
-        ok = pcall(izi.on_buff_lose, function(a, b, c) mark_dirty_aura(_izi_dirty_buffs, false, a, b, c) end) and ok
-
-    end
-
-    if type(izi.on_debuff_gain) == "function" then
-
-        ok = pcall(izi.on_debuff_gain, function(a, b, c) mark_dirty_aura(_izi_dirty_debuffs, true, a, b, c) end) and ok
-
-    end
-
-    if type(izi.on_debuff_lose) == "function" then
-
-        ok = pcall(izi.on_debuff_lose, function(a, b, c) mark_dirty_aura(_izi_dirty_debuffs, false, a, b, c) end) and ok
-
-    end
-
-    _izi_buff_events_registered = ok
-
-    return ok
-
-end
-
-
-
-function NS.buff_up_fast(unit, ids)
-
-    local state = dirty_aura_state(_izi_dirty_buffs, unit, ids)
-
-    if state ~= nil then return state == true end
-
-    return NS.buff_up(unit, ids)
-
-end
-
-
-
-function NS.debuff_up_fast(unit, ids)
-
-    local state = dirty_aura_state(_izi_dirty_debuffs, unit, ids)
-
-    if state ~= nil then return state == true end
-
-    return NS.debuff_up(unit, ids)
-
-end
-
-
-
-function NS.buff_remains_fast(unit, ids)
-
-    local state = dirty_aura_state(_izi_dirty_buffs, unit, ids)
-
-    if state == false then return 0 end
-
-    return NS.buff_remains(unit, ids)
-
 end
 
 
 
 function NS.debuff_up(unit, ids)
     if not unit then return false end
-
     local list = collect_ids(ids, {})
+    if #list == 0 then return false end
 
-    for i = 1, #list do
-
-        local id = list[i]
-
-        if safe(safe_field(unit, "has_debuff"), unit, id) or safe(safe_field(unit, "debuff_up"), unit, id) then return true end
-
+    -- Primary path: buff_manager with 50ms cache
+    if _buff_manager then
+        local data = _buff_manager:get_debuff_data(unit, list, 50)
+        if data and data.is_active ~= false then return true end
     end
 
-    if aura_data(unit, ids, "debuff") ~= nil then return true end
-
-    -- PS build fallback: direct unit APIs return false, use buff_manager per-ID lookup
-    if _api_health_broken and _buff_manager then
-        for i = 1, #list do
-            local id = list[i]
-            local ok, dd = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
-            if ok and dd and dd.is_active ~= false then
-                return true
-            end
-            ok, dd = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, {id}, 50)
-            if ok and dd and dd.is_active ~= false then
-                return true
-            end
-        end
+    -- Fallback: direct unit API
+    for i = 1, #list do
+        local id = list[i]
+        if safe(safe_field(unit, "has_debuff"), unit, id) or safe(safe_field(unit, "debuff_up"), unit, id) then return true end
+        local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+        if fd and fd.is_active ~= false then return true end
     end
 
     return false
 end
 
-
-
 function NS.buff_remains(unit, ids)
-
     if not unit then return 0 end
-
     local list = collect_ids(ids, {})
+    if #list == 0 then return 0 end
 
-    for i = 1, #list do
-
-        local v = safe(safe_field(unit, "buff_remains"), unit, list[i])
-
-        if type(v) == "number" and v > 0 then return v end
-
-    end
-
-    local data = aura_data(unit, ids, "buff")
-
-    if not data and _api_health_broken and _buff_manager then
-        for i = 1, #list do
-            local id = list[i]
-            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
-            ok, ad = pcall(_buff_manager.get_buff_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
+    -- Primary path: buff_manager with 50ms cache
+    if _buff_manager then
+        local data = _buff_manager:get_buff_data(unit, list, 50)
+        if data and data.is_active ~= false then
+            return data.remaining > 0 and (data.remaining / 1000) or 0
         end
     end
 
-    return aura_remaining_seconds(data)
+    -- Fallback: direct unit API
+    for i = 1, #list do
+        local id = list[i]
+        local v = safe(safe_field(unit, "buff_remains"), unit, id)
+        if type(v) == "number" and v > 0 then return v end
+        local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+        if fd and fd.is_active ~= false then
+            return fd.remaining > 0 and (fd.remaining / 1000) or 0
+        end
+    end
 
+    return 0
 end
-
-
 
 --- Returns the points array from buff aura data for variable-value tracking.
 --- `buff.points` contains variable values from aura data (e.g. absorb remaining
 --- for Power Word: Shield, remaining charges for Holy Shield).
 --- Returns the array on success, nil if buff not found.
----
---- Usage:
----   local points = NS.buff_points(unit, POWER_WORD_SHIELD_BUFF_IDS)
----   local absorb_remaining = points and points[1] or 0
 ---@param unit game_object The unit to check.
 ---@param ids table Array of spell IDs (highest rank first).
 ---@return number[]|nil points The points array from active buff data, or nil.
 function NS.buff_points(unit, ids)
-
     if not unit then return nil end
-
-    local data = aura_data(unit, ids, "buff")
-    if not data and _api_health_broken and _buff_manager then
-        local list = collect_ids(ids, {})
-        for i = 1, #list do
-            local id = list[i]
-            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
-            ok, ad = pcall(_buff_manager.get_buff_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
+    if _buff_manager then
+        local data = _buff_manager:get_buff_data(unit, collect_ids(ids, {}), 50)
+        if data and data.is_active ~= false and type(data.points) == "table" then
+            return data.points
         end
     end
-
-    if not data then return nil end
-
-    local points = data.points
-
-    if type(points) == "table" then return points end
-
     return nil
-
 end
-
-
 
 --- Returns the points array from debuff aura data.
 ---@param unit game_object The unit to check.
 ---@param ids table Array of spell IDs.
 ---@return number[]|nil points The points array from active debuff data, or nil.
 function NS.debuff_points(unit, ids)
-
     if not unit then return nil end
-
-    local data = aura_data(unit, ids, "debuff")
-    if not data and _api_health_broken and _buff_manager then
-        local list = collect_ids(ids, {})
-        for i = 1, #list do
-            local id = list[i]
-            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
-            ok, ad = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
+    if _buff_manager then
+        local data = _buff_manager:get_debuff_data(unit, collect_ids(ids, {}), 50)
+        if data and data.is_active ~= false and type(data.points) == "table" then
+            return data.points
         end
     end
-
-    if not data then return nil end
-
-    local points = data.points
-
-    if type(points) == "table" then return points end
-
     return nil
-
 end
-
-
 
 function NS.debuff_remains(unit, ids)
-
     if not unit then return 0 end
-
     local list = collect_ids(ids, {})
+    if #list == 0 then return 0 end
 
-    for i = 1, #list do
-
-        local v = safe(safe_field(unit, "debuff_remains"), unit, list[i])
-
-        if type(v) == "number" and v > 0 then return v end
-
-    end
-
-    local data = aura_data(unit, ids, "debuff")
-    if not data and _api_health_broken and _buff_manager then
-        for i = 1, #list do
-            local id = list[i]
-            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
-            ok, ad = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
+    -- Primary path: buff_manager with 50ms cache
+    if _buff_manager then
+        local data = _buff_manager:get_debuff_data(unit, list, 50)
+        if data and data.is_active ~= false then
+            return data.remaining > 0 and (data.remaining / 1000) or 0
         end
     end
 
-    return aura_remaining_seconds(data)
+    -- Fallback: direct unit API
+    for i = 1, #list do
+        local id = list[i]
+        local v = safe(safe_field(unit, "debuff_remains"), unit, id)
+        if type(v) == "number" and v > 0 then return v end
+        local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+        if fd and fd.is_active ~= false then
+            return fd.remaining > 0 and (fd.remaining / 1000) or 0
+        end
+    end
 
+    return 0
 end
-
-
 
 function NS.debuff_stacks(unit, ids)
-
     if not unit then return 0 end
-
     local list = collect_ids(ids, {})
+    if #list == 0 then return 0 end
 
-    for i = 1, #list do
-
-        local v = safe(safe_field(unit, "get_debuff_stacks"), unit, list[i])
-
-        if type(v) == "number" and v > 0 then return v end
-
-    end
-
-    local data = aura_data(unit, ids, "debuff")
-    if not data and _api_health_broken and _buff_manager then
-        for i = 1, #list do
-            local id = list[i]
-            local ok, ad = pcall(_buff_manager.get_aura_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
-            ok, ad = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, {id}, 50)
-            if ok and ad and ad.is_active ~= false then
-                data = ad
-                break
-            end
+    -- Primary path: buff_manager with 50ms cache
+    if _buff_manager then
+        local data = _buff_manager:get_debuff_data(unit, list, 50)
+        if data and data.is_active ~= false then
+            return data.count or data.stacks or 0
         end
     end
 
-    return data and (data.count or data.stacks or 0) or 0
+    -- Fallback: direct unit API
+    for i = 1, #list do
+        local id = list[i]
+        local v = safe(safe_field(unit, "get_debuff_stacks"), unit, id)
+        if type(v) == "number" and v > 0 then return v end
+        local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+        if fd and fd.is_active ~= false then
+            return fd.count or fd.stacks or 0
+        end
+    end
 
+    return 0
 end
-
-
 
 function NS.get_debuff_stacks(unit, ids)
     return NS.debuff_stacks(unit, ids)
 end
-
-
 
 function NS.has_player_buff(ids) return NS.buff_up(NS.GetPlayer(), ids) end
 
@@ -3682,8 +3257,6 @@ function NS.has_target_debuff(target, ids) return NS.debuff_up(target, ids) end
 
 -- Alias: NS.has_buff is used by middleware and shared helpers but was never defined
 NS.has_buff = NS.buff_up
-
-
 
 local function aura_field(aura, ...)
 
@@ -3703,23 +3276,17 @@ local function aura_field(aura, ...)
 
 end
 
-
-
 local function aura_id(aura)
 
     return tonumber(aura_field(aura, "buff_id", "spell_id", "aura_id", "id", "spellId", "spellID"))
 
 end
 
-
-
 local function aura_name(aura)
 
     return aura_field(aura, "buff_name", "name", "spell_name", "aura_name") or "?"
 
 end
-
-
 
 local function aura_remaining(aura)
 
@@ -3735,15 +3302,11 @@ local function aura_remaining(aura)
 
 end
 
-
-
 local function aura_stacks(aura)
 
     return tonumber(aura_field(aura, "stacks", "count", "applications")) or 0
 
 end
-
-
 
 local function dump_aura_table(label, auras, watch_ids)
 
@@ -3754,8 +3317,6 @@ local function dump_aura_table(label, auras, watch_ids)
         return false
 
     end
-
-
 
     local count = auras.n or #auras
 
@@ -3803,8 +3364,6 @@ local function dump_aura_table(label, auras, watch_ids)
 
 end
 
-
-
 --- Dumps local-player aura data and direct buff checks for debugging ID/API mismatches.
 
 -- Call from the Diagnostics menu or from code: NS.dump_player_auras({324, 325})
@@ -3815,23 +3374,17 @@ function NS.dump_player_auras(watch_ids)
 
     if not me then NS.log("[AURA] No local player found"); return false end
 
-
-
     local ids = collect_ids(watch_ids or { 25472, 25469, 10432, 10431, 10430, 8134, 8133, 8132, 945, 905, 325, 324 }, {})
 
     local watch = {}
 
     for i = 1, #ids do watch[ids[i]] = true end
 
-
-
     NS.log("=== PLAYER AURA DUMP ===")
 
     NS.log("[AURA] watch_ids=" .. table.concat(ids, ","))
 
     NS.log("[AURA] NS.buff_up(watch_ids)=" .. tostring(NS.buff_up(me, ids)))
-
-
 
     for i = 1, #ids do
 
@@ -3863,8 +3416,6 @@ function NS.dump_player_auras(watch_ids)
 
     end
 
-
-
     local buffs = safe(safe_field(me, "get_buffs"), me)
 
     local auras = safe(safe_field(me, "get_auras"), me)
@@ -3873,8 +3424,6 @@ function NS.dump_player_auras(watch_ids)
 
     local aura_match = dump_aura_table("get_auras", auras, watch)
 
-
-
     NS.log("[AURA] get_buffs_match=" .. tostring(buff_match) .. " get_auras_match=" .. tostring(aura_match))
 
     NS.log("=== END PLAYER AURA DUMP ===")
@@ -3882,8 +3431,6 @@ function NS.dump_player_auras(watch_ids)
     return true
 
 end
-
-
 
 local function unit_distance(a, b)
 
@@ -3911,15 +3458,11 @@ local function unit_distance(a, b)
 
 end
 
-
-
 function NS.unit_distance(unit, other)
 
     return unit_distance(unit, other)
 
 end
-
-
 
 local function unit_class_id(unit)
 
@@ -3930,8 +3473,6 @@ local function unit_class_id(unit)
     return type(class_id) == "number" and class_id or nil
 
 end
-
-
 
 local function is_melee_target(target, me)
 
@@ -3951,15 +3492,11 @@ local function is_melee_target(target, me)
 
 end
 
-
-
 function NS.is_melee_target(target, me)
 
     return is_melee_target(target, me)
 
 end
-
-
 
 function NS.is_target_bursting(target)
 
@@ -3974,8 +3511,6 @@ function NS.is_target_bursting(target)
     return false
 
 end
-
-
 
 function NS.should_kite(context)
 
@@ -3994,8 +3529,6 @@ function NS.should_kite(context)
     return is_melee_target(context.target, context.me or NS.GetPlayer())
 
 end
-
-
 
 -- PvP zone detection using map IDs (TBC battlegrounds + arenas).
 
@@ -4031,8 +3564,6 @@ local _last_pvp_zone_check = 0
 
 local _cached_pvp_zone_result = false
 
-
-
 function NS.is_pvp_zone()
 
     local now = NS.time_now()
@@ -4040,8 +3571,6 @@ function NS.is_pvp_zone()
     if now - _last_pvp_zone_check < 5 then return _cached_pvp_zone_result end
 
     _last_pvp_zone_check = now
-
-
 
     -- Primary: map ID
 
@@ -4097,8 +3626,6 @@ function NS.is_pvp_zone()
 
 end
 
-
-
 -- Filter an enemy list to player targets only.
 
 -- `enemies` is a table (array or {n=count}); `out` is optional reusable buffer.
@@ -4142,8 +3669,6 @@ function NS.filter_pvp_targets(enemies, out)
     return out, n
 
 end
-
-
 
 function NS.is_safe_to_cast(context, cast_time)
 
@@ -4207,8 +3732,6 @@ end
 
 function NS.match_fail() return false end
 
-
-
 function NS.is_current_spell(spell_id)
 
     local fn = core.spell_book and core.spell_book.is_current_spell
@@ -4216,8 +3739,6 @@ function NS.is_current_spell(spell_id)
     return type(spell_id) == "number" and safe(fn, spell_id) == true
 
 end
-
-
 
 local auto_attack_helper = false
 
@@ -4232,8 +3753,6 @@ local function get_auto_attack_helper()
     return auto_attack_helper
 
 end
-
-
 
 function NS.get_time_until_swing()
 
@@ -4265,8 +3784,6 @@ function NS.get_time_until_swing()
 
 end
 
-
-
 function NS.get_time_until_oh_swing()
 
     local player = NS.GetPlayer()
@@ -4297,8 +3814,6 @@ function NS.get_time_until_oh_swing()
 
 end
 
-
-
 local FORMS = {
 
     bear = { 5487, 9634 }, cat = { 768 }, moonkin = { 24858 }, tree = { 33891 },
@@ -4309,8 +3824,6 @@ local FORMS = {
 
 }
 
-
-
 function NS.has_form(name)
 
     if type(name) == "number" then return NS.has_player_buff(name) end
@@ -4318,8 +3831,6 @@ function NS.has_form(name)
     return NS.has_player_buff(FORMS[name] or EMPTY)
 
 end
-
-
 
 function NS.is_behind_target(target)
 
@@ -4343,8 +3854,6 @@ function NS.is_behind_target(target)
 
 end
 
-
-
 function NS.get_player_stance()
 
     if NS.has_form("battle") then return 1 end
@@ -4357,11 +3866,7 @@ function NS.get_player_stance()
 
 end
 
-
-
 local distance
-
-
 
 function NS.is_hostile_unit(me, target)
 
@@ -4423,8 +3928,6 @@ function NS.is_hostile_unit(me, target)
 
 end
 
-
-
 local function pick_enemy_from_list(me, list, limit, best, best_distance)
 
     if type(list) ~= "table" then return best, best_distance end
@@ -4451,8 +3954,6 @@ local function pick_enemy_from_list(me, list, limit, best, best_distance)
 
 end
 
-
-
 function NS.GetBestEnemyTarget(range)
 
     local me = NS.GetPlayer()
@@ -4461,8 +3962,6 @@ function NS.GetBestEnemyTarget(range)
 
     local limit = type(range) == "number" and range or 40
 
-
-
     local target = NS.GetTarget()
 
     if NS.is_hostile_unit(me, target) and distance(target, me) <= limit then
@@ -4470,8 +3969,6 @@ function NS.GetBestEnemyTarget(range)
         return target
 
     end
-
-
 
     local best, best_distance = nil, nil
 
@@ -4485,8 +3982,6 @@ function NS.GetBestEnemyTarget(range)
 
     end
 
-
-
     local izi = NS.izi
 
     if izi and type(izi.enemies) == "function" then
@@ -4496,8 +3991,6 @@ function NS.GetBestEnemyTarget(range)
         if best then return best end
 
     end
-
-
 
     local get_position = safe_field(me, "get_position")
 
@@ -4514,8 +4007,6 @@ function NS.GetBestEnemyTarget(range)
         if best then return best end
 
     end
-
-
 
     local units, count = NS.get_visible_units()
 
@@ -4541,15 +4032,11 @@ function NS.GetBestEnemyTarget(range)
 
 end
 
-
-
 function NS.can_attack_target(context)
 
     return NS.is_hostile_unit(NS.GetPlayer(), context and context.target)
 
 end
-
-
 
 local visible, visible_last_ms = {}, -1000
 
@@ -4575,8 +4062,6 @@ local function visible_unit_ok(obj)
 
 end
 
-
-
 local function visible_has_unit(list, count, unit)
 
     for i = 1, count do
@@ -4588,8 +4073,6 @@ local function visible_has_unit(list, count, unit)
     return false
 
 end
-
-
 
 function NS.get_visible_units(force, max_scan)
 
@@ -4627,8 +4110,6 @@ function NS.get_visible_units(force, max_scan)
 
 end
 
-
-
 distance = function(a, b)
 
     if not a then return 999 end
@@ -4659,8 +4140,6 @@ distance = function(a, b)
 
 end
 
-
-
 local function append_enemy_unique(out, me, unit, limit)
 
     if not (NS.not_same_unit(unit, me) and NS.is_hostile_unit(me, unit) and distance(unit, me) <= limit) then return end
@@ -4675,8 +4154,6 @@ local function append_enemy_unique(out, me, unit, limit)
 
 end
 
-
-
 local function append_enemies_from_list(out, me, list, limit)
 
     if type(list) ~= "table" then return end
@@ -4684,8 +4161,6 @@ local function append_enemies_from_list(out, me, list, limit)
     for i = 1, #list do append_enemy_unique(out, me, list[i], limit) end
 
 end
-
-
 
 function NS.GetEnemiesInRange(range)
 
@@ -4701,8 +4176,6 @@ function NS.GetEnemiesInRange(range)
 
     local limit = type(range) == "number" and range or 40
 
-
-
     local get_enemies_in_range = safe_field(me, "get_enemies_in_range")
 
     if get_enemies_in_range then
@@ -4711,8 +4184,6 @@ function NS.GetEnemiesInRange(range)
 
     end
 
-
-
     local izi = NS.izi
 
     if izi and type(izi.enemies) == "function" then
@@ -4720,8 +4191,6 @@ function NS.GetEnemiesInRange(range)
         append_enemies_from_list(out, me, safe(izi.enemies, limit, false), limit)
 
     end
-
-
 
     local get_position = safe_field(me, "get_position")
 
@@ -4737,8 +4206,6 @@ function NS.GetEnemiesInRange(range)
 
     end
 
-
-
     local units, count = NS.get_visible_units()
 
     for i = 1, count do
@@ -4751,8 +4218,6 @@ function NS.GetEnemiesInRange(range)
 
 end
 
-
-
 function NS.GetEnemiesCount(range)
 
     local enemies = NS.GetEnemiesInRange(range)
@@ -4760,8 +4225,6 @@ function NS.GetEnemiesCount(range)
     return type(enemies) == "table" and #enemies or 0
 
 end
-
-
 
 function NS.GetFriendsInRange(range)
 
@@ -4803,8 +4266,6 @@ function NS.GetFriendsInRange(range)
 
 end
 
-
-
 local party_ally_last_ms, party_ally_cached = -1000, false
 
 local function party_ally_is_valid(unit, me)
@@ -4817,8 +4278,6 @@ local function party_ally_is_valid(unit, me)
 
 end
 
-
-
 function NS.has_group_combat_ally_40(force)
 
     local now = NS.game_time_ms()
@@ -4829,13 +4288,9 @@ function NS.has_group_combat_ally_40(force)
 
     party_ally_cached = false
 
-
-
     local me = NS.GetPlayer()
 
     if not me then return false end
-
-
 
     local get_party_members_in_range = safe_field(me, "get_party_members_in_range")
 
@@ -4857,8 +4312,6 @@ function NS.has_group_combat_ally_40(force)
 
     end
 
-
-
     local units, count = NS.get_visible_units()
 
     for i = 1, count do
@@ -4872,8 +4325,6 @@ function NS.has_group_combat_ally_40(force)
     return false
 
 end
-
-
 
 function NS.is_in_party()
 
@@ -4905,8 +4356,6 @@ function NS.is_in_party()
 
 end
 
-
-
 function NS.is_in_raid()
 
     -- The public object API exposes party membership, not a separate raid
@@ -4917,8 +4366,6 @@ function NS.is_in_raid()
 
 end
 
-
-
 local API_MODULES = {
 
     spell_helper = "common/utility/spell_helper",
@@ -4928,8 +4375,6 @@ local API_MODULES = {
     cooldown_tracker = "common/utility/cooldown_tracker",
 
 }
-
-
 
 function NS.GetAPIModule(name)
 
@@ -4943,8 +4388,6 @@ function NS.GetAPIModule(name)
 
 end
 
-
-
 function NS.threat_status(unit, target)
 
     local value = unit and safe(safe_field(unit, "get_threat_situation"), unit, target)
@@ -4957,8 +4400,6 @@ function NS.threat_status(unit, target)
 
 end
 
-
-
 function NS.should_drop_threat(context)
 
     if not context or not context.in_combat then return false end
@@ -4968,8 +4409,6 @@ function NS.should_drop_threat(context)
     return NS.threat_status(NS.GetPlayer(), context.target) >= 2
 
 end
-
-
 
 function NS.predict_effective_deficit(unit)
 
@@ -4986,8 +4425,6 @@ function NS.predict_effective_deficit(unit)
     return math.max(0, max_hp - hp - incoming - absorbs)
 
 end
-
-
 
 local DISPEL_TYPE_ID = { Magic = 1, Curse = 2, Disease = 3, Poison = 4, Enrage = 9 }
 
@@ -5015,8 +4452,6 @@ function NS.has_dispel_type_debuff(unit, dispel_type)
 
 end
 
-
-
 local HEALING_REDUCTION_DEBUFFS = {
 
     12294, 21551, 21552, 21553, 25248, 30330, -- Mortal Strike ranks
@@ -5033,8 +4468,6 @@ function NS.has_healing_reduction_debuff(unit)
 
 end
 
-
-
 local function is_tank_unit(unit)
 
     if not unit then return false end
@@ -5046,8 +4479,6 @@ local function is_tank_unit(unit)
     return safe(safe_field(unit, "get_group_role"), unit) == 0
 
 end
-
-
 
 local healing_source_units = { n = 0 }
 
@@ -5069,8 +4500,6 @@ local function append_healing_source_unit(out, unit)
 
 end
 
-
-
 local function append_healing_source_list(out, list)
 
     if type(list) ~= "table" then return 0 end
@@ -5087,15 +4516,11 @@ local function append_healing_source_list(out, list)
 
 end
 
-
-
 local function get_party_ally_list(me)
 
     for k in pairs(healing_source_units) do healing_source_units[k] = nil end
 
     healing_source_units.n = 0
-
-
 
     local added = 0
 
@@ -5109,8 +4534,6 @@ local function get_party_ally_list(me)
 
     end
 
-
-
     local get_party_members = object_manager and object_manager.get_party_members
 
     if type(get_party_members) == "function" then
@@ -5118,8 +4541,6 @@ local function get_party_ally_list(me)
         added = added + append_healing_source_list(healing_source_units, safe(get_party_members))
 
     end
-
-
 
     local get_party_members_in_range = safe_field(me, "get_party_members_in_range")
 
@@ -5129,8 +4550,6 @@ local function get_party_ally_list(me)
 
     end
 
-
-
     append_healing_source_unit(healing_source_units, me)
 
     if healing_source_units.n <= 0 then return nil, 0 end
@@ -5138,8 +4557,6 @@ local function get_party_ally_list(me)
     return healing_source_units, healing_source_units.n
 
 end
-
-
 
 function NS.build_healing_entries(out, decorate)
 
@@ -5192,6 +4609,10 @@ function NS.build_healing_entries(out, decorate)
         local is_friend_with = safe_field(u, "is_friend_with")
 
         if NS.unit_alive(u) and (NS.same_unit(u, me) or safe(is_friend_with, u, me)) and distance(u, me) <= 40 then
+            -- Feed HP sample into predictive tracker every tick
+            if NS.HealerDeficit and type(NS.HealerDeficit.update) == 'function' then
+                NS.HealerDeficit.update(u, NS.time_now(), NS.settings)
+            end
 
             local hp = safe(safe_field(u, "get_health"), u) or 0
 
@@ -5199,9 +4620,25 @@ function NS.build_healing_entries(out, decorate)
 
             n = n + 1
 
-            local effective_deficit = NS.predict_effective_deficit(u)
+            local effective_deficit
+            if predict_enabled and NS.HealerDeficit and type(NS.HealerDeficit.predicted_deficit) == 'function' then
+                effective_deficit = NS.HealerDeficit.predicted_deficit(u, 2, NS.settings)
+            else
+                effective_deficit = NS.predict_effective_deficit(u)
+            end
 
             local effective_hp = max_hp > 0 and ((max_hp - effective_deficit) / max_hp) * 100 or NS.unit_health_pct(u)
+
+            -- EMA incoming DPS for triage / stop-cast decisions
+            local incoming_dps = 0
+            if NS.TTDEmaTracker and type(NS.TTDEmaTracker.update) == 'function' then
+                local now = NS.time_now and NS.time_now() or 0
+                local ema_result = NS.TTDEmaTracker.update(u, now)
+                if type(ema_result) == 'table' then
+                    incoming_dps = ema_result.incoming_dps or 0
+                end
+            end
+            local time_to_die = incoming_dps > 0 and (effective_hp / 100) * max_hp / incoming_dps or 999
 
             out[n] = {
 
@@ -5210,6 +4647,10 @@ function NS.build_healing_entries(out, decorate)
                 current_hp = hp, max_hp = max_hp, deficit = math.max(0, max_hp - hp),
 
                 effective_deficit = effective_deficit,
+
+                incoming_dps = incoming_dps,
+
+                time_to_die = time_to_die,
 
                 is_player = NS.same_unit(u, me),
 
@@ -5229,8 +4670,6 @@ function NS.build_healing_entries(out, decorate)
 
 end
 
-
-
 local healing_unit_buffer = {}
 
 function NS.collect_healing_units()
@@ -5248,8 +4687,6 @@ function NS.collect_healing_units()
     return units
 
 end
-
-
 
 function NS.find_dead_party_ally()
 
@@ -5271,8 +4708,6 @@ function NS.find_dead_party_ally()
 
 end
 
-
-
 function NS.healing_get_tank(entries, count)
 
     for i = 1, count or 0 do if entries[i] and entries[i].is_tank then return entries[i] end end
@@ -5280,8 +4715,6 @@ function NS.healing_get_tank(entries, count)
     return nil
 
 end
-
-
 
 function NS.healing_get_lowest_hp(entries, count, threshold)
 
@@ -5293,8 +4726,6 @@ function NS.healing_get_lowest_hp(entries, count, threshold)
 
 end
 
-
-
 function NS.healing_all_above_hp(entries, count, threshold)
 
     for i = 1, count or 0 do if entries[i] and (entries[i].effective_hp or 100) < threshold then return false end end
@@ -5303,8 +4734,6 @@ function NS.healing_all_above_hp(entries, count, threshold)
 
 end
 
-
-
 function NS.healing_get_cleanse_target(entries, count)
 
     for i = 1, count or 0 do if entries[i] and entries[i].needs_cleanse then return entries[i] end end
@@ -5312,8 +4741,6 @@ function NS.healing_get_cleanse_target(entries, count)
     return nil
 
 end
-
-
 
 function NS.healing_count_below_hp(entries, count, threshold)
 
@@ -5324,8 +4751,6 @@ function NS.healing_count_below_hp(entries, count, threshold)
     return n
 
 end
-
-
 
 function NS.cast_best_heal_rank(ranks, target, context, label)
 
@@ -5345,13 +4770,9 @@ function NS.cast_best_heal_rank(ranks, target, context, label)
 
 end
 
-
-
 local registry = NS.rotation_registry or { playstyles = {}, options = {}, class_config = nil }
 
 NS.rotation_registry = registry
-
-
 
 function registry:set_class_config(config)
 
@@ -5375,8 +4796,6 @@ function registry:set_class_config(config)
 
 end
 
-
-
 function registry:register(name, strategies, options)
 
     self.playstyles[name] = strategies or EMPTY
@@ -5387,15 +4806,11 @@ function registry:register(name, strategies, options)
 
 end
 
-
-
 function NS.register_class_middleware(class_key, strategies)
 
     NS.class_middleware[class_key] = strategies or EMPTY
 
 end
-
-
 
 -- Unified strategy registry
 
@@ -5404,8 +4819,6 @@ end
 -- Entries are sorted descending by priority so higher numbers run first.
 
 NS.unified_registry = NS.unified_registry or {}
-
-
 
 function NS.register_strategy(entry)
 
@@ -5423,15 +4836,11 @@ function NS.register_strategy(entry)
 
 end
 
-
-
 function NS.clear_strategies()
 
     for i = 1, #NS.unified_registry do NS.unified_registry[i] = nil end
 
 end
-
-
 
 -- Category inference helpers (mirrored from main_sylvanas.lua for standalone use)
 
@@ -5440,8 +4849,6 @@ local HEALING_PLAYSTYLES = {
     holy = true, discipline = true, restoration = true, resto = true,
 
 }
-
-
 
 local HEALING_NAMES = {
 
@@ -5455,8 +4862,6 @@ local HEALING_NAMES = {
 
 }
 
-
-
 local DAMAGE_NAMES = {
 
     "idle", "smite", "shadowwordpain", "holyfire", "mindblast",
@@ -5469,8 +4874,6 @@ local DAMAGE_NAMES = {
 
 }
 
-
-
 local COOLDOWN_NAMES = {
 
     "avengingwrath", "combustion", "icyveins", "arcanepower", "rapidfire",
@@ -5482,8 +4885,6 @@ local COOLDOWN_NAMES = {
     "bladeflurry", "adrenalinerush", "bloodlust", "shamanisticrage",
 
 }
-
-
 
 local UTILITY_NAMES = {
 
@@ -5501,8 +4902,6 @@ local UTILITY_NAMES = {
 
 }
 
-
-
 local DEFENSIVE_NAMES = {
 
     "shieldblock", "barkskin", "iceblock", "manashield", "divineshield",
@@ -5510,8 +4909,6 @@ local DEFENSIVE_NAMES = {
     "frenziedregeneration", "shieldwall", "laststand", "holyshield",
 
 }
-
-
 
 local function contains_any(value, needles)
 
@@ -5526,8 +4923,6 @@ local function contains_any(value, needles)
     return false
 
 end
-
-
 
 local function strategy_category(strategy, list_name, active)
 
@@ -5559,8 +4954,6 @@ local function strategy_category(strategy, list_name, active)
 
 end
 
-
-
 -- Strategy gate: checks category toggles from settings and burst conditions.
 
 -- Reused by both the legacy run_list dispatcher and the unified registry.
@@ -5584,8 +4977,6 @@ function NS.strategy_allowed(strategy, list_name, active, context)
     return true
 
 end
-
-
 
 function NS.run_unified_strategies(context)
 
@@ -5611,8 +5002,6 @@ function NS.run_unified_strategies(context)
 
 end
 
-
-
 local function target_for(context, action)
 
     if action.target == "self" then return NS.GetPlayer() end
@@ -5625,8 +5014,6 @@ local function target_for(context, action)
 
 end
 
-
-
 local function position_for(context, action)
 
     if not action or not action.position then return nil end
@@ -5636,8 +5023,6 @@ local function position_for(context, action)
         return action.position
 
     end
-
-
 
     local source = nil
 
@@ -5655,15 +5040,11 @@ local function position_for(context, action)
 
     end
 
-
-
     local get_position = source and safe_field(source, "get_position")
 
     return get_position and safe(get_position, source) or nil
 
 end
-
-
 
 function NS.action_matches(context, action)
 
@@ -5751,7 +5132,26 @@ function NS.action_matches(context, action)
 
     end
 
+
+    -- =====================================================================
+    -- TTD (Time-To-Death) gating: prevents actions from firing when the
+    -- target won't live long enough for the spell to be worthwhile.
+    --
+    -- context.ttd_known = false means the TTD tracker hasn't collected
+    -- enough samples yet (early combat, target just entered range, or
+    -- TTD module not loaded).  When require_ttd is true we block the
+    -- action entirely rather than using a stale/zero estimate.
+    --
+    -- Two-tier guard:
+    --   1. require_ttd + !ttd_known  -->  block (no data yet)
+    --   2. context.ttd < min_ttd      -->  block (target dies too soon)
+    --
+    -- Actions that set min_ttd: execute-phase nukes, long-cooldown
+    -- DPS cooldowns, short-duration debuffs not worth applying to a
+    -- dying target.
+    -- =====================================================================
     if action.min_ttd then
+
 
         if action.require_ttd and not context.ttd_known then
 
@@ -6046,8 +5446,6 @@ function NS.action_matches(context, action)
 
 end
 
-
-
 function NS.action_execute(context, action, prefix)
 
     local target = target_for(context, action)
@@ -6057,8 +5455,6 @@ function NS.action_execute(context, action, prefix)
     local reason = format("%s %s", prefix or "[EAX]", action.name or "Action")
 
     local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-
-
 
     if action.position then
 
@@ -6105,8 +5501,6 @@ function NS.action_execute(context, action, prefix)
 
     end
 
-
-
     if action.skip_gcd then
 
         local id = NS.get_spell_id(action.spell)
@@ -6130,8 +5524,6 @@ function NS.action_execute(context, action, prefix)
 
     end
 
-
-
     if not NS.spell_exists(action.spell) then return false end
 
     if NS.gcd_remains() > 0 then return false end
@@ -6144,15 +5536,11 @@ function NS.action_execute(context, action, prefix)
 
 end
 
-
-
 NS.health_pct = NS.unit_health_pct
 
 NS.get_health_pct = NS.unit_health_pct
 
 NS.safe_call = safe
-
-
 
 -- One-shot API probe: log spell_book availability at load time
 
@@ -6174,8 +5562,6 @@ else
 
 end
 
-
-
 local racial_manager_ok, racial_manager = pcall(require, "shared/racial_manager_sylvanas")
 
 if racial_manager_ok and racial_manager and type(racial_manager.register_racial_manager) == "function" then
@@ -6187,8 +5573,6 @@ else
     NS.log_warning("Racial manager unavailable: " .. tostring(racial_manager))
 
 end
-
-
 
 local trinket_manager_ok, trinket_manager = pcall(require, "shared/trinket_manager_sylvanas")
 
@@ -6202,13 +5586,9 @@ else
 
 end
 
-
-
 NS.log("Core runtime loaded")
 NS.log("GameVersion: " .. tostring(core.get_game_version and core.get_game_version() or "?"))
 NS.log("ExactVersion: " .. tostring(core.get_exact_game_version and core.get_exact_game_version() or "?"))
-
-
 
 --- Dump all available player information to the log.
 
@@ -6220,8 +5600,6 @@ function NS.dump_player_info()
 
     if not me then NS.log("[DUMP] No local player found"); return end
 
-
-
     local function sf(obj, key)
 
         local ok, v = pcall(function() return obj[key] end)
@@ -6229,8 +5607,6 @@ function NS.dump_player_info()
         return ok and v or nil
 
     end
-
-
 
     NS.log("=== PLAYER DUMP ===")
 
@@ -6285,8 +5661,6 @@ function NS.dump_player_info()
 
     NS.log("Build: " .. tostring(core.get_build and core.get_build() or "?"))
 
-
-
     -- Target info
 
     local target = sf(me, "get_target") and me:get_target() or nil
@@ -6306,8 +5680,6 @@ function NS.dump_player_info()
         NS.log("TargetCreatureType: " .. tostring(sf(target, "get_creature_type") and target:get_creature_type() or "?"))
 
     end
-
-
 
     -- Learned spells (sample first 50)
 
@@ -6357,8 +5729,6 @@ function NS.dump_player_info()
 
     end
 
-
-
     -- Talents (if available)
 
     NS.log("--- Talents ---")
@@ -6389,17 +5759,17 @@ function NS.dump_player_info()
 
     end
 
-
-
     NS.log("=== END DUMP ===")
 
 end
 
-
-
-if type(core) == "table" and type(core.log) == "function" then pcall(core.log, "[EaxRotations] Loaded core_sylvanas.lua v1.1.1") end
-
-
+--- Returns the player's current spell damage bonus.
+-- Sylvanas API does not expose spell_power directly;
+-- callers should prefer context.spell_damage when available.
+---@return number
+function NS.get_spell_damage()
+    return 0
+end
 
 return NS
 

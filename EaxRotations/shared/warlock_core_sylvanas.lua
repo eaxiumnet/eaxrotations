@@ -1,27 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/warlock_core_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- ============================================================================
--- What: Shared helper for warlock immunity checks, Soulshatter, Life Tap, and sustain
--- When: Loaded once and used during per-tick combat logic
--- Why: Centralize warlock-specific utility and resource handling
--- Safety: Nil-guards targets/items, conservative school checks, and NS.* helpers
--- ============================================================================
 -- Shared Helper: Warlock Core
 -- Fire/shadow immunity detection, Soulshatter, cast-cancel, Life Tap, sustain
 -- ============================================================================
@@ -31,8 +7,8 @@ local _G = _G
 local NS = _G.EaxRotations
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
-local _get_spell_cd = core.spell_book.get_spell_cooldown
-local _is_spell_learned = core.spell_book.is_spell_learned
+local _get_spell_cd = core.spell_book and core.spell_book.get_spell_cooldown or nil
+local _is_spell_learned = core.spell_book and core.spell_book.is_spell_learned or nil
 
 local function cast_guarded(spell_id, target, reason, opts)
     if not NS or type(NS.try_cast) ~= "function" then return false end
@@ -181,8 +157,8 @@ function M.use_life_tap(life_tap_ids, mana_threshold, min_hp, me)
 
     -- Find highest known Life Tap rank
     for _, id in ipairs(life_tap_ids) do
-        if _is_spell_learned(id) then
-            local cd = _get_spell_cd(id)
+        if _is_spell_learned and _is_spell_learned(id) then
+            local cd = _get_spell_cd and _get_spell_cd(id) or 0
             if cd == 0 then
                 return cast_guarded(id, me, "[WARLOCK CORE] Life Tap", { skip_range = true })
             end
@@ -242,8 +218,8 @@ function M.maintain_armor(fel_armor_ids, demon_armor_ids, prefer_fel, me)
 
     -- Try preferred first
     for _, id in ipairs(armors) do
-        if _is_spell_learned(id) then
-            local cd = _get_spell_cd(id)
+        if _is_spell_learned and _is_spell_learned(id) then
+            local cd = _get_spell_cd and _get_spell_cd(id) or 0
             if cd == 0 then
                 return cast_guarded(id, me, "[WARLOCK CORE] Armor", { skip_range = true })
             end
@@ -253,8 +229,8 @@ function M.maintain_armor(fel_armor_ids, demon_armor_ids, prefer_fel, me)
     -- Fallback to other armor type
     local other = prefer_fel and demon_armor_ids or fel_armor_ids
     for _, id in ipairs(other) do
-        if _is_spell_learned(id) then
-            local cd = _get_spell_cd(id)
+        if _is_spell_learned and _is_spell_learned(id) then
+            local cd = _get_spell_cd and _get_spell_cd(id) or 0
             if cd == 0 then
                 return cast_guarded(id, me, "[WARLOCK CORE] Armor", { skip_range = true })
             end
@@ -308,7 +284,7 @@ function M.sacrifice_pet(config, me)
     local buff = M.get_sacrifice_buff_type(config, me)
     if buff then return false end
 
-    local cd = _get_spell_cd(config.sacrifice_spell_id)
+    local cd = _get_spell_cd and _get_spell_cd(config.sacrifice_spell_id) or 0
     if cd == 0 then
         return cast_guarded(config.sacrifice_spell_id, me, "[WARLOCK CORE] Demonic Sacrifice", { skip_range = true })
     end
@@ -348,7 +324,7 @@ function M.create_healthstone(create_spell_id)
         if ok and count and count > 0 then return false end
     end
 
-    local cd = _get_spell_cd(create_spell_id)
+    local cd = _get_spell_cd and _get_spell_cd(create_spell_id) or 0
     if cd == 0 then
         local me = _get_local_player()
         if me then

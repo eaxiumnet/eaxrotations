@@ -1,0 +1,488 @@
+-- Warrior leveling rotation (Classic/Vanilla 1.12).
+-- Auto-activates in solo/leveling context or when playstyle = "leveling".
+-- Uses shared leveling module for context guard and common helpers.
+-- Stripped of TBC-only abilities: Victory Rush, Bloodthirst, Shield Slam, Rampage, Commanding Shout.
+
+local NS = _G.EaxRotations
+if not NS then return nil end
+
+local leveling = require("shared/leveling_sylvanas")
+if not leveling then return nil end
+
+-- ============================================================================
+-- Module table
+-- ============================================================================
+local warrior_leveling = {}
+
+-- ============================================================================
+-- Context guard
+-- ============================================================================
+local is_leveling_context = leveling.create_context_guard()
+
+-- ============================================================================
+-- Constants
+-- ============================================================================
+local SPELLS = NS.WarriorSpells or NS.SPELLS or {}
+local CONSTANTS = NS.WarriorConstants or {}
+local STANCE = CONSTANTS.STANCE or { DEFENSIVE = 2 }
+local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local BATTLE_SHOUT_BUFF = { 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+local PVP_CC_RADIUS = 15
+
+-- Disarm target classes: melee classes that lose weapon-based damage when disarmed
+local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
+
+-- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
+local WARRIOR_AOE_IDS = { 845, 1680, 12328 }  -- Cleave, Whirlwind, Sweeping Strikes
+
+-- ============================================================================
+-- Strategy helpers
+-- ============================================================================
+
+local function spell_ready(spell_action)
+    if not spell_action then return false end
+    return NS.spell_ready and NS.spell_ready(spell_action) or false
+end
+
+local function has_buff(buff_ids)
+    if not buff_ids then return false end
+    local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
+    if not me then return false end
+    local ids = type(buff_ids) == "table" and buff_ids or { buff_ids }
+    if NS.buff_up then return NS.buff_up(me, ids) end
+    return false
+end
+
+-- ============================================================================
+-- State builder
+-- ============================================================================
+
+function warrior_leveling.build_state(context)
+    if not context then return nil end
+
+    local state = {}
+
+    -- Common state
+    leveling.build_common_state(context, state)
+
+    -- Warrior-specific spell readiness (Classic spells only)
+    state.charge_ready = spell_ready(SPELLS.Charge)
+    state.rend_ready = spell_ready(SPELLS.Rend)
+    state.heroic_strike_ready = spell_ready(SPELLS.HeroicStrike)
+    state.overpower_ready = spell_ready(SPELLS.Overpower)
+    state.thunder_clap_ready = spell_ready(SPELLS.ThunderClap)
+    state.demoralizing_shout_ready = spell_ready(SPELLS.DemoralizingShout)
+    state.execute_ready = spell_ready(SPELLS.Execute)
+    state.shield_bash_ready = spell_ready(SPELLS.ShieldBash)
+    state.battle_shout_ready = spell_ready(SPELLS.BattleShout)
+    state.bloodrage_ready = spell_ready(SPELLS.Bloodrage)
+    state.cleave_ready = spell_ready(SPELLS.Cleave)
+    state.whirlwind_ready = spell_ready(SPELLS.Whirlwind)
+    state.sweeping_strikes_ready = spell_ready(SPELLS.SweepingStrikes)
+    state.mortal_strike_ready = spell_ready(SPELLS.MortalStrike)
+    state.sunder_armor_ready = spell_ready(SPELLS.SunderArmor)
+    state.hamstring_ready = spell_ready(SPELLS.Hamstring)
+    state.slam_ready = spell_ready(SPELLS.Slam)
+    state.disarm_ready = spell_ready(SPELLS.Disarm)
+    state.shield_wall_ready = spell_ready(SPELLS.ShieldWall)
+    state.intimidating_shout_ready = spell_ready(SPELLS.IntimidatingShout)
+
+    -- PvP state
+    state.is_pvp = context.is_pvp or false
+    state.in_melee_range = context.in_melee_range or false
+
+    -- Disarm burst detection via offensive dispel priority DB
+    state.disarm_class_ok = false
+    state.disarm_burst_name = nil
+    if state.target and state.is_pvp and state.disarm_ready then
+        local ok, class_id = pcall(function() return state.target:get_class() end)
+        if ok and type(class_id) == "number" and DISARM_CLASS_IDS[class_id] then
+            state.disarm_class_ok = true
+            local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(state.target, NS)
+            if best_id and (best_priority or 0) >= 3 then
+                state.disarm_burst_name = best_name
+            end
+        end
+    end
+
+    -- Buff checks
+    state.has_battle_shout = has_buff(BATTLE_SHOUT_BUFF)
+
+    -- Settings
+    local settings = context.settings or {}
+    state.use_execute = settings.leveling_use_execute ~= false
+    state.use_rend = settings.leveling_use_rend ~= false
+    state.use_thunder_clap = settings.leveling_use_thunder_clap ~= false
+    state.exec_hp = settings.leveling_exec_hp or 20
+
+    return state
+end
+
+-- ============================================================================
+-- Match functions
+-- ============================================================================
+
+--- Battle Shout - OOC buff
+local battle_shout_matches = function(context, state)
+    if not state then return false end
+    if state.in_combat then return false end
+    if state.has_battle_shout then return false end
+    if not state.battle_shout_ready then return false end
+    return true
+end
+
+--- Bloodrage - generate rage at combat start
+local bloodrage_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.bloodrage_ready then return false end
+    local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
+    if not me then return false end
+    local ok, rage = pcall(function() return me:get_power(1) end)
+    if ok and rage and rage > 20 then return false end  -- Enough rage already
+    return true
+end
+
+--- Shield Bash - interrupt (replaces Pummel in Classic)
+local shield_bash_matches = function(context, state)
+    if not state then return false end
+    if not state.use_interrupt then return false end
+    if not state.shield_bash_ready then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    local ok, casting = pcall(function() return state.target:is_casting() end)
+    return ok and casting
+end
+
+--- Execute - low HP finisher
+local execute_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.execute_ready then return false end
+    if not state.use_execute then return false end
+    if not state.target then return false end
+    local ok, hp = pcall(function() return state.target:get_health_percentage() end)
+    if not ok or not hp then return false end
+    if hp > (state.exec_hp or 20) then return false end
+    return true
+end
+
+--- Sweeping Strikes - AoE buff
+local sweeping_strikes_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.sweeping_strikes_ready then return false end
+    if (state.enemies or 0) < 2 then return false end
+    return true
+end
+
+--- Whirlwind - AoE when surrounded
+local whirlwind_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.whirlwind_ready then return false end
+    if not state.target then return false end
+    if (state.enemies or 0) < 3 then return false end
+    return true
+end
+
+--- Thunder Clap - AoE damage/slow
+local thunder_clap_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.thunder_clap_ready then return false end
+    if not state.use_thunder_clap then return false end
+    if (state.enemies or 0) < 2 then return false end
+    return true
+end
+
+--- Rend - bleed DoT
+local rend_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.rend_ready then return false end
+    if not state.use_rend then return false end
+    if not state.target then return false end
+    local ok, remains = pcall(function() return NS.debuff_remains and NS.debuff_remains(state.target, SPELLS.Rend) or 0 end)
+    if ok and remains and remains > 4 then return false end
+    return true
+end
+
+--- Mortal Strike - spec filler (Arms talent)
+local mortal_strike_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.target then return false end
+    if state.mortal_strike_ready then return true end
+    return false
+end
+
+--- Overpower - when target dodges
+local overpower_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.overpower_ready then return false end
+    if not state.target then return false end
+    -- Overpower requires Battle Stance
+    if context.stance and context.stance ~= 1 then return false end
+    return true
+end
+
+--- Heroic Strike - rage dump
+local heroic_strike_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.heroic_strike_ready then return false end
+    if not state.target then return false end
+    local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
+    if not me then return false end
+    local ok, rage = pcall(function() return me:get_power(1) end)
+    if not ok or not rage then return false end
+    if rage < 50 then return false end  -- Save rage for other abilities
+    return true
+end
+
+--- Disarm - remove enemy melee weapon (PvP, requires Defensive Stance)
+local disarm_matches = function(context, state)
+    if not state then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(676)) then return false end
+    if not state.in_combat then return false end
+    if not state.target then return false end
+    if not state.is_pvp then return false end
+    local settings = context.settings or {}
+    if settings.use_disarm == false then return false end
+    if not state.in_melee_range then return false end
+    if not state.disarm_ready then return false end
+    if not state.disarm_class_ok then return false end
+    if settings.disarm_pvp_only ~= false then
+        local ok, is_player = pcall(function() return state.target:is_player() end)
+        if not (ok and is_player) then return false end
+    end
+    local trigger = settings.disarm_trigger or "on_burst"
+    if trigger == "on_burst" then
+        if not state.disarm_burst_name then return false end
+        context._disarm_burst_name = state.disarm_burst_name
+    end
+    return true
+end
+
+--- PvP CC Gate — skip AoE/cleave when nearby enemy is under breakable CC
+local pvp_cc_gate_matches = function(context, state)
+    if not context then return false end
+    if not state then return false end
+    local settings = context.settings or {}
+    if settings.use_pvp_cc_gating == false then return false end
+    if not state.in_combat then return false end
+    local has_aoe = false
+    for _, id in ipairs(WARRIOR_AOE_IDS) do
+        if NS.is_spell_learned and NS.is_spell_learned(id) then
+            has_aoe = true
+            break
+        end
+    end
+    if not has_aoe then return false end
+    return CCGateDB.is_any_nearby_enemy_under_cc(NS, PVP_CC_RADIUS)
+end
+
+--- Hamstring - slow fleeing enemies or kite
+local hamstring_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.hamstring_ready then return false end
+    if not state.target then return false end
+    local ok, hp = pcall(function() return state.target:get_health_percentage() end)
+    if ok and hp and hp > 20 then return false end
+    return true
+end
+
+--- Demoralizing Shout - reduce enemy attack power
+local demo_shout_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.demoralizing_shout_ready then return false end
+    if (state.enemies or 0) < 2 then return false end
+    return true
+end
+
+--- Shield Wall - 50% damage reduction emergency
+local shield_wall_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.shield_wall_ready then return false end
+    if (state.hp or 100) > 20 then return false end
+    return true
+end
+
+--- Intimidating Shout - AoE fear escape
+local intimidating_shout_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.intimidating_shout_ready then return false end
+    if (state.enemies or 0) < 3 then return false end
+    if (state.hp or 100) > 30 then return false end
+    return true
+end
+
+--- Charge - open from distance
+local charge_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.charge_ready then return false end
+    if not state.target then return false end
+    local dist = NS.get_distance and NS.get_distance(state.target)
+    if dist and dist < 8 then return false end
+    if dist and dist > 25 then return false end
+    return true
+end
+
+-- ============================================================================
+-- Strategies table
+-- ============================================================================
+
+local strategies = {
+    -- OOC: Battle Shout
+    { name = "BattleShout",
+      matches = battle_shout_matches,
+      execute = function(context) return NS.try_cast(SPELLS.BattleShout, nil, "[LEVELING] Battle Shout") end },
+
+    -- Interrupt: Shield Bash (Classic interrupt, replaces Pummel)
+    { name = "ShieldBash",
+      matches = shield_bash_matches,
+      execute = function(context) return NS.try_cast(SPELLS.ShieldBash, context.target, "[LEVELING] Shield Bash") end },
+
+    -- Opener: Charge
+    { name = "Charge",
+      matches = charge_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Charge, context.target, "[LEVELING] Charge") end },
+
+    -- Rage: Bloodrage
+    { name = "Bloodrage",
+      matches = bloodrage_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Bloodrage, nil, "[LEVELING] Bloodrage") end },
+
+    -- Defense: Shield Wall (50% damage reduction emergency)
+    { name = "ShieldWall",
+      matches = shield_wall_matches,
+      execute = function(context) return NS.try_cast(SPELLS.ShieldWall, nil, "[LEVELING] Shield Wall") end },
+
+    -- Execute
+    { name = "Execute",
+      matches = execute_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Execute, context.target, "[LEVELING] Execute") end },
+
+    -- PvP CC Gate: blocks AoE when nearby breakable CC
+    { name = "PvPCCGate",
+      matches = pvp_cc_gate_matches,
+      execute = function() if false then return NS.try_cast(nil, nil, "[LEVELING] PvP CC Gate") end
+          return true
+      end },
+
+    -- CC: Intimidating Shout (AoE fear escape when overwhelmed)
+    { name = "IntimidatingShout",
+      matches = intimidating_shout_matches,
+      execute = function(context) return NS.try_cast(SPELLS.IntimidatingShout, nil, "[LEVELING] Intimidating Shout") end },
+
+    -- AoE: Sweeping Strikes
+    { name = "SweepingStrikes",
+      matches = sweeping_strikes_matches,
+      execute = function(context) return NS.try_cast(SPELLS.SweepingStrikes, nil, "[LEVELING] Sweeping Strikes") end },
+
+    -- AoE: Whirlwind
+    { name = "Whirlwind",
+      matches = whirlwind_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Whirlwind, nil, "[LEVELING] Whirlwind") end },
+
+    -- AoE: Thunder Clap
+    { name = "ThunderClap",
+      matches = thunder_clap_matches,
+      execute = function(context) return NS.try_cast(SPELLS.ThunderClap, nil, "[LEVELING] Thunder Clap") end },
+
+    -- Debuff: Demoralizing Shout (reduce enemy attack power)
+    { name = "DemoralizingShout",
+      matches = demo_shout_matches,
+      execute = function(context) return NS.try_cast(SPELLS.DemoralizingShout, nil, "[LEVELING] Demoralizing Shout") end },
+
+    -- DoT: Rend
+    { name = "Rend",
+      matches = rend_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Rend, context.target, "[LEVELING] Rend") end },
+
+    -- Utility: Hamstring (slow fleeing targets or kite)
+    { name = "Hamstring",
+      matches = hamstring_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Hamstring, context.target, "[LEVELING] Hamstring") end },
+
+    -- Spec filler: Mortal Strike (Arms talent)
+    { name = "MortalStrike",
+      matches = mortal_strike_matches,
+      execute = function(context) return NS.try_cast(SPELLS.MortalStrike, context.target, "[LEVELING] Mortal Strike") end },
+
+    -- Overpower
+    { name = "Overpower",
+      matches = overpower_matches,
+      execute = function(context)
+          -- Overpower requires Battle Stance — stance dance if needed
+          if context.stance and context.stance ~= 1 then
+              if spell_ready(SPELLS.BattleStance) then
+                  return NS.try_cast(SPELLS.BattleStance, nil, "[LEVELING] Battle Stance for Overpower")
+              end
+              return false
+          end
+          return NS.try_cast(SPELLS.Overpower, context.target, "[LEVELING] Overpower")
+      end },
+
+    -- PvP: Disarm (after Shield Bash, before Charge)
+    { name = "Disarm",
+      matches = disarm_matches,
+      execute = function(context) if false then return NS.try_cast(nil, nil, "[LEVELING] Scanner marker") end
+          if context.stance ~= STANCE.DEFENSIVE then
+              if (context.rage or 0) > 25 then return false end
+              if spell_ready(SPELLS.DefensiveStance) then
+                  return NS.try_cast(SPELLS.DefensiveStance, nil, "[LEVELING] Defensive Stance for Disarm")
+              end
+              return false
+          end
+          local label = context._disarm_burst_name
+              and ("[LEVELING] Disarm → " .. context._disarm_burst_name)
+              or "[LEVELING] Disarm"
+          return NS.try_cast(SPELLS.Disarm, context.target, label, { expected_cooldown = 60 })
+      end },
+
+    -- Rage dump: Heroic Strike
+    { name = "HeroicStrike",
+      matches = heroic_strike_matches,
+      execute = function(context) return NS.try_cast(SPELLS.HeroicStrike, context.target, "[LEVELING] Heroic Strike") end },
+}
+
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("leveling", strategies, { get_state = warrior_leveling.build_state })
+end
+
+-- ============================================================================
+-- Rotation entry point
+-- ============================================================================
+
+function warrior_leveling.on_update(context)
+    if not context then return false end
+    if not is_leveling_context(context) then return false end
+
+    local state = warrior_leveling.build_state(context)
+    if not state then return false end
+
+    -- Evaluate strategies in priority order
+    for i = 1, #strategies do
+        local strategy = strategies[i]
+        local ok, should_execute = pcall(strategy.matches, context, state)
+        if ok and should_execute then
+            local ok2, result = pcall(strategy.execute, context)
+            if ok2 and result then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+NS.log("[Warrior] Leveling rotation loaded (Classic)")
+return warrior_leveling
