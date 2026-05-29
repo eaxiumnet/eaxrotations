@@ -307,6 +307,57 @@ function M.cast_shot_sequence(spell_a, target_a, spell_b, target_b)
 end
 
 -- ============================================================================
+-- Shot Priority Calculator
+-- ============================================================================
+
+--- Calculate the available window for casting between auto-shots.
+---@param buffer_ms number|nil Safety buffer in ms (default 150)
+---@return boolean steady_ok Can fit a Steady Shot
+---@return boolean instant_ok Can fit an instant (GCD)
+---@return number window_ms Remaining window in ms
+function M.calculate_shot_window(buffer_ms)
+    buffer_ms = buffer_ms or 150
+    local remain_ms = M.ms_until_auto()
+    local weapon_speed_ms = M.get_weapon_speed() * 1000
+    local steady_cast_ms = 1500  -- Steady Shot cast time (TBC base)
+    local gcd_ms = 1500          -- TBC GCD is 1.5s base
+
+    if remain_ms == 0 then
+        -- No auto-shot pending, full window available
+        return true, true, weapon_speed_ms
+    end
+
+    -- Can we fit a Steady Shot? (cast + buffer + 500ms safety)
+    local steady_ok = remain_ms > (steady_cast_ms + buffer_ms + 500)
+
+    -- Can we fit an instant (GCD + buffer + 500ms safety)
+    local instant_ok = remain_ms > (gcd_ms + buffer_ms + 500)
+
+    return steady_ok, instant_ok, remain_ms
+end
+
+--- Returns the recommended next shot based on priority:
+-- 1. Steady Shot (if window allows)  2. Arcane Shot (instant)  3. wait for auto
+---@param arcane_id number|nil Arcane Shot spell ID
+---@param steady_id number|nil Steady Shot spell ID
+---@param target game_object|nil Current target
+---@return number|nil spell_id Recommended spell ID or nil to wait
+---@return string reason "steady", "instant", "wait", or "no_target"
+function M.recommend_shot(arcane_id, steady_id, target)
+    if not target then return nil, "no_target" end
+
+    local steady_ok, instant_ok = M.calculate_shot_window()
+
+    if steady_ok and steady_id then
+        return steady_id, "steady"
+    elseif instant_ok and arcane_id then
+        return arcane_id, "instant"
+    end
+
+    return nil, "wait"
+end
+
+-- ============================================================================
 -- Exposure
 -- ============================================================================
 M.STING_IDS = STING_IDS
