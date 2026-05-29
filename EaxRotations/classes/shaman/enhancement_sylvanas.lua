@@ -1036,6 +1036,7 @@ local strategies = {
     -- 7b. Utility totems (fear break, spell absorb)
     { name = "TremorTotem", matches = tremor_totem_matches, execute = function(ctx) return NS.try_cast(TREMOR_TOTEM_SPELL, NS.PLAYER_UNIT, "[ENHANCEMENT] Tremor Totem") end },
     { name = "GroundingTotem", matches = grounding_totem_matches, execute = function(ctx) return NS.try_cast(SPELLS.GroundingTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Grounding Totem") end },
+    { name = "Purge", matches = function(ctx, s) return s.in_combat and s.target and NS.purge_should_cast and NS.purge_should_cast(s.target) end, execute = function(ctx, s) return NS.try_cast(SPELLS.Purge, s.target, "[ENHANCEMENT] Purge") end },
 
     -- v1.2.1: racials
     { name = "BloodFury", matches = blood_fury_matches, execute = function(ctx) return NS.try_cast({ 33697, 20572 }, NS.PLAYER_UNIT, "[ENHANCEMENT] Blood Fury", { skip_range = true }) end },
