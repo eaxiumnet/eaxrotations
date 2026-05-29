@@ -1,27 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/warrior_core_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- ============================================================================
--- What: Shared helper for warrior stance, opener, shout, and rage logic
--- When: Loaded once and consulted during per-tick combat decisions
--- Why: Centralize warrior-specific shared behavior for all specs
--- Safety: Nil-guards stance/target checks, conservative defaults, and NS.* helpers
--- ============================================================================
 -- Shared Helper: Warrior Core
 -- Stance management, aggro opener, shout handling, rage utilities
 -- ============================================================================
@@ -31,8 +7,9 @@ local _G = _G
 local NS = _G.EaxRotations
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
-local _get_spell_cd = core.spell_book.get_spell_cooldown
-local _is_spell_learned = core.spell_book.is_spell_learned
+local _get_spell_cd = core.spell_book and core.spell_book.get_spell_cooldown or nil
+local _is_spell_learned = core.spell_book and core.spell_book.is_spell_learned or nil
+local RAGE_POWER_TYPE = 1
 
 local function cast_guarded(spell_id, target, reason, opts)
     if not NS or type(NS.try_cast) ~= "function" then return false end
@@ -166,8 +143,8 @@ function M.switch_to_stance(target_stance)
     end
 
     for _, id in ipairs(stance_ids) do
-        if _is_spell_learned(id) then
-            local cd = _get_spell_cd(id)
+        if _is_spell_learned and _is_spell_learned(id) then
+            local cd = _get_spell_cd and _get_spell_cd(id) or 0
             if cd == 0 then
                 return cast_guarded(id, me, "[WARRIOR CORE] Stance", { skip_range = true })
             end
@@ -246,7 +223,7 @@ function M.process_aggro_opener(charge_id, whirlwind_id, me, target)
         -- Phase 1: After Charge, we should be in Battle stance or en route
         -- Check if Whirlwind was already queued
         if current == M.STANCE_BERSERKER then
-            local cd = _get_spell_cd(whirlwind_id)
+            local cd = _get_spell_cd and _get_spell_cd(whirlwind_id) or 0
             if cd == 0 then
                 if cast_guarded(whirlwind_id, target, "[WARRIOR CORE] Aggro opener Whirlwind") then
                     _opener.phase = 2
@@ -300,7 +277,7 @@ function M.get_shout_id(shout_type)
     end
 
     for _, id in ipairs(ids) do
-        if _is_spell_learned(id) then
+        if _is_spell_learned and _is_spell_learned(id) then
             return id
         end
     end
@@ -320,7 +297,7 @@ function M.should_shout(shout_type, me, min_rage)
     if now - _last_shout_time < 25 then return nil end
 
     -- Check rage
-    local rage = me:get_power() or 0
+    local rage = me:get_power(RAGE_POWER_TYPE) or 0
     if rage < min_rage then return nil end
 
     -- Check we don't have a stronger shout from another warrior
@@ -334,7 +311,7 @@ function M.should_shout(shout_type, me, min_rage)
     -- Find our highest known rank
     local my_highest = nil
     for _, id in ipairs(own_ids) do
-        if _is_spell_learned(id) then
+        if _is_spell_learned and _is_spell_learned(id) then
             my_highest = id
             break
         end
@@ -363,7 +340,7 @@ function M.use_demo_shout(me, target, min_rage)
     if not me or not target then return false end
     if not min_rage then min_rage = 10 end
 
-    local rage = me:get_power() or 0
+    local rage = me:get_power(RAGE_POWER_TYPE) or 0
     if rage < min_rage then return false end
 
     -- Check if target already has demo shout
@@ -371,8 +348,8 @@ function M.use_demo_shout(me, target, min_rage)
 
     -- Find highest known rank
     for _, id in ipairs(SHOUTS.DEMORALIZING_SHOUT) do
-        if _is_spell_learned(id) then
-            local cd = _get_spell_cd(id)
+        if _is_spell_learned and _is_spell_learned(id) then
+            local cd = _get_spell_cd and _get_spell_cd(id) or 0
             if cd == 0 then
                 return cast_guarded(id, me, "[WARRIOR CORE] Demoralizing Shout", { skip_range = true })
             end
@@ -394,7 +371,7 @@ end
 function M.has_rage_after_reserve(required_rage, reserve, me)
     if not me then me = _get_local_player() end
     if not me then return false end
-    local rage = me:get_power() or 0
+    local rage = me:get_power(RAGE_POWER_TYPE) or 0
     return rage >= required_rage + reserve
 end
 
@@ -406,7 +383,7 @@ end
 function M.should_rage_dump(rage_threshold, me, max_rage)
     if not me then me = _get_local_player() end
     if not me then return false end
-    local rage = me:get_power() or 0
+    local rage = me:get_power(RAGE_POWER_TYPE) or 0
     max_rage = max_rage or 100
     return rage >= math.min(rage_threshold, max_rage - 10)
 end
