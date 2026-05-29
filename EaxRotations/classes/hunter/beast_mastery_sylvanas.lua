@@ -11,7 +11,7 @@ local targeting = require("shared/targeting_sylvanas")
 -- Constants
 -- ============================================================================
 local AUTO_SHOT_ID = 75
-local ARCANE_SHOT_MANA_FLOOR = 20   -- Research Angle 4: <20% = Steady Shot only
+local ARCANE_SHOT_MANA_FLOOR = 50   -- BM optimal: save mana below 50% for Kill Command & pet abilities
 local MULTI_SHOT_MANA_FLOOR = 15    -- Suppress expensive AoE below 15%
 local SERPENT_STING_IDS  = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local SCORPID_STING_IDS  = { 3043 }
