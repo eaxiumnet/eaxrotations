@@ -4171,7 +4171,8 @@ function NS.build_healing_entries(out, decorate)
             n = n + 1
 
             local effective_deficit
-            if NS.HealerDeficit and type(NS.HealerDeficit.predicted_deficit) == 'function' then
+            local _s = NS.settings or {}
+            if _s.healer_predict_enabled ~= false and NS.HealerDeficit and type(NS.HealerDeficit.predicted_deficit) == 'function' then
                 effective_deficit = NS.HealerDeficit.predicted_deficit(u, 2, NS.settings)
             else
                 effective_deficit = NS.predict_effective_deficit(u)
