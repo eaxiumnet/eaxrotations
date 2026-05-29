@@ -752,14 +752,15 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 21. Demon Armor / Fel Armor (out of combat)
+    -- 21. Fel Armor (out of combat + in-combat refresh if dropped)
     -- ------------------------------------------------------------------------
     {
         name = "FelArmorBuff",
         matches = function(context)
-            if context.in_combat then return false end
             local me = context.me or (NS.GetPlayer and NS.GetPlayer())
             if me and NS.buff_remains(me, FEL_ARMOR_BUFF) > 0 then return false end
+            -- In combat: only refresh if not channeling (don't interrupt Drain Soul)
+            if context.in_combat and context.is_channeling then return false end
             return NS.spell_ready(LOCAL_SPELLS.FelArmor, me or NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()

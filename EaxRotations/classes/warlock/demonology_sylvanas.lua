@@ -153,6 +153,10 @@ local function death_coil_matches(context, action)
     return true
 end
 
+local function health_funnel_matches(context)
+    return pet_needs_healing(context)
+end
+
 -- ============================================================================
 -- Match functions
 -- ============================================================================
@@ -353,8 +357,10 @@ local strategies = {
     { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(SPELLS.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
     { name = "DeathCoil", matches = function(context) return death_coil_matches(context, { name = "DeathCoil", spell = SPELLS.DeathCoil }) end, execute = function(context) return NS.try_cast(SPELLS.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },
     { name = "LifeTap", matches = life_tap_matches, execute = function(context) return NS.try_cast(SPELLS.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true }) end },
+    { name = "DarkPact", matches = dark_pact_matches, execute = function(context) return NS.try_cast(SPELLS.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true, expected_cooldown = 10 }) end },
     { name = "ShadowWard", matches = shadow_ward_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowWard, context.me, "[DEMONOLOGY] Shadow Ward", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(SPELLS.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },
+    { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(SPELLS.Fear, context.target, "[DEMONOLOGY] Fear") end },
     { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(SPELLS.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
     { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt") end },
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(SPELLS.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
