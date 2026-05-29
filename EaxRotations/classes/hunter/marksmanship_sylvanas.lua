@@ -287,7 +287,8 @@ local function readiness_matches(context, s)
     if not s.in_combat then return false end
     if not s.readiness_ready then return false end
     -- Use after Rapid Fire has been used (on CD) to reset it for a 2nd burst window
-    if s.bestial_wrath_ready or s.rapid_fire_ready then return false end
+    -- MM does not have Bestial Wrath; only gate on Rapid Fire
+    if s.rapid_fire_ready then return false end
     return true
 end
 

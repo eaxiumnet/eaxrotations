@@ -270,13 +270,14 @@ local function leveling_sting_matches(context, s)
     return true
 end
 
--- Concussive Shot: kiting/slow utility
+-- Concussive Shot: kiting/slow utility (15yd max range)
 local function concussive_shot_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     local target = context.target
     if not target then return false end
-    local target_dist = target.get_distance and target:get_distance(context.me) or 20
-    if target_dist > 30 then return false end
+    -- Squared distance: 15yd = 225
+    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dist_sq > 225 then return false end
     return true
 end
 
@@ -293,34 +294,51 @@ local function misdirection_execute(context, s)
     return NS.try_cast(SPELLS.Misdirection, pet, "[SURVIVAL] Misdirection")
 end
 
--- Scorpid Sting: debuff reducing target's chance to hit
+-- Scorpid Sting: debuff reducing target's AP; refresh only when expiring
 local function scorpid_sting_matches(context, s)
-    if s.has_scorpid_sting then return false end
     if not s.in_combat then return false end
     if not s.scorpid_sting_ready then return false end
+    if s.has_scorpid_sting then
+        -- Only refresh when about to expire (within 2s)
+        local target = context.target
+        if target then
+            for _, id in ipairs(SCORPID_STING_DEBUFF) do
+                if NS.debuff_up and NS.debuff_up(target, id) then
+                    local remains = NS.debuff_remains and NS.debuff_remains(target, id) or 999
+                    if remains > 2 then return false end
+                end
+            end
+        end
+    end
     return true
 end
 
--- Raptor Strike: melee weaving when target in melee range
+-- Raptor Strike: melee weaving when target in melee range (5yd)
 local function raptor_strike_matches(context, s)
     if not s.in_combat then return false end
     local target = context.target
     if not target then return false end
-    local dist = context.distance or context.target_distance or 100
-    if dist > 6 then return false end
+    -- Squared distance: 5yd = 25
+    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dist_sq > 25 then return false end
     if not s.raptor_strike_ready then return false end
+    -- Don't clip auto-shot
+    if not can_cast_before_auto(500) then return false end
     return true
 end
 
--- Wing Clip: melee slow to keep enemies in range
+-- Wing Clip: melee slow to keep enemies in range (5yd)
 local function wing_clip_matches(context, s)
     if not s.in_combat then return false end
     if s.wing_clip_active then return false end
     local target = context.target
     if not target then return false end
-    local dist = context.distance or context.target_distance or 100
-    if dist > 6 then return false end
+    -- Squared distance: 5yd = 25
+    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dist_sq > 25 then return false end
     if not s.wing_clip_ready then return false end
+    -- Don't clip auto-shot
+    if not can_cast_before_auto(500) then return false end
     return true
 end
 
