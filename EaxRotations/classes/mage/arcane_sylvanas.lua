@@ -369,7 +369,7 @@ local function arcane_blast_matches(context, s)
     -- Phase-based stack limits
     local max_stacks
     if s.phase == PHASE_BURN then
-        max_stacks = get_setting_num(context, "arcane_burn_max_stacks", 3)
+        max_stacks = get_setting_num(context, "arcane_burn_max_stacks", 4)
     else
         max_stacks = get_setting_num(context, "arcane_conserve_max_stacks", 0)
         -- Emergency: always 0 stacks
