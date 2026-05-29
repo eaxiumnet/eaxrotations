@@ -10,6 +10,7 @@ local SPELLS = NS.PaladinSpells or {}
 -- ============================================================================
 local RIGHTEOUS_FURY_BUFF = { 25780 }
 local SEAL_RIGHTEOUSNESS_BUFF = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
+local SEAL_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
 local HOLY_SHIELD_BUFF = { 27179, 20928, 20927, 20925 }
 local CONSECRATION_DEBUFF = { 27173, 20924, 20923, 20922, 20116, 26573 }
 local BLESSING_OF_SANCTUARY_BUFF = { 27168, 20914, 20913, 20912, 20911 }
@@ -37,6 +38,7 @@ local prot_state = {
     has_righteous_fury = false,
     has_holy_shield = false,
     has_seal = false,
+    has_seal_command = false,
     has_devotion_aura = false,
     has_divine_shield = false,
     has_forbearance = false,
@@ -104,6 +106,7 @@ local function build_state(context)
             prot_state.holy_shield_charges = (pts and pts[1]) or 0
         end
         prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
+        prot_state.has_seal_command = me and NS.buff_up(me, SEAL_COMMAND_BUFF) or false
         prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
         prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
         prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
@@ -245,7 +248,16 @@ end
 local function seal_righteousness_matches(context, state)
     if not get_setting(context, "prot_seal_of_righteousness", true) then return false end
     if state.has_seal then return false end
+    if state.has_seal_command then return false end
     return true
+end
+
+local function seal_command_aoe_matches(context, state)
+    if not get_setting(context, "prot_seal_of_command", false) then return false end
+    if not has_combat_target(context) then return false end
+    if (state.enemy_count or 0) < 3 then return false end
+    if state.has_seal or state.has_seal_command then return false end
+    return NS.spell_ready(SPELLS.SealCommand, context.me, { skip_range = true })
 end
 
 local function hammer_of_wrath_matches(context, state)
@@ -371,16 +383,18 @@ end
 -- ============================================================================
 -- Strategies
 -- ============================================================================
--- Priority order: combat spells first, then buff maintenance, then emergency.
+-- Priority order: Consecration > HolyShield > AvengerShield for AoE threat.
+-- Consecration generates more AoE threat per GCD; HolyShield provides mitigation.
 -- DevotionAura and BlessingOfSanctuary are placed low so they don't block
--- the actual combat rotation (HolyShield, Consecration, Judgement, etc.).
+-- the actual combat rotation.
 local strategies = {
     -- Buff maintenance (no target needed, check once)
 { name = "RighteousFury", matches = righteous_fury_matches, execute = function(context) return NS.try_cast(SPELLS.RighteousFury, context.me, "[PROTECTION] RighteousFury") end },
-    { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.try_cast(SPELLS.HolyShield, context.me, "[PROTECTION] HolyShield") end },
     { name = "Consecration", matches = consecration_matches, execute = function(context) return NS.try_cast(SPELLS.Consecration, context.me, "[PROTECTION] Consecration") end },
+    { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.try_cast(SPELLS.HolyShield, context.me, "[PROTECTION] HolyShield") end },
     { name = "AvengerShield", matches = avenger_shield_matches, execute = function(context) return NS.try_cast(SPELLS.AvengerShield, context.target, "[PROTECTION] AvengerShield") end },
     { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(SPELLS.Judgement, context.target, "[PROTECTION] Judgement") end },
+    { name = "SealOfCommandAoE", matches = seal_command_aoe_matches, execute = function(context) return NS.try_cast(SPELLS.SealCommand, context.me, "[PROTECTION] Seal of Command AoE") end },
     { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.try_cast(SPELLS.SealRighteousness, context.me, "[PROTECTION] SealRighteousness") end },
     { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfWrath, context.target, "[PROTECTION] HammerOfWrath") end },
     { name = "AvengingWrath", matches = avenging_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.AvengingWrath, context.me, "[PROTECTION] AvengingWrath") end },
@@ -403,6 +417,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("protection", strategies, { get_state = build_state })
-NS.log("Paladin protection rotation registered (Tier A) [strategy reorder + DevotionAura gate fix]")
+NS.log("Paladin protection rotation registered — AoE threat priority, SoC option, HS charge tracking")
 return strategies
-

@@ -503,20 +503,20 @@ local function pain_suppression_matches(context, s)
     if not context.in_combat then return false end
     if not s.tank then return false end
     local tank_hp = s.tank.effective_hp or 100
-    if tank_hp > (context.settings.discipline_pain_suppression_hp or 25) then return false end
+    if tank_hp > (context.settings.discipline_pain_suppression_hp or 30) then return false end
     if not s.pain_suppression_ready then return false end
     return true
 end
 
 -- ============================================================================
--- Power Infusion: grant +20% haste to caster DPS or self
+-- Power Infusion: grant +20% haste to highest DPS caster in group (or self)
 -- ============================================================================
 local function power_infusion_matches(context, s)
     if not context.in_combat then return false end
     if not s.power_infusion_ready then return false end
     local settings = context.settings or EMPTY_SETTINGS
     if settings.discipline_use_power_infusion == false then return false end
-    -- Gate: only use on boss fights or when all DPS are healthy
+    -- Gate: only use when all DPS are healthy
     if s.lowest and (s.lowest.effective_hp or 100) < (settings.discipline_pi_safety_hp or 80) then return false end
     return true
 end
@@ -646,7 +646,11 @@ local healing_strategies = {
     { name = "DispelMagic", matches = dispel_magic_matches, execute = function() return NS.try_cast(SPELLS.DispelMagic, NS.PLAYER_UNIT, "[DISCIPLINE] DispelMagic") end },
     -- Cooldown Features
     { name = "PainSuppression", matches = pain_suppression_matches, execute = function(_, s) return NS.try_cast(SPELLS.PainSuppression, s.tank.unit, string.format("[DISCIPLINE] Pain Suppression on tank %.0f%%", s.tank.effective_hp or 0)) end },
-    { name = "PowerInfusion", matches = power_infusion_matches, execute = function() return NS.try_cast(10060, NS.PLAYER_UNIT, "[DISCIPLINE] Power Infusion", { skip_range = true }) end },
+    { name = "PowerInfusion", matches = power_infusion_matches, execute = function(_, s)
+        local pi_target = s.pi_target or NS.PLAYER_UNIT
+        local label = s.pi_target and "[DISCIPLINE] Power Infusion on caster DPS" or "[DISCIPLINE] Power Infusion (self)"
+        return NS.try_cast(10060, pi_target, label, { skip_range = true })
+    end },
     { name = "InnerFocus", matches = inner_focus_matches, execute = function() return NS.try_cast(SPELLS.InnerFocus or 14751, NS.PLAYER_UNIT, "[DISCIPLINE] Inner Focus", { skip_range = true }) end },
     -- FrostByte Features
     { name = "StopCast", matches = stop_cast_matches, execute = function() if NS.stop_casting then return NS.stop_casting() end; if NS.cancel_current_cast then return NS.cancel_current_cast() end; return false end },

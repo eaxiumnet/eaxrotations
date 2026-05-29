@@ -511,6 +511,8 @@ local strategies = {
         name = "CurseOfAgony",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
+            -- Skip in groups when Curse of Elements is active (TBC: one curse per target)
+            if context.is_group and (state and state.coe_remains or 0) > 0 then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
