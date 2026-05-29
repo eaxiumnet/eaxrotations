@@ -114,7 +114,6 @@ local function build_smite_state(context)
     smite_state.power_word_shield_ready = spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, NS.PLAYER_UNIT, SKIP_RANGE)
     smite_state.renew_ready = spell_exists(SPELLS.Renew) and spell_ready(SPELLS.Renew, NS.PLAYER_UNIT, SKIP_RANGE)
     smite_state.psychic_scream_ready = spell_exists(SPELLS.PsychicScream) and spell_ready(SPELLS.PsychicScream, NS.PLAYER_UNIT, PSYCHIC_SCREAM_OPTS)
-    smite_state.shadowfiend_ready = spell_exists(SPELLS.Shadowfiend) and spell_ready(SPELLS.Shadowfiend, target, SHADOWFIEND_OPTS)
     smite_state.hp_pct = context.hp
     smite_state.mana_pct = context.mana_pct
     smite_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -224,21 +223,6 @@ local strategies = {
         end,
         execute = function()
             return try_cast(SPELLS.PsychicScream, PLAYER_UNIT, "[SMITE] Psychic Scream peel")
-        end,
-    },
-
-    -- [0.5] Shadowfiend mana
-    {
-        name = "ShadowfiendMana",
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if not can_take_smite_action(context) then return false end
-            if context.settings.smite_use_shadowfiend == false then return false end
-            if state.mana_pct > (context.settings.smite_shadowfiend_mana or 35) then return false end
-            return state.shadowfiend_ready
-        end,
-        execute = function(context)
-            return try_cast(SPELLS.Shadowfiend, context.target, "[SMITE] Shadowfiend mana")
         end,
     },
 
@@ -401,7 +385,7 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("smite", strategies, {
+NS.rotation_registry:register("smite_vanilla", strategies, {
     get_state = build_smite_state,
     format_context_log = function(context, state)
         return format(

@@ -18,6 +18,8 @@ local _ttd_tracker_ok, ttd_tracker = pcall(require, "shared/ttd_tracker_sylvanas
 if not _ttd_tracker_ok or type(ttd_tracker) ~= "table" then ttd_tracker = nil end
 local _ttd_ema_ok, ttd_ema = pcall(require, "shared/ttd_ema_tracker_sylvanas")
 if not _ttd_ema_ok or type(ttd_ema) ~= "table" then ttd_ema = nil end
+local _tick_profiler_ok, tick_profiler = pcall(require, "shared/tick_profiler_sylvanas")
+if not _tick_profiler_ok then tick_profiler = nil end
 local _buff_db_ok, buffs = pcall(require, "common/buff_db")
 if not _buff_db_ok or type(buffs) ~= "table" then buffs = {} end
 local BLOODLUST_IDS = buffs.BLOODLUST or { 2825, 32182 }
@@ -836,6 +838,7 @@ local function run_list(name, list, options, context, debug_on)
 end
 
 function M.on_rotation_update()
+    local _tick_start = tick_profiler and tick_profiler.begin_tick() or nil
     local context = build_context()
     local debug_enabled = is_debug_enabled()
     if not context then
@@ -898,6 +901,7 @@ function M.on_rotation_update()
         trace("update:playstyle_idle", "[EaxRotations:update] playstyle=" .. tostring(active) .. " finished WITHOUT firing any strategy", 2000)
         trace_no_action(active, context, "strategies_blocked")
     end
+    if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
 end
 
@@ -912,6 +916,7 @@ files continue to work. As classes migrate middleware entries to register_strate
 that pre-flight will naturally become a no-op.
 ]]
 function M.on_rotation_update_unified()
+    local _tick_start = tick_profiler and tick_profiler.begin_tick() or nil
     local context = build_context()
     local debug_enabled = is_debug_enabled()
     if not context then
@@ -966,6 +971,7 @@ function M.on_rotation_update_unified()
     local fired = NS.run_unified_strategies(context)
     trace("unified:done", "on_rotation_update_unified finished active=" .. tostring(active) .. " fired=" .. tostring(fired), 500)
     if not fired then trace_no_action(active, context, "unified_strategies_blocked") end
+    if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
 end
 

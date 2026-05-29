@@ -104,6 +104,7 @@ local resto_state = {
     cursed_target = nil,
     poison_target = nil,
     tranquility_count = 0,
+    tranquility_best_target = nil,
     tree_aura_count = 0,
     melee_pressure_count = 0,
     melee_target = nil,
@@ -473,8 +474,7 @@ local strategies = {
     { name = "ClearcastRegrowth", matches = function(context, state)
         if not state.has_clearcasting or not state.regrowth_target then return false end
         if not NS.spell_ready(SPELLS.Regrowth, state.regrowth_target.unit) then return false end
-        -- Predictive overheal gate for clearcast Regrowth
-        if NS.gate_overheal("Regrowth", state.regrowth_target.unit, 2.0, context.settings) then return false end
+        if predictive_overheal("Regrowth", state.regrowth_target, 2.0, context.settings, 35) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.Regrowth, state.regrowth_target.unit, "[RESTO] Clearcast Regrowth") end },
     { name = "RaidLifebloomCoverage", matches = function(_, state) return state.lifebloom_raid and NS.spell_ready(SPELLS.Lifebloom, state.lifebloom_raid.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.Lifebloom, state.lifebloom_raid.unit, "[RESTO] Raid Lifebloom coverage") end },
@@ -482,13 +482,12 @@ local strategies = {
     { name = "MovingLifebloom", matches = function(context, state) return context.is_moving and state.lowest and effective_hp(state.lowest) <= MOVING_HOT_HP and NS.spell_ready(SPELLS.Lifebloom, state.lowest.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.Lifebloom, state.lowest.unit, "[RESTO] Moving Lifebloom") end },
     { name = "MovingRejuvenation", matches = function(context, state) return context.is_moving and state.rejuv_target and not state.mana_emergency and NS.spell_ready(SPELLS.Rejuvenation, state.rejuv_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.Rejuvenation, state.rejuv_target.unit, "[RESTO] Moving Rejuvenation") end },
     { name = "PriorityRejuvenation", matches = function(_, state) return state.rejuv_target and not state.mana_emergency and NS.spell_ready(SPELLS.Rejuvenation, state.rejuv_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.Rejuvenation, state.rejuv_target.unit, "[RESTO] Priority Rejuvenation") end },
-    { name = "DownrankHealingTouch", matches = function(context, state) 
+    { name = "DownrankHealingTouch", matches = function(context, state)
         if context.is_moving or not state.lowest then return false end
         if effective_hp(state.lowest) > DOWNRANK_HT_HP then return false end
         if (context.mana_pct or 100) > 45 then return false end
         if not NS.spell_ready(LOCAL_SPELLS.HealingTouchRank4, state.lowest.unit) then return false end
-        -- Predictive overheal gate for downranked HT
-        if NS.gate_overheal("HealingTouch", state.lowest.unit, 2.5, context.settings) then return false end
+        if downrank_ht_overheal(state.lowest, context.settings) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(LOCAL_SPELLS.HealingTouchRank4, state.lowest.unit, "[RESTO] Downrank Healing Touch") end },
     { name = "TreeOfLifeMaintain", matches = function(_, state) return state.can_tree and not state.in_tree and state.tree_aura_count >= 2 end, execute = function() return NS.try_cast(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Tree of Life aura", TREE_OPTS) end },
@@ -499,12 +498,11 @@ local strategies = {
     { name = "SoloWrath", matches = function(context, state) return solo_damage_enabled(context, state) and not context.is_moving and not state.mana_emergency and NS.spell_ready(SPELLS.Wrath, context.target) end, execute = function(context) return NS.try_cast(SPELLS.Wrath, context.target, "[RESTO] Solo Wrath") end },
     { name = "TravelFormReposition", matches = function(context, state) return state.should_move_form and context.stance ~= STANCE_TRAVEL and context.stance ~= STANCE_CAT and NS.spell_ready(LOCAL_SPELLS.TravelForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.TravelForm, PLAYER_UNIT, "[RESTO] Travel Form reposition", SKIP_RANGE) end },
     { name = "CatFormRepositionFallback", matches = function(context, state) return state.should_move_form and context.stance ~= STANCE_CAT and NS.spell_ready(SPELLS.CatForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(SPELLS.CatForm, PLAYER_UNIT, "[RESTO] Cat Form reposition", SKIP_RANGE) end },
-    { name = "FallbackHealingTouch", matches = function(context, state) 
+    { name = "FallbackHealingTouch", matches = function(context, state)
         if context.is_moving or not state.lowest then return false end
         if effective_hp(state.lowest) > 80 then return false end
         if not NS.spell_ready(SPELLS.HealingTouch, state.lowest.unit) then return false end
-        -- Predictive overheal gate
-        if NS.gate_overheal("HealingTouch", state.lowest.unit, 2.5, context.settings) then return false end
+        if predictive_overheal("HealingTouch", state.lowest, 2.5, context.settings, 35) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.lowest.unit, "[RESTO] Healing Touch fallback") end },
 }

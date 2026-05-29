@@ -152,6 +152,7 @@ local _strategies = {
         name="ForceOfNature",
         matches=function(ctx)
             if not ctx or not ctx.in_combat then return false end
+            if not ctx.should_burst then return false end
             if ctx.settings and ctx.settings.balance_use_force_of_nature == false then return false end
             return _G_E.action_matches(ctx, _ACT_FON)
         end,

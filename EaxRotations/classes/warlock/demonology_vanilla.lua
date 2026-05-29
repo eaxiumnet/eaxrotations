@@ -437,7 +437,7 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.DrainSoul, context.target,
-                string.format("[DEMONOLOGY] Drain Soul execute (%.0f%%)", (state and state.target_hp) or 0))
+                string.format("[DEMONOLOGY] Drain Soul execute (%.0f%%)", (context.target_hp) or 0))
         end,
     },
     -- Shadow Bolt (filler)
@@ -506,7 +506,7 @@ local strategies = {
     {
         name = "RacialBerserking",
         matches = function(context, state) return racial_matches(context, state) and NS.spell_ready and NS.spell_ready(LOCAL_SPELLS.Berserking, context.me, { skip_range = true }) end,
-        execute = function() return NS.try_cast(LOCAL_SPELLS.Berserking, context.me, "[DEMONOLOGY] Berserking", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(LOCAL_SPELLS.Berserking, context.me, "[DEMONOLOGY] Berserking", { skip_range = true }) end,
     },
     {
         name = "RacialBloodFury",

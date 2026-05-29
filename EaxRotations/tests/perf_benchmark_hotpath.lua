@@ -50,7 +50,7 @@ local function make_strategy(name)
 end
 
 -- ============================================================================
--- Build list of strategies for benchmarking (25 = typical playstyle depth)
+-- Build list of strategies for benchmarking
 -- ============================================================================
 local NUM_STRATEGIES = 25
 local strategy_list = {}
@@ -90,6 +90,20 @@ local function trace_old(key, message, interval_ms)
     local last = _trace_times[key] or -100000
     if now - last < interval then return end
     _trace_times[key] = now
+end
+
+-- ============================================================================
+-- core_trace simulation (models the core_sylvanas.lua implementation)
+-- ============================================================================
+local _core_trace_times = {}
+local function core_trace_old(key, message)
+    -- Old: checks setting AND string concatenation happens before this call
+    if not NS.get_setting("debug_system", false) then return end
+    local now = NS.game_time_ms and NS.game_time_ms() or 0
+    -- Limit to 1 logged message per key per 60s
+    local last = _core_trace_times[key] or -60000
+    if now - last < 60000 then return end
+    _core_trace_times[key] = now
 end
 
 -- ============================================================================
@@ -271,10 +285,170 @@ local function bench_debug_nil_check(iterations)
 end
 
 -- ============================================================================
--- BENCHMARK 4: Combined dispatch — full tick simulation
--- Replicates the actual run_list() dispatch loop with middleware + playstyle
+-- BENCHMARK 5 (NEW): core_trace gating in core_sylvanas.lua hot-path
+-- Simulates the hot-path through NS.action_matches + NS.spell_ready +
+-- NS.evaluate_cast + NS.try_cast. ~34 unguarded core_trace() calls per
+-- action (from the 20 that were wrapped + ~14 that were already guarded
+-- but now don't do the internal setting check).
+--
+-- Counts per function:
+--   NS.try_cast:       16 core_trace calls (previously unguarded)
+--   NS.evaluate_cast:   8 core_trace calls (previously unguarded)
+--   NS.spell_ready:     7 core_trace calls (6 previously unguarded)
+--   NS.action_matches: 41 core_trace calls (already guarded, just renamed)
+--   NS.try_cast_pos:    4 core_trace calls (previously unguarded)
+--   NS.action_execute:  0 core_trace calls
+--
+-- When debug=OFF (common case):
+--   BEFORE: 20 unguarded calls do string concat + call core_trace (setting
+--           lookup fails, returns early). 53 guarded calls skip entirely.
+--   AFTER:  All 73 calls guarded with `if debug_trace then` — zero string
+--           concat when debug is off.
+--
+-- We simulate 3 actions per tick (typical rotation throughput).
 -- ============================================================================
-local function bench_full_tick(iterations)
+local ACTIONS_PER_TICK = 3
+local UNGUARDED_CORE_TRACE_COUNT = 20  -- previously unguarded in hot-path
+local GUARDED_CORE_TRACE_COUNT = 53    -- already guarded (just renamed)
+
+local function bench_core_trace_gating(iterations)
+    -- BEFORE: 20 unguarded core_trace() calls per action
+    -- String concatenation happens unconditionally for each call
+    local function simulate_action_before(action_id)
+        -- Model the pattern from NS.action_matches + NS.spell_ready + NS.evaluate_cast + NS.try_cast
+        core_trace_old("action:" .. tostring(action_id) .. ":cooldown",
+            "spell on cooldown " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":range",
+            "out of range check for spell " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":resource",
+            "resource check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":line_of_sight",
+            "los check for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":cast_result",
+            "cast result " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":gcd",
+            "gcd check for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":execute_path",
+            "execute path for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":evaluate_path",
+            "evaluate path " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":spell_ready",
+            "spell_ready for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":gcd_remaining",
+            "gcd remaining " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":in_combat",
+            "in_combat check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":target",
+            "target check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":spell_id",
+            "spell_id check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":usable_check",
+            "usable check for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":is_known",
+            "is_known for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":delay",
+            "delay check for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":anti_flicker",
+            "anti_flicker " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":reagent",
+            "reagent check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":stealth",
+            "stealth check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":final",
+            "final check " .. tostring(action_id))
+    end
+
+    -- AFTER: All core_trace() calls guarded behind debug_trace flag
+    local function simulate_action_after(action_id, debug_trace)
+        if debug_trace then
+            core_trace_old("action:" .. tostring(action_id) .. ":cooldown",
+                "spell on cooldown " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":range",
+                "out of range check for spell " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":resource",
+                "resource check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":line_of_sight",
+                "los check for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":cast_result",
+                "cast result " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":gcd",
+                "gcd check for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":execute_path",
+                "execute path for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":evaluate_path",
+                "evaluate path " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":spell_ready",
+                "spell_ready for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":gcd_remaining",
+                "gcd remaining " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":in_combat",
+                "in_combat check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":target",
+                "target check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":spell_id",
+                "spell_id check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":usable_check",
+                "usable check for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":is_known",
+                "is_known for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":delay",
+                "delay check for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":anti_flicker",
+                "anti_flicker " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":reagent",
+                "reagent check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":stealth",
+                "stealth check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":final",
+                "final check " .. tostring(action_id))
+        end
+    end
+
+    -- Warmup
+    for aid = 1, ACTIONS_PER_TICK do
+        simulate_action_before(aid)
+        simulate_action_after(aid, false)
+    end
+
+    -- BEFORE: 3 actions per tick, 20 unguarded core_trace calls each
+    local t0 = os.clock()
+    for _ = 1, iterations do
+        for aid = 1, ACTIONS_PER_TICK do
+            simulate_action_before(aid)
+        end
+    end
+    local t1 = os.clock()
+
+    -- AFTER: same 3 actions, but all core_trace calls guarded
+    local debug_trace = false
+    local t2 = os.clock()
+    for _ = 1, iterations do
+        for aid = 1, ACTIONS_PER_TICK do
+            simulate_action_after(aid, debug_trace)
+        end
+    end
+    local t3 = os.clock()
+
+    local before_us = ((t1 - t0) / iterations) * 1e6
+    local after_us = ((t3 - t2) / iterations) * 1e6
+
+    return before_us, after_us
+end
+
+-- ============================================================================
+-- BENCHMARK 6 (NEW): Full combined tick simulation
+-- Replicates ALL optimizations together:
+--   main_sylvanas.lua:
+--     - trace() gating (debug OFF)
+--     - direct matches calls (no pcall)
+--     - debug_on nil-check
+--     - build_context() debug_trace lifting
+--   core_sylvanas.lua:
+--     - core_trace() gating (debug OFF) — 20 unguarded calls per action
+--     - precomputed settings locals in unified dispatcher
+--   Simulates: 5 middleware + 25 playstyle strats + 3 actions through unified dispatch
+-- ============================================================================
+local function bench_full_tick_combined(iterations)
     -- Build middleware list (~5 strategies)
     local middleware = {}
     for i = 1, 5 do
@@ -287,17 +461,19 @@ local function bench_full_tick(iterations)
         playstyle[i] = make_strategy("ps_" .. i)
     end
 
-    -- BEFORE (all optimizations disabled):
-    --  - trace() calls unconditional (but debug off, so they return early)
-    --  - matches() wrapped in safe() (pcall)
-    --  - debug_on = debug_on or is_debug_enabled() (calls is_debug_enabled even when false)
-    --  - is_debug_enabled called independently in each run_list
-    local function trace_unconditional(key, msg, interval)
-        if not NS.get_setting("debug_system", false) then return end
-    end
+    -- ========================================================================
+    -- BEFORE: all old code paths
+    -- ========================================================================
+
+    -- main_sylvanas.lua old dispatcher:
+    --   - trace() unconditional (setting lookup each time)
+    --   - safe() pcall around matches
+    --   - debug_on = debug_on or is_debug_enabled() (unnecessary call when false)
+    --   - is_debug_enabled called independently in each run_list
     local function run_list_before(name, list, ctx)
-        local debug_on = is_debug_enabled()
+        local debug_on = is_debug_enabled()  -- called fresh each time (BEFORE: no lifting)
         for _, s in ipairs(list) do
+            trace_old("strat:" .. name .. ":" .. tostring(s.name), "match " .. tostring(s.name), 2000)
             if type(s.execute) == "function" then
                 local ok = true
                 if type(s.matches) == "function" then
@@ -307,11 +483,72 @@ local function bench_full_tick(iterations)
         end
     end
 
-    -- AFTER (all optimizations enabled):
-    --  - trace() guarded behind cached debug flag (no string concat)
-    --  - matches() called directly (no pcall)
-    --  - debug_on = nil-check (no is_debug_enabled call when false)
-    --  - debug_enabled computed once, passed to both run_list calls
+    -- core_sylvanas.lua old hot-path:
+    --   - 20 unguarded core_trace() calls with string concat (then internal check)
+    --   - no precomputed debug_trace local
+    local function simulate_action_before(action_id)
+        core_trace_old("action:" .. tostring(action_id) .. ":cooldown",
+            "spell on cooldown " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":range",
+            "out of range check for spell " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":resource",
+            "resource check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":line_of_sight",
+            "los check for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":cast_result",
+            "cast result " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":gcd",
+            "gcd check for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":execute_path",
+            "execute path for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":evaluate_path",
+            "evaluate path " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":spell_ready",
+            "spell_ready for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":gcd_remaining",
+            "gcd remaining " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":in_combat",
+            "in_combat check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":target",
+            "target check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":spell_id",
+            "spell_id check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":usable_check",
+            "usable check for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":is_known",
+            "is_known for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":delay",
+            "delay check for " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":anti_flicker",
+            "anti_flicker " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":reagent",
+            "reagent check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":stealth",
+            "stealth check " .. tostring(action_id))
+        core_trace_old("action:" .. tostring(action_id) .. ":final",
+            "final check " .. tostring(action_id))
+    end
+
+    local function tick_before(ctx)
+        -- main_sylvanas.lua path: middleware + playstyle
+        run_list_before("middleware", middleware, ctx)
+        run_list_before("playstyle", playstyle, ctx)
+
+        -- core_sylvanas.lua path: 3 actions executed
+        for aid = 1, ACTIONS_PER_TICK do
+            simulate_action_before(aid)
+        end
+    end
+
+    -- ========================================================================
+    -- AFTER: all new optimized code paths
+    -- ========================================================================
+
+    -- main_sylvanas.lua new dispatcher:
+    --   - trace() guarded behind cached debug flag
+    --   - matches() called directly (no pcall)
+    --   - debug_on = nil-check
+    --   - debug_enabled computed once, passed to both run_list calls
     local function run_list_after(name, list, ctx, debug_on)
         if debug_on == nil then debug_on = is_debug_enabled() end
         for _, s in ipairs(list) do
@@ -324,16 +561,65 @@ local function bench_full_tick(iterations)
         end
     end
 
-    local function tick_before(ctx)
-        local debug_enabled = is_debug_enabled()
-        run_list_before("middleware", middleware, ctx)
-        run_list_before("playstyle", playstyle, ctx)
+    -- core_sylvanas.lua new hot-path:
+    --   - debug_trace local precomputed, passed as param
+    --   - all core_trace() calls guarded with if debug_trace then
+    local function simulate_action_after(action_id, debug_trace)
+        if debug_trace then
+            core_trace_old("action:" .. tostring(action_id) .. ":cooldown",
+                "spell on cooldown " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":range",
+                "out of range check for spell " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":resource",
+                "resource check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":line_of_sight",
+                "los check for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":cast_result",
+                "cast result " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":gcd",
+                "gcd check for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":execute_path",
+                "execute path for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":evaluate_path",
+                "evaluate path " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":spell_ready",
+                "spell_ready for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":gcd_remaining",
+                "gcd remaining " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":in_combat",
+                "in_combat check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":target",
+                "target check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":spell_id",
+                "spell_id check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":usable_check",
+                "usable check for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":is_known",
+                "is_known for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":delay",
+                "delay check for " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":anti_flicker",
+                "anti_flicker " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":reagent",
+                "reagent check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":stealth",
+                "stealth check " .. tostring(action_id))
+            core_trace_old("action:" .. tostring(action_id) .. ":final",
+                "final check " .. tostring(action_id))
+        end
     end
 
     local function tick_after(ctx)
+        -- main_sylvanas.lua path: debug_enabled lifted, passed as param
         local debug_enabled = is_debug_enabled()
         run_list_after("middleware", middleware, ctx, debug_enabled)
         run_list_after("playstyle", playstyle, ctx, debug_enabled)
+
+        -- core_sylvanas.lua path: debug_trace lifted, 3 actions
+        local debug_trace = debug_enabled  -- same cache in production
+        for aid = 1, ACTIONS_PER_TICK do
+            simulate_action_after(aid, debug_trace)
+        end
     end
 
     -- Warmup
@@ -369,15 +655,15 @@ end
 local ITERATIONS = 50000
 local SUMMARY_ITERATIONS = 500000
 
-print("========================================================================")
-print("  HOT-PATH PERFORMANCE BENCHMARK")
+print("=============================================================================")
+print("  HOT-PATH PERFORMANCE BENCHMARK v3")
 print(string.format("  Debug mode: %s (production hot path)", tostring(mock_debug_setting)))
-print(string.format("  Strategies per list: %d", NUM_STRATEGIES))
-print("========================================================================")
+print(string.format("  Strategies per list: %d | Actions/tick: %d", NUM_STRATEGIES, ACTIONS_PER_TICK))
+print("=============================================================================")
 print()
 
 -- B1: Trace call overhead
-print("--- Benchmark 1: Trace call gating (debug OFF) ---")
+print("--- Benchmark 1: Trace call gating (main_sylvanas — debug OFF) ---")
 print(string.format("  Iterations: %d", ITERATIONS))
 local t1_before, t1_after = bench_trace_no_debug(ITERATIONS)
 local t1_saved = t1_before - t1_after
@@ -402,7 +688,7 @@ print()
 print("--- Benchmark 3: debug_on nil-check vs `or` ---")
 print(string.format("  Iterations: %d", SUMMARY_ITERATIONS))
 local t3 = bench_debug_nil_check(SUMMARY_ITERATIONS)
-print(string.format("  debug_on=false:"))
+print(string.format("  debug_on=false (hot path):"))
 print(string.format("    BEFORE (`or` fallback):      %.4f μs", t3.disabled_old))
 print(string.format("    AFTER  (nil-check):          %.4f μs", t3.disabled_new))
 print(string.format("    SAVED: %.4f μs (%.1f%%)", t3.disabled_old - t3.disabled_new,
@@ -414,29 +700,44 @@ print(string.format("    SAVED: %.4f μs (%.1f%%)", t3.nil_old - t3.nil_new,
     (t3.nil_old > 0) and ((t3.nil_old - t3.nil_new) / t3.nil_old * 100) or 0))
 print()
 
--- B4: Combined full-tick simulation
-print("--- Benchmark 4: Full tick simulation (all optimizations combined) ---")
+-- B5: core_trace gating (NEW)
+print("--- Benchmark 5 [NEW]: core_trace gating (core_sylvanas — debug OFF) ---")
 print(string.format("  Iterations: %d", ITERATIONS))
-print(string.format("  Middleware: 5 strategies, Playstyle: 25 strategies"))
-local t4_before, t4_after = bench_full_tick(ITERATIONS)
-local t4_saved = t4_before - t4_after
-local t4_percent = (t4_before > 0) and (t4_saved / t4_before * 100) or 0
-print(string.format("  BEFORE (all old):  %.4f μs/tick", t4_before))
-print(string.format("  AFTER  (all new):  %.4f μs/tick", t4_after))
-print(string.format("  SAVED:  %.4f μs/tick (%.1f%%)", t4_saved, t4_percent))
+print(string.format("  Simulated: %d actions × %d unguarded core_trace() calls each = %d calls/tick",
+    ACTIONS_PER_TICK, UNGUARDED_CORE_TRACE_COUNT, ACTIONS_PER_TICK * UNGUARDED_CORE_TRACE_COUNT))
+local t5_before, t5_after = bench_core_trace_gating(ITERATIONS)
+local t5_saved = t5_before - t5_after
+local t5_percent = (t5_before > 0) and (t5_saved / t5_before * 100) or 0
+print(string.format("  BEFORE (unguarded core_trace): %.4f μs/tick", t5_before))
+print(string.format("  AFTER  (guarded core_trace):    %.4f μs/tick", t5_after))
+print(string.format("  SAVED: %.4f μs/tick (%.1f%%)", t5_saved, t5_percent))
+print()
+
+-- B6: Full combined tick simulation (NEW)
+print("--- Benchmark 6 [NEW]: Full combined tick (ALL optimizations) ---")
+print(string.format("  Iterations: %d", ITERATIONS))
+print(string.format("  Middleware: 5 | Playstyle: 25 | Actions/tick: %d", ACTIONS_PER_TICK))
+print(string.format("  Includes: trace gating + pcall removal + nil-check +"))
+print(string.format("            core_trace gating + settings lifting"))
+local t6_before, t6_after = bench_full_tick_combined(ITERATIONS)
+local t6_saved = t6_before - t6_after
+local t6_percent = (t6_before > 0) and (t6_saved / t6_before * 100) or 0
+print(string.format("  BEFORE (all old):                %.4f μs/tick", t6_before))
+print(string.format("  AFTER  (all new):                %.4f μs/tick", t6_after))
+print(string.format("  SAVED:  %.4f μs/tick (%.1f%%)", t6_saved, t6_percent))
 print()
 
 -- Projected savings
-print("========================================================================")
+print("=============================================================================")
 print("  PROJECTED ANNUALIZED SAVINGS")
-print("========================================================================")
+print("=============================================================================")
 local ticks_per_sec = 10  -- ~10 rotation ticks per second
 local secs_per_hour = 3600
 local hours_per_session = 4
 local ticks_per_hour = ticks_per_sec * secs_per_hour
 local ticks_per_session = ticks_per_hour * hours_per_session
 
-local combined_saved_per_tick_us = t4_saved
+local combined_saved_per_tick_us = t6_saved
 local combined_saved_per_hour_ms = combined_saved_per_tick_us * ticks_per_hour / 1000
 local combined_saved_per_session_ms = combined_saved_per_tick_us * ticks_per_session / 1000
 
@@ -444,12 +745,23 @@ print(string.format("  CPU time saved per tick:          %.4f μs", combined_sav
 print(string.format("  CPU time saved per hour:           %.2f ms", combined_saved_per_hour_ms))
 print(string.format("  CPU time saved per 4hr session:    %.2f ms", combined_saved_per_session_ms))
 print(string.format("  Game ticks/sec:                     %d", ticks_per_sec))
-print()
 
--- Scaling note
-print(string.format("  Note: %.1f%% reduction means the rotation hot path now", t4_percent))
-print(string.format("  takes %.2f× less CPU time per tick.", 100 / (100 - t4_percent)))
-print("========================================================================")
+-- Contribution breakdown
+print()
+print("  Per-optimization contribution (estimated):")
+local trace_pct = (t1_saved / t6_saved) * 100
+local pcall_pct = (t2_saved / t6_saved) * 100
+local core_trace_pct = (t5_saved / t6_saved) * 100
+print(string.format("    Trace gating (main_sylvanas):     %.1f%%", trace_pct))
+print(string.format("    pcall removal (matches):          %.1f%%", pcall_pct))
+print(string.format("    core_trace gating (core_sylvanas): %.1f%%", core_trace_pct))
+print(string.format("    Other (nil-check, lifting, etc):  %.1f%%",
+    100 - trace_pct - pcall_pct - core_trace_pct))
+
+print()
+print(string.format("  Note: %.1f%% reduction means the full rotation hot path now", t6_percent))
+print(string.format("  takes %.2f× less CPU time per tick.", 100 / (100 - t6_percent)))
+print("=============================================================================")
 
 -- Summary
 print()

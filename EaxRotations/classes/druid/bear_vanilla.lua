@@ -563,7 +563,7 @@ local function swipe_cleave_matches(context, action)
     local state = build_state(context)
     if not state.is_bear then return false end
     if not state.in_combat and NS.spell_ready then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     if context.has_breakable_cc_nearby then return false end
     if state.rage < RAGE_SWIPE then return false end
     return action_ready(context, action)

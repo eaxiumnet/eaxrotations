@@ -405,17 +405,7 @@ local strategies = {
         name = "Mutilate",
         matches = function(context, state)
             if state.energy_low then return false end  -- pool energy below 40
-            -- Must be behind target (IZI SDK fast path, then fallback)
-            local _target = context.target
-            local _me = NS.GetPlayer and NS.GetPlayer()
-            local _behind = false
-            if _me and _target and type(_target.is_behind) == "function" then
-                local _ok, _b = pcall(_target.is_behind, _target, _me)
-                if _ok then _behind = _b else _behind = NS.is_behind_target and NS.is_behind_target(_target) or false end
-            elseif NS.is_behind_target then
-                _behind = NS.is_behind_target(_target)
-            end
-            if not _behind then return false end
+            -- TBC Mutilate works from any position (no behind-target requirement)
             -- Must have poison on target for +50% damage bonus
             if not state.target_poisoned then return false end
             return NS.spell_ready(SPELLS.Mutilate, context.target)
@@ -430,7 +420,7 @@ local strategies = {
 
     -- ------------------------------------------------------------------------
     -- 13b. Sinister Strike (fallback when Mutilate isn't usable)
-    -- Triggers when: poison-immune target, can't get behind, or target unpoisoned
+    -- Triggers when: poison-immune target or target unpoisoned
     -- ------------------------------------------------------------------------
     {
         name = "SinisterStrikeFallback",
@@ -438,16 +428,8 @@ local strategies = {
             -- Only active when Mutilate is learned but can't be used
             local level = context.player_level or 70
             if level < 50 or not (NS.spell_exists and NS.spell_exists(SPELLS.Mutilate)) then return false end
-            -- Only as fallback — skip if Mutilate CAN be used (poisoned + behind)
-            local _fb_me = NS.GetPlayer and NS.GetPlayer()
-            local _fb_behind = false
-            if _fb_me and context.target and type(context.target.is_behind) == "function" then
-                local _ok, _b = pcall(context.target.is_behind, context.target, _fb_me)
-                if _ok then _fb_behind = _b else _fb_behind = NS.is_behind_target and NS.is_behind_target(context.target) or false end
-            elseif NS.is_behind_target then
-                _fb_behind = NS.is_behind_target(context.target)
-            end
-            if state.target_poisoned and _fb_behind then return false end
+            -- Only as fallback — skip if Mutilate CAN be used (poisoned target, TBC Mutilate works from any position)
+            if state.target_poisoned then return false end
             if state.energy_low then return false end  -- pool energy below 40
             return NS.spell_ready(SPELLS.SinisterStrike, context.target)
         end,

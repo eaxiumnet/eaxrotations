@@ -23,6 +23,7 @@ local WINTERS_CHILL_DEBUFF = { 28595, 28594, 28593, 28592, 11180 }
 local FROSTBITE_DEBUFF = { 12494 }
 local MANA_GEM_CONJURE = { 27101, 10054, 10053, 3552, 759 }
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
+local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
 
 -- ============================================================================
 -- Custom Gating Functions (test assertions depend on these signatures)
@@ -93,6 +94,7 @@ local frost_state = {
     has_ice_block = false,
     has_presence_of_mind = false,
     has_combustion = false,
+    has_clearcasting = false,
     mana_pct = 100,
     hp_pct = 100,
     enemy_count = 1,
@@ -155,6 +157,7 @@ local function build_state(context)
     frost_state.has_ice_block = me and NS.buff_up(me, ICE_BLOCK_BUFF) or false
     frost_state.has_presence_of_mind = me and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
     frost_state.has_combustion = me and NS.buff_up(me, COMBUSTION_BUFF) or false
+    frost_state.has_clearcasting = me and NS.buff_up(me, CLEARCASTING_BUFF) or false
     frost_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     frost_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     frost_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -264,6 +267,8 @@ end
 local function frostbolt_matches(context, s)
     if not context.target then return false end
     if context.is_moving then return false end
+    -- Clearcasting: always consume on Frostbolt (highest damage) per research
+    if s.has_clearcasting then return true end
     if not s.frostbolt_ready then return false end
     return true
 end

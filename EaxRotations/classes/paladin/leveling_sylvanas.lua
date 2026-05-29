@@ -149,7 +149,6 @@ local function cleanse_matches(context, state)
     if not state then return false end
     -- OOC debuff cleanup between pulls
     if state.in_combat then return false end
-    if not state.needs_cleanse then return false end
     return state.cleanse_ready
 end
 
@@ -178,7 +177,7 @@ local function seal_matches(context, state)
     if not state.in_combat then return false end
     if state.has_any_seal then return false end
     -- Prefer Seal of Command (or Blood) when available, fall back to Righteousness
-    return state.selected_seal ~= nil
+    return state.seal_command_ready or state.seal_blood_ready or state.seal_martyr_ready or state.seal_righteousness_ready
 end
 
 local function judgement_matches(context, state)
