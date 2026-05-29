@@ -340,6 +340,12 @@ add_strategy(strategies, "Ret_PvP_Repentance_EmergencyInterrupt", 840, function(
     return context.is_pvp and state.target_casting and ready(Repentance, context.target, {})
 end, function(context) return cast(Repentance, context.target, "[RET PvP] Repentance interrupt") end)
 
+add_strategy(strategies, "Ret_Repentance_PvEInterrupt", 835, function(context, state)
+    if context.is_pvp then return false end
+    if not get_setting(context, "repentance_pve_interrupt", true) then return false end
+    return state.target_casting and ready(Repentance, context.target, { expected_cooldown = 60 })
+end, function(context) return cast(Repentance, context.target, "[RET] Repentance PvE interrupt", { expected_cooldown = 60 }) end)
+
 add_strategy(strategies, "Ret_HammerJustice_Interrupt", 830, function(context, state)
     return state.target_casting and ready(HammerJustice, context.target, { expected_cooldown = 60 })
 end, function(context) return cast(HammerJustice, context.target, "[RET] Hammer of Justice interrupt", { expected_cooldown = 60 }) end)
