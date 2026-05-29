@@ -259,9 +259,17 @@ local pom = find_strategy("PresenceOfMind")
 action_calls = {}
 assert_false(pom.matches({}, state({ phase = "conserve", is_moving = false })), "PoM should not match outside burn/bloodlust")
 
--- Burn window -> should match
+-- Burn window, AP on CD -> should match
 action_calls = {}
-assert_true(pom.matches({}, state({ phase = "burn", is_moving = false })), "PoM should match during burn")
+assert_true(pom.matches({}, state({ phase = "burn", is_moving = false, arcane_power_available = false })), "PoM should match during burn with AP on CD")
+
+-- Burn window, AP available -> should NOT match
+action_calls = {}
+assert_false(pom.matches({}, state({ phase = "burn", is_moving = false, arcane_power_available = true })), "PoM should not match when AP is available")
+
+-- Burn window, AP active -> should match
+action_calls = {}
+assert_true(pom.matches({}, state({ phase = "burn", is_moving = false, has_arcane_power = true })), "PoM should match when AP is already active")
 
 -- Moving only still requires burn/bloodlust
 action_calls = {}

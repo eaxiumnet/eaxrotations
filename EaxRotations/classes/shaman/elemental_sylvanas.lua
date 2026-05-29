@@ -357,7 +357,6 @@ end
 local function mana_spring_totem_matches_fn(context, state)
     local s = context.settings or {}
     if s.elemental_manage_totems == false then return false end
-    if context.in_combat then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(MANA_SPRING_BUFF) then return false end
     return NS.spell_ready(SPELLS.ManaSpringTotem, NS.PLAYER_UNIT, { skip_range = true })

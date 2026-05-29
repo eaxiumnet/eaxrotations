@@ -456,18 +456,16 @@ local strategies = {
     { name = "NaturesSwiftnessHealingTouch", matches = function(_, state) return state.ns_target and state.has_natures_swiftness and NS.spell_ready(SPELLS.HealingTouch, state.ns_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ns_target.unit, "[RESTO] NS Healing Touch") end },
     { name = "TranquilityEmergency", matches = function(context, state) local needed = (context.settings and context.settings.resto_tranquility_count) or 3; if state.tranquility_count < needed then return false end; if NS.threat_status and NS.threat_status(context.me, context.target) >= 2 then return false end; return NS.spell_ready(LOCAL_SPELLS.Tranquility, PLAYER_UNIT, TRANQUILITY_OPTS) end, execute = function() return NS.try_cast(LOCAL_SPELLS.Tranquility, PLAYER_UNIT, "[RESTO] Tranquility emergency", TRANQUILITY_OPTS) end },
     { name = "LeaveTreeForDirectHeal", matches = function(_, state) return state.should_dance_caster and state.in_tree and NS.spell_ready(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, TREE_OPTS) end, execute = function() return NS.try_cast(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Leave Tree for direct spell", TREE_OPTS) end },
-    { name = "HealingTouchMaxEmergency", matches = function(context, state) 
+    { name = "HealingTouchMaxEmergency", matches = function(context, state)
         if context.is_moving or not state.ht_target then return false end
         if not NS.spell_ready(SPELLS.HealingTouch, state.ht_target.unit) then return false end
-        -- Predictive overheal gate
-        if NS.gate_overheal("HealingTouch", state.ht_target.unit, 2.5, context.settings) then return false end
+        if predictive_overheal("HealingTouch", state.ht_target, 2.5, context.settings, 25) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
-    { name = "RegrowthSpotHeal", matches = function(context, state) 
+    { name = "RegrowthSpotHeal", matches = function(context, state)
         if context.is_moving or not state.regrowth_target or state.mana_conserve then return false end
         if not NS.spell_ready(SPELLS.Regrowth, state.regrowth_target.unit) then return false end
-        -- Predictive overheal gate
-        if NS.gate_overheal("Regrowth", state.regrowth_target.unit, 2.0, context.settings) then return false end
+        if predictive_overheal("Regrowth", state.regrowth_target, 2.0, context.settings, 35) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.Regrowth, state.regrowth_target.unit, "[RESTO] Regrowth spot heal") end },
     { name = "LifebloomLetBloom", matches = function(_, state) return state.lifebloom_bloom ~= nil end, execute = function() return false end },
