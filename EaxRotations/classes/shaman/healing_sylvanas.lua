@@ -180,7 +180,7 @@ local function select_heal(context, state, target, options)
     -- Low HP: < 50% -- Lesser Healing Wave (fast cast, efficient)
     if hp < 50 then
         -- Predictive overheal gate: skip LHW if predicted deficit is small
-        if NS.gate_overheal("LesserHealingWave", target.unit, 1.5, context.settings) then return nil end
+        if predictive_overheal("LesserHealingWave", target, 1.5, context.settings, 30) then return nil end
         heal_result.spell = SHAMAN_SPELLS.LesserHealingWave or nil
         heal_result.label = "LHW"
         heal_result.spell_type = "LesserHealingWave"
@@ -190,7 +190,7 @@ local function select_heal(context, state, target, options)
     -- Medium HP: < 70% -- Healing Wave (slow, mana efficient)
     if hp < 70 then
         -- Predictive overheal gate: skip slow HW cast if deficit is too small
-        if NS.gate_overheal("HealingWave", target.unit, 2.5, context.settings) then return nil end
+        if predictive_overheal("HealingWave", target, 2.5, context.settings, 35) then return nil end
         heal_result.spell = SHAMAN_SPELLS.HealingWave or nil
         heal_result.label = "HW"
         heal_result.spell_type = "HealingWave"
@@ -203,6 +203,7 @@ local function select_heal(context, state, target, options)
         scan_healing_targets()
         local nearby_injured = healing_count_below_hp(healing_targets, healing_targets_count, 95)
         if nearby_injured >= 2 then
+            if chain_heal_overheal(target, context.settings) then return nil end
             heal_result.spell = SHAMAN_SPELLS.ChainHeal or nil
             heal_result.label = "CH"
             heal_result.spell_type = "ChainHeal"

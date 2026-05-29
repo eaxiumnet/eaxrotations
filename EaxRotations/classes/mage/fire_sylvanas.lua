@@ -88,6 +88,8 @@ end
 
 local function fireball_matches_fn(context, state)
     if context.is_moving then return false end
+    -- Clearcasting: always consume on Fireball (highest damage) per research
+    if state and state.has_clearcasting then return true end
     -- Only require 5-stack Scorch when Scorch duty is assigned
     local scorch_duty = not context.settings or context.settings.use_scorch_debuff ~= false
     if scorch_duty and ((state and state.scorch_stacks) or (context.scorch_stacks or 0)) < 5 then return false end

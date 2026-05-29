@@ -44,6 +44,7 @@ local cast_best_heal_rank = NS.cast_best_heal_rank or function() return false en
 local INNER_FOCUS_BUFF = 14751
 local SURGE_OF_LIGHT_BUFF = { 33151, 33154 }
 local HOLY_CONCENTRATION_BUFF = { 34753, 34754, 34859, 34860 }
+local PRAYER_OF_MENDING_BUFF = { 33076 }  -- PoM buff on target (TBC rank 1)
 local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local HOLY_FIRE_DOT_DEBUFF = { 14914, 15262, 15263, 15264, 15265, 15266, 15267, 15261, 25384 }
 
@@ -387,7 +388,11 @@ local strategies = {
             if context.player_control_locked then return false end
             if not state.pom_ready then return false end
             if not context.in_combat and context.settings.holy_prepull_pom == false then return false end
-            return state.tank ~= nil or state.lowest ~= nil
+            if not (state.tank ~= nil or state.lowest ~= nil) then return false end
+            -- Skip if PoM already active on target (don't overwrite bounces in progress)
+            local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
+            if target and NS.has_buff and NS.has_buff(target, PRAYER_OF_MENDING_BUFF) then return false end
+            return true
         end,
         execute = function(_, state)
             local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit) or NS.PLAYER_UNIT

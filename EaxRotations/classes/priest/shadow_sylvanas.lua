@@ -315,7 +315,7 @@ end
 local function shadowfiend_matches(context, s)
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
-    if (context.mana_pct or 100) > 55 then return false end
+    if (context.mana_pct or 100) > 45 then return false end
     -- TTD gate: don't summon Shadowfiend if combat won't last long enough for its mana return
     if context.ttd and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_SHADOWFIEND then return false end
     return true
@@ -463,13 +463,17 @@ end
 
 local function shadow_word_death_matches(context, s)
     if not can_break_mind_flay(s) then return false end
-    if (context.hp or 100) < (s.swd_safety_hp or 80) then return false end
     if not context.has_valid_enemy_target then return false end
     if not s.swd_ready then return false end
     -- Mana conservation: hold SW:D in emergency mana
     if s.mana_emergency then return false end
     -- Threat safety: hold SW:D if tank threat lead insufficient
     if not s.threat_safe then return false end
+    -- Execute range: fire SW:D when target < 25% HP even with lower safety margin
+    local target_hp = (context.target_hp_pct or context.target_hp or 100)
+    local in_execute = target_hp <= 25
+    local safety_floor = in_execute and 60 or (s.swd_safety_hp or 80)
+    if (context.hp or 100) < safety_floor then return false end
     return true
 end
 

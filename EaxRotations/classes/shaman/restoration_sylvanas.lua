@@ -85,6 +85,9 @@ local resto_state = {
     cleanse_target = nil,
     lowest_hp_pct = 100,
     lowest_time_to_die = 999,
+    triage_ranked = nil,
+    chain_heal_optimal_target = nil,
+    chain_heal_cluster_count = 0,
 }
 
 local function build_state(context)
@@ -97,8 +100,29 @@ local function build_state(context)
     local target = context.target
     local entries, count = Healing.scan_healing_targets()
 
-    resto_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
+    -- Triage ranking: sort entries by urgency (HP + TTD + role + debuffs)
+    if NS.Triage and NS.Triage.rank then
+        resto_state.triage_ranked = NS.Triage.rank(entries, count)
+    else
+        resto_state.triage_ranked = nil
+    end
+    -- Use triage-ranked entries for lowest target if available
+    if resto_state.triage_ranked and resto_state.triage_ranked[1] then
+        resto_state.lowest = resto_state.triage_ranked[1]
+    else
+        resto_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
+    end
     resto_state.tank = NS.healing_get_tank(entries, count) or resto_state.lowest
+
+    -- AoE Heal cluster targeting: find optimal Chain Heal primary target
+    if NS.AoEHeal and NS.AoEHeal.chain_heal_target then
+        local ch_primary, ch_total, ch_bounces = NS.AoEHeal.chain_heal_target(entries, count, 12.5, 3)
+        resto_state.chain_heal_optimal_target = ch_primary
+        resto_state.chain_heal_cluster_count = ch_bounces and #ch_bounces or 0
+    else
+        resto_state.chain_heal_optimal_target = nil
+        resto_state.chain_heal_cluster_count = 0
+    end
     local s = context.settings or {}
     resto_state.natures_swiftness_active = _ns_is_active()
     resto_state.has_water_shield = me and NS.buff_up and NS.buff_up(me, WATER_SHIELD_BUFF) or false
@@ -146,7 +170,10 @@ local function build_state(context)
     local hw_target = resto_state.tank and resto_state.tank.unit
     resto_state.healing_way_stacks = hw_target and NS.buff_stacks and NS.buff_stacks(hw_target, HEALING_WAY_BUFF) or 0
     resto_state.healing_way_remains = hw_target and NS.buff_remains and NS.buff_remains(hw_target, HEALING_WAY_BUFF) or 0
-    resto_state.chain_heal_target_count = Healing.count_below_hp and Healing.count_below_hp(80) or 1
+    -- Use AoE cluster count if available, fall back to HP-based count
+    local cluster_count = resto_state.chain_heal_cluster_count or 0
+    local hp_count = Healing.count_below_hp and Healing.count_below_hp(80) or 1
+    resto_state.chain_heal_target_count = math.max(cluster_count, hp_count)
     resto_state.tremor_totem_ready = me and NS.spell_ready(SPELLS.TremorTotem, me, { skip_range = true }) or false
     resto_state.grounding_totem_ready = me and NS.spell_ready(SPELLS.GroundingTotem, me, { skip_range = true }) or false
     resto_state.poison_cleansing_totem_ready = me and SPELLS.PoisonCleansingTotem and NS.spell_ready(SPELLS.PoisonCleansingTotem, me, { skip_range = true }) or false

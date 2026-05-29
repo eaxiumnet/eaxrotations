@@ -8,6 +8,7 @@ local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
+local Triage = NS.Triage
 
 local format = string.format
 local EMPTY_OPTS = {}
@@ -459,7 +460,17 @@ local function build_state(context)
     state.heavy_healing = state.emergency_count >= HEAVY_DAMAGE_COUNT or hp_of(state.tank) <= HEAVY_TANK_HP
     choose_blessing(context, state)
     choose_aura(context, state)
-    state.heal_target = state.lowest or state.tank
+    -- Use Triage scoring when available for smarter target selection
+    if Triage and Triage.rank and state.count > 1 then
+        local ranked = Triage.rank(entries, state.count)
+        if ranked and ranked[1] then
+            state.heal_target = ranked[1]
+        else
+            state.heal_target = state.lowest or state.tank
+        end
+    else
+        state.heal_target = state.lowest or state.tank
+    end
     if can_help(state.heal_target) then choose_smart_heal(context, state, state.heal_target) end
     return state
 end
@@ -563,6 +574,20 @@ local strategies = {
         end,
         execute = function()
             return NS.try_cast(SPELLS.DivineFavor, NS.PLAYER_UNIT, "[HOLY] Divine Favor before critical Holy Light", SELF_OPTS)
+        end,
+    },
+    {
+        name = "DivineFavorHolyShockCombo",
+        matches = function(context, s)
+            if not s.has_divine_favor then return false end
+            local target = s.lowest or s.tank
+            if not can_help(target) then return false end
+            if hp_of(target) > setting(context, "holy_shock_hp", 40) then return false end
+            return NS.spell_ready(SPELLS.HolyShock, target.unit, EMPTY_OPTS)
+        end,
+        execute = function(_, s)
+            local target = s.lowest or s.tank
+            return cast_on(SPELLS.HolyShock, target, format("[HOLY] Holy Shock guaranteed crit %.0f%%", hp_of(target)))
         end,
     },
     {
@@ -843,6 +868,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("holy", strategies, { get_state = build_state })
-NS.log("Paladin holy rotation registered (deep TBC healing/buff utility)")
+NS.log("Paladin holy rotation registered — Triage targeting, DF+HS burst combo")
 return strategies
-
