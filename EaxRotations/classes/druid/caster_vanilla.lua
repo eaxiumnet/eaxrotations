@@ -1,19 +1,16 @@
--- Druid Caster priority list (Vanilla).
--- Simple caster rotation for solo/leveling content.
--- Stripped of TBC-only spell IDs.
+-- Druid Caster priority list (Vanilla 1.12).
+-- Stripped of TBC-only abilities.
 
-local _G_E = rawget(_G, "EaxRotations")
-if not _G_E then return nil end
-local SPELLS = _G_E.DruidSpells or {}
+local NS = rawget(_G, "EaxRotations")
+if not NS then return nil end
+local SPELLS = NS.DruidSpells or {}
 
+-- Vanilla-only spell IDs (no TBC ranks >= 27000)
 local MOONFIRE_DEBUFF = { 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 local FAERIE_FIRE_DEBUFF = { 9907, 9749, 778, 770 }
 local THORNS_BUFF = { 9910, 9756, 8914, 1075, 782, 467 }
 local EMPTY_SETTINGS = {}
 
--- ============================================================================
--- State builder
--- ============================================================================
 local caster_state = {
     moonfire_remains = 0,
     ff_remains = 0,
@@ -22,23 +19,19 @@ local caster_state = {
 
 local function build_state(context)
     local target = context.target
-    local me = context.me or _G_E.GetPlayer()
-    local skip_aura = _G_E.broken_api_throttled and _G_E.broken_api_throttled(22812, 3.0) or false
+    local me = context.me or NS.GetPlayer()
+    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
     if not skip_aura then
-        caster_state.moonfire_remains = target and _G_E.debuff_remains and _G_E.debuff_remains(target, MOONFIRE_DEBUFF) or 0
-        caster_state.ff_remains = target and _G_E.debuff_remains and _G_E.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
+        caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
+        caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
     end
     caster_state.in_combat = context.in_combat or false
-    caster_state.mana_pct = context.mana_pct or (me and _G_E.unit_mana_pct and _G_E.unit_mana_pct(me)) or 100
-    caster_state.hp_pct = context.hp or (me and _G_E.unit_health_pct and _G_E.unit_health_pct(me)) or 100
+    caster_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
+    caster_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     caster_state.target_hp = context.target_hp or 100
-    caster_state.innervate_ready = _G_E.spell_ready and _G_E.spell_ready(SPELLS.Innervate, _G_E.PLAYER_UNIT, { skip_range = true }) or false
+    caster_state.innervate_ready = NS.spell_ready and NS.spell_ready(SPELLS.Innervate, NS.PLAYER_UNIT, { skip_range = true }) or false
     return caster_state
 end
-
--- ============================================================================
--- Matches functions
--- ============================================================================
 
 local function explicit_caster_selected(context)
     local settings = context and context.settings or EMPTY_SETTINGS
@@ -65,20 +58,20 @@ local function faerie_fire_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if not context.target then return false end
     if state.ff_remains > 4 then return false end
-    return _G_E.spell_ready(SPELLS.FaerieFire, context.target)
+    return NS.spell_ready(SPELLS.FaerieFire, context.target)
 end
 
 local function moonfire_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if not context.target then return false end
     if state.moonfire_remains > 3 then return false end
-    return _G_E.spell_ready(SPELLS.Moonfire, context.target)
+    return NS.spell_ready(SPELLS.Moonfire, context.target)
 end
 
 local function wrath_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if context.is_moving then return false end
-    return _G_E.spell_ready(SPELLS.Wrath, context.target)
+    return NS.spell_ready(SPELLS.Wrath, context.target)
 end
 
 local function innervate_matches_fn(context, state)
@@ -91,41 +84,37 @@ end
 local function barkskin_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if (context.hp or 100) > 55 then return false end
-    return _G_E.spell_ready(SPELLS.Barkskin, _G_E.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready(SPELLS.Barkskin, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function thorns_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if context.in_combat then return false end
-    if _G_E.has_player_buff and _G_E.has_player_buff(THORNS_BUFF) then return false end
-    return _G_E.spell_ready(SPELLS.Thorns, _G_E.PLAYER_UNIT, { skip_range = true })
+    if NS.has_player_buff and NS.has_player_buff(THORNS_BUFF) then return false end
+    return NS.spell_ready(SPELLS.Thorns, NS.PLAYER_UNIT, { skip_range = true })
 end
-
--- ============================================================================
--- Strategies
--- ============================================================================
 
 local strategies = {
     { name = "Barkskin",
       matches = barkskin_matches_fn,
-      execute = function() return _G_E.try_cast(SPELLS.Barkskin, _G_E.PLAYER_UNIT, "[CASTER] Barkskin") end },
+      execute = function() return NS.try_cast(SPELLS.Barkskin, NS.PLAYER_UNIT, "[CASTER] Barkskin") end },
     { name = "Thorns",
       matches = thorns_matches_fn,
-      execute = function() return _G_E.try_cast(SPELLS.Thorns, _G_E.PLAYER_UNIT, "[CASTER] Thorns") end },
+      execute = function() return NS.try_cast(SPELLS.Thorns, NS.PLAYER_UNIT, "[CASTER] Thorns") end },
     { name = "Innervate",
       matches = innervate_matches_fn,
-      execute = function() return _G_E.try_cast(SPELLS.Innervate, _G_E.PLAYER_UNIT, "[CASTER] Innervate") end },
+      execute = function() return NS.try_cast(SPELLS.Innervate, NS.PLAYER_UNIT, "[CASTER] Innervate") end },
     { name = "FaerieFire",
       matches = faerie_fire_matches_fn,
-      execute = function(context) return _G_E.try_cast(SPELLS.FaerieFire, context.target, "[CASTER] Faerie Fire") end },
+      execute = function(context) return NS.try_cast(SPELLS.FaerieFire, context.target, "[CASTER] Faerie Fire") end },
     { name = "Moonfire",
       matches = moonfire_matches_fn,
-      execute = function(context) return _G_E.try_cast(SPELLS.Moonfire, context.target, "[CASTER] Moonfire") end },
+      execute = function(context) return NS.try_cast(SPELLS.Moonfire, context.target, "[CASTER] Moonfire") end },
     { name = "Wrath", spell = SPELLS.Wrath, not_moving = true, min_mana = 10,
       matches = wrath_matches_fn,
-      execute = function(context) return _G_E.try_cast(SPELLS.Wrath, context.target, "[CASTER] Wrath") end },
+      execute = function(context) return NS.try_cast(SPELLS.Wrath, context.target, "[CASTER] Wrath") end },
 }
 
-_G_E.rotation_registry:register("caster", strategies, { get_state = build_state })
-_G_E.log("Druid caster rotation registered (vanilla)")
+NS.rotation_registry:register("druid_caster_vanilla", strategies, { get_state = build_state })
+if NS.log then NS.log("Druid caster vanilla rotation registered") end
 return strategies

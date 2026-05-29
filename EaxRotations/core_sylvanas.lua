@@ -2204,14 +2204,14 @@ function NS.spell_ready(spell, target, opts)
 
     opts = opts or EMPTY
 
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
 
     local label = spell_label(spell)
 
     -- Spell existence check
     if not NS.spell_exists(spell) then
-        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: spell_exists=false") end
-        core_trace("ready:" .. label .. ":exists", label .. " ready=false reason=spell_exists_false", 700)
+        if debug_trace then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: spell_exists=false") end
+        if debug_trace then core_trace("ready:" .. label .. ":exists", label .. " ready=false reason=spell_exists_false", 700) end
         return false
     end
 
@@ -2294,11 +2294,11 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     opts = opts or EMPTY
     local id = NS.get_spell_id(spell)
     if not id then
-        core_trace("eval:nil_id", "evaluate_cast failed: no spell id", 700)
+        if debug_trace then core_trace("eval:nil_id", "evaluate_cast failed: no spell id", 700) end
         return false
     end
     local label = spell_label(spell, id)
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
     local target = unit or NS.GetPlayer()
 
     -- 1. Primary: spell_helper native gate (cooldown + range + resource + facing + LOS + learned)
@@ -2383,12 +2383,12 @@ function NS.try_cast(spell, unit, reason, opts)
     if not target then
         target = NS.GetPlayer()
         if not target then
-            core_trace("try:" .. label .. ":no_target", "try_cast " .. label .. " failed: no target/player id=" .. tostring(id) .. " reason=" .. tostring(reason), 700)
+            if debug_trace then core_trace("try:" .. label .. ":no_target", "try_cast " .. label .. " failed: no target/player id=" .. tostring(id) .. " reason=" .. tostring(reason), 700) end
             return false
         end
     end
 
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
 
     if not id then
         core_trace("try:nil_id", "try_cast failed: no spell id label=" .. tostring(label) .. " reason=" .. tostring(reason), 700)
@@ -2469,7 +2469,7 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
     local label = spell_label(spell, id)
 
     if not id or not position then
-        core_trace("pos:" .. tostring(label) .. ":bad_input", "try_cast_position failed: id=" .. tostring(id) .. " position=" .. tostring(position ~= nil), 700)
+        if debug_trace then core_trace("pos:" .. tostring(label) .. ":bad_input", "try_cast_position failed: id=" .. tostring(id) .. " position=" .. tostring(position ~= nil), 700) end
         return false
     end
 
@@ -2485,7 +2485,7 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
         local queued = spell_queue:queue_spell_position(id, position, 1, label, false)
         if queued ~= false then
             mark_spell_cast(id)
-            local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+            local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
             if reason and debug then NS.log(reason) end
             return true
         end
@@ -2505,7 +2505,7 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
 
     mark_spell_cast(id)
 
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
 
     if reason and debug then NS.log(reason) end
 
@@ -4724,13 +4724,13 @@ function NS.action_matches(context, action)
 
     local settings = context.settings or EMPTY
 
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
 
     local name = action.name or "?"
 
     if action.setting and settings[action.setting] == false then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":setting", "[DEBUG] " .. name .. " blocked: setting=" .. tostring(action.setting), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":setting", "[DEBUG] " .. name .. " blocked: setting=" .. tostring(action.setting), 2000) end
         return false
 
     end
@@ -5128,7 +5128,7 @@ function NS.action_execute(context, action, prefix)
 
     local reason = format("%s %s", prefix or "[EAX]", action.name or "Action")
 
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
 
     if action.position then
 
@@ -5151,7 +5151,7 @@ function NS.action_execute(context, action, prefix)
 
             _last_action_exec[action.name] = NS.time_now()
 
-            if debug then NS.log(reason) end
+            if debug_trace then NS.log(reason) end
 
             return true
 

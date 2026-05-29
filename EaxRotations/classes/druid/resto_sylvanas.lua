@@ -138,6 +138,26 @@ local function effective_deficit(entry)
     return entry.effective_deficit or entry.deficit or 0
 end
 
+local function predictive_overheal(spell_key, entry, cast_time, settings, emergency_hp)
+    if not entry or not entry.unit then return false end
+    if effective_hp(entry) <= (emergency_hp or 30) then return false end
+    if (entry.time_to_die or 999) <= cast_time then return false end
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, entry.unit, cast_time, settings)
+    end
+    return NS.gate_overheal and NS.gate_overheal(spell_key, entry.unit, cast_time, settings) or false
+end
+
+local function downrank_ht_overheal(entry, settings)
+    if not entry or not entry.unit then return false end
+    if effective_hp(entry) <= 35 then return false end
+    if (entry.time_to_die or 999) <= 2.5 then return false end
+    if NS.HealerDeficit and NS.HealerDeficit.heal_would_overheal then
+        return NS.HealerDeficit.heal_would_overheal(entry.unit, 700, 2.5, settings)
+    end
+    return predictive_overheal("HealingTouch", entry, 2.5, settings, 35)
+end
+
 local function debuff_remains(unit, ids)
     return unit and NS.debuff_remains and NS.debuff_remains(unit, ids) or 0
 end
@@ -356,8 +376,8 @@ local function build_state(context)
             else resto_state.lowest_dps = choose_better(resto_state.lowest_dps, entry) end
             if hp <= tranquility_hp then resto_state.tranquility_count = resto_state.tranquility_count + 1 end
             if hp <= ns_hp then resto_state.ns_target = choose_better(resto_state.ns_target, entry) end
-            if hp <= HEALING_TOUCH_HP then resto_state.ht_target = choose_better(resto_state.ht_target, entry) end
-            if needs_regrowth(entry) then resto_state.regrowth_target = choose_better(resto_state.regrowth_target, entry) end
+            if hp <= HEALING_TOUCH_HP and not predictive_overheal("HealingTouch", entry, 2.5, settings, 25) then resto_state.ht_target = choose_better(resto_state.ht_target, entry) end
+            if needs_regrowth(entry) and not predictive_overheal("Regrowth", entry, 2.0, settings, 35) then resto_state.regrowth_target = choose_better(resto_state.regrowth_target, entry) end
             if needs_rejuvenation(entry, entry.is_tank and TANK_REJUV_HP or RAID_REJUV_HP) then resto_state.rejuv_target = choose_better(resto_state.rejuv_target, entry) end
             if should_let_lifebloom_bloom(entry, context) then resto_state.lifebloom_bloom = choose_better(resto_state.lifebloom_bloom, entry) end
             if auto_dispel and not resto_state.cursed_target and NS.has_dispel_type_debuff and NS.has_dispel_type_debuff(entry.unit, "Curse") then resto_state.cursed_target = entry end

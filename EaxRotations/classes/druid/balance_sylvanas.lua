@@ -152,7 +152,6 @@ local _strategies = {
         name="ForceOfNature",
         matches=function(ctx)
             if not ctx or not ctx.in_combat then return false end
-            if not ctx.should_burst then return false end
             if ctx.settings and ctx.settings.balance_use_force_of_nature == false then return false end
             return _G_E.action_matches(ctx, _ACT_FON)
         end,
@@ -277,7 +276,7 @@ local _strategies = {
             -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
             local skip = _G_E.broken_api_throttled and _G_E.broken_api_throttled(SPELLS.Moonfire, 2.0) or false
             if not skip then
-                if (s.moonfire_remains or 0) > 2 then return false end
+                if (s.moonfire_remains or 0) >= 3 then return false end
             end
             if not ctx.target then return false end
             if not ctx.has_valid_enemy_target then return false end
