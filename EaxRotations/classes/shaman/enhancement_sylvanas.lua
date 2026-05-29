@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/shaman/enhancement_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Shaman Enhancement rotation - FrostByte feature port v2.0.
--- ============================================================================
--- What: TBC Shaman Enhancement rotation with weapon imbues, totem twisting, and shield swapping
--- When: Per tick
--- Why: High-frequency totem and weapon timing needs cached state for stable priority decisions
--- Safety: Optional modules use pcall; nil-guarded NS/core lookups; strict API-driven buff and readiness checks
--- ============================================================================
 -- Features: per-slot weapon buffs, smart shield auto-swap, totem twisting
 -- with Fire Nova cycle, shock priority, randomized interrupts, Ghost Wolf OOC
 
@@ -55,7 +31,7 @@ local TOTEM_CALL_DISTANCE = 20           -- yards
 local TOTEM_CALL_MAGMA_DISTANCE = 8      -- yards (tighter for Magma)
 
 local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
-local WATER_SHIELD_BUFF = TBC_SHAMAN.water_shield or { 57960, 33736, 24398, 24396, 23566, 23563, 23548, 16198, 16196, 16192, 10911 }
+local WATER_SHIELD_BUFF = TBC_SHAMAN.water_shield or { 33736, 24398 }
 local SHIELD_REFRESH_UNKNOWN_MS = 30000
 local FLAME_SHOCK_DEBUFF = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
 local WINDFURY_WEAPON_SPELLS = { 25505, 16362, 10486, 8235, 8232 }
@@ -138,6 +114,7 @@ local enh_state = {
     magma_totem_ready = false,
     fire_nova_totem_ready = false,
     mana_tide_totem_ready = false,
+    shamanistic_rage_ready = false,
     natures_swiftness_ready = false,
     lesser_healing_wave_ready = false,
     chain_heal_ready = false,
@@ -309,6 +286,7 @@ local function build_state(context)
     enh_state.magma_totem_ready = me and NS.spell_ready(SPELLS.MagmaTotem, me, { skip_range = true }) or false
     enh_state.fire_nova_totem_ready = me and NS.spell_ready(SPELLS.FireNovaTotem, me, { skip_range = true }) or false
     enh_state.mana_tide_totem_ready = me and NS.spell_ready(SPELLS.ManaTideTotem, me, { skip_range = true, expected_cooldown = 300 }) or false
+    enh_state.shamanistic_rage_ready = me and NS.spell_ready(SPELLS.ShamanisticRage, me, { skip_range = true, expected_cooldown = 120 }) or false
     enh_state.natures_swiftness_ready = me and NS.spell_ready(SPELLS.NaturesSwiftness, me, { skip_range = true, expected_cooldown = 180 }) or false
     enh_state.lesser_healing_wave_ready = me and NS.spell_ready(SPELLS.LesserHealingWave, me, { skip_range = true, expected_cooldown = 1.5 }) or false
     enh_state.chain_heal_ready = me and NS.spell_ready(SPELLS.ChainHeal, me, { skip_range = true }) or false
@@ -498,7 +476,7 @@ local function windfury_twist_matches(ctx)
     if not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
     local mana_floor = (ctx.settings or {}).enhancement_totem_twist_mana_floor or 25
-    if enh_state.mana_pct < mana_floor then return false end
+    if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.windfury_totem_ready then return false end
     if totem_state.next_air ~= "windfury" then return false end
     return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.WindfuryTotem))
@@ -509,7 +487,7 @@ local function grace_air_twist_matches(ctx)
     if not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
     local mana_floor = (ctx.settings or {}).enhancement_totem_twist_mana_floor or 25
-    if enh_state.mana_pct < mana_floor then return false end
+    if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.grace_of_air_totem_ready then return false end
     if totem_state.next_air ~= "grace" then return false end
     return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.GraceOfAirTotem))
@@ -525,7 +503,7 @@ local function lightning_shield_matches(ctx)
     if not enh_state.lightning_shield_ready then return false end
     if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, LIGHTNING_SHIELD_BUFF) > 2 then return false end
     -- Auto mode: only maintain Lightning Shield when mana is above threshold
-    if enh_state.shield_type == "auto" and enh_state.mana_pct < enh_state.lightning_shield_mana then return false end
+    if enh_state.shield_type == "auto" and (enh_state.mana_pct or 0) < (enh_state.lightning_shield_mana or 0) then return false end
     return true
 end
 
@@ -543,7 +521,7 @@ local function water_shield_matches(ctx)
     if not enh_state.water_shield_ready then return false end
     if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, WATER_SHIELD_BUFF) > 2 then return false end
     -- Auto mode: switch to Water Shield when mana is low
-    if enh_state.shield_type == "auto" and enh_state.mana_pct >= enh_state.water_shield_mana then return false end
+    if enh_state.shield_type == "auto" and (enh_state.mana_pct or 100) >= (enh_state.water_shield_mana or 100) then return false end
     return true
 end
 
@@ -625,6 +603,8 @@ local function mana_tide_totem_matches(ctx)
 end
 
 local function natures_swiftness_matches(ctx)
+    if not cooldowns_enabled(ctx) then return false end
+    if not enh_state.in_combat then return false end
     if not enh_state.natures_swiftness_ready then return false end
     return true
 end
@@ -650,7 +630,7 @@ local function flame_shock_matches(ctx)
         return false
     end
     -- Refresh when <3s remaining or not active
-    if enh_state.target_has_flame_shock and enh_state.flame_shock_remains > 3 then return false end
+    if enh_state.target_has_flame_shock and (enh_state.flame_shock_remains or 0) > 3 then return false end
     return true
 end
 
@@ -735,7 +715,8 @@ local function ghost_wolf_matches(ctx)
     if ctx.is_mounted then return false end
     -- Don't shift if we have a target in range
     local target = ctx.target
-    if target and target:is_valid() and target:get_distance() and target:get_distance() <= 30 then return false end
+    local dist = target and target:is_valid() and target:get_distance()
+    if dist and dist <= 30 then return false end
     return true
 end
 

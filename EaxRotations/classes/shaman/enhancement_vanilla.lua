@@ -1,37 +1,10 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Enhancement Shaman rotation
--- =========================================================================
-local __eax_file = "classes/shaman/enhancement_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Enhancement Shaman rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Shaman Enhancement rotation - FrostByte feature port v2.0.
--- ============================================================================
--- What: Classic Vanilla Shaman Enhancement rotation with weapon imbues, totem twisting, and shield swapping
--- When: Per tick
--- Why: High-frequency totem and weapon timing needs cached state for stable priority decisions
--- Safety: Optional modules use pcall; nil-guarded NS/core lookups; strict API-driven buff and readiness checks
--- ============================================================================
 -- Features: per-slot weapon buffs, smart shield auto-swap, totem twisting
 -- with Fire Nova cycle, shock priority, randomized interrupts, Ghost Wolf OOC
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.ShamanSpells or {}
-local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
-if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
-local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
 
 local _core = (NS and NS.core) or rawget(_G, "core")
 local _get_totem_info = _core and _core.spell_book and _core.spell_book.get_totem_info
@@ -50,24 +23,24 @@ end
 -- ============================================================================
 -- Constants
 -- ============================================================================
-local TOTEMIC_CALL_SPELL = { 36936 }
+local TOTEMIC_CALL_SPELL = { }
 local TOTEM_CALL_DISTANCE = 20           -- yards
 local TOTEM_CALL_MAGMA_DISTANCE = 8      -- yards (tighter for Magma)
 
-local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
-local WATER_SHIELD_BUFF = TBC_SHAMAN.water_shield or { 57960, 33736, 24398, 24396, 23566, 23563, 23548, 16198, 16196, 16192, 10911 }
-local SHIELD_REFRESH_UNKNOWN_MS = 30000
-local FLAME_SHOCK_DEBUFF = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
-local WINDFURY_WEAPON_SPELLS = { 25505, 16362, 10486, 8235, 8232 }
-local FLAMETONGUE_WEAPON_SPELLS = { 25489, 16342, 16341, 16339, 8030, 8027, 8024 }
-local ROCKBITER_WEAPON_SPELLS = { 25485, 25479, 16316, 16315, 16314, 10399, 8019, 8018, 8017 }
-local FROSTBRAND_WEAPON_SPELLS = { 25500, 16356, 16355, 10456, 8038, 8033 }
-local FIRE_RESIST_TOTEM = { 25563, 10538, 10537, 10534, 8181 }
-local FROST_RESIST_TOTEM = { 25560, 10542, 8185, 8184, 8182 }
-local NATURE_RESIST_TOTEM = { 25574, 10548 }
+local LIGHTNING_SHIELD_BUFF = { 10432, 10431, 8134, 945, 905, 325, 324 }
+local WATER_SHIELD_BUFF = {}
+local SHIELD_REFRESH_UNKNOWN_MS = 30 * 1000
+local FLAME_SHOCK_DEBUFF = { 10448, 10447, 8053, 8052, 8050 }
+local WINDFURY_WEAPON_SPELLS = { 16362, 10486, 8235, 8232 }
+local FLAMETONGUE_WEAPON_SPELLS = { 16342, 16341, 16339, 8030, 8027, 8024 }
+local ROCKBITER_WEAPON_SPELLS = { 16316, 16315, 16314, 10399, 8019, 8018, 8017 }
+local FROSTBRAND_WEAPON_SPELLS = { 16356, 16355, 10456, 8038, 8033 }
+local FIRE_RESIST_TOTEM = { 10538, 10537, 10534, 8181 }
+local FROST_RESIST_TOTEM = { 10542, 8185, 8184, 8182 }
+local NATURE_RESIST_TOTEM = { 10548 }
 local GHOST_WOLF_SPELL = { 2645 }
 local TREMOR_TOTEM_SPELL = { 8143 }
-local SHAMANISTIC_RAGE_BUFF = { 30823 }
+local SHAMANISTIC_RAGE_BUFF = { }
 
 -- ============================================================================
 -- Totem state
@@ -221,7 +194,7 @@ local function build_state(context)
 
     -- -- Buff detection
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local LIGHTNING_SHIELD_ID = (type(LIGHTNING_SHIELD_BUFF) == "table" and LIGHTNING_SHIELD_BUFF[1]) or 25472
+    local LIGHTNING_SHIELD_ID = (type(LIGHTNING_SHIELD_BUFF) == "table" and LIGHTNING_SHIELD_BUFF[1]) or 10432
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(LIGHTNING_SHIELD_ID, 3.0) or false
     if not skip_aura then
         enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
@@ -361,7 +334,7 @@ local function blood_fury_matches(ctx)
     if ctx.settings and ctx.settings.enhancement_cd_blood_fury == false then return false end
     local me = ctx.me or NS.GetPlayer()
     if not me then return false end
-    if not NS.spell_ready({ 33697, 20572 }, me, { skip_range = true }) then return false end
+    if not NS.spell_ready({ 20572 }, me, { skip_range = true }) then return false end
     return true
 end
 
@@ -392,7 +365,7 @@ end
 local function should_interrupt_target(ctx)
     if enh_state.earth_shock_mode ~= "interrupts" then return false end
     if not enh_state.earth_shock_ready then return false end
-    -- v1.2.4: Interrupt Mode — Target Only vs Any in Range
+    -- v1.2.4: Interrupt Mode ? Target Only vs Any in Range
     local mode = enh_state.interrupt_mode or "target"
     if mode == "target" then
         -- Target Only: check current target's cast
@@ -456,11 +429,11 @@ local function fire_totem_matches(ctx, desired)
         if enh_state.fire_nova_totem_ready then
             return can_drop_totem(ctx, SPELLS.FireNovaTotem, 1, SPELLS.FireNovaTotem)
         end
-        -- If Nova was dropped recently (within 4s), it's still arming/active. 
+        -- If Nova was dropped recently (within 4s), it's still arming/active.
         -- Don't replace it yet.
         local ms_since_nova = enh_state.now_ms - (totem_state.last_fire_nova_ms or 0)
         if ms_since_nova < 4000 then return false end
-        
+
         -- Nova is either on CD or already exploded. Use Magma as filler.
         if enh_state.magma_totem_ready then
             return can_drop_totem(ctx, SPELLS.MagmaTotem, 1, SPELLS.MagmaTotem)
@@ -474,12 +447,12 @@ local function fire_nova_replacement_matches(ctx)
     if not can_manage_totems(ctx) then return false end
     if not totem_state.fire_nova_active then return false end
     if not enh_state.magma_totem_ready then return false end
-    
+
     -- [ARTISTRY] Improved replacement logic:
     -- If we are in "fire_weaving" mode, replacement is handled by the primary fire_totem_resolve.
     local s = ctx.settings or {}
     if s.enhancement_fire_totem == "fire_weaving" then return false end
-    
+
     if ctx.target and NS.debuff_up and not NS.debuff_up(ctx.target, FLAME_SHOCK_DEBUFF) then
         return can_drop_totem(ctx, SPELLS.MagmaTotem, 1, SPELLS.MagmaTotem)
     end
@@ -497,7 +470,7 @@ local function windfury_twist_matches(ctx)
     if not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
     local mana_floor = (ctx.settings or {}).enhancement_totem_twist_mana_floor or 25
-    if enh_state.mana_pct < mana_floor then return false end
+    if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.windfury_totem_ready then return false end
     if totem_state.next_air ~= "windfury" then return false end
     return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.WindfuryTotem))
@@ -508,7 +481,7 @@ local function grace_air_twist_matches(ctx)
     if not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
     local mana_floor = (ctx.settings or {}).enhancement_totem_twist_mana_floor or 25
-    if enh_state.mana_pct < mana_floor then return false end
+    if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.grace_of_air_totem_ready then return false end
     if totem_state.next_air ~= "grace" then return false end
     return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.GraceOfAirTotem))
@@ -524,7 +497,7 @@ local function lightning_shield_matches(ctx)
     if not enh_state.lightning_shield_ready then return false end
     if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, LIGHTNING_SHIELD_BUFF) > 2 then return false end
     -- Auto mode: only maintain Lightning Shield when mana is above threshold
-    if enh_state.shield_type == "auto" and enh_state.mana_pct < enh_state.lightning_shield_mana then return false end
+    if enh_state.shield_type == "auto" and (enh_state.mana_pct or 0) < (enh_state.lightning_shield_mana or 0) then return false end
     return true
 end
 
@@ -542,7 +515,7 @@ local function water_shield_matches(ctx)
     if not enh_state.water_shield_ready then return false end
     if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, WATER_SHIELD_BUFF) > 2 then return false end
     -- Auto mode: switch to Water Shield when mana is low
-    if enh_state.shield_type == "auto" and enh_state.mana_pct >= enh_state.water_shield_mana then return false end
+    if enh_state.shield_type == "auto" and (enh_state.mana_pct or 100) >= (enh_state.water_shield_mana or 100) then return false end
     return true
 end
 
@@ -596,7 +569,7 @@ local function shamanistic_rage_matches(ctx)
     if ctx.settings and ctx.settings.enhancement_cd_shamanistic_rage == false then return false end
     -- Gate: use when mana is low (Research) or during defensive need (hp < 40%); skip at high mana + high hp
     if (enh_state.mana_pct or 100) > 40 and (enh_state.hp_pct or 100) > 40 then return false end
-    -- v1.2.4: SR melee range check — only fire if target within 8 yd
+    -- v1.2.4: SR melee range check ? only fire if target within 8 yd
     if enh_state.sr_melee_only then
         local target = ctx.target
         if not target then return false end
@@ -640,15 +613,15 @@ local function flame_shock_matches(ctx)
     if not enh_state.flame_shock_ready then return false end
     -- Hold shocks OOC when Shamanistic Focus proc is desired (mana efficiency)
     if enh_state.hold_shocks_focus and not enh_state.in_combat then return false end
-    -- Skip shock spending at mana floor — auto-attack conservation (Research: Mana < 20%)
+    -- Skip shock spending at mana floor ? auto-attack conservation (Research: Mana < 20%)
     if enh_state.mana_low then return false end
     -- Multi-target FS in AoE: when enabled, apply to any enemy without the DoT
     if enh_state.fs_multi_target and enh_state.effective_mode == "aoe" and enh_state.target_has_flame_shock then
-        -- Current target already has FS — skip if there are other targets available (they'll get dotted on tab)
+        -- Current target already has FS ? skip if there are other targets available (they'll get dotted on tab)
         return false
     end
     -- Refresh when <3s remaining or not active
-    if enh_state.target_has_flame_shock and enh_state.flame_shock_remains > 3 then return false end
+    if enh_state.target_has_flame_shock and (enh_state.flame_shock_remains or 0) > 3 then return false end
     return true
 end
 
@@ -692,7 +665,7 @@ end
 
 local function lightning_bolt_matches(ctx)
     if not enh_state.lightning_bolt_ready then return false end
-    -- v1.1.5: OOC ranged pulls only — once in combat, commit to melee rotation
+    -- v1.1.5: OOC ranged pulls only ? once in combat, commit to melee rotation
     if enh_state.in_combat then return false end
     return true
 end
@@ -733,7 +706,8 @@ local function ghost_wolf_matches(ctx)
     if ctx.is_mounted then return false end
     -- Don't shift if we have a target in range
     local target = ctx.target
-    if target and target:is_valid() and target:get_distance() and target:get_distance() <= 30 then return false end
+    local dist = target and target:is_valid() and target:get_distance()
+    if dist and dist <= 30 then return false end
     return true
 end
 
@@ -1007,7 +981,7 @@ local strategies = {
           return true
       end,
       execute = function(ctx)
-          debug_log(ctx, "Mana emergency — auto-attack only")
+          debug_log(ctx, "Mana emergency ? auto-attack only")
           local target = ctx.target
           if auto_attack and target and target:is_valid() and not target:is_dead() then
               if not auto_attack:is_auto_attacking(ctx.me) then
@@ -1055,7 +1029,7 @@ local strategies = {
     { name = "GroundingTotem", matches = grounding_totem_matches, execute = function(ctx) return NS.try_cast(SPELLS.GroundingTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Grounding Totem") end },
 
     -- v1.2.1: racials
-    { name = "BloodFury", matches = blood_fury_matches, execute = function(ctx) return NS.try_cast({ 33697, 20572 }, NS.PLAYER_UNIT, "[ENHANCEMENT] Blood Fury", { skip_range = true }) end },
+    { name = "BloodFury", matches = blood_fury_matches, execute = function(ctx) return NS.try_cast({ 20572 }, NS.PLAYER_UNIT, "[ENHANCEMENT] Blood Fury", { skip_range = true }) end },
     { name = "Berserking", matches = berserking_matches, execute = function(ctx) return NS.try_cast({ 20554, 26297 }, NS.PLAYER_UNIT, "[ENHANCEMENT] Berserking", { skip_range = true }) end },
 
     -- 8. Self-heal

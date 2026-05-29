@@ -1,9 +1,3 @@
--- ============================================================================
--- What: Shared helper for recording and replaying combat events
--- When: On event callbacks and replay/debug inspection
--- Why: Preserve fight flow for analysis and rotation debugging
--- Safety: Bounded state, nil-guarded lookups, and conservative fallbacks
--- ============================================================================
 -- Shared Helper: Combat Replay (Sylvanas)
 -- ============================================================================
 local _G = _G
@@ -24,7 +18,8 @@ local _register_pre_tick = core.register_on_pre_tick_callback
 local _register_combat_end = NS.register_on_combat_end
 local _register_spell_cast = NS.register_on_spell_cast
 local _get_local_player = core.object_manager and core.object_manager.get_local_player or nil
-local _get_enemy_list = core.object_manager and core.object_manager.get_enemy_list or nil
+-- get_enemy_list does not exist in Sylvanas API; use NS.get_visible_units instead
+local _get_enemy_list = nil
 local _get_spell_name = core.spell_book and core.spell_book.get_spell_name or nil
 local _buff_manager = nil
 

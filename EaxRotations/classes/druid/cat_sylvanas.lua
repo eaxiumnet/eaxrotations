@@ -15,6 +15,8 @@ local STANCE_CAT = 3
 local ENERGY_CAP = 100
 local ENERGY_TICK_INTERVAL = 2.0
 local ENERGY_PER_TICK = 20
+local EnergyTickTracker = require("shared/energy_tick_tracker_sylvanas")
+local _energy_state = EnergyTickTracker.new_state()
 local POWERSHIFT_GAIN_FUROR = 40
 local POWERSHIFT_GAIN_WOLFSHEAD = 60
 local POWERSHIFT_IGNORE_WINDOW = 0.8
@@ -289,15 +291,15 @@ local function update_energy_tick(state)
             state.next_tick_in = estimate_next_tick(state)
         end
     else
-        -- Legacy manual tick detection
+        -- Shared energy tick tracker (with powershift window guard)
         local delta = state.energy - state.last_energy
         if delta > 0 and delta <= 25 and (state.now - state.last_shift_time) > POWERSHIFT_IGNORE_WINDOW then
-            state.last_tick_time = state.now
-            state.tick_confident = true
+            _energy_state.last_tick_time = state.now
+            _energy_state.tick_confident = true
         end
-        state.last_energy = state.energy
-        state.next_tick_in = estimate_next_tick(state)
-        state.projected_energy = math.min(ENERGY_CAP, state.energy + ENERGY_PER_TICK)
+        _energy_state.last_energy = state.energy
+        state.next_tick_in = EnergyTickTracker.estimate_next_tick(_energy_state, state.now)
+        state.projected_energy = EnergyTickTracker.predicted_energy(_energy_state, state.energy, ENERGY_TICK_INTERVAL)
     end
 end
 

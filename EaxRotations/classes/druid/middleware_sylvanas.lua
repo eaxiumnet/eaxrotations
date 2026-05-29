@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/druid/middleware_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Druid shared middleware.
 
--- ============================================================================
--- What: Druid shared middleware for forms, consumables, interrupts, and recovery
--- When: Runs before playstyle strategies each tick
--- Why: Shared behaviors avoid duplication across Druid playstyles
--- Safety: Returns cleanly when form, target, or settings do not permit action; uses NS.* wrappers and nil guards
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -32,6 +8,8 @@ local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
 local SPELLS = NS.DruidSpells or {}
+local _is_spell_learned = core.spell_book and core.spell_book.is_spell_learned or nil
+local _get_party_frames = core.object_manager and core.object_manager.get_party_frames or nil
 
 -- ============================================================================
 -- FORM-AWARE CONSUMABLES
@@ -51,10 +29,8 @@ local function can_use_items(stance)
     if ITEM_ALLOWED_STANCE[stance] then return true end
     -- Moonkin/Tree at stance 5 - check if known
     if stance == 5 then
-        local ok = pcall(_G.IsSpellKnown, 24858)
-        if ok then return true end
-        ok = pcall(_G.IsSpellKnown, 33891)
-        if ok then return true end
+        if _is_spell_learned and _is_spell_learned(24858) then return true end
+        if _is_spell_learned and _is_spell_learned(33891) then return true end
     end
     return false
 end
@@ -318,12 +294,17 @@ local strategies = {
             local poison_debuffs = { 13218, 13219, 13222, 13223, 13225, 13227, 13228, 13229, 13230, 13235, 13237, 13238, 13240, 13241, 23232, 23233, 23235, 23236, 23237 }
             if me and NS.debuff_up(me, poison_debuffs) then return true end
             -- Scan party members
-            local GetNumGroupMembers = _G.GetNumGroupMembers
-            local n = GetNumGroupMembers and GetNumGroupMembers() or 0
-            for i = 1, n do
-                local unit = "party" .. i
-                if NS.debuff_up(unit, curse_debuffs) then return true end
-                if NS.debuff_up(unit, poison_debuffs) then return true end
+            if _get_party_frames then
+                local ok, frames = pcall(_get_party_frames)
+                if ok and type(frames) == "table" then
+                    for i = 1, #frames do
+                        local unit = frames[i]
+                        if unit and unit:is_valid() then
+                            if NS.debuff_up(unit, curse_debuffs) then return true end
+                            if NS.debuff_up(unit, poison_debuffs) then return true end
+                        end
+                    end
+                end
             end
             return false
         end,
@@ -346,19 +327,22 @@ local strategies = {
                 end
             end
             -- Scan party
-            if not target then
-                local GetNumGroupMembers = _G.GetNumGroupMembers
-                local n = GetNumGroupMembers and GetNumGroupMembers() or 0
-                for i = 1, n do
-                    local unit = "party" .. i
-                    if NS.debuff_up(unit, curse_debuffs) then
-                        target = unit
-                        use_remove_curse = true
-                        break
-                    elseif NS.debuff_up(unit, poison_debuffs) then
-                        target = unit
-                        use_abolish_poison = true
-                        break
+            if not target and _get_party_frames then
+                local ok, frames = pcall(_get_party_frames)
+                if ok and type(frames) == "table" then
+                    for i = 1, #frames do
+                        local unit = frames[i]
+                        if unit and unit:is_valid() then
+                            if NS.debuff_up(unit, curse_debuffs) then
+                                target = unit
+                                use_remove_curse = true
+                                break
+                            elseif NS.debuff_up(unit, poison_debuffs) then
+                                target = unit
+                                use_abolish_poison = true
+                                break
+                            end
+                        end
                     end
                 end
             end
