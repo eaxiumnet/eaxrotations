@@ -2385,10 +2385,28 @@ function NS.try_cast(spell, unit, reason, opts)
         return true
     end
 
-    -- Fallback: global cast_unit_spell (IZI → core fallthrough)
-    if cast_unit_spell and type(cast_unit_spell) == "function" then
-        if not cast_unit_spell(id, target, label, reason) then
-            if debug then core_trace("try:" .. tostring(id) .. ":failed_cast", "[EaxRotations:try_cast] FAILED: cast_unit_spell returned false id=" .. tostring(id) .. " label=" .. label, 2000) end
+    -- IZI primary: try IZI before cast_unit_spell global
+    if NS.izi and type(NS.izi.spell) == "function" then
+        local izi_spell = NS.izi.spell(id)
+        if izi_spell and type(izi_spell.cast_safe) == "function" then
+            local ok = izi_spell:cast_safe(target, reason) == true
+            if ok then
+                mark_spell_cast(id)
+                if reason and debug then NS.log(reason) end
+                if debug then core_trace("try:" .. tostring(id) .. ":izi_ok", "[EaxRotations:try_cast] SUCCESS via IZI id=" .. tostring(id) .. " label=" .. label, 2000) end
+                return true
+            end
+        end
+        -- IZI is present but returned nil or no cast_safe - do not fall through to raw core.input
+        if debug then core_trace("try:" .. tostring(id) .. ":izi_none", "[EaxRotations:try_cast] IZI unavailable for id=" .. tostring(id) .. " label=" .. label, 2000) end
+        return false
+    end
+
+    -- Fallback: direct core.input.cast_target_spell
+    local cast = core.input and core.input.cast_target_spell
+    if type(cast) == "function" then
+        if safe(cast, id, target) == false then
+            if debug then core_trace("try:" .. tostring(id) .. ":direct_false", "[EaxRotations:try_cast] FAILED: cast_target_spell returned false id=" .. tostring(id) .. " label=" .. label, 2000) end
             return false
         end
     else
@@ -5040,9 +5058,31 @@ function NS.action_execute(context, action, prefix)
         -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
         if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
 
-        if not cast_unit_spell(id, target, action.name or tostring(id), reason) then return false end
+        -- IZI primary: try IZI before central cast guard (supports skip_gcd actions)
+        if NS.izi and type(NS.izi.spell) == "function" then
+            local izi_spell = NS.izi.spell(id)
+            if izi_spell and type(izi_spell.cast_safe) == "function" then
+                local ok = izi_spell:cast_safe(target, reason) == true
+                if ok then
+                    mark_spell_cast(id)
+                    _last_action_exec[action.name] = NS.time_now()
+                    if debug then NS.log(reason) end
+                    return true
+                end
+            end
+        end
 
-        mark_spell_cast(id)
+        -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
+        if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
+
+        -- Execute via cast_unit_spell global (with nil-guard)
+        if cast_unit_spell and type(cast_unit_spell) == "function" then
+            if not cast_unit_spell(id, target, action.name or tostring(id), reason) then return false end
+        else
+            if debug then core.log("[EaxRotations:action_execute] " .. tostring(action.name) .. " FAIL: no cast_unit_spell global") end
+            return false
+        end
+
 
         _last_action_exec[action.name] = NS.time_now()
 
