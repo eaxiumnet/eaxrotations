@@ -299,13 +299,19 @@ local function slow_matches(context, s)
     return true
 end
 
---- Presence of Mind: use as burst opener or during movement
+--- Presence of Mind: use as burst opener synced with Arcane Power.
+--- Optimal combo: AP (if available) -> PoM -> AB (instant). Fire PoM when AP is
+--- already active or on CD so we don't waste PoM without the damage multiplier.
 local function pom_matches(context, s)
     if s.has_presence_of_mind then return false end
     if not s.in_combat then return false end
     if not get_setting_bool(context, "use_cooldowns", true) then return false end
     -- Only use PoM during burn phase or bloodlust
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
+    -- Sync with AP: fire PoM only when AP is already active or on cooldown
+    local ap_active = s.has_arcane_power or false
+    local ap_on_cd = s.arcane_power_available == false
+    if not ap_active and not ap_on_cd then return false end
     -- Use PoM while moving to maintain DPS
     if s.is_moving then return true end
     return true

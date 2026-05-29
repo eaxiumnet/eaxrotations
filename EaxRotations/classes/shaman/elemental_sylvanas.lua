@@ -341,7 +341,6 @@ local function totem_of_wrath_matches_fn(context, state)
     local s = context.settings or {}
     if s.elemental_manage_totems == false then return false end
     if s.elemental_use_totem_of_wrath == false then return false end
-    if context.in_combat then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(TOTEM_OF_WRATH_BUFF) then return false end
     return NS.spell_ready(SPELLS.TotemOfWrath, NS.PLAYER_UNIT, { skip_range = true })
@@ -350,7 +349,6 @@ end
 local function wrath_of_air_totem_matches_fn(context, state)
     local s = context.settings or {}
     if s.elemental_manage_totems == false then return false end
-    if context.in_combat then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(WRATH_OF_AIR_BUFF) then return false end
     return NS.spell_ready(SPELLS.WrathOfAirTotem, NS.PLAYER_UNIT, { skip_range = true })

@@ -98,6 +98,7 @@ local function state(overrides)
         target_casting = false,
         mana_gem_available = true,
         evocation_available = true,
+        arcane_power_available = false,
         bloodlust_active = false,
     }
     if overrides then

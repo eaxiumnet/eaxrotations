@@ -511,7 +511,7 @@ local strategies = {
     {
         name = "RacialBloodFury",
         matches = function(context, state) return racial_matches(context, state) and NS.spell_ready and NS.spell_ready(LOCAL_SPELLS.BloodFury, context.me, { skip_range = true }) end,
-        execute = function() return NS.try_cast(LOCAL_SPELLS.BloodFury, context.me, "[DEMONOLOGY] Blood Fury", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(LOCAL_SPELLS.BloodFury, context.me, "[DEMONOLOGY] Blood Fury", { skip_range = true }) end,
     },
     -- PvP: Fear
     {
