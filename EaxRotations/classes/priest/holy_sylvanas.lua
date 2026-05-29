@@ -413,9 +413,7 @@ local strategies = {
             if not state.lowest or state.lowest.is_player then return false end
             if not spell_exists(SPELLS.BindingHeal) or not spell_ready(SPELLS.BindingHeal, state.lowest.unit) then return false end
             -- Predictive overheal gate
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if NS.HealerDeficit.gate_spell_overheal("BindingHeal", state.lowest.unit, 2.0, context.settings) then return false end
-            end
+            if NS.gate_overheal("BindingHeal", state.lowest.unit, 2.0, context.settings) then return false end
             return true
         end,
         execute = function(context, state)
@@ -434,10 +432,7 @@ local strategies = {
             local poh_count = state.subgroup_damaged_count or state.group_damaged_count
             if poh_count < (context.settings.holy_aoe_count or 3) then return false end
             -- Predictive overheal gate
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                local target = state.lowest and state.lowest.unit or NS.PLAYER_UNIT
-                if NS.HealerDeficit.gate_spell_overheal("PrayerOfHealing", target, 3.0, context.settings) then return false end
-            end
+            if NS.gate_overheal("PrayerOfHealing", state.lowest and state.lowest.unit or NS.PLAYER_UNIT, 3.0, context.settings) then return false end
             return true
         end,
         execute = function(context, state)
@@ -456,9 +451,7 @@ local strategies = {
             -- Pushback gate: skip long-cast heals when taking damage
             if _check_pushback(context) then return false end
             -- Predictive overheal gate: don't waste clearcast GH if predicted deficit is small
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if NS.HealerDeficit.gate_spell_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
-            end
+            if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
             return state.lowest_hp < 95
         end,
         execute = function(context, state)
@@ -513,9 +506,7 @@ local strategies = {
             local renew_hp = context.settings.holy_renew_hp or 90
             if not (state.lowest_hp < renew_hp and state.lowest_hp >= flash_hp) then return false end
             -- Predictive overheal gate
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if NS.HealerDeficit.gate_spell_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
-            end
+            if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
             return true
         end,
         execute = function(context, state)
@@ -535,9 +526,7 @@ local strategies = {
             if context.mana_pct < (context.settings.holy_fh_mana_floor or 15) then return false end
             if not (state.lowest_hp < (context.settings.holy_flash_heal_hp or 50)) then return false end
             -- Predictive overheal gate
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if NS.HealerDeficit.gate_spell_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings) then return false end
-            end
+            if NS.gate_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings) then return false end
             return true
         end,
         execute = function(context, state)

@@ -41,6 +41,12 @@ local SERPENT_STING_DEBUFF = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 
 local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { 34074 }
 
+local MISDIRECTION_ID = 34477
+local WING_CLIP_DEBUFF = { 2974 }
+local RAPTOR_STRIKE_IDS = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 2973 }
+local CONCUSSIVE_SHOT_IDS = { 5116 }
+local VOLLEY_IDS = { 27022, 14295, 14294, 1510 }
+
 local SERPENT_STING_REFRESH_SEC = 1.5
 
 -- ============================================================================
@@ -74,8 +80,13 @@ local mm_state = {
     feign_death_ready = false,
     freezing_trap_ready = false,
     viper_sting_ready = false,
-    bestial_wrath_ready = false,
     readiness_ready = false,
+    raptor_strike_ready = false,
+    concussive_shot_ready = false,
+    volley_ready = false,
+    explosive_trap_ready = false,
+    wing_clip_active = false,
+    use_misdirection = false,
     mana_pct = 100,
     in_combat = false,
     enemy_count = 1,
@@ -118,8 +129,13 @@ local function build_state(context)
     mm_state.feign_death_ready = me and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
-    mm_state.bestial_wrath_ready = me and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true, expected_cooldown = 120 }) or false
     mm_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.raptor_strike_ready = target and NS.spell_ready(RAPTOR_STRIKE_IDS, target) or false
+    mm_state.concussive_shot_ready = target and NS.spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
+    mm_state.volley_ready = target and NS.spell_ready(VOLLEY_IDS, target) or false
+    mm_state.explosive_trap_ready = me and NS.spell_ready(SPELLS.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
+    mm_state.use_misdirection = context.settings and context.settings.use_misdirection == true
     mm_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     mm_state.in_combat = context.in_combat or false
     mm_state.enemy_count = context.enemy_count or context.enemies_count or 1

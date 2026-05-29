@@ -11,7 +11,10 @@ local CURSE_OF_DOOM_DEBUFF = { 30910, 603 }
 local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local FEL_ARMOR_BUFF = { 28189, 28176 }
+local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
+local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local PET_LOW_HP = 30
+local EXECUTE_THRESHOLD = 25
 
 local DOT_REFRESH_WINDOW = 1.5
 
@@ -40,6 +43,16 @@ local demo_state = {
     fel_domination_ready = false,
     soulshatter_ready = false,
     incinerate_ready = false,
+    soul_fire_ready = false,
+    demonic_empowerment_ready = false,
+    fear_ready = false,
+    rain_of_fire_ready = false,
+    hellfire_ready = false,
+    curse_of_agony_ready = false,
+    curse_of_elements_ready = false,
+    dark_pact_ready = false,
+    drain_soul_ready = false,
+    target_hp_pct = 100,
 }
 
 local function build_state(context)
@@ -77,6 +90,16 @@ local function build_state(context)
     demo_state.fel_domination_ready = me and NS.spell_ready(SPELLS.FelDomination, me, { skip_range = true, expected_cooldown = 900 }) or false
     demo_state.soulshatter_ready = me and NS.cooldown_remains(SPELLS.Soulshatter, 300) <= 0 and NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true }) or false
     demo_state.incinerate_ready = target and NS.spell_ready(SPELLS.Incinerate, target, { expected_cooldown = 2.5 }) or false
+    demo_state.soul_fire_ready = target and NS.spell_ready(SPELLS.SoulFire, target, { expected_cooldown = 1.5 }) or false
+    demo_state.demonic_empowerment_ready = demo_state.has_pet and NS.spell_ready(SPELLS.DemonicEmpowerment, me, { skip_range = true, expected_cooldown = 60 }) or false
+    demo_state.fear_ready = target and NS.spell_ready(SPELLS.Fear, target) or false
+    demo_state.rain_of_fire_ready = target and NS.spell_ready(SPELLS.RainOfFire, target, { expected_cooldown = 1.5 }) or false
+    demo_state.hellfire_ready = me and NS.spell_ready(SPELLS.Hellfire, me, { skip_range = true }) or false
+    demo_state.curse_of_agony_ready = target and NS.spell_ready(SPELLS.CurseOfAgony, target) or false
+    demo_state.curse_of_elements_ready = target and NS.spell_ready(SPELLS.CurseElements, target) or false
+    demo_state.dark_pact_ready = me and NS.spell_ready(SPELLS.DarkPact, me, { skip_range = true, expected_cooldown = 10 }) or false
+    demo_state.drain_soul_ready = target and NS.spell_ready(SPELLS.DrainSoul, target) or false
+    demo_state.target_hp_pct = target and target.get_health_percentage and target:get_health_percentage() or 100
 
     return demo_state
 end
@@ -229,8 +252,80 @@ local function fel_armor_matches(context, s)
     return s.fel_armor_ready == true
 end
 
-local function health_funnel_matches(context, s)
-    if not pet_needs_healing(context) then return false end
+local function soul_fire_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SoulFire, 2.0) then return false end
+    if not s then return false end
+    if not context.target then return false end
+    if not s.soul_fire_ready then return false end
+    if (s.target_hp_pct or 100) > EXECUTE_THRESHOLD then return false end
+    return true
+end
+
+local function demonic_empowerment_matches(context, s)
+    if not s then return false end
+    if not s.has_pet then return false end
+    if not s.demonic_empowerment_ready then return false end
+    return true
+end
+
+local function fear_matches(context, s)
+    if not s then return false end
+    if not context.in_combat then return false end
+    if not context.target then return false end
+    if not s.fear_ready then return false end
+    if not context.is_pvp then return false end
+    return true
+end
+
+local function rain_of_fire_matches(context, s)
+    if not s then return false end
+    if not context.target then return false end
+    if (s.enemy_count or 0) < 3 then return false end
+    if not s.rain_of_fire_ready then return false end
+    return true
+end
+
+local function hellfire_matches(context, s)
+    if not s then return false end
+    if not context.in_combat then return false end
+    if (s.enemy_count or 0) < 4 then return false end
+    if (s.hp_pct or 100) < 40 then return false end
+    if not s.hellfire_ready then return false end
+    return true
+end
+
+local function curse_of_agony_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfAgony, 2.0) then return false end
+    if not s then return false end
+    if not context.target then return false end
+    if not s.curse_of_agony_ready then return false end
+    if NS.debuff_remains(context.target, CURSE_OF_AGONY_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+    if (s.target_hp_pct or 100) < EXECUTE_THRESHOLD then return false end
+    return true
+end
+
+local function curse_of_elements_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseElements, 2.0) then return false end
+    if not s then return false end
+    if not context.target then return false end
+    if not s.curse_of_elements_ready then return false end
+    if NS.debuff_remains(context.target, CURSE_OF_ELEMENTS_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+    return true
+end
+
+local function dark_pact_matches(context, s)
+    if not s then return false end
+    if not s.has_pet then return false end
+    if (s.mana_pct or 100) >= 65 then return false end
+    if not s.dark_pact_ready then return false end
+    return true
+end
+
+local function drain_soul_matches(context, s)
+    if not s then return false end
+    if not context.target then return false end
+    if (s.target_hp_pct or 100) > EXECUTE_THRESHOLD then return false end
+    if not s.drain_soul_ready then return false end
     return true
 end
 
@@ -243,8 +338,17 @@ local strategies = {
     { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(SPELLS.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
     { name = "HealthFunnel", matches = health_funnel_matches, execute = function(context) return NS.try_cast(SPELLS.HealthFunnel, context.pet or context.me, "[DEMONOLOGY] Health Funnel") end },
     { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },
-    { name = "Corruption", matches = corruption_matches, execute = function(context) return NS.try_cast(SPELLS.Corruption, context.target, "[DEMONOLOGY] Corruption") end },
+    { name = "CurseOfElements", matches = curse_of_elements_matches, execute = function(context) return NS.try_cast(SPELLS.CurseElements, context.target, "[DEMONOLOGY] Curse of Elements") end },
+    { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
     { name = "Immolate", matches = immolate_matches, execute = function(context) return NS.try_cast(SPELLS.Immolate, context.target, "[DEMONOLOGY] Immolate") end },
+    { name = "Corruption", matches = corruption_matches, execute = function(context) return NS.try_cast(SPELLS.Corruption, context.target, "[DEMONOLOGY] Corruption") end },
+    { name = "SiphonLife", matches = siphon_life_matches, execute = function(context) return NS.try_cast(SPELLS.SiphonLife, context.target, "[DEMONOLOGY] Siphon Life") end },
+    { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(SPELLS.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
+    { name = "SoulFire", matches = soul_fire_matches, execute = function(context) return NS.try_cast(SPELLS.SoulFire, context.target, "[DEMONOLOGY] Soul Fire", { expected_cooldown = 1.5 }) end },
+    { name = "DrainSoul", matches = drain_soul_matches, execute = function(context) return NS.try_cast(SPELLS.DrainSoul, context.target, "[DEMONOLOGY] Drain Soul") end },
+    { name = "RainOfFire", matches = rain_of_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RainOfFire, context.target, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end },
+    { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(SPELLS.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
+    { name = "DemonicEmpowerment", matches = demonic_empowerment_matches, execute = function(context) return NS.try_cast(SPELLS.DemonicEmpowerment, context.me, "[DEMONOLOGY] Demonic Empowerment", { skip_range = true, expected_cooldown = 60 }) end },
     { name = "SiphonLife", matches = siphon_life_matches, execute = function(context) return NS.try_cast(SPELLS.SiphonLife, context.target, "[DEMONOLOGY] Siphon Life") end },
     { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(SPELLS.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
     { name = "DeathCoil", matches = function(context) return death_coil_matches(context, { name = "DeathCoil", spell = SPELLS.DeathCoil }) end, execute = function(context) return NS.try_cast(SPELLS.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },

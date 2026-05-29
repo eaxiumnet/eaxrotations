@@ -56,6 +56,33 @@ local WARRIOR_AOE_IDS = { 845, 1680, 12328 }  -- Cleave, Whirlwind, Sweeping Str
 -- Disarm target classes: melee classes that lose weapon-based damage when disarmed
 local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
+-- Pre-allocated tables for hot-path match/execute functions (avoid per-frame allocation)
+local PWS_IDS = { 17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218, 27623 }
+local BOP_IDS = { 1022, 5599, 10278 }
+
+-- Whitelist of dangerous spells to reflect in PvP
+local REFLECT_WHITELIST = {
+    -- Mage
+    [118] = true, [12824] = true, [12825] = true, [12826] = true, -- Polymorph
+    [133] = true, [143] = true, [145] = true, [3140] = true, [8400] = true, [8401] = true, [8402] = true,
+    [10148] = true, [10149] = true, [10150] = true, [10151] = true, [25306] = true, [27070] = true, -- Fireball
+    [116] = true, [205] = true, [837] = true, [7322] = true, [8406] = true, [8407] = true, [8408] = true,
+    [10179] = true, [10180] = true, [10181] = true, [25304] = true, [27072] = true, -- Frostbolt
+    [2139] = true, -- Counterspell
+    -- Warlock
+    [5782] = true, [6213] = true, [6215] = true, -- Fear
+    [686] = true, [695] = true, [705] = true, [1088] = true, [1106] = true, [7641] = true,
+    [11659] = true, [11660] = true, [11661] = true, [25307] = true, [27209] = true, -- Shadow Bolt
+    [6789] = true, -- Death Coil
+    -- Priest
+    [8122] = true, [8124] = true, [10888] = true, [10890] = true, -- Psychic Scream
+    [585] = true, [591] = true, [598] = true, [984] = true, [1004] = true, [6060] = true,
+    [10933] = true, [10934] = true, [25363] = true, [25364] = true, -- Smite
+    -- Druid
+    [33786] = true, -- Cyclone
+    [339] = true, [1062] = true, [5195] = true, [5196] = true, [9852] = true, [9853] = true, [26989] = true, -- Entangling Roots
+}
+
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("warrior", "Pummel", SPELLS, 3),
@@ -249,29 +276,6 @@ local strategies = {
             
             if not is_casting then return false end
             
-            -- Whitelist of dangerous spells to reflect in PvP
-            local REFLECT_WHITELIST = {
-                -- Mage
-                [118] = true, [12824] = true, [12825] = true, [12826] = true, -- Polymorph
-                [133] = true, [143] = true, [145] = true, [3140] = true, [8400] = true, [8401] = true, [8402] = true,
-                [10148] = true, [10149] = true, [10150] = true, [10151] = true, [25306] = true, [27070] = true, -- Fireball
-                [116] = true, [205] = true, [837] = true, [7322] = true, [8406] = true, [8407] = true, [8408] = true,
-                [10179] = true, [10180] = true, [10181] = true, [25304] = true, [27072] = true, -- Frostbolt
-                [2139] = true, -- Counterspell
-                -- Warlock
-                [5782] = true, [6213] = true, [6215] = true, -- Fear
-                [686] = true, [695] = true, [705] = true, [1088] = true, [1106] = true, [7641] = true,
-                [11659] = true, [11660] = true, [11661] = true, [25307] = true, [27209] = true, -- Shadow Bolt
-                [6789] = true, -- Death Coil
-                -- Priest
-                [8122] = true, [8124] = true, [10888] = true, [10890] = true, -- Psychic Scream
-                [585] = true, [591] = true, [598] = true, [984] = true, [1004] = true, [6060] = true,
-                [10933] = true, [10934] = true, [25363] = true, [25364] = true, -- Smite
-                -- Druid
-                [33786] = true, -- Cyclone
-                [339] = true, [1062] = true, [5195] = true, [5196] = true, [9852] = true, [9853] = true, [26989] = true, -- Entangling Roots
-            }
-            
             if pvp_only and casting_spell_id then
                 if not REFLECT_WHITELIST[casting_spell_id] then return false end
             end
@@ -312,7 +316,6 @@ local strategies = {
             if not context.me then return false end
             
             -- Check if we have Power Word: Shield (blocks rage generation)
-            local PWS_IDS = { 17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218, 27623 }
             for _, id in ipairs(PWS_IDS) do
                 if NS.has_buff and NS.has_buff(context.me, id) then
                     -- Cancel PW:S if we're low rage and need to attack
@@ -324,7 +327,6 @@ local strategies = {
             end
             
             -- Check for Blessing of Protection (prevents attacks)
-            local BOP_IDS = { 1022, 5599, 10278 }
             for _, id in ipairs(BOP_IDS) do
                 if NS.has_buff and NS.has_buff(context.me, id) then
                     -- Cancel BoP if we need to attack and HP is safe
@@ -339,9 +341,6 @@ local strategies = {
         end,
         execute = function(context)
             local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-            
-            local PWS_IDS = { 17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218, 27623 }
-            local BOP_IDS = { 1022, 5599, 10278 }
             
             -- Try to cancel PW:S first
             for _, id in ipairs(PWS_IDS) do

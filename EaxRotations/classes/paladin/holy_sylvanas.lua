@@ -278,21 +278,19 @@ local function choose_smart_heal(context, s, entry)
     local hl_hp_threshold = s.has_lights_grace and 80 or 70
     if (hp <= hl_hp_threshold or deficit >= LIGHT_HEAL_DEFICIT) and (s.mana_pct or 100) >= LOW_MANA_PCT then
         -- Predictive overheal gate for Holy Light
-        if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-            if NS.HealerDeficit.gate_spell_overheal("HolyLight", entry.unit, 2.5, context.settings) then
-                -- Fall through to Flash of Light instead
-                if hp <= flash_hp and NS.spell_ready(SPELLS.FlashOfLight, entry.unit, EMPTY_OPTS) then
-                    if (s.mana_pct or 100) < 15 and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
-                        s.heal_spell = FlashOfLightRank6
-                        s.heal_label = "Flash of Light R6 conserve"
-                    else
-                        s.heal_spell = SPELLS.FlashOfLight
-                        s.heal_label = "Flash of Light"
-                    end
-                    return s.heal_spell
+        if NS.gate_overheal("HolyLight", entry.unit, 2.5, context.settings) then
+            -- Fall through to Flash of Light instead
+            if hp <= flash_hp and NS.spell_ready(SPELLS.FlashOfLight, entry.unit, EMPTY_OPTS) then
+                if (s.mana_pct or 100) < 15 and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
+                    s.heal_spell = FlashOfLightRank6
+                    s.heal_label = "Flash of Light R6 conserve"
+                else
+                    s.heal_spell = SPELLS.FlashOfLight
+                    s.heal_label = "Flash of Light"
                 end
-                return nil  -- Skip both HL and FoL if HL would overheat
+                return s.heal_spell
             end
+            return nil  -- Skip both HL and FoL if HL would overheat
         end
         s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, entry)
         s.heal_spell = s.holy_light_spell
@@ -586,9 +584,7 @@ local strategies = {
             if hp_of(s.lowest) > setting(context, "holy_shock_hp", 40) and not moving then return false end
             if not NS.spell_ready(SPELLS.HolyShock, s.lowest.unit, EMPTY_OPTS) then return false end
             -- Predictive overheal gate: Holy Shock is instant but still gated at higher HP
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if NS.HealerDeficit.gate_spell_overheal("HolyShock", s.lowest.unit, 1.5, context.settings) then return false end
-            end
+            if NS.gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings) then return false end
             return true
         end,
         execute = function(_, s)
@@ -602,9 +598,7 @@ local strategies = {
             s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
             if not NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS) then return false end
             -- Predictive overheal gate
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if NS.HealerDeficit.gate_spell_overheal("HolyLight", s.lowest.unit, 2.5, context.settings) then return false end
-            end
+            if NS.gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings) then return false end
             return true
         end,
         execute = function(_, s)
@@ -618,9 +612,7 @@ local strategies = {
             s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
             if not NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS) then return false end
             -- Predictive overheal gate: even with Divine Favor, avoid wasteful overheal
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if NS.HealerDeficit.gate_spell_overheal("HolyLight", s.lowest.unit, 2.5, context.settings) then return false end
-            end
+            if NS.gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings) then return false end
             return true
         end,
         execute = function(_, s)
@@ -692,12 +684,10 @@ local strategies = {
             s.heal_target = s.tank
             if not choose_smart_heal(context, s, s.tank) or not NS.spell_ready(s.heal_spell, s.tank.unit, EMPTY_OPTS) then return false end
             -- Predictive overheal gate for tank pre-heal
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if s.heal_label and (s.heal_label:find("Holy Light") or s.heal_label:find("Flash")) then
-                    local spell_key = s.heal_label:find("Holy Light") and "HolyLight" or "FlashOfLight"
-                    local cast_time = s.heal_label:find("Holy Light") and 2.5 or 1.5
-                    if NS.HealerDeficit.gate_spell_overheal(spell_key, s.tank.unit, cast_time, context.settings) then return false end
-                end
+            if s.heal_spell then
+                local spell_key = (s.heal_spell == SPELLS.HolyLight) and "HolyLight" or "FlashOfLight"
+                local cast_time = (s.heal_spell == SPELLS.HolyLight) and 2.5 or 1.5
+                if NS.gate_overheal(spell_key, s.tank.unit, cast_time, context.settings) then return false end
             end
             return true
         end,
@@ -724,9 +714,7 @@ local strategies = {
             if hp_of(s.lowest) > setting(context, "holy_flash_light_hp", 85) then return false end
             if not NS.spell_ready(SPELLS.FlashOfLight, s.lowest.unit, EMPTY_OPTS) then return false end
             -- Predictive overheal gate: skip FoL if predicted deficit is small
-            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-                if NS.HealerDeficit.gate_spell_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings) then return false end
-            end
+            if NS.gate_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings) then return false end
             return true
         end,
         execute = function(_, s)

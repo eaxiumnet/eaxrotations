@@ -227,8 +227,9 @@ local function adrenaline_rush_wrapper(context, s)
     if not s.in_combat then return false end
     if s.has_adrenaline_rush then return false end
     if not s.adrenaline_rush_ready then return false end
-    -- Research: delay AR during Bloodlust/Heroism to avoid energy capping
-    local delay_during_heroism = (context.settings and context.settings.combat_adrenaline_rush_heroism) ~= false
+    -- Optimal: USE AR during Heroism for maximum combo point generation
+    -- Setting defaults to false (use during Heroism) — override via combat_adrenaline_rush_heroism=true to delay
+    local delay_during_heroism = context.settings and context.settings.combat_adrenaline_rush_heroism == true
     if delay_during_heroism and s.heroism_active then return false end
     return true
 end
@@ -272,8 +273,8 @@ local function eviscerate_matches(context, s)
     if not s.eviscerate_ready then return false end
     if s.energy_pool_finisher then return false end
     if (s.energy or 0) < 35 then return false end  -- hard floor: spell costs 35 energy
-    -- Research: only Eviscerate at 4-5 CP (not wasted at 2-3 CP)
-    if (s.combo_points or 0) < 4 then return false end
+    -- Optimal: Eviscerate only at 5 CP for maximum damage per combo point
+    if (s.combo_points or 0) < 5 then return false end
     return true
 end
 
@@ -365,6 +366,64 @@ local function expose_armor_matches(context, s)
     -- Research: only apply Expose Armor when assigned (conflicts with Sunder/Devastate)
     if not s.expose_assigned then return false end
     return true
+end
+
+local function evasion_matches(context, s)
+    if not s.in_combat then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(26669)) then return false end
+    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(SPELLS.Evasion) or 0
+    if cd > 0 then return false end
+    local evasion_hp = (context.settings and context.settings.combat_evasion_hp) or 30
+    return (s.hp_pct or 100) <= evasion_hp
+end
+
+local function cloak_of_shadows_matches(context, s)
+    if not s.in_combat then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(31224)) then return false end
+    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(SPELLS.CloakOfShadows) or 0
+    if cd > 0 then return false end
+    local cloak_hp = (context.settings and context.settings.combat_cloak_hp) or 20
+    return (s.hp_pct or 100) <= cloak_hp
+end
+
+local function cheap_shot_matches(context, s)
+    if not s.has_stealth then return false end
+    if not context.target then return false end
+    if not (context.in_melee_range or false) then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(1833)) then return false end
+    return true
+end
+
+local function garrote_matches(context, s)
+    if not s.has_stealth then return false end
+    if not context.target then return false end
+    if not (context.in_melee_range or false) then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(703)) then return false end
+    local is_caster = context.target.is_casting and context.target:is_casting()
+    if not is_caster then return false end
+    return true
+end
+
+local function deadly_throw_matches(context, s)
+    if not s.in_combat then return false end
+    if not context.target then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(26679)) then return false end
+    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(SPELLS.DeadlyThrow) or 0
+    if cd > 0 then return false end
+    local in_melee = context.in_melee_range or false
+    local dist = context.target_distance or 30
+    return not in_melee and dist <= 30 and (s.combo_points or 0) >= 1
+end
+
+local function blind_matches(context, s)
+    if not s.in_combat then return false end
+    if not context.target then return false end
+    if not (context.is_pvp or false) then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(2094)) then return false end
+    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(SPELLS.Blind) or 0
+    if cd > 0 then return false end
+    local blind_hp = (context.settings and context.settings.combat_blind_hp) or 40
+    return (s.hp_pct or 100) <= blind_hp
 end
 
 -- ============================================================================

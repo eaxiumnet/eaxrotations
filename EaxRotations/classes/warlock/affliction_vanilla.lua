@@ -30,6 +30,8 @@ local SPELLS = NS.WarlockSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
+local _reagent_guard_ok, _reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
+if not _reagent_guard_ok then _reagent_guard = nil end
 
 -- ============================================================================
 -- Debuff & Buff ID tables
@@ -738,7 +740,7 @@ local strategies = {
             if context.in_combat then return false end
             if state.has_soulstone then return false end
             -- Require at least one soul shard to create
-            local reagent = NS.ReagentGuard or (pcall(require, "shared/reagent_guard_sylvanas") and require("shared/reagent_guard_sylvanas"))
+            local reagent = NS.ReagentGuard or _reagent_guard
             if reagent and reagent.check_reagent then
                 local spell_id = LOCAL_SPELLS.CreateSoulstone and LOCAL_SPELLS.CreateSoulstone.id and LOCAL_SPELLS.CreateSoulstone:id()
                 if spell_id and not reagent.check_reagent(spell_id) then return false end

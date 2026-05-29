@@ -38,6 +38,9 @@ _G.EaxRotations = {
         return 0
     end,
     log = function() end,
+    gate_overheal = function(spell_key, unit, call_time, settings)
+        return false  -- never overheal in tests
+    end,
     rotation_registry = {
         register = function() end,
     },

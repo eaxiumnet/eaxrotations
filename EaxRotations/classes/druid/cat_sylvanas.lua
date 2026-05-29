@@ -584,14 +584,14 @@ end
 
 local function emergency_bite_matches(context, action)
     local state = build_state(context)
-    if state.combo_points < 3 then return false end
+    if (state.combo_points or 0) < 3 then return false end
     if state.target_ttd <= 0 or state.target_ttd > 4 then return false end
     return true
 end
 
 local function maim_interrupt_matches(context, action)
     local state = build_state(context)
-    if state.combo_points < 1 then return false end
+    if (state.combo_points or 0) < 1 then return false end
     if state.maim_remains > 0 then return false end
     if not state.is_pvp and not state.is_player_target then return false end
     local casting = safe_method(state.target, "is_casting", false) or safe_method(state.target, "is_channeling", false)
@@ -601,7 +601,7 @@ end
 
 local function maim_control_matches(context, action)
     local state = build_state(context)
-    if state.combo_points < 3 then return false end
+    if (state.combo_points or 0) < 3 then return false end
     if state.maim_remains > 0 then return false end
     if not state.is_pvp and not state.is_player_target then return false end
     if state.target_hp <= HARD_EXECUTE_HP then return false end
@@ -612,7 +612,7 @@ local function rake_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
     if not target_lives(state, MIN_RAKE_TTD) then return false end
-    if context.combo_points ~= nil and state.combo_points >= 5 then return false end
+    if context.combo_points ~= nil and (state.combo_points or 0) >= 5 then return false end
     if should_wait_for_tick(state, RAKE_COST) then return false end
     if not should_snapshot_upgrade(state.attack_power, state.rake_ap, state.rake_remains, RAKE_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
     return true
@@ -622,7 +622,7 @@ local function rake_snapshot_matches(context, action)
     local state = build_state(context)
     if state.rake_remains <= RAKE_REFRESH_WINDOW then return false end
     if state.rake_ap <= 0 then return false end
-    if state.combo_points >= 5 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     -- Use lower threshold during bloodlust/high-AP windows to catch the snapshot opportunity
     local ratio = state.has_high_ap_window and HIGH_AP_UPGRADE_RATIO or STRONG_AP_UPGRADE_RATIO
     if state.attack_power < state.rake_ap * ratio then return false end
@@ -632,7 +632,7 @@ end
 local function rake_tab_matches(context, action)
     local state = build_state(context)
     if not state.should_tab_rake then return false end
-    if state.combo_points >= 5 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     return rake_matches(context, action)
 end
 
@@ -640,15 +640,15 @@ local function clearcasting_shred_matches(context, action)
     local state = build_state(context)
     if not state.clearcasting then return false end
     if state.target and not state.is_behind then return false end
-    if context.combo_points ~= nil and state.combo_points >= 5 then return false end
+    if context.combo_points ~= nil and (state.combo_points or 0) >= 5 then return false end
     action.min_energy = CLEARCASTING_COST_FLOOR
     return true
 end
 
 local function shred_matches(context, action)
     local state = build_state(context)
-    if state.combo_points >= 5 then return false end
-    if state.pooling and state.energy < SHRED_COST then return false end
+    if (state.combo_points or 0) >= 5 then return false end
+    if state.pooling and (state.energy or 0) < SHRED_COST then return false end
     if not state.is_behind then return false end
     if state.mangle_remains <= MANGLE_REFRESH_WINDOW and target_lives(state, MIN_RAKE_TTD) then return false end
     if should_wait_for_tick(state, SHRED_COST) then return false end
@@ -657,15 +657,15 @@ end
 
 local function mangle_filler_matches(context, action)
     local state = build_state(context)
-    if state.combo_points >= 5 then return false end
-    if state.is_behind and spell_ready(SPELLS.Shred, state.target, nil) and state.energy >= SHRED_COST then return false end
+    if (state.combo_points or 0) >= 5 then return false end
+    if state.is_behind and spell_ready(SPELLS.Shred, state.target, nil) and (state.energy or 0) >= SHRED_COST then return false end
     if should_wait_for_tick(state, MANGLE_COST) then return false end
     return true
 end
 
 local function claw_matches(context, action)
     local state = build_state(context)
-    if state.combo_points >= 5 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     if spell_exists(SPELLS.MangleCat) then return false end
     if should_wait_for_tick(state, 45) then return false end
     return true
@@ -681,7 +681,7 @@ local function tigers_fury_matches(context, action)
     if not NS.spell_exists then fury_gain = POWERSHIFT_GAIN_WOLFSHEAD end
     if state.energy + fury_gain > max_energy then return false end
     if state.energy > ENERGY_CAP - TIGERS_FURY_ENERGY - 5 and state.next_tick_in <= 0.6 then return false end
-    if state.combo_points >= 5 and state.energy >= RIP_COST then return false end
+    if (state.combo_points or 0) >= 5 and (state.energy or 0) >= RIP_COST then return false end
     return true
 end
 
@@ -690,7 +690,7 @@ local function powershift_matches(context, action)
     if not state.should_powershift then return false end
     if state.clearcasting then return false end
     if state.next_tick_in <= 0.35 and state.energy + ENERGY_PER_TICK <= ENERGY_CAP then return false end
-    if state.combo_points >= 5 and state.energy >= RIP_COST then return false end
+    if (state.combo_points or 0) >= 5 and (state.energy or 0) >= RIP_COST then return false end
     return true
 end
 
@@ -698,9 +698,9 @@ local function emergency_powershift_matches(context, action)
     local state = build_state(context)
     if not NS.setting_bool(state.settings, "cat_powershift_enabled", true) then return false end
     if not state.is_cat or not state.in_combat then return false end
-    if state.energy > 10 then return false end
+    if (state.energy or 0) > 10 then return false end
     if (state.mana_pct or 100) < POWERSHIFT_MIN_MANA then return false end
-    if state.combo_points >= 5 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     if state.next_tick_in <= 0.2 then return false end
     return true
 end

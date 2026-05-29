@@ -6,6 +6,8 @@ local SPELLS = NS.WarlockSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
+local _reagent_guard_ok, _reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
+if not _reagent_guard_ok then _reagent_guard = nil end
 
 -- IZI SDK for spread_dot multi-DoT support
 local _izi = nil
@@ -355,41 +357,59 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 5. Unstable Affliction (primary DoT — dispel protection)
-    -- ------------------------------------------------------------------------
-    {
-        name = "UnstableAffliction",
-        matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(30405) then return false end
-            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-	            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-	            if (state.ua_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_ua_dmg or 0, state.ua_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
-            return NS.spell_ready(SPELLS.UnstableAffliction, context.target)
-        end,
-        execute = function(context)
-            local ok = NS.try_cast(SPELLS.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
-            if ok then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
-            return ok
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 6. Corruption (instant DoT)
+    -- 5. Corruption (instant DoT — apply before UA for efficiency)
     -- ------------------------------------------------------------------------
     {
         name = "CorruptionDoT",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             if broken_api_dot_throttled(27216) then return false end
-            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-	            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-	            if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             return NS.spell_ready(SPELLS.Corruption, context.target)
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.Corruption, context.target, "[AFFL] Corruption")
             if ok then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
+            return ok
+        end,
+    },
+    -- Corruption Spread — multi-DoT via IZI spread_dot
+    {
+        name = "CorruptionSpread",
+        matches = function(context, state)
+            if not _izi then return false end
+            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            if not target then return false end
+            return NS.spell_ready(SPELLS.Corruption, target)
+        end,
+        execute = function(context)
+            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            if not target then return false end
+            return NS.try_cast(SPELLS.Corruption, target, "[AFFL] Corruption Spread")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 6. Unstable Affliction (primary DoT — dispel protection, 1.5s cast)
+    -- ------------------------------------------------------------------------
+    {
+        name = "UnstableAffliction",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if broken_api_dot_throttled(30405) then return false end
+            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.ua_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_ua_dmg or 0, state.ua_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            return NS.spell_ready(SPELLS.UnstableAffliction, context.target)
+        end,
+        execute = function(context)
+            local ok = NS.try_cast(SPELLS.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
+            if ok then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
             return ok
         end,
     },
@@ -766,13 +786,15 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 23. Curse of Elements (raid debuff)
+    -- 23. Curse of Elements (raid debuff — use standard refresh window)
     -- ------------------------------------------------------------------------
     {
         name = "CurseOfElements",
         matches = function(context, state)
             if not context.target then return false end
-            if (state and state.coe_remains or 0) > 10 then return false end
+            -- Only in group content when no other warlock has it
+            if not context.is_group then return false end
+            if (state and state.coe_remains or 0) > DOT_REFRESH_WINDOW then return false end
             return NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target)
         end,
         execute = function(context)
@@ -804,7 +826,7 @@ local strategies = {
             if context.in_combat then return false end
             if state.has_soulstone then return false end
             -- Require at least one soul shard to create
-            local reagent = NS.ReagentGuard or (pcall(require, "shared/reagent_guard_sylvanas") and require("shared/reagent_guard_sylvanas"))
+            local reagent = NS.ReagentGuard or _reagent_guard
             if reagent and reagent.check_reagent then
                 local spell_id = LOCAL_SPELLS.CreateSoulstone and LOCAL_SPELLS.CreateSoulstone.id and LOCAL_SPELLS.CreateSoulstone:id()
                 if spell_id and not reagent.check_reagent(spell_id) then return false end

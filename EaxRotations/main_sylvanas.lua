@@ -767,28 +767,27 @@ local function is_debug_enabled()
     return _debug_enabled_cache
 end
 
-local function run_list(name, list, options, context)
+local function run_list(name, list, options, context, debug_on)
     if type(list) ~= "table" then
         trace("list:" .. tostring(name) .. ":missing", "list " .. tostring(name) .. " missing type=" .. type(list), 1000)
         return false
     end
-    local debug_on = is_debug_enabled()
+    if debug_on == nil then debug_on = is_debug_enabled() end
     if debug_on then
         trace("list:" .. tostring(name) .. ":start", "list " .. tostring(name) .. " start count=" .. tostring(#list), 2000)
     end
     local state = context
     if options and options.get_state then
-        state = safe(options.get_state, context) or context
-        if debug_on then
-            trace("list:" .. tostring(name) .. ":state", "list " .. tostring(name) .. " get_state returned " .. tostring(state ~= context and state ~= nil), 1000)
+        state = safe(options.get_state, context) or context            if debug_on then
+                trace("list:" .. tostring(name) .. ":state", "list " .. tostring(name) .. " get_state returned " .. tostring(state ~= context and state ~= nil), 1000)
+            end
         end
-    end
-    if options and options.context_builder then
-        state = safe(options.context_builder, context) or context
-        if debug_on then
-            trace("list:" .. tostring(name) .. ":builder", "list " .. tostring(name) .. " context_builder returned " .. tostring(state ~= context and state ~= nil), 1000)
+        if options and options.context_builder then
+            if debug_on then
+                trace("list:" .. tostring(name) .. ":builder", "list " .. tostring(name) .. " context_builder returned " .. tostring(state ~= context and state ~= nil), 1000)
+            end
+            state = safe(options.context_builder, context) or context
         end
-    end
     for i = 1, #list do
         local strategy = list[i]
         if type(strategy) == "table" then
@@ -802,7 +801,7 @@ local function run_list(name, list, options, context)
                 NS.log_warning(name .. " strategy " .. tostring(strategy.name or i) .. " missing execute")
             else
                 local ok = true
-                if type(strategy.matches) == "function" then ok = safe(strategy.matches, context, state) == true end
+                if type(strategy.matches) == "function" then ok = strategy.matches(context, state) == true end
                 if debug_on then
                     trace("strategy:" .. tostring(name) .. ":" .. sname .. ":match", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " category=" .. tostring(category) .. " match=" .. tostring(ok), 2000)
                 end
@@ -838,6 +837,7 @@ end
 
 function M.on_rotation_update()
     local context = build_context()
+    local debug_enabled = is_debug_enabled()
     if not context then
         trace("update:no_context", "[EaxRotations:update] EXIT: build_context returned nil - no player object?", 2000)
         trace("update:no_context", "on_rotation_update stop: no context", 1000)
@@ -884,13 +884,13 @@ function M.on_rotation_update()
     trace("playstyle:active", "playstyle requested=" .. tostring(requested_playstyle) .. " source=" .. tostring(active_source) .. " active=" .. tostring(active), 2000)
     log_expansion_once(config, active)
     local class_key = config and config.class_key
-    if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
+    if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context, debug_enabled) then
         trace("update:middleware_fired", "on_rotation_update fired middleware class_key=" .. tostring(class_key), 2000)
         trace("update:middleware_fired", "[EaxRotations:update] MIDDLEWARE FIRED - BLOCKING playstyle rotation. class_key=" .. tostring(class_key) .. " active=" .. tostring(active), 2000)
         return true
     end
     trace("update:running_playstyle", "[EaxRotations:update] running playstyle=" .. tostring(active) .. " list_count=" .. tostring(registry and registry.playstyles and registry.playstyles[active] and #registry.playstyles[active] or 0) .. " options=" .. tostring(registry and registry.options and registry.options[active] ~= nil), 2000)
-    local fired = run_list(tostring(active), registry and registry.playstyles[active], registry and registry.options[active], context)
+    local fired = run_list(tostring(active), registry and registry.playstyles[active], registry and registry.options[active], context, debug_enabled)
     trace("update:done", "on_rotation_update finished active=" .. tostring(active) .. " fired=" .. tostring(fired), 2000)
     if fired then
         trace("update:playstyle_fired", "[EaxRotations:update] playstyle=" .. tostring(active) .. " FIRED a strategy", 2000)
@@ -913,6 +913,7 @@ that pre-flight will naturally become a no-op.
 ]]
 function M.on_rotation_update_unified()
     local context = build_context()
+    local debug_enabled = is_debug_enabled()
     if not context then
         trace("unified:no_context", "on_rotation_update_unified stop: no context", 1000)
         return false
@@ -958,7 +959,7 @@ function M.on_rotation_update_unified()
     log_expansion_once(config, active)
     local class_key = config and config.class_key
     -- Run legacy class middleware first; new unified entries are in NS.unified_registry
-    if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
+    if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context, debug_enabled) then
         trace("unified:middleware_fired", "on_rotation_update_unified fired middleware class_key=" .. tostring(class_key), 500)
         return true
     end
