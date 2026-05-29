@@ -440,18 +440,14 @@ local strategies = {
         if context.is_moving or not state.ht_target then return false end
         if not NS.spell_ready(SPELLS.HealingTouch, state.ht_target.unit) then return false end
         -- Predictive overheal gate
-        if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-            if NS.HealerDeficit.gate_spell_overheal("HealingTouch", state.ht_target.unit, 2.5, context.settings) then return false end
-        end
+        if NS.gate_overheal("HealingTouch", state.ht_target.unit, 2.5, context.settings) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
     { name = "RegrowthSpotHeal", matches = function(context, state) 
         if context.is_moving or not state.regrowth_target or state.mana_conserve then return false end
         if not NS.spell_ready(SPELLS.Regrowth, state.regrowth_target.unit) then return false end
         -- Predictive overheal gate
-        if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-            if NS.HealerDeficit.gate_spell_overheal("Regrowth", state.regrowth_target.unit, 2.0, context.settings) then return false end
-        end
+        if NS.gate_overheal("Regrowth", state.regrowth_target.unit, 2.0, context.settings) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.Regrowth, state.regrowth_target.unit, "[RESTO] Regrowth spot heal") end },
     { name = "LifebloomLetBloom", matches = function(_, state) return state.lifebloom_bloom ~= nil end, execute = function() return false end },
@@ -460,9 +456,7 @@ local strategies = {
         if not state.has_clearcasting or not state.regrowth_target then return false end
         if not NS.spell_ready(SPELLS.Regrowth, state.regrowth_target.unit) then return false end
         -- Predictive overheal gate for clearcast Regrowth
-        if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-            if NS.HealerDeficit.gate_spell_overheal("Regrowth", state.regrowth_target.unit, 2.0, context.settings) then return false end
-        end
+        if NS.gate_overheal("Regrowth", state.regrowth_target.unit, 2.0, context.settings) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.Regrowth, state.regrowth_target.unit, "[RESTO] Clearcast Regrowth") end },
     { name = "RaidLifebloomCoverage", matches = function(_, state) return state.lifebloom_raid and NS.spell_ready(SPELLS.Lifebloom, state.lifebloom_raid.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.Lifebloom, state.lifebloom_raid.unit, "[RESTO] Raid Lifebloom coverage") end },
@@ -476,9 +470,7 @@ local strategies = {
         if (context.mana_pct or 100) > 45 then return false end
         if not NS.spell_ready(LOCAL_SPELLS.HealingTouchRank4, state.lowest.unit) then return false end
         -- Predictive overheal gate for downranked HT
-        if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-            if NS.HealerDeficit.gate_spell_overheal("HealingTouch", state.lowest.unit, 2.5, context.settings) then return false end
-        end
+        if NS.gate_overheal("HealingTouch", state.lowest.unit, 2.5, context.settings) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(LOCAL_SPELLS.HealingTouchRank4, state.lowest.unit, "[RESTO] Downrank Healing Touch") end },
     { name = "TreeOfLifeMaintain", matches = function(_, state) return state.can_tree and not state.in_tree and state.tree_aura_count >= 2 end, execute = function() return NS.try_cast(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Tree of Life aura", TREE_OPTS) end },
@@ -494,9 +486,7 @@ local strategies = {
         if effective_hp(state.lowest) > 80 then return false end
         if not NS.spell_ready(SPELLS.HealingTouch, state.lowest.unit) then return false end
         -- Predictive overheal gate
-        if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-            if NS.HealerDeficit.gate_spell_overheal("HealingTouch", state.lowest.unit, 2.5, context.settings) then return false end
-        end
+        if NS.gate_overheal("HealingTouch", state.lowest.unit, 2.5, context.settings) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.lowest.unit, "[RESTO] Healing Touch fallback") end },
 }

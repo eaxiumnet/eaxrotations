@@ -304,7 +304,7 @@ local function evasion_matches(context, state)
 end
 
 local function ghostly_strike_matches(context, state)
-    if not is_pvp_target(context) and state.hp > 55 then return false end
+    if not is_pvp_target(context) and (state.hp or 100) > 55 then return false end
     if not in_melee(state) or not enough_energy(state, ENERGY_GHOSTLY) then return false end
     return NS.spell_ready(SPELLS.GhostlyStrike, context.target)
 end
@@ -312,14 +312,14 @@ end
 local function blind_matches(context, state)
     if not is_pvp_target(context) then return false end
     if state.control_active then return false end
-    if state.hp > 35 and state.target_hp > 25 then return false end
+    if (state.hp or 100) > 35 and (state.target_hp or 100) > 25 then return false end
     return NS.spell_ready(SPELLS.Blind, context.target)
 end
 
 local function gouge_matches(context, state)
     if not is_pvp_target(context) then return false end
     if state.control_active then return false end
-    if not in_melee(state) or state.energy < 45 then return false end
+    if not in_melee(state) or (state.energy or 0) < 45 then return false end
     return NS.spell_ready(SPELLS.Gouge, context.target)
 end
 
@@ -359,7 +359,7 @@ end
 local function kidney_shot_matches(context, state)
     if state.combo < 3 or not enough_energy(state, ENERGY_KIDNEY) then return false end
     if state.kidney_remains > 0 then return false end
-    if not is_pvp_target(context) and state.target_hp > 35 then return false end
+    if not is_pvp_target(context) and (state.target_hp or 100) > 35 then return false end
     return NS.spell_ready(SPELLS.KidneyShot, context.target)
 end
 
@@ -385,7 +385,7 @@ end
 local function rupture_matches(context, state)
     if state.combo < 4 then return false end
     if state.energy_pool_finisher then return false end
-    if state.target_hp < 25 or (context.ttd or 999) < RUPTURE_TTD_FLOOR then return false end
+    if (state.target_hp or 100) < 25 or (context.ttd or 999) < RUPTURE_TTD_FLOOR then return false end
     if state.rupture_remains > RUPTURE_REFRESH then return false end
     return NS.spell_ready(SPELLS.Rupture, context.target)
 end
@@ -407,7 +407,7 @@ local function eviscerate_kill_matches(context, state)
     if state.combo < 4 then return false end
     if state.energy_pool_finisher then return false end
     if state.energy < ENERGY_FINISHER then return false end  -- hard floor
-    if state.target_hp > 30 and not state.shadowstep_buff then return false end
+    if (state.target_hp or 100) > 30 and not state.shadowstep_buff then return false end
     return NS.spell_ready(SPELLS.Eviscerate, context.target)
 end
 
@@ -439,7 +439,7 @@ local function backstab_matches(context, state)
     if state.stealth_up then return false end  -- use Ambush instead
     -- Backstab is positional burst; Hemorrhage is primary builder per Research
     local in_burst = context.should_burst or context.force_burst or false
-    if state.energy < 75 and not in_burst then return false end
+    if (state.energy or 0) < 75 and not in_burst then return false end
     return NS.spell_ready(SPELLS.Backstab, context.target)
 end
 

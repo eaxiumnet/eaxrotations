@@ -6,6 +6,7 @@
 
 local M = {}
 local _G = _G
+local core = rawget(_G, "core") or {}
 local vec2 = require("common/geometry/vector_2")
 
 -- Cache SDF API refs at load

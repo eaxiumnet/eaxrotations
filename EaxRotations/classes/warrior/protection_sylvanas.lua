@@ -217,8 +217,17 @@ end
 
 local function thunderclap_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
-    if (state.enemy_count or 0) < 2 then return false end
-    return true
+    local ec = state.enemy_count or 0
+    if ec >= 2 then return true end
+    -- Single target: use Thunder Clap for attack speed debuff on bosses/elites
+    if ec >= 1 and (state.tclap_remains or 0) <= 0 then
+        local target = context.target
+        if target and target.is_valid and target:is_valid() then
+            local cls = target.get_classification and target:get_classification() or 0
+            if cls >= 1 then return true end  -- 1=elite, 2=rare_elite, 3=worldboss, 4=rare
+        end
+    end
+    return false
 end
 
 local function demo_shout_matches_fn(context, state)

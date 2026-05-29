@@ -481,8 +481,8 @@ end
 local function potion_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
-    if state.healthstone_ready > 0 and state.hp <= 28 then return false end
-    if state.hp > 32 and not state.force_defensive then return false end
+    if state.healthstone_ready > 0 and (state.hp or 100) <= 28 then return false end
+    if (state.hp or 100) > 32 and not state.force_defensive then return false end
     return state.potion_ready > 0
 end
 
@@ -491,7 +491,7 @@ local function frenzied_regen_matches(context, action)
     if not state.is_bear or not state.in_combat then return false end
     if state.has_frenzied_regen then return false end
     if (state.rage or 0) < RAGE_FRENZIED_REGEN then return false end
-    if state.hp > state.frenzied_regen_hp and not (state.force_defensive and state.hp <= 60) then return false end
+    if (state.hp or 100) > state.frenzied_regen_hp and not (state.force_defensive and state.hp <= 60) then return false end
     return action_ready(context, action)
 end
 
@@ -499,8 +499,8 @@ local function barkskin_matches(context, action)
     local state = build_state(context)
     if not state.in_combat then return false end
     if state.has_barkskin then return false end
-    if state.hp > state.barkskin_hp and not state.force_defensive then return false end
-    if state.hp <= 15 then return false end
+    if (state.hp or 100) > state.barkskin_hp and not state.force_defensive then return false end
+    if (state.hp or 100) <= 15 then return false end
     return action_ready(context, action)
 end
 
@@ -543,9 +543,9 @@ end
 local function demo_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat or not state.demo_roar_enabled then return false end
-    if state.enemy_count <= 0 then return false end
+    if (state.enemy_count or 0) <= 0 then return false end
     if state.demo_remains > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
-    if state.enemy_count < 2 and not state.is_target_boss and state.target_ttd < 10 then return false end
+    if (state.enemy_count or 0) < 2 and not state.is_target_boss and state.target_ttd < 10 then return false end
     return action_ready(context, action)
 end
 
@@ -581,7 +581,7 @@ local function enrage_combat_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
     if (state.rage or 0) > RAGE_LOW then return false end
-    if state.hp < 60 and state.enemy_count >= 2 then return false end
+    if (state.hp or 100) < 60 and (state.enemy_count or 0) >= 2 then return false end
     return action_ready(context, action)
 end
 

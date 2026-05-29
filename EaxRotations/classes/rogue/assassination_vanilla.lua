@@ -155,7 +155,7 @@ end
 local function assassination_leveling_builder_matches(context, state)
     local target = context.target
     if not target then return false end
-    if state.energy < 45 then return false end
+    if (state.energy or 0) < 45 then return false end
     local level = context.player_level or 70
     if not context.is_leveling and level >= 50 then return false end
     if level >= 50 and NS.spell_exists and NS.spell_exists(SPELLS.UnavailableClassicRogueBuilder) then return false end
@@ -364,7 +364,7 @@ local strategies = {
         name = "ThistleTea",
         matches = function(context, state)
             if not (context.settings and context.settings.assassin_thistle_tea) then return false end
-            if state.energy > 40 then return false end  -- don't waste
+            if (state.energy or 0) > 40 then return false end  -- don't waste
             if state.combo > 3 then return false end  -- better to pool for finisher
             return NS.spell_ready(SPELLS.ThistleTea, NS.PLAYER_UNIT, { skip_range = true })
         end,

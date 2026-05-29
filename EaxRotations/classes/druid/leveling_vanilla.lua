@@ -252,8 +252,8 @@ local claw_matches = function(context, state)
     if not state.claw_ready then return false end
     if (state.combo_points or 0) >= 5 then return false end
     if (state.energy or 0) < 45 then return false end
-    if state.shred_ready and state.is_behind and state.energy >= 42 then return false end
-    if state.rake_ready and state.rake_remains <= 3 and state.energy >= 35 then return false end
+    if state.shred_ready and state.is_behind and (state.energy or 0) >= 42 then return false end
+    if state.rake_ready and state.rake_remains <= 3 and (state.energy or 0) >= 35 then return false end
     return true
 end
 

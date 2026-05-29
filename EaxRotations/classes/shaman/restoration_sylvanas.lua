@@ -440,9 +440,7 @@ local function chain_heal_matches(context, state)
     if (state.chain_heal_target_count or 0) < 2 then return false end
     if (state.lowest.effective_hp or 100) > ((context.settings and context.settings.restoration_chain_heal_hp) or 65) then return false end
     -- Predictive overheal gate
-    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-        if NS.HealerDeficit.gate_spell_overheal("ChainHeal", state.lowest.unit, 2.5, context.settings) then return false end
-    end
+    if NS.gate_overheal("ChainHeal", state.lowest.unit, 2.5, context.settings) then return false end
     return true
 end
 

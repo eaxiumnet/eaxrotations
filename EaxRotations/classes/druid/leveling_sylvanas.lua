@@ -272,7 +272,7 @@ local mangle_cat_matches = function(context, state)
     if (state.energy or 0) < 40 then return false end
     if (state.combo_points or 0) >= 5 then return false end
     -- Apply if debuff missing; otherwise use as filler when Shred not available
-    if state.mangle_remains > 3 and state.shred_ready and state.is_behind and state.energy >= 42 then
+    if state.mangle_remains > 3 and state.shred_ready and state.is_behind and (state.energy or 0) >= 42 then
         return false  -- Shred is better when Mangle debuff is up
     end
     return true
@@ -330,9 +330,9 @@ local claw_matches = function(context, state)
     if (state.combo_points or 0) >= 5 then return false end
     if (state.energy or 0) < 45 then return false end
     -- Only use if no better builder is available
-    if state.mangle_cat_ready and state.energy >= 40 then return false end
-    if state.rake_ready and state.rake_remains <= 3 and state.energy >= 35 then return false end
-    if state.shred_ready and state.is_behind and state.mangle_remains > 0 and state.energy >= 42 then return false end
+    if state.mangle_cat_ready and (state.energy or 0) >= 40 then return false end
+    if state.rake_ready and state.rake_remains <= 3 and (state.energy or 0) >= 35 then return false end
+    if state.shred_ready and state.is_behind and state.mangle_remains > 0 and (state.energy or 0) >= 42 then return false end
     return true
 end
 

@@ -143,8 +143,8 @@ function druid_leveling.build_state(context)
     -- Target time-to-die estimate
     state.target_ttd = context.ttd or context.target_ttd or 0
     state.target_hp = context.target_hp or 100
-    state.in_melee = context.in_melee_range == true or (state.target_range or 40) <= MELEE_RANGE
     state.target_range = context.target_range or context.target_distance or 40
+    state.in_melee = context.in_melee_range == true or state.target_range <= MELEE_RANGE
 
     -- Buff checks
     state.has_mark_of_wild = has_buff(MARK_OF_THE_WILD_BUFF)
@@ -272,7 +272,7 @@ local mangle_cat_matches = function(context, state)
     if (state.energy or 0) < 40 then return false end
     if (state.combo_points or 0) >= 5 then return false end
     -- Apply if debuff missing; otherwise use as filler when Shred not available
-    if state.mangle_remains > 3 and state.shred_ready and state.is_behind and state.energy >= 42 then
+    if state.mangle_remains > 3 and state.shred_ready and state.is_behind and (state.energy or 0) >= 42 then
         return false  -- Shred is better when Mangle debuff is up
     end
     return true
@@ -330,9 +330,9 @@ local claw_matches = function(context, state)
     if (state.combo_points or 0) >= 5 then return false end
     if (state.energy or 0) < 45 then return false end
     -- Only use if no better builder is available
-    if state.mangle_cat_ready and state.energy >= 40 then return false end
-    if state.rake_ready and state.rake_remains <= 3 and state.energy >= 35 then return false end
-    if state.shred_ready and state.is_behind and state.mangle_remains > 0 and state.energy >= 42 then return false end
+    if state.mangle_cat_ready and (state.energy or 0) >= 40 then return false end
+    if state.rake_ready and state.rake_remains <= 3 and (state.energy or 0) >= 35 then return false end
+    if state.shred_ready and state.is_behind and state.mangle_remains > 0 and (state.energy or 0) >= 42 then return false end
     return true
 end
 

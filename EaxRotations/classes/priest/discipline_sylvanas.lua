@@ -5,6 +5,8 @@ if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
 local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
 local EMPTY_SETTINGS = {}
+local _reagent_guard_ok, _reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
+if not _reagent_guard_ok then _reagent_guard = nil end
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -275,9 +277,7 @@ local function flash_heal_matches(context, s)
     if (s.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
     if not s.flash_heal_ready then return false end
     -- Predictive overheal gate: don't cast FH if predicted deficit is smaller than the heal
-    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-        if NS.HealerDeficit.gate_spell_overheal("FlashHeal", s.lowest.unit, 1.5, context.settings) then return false end
-    end
+    if NS.gate_overheal("FlashHeal", s.lowest.unit, 1.5, context.settings) then return false end
     return true
 end
 
@@ -295,9 +295,7 @@ local function greater_heal_matches(context, s)
     if hp <= (context.settings.discipline_flash_hp or 55) then return false end
     if not s.greater_heal_ready then return false end
     -- Predictive overheal gate: don't cast GH if predicted deficit is smaller than the heal
-    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-        if NS.HealerDeficit.gate_spell_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings) then return false end
-    end
+    if NS.gate_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings) then return false end
     return true
 end
 
@@ -324,9 +322,7 @@ local function binding_heal_matches(context, s)
     if (s.hp_pct or 100) > 70 then return false end
     if not s.binding_heal_ready then return false end
     -- Predictive overheal gate: don't cast BH if predicted deficit is smaller than the heal
-    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-        if NS.HealerDeficit.gate_spell_overheal("BindingHeal", s.lowest.unit, 2.0, context.settings) then return false end
-    end
+    if NS.gate_overheal("BindingHeal", s.lowest.unit, 2.0, context.settings) then return false end
     return true
 end
 
@@ -335,10 +331,8 @@ local function circle_of_healing_matches(context, s)
     if s.group_damaged_count < 3 then return false end
     if not s.circle_of_healing_ready then return false end
     -- Predictive overheal gate: skip CoH if even the lowest target doesn't need it
-    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-        local target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
-        if NS.HealerDeficit.gate_spell_overheal("CircleOfHealing", target, 1.5, context.settings) then return false end
-    end
+    local coh_target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
+    if NS.gate_overheal("CircleOfHealing", coh_target, 1.5, context.settings) then return false end
     return true
 end
 
@@ -349,10 +343,8 @@ local function prayer_of_healing_matches(context, s)
     if poh_count < 4 then return false end
     if not s.prayer_of_healing_ready then return false end
     -- Predictive overheal gate: skip PoH if even the lowest target doesn't need a per-tick heal
-    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-        local target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
-        if NS.HealerDeficit.gate_spell_overheal("PrayerOfHealing", target, 3.0, context.settings) then return false end
-    end
+    local poh_target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
+    if NS.gate_overheal("PrayerOfHealing", poh_target, 3.0, context.settings) then return false end
     return true
 end
 
@@ -399,7 +391,7 @@ local function divine_spirit_matches(context, s)
     if s.has_divine_spirit then return false end
     if not s.divine_spirit_ready then return false end
     if _buff_on_cooldown(SPELLS.DivineSpirit) then return false end
-    local reagent = NS.ReagentGuard or (pcall(require, "shared/reagent_guard_sylvanas") and require("shared/reagent_guard_sylvanas"))
+    local reagent = NS.ReagentGuard or _reagent_guard
     if reagent and reagent.check_reagent then
         local spell_id = SPELLS.DivineSpirit and SPELLS.DivineSpirit.id and SPELLS.DivineSpirit:id()
         if spell_id and not reagent.check_reagent(spell_id) then return false end
@@ -415,7 +407,7 @@ local function pof_matches(context, s)
     if s.has_power_word_fortitude then return false end
     if not s.prayer_of_fortitude_ready then return false end
     if _buff_on_cooldown(SPELLS.PrayerOfFortitude) then return false end
-    local reagent = NS.ReagentGuard or (pcall(require, "shared/reagent_guard_sylvanas") and require("shared/reagent_guard_sylvanas"))
+    local reagent = NS.ReagentGuard or _reagent_guard
     if reagent and reagent.check_reagent then
         local spell_id = SPELLS.PrayerOfFortitude and SPELLS.PrayerOfFortitude.id and SPELLS.PrayerOfFortitude:id()
         if spell_id and not reagent.check_reagent(spell_id) then return false end

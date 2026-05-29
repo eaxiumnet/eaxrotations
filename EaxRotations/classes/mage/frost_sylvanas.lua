@@ -63,6 +63,10 @@ local function cone_of_cold_matches(context)
     if not me then return false end
     local dist = me.get_distance and me:get_distance(context.target) or 999
     if dist > 10 then return false end
+    -- Use on frozen target in melee range (single target burst, 3x CoC damage)
+    local frozen = context.target and NS.debuff_up and (NS.debuff_up(context.target, FROSTBITE_DEBUFF) or NS.debuff_up(context.target, FROST_NOVA_ROOTS)) or false
+    if frozen then return true end
+    -- AoE: 2+ targets in range
     local nearby = 1
     if context.enemies then
         nearby = 0
@@ -119,6 +123,7 @@ local frost_state = {
     arcane_missiles_ready = false,
     winter_chill_stacks = 0,
     frostbite_active = false,
+    target_frozen = false,
     mana_gem_available = false,
     ice_barrier_remains = 999,
 }
@@ -180,6 +185,8 @@ local function build_state(context)
     frost_state.arcane_missiles_ready = target and NS.spell_ready(SPELLS.ArcaneMissiles, target, { expected_cooldown = 5 }) or false
     frost_state.winter_chill_stacks = target and NS.debuff_stacks and NS.debuff_stacks(target, WINTERS_CHILL_DEBUFF) or 0
     frost_state.frostbite_active = target and NS.debuff_up and NS.debuff_up(target, FROSTBITE_DEBUFF) or false
+    local target_rooted = target and NS.debuff_up and NS.debuff_up(target, FROST_NOVA_ROOTS) or false
+    frost_state.target_frozen = frost_state.frostbite_active or target_rooted
     frost_state.mana_gem_available = first_ready_mana_gem() ~= nil
     frost_state.ice_barrier_remains = me and (NS.buff_remains and NS.buff_remains(me, ICE_BARRIER_BUFF)) or 999
 
@@ -228,7 +235,10 @@ end
 local function ice_lance_matches(context, s)
     if not context.target then return false end
     if not s.ice_lance_ready then return false end
-    return true
+    -- Ice Lance deals 3x damage to frozen targets; otherwise only use when moving
+    if s.target_frozen then return true end
+    if context.is_moving then return true end
+    return false
 end
 
 local function cone_of_cold_wrapper(context)
@@ -383,10 +393,12 @@ local strategies = {
     { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function() return NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[FROST] ArcaneIntellect", { skip_range = true }) end },
     { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
     { name = "IceBlock", matches = ice_block_wrapper, execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[FROST] IceBlock", { skip_range = true }) end },
+    { name = "Blink", matches = function(context, s) return s.in_combat and (s.is_rooted or s.is_snared) and NS.spell_ready(SPELLS.Blink) end, execute = function() return NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
     { name = "ColdSnap", matches = cold_snap_wrapper, execute = function() return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[FROST] ColdSnap", { skip_range = true }) end },
     { name = "IcyVeins", matches = icy_veins_matches, execute = function() return NS.try_cast(SPELLS.IcyVeins, NS.PLAYER_UNIT, "[FROST] IcyVeins", { skip_range = true, expected_cooldown = 180 }) end },
     { name = "WaterElemental", matches = water_elemental_matches, execute = function() return NS.try_cast(SPELLS.WaterElemental, NS.PLAYER_UNIT, "[FROST] WaterElemental", { skip_range = true, expected_cooldown = 180 }) end },
     { name = "FrostbiteFrostbolt", matches = frostbite_fb_matches, execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[FROST] Frostbite FB") end },
+    { name = "FrozenIceLance", matches = ice_lance_matches, execute = function(context) return NS.try_cast(SPELLS.IceLance, context.target, "[FROST] Frozen IceLance") end },
     { name = "PresenceOfMind", matches = presence_of_mind_matches, execute = function() return NS.try_cast(SPELLS.PresenceOfMind, NS.PLAYER_UNIT, "[FROST] PresenceOfMind", { skip_range = true }) end },
     { name = "Evocation", matches = evocation_matches, execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[FROST] Evocation", { skip_range = true }) end },
     { name = "ManaGemConjure", matches = mana_gem_conjure_matches_fn, execute = function() return NS.try_cast(SPELLS.ConjureManaEmerald, NS.PLAYER_UNIT, "[FROST] ConjureManaGem", { skip_range = true }) end },

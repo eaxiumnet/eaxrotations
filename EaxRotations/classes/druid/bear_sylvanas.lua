@@ -563,8 +563,8 @@ end
 local function potion_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
-    if state.healthstone_ready > 0 and state.hp <= 28 then return false end
-    if state.hp > 32 and not state.force_defensive then return false end
+    if state.healthstone_ready > 0 and (state.hp or 100) <= 28 then return false end
+    if (state.hp or 100) > 32 and not state.force_defensive then return false end
     return state.potion_ready > 0
 end
 
@@ -573,7 +573,7 @@ local function frenzied_regen_matches(context, action)
     if not state.is_bear or not state.in_combat then return false end
     if state.has_frenzied_regen then return false end
     if (state.rage or 0) < RAGE_FRENZIED_REGEN then return false end
-    if state.hp > state.frenzied_regen_hp and not (state.force_defensive and state.hp <= 60) then return false end
+    if (state.hp or 100) > state.frenzied_regen_hp and not (state.force_defensive and state.hp <= 60) then return false end
     return action_ready(context, action)
 end
 
@@ -582,8 +582,8 @@ local function barkskin_matches(context, action)
     if not state.in_combat then return false end
     if state.has_barkskin then return false end
 
-    if state.hp > state.barkskin_hp and not state.force_defensive then return false end
-    if state.hp <= 15 then return false end
+    if (state.hp or 100) > state.barkskin_hp and not state.force_defensive then return false end
+    if (state.hp or 100) <= 15 then return false end
 
     return action_ready(context, action)
 end
@@ -635,9 +635,9 @@ end
 local function demo_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat or not state.demo_roar_enabled then return false end
-    if state.enemy_count <= 0 then return false end
+    if (state.enemy_count or 0) <= 0 then return false end
     if state.demo_remains > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
-    if state.enemy_count < 2 and not state.is_target_boss and state.target_ttd < 10 then return false end
+    if (state.enemy_count or 0) < 2 and not state.is_target_boss and state.target_ttd < 10 then return false end
     return action_ready(context, action)
 end
 
@@ -663,7 +663,7 @@ local function off_target_lacerate_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
     if not state.off_target then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     if not state.off_target_threat_low and state.off_target_lacerate_stacks >= 3 then return false end
     if state.off_target_lacerate_stacks >= LACERATE_MAX_STACKS and state.off_target_lacerate_remains > LACERATE_REFRESH_WINDOW then return false end
     action.unit = state.off_target
@@ -684,7 +684,7 @@ local function swipe_cleave_matches(context, action)
     local state = build_state(context)
     if not state.is_bear then return false end
     if not state.in_combat and NS.spell_ready then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     if context.has_breakable_cc_nearby then return false end
     if state.target and state.lacerate_stacks < 3 and state.target_ttd > 8 then return false end
     if not rage_allows_filler(state, RAGE_SWIPE) then return false end
@@ -727,7 +727,7 @@ local function enrage_combat_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
     if (state.rage or 0) > RAGE_LOW then return false end
-    if state.hp < 60 and state.enemy_count >= 2 then return false end
+    if (state.hp or 100) < 60 and (state.enemy_count or 0) >= 2 then return false end
     if state.mangle_ready and state.rage < RAGE_MANGLE then return action_ready(context, action) end
     if state.lacerate_stacks < LACERATE_MAX_STACKS and state.rage < RAGE_LACERATE then return action_ready(context, action) end
     return false
@@ -796,6 +796,33 @@ local ACTIONS = {
     { name = "Maul", spell = SPELLS.Maul, required_form = "bear", min_rage = RAGE_MAUL, matches = maul_matches },
     { name = "EnrageCombat", spell = ENRAGE, target = "self", required_form = "bear", requires_target = false, matches = enrage_combat_matches },
     { name = "FerociousBiteExecute", spell = FEROCIOUS_BITE, required_form = "bear", min_rage = RAGE_BITE, target_max_hp = EXECUTE_HP, matches = ferocious_bite_matches },
+
+    -- PvP strategies
+    { name = "BashPvP", spell = BASH, required_form = "bear", min_rage = 10, matches = function(context)
+        local state = build_state(context)
+        if not state.is_target_player or not state.in_melee then return false end
+        if not can_use_bear_ability(state) then return false end
+        return action_ready(context, { spell = BASH })
+    end },
+    { name = "FeralChargePvP", spell = FERAL_CHARGE, required_form = "bear", matches = function(context)
+        local state = build_state(context)
+        if not state.is_target_player then return false end
+        if not can_use_bear_ability(state) then return false end
+        if state.target_range < CHARGE_MIN_RANGE or state.target_range > CHARGE_MAX_RANGE then return false end
+        return action_ready(context, { spell = FERAL_CHARGE })
+    end },
+    { name = "NaturesGraspPvP", spell = SPELLS.NaturesGrasp, target = "self", requires_target = false, matches = function(context)
+        local state = build_state(context)
+        if not state.is_target_player then return false end
+        if state.is_rooted or state.is_snared then return action_ready(context, { spell = SPELLS.NaturesGrasp }) end
+        return false
+    end },
+    { name = "FaerieFirePvP", spell = SPELLS.FaerieFireFeral, required_form = "bear", matches = function(context)
+        local state = build_state(context)
+        if not state.is_target_player then return false end
+        if state.target and state.target.is_stealthed and state.target:is_stealthed() then return action_ready(context, { spell = SPELLS.FaerieFireFeral }) end
+        return false
+    end },
 }
 
 local strategies = {
