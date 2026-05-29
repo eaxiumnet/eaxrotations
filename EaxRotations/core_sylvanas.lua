@@ -2392,16 +2392,8 @@ function NS.try_cast(spell, unit, reason, opts)
             return false
         end
     else
-        -- Last resort: direct core.input
-        local cast = core.input and core.input.cast_target_spell
-        if type(cast) ~= "function" then
-            core_trace("try:" .. tostring(id) .. ":direct_missing", "try_cast " .. tostring(label) .. " core.input.cast_target_spell missing", 700)
-            return false
-        end
-        if safe(cast, id, target) == false then
-            core_trace("try:" .. tostring(id) .. ":direct_false", "try_cast " .. tostring(label) .. " cast_target_spell returned false", 300)
-            return false
-        end
+        core_trace("try:" .. tostring(id) .. ":no_backend", "try_cast " .. tostring(label) .. " no cast_unit_spell global available", 700)
+        return false
     end
 
     mark_spell_cast(id)
@@ -2446,7 +2438,12 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
     end
 
     -- Fallback: global cast_position_spell
-    if not cast_position_spell(id, position, label, reason) then return false end
+    if type(cast_position_spell) == "function" then
+        if not cast_position_spell(id, position, label, reason) then return false end
+    else
+        core_trace("pos:" .. tostring(id) .. ":no_backend", "try_cast_position " .. tostring(label) .. " no cast_position_spell global available", 700)
+        return false
+    end
 
     mark_spell_cast(id)
 
