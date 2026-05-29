@@ -459,19 +459,33 @@ local function healing_way_execute(context, state)
 end
 
 -- ============================================================================
--- Standalone Chain Heal: smart multi-target healing
+-- Standalone Chain Heal: AoE cluster targeting + Triage
 -- ============================================================================
 local function chain_heal_matches(context, state)
-    if not state.lowest or not state.lowest.unit then return false end
     if not state.chain_heal_ready then return false end
+    -- Use AoE cluster target if available, otherwise fall back to lowest
+    local ch_target = state.chain_heal_optimal_target
+    if ch_target and ch_target.unit then
+        -- AoEHeal found a cluster; use cluster count for gate
+        if (state.chain_heal_cluster_count or 0) < 2 then return false end
+        if (ch_target.effective_hp or 100) > ((context.settings and context.settings.restoration_chain_heal_hp) or 65) then return false end
+        if NS.gate_overheal("ChainHeal", ch_target.unit, 2.5, context.settings) then return false end
+        return true
+    end
+    -- Fallback: naive lowest-HP targeting
+    if not state.lowest or not state.lowest.unit then return false end
     if (state.chain_heal_target_count or 0) < 2 then return false end
     if (state.lowest.effective_hp or 100) > ((context.settings and context.settings.restoration_chain_heal_hp) or 65) then return false end
-    -- Predictive overheal gate
     if NS.gate_overheal("ChainHeal", state.lowest.unit, 2.5, context.settings) then return false end
     return true
 end
 
 local function chain_heal_execute(context, state)
+    -- Prefer AoE cluster target over naive lowest
+    local ch_target = state.chain_heal_optimal_target
+    if ch_target and ch_target.unit then
+        return NS.try_cast(SPELLS.ChainHeal, ch_target.unit, string.format("[RESTO] ChainHeal %.0f%% (cluster %d)", ch_target.effective_hp or 0, state.chain_heal_cluster_count))
+    end
     if not state.lowest or not state.lowest.unit then return false end
     local target = state.lowest.unit or NS.PLAYER_UNIT
     return NS.try_cast(SPELLS.ChainHeal, target, string.format("[RESTO] ChainHeal %.0f%% (%d targets)", state.lowest.effective_hp or 0, state.chain_heal_target_count))
