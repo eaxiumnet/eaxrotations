@@ -55,4 +55,60 @@ assert_true(not second_ran, "second strategy should not run after first succeeds
 NS.clear_strategies()
 assert_true(NS.run_unified_strategies({}) == false, "empty registry should return false")
 
+-- Test 6: playstyle filtering (strategies only run for their registered playstyle)
+NS.clear_strategies()
+local fury_executed = false
+local mage_executed = false
+NS.register_strategy({ name = "Fury:Test", playstyle = "fury", priority = 10, execute = function() fury_executed = true; return true end })
+NS.register_strategy({ name = "Mage:Test", playstyle = "mage", priority = 5, execute = function() mage_executed = true; return true end })
+-- Run with fury playstyle — only fury strategy should execute
+assert_true(NS.run_unified_strategies({ active_playstyle = "fury" }) == true, "fury strategy should execute in fury playstyle")
+assert_true(fury_executed, "fury strategy should have been called")
+assert_true(not mage_executed, "mage strategy should NOT run in fury playstyle")
+-- Reset and run with mage playstyle
+fury_executed = false
+mage_executed = false
+assert_true(NS.run_unified_strategies({ active_playstyle = "mage" }) == true, "mage strategy should execute in mage playstyle")
+assert_true(not fury_executed, "fury strategy should NOT run in mage playstyle")
+assert_true(mage_executed, "mage strategy should have been called")
+
+-- Test 7: _global strategies run in all playstyles
+NS.clear_strategies()
+local global_ran = false
+NS.register_strategy({ name = "Global", priority = 1, execute = function() global_ran = true; return true end }) -- defaults to _global
+assert_true(NS.run_unified_strategies({ active_playstyle = "fury" }) == true, "global strategy should execute")
+assert_true(global_ran, "global strategy should run in fury playstyle")
+
+global_ran = false
+assert_true(NS.run_unified_strategies({ active_playstyle = "mage" }) == true, "global strategy should execute in mage too")
+assert_true(global_ran, "global strategy should run in mage playstyle")
+
+-- Test 8: state builder — registered builder is called and state is passed to matches/execute
+NS.clear_strategies()
+local builder_called = false
+local match_state = nil
+local exec_state = nil
+NS.register_state_builder("fury", function(ctx)
+    builder_called = true
+    return { derived = "from_builder", original_hp = ctx.hp }
+end)
+NS.register_strategy({
+    name = "Fury:StateTest",
+    playstyle = "fury",
+    priority = 1,
+    matches = function(ctx, state)
+        match_state = state
+        return state and state.derived == "from_builder"
+    end,
+    execute = function(ctx, state)
+        exec_state = state
+        return true
+    end,
+})
+assert_true(NS.run_unified_strategies({ active_playstyle = "fury", hp = 75 }) == true, "state-aware strategy should execute")
+assert_true(builder_called, "state builder should have been called")
+assert_true(match_state ~= nil and match_state.derived == "from_builder", "matches should receive built state")
+assert_true(match_state.original_hp == 75, "state should contain original context fields")
+assert_true(exec_state == match_state, "execute should receive same state as matches")
+
 print("PASS unified_registry")
