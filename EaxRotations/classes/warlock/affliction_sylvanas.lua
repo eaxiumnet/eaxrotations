@@ -431,6 +431,22 @@ local strategies = {
             return ok
         end,
     },
+    -- Siphon Life Spread — multi-DoT via IZI spread_dot
+    {
+        name = "SiphonLifeSpread",
+        matches = function(context, state)
+            if not _izi then return false end
+            if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
+            if not target then return false end
+            return NS.spell_ready(SPELLS.SiphonLife, target)
+        end,
+        execute = function(context)
+            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
+            if not target then return false end
+            return NS.try_cast(SPELLS.SiphonLife, target, "[AFFL] Siphon Life Spread")
+        end,
+    },
 
     -- ------------------------------------------------------------------------
     -- 8. Curse of Doom (long-lived PvE targets)
@@ -467,6 +483,23 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[AFFL] Curse of Agony")
+        end,
+    },
+    -- Curse of Agony Spread — multi-DoT via IZI spread_dot
+    {
+        name = "CurseOfAgonySpread",
+        matches = function(context, state)
+            if not _izi then return false end
+            if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            if context.ttd and context.ttd < 8 then return false end
+            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
+            if not target then return false end
+            return NS.spell_ready(SPELLS.CurseOfAgony, target)
+        end,
+        execute = function(context)
+            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
+            if not target then return false end
+            return NS.try_cast(SPELLS.CurseOfAgony, target, "[AFFL] Curse of Agony Spread")
         end,
     },
 
