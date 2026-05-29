@@ -63,6 +63,9 @@ local POWER_WORD_FORTITUDE_BUFF = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 
 local PRAYER_OF_FORTITUDE_BUFF = { 25392, 21564, 21562 }
 local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local INNER_FOCUS_BUFF = { 14751 }
+local PRAYER_OF_MENDING_BUFF = { 33076 }  -- PoM buff on target (TBC rank 1)
+-- Caster DPS class IDs for Power Infusion targeting (TBC)
+local CASTER_CLASS_IDS = { [8] = true, [9] = true, [5] = true, [7] = true }  -- Mage, Warlock, Priest, Shaman
 -- FrostByte feature constants
 local FADE_BUFF = { 25429, 10942, 10941, 9592, 9579, 9578, 586 }
 local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
@@ -119,6 +122,7 @@ local disc_state = {
     power_infusion_ready = false,
     inner_focus_ready = false,
     has_inner_focus = false,
+    pi_target = nil,  -- Highest DPS caster for Power Infusion
     -- FrostByte feature state
     healthstone_ready = false,
     healthstone_id = nil,
@@ -140,11 +144,31 @@ local function build_state(context)
     local target = context.target
     local entries, count = Healing.scan_healing_targets()
 
-    disc_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
+    -- Triage-ranked target selection: smarter than naive lowest-HP
+    if NS.Triage and NS.Triage.rank and count and count > 0 then
+        local ranked = NS.Triage.rank(entries, count)
+        disc_state.lowest = ranked[1] or NS.healing_get_lowest_hp(entries, count, 92)
+    else
+        disc_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
+    end
     disc_state.tank = NS.healing_get_tank(entries, count) or disc_state.lowest
     disc_state.group_damaged_count = NS.healing_count_below_hp(entries, count, context.settings.discipline_aoe_hp or 85)
     -- Subgroup count for Prayer of Healing: in raids, only count your own party
     disc_state.subgroup_damaged_count = (Healing.count_subgroup_below_hp and Healing.count_subgroup_below_hp(context.settings.discipline_aoe_hp or 85)) or disc_state.group_damaged_count
+    -- Power Infusion target: find highest DPS caster in group
+    disc_state.pi_target = nil
+    if context.in_combat and entries and count and count > 0 then
+        for i = 1, count do
+            local entry = entries[i]
+            if entry and entry.unit and entry.unit ~= me then
+                local ok, cls = pcall(function() return entry.unit:get_class() end)
+                if ok and cls and CASTER_CLASS_IDS[cls] then
+                    disc_state.pi_target = entry.unit
+                    break
+                end
+            end
+        end
+    end
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(588, 3.0) or false
     if not skip_aura then
@@ -267,6 +291,8 @@ local function pom_tank_matches(context, s)
     local target = s.tank or s.lowest
     if not target then return false end
     if not s.pom_ready then return false end
+    -- Skip if PoM already active on target (don't overwrite bounces in progress)
+    if NS.has_buff and target.unit and NS.has_buff(target.unit, PRAYER_OF_MENDING_BUFF) then return false end
     return true
 end
 

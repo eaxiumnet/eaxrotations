@@ -123,6 +123,32 @@ NS.ShamanHealing.get_cleanse_target = get_cleanse_target
 --   label:      human-readable label for logging
 --   spell_type: type identifier for the rotation engine
 -- ============================================================================
+local function entry_hp(entry)
+    if entry and type(entry.effective_hp) == "number" then return entry.effective_hp end
+    if entry and type(entry.hp) == "number" then return entry.hp end
+    return 100
+end
+
+local function predictive_overheal(spell_key, entry, cast_time, settings, emergency_hp)
+    if not entry or not entry.unit then return false end
+    if entry_hp(entry) <= (emergency_hp or 30) then return false end
+    if (entry.time_to_die or 999) <= cast_time then return false end
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, entry.unit, cast_time, settings)
+    end
+    return NS.gate_overheal and NS.gate_overheal(spell_key, entry.unit, cast_time, settings) or false
+end
+
+local function chain_heal_overheal(entry, settings)
+    if not entry or not entry.unit then return false end
+    if entry_hp(entry) <= 35 then return false end
+    if (entry.time_to_die or 999) <= 2.5 then return false end
+    if NS.HealerDeficit and NS.HealerDeficit.heal_would_overheal then
+        return NS.HealerDeficit.heal_would_overheal(entry.unit, 1800, 2.5, settings)
+    end
+    return predictive_overheal("ChainHeal", entry, 2.5, settings, 35)
+end
+
 local heal_result = { spell = nil, label = "", spell_type = "" }
 
 local function select_heal(context, state, target, options)
@@ -132,7 +158,7 @@ local function select_heal(context, state, target, options)
     local deficit = target.effective_deficit or target.deficit or 0
     if deficit <= 0 then return nil end
 
-    local hp = target.hp or 100
+    local hp = entry_hp(target)
 
     -- Emergency: HP < 30% -- Nature's Swiftness + Healing Wave
     if hp < 30 then

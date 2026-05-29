@@ -488,6 +488,23 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
+    -- 8a. Curse of Elements (raid debuff — higher priority than CoA in groups)
+    -- ------------------------------------------------------------------------
+    {
+        name = "CurseOfElements",
+        matches = function(context, state)
+            if not context.target then return false end
+            -- Only in group content when no other warlock has it
+            if not context.is_group then return false end
+            if (state and state.coe_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            return NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(LOCAL_SPELLS.CurseElements, context.target, "[AFFL] Curse of Elements")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
     -- 9. Curse of Agony (long DoT curse)
     -- ------------------------------------------------------------------------
     {
@@ -783,23 +800,6 @@ local strategies = {
                 return NS.try_cast(LOCAL_SPELLS.HealthFunnel, context.pet, "[AFFL] Health Funnel pet")
             end
             return false
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 23. Curse of Elements (raid debuff — use standard refresh window)
-    -- ------------------------------------------------------------------------
-    {
-        name = "CurseOfElements",
-        matches = function(context, state)
-            if not context.target then return false end
-            -- Only in group content when no other warlock has it
-            if not context.is_group then return false end
-            if (state and state.coe_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            return NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target)
-        end,
-        execute = function(context)
-            return NS.try_cast(LOCAL_SPELLS.CurseElements, context.target, "[AFFL] Curse of Elements")
         end,
     },
 
