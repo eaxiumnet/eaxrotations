@@ -512,7 +512,14 @@ local healing_strategies = {
     },
     { name = "WaterShield", matches = water_shield_matches, execute = function() return NS.try_cast(WATER_SHIELD_SPELL, NS.PLAYER_UNIT, "[RESTO] WaterShield") end },
     { name = "LightningShield", matches = lightning_shield_matches, execute = function() return NS.try_cast(LIGHTNING_SHIELD_SPELL, NS.PLAYER_UNIT, "[RESTO] LightningShield") end },
-    { name = "EarthShieldTank", matches = earth_shield_tank_matches, execute = function() return NS.try_cast(SPELLS.EarthShield, NS.PLAYER_UNIT, "[RESTO] EarthShieldTank") end },
+    { name = "EarthShieldTank", matches = earth_shield_tank_matches, execute = function(context, state)
+        local tank = state and state.tank
+        local tank_unit = tank and tank.unit
+        if tank_unit then
+            return NS.try_cast(SPELLS.EarthShield, tank_unit, "[RESTO] EarthShieldTank")
+        end
+        return NS.try_cast(SPELLS.EarthShield, NS.PLAYER_UNIT, "[RESTO] EarthShieldSelf")
+    end },
     { name = "NaturesSwiftness", matches = natures_swiftness_matches, execute = function()
         return NS.try_cast(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, "[RESTO] NaturesSwiftness")
     end },
