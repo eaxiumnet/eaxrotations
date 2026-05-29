@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/purge_manager_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Helper: Purge Manager
 -- ============================================================================
@@ -26,6 +8,40 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
+
+-- ============================================================================
+-- Dispel/Purge Reaction Delay System
+-- Humanizes purge timing by adding a random per-aura delay before acting.
+-- ============================================================================
+local _dispel_delay_cache = {}
+local _dispel_delay_base = 0.0
+
+local function get_dispel_delay_for_target(target)
+    if not target then return 0 end
+    local key = tostring(target)
+    local now = NS.time_now and NS.time_now() or 0
+    local entry = _dispel_delay_cache[key]
+    if entry and now < entry.expires then
+        return math.max(0, entry.expires - now)
+    end
+    -- Generate new random delay (0.0 to 0.6s) per new detection
+    local delay = math.min(_dispel_delay_base + (math.random() * 0.6), 0.6)
+    _dispel_delay_cache[key] = { expires = now + delay }
+    return delay
+end
+
+local function purge_delay_remaining(target)
+    if not target then return 0 end
+    local key = tostring(target)
+    local entry = _dispel_delay_cache[key]
+    if not entry then return 0 end
+    local now = NS.time_now and NS.time_now() or 0
+    return math.max(0, entry.expires - now)
+end
+
+function M.clear_purge_delay_cache()
+    for k in pairs(_dispel_delay_cache) do _dispel_delay_cache[k] = nil end
+end
 
 -- Purge spell IDs by rank (newest first)
 local PURGE_IDS = { 8012, 370 }
@@ -141,8 +157,22 @@ function M.try_purge(context)
     if context.settings.use_purge == false then return false end
     if not context.target then return false end
 
+    -- Out-of-combat safety: clear stale delay cache to prevent unbounded growth
+    if not context.in_combat then
+        M.clear_purge_delay_cache()
+    end
+
     -- Check if target has purgeable buffs
     if not M.has_purgeable_buff(context.target) then return false end
+
+    -- Reaction delay: wait a random time before purging to look human
+    local delay_remaining = get_dispel_delay_for_target(context.target)
+    if delay_remaining > 0 then
+        if NS.get_setting and NS.get_setting("debug_system", false) then
+            NS.log("[PURGE] Delayed by " .. string.format("%.2f", delay_remaining) .. "s (reaction simulation)")
+        end
+        return false
+    end
 
     -- Check if we have Purge learned and ready
     local purge_id = M.get_purge_spell_id()

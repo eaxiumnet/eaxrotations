@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/test_leveling_warlock.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Unit tests for Warlock leveling rotation
 -- Tests build_state, all 13 match functions, strategy ordering,
 -- helper functions, and edge case handling
@@ -85,7 +67,7 @@ local MOCK_WARLOCK_SPELLS = {
     CreateHealthstone = { 6201 },
     CreateSoulstone = { 20756 },
     HowlOfTerror = { 17928 },
-    SiphonLife = { 27226 },
+    SiphonLife = { 30911 },
     DrainLife = { 27220 },
     SpellLock = { 19647 },
     Shoot = { 5019 },
@@ -827,7 +809,7 @@ test("shadow_bolt_matches: no target -> false", function()
     local state = get_state(ctx)
     state.shadow_bolt_ready = true
     state.target = nil
-    assert_false(strategies[16].matches(ctx, state), "no target should not match")
+    assert_false(strategies[17].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================

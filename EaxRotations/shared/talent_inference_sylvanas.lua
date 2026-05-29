@@ -1,27 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/talent_inference_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- ============================================================================
--- What: Shared helper that infers class talents and primary spec from learned spells
--- When: On demand with cached refreshes
--- Why: Detect likely builds without requiring manual spec entry
--- Safety: Uses cached results, nil-safe spell checks, and conservative fallbacks
--- ============================================================================
 -- Shared Helper: Talent Inference
 -- ============================================================================
 local M = {}
@@ -121,6 +97,16 @@ local TREE_WEIGHTS = {
     paladin = { holy = 0, protection = 0, retribution = 0 },
 }
 
+-- Return tree names in deterministic (sorted) order
+local function sorted_keys(t)
+    local keys = {}
+    for k, _ in pairs(t) do
+        table.insert(keys, k)
+    end
+    table.sort(keys)
+    return keys
+end
+
 -- Check if any spell in list is learned
 local function has_any_spell_learned(spell_ids)
     if not NS or not NS.is_spell_learned then return false end
@@ -152,7 +138,8 @@ function M.infer(class)
     
     -- Initialize tree scores
     local tree_scores = {}
-    for tree_name, _ in pairs(TREE_WEIGHTS[class] or {}) do
+    local tree_names = sorted_keys(TREE_WEIGHTS[class] or {})
+    for _, tree_name in ipairs(tree_names) do
         tree_scores[tree_name] = 0
     end
     
@@ -170,11 +157,13 @@ function M.infer(class)
         end
     end
     
-    -- Determine primary tree
+    -- Determine primary tree (iterate in deterministic sorted order)
     local max_score = 0
     local primary_tree = nil
     
-    for tree_name, score in pairs(tree_scores) do
+    local tree_names_sorted = sorted_keys(tree_scores)
+    for _, tree_name in ipairs(tree_names_sorted) do
+        local score = tree_scores[tree_name]
         inferred.tree_scores[tree_name] = score
         if score > max_score then
             max_score = score
@@ -185,7 +174,8 @@ function M.infer(class)
     inferred.primary_tree = primary_tree
     
     -- Determine secondary trees
-    for tree_name, score in pairs(tree_scores) do
+    for _, tree_name in ipairs(tree_names_sorted) do
+        local score = tree_scores[tree_name]
         if tree_name ~= primary_tree and score > 0 then
             table.insert(inferred.secondary_trees, tree_name)
         end
@@ -199,7 +189,18 @@ function M.has_talent(class, talent_key)
     local inferred = M.infer(class)
     if not inferred then return false end
     
-    return inferred.talents[talent_key] or false
+    -- Direct lookup (handles display names like "Mortal Strike")
+    local result = inferred.talents[talent_key]
+    if result ~= nil then return result end
+    
+    -- Normalize snake_case to Title Case ("mortal_strike" → "Mortal Strike")
+    local normalized = talent_key:gsub("_", " "):gsub("(%a)([%w']*)", function(first, rest)
+        return first:upper() .. rest:lower()
+    end)
+    result = inferred.talents[normalized]
+    if result ~= nil then return result end
+    
+    return false
 end
 
 -- Get primary tree

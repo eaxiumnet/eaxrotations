@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Protection Warrior rotation (no Devastate/ShieldSlam/VictoryRush)
--- =========================================================================
-local __eax_file = "classes/warrior/protection_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Protection Warrior rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- Warrior Protection priority list — Classic Vanilla
--- ============================================================================
--- What: Classic Vanilla Warrior Protection rotation for threat and mitigation
--- When: Per tick
--- Why: Classic Protection uses Sunder/Revenge/Devastate-less tanking without TBC talents
--- Safety: Nil-guarded state build; conservative thresholds; no TBC spells referenced
--- ============================================================================
+-- Warrior Protection priority list ? Classic Vanilla
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarriorSpells or {}
@@ -35,12 +11,12 @@ local HEROIC_STRIKE_RAGE_DUMP = 70
 local LOW_HP_LIMIT = 35
 local THUNDERCLAP_CD = 4
 local SHIELD_BLOCK_CD = 5
-local REVENGE_CD = 6
+local REVENGE_CD = 5
 local DEMO_SHOUT_CD = 25
 local BLOODRAGE_CD = 60
 local DISARM_CD = 60
 local INTIMIDATING_SHOUT_CD = 180
-local SHIELD_WALL_CD = 300
+local SHIELD_WALL_CD = 1800
 local LAST_STAND_CD = 480
 
 local TEST_ASSERTIONS = {
@@ -48,16 +24,22 @@ local TEST_ASSERTIONS = {
     { name = "ThunderClap", cooldown = THUNDERCLAP_CD },
 }
 
-local SUNDER_DEBUFF = { 25225, 11597, 11596, 8380, 7405, 7386 }
-local DEMO_SHOUT_DEBUFF = { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
-local THUNDER_CLAP_DEBUFF = { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
-local BATTLE_SHOUT_BUFF = { 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 }
+local SUNDER_DEBUFF = { 11597, 11596, 8380, 7405, 7386 }
+local DEMO_SHOUT_DEBUFF = { 11556, 11555, 11554, 6190, 1160 }
+local THUNDER_CLAP_DEBUFF = { 11581, 11580, 8205, 8204, 8198, 6343 }
+local BATTLE_SHOUT_BUFF = { 2048,  11551, 11550, 11549, 6192, 5242, 6673 }
 local STAND_BUFF = { 12975 }
 local SHIELD_WALL_BUFF = { 871 }
-local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
+local REND_DEBUFF = { 11574, 11573, 6548, 6547, 772 }
 local INTIMIDATING_SHOUT_DEBUFF = { 5246 }
 
 local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }
+
+local function target_is_casting(unit)
+    if not unit or type(unit.is_casting) ~= "function" then return false end
+    local ok, casting = pcall(unit.is_casting, unit)
+    return ok and casting == true
+end
 
 local prot_state = {
     sunder_stacks = 0,
@@ -120,7 +102,7 @@ local function build_state(context)
     prot_state.is_pvp = context.is_pvp or false
     prot_state.in_combat = context.in_combat or false
     prot_state.target_hp = context.target_hp or 100
-    prot_state.target_is_casting = NS.try_interrupt and NS.try_interrupt(target) or false
+    prot_state.target_is_casting = target_is_casting(target)
     prot_state.target_casting_interruptible = NS.is_interruptible and NS.is_interruptible(target) or false
 
     local me = context.me or NS.GetPlayer()
@@ -159,10 +141,10 @@ end
 local function sunder_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     if not context.target then return false end
-    if state.sunder_stacks < SUNDER_MAX_STACKS then
+    if (state.sunder_stacks or 0) < SUNDER_MAX_STACKS then
         return state.revenge_ready == false
     end
-    if state.sunder_remains <= SUNDER_WINDOW then
+    if (state.sunder_remains or 0) <= SUNDER_WINDOW then
         return state.revenge_ready == false
     end
     return false
@@ -170,25 +152,25 @@ end
 
 local function thunderclap_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     return true
 end
 
 local function demo_shout_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
-    if state.demo_remains > 5 then return false end
+    if (state.demo_remains or 0) > 5 then return false end
     return true
 end
 
 local function heroic_strike_matches_fn(context, state)
-    if state.rage < HEROIC_STRIKE_RAGE_DUMP then return false end
+    if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
     if state.revenge_ready then return false end
     return true
 end
 
 local function cleave_matches_fn(context, state)
-    if state.enemy_count < 2 then return false end
-    if state.rage < HEROIC_STRIKE_RAGE_DUMP then return false end
+    if (state.enemy_count or 0) < 2 then return false end
+    if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
     return true
 end
 
@@ -206,14 +188,14 @@ end
 
 local function shield_wall_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShieldWall, 3.0) then return false end
-    if state.hp > LOW_HP_LIMIT then return false end
+    if (state.hp or 100) > LOW_HP_LIMIT then return false end
     if state.has_shield_wall then return false end
     return true
 end
 
 local function last_stand_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LastStand, 3.0) then return false end
-    if state.hp > LOW_HP_LIMIT then return false end
+    if (state.hp or 100) > LOW_HP_LIMIT then return false end
     if state.has_last_stand then return false end
     return true
 end
@@ -221,7 +203,7 @@ end
 local function pummel_matches_fn(context, state)
     if not state.target_is_casting then return false end
     if not state.pummel_ready then return false end
-    if not is_defensive_stance(state.stance) then return false end
+    if state.stance ~= STANCE.BERSERKER then return false end
     return true
 end
 
@@ -234,19 +216,19 @@ end
 
 local function taunt_matches_fn(context, state)
     if not state.taunt_ready then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     return true
 end
 
 local function mocking_blow_matches_fn(context, state)
     if not state.mocking_ready then return false end
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     return true
 end
 
 local function challenging_shout_matches_fn(context, state)
     if not state.challenging_ready then return false end
-    if state.enemy_count < 3 then return false end
+    if (state.enemy_count or 0) < 3 then return false end
     return true
 end
 
@@ -275,7 +257,7 @@ end
 
 local function bloodrage_matches_fn(context, state)
     if not state.bloodrage_ready then return false end
-    if state.in_combat and state.rage >= 10 then return false end
+    if state.in_combat and (state.rage or 0) >= 10 then return false end
     return true
 end
 
@@ -292,8 +274,8 @@ end
 local function intimidating_shout_matches_fn(context, state)
     if not state.intimidating_shout_ready then return false end
     if not state.in_combat then return false end
-    if state.enemy_count < 3 then return false end
-    if state.hp > 50 then return false end
+    if (state.enemy_count or 0) < 3 then return false end
+    if (state.hp or 100) > 50 then return false end
     return true
 end
 
@@ -302,14 +284,14 @@ local strategies = {
         name = "LastStand",
         matches = function(context) return last_stand_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.LastStand, context.me or NS.GetPlayer(), "[PROT] LastStand", { expected_cooldown = LAST_STAND_CD })
+            return NS.try_cast(SPELLS.LastStand, context.me or NS.GetPlayer(), "[PROT] LastStand", { skip_range = true, expected_cooldown = LAST_STAND_CD })
         end,
     },
     {
         name = "ShieldWall",
         matches = function(context) return shield_wall_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.ShieldWall, context.me or NS.GetPlayer(), "[PROT] ShieldWall", { expected_cooldown = SHIELD_WALL_CD })
+            return NS.try_cast(SPELLS.ShieldWall, context.me or NS.GetPlayer(), "[PROT] ShieldWall", { skip_range = true, expected_cooldown = SHIELD_WALL_CD })
         end,
     },
     {
@@ -352,7 +334,7 @@ local strategies = {
         name = "ChallengingShout",
         matches = function(context) return challenging_shout_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.ChallengingShout, context.me or NS.GetPlayer(), "[PROT] ChallengingShout")
+            return NS.try_cast(SPELLS.ChallengingShout, context.me or NS.GetPlayer(), "[PROT] ChallengingShout", { skip_range = true })
         end,
     },
     {
@@ -366,7 +348,7 @@ local strategies = {
             if sb_remains > 2 then return false end
             return true
         end,
-        execute = function(context) return NS.try_cast(SPELLS.ShieldBlock, context.me, "[PROT] ShieldBlock", { expected_cooldown = SHIELD_BLOCK_CD }) end,
+        execute = function(context) return NS.try_cast(SPELLS.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
     },
     {
         name = "SunderArmor",
@@ -386,21 +368,21 @@ local strategies = {
         name = "ThunderClap",
         matches = function(context) return thunderclap_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.ThunderClap, context.me or NS.GetPlayer(), "[PROT] ThunderClap", { expected_cooldown = THUNDERCLAP_CD })
+            return NS.try_cast(SPELLS.ThunderClap, context.me or NS.GetPlayer(), "[PROT] ThunderClap", { skip_range = true, expected_cooldown = THUNDERCLAP_CD })
         end,
     },
     {
         name = "DemoralizingShout",
         matches = function(context) return demo_shout_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.DemoralizingShout, context.me or NS.GetPlayer(), "[PROT] DemoShout", { expected_cooldown = DEMO_SHOUT_CD })
+            return NS.try_cast(SPELLS.DemoralizingShout, context.me or NS.GetPlayer(), "[PROT] DemoShout", { skip_range = true, expected_cooldown = DEMO_SHOUT_CD })
         end,
     },
     {
         name = "BattleShout",
         matches = function(context) return battle_shout_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.BattleShout, context.me or NS.GetPlayer(), "[PROT] BattleShout")
+            return NS.try_cast(SPELLS.BattleShout, context.me or NS.GetPlayer(), "[PROT] BattleShout", { skip_range = true })
         end,
     },
     {
@@ -448,14 +430,14 @@ local strategies = {
         name = "BerserkerRage",
         matches = function(context) return berserker_rage_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.BerserkerRage, context.me or NS.GetPlayer(), "[PROT] BerserkerRage")
+            return NS.try_cast(SPELLS.BerserkerRage, context.me or NS.GetPlayer(), "[PROT] BerserkerRage", { skip_range = true })
         end,
     },
     {
         name = "Bloodrage",
         matches = function(context) return bloodrage_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Bloodrage, context.me or NS.GetPlayer(), "[PROT] Bloodrage", { skip_gcd = true })
+            return NS.try_cast(SPELLS.Bloodrage, context.me or NS.GetPlayer(), "[PROT] Bloodrage", { skip_range = true, skip_gcd = true })
         end,
     },
     {
@@ -469,7 +451,7 @@ local strategies = {
         name = "IntimidatingShout",
         matches = function(context) return intimidating_shout_matches_fn(context, build_state(context)) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.IntimidatingShout, context.me or NS.GetPlayer(), "[PROT] IntimidatingShout")
+            return NS.try_cast(SPELLS.IntimidatingShout, context.me or NS.GetPlayer(), "[PROT] IntimidatingShout", { skip_range = true })
         end,
     },
 }

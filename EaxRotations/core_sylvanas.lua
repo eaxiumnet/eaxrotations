@@ -126,6 +126,10 @@ if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil
 local _settings_ok, _settings_manager = pcall(require, "common/modules/settings_manager")
 if not _settings_ok or type(_settings_manager) ~= "table" then _settings_manager = nil end
 
+-- spell_helper: native spell readiness checks (cooldown + range + resource + facing + LOS + learned)
+local _sh_ok, _spell_helper = pcall(require, "common/utility/spell_helper")
+if not _sh_ok or type(_spell_helper) ~= "table" then _spell_helper = nil end
+
 local _find_dead_ok, _find_dead_scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
 if not _find_dead_ok or type(_find_dead_scan) ~= "table" then _find_dead_scan = nil end
 
@@ -182,7 +186,6 @@ local _SPELL_ID_CACHE_TTL = 30
 
 -- Keys are spell labels; once logged, won't repeat until next session.
 
-local _api_diag_logged = {}
 
 NS.settings = NS.settings or {}
 
@@ -1151,10 +1154,6 @@ function NS.refresh_settings_cache()
 
     _settings_cache_last_update = _settings_cache_time()
 
-    if _settings_manager then
-        _settings_manager:load()
-    end
-
     return true
 
 end
@@ -2027,11 +2026,8 @@ function NS.is_spell_learned(spell)
 end
 
 function NS.spell_exists(spell)
-
     if _api_health_broken then return true end
-
     return NS.is_spell_learned(spell)
-
 end
 
 function NS.CreateSpell(id, opts) return NS.spell_action(id, opts and (opts.label or opts.Desc) or tostring(id)) end
@@ -2071,154 +2067,59 @@ function NS.get_spell_cooldown(spell)
 end
 
 function NS.cooldown_remains(spell, expected_cooldown)
-
     local id = type(spell) == "number" and spell or NS.get_spell_id(spell)
+    if not id then return 0 end
 
-    local label = type(spell) == "table" and spell._meta and spell._meta.label or tostring(id)
+    -- Primary: spell_helper cooldown API
+    if _spell_helper then
+        local cd_remaining = _spell_helper:get_spell_cooldown(id)
+        if type(cd_remaining) == "number" and cd_remaining > 0 then
+            return cd_remaining
+        end
+    end
 
+    -- Fallback: engine cooldown information
     local info_fn = core.spell_book and core.spell_book.get_spell_cooldown_information
-
     local info = id and safe(info_fn, id) or nil
-
-    if type(info) ~= "table" then
-
-        -- `get_spell_cooldown` is a base duration API per Sylvanas .api/docs,
-
-        -- not a remaining-cooldown API. Never treat its positive return value
-
-        -- as an active cooldown here.
-
-        local simple_fn = core.spell_book and core.spell_book.get_spell_cooldown
-
-        local cd = id and safe(simple_fn, id)
-
-        if not _api_diag_logged[label] then
-
-            _api_diag_logged[label] = true
-
-            local info_str = info == nil and "nil" or ("type=" .. type(info))
-
-            local cd_str = cd == nil and "nil" or ("type=" .. type(cd) .. " val=" .. tostring(cd))
-
-            NS.log("[DIAG] " .. label .. " cooldown information unavailable: get_spell_cooldown_information=" .. info_str .. " get_spell_cooldown_duration=" .. cd_str .. " - using manual tracker. spell_id=" .. tostring(id))
-
+    if type(info) == "table" and info.enabled ~= false then
+        local start_time = tonumber(info.start_time or info.start or 0) or 0
+        local duration = tonumber(info.duration or 0) or 0
+        if duration > 0 then
+            local now_ms = NS.game_time_ms()
+            local now_seconds = NS.time_now()
+            local remaining
+            if start_time > 1000 then
+                local duration_ms = duration > 1000 and duration or duration * 1000
+                remaining = (start_time + duration_ms - now_ms) / 1000
+            elseif duration > 1000 then
+                remaining = ((start_time * 1000) + duration - now_ms) / 1000
+            else
+                remaining = start_time + duration - now_seconds
+            end
+            if remaining > 0 then return remaining end
         end
-
-        return _last_cast_time_cooldown(id, expected_cooldown) or 0
-
     end
 
-    if info.enabled == false then
-
-        return _last_cast_time_cooldown(id, expected_cooldown) or 0
-
-    end
-
-    local start_time = tonumber(info.start_time or info.start or 0) or 0
-
-    local duration = tonumber(info.duration or 0) or 0
-
-    if duration <= 0 then
-
-        -- Diagnostic: log table with zero duration
-
-        if not _api_diag_logged[label .. "_dur"] then
-
-            _api_diag_logged[label .. "_dur"] = true
-
-            NS.log("[DIAG] " .. label .. " cooldown table duration=0: start=" .. tostring(start_time) .. " duration=" .. tostring(duration) .. " enabled=" .. tostring(info.enabled) .. " — REPORT TO SYLVANAS DEVS: spell_id=" .. tostring(id))
-
-        end
-
-        return _last_cast_time_cooldown(id, expected_cooldown) or 0
-
-    end
-
-    -- Sylvanas docs describe duration as seconds, while examples use game
-
-    -- time in milliseconds. Support both shapes without permanently blocking
-
-    -- spells whose API reports only a base cooldown duration.
-
-    local now_ms = NS.game_time_ms()
-
-    local now_seconds = NS.time_now()
-
-    local remaining
-
-    if start_time > 1000 then
-
-        local duration_ms = duration > 1000 and duration or duration * 1000
-
-        remaining = (start_time + duration_ms - now_ms) / 1000
-
-    elseif duration > 1000 then
-
-        remaining = ((start_time * 1000) + duration - now_ms) / 1000
-
-    else
-
-        remaining = start_time + duration - now_seconds
-
-    end
-
-    if remaining > 0 then
-
-        return remaining
-
-    end
-
-    return _last_cast_time_cooldown(id, expected_cooldown) or 0
-
-end
-
--- Manual cast-history cooldown throttle.
-
--- Uses `expected_cooldown` if known, otherwise falls back to 1.5s minimum.
-
--- Used as final fallback when engine cooldown APIs return 0.
-
-_last_cast_time_cooldown = function(id, expected_cooldown)
-
+    -- Final fallback: manual cast-history throttle
     local last_cast = _last_spell_cast[id]
-
-    if not last_cast then
-
-            return nil
-
-    end
-
-    -- Remember the longest expected_cooldown seen per spell; use it as default
-
-    -- so evaluate_cast and try_cast agree with build_state even when opts
-    -- doesn't pass expected_cooldown.
-
+    if not last_cast then return 0 end
     if expected_cooldown then
-
         local prev = _last_spell_cast["_max_throttle_" .. id]
-
         if not prev or expected_cooldown > prev then
-
             _last_spell_cast["_max_throttle_" .. id] = expected_cooldown
-
         end
-
     end
-
-    -- On PS builds the engine cooldown API is completely broken, so we skip
-    -- the +1.0s safety buffer to avoid unnecessary delays. On normal builds
-    -- the buffer prevents "spell is not ready yet" race conditions.
-    -- PS builds get a small 0.15s buffer to account for game cooldown start delay.
     local buffer = _api_health_broken and 0.15 or 1.0
     local throttle = (expected_cooldown or _last_spell_cast["_max_throttle_" .. id] or 1.5) + buffer
-
     local elapsed = NS.time_now() - last_cast
-
     if elapsed < throttle then return throttle - elapsed end
-
-    return nil
-
+    return 0
 end
+
+
+-- Manual cast-history cooldown fallback is now inlined into NS.cooldown_remains.
+-- This variable is kept to avoid nil-reference errors from any remaining call sites.
+_last_cast_time_cooldown = function() return nil end
 
 NS.get_spell_cooldown_remaining = NS.cooldown_remains
 
@@ -2240,156 +2141,25 @@ end
 
 function NS.power_current(power_type) return power(NS.GetPlayer(), power_type) end
 
-local function has_resource(spell)
 
-    local id = NS.get_spell_id(spell)
-
-    local fn = core.spell_book and core.spell_book.get_spell_costs
-
-    local costs = id and safe(fn, id) or nil
-
-    if type(costs) ~= "table" then return true end
-
-    local player = NS.GetPlayer()
-
-    if not player then return false end
-
-    for i = 1, #costs do
-
-        local c = costs[i]
-
-        if c then
-
-            local cost_type = c.cost_type or NS.POWER_MANA
-
-            local cost = c.cost or 0
-
-            if cost <= 0 and (c.cost_percent or 0) > 0 and cost_type == NS.POWER_MANA then
-
-                if NS.mana_pct(player) < c.cost_percent then return false end
-
-            elseif cost > 0 then
-
-                local current = power(player, cost_type)
-
-                if current < cost then
-
-                    -- Some TBC builds expose mana percent but not absolute mana
-
-                    -- through get_power(0). Only bypass when the percentage-based
-
-                    -- cost check confirms sufficient mana.
-
-                    if cost_type == NS.POWER_MANA and current == 0 then
-
-                        local mana = NS.mana_pct(player)
-
-                        if mana > 0 then
-
-                            -- Also enforce cost_percent when available (e.g. spells costing % base mana)
-
-                            local pct = c.cost_percent or 0
-
-                            if pct > 0 and mana < pct then
-
-                                return false
-
-                            end
-
-                        else
-
-                            return false
-
-                        end
-
-                    else
-
-                        return false
-
-                    end
-
-                end
-
-            end
-
-        end
-
-    end
-
-    return true
-
-end
 
 function NS.is_spell_in_range(spell, target)
-
     if not target then return true end
-
     local id = NS.get_spell_id(spell)
-
-    local label = spell_label(spell, id)
-
-    local fn = core.spell_book and core.spell_book.is_spell_in_range
-
-    local ok = id and safe(fn, id, target, NS.GetPlayer())
-
-    if ok == true then return true end
-
-    -- API returned false (engine says out-of-range) or nil (API unavailable).
-
-    -- Several Project Sylvanas builds expose this function but return false as
-
-    -- a stub for every spell, so any non-true result must use distance fallback.
-
-    if ok == nil and not _api_diag_logged[label .. "_range_nil"] then
-
-        _api_diag_logged[label .. "_range_nil"] = true
-
-        NS.log("[DIAG] " .. label .. " is_spell_in_range returned nil (API unavailable) — using distance fallback. spell_id=" .. tostring(id))
-
+    if not id then return true end
+    if _spell_helper then
+        local ok = _spell_helper:is_spell_in_range(id, target, nil, nil)
+        if ok == true then return true end
     end
-
-    if ok == false and not _api_diag_logged[label .. "_range_false"] then
-
-        _api_diag_logged[label .. "_range_false"] = true
-
-        NS.log("[DIAG] " .. label .. " is_spell_in_range returned false — using distance fallback because this API is stubbed on some Sylvanas builds. spell_id=" .. tostring(id))
-
+    -- Fallback: basic distance check
+    local me = NS.GetPlayer()
+    if not me then return true end
+    local d = safe_field(target, "distance_to")
+    if d then
+        local dist = safe(d, target, me)
+        if type(dist) == "number" then return dist <= 45 end
     end
-
-    if _api_health_broken or ok ~= true then
-
-        if _api_health_broken and ok == false and not _api_diag_logged[label .. "_range_stub"] then
-
-            _api_diag_logged[label .. "_range_stub"] = true
-
-            NS.log("[DIAG] " .. label .. " is_spell_in_range returned false but _api_health_broken=true — distrusting stub. spell_id=" .. tostring(id))
-
-        end
-
-        local me = NS.GetPlayer()
-
-        if not me then return true end  -- can't determine range without player; assume in-range
-
-        local dto = safe_field(target, "distance_to")
-
-        local d = dto and safe(dto, target, me)
-
-        if type(d) ~= "number" then
-
-            local gd = safe_field(target, "get_distance")
-
-            d = gd and safe(gd, target, me)
-
-        end
-
-        if type(d) == "number" and d > 45 then return false end
-
-        return true
-
-    end
-
-    return false
-
+    return true
 end
 
 NS.spell_in_range = NS.is_spell_in_range
@@ -2402,22 +2172,15 @@ function NS.spell_ready(spell, target, opts)
 
     local label = spell_label(spell)
 
+    -- Spell existence check
     if not NS.spell_exists(spell) then
-
-        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: spell_exists=false (spell id=" .. tostring(spell) .. ")") end
-
+        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: spell_exists=false") end
         core_trace("ready:" .. label .. ":exists", label .. " ready=false reason=spell_exists_false", 700)
-
-        if debug then core_trace("action:" .. tostring(label) .. ":spell_exists", "[DEBUG] " .. label .. " blocked: spell_exists=false", 2000) end
         return false
-
     end
 
+    -- GCD check (manual fallback for PS builds where engine GCD API is broken)
     local gcd = NS.gcd_remains()
-
-    -- On PS builds gcd_remains() always returns 0 because the engine GCD API is broken.
-    -- Fall back to our manual GCD tracker when the engine reports no GCD but we know
-    -- a spell was recently cast.
     if not opts.skip_gcd and _api_health_broken and gcd <= 0 then
         local global_gcd = _last_spell_cast["_global_gcd"]
         if global_gcd then
@@ -2425,62 +2188,42 @@ function NS.spell_ready(spell, target, opts)
             if manual_gcd > 0 then gcd = manual_gcd end
         end
     end
-
     if not opts.skip_gcd and gcd > 0 then
-
         if (NS.time_now() - _last_gcd_log) > 1 then
-
             if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: gcd=" .. tostring(gcd)) end
-
             _last_gcd_log = NS.time_now()
-
         end
-
         core_trace("ready:" .. label .. ":gcd", label .. " ready=false reason=gcd gcd=" .. tostring(gcd), 300)
-
-        if debug then core_trace("action:" .. tostring(label) .. ":gcd", "[DEBUG] " .. label .. " blocked: gcd=" .. tostring(gcd), 2000) end
         return false
-
     end
 
+    -- Primary: spell_helper does cooldown + resource + range + facing + LOS in one call
+    local id = NS.get_spell_id(spell)
+    if id and _spell_helper then
+        local castable = _spell_helper:is_spell_castable(id, target, nil, nil)
+        if castable == false then
+            core_trace("ready:" .. label .. ":castable", label .. " ready=false reason=spell_helper:is_spell_castable false", 300)
+            return false
+        end
+        core_trace("ready:" .. label .. ":ok", label .. " ready=true target=" .. tostring(target ~= nil) .. " skip_range=" .. tostring(opts.skip_range == true), 700)
+        return true
+    end
+
+    -- Fallback: manual cooldown + range checks
     local cd = NS.cooldown_remains(spell, opts.expected_cooldown)
-
     if cd > 0 then
-
         if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: cooldown=" .. tostring(cd)) end
-
         core_trace("ready:" .. label .. ":cd", label .. " ready=false reason=cooldown cd=" .. tostring(cd), 700)
-
-        if debug then core_trace("action:" .. tostring(label) .. ":cd", "[DEBUG] " .. label .. " blocked: cd=" .. tostring(cd), 2000) end
-
         return false
-
-    end
-
-    if not has_resource(spell) then
-
-        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: no_resource (mana=" .. tostring(NS.mana_pct and NS.mana_pct(NS.GetPlayer()) or "?") .. ")") end
-
-        core_trace("ready:" .. label .. ":resource", label .. " ready=false reason=no_resource mana=" .. tostring(NS.mana_pct and NS.mana_pct(NS.GetPlayer()) or "?"), 700)
-
-        if debug then core_trace("action:" .. tostring(label) .. ":no_resource", "[DEBUG] " .. label .. " blocked: no_resource", 2000) end
-        return false
-
     end
 
     if not opts.skip_range and target and NS.not_same_unit(target, NS.GetPlayer()) and not NS.is_spell_in_range(spell, target) then
-
         if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: out_of_range") end
-
         core_trace("ready:" .. label .. ":range", label .. " ready=false reason=out_of_range target=" .. tostring(target ~= nil), 700)
-
-        if debug then core_trace("action:" .. tostring(label) .. ":out_of_range", "[DEBUG] " .. label .. " blocked: out_of_range", 2000) end
         return false
-
     end
 
     core_trace("ready:" .. label .. ":ok", label .. " ready=true target=" .. tostring(target ~= nil) .. " skip_range=" .. tostring(opts.skip_range == true), 700)
-
     return true
 
 end
@@ -2494,162 +2237,8 @@ local function mark_spell_cast(id)
     end
 end
 
-local function izi_spell_for(id)
-
-    local izi = NS and NS.izi or nil
-
-    local spell_factory = izi and izi.spell
-
-    if type(spell_factory) ~= "function" then return nil end
-
-    local ok, spell_obj = pcall(spell_factory, id)
-
-    if ok then return spell_obj end
-
-    return nil
-
-end
-
-local function cast_unit_spell(id, target, label, reason)
-
-    local izi_spell = izi_spell_for(id)
-
-    if izi_spell and type(izi_spell.cast_safe) == "function" then
-
-        local ok, result = pcall(function()
-
-            return izi_spell:cast_safe(target, reason or label)
-
-        end)
-
-        if ok and result ~= false and result ~= nil then
-
-            mark_spell_cast(id)
-
-            core_trace("try:" .. tostring(id) .. ":izi_ok", "try_cast " .. tostring(label) .. " izi cast_safe ok id=" .. tostring(id) .. " result=" .. tostring(result), 300)
-
-            return true
-
-        end
-
-        core_trace("try:" .. tostring(id) .. ":izi_false", "try_cast " .. tostring(label) .. " izi cast_safe failed ok=" .. tostring(ok) .. " result=" .. tostring(result), 300)
-
-        -- IZI is available but rejected the cast.  When the spell_book API is confirmed
-        -- broken, IZI may return false because the internal `is_spell_learned` call
-        -- returns false even though the player actually knows the spell.  In that case
-        -- we MUST fall back to the raw core API path to avoid infinite OOC loops and
-        -- completely blocked casts.
-        if _api_health_broken then
-            core_trace("try:" .. tostring(id) .. ":izi_fallback", "try_cast " .. tostring(label) .. " IZI rejected cast but API is broken, falling through to core API id=" .. tostring(id), 300)
-        else
-            return false
-        end
-
-    end
-
-    -- IZI module exists but spell not found.
-    -- If the API is broken, again fall through (IZI may fail to resolve the spell).
-    local has_izi = NS and NS.izi and type(NS.izi.spell) == "function"
-
-    if has_izi then
-        if not _api_health_broken then
-            core_trace("try:" .. tostring(id) .. ":izi_spell_missing", "try_cast " .. tostring(label) .. " IZI active but spell not found id=" .. tostring(id), 700)
-
-            return false
-        end
-        core_trace("try:" .. tostring(id) .. ":izi_spell_missing_fb", "try_cast " .. tostring(label) .. " IZI spell lookup returned nil but API is broken, falling through to core API id=" .. tostring(id), 300)
-    end
-
-    -- IZI not installed (or API broken fallback): safe raw core API cast with prior evaluate_cast already performed
-
-    local cast = core.input and core.input.cast_target_spell
-
-    if type(cast) ~= "function" then
-
-        core_trace("try:" .. tostring(id) .. ":cast_missing", "try_cast " .. tostring(label) .. " failed: no IZI cast and core.input.cast_target_spell missing", 700)
-
-        return false
-
-    end
-
-    local result = safe(cast, id, target)
-
-    if result == false then
-
-        core_trace("try:" .. tostring(id) .. ":cast_false", "try_cast " .. tostring(label) .. " failed: core cast_target_spell returned false id=" .. tostring(id), 300)
-
-        return false
-
-    end
-
-    core_trace("try:" .. tostring(id) .. ":core_ok", "try_cast " .. tostring(label) .. " core cast_target_spell called id=" .. tostring(id) .. " result=" .. tostring(result), 300)
-
-    return true
-
-end
-
-local function cast_position_spell(id, position, label, reason)
-
-    local izi_spell = izi_spell_for(id)
-
-    if izi_spell and type(izi_spell.cast_safe) == "function" then
-
-        local ok, result = pcall(function()
-
-            return izi_spell:cast_safe(position, reason or label)
-
-        end)
-
-        if ok and result ~= false and result ~= nil then
-
-            core_trace("pos:" .. tostring(id) .. ":izi_ok", "try_cast_position " .. tostring(label) .. " izi cast_safe ok id=" .. tostring(id) .. " result=" .. tostring(result), 300)
-
-            return true
-
-        end
-
-        core_trace("pos:" .. tostring(id) .. ":izi_false", "try_cast_position " .. tostring(label) .. " izi cast_safe failed ok=" .. tostring(ok) .. " result=" .. tostring(result), 300)
-
-        return false
-
-    end
-
-    local has_izi = NS and NS.izi and type(NS.izi.spell) == "function"
-
-    if has_izi then
-
-        core_trace("pos:" .. tostring(id) .. ":izi_spell_missing", "try_cast_position " .. tostring(label) .. " IZI active but spell not found id=" .. tostring(id), 700)
-
-        return false
-
-    end
-
-    local cast = core.input and core.input.cast_position_spell
-
-    if type(cast) ~= "function" then
-
-        core_trace("pos:" .. tostring(id) .. ":cast_missing", "try_cast_position " .. tostring(label) .. " failed: no IZI cast and core.input.cast_position_spell missing", 700)
-
-        return false
-
-    end
-
-    local result = safe(cast, id, position)
-
-    if result == false then
-
-        core_trace("pos:" .. tostring(id) .. ":cast_false", "try_cast_position " .. tostring(label) .. " failed: core cast_position_spell returned false", 300)
-
-        return false
-
-    end
-
-    core_trace("pos:" .. tostring(id) .. ":core_ok", "try_cast_position " .. tostring(label) .. " core cast_position_spell called id=" .. tostring(id) .. " result=" .. tostring(result), 300)
-
-    return true
-
-end
-
+-- ============================================================================
+-- Central Cast Guard
 -- ============================================================================
 -- Central Cast Guard -- consolidate all pre-cast checks
 -- ============================================================================
@@ -2676,13 +2265,19 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
     local target = unit or NS.GetPlayer()
 
-    -- 1. Standard spell readiness (exists + GCD + cooldown + resource + range)
-    if not NS.spell_ready(spell, target, opts) then
-        core_trace("eval:" .. tostring(id) .. ":not_ready", "evaluate_cast " .. label .. " blocked: spell_ready=false", 300)
-        if debug then
-            core_trace("eval:" .. tostring(id) .. ":failed_ready", "[EaxRotations:evaluate_cast] " .. label .. " blocked: spell_ready=false", 2000)
+    -- 1. Primary: spell_helper native gate (cooldown + range + resource + facing + LOS + learned)
+    if id and _spell_helper then
+        local castable = _spell_helper:is_spell_castable(id, target, nil, nil)
+        if castable ~= true then
+            core_trace("eval:" .. tostring(id) .. ":not_castable", "evaluate_cast " .. label .. " blocked: is_spell_castable=false", 300)
+            return false
         end
-        return false
+    else
+        -- Fallback: NS.spell_ready when spell_helper unavailable
+        if not NS.spell_ready(spell, target, opts) then
+            core_trace("eval:" .. tostring(id) .. ":not_ready", "evaluate_cast " .. label .. " blocked: spell_ready=false", 300)
+            return false
+        end
     end
 
     -- 2. Anti-flicker: skip if same spell was cast within 0.3s
@@ -2690,27 +2285,23 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     if last_cast then
         local elapsed = NS.time_now() - last_cast
         if elapsed < 0.3 then
-
             core_trace("eval:" .. tostring(id) .. ":sticky", "evaluate_cast " .. label .. " blocked: ANTIFLICKER elapsed=" .. tostring(elapsed), 200)
-
             return false
-
         end
     end
 
     -- 3. Min interval check
     local min_interval = opts.min_interval
     if type(min_interval) == "number" and min_interval > 0 then
-        local last_cast = _last_spell_cast[id]
-        local elapsed = last_cast and (NS.time_now() - last_cast) or nil
+        local last_cast_entry = _last_spell_cast[id]
+        local elapsed = last_cast_entry and (NS.time_now() - last_cast_entry) or nil
         if elapsed and elapsed < min_interval then
             core_trace("eval:" .. tostring(id) .. ":min_interval", "evaluate_cast " .. label .. " blocked: min_interval=" .. tostring(min_interval) .. " elapsed=" .. tostring(elapsed), 500)
             return false
         end
     end
 
-    -- 4. Reagent guard
-    -- Uses module pre-cached at load time to avoid per-cast pcall(require) overhead.
+    -- 4. Reagent guard (Eax-specific module)
     local reagent_guard = _reagent_guard
     if reagent_guard and reagent_guard.check_reagent then
         if not reagent_guard.check_reagent(id) then
@@ -2754,136 +2345,70 @@ function NS.try_cast(spell, unit, reason, opts)
     local target = unit
 
     if not target then
-
         target = NS.GetPlayer()
-
         if not target then
-
             core_trace("try:" .. label .. ":no_target", "try_cast " .. label .. " failed: no target/player id=" .. tostring(id) .. " reason=" .. tostring(reason), 700)
-
             return false
-
         end
-
     end
 
     local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
 
     if not id then
-
         core_trace("try:nil_id", "try_cast failed: no spell id label=" .. tostring(label) .. " reason=" .. tostring(reason), 700)
-
         return false
-
     end
 
     core_trace("try:" .. tostring(id) .. ":enter", "try_cast enter id=" .. tostring(id) .. " label=" .. tostring(label) .. " target=" .. tostring(target ~= nil) .. " reason=" .. tostring(reason), 300)
 
     if debug then core_trace("try:" .. tostring(id) .. ":attempt", "[EaxRotations:try_cast] ATTEMPT id=" .. tostring(id) .. " label=" .. label .. " has_target=" .. tostring(target ~= nil), 2000) end
 
-    -- Central cast guard: runs spell_ready, anti-flicker, min_interval, reagent
-
+    -- Central cast guard: cooldown + resource + range + anti-flicker + min_interval + reagent + immunity
     if not NS.evaluate_cast(spell, unit, reason, opts) then
-
         return false
-
     end
 
     NS.sticky_spell_should_override(id, reason or "unknown", 0)
 
-    -- Select cast backend: auto (IZI->core fallthrough), direct (core only), queue (spell_queue module)
-
-    local cast_backend = NS.get_setting("cast_backend", "auto")
-
-    -- Backward compat: old use_spell_queue=true maps to queue
-
-    if cast_backend == "auto" and NS.get_setting("use_spell_queue", false) then
-
-        cast_backend = "queue"
-
-    end
-
-    if cast_backend == "queue" then
-
-        local spell_queue = _spell_queue
-
-        if spell_queue and type(spell_queue.queue_spell_target) == "function" then
-
-            local queued = spell_queue:queue_spell_target(id, target, 1, label, false)
-
-            if queued == false then
-
-                core_trace("try:" .. tostring(id) .. ":queue_false", "try_cast " .. tostring(label) .. " failed: queue_spell_target returned false", 300)
-
-                return false
-
-            end
-
-            mark_spell_cast(id)
-
-            core_trace("try:" .. tostring(id) .. ":queued", "try_cast " .. tostring(label) .. " queued id=" .. tostring(id) .. " result=" .. tostring(queued), 300)
-
-            if reason and debug then NS.log(reason) end
-
-            if debug then core_trace("try:" .. tostring(id) .. ":queued_ok", "[EaxRotations:try_cast] SUCCESS (queued) id=" .. tostring(id) .. " label=" .. label, 2000) end
-
-            return true
-
-        else
-
-            core_trace("try:" .. tostring(id) .. ":queue_missing", "try_cast " .. tostring(label) .. " cast_backend=queue but spell_queue unavailable; falling back auto", 700)
-
-        end
-
-    elseif cast_backend == "direct" then
-
-        local cast = core.input and core.input.cast_target_spell
-
-        if type(cast) ~= "function" then
-
-            core_trace("try:" .. tostring(id) .. ":direct_missing", "try_cast " .. tostring(label) .. " cast_backend=direct but core.input.cast_target_spell missing", 700)
-
+    -- Primary backend: spell_queue (shared plugin queue — avoids conflicts with other plugins)
+    local spell_queue = _spell_queue
+    if spell_queue and type(spell_queue.queue_spell_target) == "function" then
+        local queued = spell_queue:queue_spell_target(id, target, 1, label, false)
+        if queued == false then
+            core_trace("try:" .. tostring(id) .. ":queue_false", "try_cast " .. tostring(label) .. " failed: queue_spell_target returned false", 300)
             return false
-
         end
-
-        local result = safe(cast, id, target)
-
-        if result == false then
-
-            core_trace("try:" .. tostring(id) .. ":direct_false", "try_cast " .. tostring(label) .. " cast_backend=direct cast_target_spell returned false", 300)
-
-            return false
-
-        end
-
         mark_spell_cast(id)
-
-        core_trace("try:" .. tostring(id) .. ":direct_ok", "try_cast " .. tostring(label) .. " direct cast called id=" .. tostring(id) .. " result=" .. tostring(result), 300)
-
+        core_trace("try:" .. tostring(id) .. ":queued", "try_cast " .. tostring(label) .. " queued id=" .. tostring(id) .. " result=" .. tostring(queued), 300)
         if reason and debug then NS.log(reason) end
-
-        if debug then core_trace("try:" .. tostring(id) .. ":direct_ok", "[EaxRotations:try_cast] SUCCESS (direct) id=" .. tostring(id) .. " label=" .. label, 2000) end
-
+        if debug then core_trace("try:" .. tostring(id) .. ":queued_ok", "[EaxRotations:try_cast] SUCCESS (queued) id=" .. tostring(id) .. " label=" .. label, 2000) end
         return true
-
     end
 
-    if not cast_unit_spell(id, target, label, reason) then
-
-        if debug then core_trace("try:" .. tostring(id) .. ":failed_cast", "[EaxRotations:try_cast] FAILED: cast_unit_spell returned false id=" .. tostring(id) .. " label=" .. label, 2000) end
-
-        return false
-
+    -- Fallback: global cast_unit_spell (IZI → core fallthrough)
+    if cast_unit_spell and type(cast_unit_spell) == "function" then
+        if not cast_unit_spell(id, target, label, reason) then
+            if debug then core_trace("try:" .. tostring(id) .. ":failed_cast", "[EaxRotations:try_cast] FAILED: cast_unit_spell returned false id=" .. tostring(id) .. " label=" .. label, 2000) end
+            return false
+        end
+    else
+        -- Last resort: direct core.input
+        local cast = core.input and core.input.cast_target_spell
+        if type(cast) ~= "function" then
+            core_trace("try:" .. tostring(id) .. ":direct_missing", "try_cast " .. tostring(label) .. " core.input.cast_target_spell missing", 700)
+            return false
+        end
+        if safe(cast, id, target) == false then
+            core_trace("try:" .. tostring(id) .. ":direct_false", "try_cast " .. tostring(label) .. " cast_target_spell returned false", 300)
+            return false
+        end
     end
-
-    -- Record cast time for manual cooldown fallback
 
     mark_spell_cast(id)
 
     if reason and debug then NS.log(reason) end
 
-    if debug then core_trace("try:" .. tostring(id) .. ":direct_ok", "[EaxRotations:try_cast] SUCCESS (direct) id=" .. tostring(id) .. " label=" .. label, 2000) end
+    if debug then core_trace("try:" .. tostring(id) .. ":direct_ok", "[EaxRotations:try_cast] SUCCESS id=" .. tostring(id) .. " label=" .. label, 2000) end
 
     return true
 
@@ -2898,23 +2423,29 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
     local label = spell_label(spell, id)
 
     if not id or not position then
-
         core_trace("pos:" .. tostring(label) .. ":bad_input", "try_cast_position failed: id=" .. tostring(id) .. " position=" .. tostring(position ~= nil), 700)
-
         return false
-
     end
 
-    -- Position casts use the same central guard as unit casts so AoE/ground spells
-    -- cannot bypass GCD, cooldown, resource, anti-flicker, or reagent checks.
+    -- Position casts use the same central guard as unit casts
     if not NS.evaluate_cast(spell, range_target, reason, opts) then
-
         core_trace("pos:" .. tostring(id) .. ":not_ready", "try_cast_position " .. tostring(label) .. " failed: evaluate_cast=false id=" .. tostring(id), 300)
-
         return false
-
     end
 
+    -- Primary: spell_queue position casting
+    local spell_queue = _spell_queue
+    if spell_queue and type(spell_queue.queue_spell_position) == "function" then
+        local queued = spell_queue:queue_spell_position(id, position, 1, label, false)
+        if queued ~= false then
+            mark_spell_cast(id)
+            local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
+            if reason and debug then NS.log(reason) end
+            return true
+        end
+    end
+
+    -- Fallback: global cast_position_spell
     if not cast_position_spell(id, position, label, reason) then return false end
 
     mark_spell_cast(id)

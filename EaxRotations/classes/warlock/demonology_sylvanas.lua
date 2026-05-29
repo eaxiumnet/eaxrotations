@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/warlock/demonology_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warlock Demonology priority list.
--- ============================================================================
--- What: TBC Warlock Demonology priority list with pet, survivability, and spell readiness tracking
--- When: Per tick
--- Why: Demonology priorities depend on cached pet state and defensive readiness
--- Safety: Pet access uses pcall; helper checks are nil-guarded; conservative defaults when state is missing
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -50,6 +26,7 @@ local demo_state = {
     mana_pct = 100,
     enemy_count = 1,
     target_casting = false,
+    fel_armor_ready = false,
     curse_of_doom_ready = false,
     corruption_ready = false,
     immolate_ready = false,
@@ -69,7 +46,7 @@ local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
 
-    demo_state.has_fel_armor = me and NS.buff_up(me, FEL_ARMOR_BUFF) or false
+    demo_state.has_fel_armor = me and NS.buff_up and NS.buff_up(me, FEL_ARMOR_BUFF) or false
     demo_state.has_pet = false
     demo_state.pet_hp_pct = 100
     if me then
@@ -86,6 +63,7 @@ local function build_state(context)
     demo_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     demo_state.enemy_count = context.enemy_count or context.enemies_count or 1
     demo_state.target_casting = target and target.is_casting and target:is_casting() or false
+    demo_state.fel_armor_ready = me and NS.spell_ready(SPELLS.FelArmor, me, { skip_range = true }) or false
     demo_state.curse_of_doom_ready = target and NS.spell_ready(SPELLS.CurseOfDoom, target, { expected_cooldown = 60 }) or false
     demo_state.corruption_ready = target and NS.spell_ready(SPELLS.Corruption, target) or false
     demo_state.immolate_ready = target and NS.spell_ready(SPELLS.Immolate, target, { expected_cooldown = 1.5 }) or false
@@ -179,8 +157,9 @@ local function immolate_matches(context, s)
 end
 
 local function life_tap_matches(context, s)
-    if s.hp_pct <= 55 then return false end
-    if s.mana_pct >= 65 then return false end
+    if not s then return false end
+    if (s.hp_pct or 100) <= 55 then return false end
+    if (s.mana_pct or 100) >= 65 then return false end
     if not s.life_tap_ready then return false end
     return true
 end
@@ -193,15 +172,17 @@ local function shadow_bolt_matches(context, s)
 end
 
 local function seed_of_corruption_matches(context, s)
+    if not s then return false end
     if not context.target then return false end
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not s.seed_of_corruption_ready then return false end
     return true
 end
 
 local function howl_of_terror_matches(context, s)
+    if not s then return false end
     if not context.in_combat then return false end
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not s.howl_of_terror_ready then return false end
     return true
 end
@@ -242,9 +223,10 @@ local function incinerate_matches(context, s)
 end
 
 local function fel_armor_matches(context, s)
+    if not s then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FelArmor, 3.0) then return false end
     if s.has_fel_armor then return false end
-    return true
+    return s.fel_armor_ready == true
 end
 
 local function health_funnel_matches(context, s)

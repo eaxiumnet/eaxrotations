@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Survival Hunter rotation
--- =========================================================================
-local __eax_file = "classes/hunter/survival_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Survival Hunter rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Hunter Survival priority list.
 
--- ============================================================================
--- What: Hunter Survival priority list with traps, shots, and ranged control tools
--- When: Evaluated every tick via main_sylvanas.lua dispatcher
--- Why: Priority-list early-exit keeps control and damage checks efficient
--- Safety: Nil-guarded settings; NS.* wrappers; optional clip tracker; conservative fallback behavior
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -60,11 +36,11 @@ end
 -- Buff & Debuff ID tables
 -- ============================================================================
 local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
-local SERPENT_STING_DEBUFF = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
+local SERPENT_STING_DEBUFF = { 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local SCORPID_STING_DEBUFF = { 3043 }
 local WING_CLIP_DEBUFF = { 2974 }
-local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
-local ASPECT_VIPER_BUFF = { 34074 }
+local ASPECT_HAWK_BUFF = { 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
+local ASPECT_VIPER_BUFF = { }
 
 -- ============================================================================
 -- State builder
@@ -159,7 +135,7 @@ end
 -- ============================================================================
 local function mend_pet_matches(context, s)
     if not s.pet_alive then return false end
-    if s.pet_hp_pct > 45 then return false end
+    if (s.pet_hp_pct or 100) > 45 then return false end
     if not s.mend_pet_ready then return false end
     return true
 end
@@ -178,7 +154,7 @@ local function rapid_fire_matches(context, s)
 end
 
 local function explosive_trap_matches(context, s)
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not s.explosive_trap_ready then return false end
     return true
 end
@@ -222,9 +198,7 @@ local function aspect_hawk_matches(context, s)
 end
 
 local function aspect_viper_matches(context, s)
-    if s.has_aspect_viper then return false end
-    if s.mana_pct > 20 then return false end
-    return true
+    return false
 end
 
 local function call_pet_matches(context, s)
@@ -331,7 +305,7 @@ end
 local function volley_matches(context, s)
     if context.is_channeling then return false end
     if not s.in_combat then return false end
-    if s.enemy_count < 4 then return false end
+    if (s.enemy_count or 0) < 4 then return false end
     if context.is_moving then return false end
     if not s.volley_ready then return false end
     return true

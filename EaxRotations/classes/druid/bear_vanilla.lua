@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Bear Druid rotation (no Mangle/Lacerate/Feral Charge)
--- =========================================================================
-local __eax_file = "classes/druid/bear_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Bear Druid rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -29,9 +11,9 @@ local SPELLS = BASE_SPELLS
 
 local BASH = BASE_SPELLS.Bash or (NS.spell_action and NS.spell_action({ 8983, 6798, 5211 }, "Bash"))
 local ENRAGE = BASE_SPELLS.Enrage or (NS.spell_action and NS.spell_action({ 5229 }, "Enrage"))
-local MARK_OF_THE_WILD = BASE_SPELLS.MarkOfTheWild or (NS.spell_action and NS.spell_action({ 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, "MarkOfTheWild"))
-local GIFT_OF_THE_WILD = BASE_SPELLS.GiftOfTheWild or (NS.spell_action and NS.spell_action({ 26991, 21850, 21849 }, "GiftOfTheWild"))
-local THORNS = BASE_SPELLS.Thorns or (NS.spell_action and NS.spell_action({ 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"))
+local MARK_OF_THE_WILD = BASE_SPELLS.MarkOfTheWild or (NS.spell_action and NS.spell_action({ 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, "MarkOfTheWild"))
+local GIFT_OF_THE_WILD = BASE_SPELLS.GiftOfTheWild or (NS.spell_action and NS.spell_action({ 21850, 21849 }, "GiftOfTheWild"))
+local THORNS = BASE_SPELLS.Thorns or (NS.spell_action and NS.spell_action({ 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"))
 local FEROCIOUS_BITE = BASE_SPELLS.FerociousBite
 
 local STANCE_BEAR = 1
@@ -60,20 +42,16 @@ local CHALLENGING_ROAR_ENEMY_COUNT = 3
 local OOC_ENRAGE_RAGE_MAX = 20
 local HIGH_RAGE = 75
 
-local FAERIE_FIRE_DEBUFF = { 27011, 17392, 17391, 17390, 16857, 26993, 9907, 9749, 778, 770 }
-local DEMO_ROAR_DEBUFF = { 26998, 9898, 9747, 9490, 1735, 99, 25203, 11556, 6190, 1160 }
-local MARK_BUFF = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }
-local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+local FAERIE_FIRE_DEBUFF = { 17392, 17391, 17390, 16857,  9907, 9749, 778, 770 }
+local DEMO_ROAR_DEBUFF = { 9898, 9747, 9490, 1735, 99, 25203, 11556, 6190, 1160 }
+local MARK_BUFF = { 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }
+local THORNS_BUFF = { 9910, 9756, 8914, 1075, 782, 467 }
 local CLEARCASTING_BUFF = { 16870 }
 local BARKSKIN_BUFF = { 22812 }
 local FRENZIED_REGEN_BUFF = { 22842 }
 
 local HEALTHSTONE_IDS = TBC_ITEMS.healthstones or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local HEALING_POTION_IDS = {
-    TBC_POTIONS.crystal_healing or 33934,
-    TBC_POTIONS.auchenai_healing or 32947,
-    TBC_POTIONS.super_healing or 22829,
-    TBC_POTIONS.super_rejuvenation or 22850,
     TBC_POTIONS.major_healing or 13446,
     TBC_POTIONS.greater_healing or 1710,
     TBC_POTIONS.healing or 929,

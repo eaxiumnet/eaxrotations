@@ -1,28 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/shaman/middleware_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shaman Middleware: Tier 1 Gap Analysis Features
--- ============================================================================
--- What: TBC Shaman middleware for tremor, purge, and self-dispel support
--- When: Per tick
--- Why: Shared maintenance actions belong above individual playstyles so they can fire consistently
--- Safety: Context and target are nil-guarded; optional modules are required conservatively; dispels check before acting
 -- Features Added:
 --   - Auto Tremor Totem (fear bosses)
 --   - Purge dispel (enemy magic buffs)
@@ -41,7 +18,7 @@ local SPELLS = NS.ShamanSpells or {}
 -- Cure Poison IDs by rank (newest first) - TBC spell IDs
 local CURE_POISON_IDS = { 526 }
 -- Cure Disease IDs by rank (newest first) - TBC spell IDs
-local CURE_DISEASE_IDS = { 528, 10298, 10299 }
+local CURE_DISEASE_IDS = { 2870 }
 
 --- Check if player has poison debuff.
 -- @return boolean - true if poison debuff present
@@ -90,7 +67,8 @@ local strategies = {
     {
         name = "AutoTremorTotem",
         matches = function(context)
-            if context.settings.use_auto_tremor_totem == false then return false end
+            local settings = context.settings or {}
+            if settings.use_auto_tremor_totem == false then return false end
             if not context.target then return false end
             return auto_tremor.is_fear_boss(context.target)
         end,
@@ -105,18 +83,19 @@ local strategies = {
     {
         name = "Purge",
         matches = function(context)
-            if context.settings.use_purge == false then return false end
+            local settings = context.settings or {}
+            if settings.use_purge == false then return false end
             if not context.target then return false end
             
             -- Check PvP only setting
-            local pvp_only = context.settings.purge_pvp_only
+            local pvp_only = settings.purge_pvp_only
             if pvp_only == true then  -- Only restrict if explicitly enabled
                 if not (context.is_pvp or false) then return false end
             end
             
             -- Check mana floor
             local mana_pct = context.mana_pct or 100
-            local min_mana = context.settings.purge_min_mana_pct or 20
+            local min_mana = settings.purge_min_mana_pct or 20
             if mana_pct < min_mana then return false end
 
             -- Priority DB scan: strip Bloodlust, BoP, Recklessness, etc. first
@@ -149,12 +128,13 @@ local strategies = {
     {
         name = "CurePoison",
         matches = function(context)
-            if context.settings.use_self_dispel == false then return false end
+            local settings = context.settings or {}
+            if settings.use_self_dispel == false then return false end
             if not has_poison_debuff() then return false end
             
             -- Check mana floor
             local mana_pct = context.mana_pct or 100
-            local min_mana = context.settings.dispel_min_mana_pct or 20
+            local min_mana = settings.dispel_min_mana_pct or 20
             if mana_pct < min_mana then return false end
             
             -- Check if Cure Poison is learned and ready
@@ -190,12 +170,13 @@ local strategies = {
     {
         name = "CureDisease",
         matches = function(context)
-            if context.settings.use_self_dispel == false then return false end
+            local settings = context.settings or {}
+            if settings.use_self_dispel == false then return false end
             if not has_disease_debuff() then return false end
             
             -- Check mana floor
             local mana_pct = context.mana_pct or 100
-            local min_mana = context.settings.dispel_min_mana_pct or 20
+            local min_mana = settings.dispel_min_mana_pct or 20
             if mana_pct < min_mana then return false end
             
             -- Check if Cure Disease is learned and ready

@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/warrior/fury_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warrior Fury priority list — FrostByte v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
--- ============================================================================
--- What: TBC Warrior Fury rotation with rage pooling, Slam weaving, and debuff upkeep
--- When: Per tick
--- Why: Fury needs cached combat state and swing timing to keep rage spenders aligned
--- Safety: Optional swing timer uses pcall; helpers are nil-guarded; rage caps and defaults are conservative
--- ============================================================================
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarriorSpells or {}
@@ -387,7 +363,7 @@ local function charge_matches(context, state)
         local target_in_combat = bool_call(context.target, "is_in_combat") or false
         if target_in_combat then return false end
     end
-    if state.target_distance < 8 or state.target_distance > 25 then return false end
+    if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
     -- Openers only: stay in Battle Stance between fights
     if state.stance ~= STANCE.BATTLE and not stance_swap_safe(state, 0) then return false end
     return action(context, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }))
@@ -430,12 +406,12 @@ local function healthstone_matches(context, state)
     return false
 end
 
--- Recklessness: big burst CD (respects cooldown toggle)
+-- Recklessness: big burst CD — use on cooldown in combat per Icy Veins
 local function recklessness_matches(context, state)
     local cds_enabled = setting(context, "use_cooldowns", true)
     if not cds_enabled or not state.recklessness_ready then return false end
-    if not execute_phase(context, state) and state.target_hp > 35 then return false end
-    if state.hp < 50 then return false end
+    if not state.in_combat then return false end
+    if (state.hp or 100) < 50 then return false end
     return action(context, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false, cooldown = 1800 }))
 end
 
@@ -443,8 +419,8 @@ end
 local function death_wish_matches(context, state)
     local cds_enabled = setting(context, "use_cooldowns", true)
     if not cds_enabled or not state.death_wish_ready then return false end
-    if state.hp < 45 then return false end
-    if state.target_hp < 20 and (state.rage or 0) < 25 then return false end
+    if (state.hp or 100) < 45 then return false end
+    if (state.target_hp or 100) < 20 and (state.rage or 0) < 25 then return false end
     return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
 end
 
@@ -458,7 +434,7 @@ local function rampage_matches(context, state)
     end
     -- Stack maintenance: recast if stacks < configured minimum
     local min_stacks = setting(context, "rampage_min_stacks", 5)
-    if state.rampage_stacks < min_stacks then
+    if (state.rampage_stacks or 0) < min_stacks then
         return action(context, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }))
     end
     -- Refresh before expiry
@@ -480,14 +456,7 @@ local function bt_matches(context, state)
     return action(context, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }))
 end
 
--- Rend: bleed DoT
-local function rend_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rend, 2.0) then return false end
-    if execute_phase(context, state) then return false end
-    if state.rend_remains > 3 then return false end
-    if state.target_hp < 25 then return false end
-    return action(context, build_action("Rend", ACTION.Rend, { min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }))
-end
+-- Rend removed: not used in TBC Fury rotation per Icy Veins/Wowhead
 
 -- Sunder Armor: stack armor reduction
 local function sunder_armor_matches(context, state)
@@ -496,9 +465,9 @@ local function sunder_armor_matches(context, state)
     local sunder_mode = setting(context, "sunder_mode", "off")
     if sunder_mode == "off" then return false end
     local max_stacks = setting(context, "sunder_stacks", 3)
-    if state.sunder_stacks >= max_stacks then return false end
+    if (state.sunder_stacks or 0) >= max_stacks then return false end
     -- Low priority mode: only cast if rage is high
-    if sunder_mode == "low" and state.rage < 60 then return false end
+    if sunder_mode == "low" and (state.rage or 0) < 60 then return false end
     return action(context, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF }))
 end
 
@@ -507,13 +476,14 @@ local function sweeping_strikes_matches(context, state)
     local min_count = setting(context, "sweeping_strikes_count", 2)
     if (state.enemy_count or 0) < min_count then return false end
     if state.has_sweeping_strikes then return false end
-    return action(context, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BERSERKER, min_rage = 30, requires_target = false, enemy_count = min_count, cooldown = 30 }))
+    if state.stance ~= STANCE.BATTLE then return false end
+    return action(context, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false, enemy_count = min_count, cooldown = 30 }))
 end
 
--- Whirlwind: filler + AoE
+-- Whirlwind: filler + AoE — use with any extra rage per Icy Veins
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
-    if (state.enemy_count or 0) < 2 and (state.rage or 0) < 45 then return false end
+    if (state.enemy_count or 0) < 2 and (state.rage or 0) < 25 then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
@@ -521,7 +491,7 @@ end
 local function execute_matches(context, state)
     if not execute_phase(context, state) then return false end
     local min_rage = setting(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
-    if state.rage < min_rage then return false end
+    if (state.rage or 0) < min_rage then return false end
     return action(context, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }))
 end
 
@@ -530,47 +500,41 @@ local function slam_matches(context, state)
     if setting(context, "slam_weave_enabled", true) == false then return false end
     if not SwingTimer then return false end
     if state.is_moving then return false end
-    if state.rage < SLAM_RAGE_COST then return false end
-    if state.bt_cd <= 1.5 then return false end
-    if state.ww_cd <= 1.5 then return false end
-    local rage_after_slam = state.rage - SLAM_RAGE_COST
-    if state.bt_cd <= CORE_POOL_WINDOW and rage_after_slam < BLOODTHIRST_RESERVE then return false end
-    if state.ww_cd <= CORE_POOL_WINDOW and rage_after_slam < WHIRLWIND_RESERVE then return false end
-    if state.mh_until <= SLAM_CAST_TIME + SLAM_SAFETY then return false end
-    if state.mh_until > 1.5 then return false end
+    if (state.rage or 0) < SLAM_RAGE_COST then return false end
+    if (state.bt_cd or 99) <= 1.5 then return false end
+    if (state.ww_cd or 99) <= 1.5 then return false end
+    local rage_after_slam = (state.rage or 0) - SLAM_RAGE_COST
+    if (state.bt_cd or 99) <= CORE_POOL_WINDOW and rage_after_slam < BLOODTHIRST_RESERVE then return false end
+    if (state.ww_cd or 99) <= CORE_POOL_WINDOW and rage_after_slam < WHIRLWIND_RESERVE then return false end
+    if (state.mh_until or 999) <= SLAM_CAST_TIME + SLAM_SAFETY then return false end
+    if (state.mh_until or 999) > 1.5 then return false end
     return action(context, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }))
 end
 
 -- Heroic Strike: off-GCD rage dump
 local function heroic_strike_matches(context, state)
     local hs_rage = setting(context, "heroic_strike_rage", HEROIC_STRIKE_RAGE)
-    if state.rage < hs_rage then return false end
+    if (state.rage or 0) < hs_rage then return false end
     return action(context, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = hs_rage }))
 end
 
 -- Cleave: AoE rage dump
 local function cleave_matches(context, state)
-    if state.enemy_count < 2 then return false end
+    if (state.enemy_count or 0) < 2 then return false end
     local cleave_rage = setting(context, "cleave_rage", CLEAVE_RAGE)
-    if state.rage < cleave_rage then return false end
+    if (state.rage or 0) < cleave_rage then return false end
     return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = cleave_rage, enemy_count = 2, is_aoe = true }))
 end
 
 -- Demoralizing Shout: enemy damage reduction
 local function demo_shout_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
-    if state.demo_remains > 5 then return false end
-    if not state.is_pvp and state.enemy_count < 2 and state.hp > 70 then return false end
+    if (state.demo_remains or 0) > 5 then return false end
+    if not state.is_pvp and (state.enemy_count or 0) < 2 and (state.hp or 100) > 70 then return false end
     return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false, debuff = DEMO_SHOUT_DEBUFF, refresh = 5 }))
 end
 
--- Thunder Clap: attack speed slow
-local function thunder_clap_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
-    if state.tclap_remains > 5 then return false end
-    if not state.is_pvp and state.hp > 65 and state.enemy_count < 2 then return false end
-    return action(context, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4 }))
-end
+-- Thunder Clap removed: not used by Fury warrior (tank/Arms debuff)
 
 -- Berserker Rage: fear break / enrage
 local function berserker_rage_matches(context, state)
@@ -584,7 +548,7 @@ end
 local function hamstring_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
     if not state.is_pvp then return false end
-    if state.hamstring_remains > 3 then return false end
+    if (state.hamstring_remains or 0) > 3 then return false end
     return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
 end
 
@@ -593,7 +557,7 @@ local function intercept_matches(context, state)
     if not state.in_combat then return false end
     local auto_charge = setting(context, "auto_charge", true)
     if not auto_charge then return false end
-    if state.target_distance < 8 or state.target_distance > 25 then return false end
+    if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
     -- v2.1.7 / v2.1.8: Charge opener protection — don't Intercept if we just Charged
     if not ready(ACTION.Intercept, context.target) then return false end
     return action(context, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10, cooldown = 30 }))
@@ -610,10 +574,13 @@ local function berserker_stance_matches(context, state)
     if state.stance == STANCE.BERSERKER then return false end
     if desired_stance(context) == STANCE.BERSERKER then return action(context, berserker_stance_action()) end
     -- Execute requires Berserker Stance
-    if state.execute_phase and state.rage >= 15 and stance_swap_safe(state, 15) then
+    if state.execute_phase and (state.rage or 0) >= 15 and stance_swap_safe(state, 15) then
         return action(context, berserker_stance_action())
     end
-    if state.ww_ready and stance_swap_safe(state, 25) and (state.enemy_count >= 2 or state.rage >= 45) then
+    if state.bt_ready and stance_swap_safe(state, 30) then
+        return action(context, berserker_stance_action())
+    end
+    if state.ww_ready and stance_swap_safe(state, 25) and ((state.enemy_count or 0) >= 2 or (state.rage or 0) >= 45) then
         return action(context, berserker_stance_action())
     end
     return false
@@ -624,6 +591,10 @@ local function battle_stance_matches(context, state)
     if state.stance == STANCE.BATTLE then return false end
     if desired_stance(context) == STANCE.BATTLE then return action(context, battle_stance_action()) end
     if state.overpower_ready and stance_swap_safe(state, 5) then return action(context, battle_stance_action()) end
+    local ss_count = setting(context, "sweeping_strikes_count", 2)
+    if state.sweeping_ready and not state.has_sweeping_strikes and (state.enemy_count or 0) >= ss_count and stance_swap_safe(state, 30) then
+        return action(context, battle_stance_action())
+    end
     if not state.in_combat and state.charge_ready and stance_swap_safe(state, 0) then return action(context, battle_stance_action()) end
     return false
 end
@@ -660,20 +631,17 @@ local STRATEGY_SPECS = {
     -- Cooldowns
     { "Recklessness", recklessness_matches, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "DeathWish", death_wish_matches, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false }) },
-    -- Rampage stack management
-    { "Rampage", rampage_matches, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }) },
     -- AoE
-    { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BERSERKER, min_rage = 30, requires_target = false }) },
+    { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
     -- Core rotation
-    { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }) },
     { "Bloodthirst", bt_matches, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }) },
-    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }) },
-    { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }) },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
+    { "Rampage", rampage_matches, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }) },
+    { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
+    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }) },
+    { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }) },
     { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF }) },
     { "DemoralizingShout", demo_shout_matches, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false }) },
-    { "ThunderClap", thunder_clap_matches, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, cooldown = 4 }) },
-    { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
     -- Rage dumps
     { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }) },
     { "HeroicStrike", heroic_strike_matches, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }) },

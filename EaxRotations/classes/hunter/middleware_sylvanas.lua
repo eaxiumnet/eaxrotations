@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/hunter/middleware_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Hunter shared middleware.
 
--- ============================================================================
--- What: Hunter shared middleware for interrupts, threat drop, pet, and utility logic
--- When: Runs before playstyle strategies each tick
--- Why: Shared behaviors avoid duplication across Hunter playstyles
--- Safety: Returns cleanly when conditions do not permit action; uses NS.* wrappers and nil guards
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -39,8 +15,12 @@ local strategies = {
     {
         name = "ThreatDrop",
         matches = function(context)
-            if context.settings.use_threat_drop == false then return false end
-            return true
+            local settings = context.settings or {}
+            if settings.use_threat_drop == false then return false end
+            if not context.in_combat then return false end
+            local threat_level = context.threat_level or context.threat_situation or 0
+            if threat_level < 2 and not context.has_aggro then return false end
+            return NS.spell_ready and NS.spell_ready(SPELLS.FeignDeath, context.me, { skip_range = true, expected_cooldown = 30 })
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.FeignDeath, context.me, "[HUNTER] Feign Death", { skip_range = true })
@@ -51,16 +31,17 @@ local strategies = {
     {
         name = "ViperSting",
         matches = function(context)
-            if context.settings.use_viper_sting_pve == false and context.settings.use_viper_sting_pvp == false then return false end
+            local settings = context.settings or {}
+            if settings.use_viper_sting_pve == false and settings.use_viper_sting_pvp == false then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
 
             -- PvP Viper Sting check
             local is_pvp = context.is_pvp or false
             if is_pvp then
-                if context.settings.use_viper_sting_pvp == false then return false end
+                if settings.use_viper_sting_pvp == false then return false end
             else
-                if context.settings.use_viper_sting_pve == false then return false end
+                if settings.use_viper_sting_pve == false then return false end
             end
 
             -- Check target has mana (skip non-mana users)
@@ -70,7 +51,7 @@ local strategies = {
             if power_type ~= 0 then return false end -- 0 = MANA
 
             -- Check HP threshold — skip Viper Sting on low HP targets (focus damage instead)
-            local hp_threshold = context.settings.viper_sting_hp_threshold or 30
+            local hp_threshold = settings.viper_sting_hp_threshold or 30
             local target_hp = context.target_hp or 100
             if target_hp < hp_threshold then return false end
 
@@ -101,7 +82,7 @@ local strategies = {
                 end
             end
 
-            return true
+            return NS.spell_ready and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 })
         end,
         execute = function(context)
             local is_pvp = context.is_pvp or false
@@ -114,7 +95,8 @@ local strategies = {
     {
         name = "FreezingTrap",
         matches = function(context)
-            if context.settings.freezing_trap_pve == false then return false end
+            local settings = context.settings or {}
+            if settings.freezing_trap_pve == false then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
 
@@ -133,7 +115,7 @@ local strategies = {
                 end
             end
 
-            return true
+            return NS.spell_ready and NS.spell_ready(SPELLS.FreezingTrap, context.me, { skip_range = true, expected_cooldown = 30 })
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.FreezingTrap, context.me, "[HUNTER] Freezing Trap", { skip_range = true })
@@ -153,12 +135,13 @@ local strategies = {
     {
         name = "Misdirection",
         matches = function(context)
-            if context.settings.use_misdirection == false then return false end
+            local settings = context.settings or {}
+            if settings.use_misdirection == false then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
 
             local combat_time = context.combat_time or 0
-            local pull_window = context.settings.misdirection_pull_window or 6
+            local pull_window = settings.misdirection_pull_window or 6
 
             -- Only during pull window or if explicit threat risk
             if combat_time > pull_window then
@@ -184,7 +167,8 @@ local strategies = {
             local target = nil
 
             -- Try focus target first if enabled
-            if context.settings.misdirection_on_focus ~= false then
+            local settings = context.settings or {}
+            if settings.misdirection_on_focus ~= false then
                 if NS.GetFocus then
                     target = NS.GetFocus()
                 end
@@ -225,7 +209,7 @@ local strategies = {
             -- Check if Mend Pet is already active (HoT)
             local mp_buffs = { 27046, 13544, 13543, 13542, 3662, 3661, 3111, 136 }
             local pet = NS.get_pet and NS.get_pet()
-            if pet and NS.has_player_buff then
+            if pet and NS.buff_up then
                 for _, id in ipairs(mp_buffs) do
                     if NS.buff_up and NS.buff_up(pet, id) then return false end
                 end
@@ -299,7 +283,7 @@ local strategies = {
                     if remains > 3 then return false end
                 end
             end
-            return NS.spell_ready and NS.spell_ready(SPELLS.HuntersMark, context.me)
+            return NS.spell_ready and NS.spell_ready(SPELLS.HuntersMark, target)
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.HuntersMark, context.target, "[HUNTER] Hunter's Mark")

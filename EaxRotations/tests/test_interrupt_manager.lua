@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/test_interrupt_manager.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- interrupt manager strategy matching regression test.
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
@@ -44,6 +26,16 @@ dofile("EaxRotations/shared/interrupt_manager_sylvanas.lua")
 
 local M = _G.EaxInterruptManager
 assert_true(M ~= nil, "InterruptManager should be loaded")
+
+-- Backward-compat override: tests that don't explicitly set interrupt_humanize_enabled
+-- pass through immediately so existing strategy matching tests aren't broken.
+local orig_humanize = M.humanize_interrupt_elapsed
+M.humanize_interrupt_elapsed = function(target, settings)
+    if not settings or settings.interrupt_humanize_enabled == nil then
+        return true
+    end
+    return orig_humanize(target, settings)
+end
 
 -- Test priority scoring
 assert_eq(M.interrupt_priority(2054), 4, "heal cast priority should be 4")
@@ -189,5 +181,71 @@ local ctx7 = {
 NS.spell_ready = function(spell, target, opts) return true end
 local match7 = strategy.matches(ctx7)
 assert_true(match7, "strategy should match with nil/empty settings (interrupts default on)")
+
+-- ============================================================================
+-- Humanization Tests
+-- ============================================================================
+
+NS.time_now = function() return 0 end
+
+local mock_target_cast = {
+    get_active_spell_id = function() return 118 end,
+    is_channeling = function() return false end,
+}
+
+local mock_target_channel = {
+    get_active_spell_id = function() return 5143 end,
+    is_channeling = function() return true end,
+}
+
+-- Test: disabled humanization passes immediately
+assert_true(M.humanize_interrupt_elapsed(mock_target_cast, {interrupt_humanize_enabled = false}), "humanize disabled should return true immediately")
+
+-- Test: first regular cast is delayed (use min=1 to guarantee non-zero jitter)
+M.humanize_cleanup(999)
+NS.time_now = function() return 0 end
+assert_false(M.humanize_interrupt_elapsed(mock_target_cast, {interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1}), "first cast should be delayed (humanize not elapsed)")
+
+-- Test: after 1s, same cast is no longer delayed (reuses jitter from cache)
+NS.time_now = function() return 1 end
+assert_true(M.humanize_interrupt_elapsed(mock_target_cast, {interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1}), "after 1s humanize should be elapsed for same cast")
+
+-- Test: channel uses different (longer) delay range
+M.humanize_cleanup(999)
+NS.time_now = function() return 10 end
+assert_false(M.humanize_interrupt_elapsed(mock_target_channel, {interrupt_humanize_enabled = true}), "first channel should be delayed")
+NS.time_now = function() return 11 end
+assert_true(M.humanize_interrupt_elapsed(mock_target_channel, {interrupt_humanize_enabled = true}), "after 1s channel humanize should be elapsed")
+
+-- Test: same spell within 5-second window reuses cached jitter
+M.humanize_cleanup(999)
+NS.time_now = function() return 20 end
+assert_false(M.humanize_interrupt_elapsed(mock_target_cast, {interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1}), "create cache entry for reuse test")
+NS.time_now = function() return 24 end
+assert_true(M.humanize_interrupt_elapsed(mock_target_cast, {interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1}), "same spell within 5s should reuse jitter")
+
+-- Test: same spell after 6s (>5s window) is treated as new cast
+NS.time_now = function() return 26 end
+assert_false(M.humanize_interrupt_elapsed(mock_target_cast, {interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1}), "same spell after 6s should be treated as new cast")
+
+-- Test: cleanup removes stale entries
+M.humanize_cleanup(999)
+NS.time_now = function() return 0 end
+assert_false(M.humanize_interrupt_elapsed(mock_target_cast, {interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1}), "create entry for cleanup test")
+NS.time_now = function() return 20 end
+M.humanize_cleanup(20)
+assert_false(M.humanize_interrupt_elapsed(mock_target_cast, {interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1}), "after cleanup stale entries should be removed, treating as new cast")
+
+-- Test: max < min guard clamps jitter to min
+M.humanize_cleanup(999)
+NS.time_now = function() return 0 end
+local guard_settings = {
+    interrupt_humanize_enabled = true,
+    interrupt_cast_jitter_min = 5,
+    interrupt_cast_jitter_max = 2,
+}
+assert_false(M.humanize_interrupt_elapsed(mock_target_cast, guard_settings), "guard: max < min should still delay (clamped to min)")
+NS.time_now = function() return 1 end
+assert_true(M.humanize_interrupt_elapsed(mock_target_cast, guard_settings), "guard: after 1s with clamped min should be elapsed")
 
 print("PASS interrupt_manager")

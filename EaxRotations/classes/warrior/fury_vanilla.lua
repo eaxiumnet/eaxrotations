@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Fury Warrior rotation (no Bloodthirst/Rampage/VictoryRush)
--- =========================================================================
-local __eax_file = "classes/warrior/fury_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Fury Warrior rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- Warrior Fury priority list — Classic Vanilla
--- ============================================================================
--- What: Classic Vanilla Warrior Fury rotation (DW or 2H, no Bloodthirst)
--- When: Per tick
--- Why: Classic Fury pools rage for Whirlwind/Execute with Slam filler
--- Safety: Nil-guarded; rage caps conservative; no TBC spells referenced
--- ============================================================================
+-- Warrior Fury priority list ? Classic Vanilla
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarriorSpells or {}
@@ -38,7 +14,7 @@ local function spell(field, ids, label)
     return ids
 end
 
--- Spell actions (Classic subset — no Bloodthirst/Rampage/VictoryRush/CommandingShout)
+-- Spell actions (Classic subset ? no Bloodthirst/Rampage/VictoryRush/CommandingShout)
 local ACTION = {
     BattleShout = SPELLS.BattleShout,
     BattleStance = SPELLS.BattleStance,
@@ -66,14 +42,14 @@ local ACTION = {
 }
 
 -- Buff/debuff ID tables (Classic rank sets)
-local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
 local BERSERKER_RAGE_BUFF = { 18499 }
 local SWEEPING_STRIKES_BUFF = { 12328 }
-local SUNDER_DEBUFF = CONSTANTS.SUNDER_DEBUFF or { 25225, 11597, 11596, 8380, 7405, 7386 }
-local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
-local DEMO_SHOUT_DEBUFF = CONSTANTS.DEMO_SHOUT_DEBUFF or { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
-local THUNDER_CLAP_DEBUFF = CONSTANTS.THUNDER_CLAP_DEBUFF or { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
-local HAMSTRING_DEBUFF = { 25212, 7373, 7372, 1715 }
+local SUNDER_DEBUFF = { 11597, 11596, 8380, 7405, 7386 }
+local REND_DEBUFF = { 11574, 11573, 6548, 6547, 772 }
+local DEMO_SHOUT_DEBUFF = { 11556, 11555, 11554, 6190, 1160 }
+local THUNDER_CLAP_DEBUFF = { 11581, 11580, 8205, 8204, 8198, 6343 }
+local HAMSTRING_DEBUFF = { 7373, 7372, 1715 }
 
 -- Constants
 local EXECUTE_DEFAULT_RAGE = 25
@@ -168,7 +144,9 @@ local function build_state(context)
         fury_state.has_tclap = debuff_up(target, THUNDER_CLAP_DEBUFF)
         fury_state.has_hamstring = debuff_up(target, HAMSTRING_DEBUFF)
         local dodge_fn = target.get_dodge_chance
-        local dodge_val = (dodge_fn and target:get_dodge_chance()) or 0
+        local ok_dodge, dodge_val = false, 0
+        if dodge_fn then ok_dodge, dodge_val = pcall(dodge_fn, target) end
+        if not ok_dodge then dodge_val = 0 end
         fury_state.overpower_window = dodge_val > 0
     end
     fury_state.bw_ready = spell_ready(ACTION.BerserkerRage, me, { skip_range = true })
@@ -189,6 +167,7 @@ local function build_state(context)
     fury_state.sweeping_strikes_ready = spell_ready(ACTION.SweepingStrikes, me, { skip_range = true })
     fury_state.tclap_ready = target and spell_ready(ACTION.ThunderClap, target)
     fury_state.whirlwind_ready = target and spell_ready(ACTION.Whirlwind, target)
+    fury_state.cleave_ready = target and spell_ready(ACTION.Cleave, target)
     return fury_state
 end
 
@@ -223,7 +202,7 @@ end
 if ACTION.Execute then
     table.insert(strategies, { name = "Execute",
         matches = function(c, s)
-            return s.execute_ready and s.target_hp <= 20 and s.rage >= EXECUTE_DEFAULT_RAGE
+            return s.execute_ready and (s.target_hp or 100) <= 20 and (s.rage or 0) >= EXECUTE_DEFAULT_RAGE
         end,
         execute = function(c) return try_cast(ACTION.Execute, c.target, "[VANILLA FURY] Execute") end
     })
@@ -232,7 +211,7 @@ end
 -- 5. Sweeping Strikes cooldown
 if ACTION.SweepingStrikes then
     table.insert(strategies, { name = "SweepingStrikes",
-        matches = function(c, s) return s.sweeping_strikes_ready and s.target_count >= 2 end,
+        matches = function(c, s) return s.sweeping_strikes_ready and (s.target_count or 0) >= 2 end,
         execute = function() return try_cast(ACTION.SweepingStrikes, PLAYER_UNIT, "[VANILLA FURY] Sweeping Strikes", { skip_range = true }) end
     })
 end
@@ -249,7 +228,7 @@ end
 if ACTION.Whirlwind then
     table.insert(strategies, { name = "Whirlwind",
         matches = function(c, s)
-            return s.whirlwind_ready and s.rage >= WHIRLWIND_RESERVE
+            return s.whirlwind_ready and (s.rage or 0) >= WHIRLWIND_RESERVE
         end,
         execute = function(c) return try_cast(ACTION.Whirlwind, c.target, "[VANILLA FURY] Whirlwind") end
     })
@@ -259,7 +238,7 @@ end
 if ACTION.Rend then
     table.insert(strategies, { name = "Rend",
         matches = function(c, s)
-            return s.rend_ready and not s.has_rend and s.target_ttd > 12
+            return s.rend_ready and not s.has_rend and (s.target_ttd or 0) > 12
         end,
         execute = function(c) return try_cast(ACTION.Rend, c.target, "[VANILLA FURY] Rend") end
     })
@@ -293,7 +272,7 @@ end
 if ACTION.Slam then
     table.insert(strategies, { name = "Slam",
         matches = function(c, s)
-            return s.slam_ready and s.rage >= SLAM_RAGE_COST
+            return s.slam_ready and (s.rage or 0) >= SLAM_RAGE_COST
         end,
         execute = function(c) return try_cast(ACTION.Slam, c.target, "[VANILLA FURY] Slam") end
     })
@@ -303,7 +282,7 @@ end
 if ACTION.HeroicStrike then
     table.insert(strategies, { name = "HeroicStrike",
         matches = function(c, s)
-            return s.heroic_strike_ready and s.rage >= 60
+            return s.heroic_strike_ready and (s.rage or 0) >= 60
         end,
         execute = function(c) return try_cast(ACTION.HeroicStrike, c.target, "[VANILLA FURY] Heroic Strike") end
     })
@@ -313,7 +292,7 @@ end
 if ACTION.Cleave then
     table.insert(strategies, { name = "Cleave",
         matches = function(c, s)
-            return target_count >= 2 and s.cleave_ready and s.rage >= 40
+            return (s.target_count or 0) >= 2 and s.cleave_ready and (s.rage or 0) >= 40
         end,
         execute = function(c) return try_cast(ACTION.Cleave, c.target, "[VANILLA FURY] Cleave") end
     })

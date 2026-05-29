@@ -1,29 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/priest/middleware_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Priest shared middleware.
--- ============================================================================
--- What: Priest shared middleware for dispels, threat drop, survivability, and PvP utility
--- When: Per tick
--- Why: Consolidates party dispel, disease cleanup, emergency utility, offensive dispel,
---   Mass Dispel (bubble/block purge), Mana Burn (healer pressure), and PvP defensives
---   across priest playstyles
--- Safety: Settings nil-guards, pcall on class/spell/item checks, conservative mana thresholds
 -- ============================================================================
 
 local NS = _G.EaxRotations
@@ -186,7 +161,11 @@ local strategies = {
                 if enemy then
                     local should_md, buff_name = OffensiveDispelDB.should_mass_dispel(enemy, NS)
                     if should_md then
-                        return NS.try_cast(SPELLS.MassDispel, enemy, "[PRIEST] Mass Dispel → " .. (buff_name or "bubble"))
+                        local pos = enemy.get_position and enemy:get_position() or nil
+                        if pos and NS.try_cast_position then
+                            return NS.try_cast_position(SPELLS.MassDispel, pos, enemy, "[PRIEST] Mass Dispel -> " .. (buff_name or "bubble"))
+                        end
+                        return false
                     end
                 end
             end

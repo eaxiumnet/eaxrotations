@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/rogue/schema_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Rogue menu schema.
--- ============================================================================
--- What: Rogue settings schema for combat, subtlety, assassination, and leveling
--- When: Load time
--- Why: Centralizes configurable thresholds and toggles for rogue playstyles
--- Safety: Static defaults only, no runtime API calls
--- ============================================================================
 
 return {
     {
@@ -41,12 +17,6 @@ return {
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
-                    { key = "use_disarm", type = "checkbox", label = "Auto Disarm (PvP)", default = true, tooltip = "Dismantle enemy melee players (Warrior/Rogue/Paladin/Shaman). No stance requirement." },
-                    { key = "disarm_trigger", type = "dropdown", label = "Disarm Trigger", default = "on_burst", options = {
-                            { text = "On Burst (priority buffs)", value = "on_burst" },
-                            { text = "On Cooldown", value = "on_cooldown" },
-                    } },
-                    { key = "disarm_pvp_only", type = "checkbox", label = "Disarm — Players Only", default = true, tooltip = "Only disarm enemy players (safer for PvE with CC'd mobs)." },
                     { key = "use_shiv_purge", type = "checkbox", label = "Shiv Purge (PvP)", default = true, tooltip = "Shiv dispels 1 magic buff on enemy players via Wound Poison (BoP, PW:S, Ice Barrier, etc.). Requires off-hand with Wound Poison applied." },
                     { key = "shiv_purge_pvp_only", type = "checkbox", label = "Shiv Purge — Players Only", default = true, tooltip = "Only purge buffs from enemy players (safer for PvE)." },
                 },
@@ -95,7 +65,7 @@ return {
             {
                 header = "Cooldowns",
                 settings = {
-                    { key = "combat_blade_flurry_count", type = "slider", label = "Blade Flurry Min Targets", min = 1, max = 6, default = 2 },
+                    { key = "combat_blade_flurry_count", type = "slider", label = "Blade Flurry Min Targets", min = 1, max = 6, default = 1 },
                     { key = "combat_adrenaline_rush_heroism", type = "checkbox", label = "Delay AR during Bloodlust", default = true },
                     { key = "combat_energy_tick_sync", type = "checkbox", label = "Energy Tick Prediction", default = true, tooltip = "Synchronize ability usage with the server's energy ticks (2.0s interval) to maximize energy pooling and avoid capping." },
                     { key = "combat_energy_tick_offset", type = "slider", label = "Tick Advance (ms)", min = 0, max = 500, default = 100, tooltip = "Attempt to cast abilities this many ms BEFORE a predicted energy tick. Compensates for input latency." },

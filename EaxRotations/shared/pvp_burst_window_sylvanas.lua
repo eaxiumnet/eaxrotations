@@ -1,27 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/pvp_burst_window_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- ============================================================================
--- What: Shared helper that scores PvP burst windows
--- When: On demand during target evaluation
--- Why: Identify when offensive cooldowns are likely to land effectively
--- Safety: Nil-guards HP/CD/buff checks and uses conservative scoring thresholds
--- ============================================================================
 -- Shared Helper: PvP Burst Window Scoring
 -- ============================================================================
 local M = {}
@@ -46,7 +22,7 @@ local SCORE = {
 
 -- Defensive buffs that prevent burst
 local DEFENSIVE_BUFFS = {
-    [45438] = true,  -- Ice Block
+    [11958] = true,  -- Ice Block
     [642] = true,    -- Divine Shield
     [1022] = true,   -- Blessing of Protection
     [22812] = true,  -- Barkskin

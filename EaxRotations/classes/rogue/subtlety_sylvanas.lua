@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/rogue/subtlety_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Rogue Subtlety priority list: TBC Shadowstep burst, Hemorrhage upkeep, and PvP control chains.
--- ============================================================================
--- What: TBC Rogue Subtlety rotation with stealth openers, Shadowstep burst, and control
--- When: Per tick
--- Why: Priority list balances openers, burst, and PvP control chains
--- Safety: Nil-guarded target/state checks, bounded range logic, conservative opener rules
--- ============================================================================
 -- Order is intentional: survival/interrupts, stealth setup, burst/control, finishers, builders.
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -41,7 +17,6 @@ local SPELLS = {
     CheapShot = BASE_SPELLS.CheapShot or spell({ 1833 }, "CheapShot"),
     CloakOfShadows = BASE_SPELLS.CloakOfShadows or spell({ 31224 }, "CloakOfShadows"),
     DeadlyThrow = BASE_SPELLS.DeadlyThrow or spell({ 26679 }, "DeadlyThrow"),
-    Dismantle = BASE_SPELLS.Dismantle or spell({ 51722 }, "Dismantle"),
     Evasion = BASE_SPELLS.Evasion or spell({ 26669, 5277 }, "Evasion"),
     Eviscerate = BASE_SPELLS.Eviscerate or spell({ 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
     ExposeArmor = BASE_SPELLS.ExposeArmor or spell({ 26866, 11198, 8647 }, "ExposeArmor"),
@@ -67,7 +42,7 @@ local SPELLS = {
 
 local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
 local SLICE_AND_DICE_BUFF = { 6774, 5171 }
-local SHADOWSTEP_BUFF = { 36554, 44373 }
+local SHADOWSTEP_BUFF = { 36554 }
 local MASTER_OF_SUBTLETY_BUFF = { 31665 }
 local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
 local HEMORRHAGE_DEBUFF = { 26864, 17348, 17347, 16511 }
@@ -76,9 +51,6 @@ local EXPOSE_ARMOR_DEBUFF = { 26866, 11198, 8647 }
 local CHEAP_SHOT_DEBUFF = { 1833 }
 local KIDNEY_SHOT_DEBUFF = { 8643, 408 }
 local CONTROL_DEBUFFS = { 1833, 8643, 408, 1776, 2094, 11297, 2070, 6770 }
-
--- Disarm target classes: melee classes that lose weapon-based damage when disarmed
-local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
 local ENERGY_CHEAP_SHOT = 60
 local ENERGY_GARROTE = 50
@@ -132,10 +104,6 @@ local subtlety_state = {
     -- Shiv Purge (PvP buff dispel via Wound Poison)
     shiv_ready = false,
     shiv_purge_name = nil,
-    -- Disarm (PvP Dismantle)
-    disarm_ready = false,
-    disarm_class_ok = false,
-    disarm_buff_name = nil,
 }
 
 local function player_buff_up(ids)
@@ -199,22 +167,6 @@ local function build_state(context)
         local best_id, _, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
         if best_id then subtlety_state.shiv_purge_name = best_name end
     end
-    -- Disarm (PvP Dismantle — weapon removal vs melee)
-    subtlety_state.disarm_ready = context.target and NS.spell_ready(SPELLS.Dismantle, context.target, { expected_cooldown = 60 }) or false
-    subtlety_state.disarm_class_ok = false
-    subtlety_state.disarm_buff_name = nil
-    if context.target and (context.is_pvp or false) and subtlety_state.disarm_ready then
-        local ok, class_id = pcall(function() return context.target:get_class() end)
-        if ok and type(class_id) == "number" and DISARM_CLASS_IDS[class_id] then
-            subtlety_state.disarm_class_ok = true
-            if CCGateDB.find_best_dispel_target then
-                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
-                if best_id and (best_priority or 0) >= 3 then
-                    subtlety_state.disarm_buff_name = best_name
-                end
-            end
-        end
-    end
     return subtlety_state
 end
 
@@ -258,8 +210,8 @@ end
 
 local function hemo_refresh_needed(context, state)
     if not has_enemy(context) then return false end
-    if state.hemo_remains <= 0 then return true end
-    if setting(context, "hemo_debuff_priority", true) and state.hemo_remains < HEMO_REFRESH then return true end
+    if (state.hemo_remains or 0) <= 0 then return true end
+    if setting(context, "hemo_debuff_priority", true) and (state.hemo_remains or 0) < HEMO_REFRESH then return true end
     return false
 end
 
@@ -282,7 +234,7 @@ end
 
 local function premeditation_matches(context, state)
     if not state.stealth_up then return false end
-    if state.combo >= 3 then return false end
+    if (state.combo or 0) >= 3 then return false end
     return NS.spell_ready(SPELLS.Premeditation, context.target, { skip_range = true })
 end
 
@@ -340,28 +292,6 @@ local function shiv_purge_matches(context, state)
     return true
 end
 
-local function disarm_matches(context, state)
-    local settings = context.settings or {}
-    if settings.use_disarm == false then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
-    if not context.in_combat then return false end
-    if not (context.is_pvp or false) then return false end
-    if not context.target then return false end
-    if not (context.in_melee_range or false) then return false end
-    if not state.disarm_ready then return false end
-    if not state.disarm_class_ok then return false end
-    if settings.disarm_pvp_only ~= false then
-        local ok, is_player = pcall(function() return context.target:is_player() end)
-        if not (ok and is_player) then return false end
-    end
-    local trigger = settings.disarm_trigger or "on_burst"
-    if trigger == "on_burst" then
-        if not state.disarm_buff_name then return false end
-        context._disarm_buff_name = state.disarm_buff_name
-    end
-    return true
-end
-
 local function cloak_matches(context, state)
     if setting(context, "rogue_use_cloak", true) == false then return false end
     if (state.hp or 100) > setting(context, "rogue_cloak_hp", 45) and not state.is_caster_target then return false end
@@ -375,7 +305,7 @@ local function evasion_matches(context, state)
 end
 
 local function ghostly_strike_matches(context, state)
-    if not is_pvp_target(context) and state.hp > 55 then return false end
+    if not is_pvp_target(context) and (state.hp or 100) > 55 then return false end
     if not in_melee(state) or not enough_energy(state, ENERGY_GHOSTLY) then return false end
     return NS.spell_ready(SPELLS.GhostlyStrike, context.target)
 end
@@ -383,14 +313,14 @@ end
 local function blind_matches(context, state)
     if not is_pvp_target(context) then return false end
     if state.control_active then return false end
-    if state.hp > 35 and state.target_hp > 25 then return false end
+    if (state.hp or 100) > 35 and (state.target_hp or 100) > 25 then return false end
     return NS.spell_ready(SPELLS.Blind, context.target)
 end
 
 local function gouge_matches(context, state)
     if not is_pvp_target(context) then return false end
     if state.control_active then return false end
-    if not in_melee(state) or state.energy < 45 then return false end
+    if not in_melee(state) or (state.energy or 0) < 45 then return false end
     return NS.spell_ready(SPELLS.Gouge, context.target)
 end
 
@@ -401,13 +331,13 @@ local function shadowstep_gap_matches(context, state)
 end
 
 local function sprint_gap_matches(context, state)
-    if state.target_distance <= 12 or state.target_distance > 35 then return false end
+    if (state.target_distance or 40) <= 12 or (state.target_distance or 40) > 35 then return false end
     return NS.spell_ready(SPELLS.Sprint, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function vanish_burst_matches(context, state)
     if state.stealth_up then return false end
-    if state.hp <= setting(context, "rogue_vanish_hp", 20) and setting(context, "rogue_use_vanish_defensive", false) then
+    if (state.hp or 100) <= setting(context, "rogue_vanish_hp", 20) and setting(context, "rogue_use_vanish_defensive", false) then
         return NS.spell_ready(SPELLS.Vanish, NS.PLAYER_UNIT, { skip_range = true })
     end
     if not (context.should_burst or context.force_burst) then return false end
@@ -417,10 +347,10 @@ end
 local function preparation_matches(context, state)
     local in_burst = context.should_burst or context.force_burst or false
     if setting(context, "use_cooldowns", true) == false and not in_burst then return false end
-    if state.hp > setting(context, "subtlety_prep_hp", 40) then return false end
+    if (state.hp or 100) > setting(context, "subtlety_prep_hp", 40) then return false end
     -- Only use when at least one major cooldown is actually on cooldown
     if NS.get_spell_cd then
-        local has_cd_burned = state.vanish_cd > 0 or state.sprint_cd > 0 or state.evasion_cd > 0
+        local has_cd_burned = (state.vanish_cd or 0) > 0 or (state.sprint_cd or 0) > 0 or (state.evasion_cd or 0) > 0
         if not has_cd_burned then return false end
     end
     if not context.in_combat then return false end
@@ -428,9 +358,9 @@ local function preparation_matches(context, state)
 end
 
 local function kidney_shot_matches(context, state)
-    if state.combo < 3 or not enough_energy(state, ENERGY_KIDNEY) then return false end
-    if state.kidney_remains > 0 then return false end
-    if not is_pvp_target(context) and state.target_hp > 35 then return false end
+    if (state.combo or 0) < 3 or not enough_energy(state, ENERGY_KIDNEY) then return false end
+    if (state.kidney_remains or 0) > 0 then return false end
+    if not is_pvp_target(context) and (state.target_hp or 100) > 35 then return false end
     return NS.spell_ready(SPELLS.KidneyShot, context.target)
 end
 
@@ -447,52 +377,54 @@ local function hemo_debuff_matches(context, state)
 end
 
 local function slice_matches(context, state)
-    if state.combo < 2 then return false end
-    if state.slice_remains > SND_REFRESH then return false end
+    if (state.combo or 0) < 2 then return false end
+    if (state.slice_remains or 0) > SND_REFRESH then return false end
     if state.energy_pool_finisher then return false end
     return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function rupture_matches(context, state)
-    if state.combo < 4 then return false end
+    if (state.combo or 0) < 4 then return false end
     if state.energy_pool_finisher then return false end
-    if state.target_hp < 25 or (context.ttd or 999) < RUPTURE_TTD_FLOOR then return false end
-    if state.rupture_remains > RUPTURE_REFRESH then return false end
+    if (state.target_hp or 100) < 25 or (context.ttd or 999) < RUPTURE_TTD_FLOOR then return false end
+    if (state.rupture_remains or 0) > RUPTURE_REFRESH then return false end
     return NS.spell_ready(SPELLS.Rupture, context.target)
 end
 
 local function expose_armor_matches(context, state)
-    if state.combo < 4 then return false end
-    if state.expose_remains > 3 then return false end
+    if not setting(context, "subtlety_expose_assigned", false) then return false end
+    if context.has_sunder then return false end
+    if (state.combo or 0) < 4 then return false end
+    if (state.expose_remains or 0) > 3 then return false end
     if not context.target_is_boss and (context.ttd or 999) < 20 then return false end
     return NS.spell_ready(SPELLS.ExposeArmor, context.target)
 end
 
 local function deadly_throw_matches(context, state)
-    if state.combo < 3 or not enough_energy(state, ENERGY_DEADLY_THROW) then return false end
-    if state.target_distance <= MELEE_RANGE or state.target_distance > 30 then return false end
+    if (state.combo or 0) < 3 or not enough_energy(state, ENERGY_DEADLY_THROW) then return false end
+    if (state.target_distance or 40) <= MELEE_RANGE or (state.target_distance or 40) > 30 then return false end
     return NS.spell_ready(SPELLS.DeadlyThrow, context.target)
 end
 
 local function eviscerate_kill_matches(context, state)
-    if state.combo < 4 then return false end
+    if (state.combo or 0) < 4 then return false end
     if state.energy_pool_finisher then return false end
-    if state.energy < ENERGY_FINISHER then return false end  -- hard floor
-    if state.target_hp > 30 and not state.shadowstep_buff then return false end
+    if (state.energy or 0) < ENERGY_FINISHER then return false end  -- hard floor
+    if (state.target_hp or 100) > 30 and not state.shadowstep_buff then return false end
     return NS.spell_ready(SPELLS.Eviscerate, context.target)
 end
 
 local function eviscerate_matches(context, state)
-    if state.combo < 4 then return false end
+    if (state.combo or 0) < 4 then return false end
     if state.energy_pool_finisher then return false end
-    if state.energy < ENERGY_FINISHER then return false end  -- hard floor
+    if (state.energy or 0) < ENERGY_FINISHER then return false end  -- hard floor
     return NS.spell_ready(SPELLS.Eviscerate, context.target)
 end
 
 local function feint_matches(context, state)
     if not context.in_combat then return false end
     local feint_threat = setting(context, "subtlety_feint_threat", FEINT_THREAT_DEFAULT)
-    if state.threat_pct <= 0 or state.threat_pct < feint_threat then return false end
+    if (state.threat_pct or 0) <= 0 or (state.threat_pct or 0) < feint_threat then return false end
     if not enough_energy(state, ENERGY_FEINT) then return false end
     return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
 end
@@ -510,7 +442,7 @@ local function backstab_matches(context, state)
     if state.stealth_up then return false end  -- use Ambush instead
     -- Backstab is positional burst; Hemorrhage is primary builder per Research
     local in_burst = context.should_burst or context.force_burst or false
-    if state.energy < 75 and not in_burst then return false end
+    if (state.energy or 0) < 75 and not in_burst then return false end
     return NS.spell_ready(SPELLS.Backstab, context.target)
 end
 
@@ -522,7 +454,6 @@ end
 local strategies = {
     { name = "Kick", matches = kick_matches, execute = function(context) return cast(SPELLS.Kick, context.target, "[SUBTLETY] Kick") end },
     { name = "ShivPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.Shiv, context.target, "[SUBTLETY] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
-    { name = "Disarm", matches = disarm_matches, execute = function(context) local label = context._disarm_buff_name and ("[SUBTLETY] Dismantle → " .. context._disarm_buff_name) or "[SUBTLETY] Dismantle" return cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 }) end },
     { name = "CloakOfShadows", matches = cloak_matches, execute = function() return cast(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },
     { name = "Evasion", matches = evasion_matches, execute = function() return cast(SPELLS.Evasion, NS.PLAYER_UNIT, "[SUBTLETY] Evasion", { skip_range = true }) end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return cast(SPELLS.GhostlyStrike, context.target, "[SUBTLETY] Ghostly Strike") end },

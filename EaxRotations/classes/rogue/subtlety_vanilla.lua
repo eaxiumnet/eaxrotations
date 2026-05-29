@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Subtlety Rogue rotation
--- =========================================================================
-local __eax_file = "classes/rogue/subtlety_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Subtlety Rogue rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Rogue Subtlety priority list: Classic Vanilla UnavailableClassicRogueMobility burst, Hemorrhage upkeep, and PvP control chains.
--- ============================================================================
--- What: Classic Vanilla Rogue Subtlety rotation with stealth openers, UnavailableClassicRogueMobility burst, and control
--- When: Per tick
--- Why: Priority list balances openers, burst, and PvP control chains
--- Safety: Nil-guarded target/state checks, bounded range logic, conservative opener rules
--- ============================================================================
 -- Order is intentional: survival/interrupts, stealth setup, burst/control, finishers, builders.
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -35,23 +11,22 @@ local function spell(ids, label)
 end
 
 local SPELLS = {
-    Ambush = BASE_SPELLS.Ambush or spell({ 27441, 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
+    Ambush = BASE_SPELLS.Ambush or spell({ 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
     Backstab = BASE_SPELLS.Backstab or spell({ 26863, 25300, 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }, "Backstab"),
     Blind = BASE_SPELLS.Blind or spell({ 2094 }, "Blind"),
     CheapShot = BASE_SPELLS.CheapShot or spell({ 1833 }, "CheapShot"),
     UnavailableClassicRogueDefensive = nil,
     UnavailableClassicRogueThrow = nil,
-    Dismantle = BASE_SPELLS.Dismantle or spell({ 51722 }, "Dismantle"),
     Evasion = BASE_SPELLS.Evasion or spell({ 26669, 5277 }, "Evasion"),
-    Eviscerate = BASE_SPELLS.Eviscerate or spell({ 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
+    Eviscerate = BASE_SPELLS.Eviscerate or spell({ 26865,  11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
     ExposeArmor = BASE_SPELLS.ExposeArmor or spell({ 26866, 11198, 8647 }, "ExposeArmor"),
-    Feint = BASE_SPELLS.Feint or spell({ 27448, 25302, 11303, 8637, 6768, 1966 }, "Feint"),
+    Feint = BASE_SPELLS.Feint or spell({ 25302, 11303, 8637, 6768, 1966 }, "Feint"),
     Garrote = BASE_SPELLS.Garrote or spell({ 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }, "Garrote"),
     GhostlyStrike = BASE_SPELLS.GhostlyStrike or spell({ 14278 }, "GhostlyStrike"),
     Gouge = BASE_SPELLS.Gouge or spell({ 1776 }, "Gouge"),
     Hemorrhage = BASE_SPELLS.Hemorrhage or spell({ 26864, 17348, 17347, 16511 }, "Hemorrhage"),
     KidneyShot = BASE_SPELLS.KidneyShot or spell({ 8643, 408 }, "KidneyShot"),
-    Kick = BASE_SPELLS.Kick or spell({ 38768, 1769, 1768, 1767, 1766 }, "Kick"),
+    Kick = BASE_SPELLS.Kick or spell({ 1769, 1768, 1767, 1766 }, "Kick"),
     Premeditation = BASE_SPELLS.Premeditation or spell({ 14183 }, "Premeditation"),
     Preparation = BASE_SPELLS.Preparation or spell({ 14185 }, "Preparation"),
     Rupture = BASE_SPELLS.Rupture or spell({ 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
@@ -67,8 +42,8 @@ local SPELLS = {
 
 local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
 local SLICE_AND_DICE_BUFF = { 6774, 5171 }
-local SHADOWSTEP_BUFF = { 36554, 44373 }
-local MASTER_OF_SUBTLETY_BUFF = { 31665 }
+local SHADOWSTEP_BUFF = { }
+local MASTER_OF_SUBTLETY_BUFF = { }
 local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
 local HEMORRHAGE_DEBUFF = { 26864, 17348, 17347, 16511 }
 local GARROTE_DEBUFF = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
@@ -76,9 +51,6 @@ local EXPOSE_ARMOR_DEBUFF = { 26866, 11198, 8647 }
 local CHEAP_SHOT_DEBUFF = { 1833 }
 local KIDNEY_SHOT_DEBUFF = { 8643, 408 }
 local CONTROL_DEBUFFS = { 1833, 8643, 408, 1776, 2094, 11297, 2070, 6770 }
-
--- Disarm target classes: melee classes that lose weapon-based damage when disarmed
-local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
 local ENERGY_CHEAP_SHOT = 60
 local ENERGY_GARROTE = 50
@@ -132,10 +104,6 @@ local subtlety_state = {
     -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
     shiv_ready = false,
     shiv_purge_name = nil,
-    -- Disarm (PvP Dismantle)
-    disarm_ready = false,
-    disarm_class_ok = false,
-    disarm_buff_name = nil,
 }
 
 local function player_buff_up(ids)
@@ -198,22 +166,6 @@ local function build_state(context)
     if context.in_combat and (context.is_pvp or false) and context.target and CCGateDB.find_best_dispel_target then
         local best_id, _, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
         if best_id then subtlety_state.shiv_purge_name = best_name end
-    end
-    -- Disarm (PvP Dismantle — weapon removal vs melee)
-    subtlety_state.disarm_ready = context.target and NS.spell_ready(SPELLS.Dismantle, context.target, { expected_cooldown = 60 }) or false
-    subtlety_state.disarm_class_ok = false
-    subtlety_state.disarm_buff_name = nil
-    if context.target and (context.is_pvp or false) and subtlety_state.disarm_ready then
-        local ok, class_id = pcall(function() return context.target:get_class() end)
-        if ok and type(class_id) == "number" and DISARM_CLASS_IDS[class_id] then
-            subtlety_state.disarm_class_ok = true
-            if CCGateDB.find_best_dispel_target then
-                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
-                if best_id and (best_priority or 0) >= 3 then
-                    subtlety_state.disarm_buff_name = best_name
-                end
-            end
-        end
     end
     return subtlety_state
 end
@@ -326,7 +278,6 @@ end
 local function shiv_purge_matches(context, state)
     local settings = context.settings or {}
     if settings.use_shiv_purge == false then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
     if not context.in_combat then return false end
     if not (context.is_pvp or false) then return false end
     if not context.target then return false end
@@ -336,28 +287,6 @@ local function shiv_purge_matches(context, state)
     if settings.shiv_purge_pvp_only ~= false then
         local ok, is_player = pcall(function() return context.target:is_player() end)
         if not (ok and is_player) then return false end
-    end
-    return true
-end
-
-local function disarm_matches(context, state)
-    local settings = context.settings or {}
-    if settings.use_disarm == false then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
-    if not context.in_combat then return false end
-    if not (context.is_pvp or false) then return false end
-    if not context.target then return false end
-    if not (context.in_melee_range or false) then return false end
-    if not state.disarm_ready then return false end
-    if not state.disarm_class_ok then return false end
-    if settings.disarm_pvp_only ~= false then
-        local ok, is_player = pcall(function() return context.target:is_player() end)
-        if not (ok and is_player) then return false end
-    end
-    local trigger = settings.disarm_trigger or "on_burst"
-    if trigger == "on_burst" then
-        if not state.disarm_buff_name then return false end
-        context._disarm_buff_name = state.disarm_buff_name
     end
     return true
 end
@@ -521,8 +450,7 @@ end
 
 local strategies = {
     { name = "Kick", matches = kick_matches, execute = function(context) return cast(SPELLS.Kick, context.target, "[SUBTLETY] Kick") end },
-    { name = "UnavailableClassicRogueUtilityPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[SUBTLETY] UnavailableClassicRogueUtility purge → " .. name, { expected_cooldown = 10 }) end },
-    { name = "Disarm", matches = disarm_matches, execute = function(context) local label = context._disarm_buff_name and ("[SUBTLETY] Dismantle → " .. context._disarm_buff_name) or "[SUBTLETY] Dismantle" return cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 }) end },
+    { name = "UnavailableClassicRogueUtilityPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[SUBTLETY] UnavailableClassicRogueUtility purge ? " .. name, { expected_cooldown = 10 }) end },
     { name = "UnavailableClassicRogueDefensive", matches = cloak_matches, execute = function() return cast(SPELLS.UnavailableClassicRogueDefensive, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },
     { name = "Evasion", matches = evasion_matches, execute = function() return cast(SPELLS.Evasion, NS.PLAYER_UNIT, "[SUBTLETY] Evasion", { skip_range = true }) end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return cast(SPELLS.GhostlyStrike, context.target, "[SUBTLETY] Ghostly Strike") end },

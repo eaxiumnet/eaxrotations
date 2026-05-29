@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/warrior/class_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warrior spell table, playstyle config, and child module loader.
--- ============================================================================
--- What: TBC Warrior spell table and class bootstrap for all warrior playstyles
--- When: Load time
--- Why: Centralizes spell objects and child registration before playstyle modules load
--- Safety: Class check gates loading; shared loader handles children; nil-guarded player lookup
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -257,12 +233,12 @@ local SPELLS = {
     }),
     Pummel = NS.spell_action({
         name = "Pummel",
-        ids = {6552},
-        levels = {38},
+        ids = {6554, 6552},
+        levels = {58, 38},
         cast_time = 0,
         cooldown = 10,
-        power_cost = 0,
-        power_type = "none",
+        power_cost = 10,
+        power_type = "rage",
         school = "physical",
     }),
     LastStand = NS.spell_action({
@@ -370,7 +346,7 @@ local SPELLS = {
         ids = {871},
         levels = {28},
         cast_time = 0,
-        cooldown = 600,
+        cooldown = 1800,
         power_cost = 0,
         power_type = "none",
         school = "physical",
@@ -474,7 +450,7 @@ local config = {
 NS.rotation_registry:set_class_config(config)
 
 load_child("middleware_sylvanas")
-load_child("leveling_sylvanas", true)
+load_spec("leveling", true)
 load_spec("arms")
 load_spec("fury")
 load_spec("kebab", true)

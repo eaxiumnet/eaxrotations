@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/combat_log_parser_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- shared combat log parser and rolling buffer.
 
--- ============================================================================
--- What: Shared combat log parser with a rolling event buffer
--- When: On combat-log event delivery
--- Why: Normalize raw log lines for downstream tracking and replay modules
--- Safety: Ignores malformed lines, uses bounded buffering, and keeps defaults conservative
--- ============================================================================
 
 local core = _G.core
 
@@ -582,5 +558,34 @@ if core and core.register_on_spell_cast_callback then
 end
 
 M._entries = entries
+
+-- ---------------------------------------------------------------------------
+-- Subscriber hooks for other modules (e.g. incoming heal predictor)
+-- ---------------------------------------------------------------------------
+
+M._subscribers = {}
+
+function M.subscribe(callback)
+    if type(callback) == "function" then
+        table.insert(M._subscribers, callback)
+    end
+end
+
+function M._notify_subscribers(entry)
+    for i = 1, #M._subscribers do
+        local cb = M._subscribers[i]
+        if cb then
+            pcall(cb, entry)
+        end
+    end
+end
+
+local _original_push_entry = push_entry
+local function push_entry(entry)
+    tail = tail + 1
+    entries[tail] = entry
+    prune(entry.timestamp)
+    M._notify_subscribers(entry)
+end
 
 return M

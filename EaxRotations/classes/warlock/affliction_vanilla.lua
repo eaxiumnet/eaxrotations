@@ -34,16 +34,18 @@ local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 -- ============================================================================
 -- Debuff & Buff ID tables
 -- ============================================================================
-local CORRUPTION_DEBUFF      = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
-local CURSE_OF_AGONY_DEBUFF  = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
-local CURSE_OF_DOOM_DEBUFF   = { 30910, 603 }
-local UNSTABLE_AFFL_DEBUFF   = { 30405, 30404, 30108 }
-local SIPHON_LIFE_DEBUFF     = { 30911, 27264, 18881, 18880, 18879, 18265 }
-local IMMOLATE_DEBUFF        = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }	local SHADOW_EMBRACE_DEBUFF  = { 32386, 32388, 32389, 32390, 32391 }local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)  -- Improved Shadow Bolt (Shadow Vulnerability)
-local SEED_OF_CORRUPTION_DEBUFF = { 27285 }  -- the DoT that triggers the explosion
+local CORRUPTION_DEBUFF      = { 25311, 11672, 11671, 7648, 6223, 6222, 172 }
+local CURSE_OF_AGONY_DEBUFF  = { 11713, 11712, 11711, 6217, 1014, 980 }
+local CURSE_OF_DOOM_DEBUFF   = { 603 }
+local UNSTABLE_AFFL_DEBUFF   = { }  -- UA is TBC-only; empty in Classic
+local SIPHON_LIFE_DEBUFF     = { 18881, 18880, 18879, 18265 }
+local IMMOLATE_DEBUFF        = { 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }	local SHADOW_EMBRACE_DEBUFF  = { }  -- Shadow Embrace is TBC-only; empty in Classic	local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)
+local CURSE_OF_ELEMENTS_DEBUFF = { 11722, 11721, 1490 }
+local SEED_OF_CORRUPTION_DEBUFF = { }  -- Seed is TBC-only; empty in Classic
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
-local SOULSHATTER_BUFF       = { 29858 }
-local FEL_ARMOR_BUFF         = { 28189, 28176 }
+local SOULSHATTER_BUFF       = { }  -- Soulshatter is TBC-only; empty in Classic
+local FEL_ARMOR_BUFF         = { }  -- Fel Armor is TBC-only; empty in Classic
+local DEMON_ARMOR_BUFF       = { 11735, 11734, 11733, 1086, 706 }
 
 local DOT_REFRESH_WINDOW = 1.5   -- refresh within last 1.5s per Research Angle 1 (clip <1.5s)
 local EXECUTE_HP = 25           -- Drain Soul execute threshold
@@ -55,39 +57,38 @@ local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window f
     local _last_soulshatter = 0
 
 local LOCAL_SPELLS = {
-    DrainLife       = NS.spell_action({ 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
-    DrainSoul       = NS.spell_action({ 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
-    DarkPact        = NS.spell_action({ 27265, 18938, 18937, 18220 }, "DarkPact"),
+    DrainLife       = NS.spell_action({ 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
+    DrainSoul       = NS.spell_action({ 11675, 8289, 8288, 1120 }, "DrainSoul"),
+    DarkPact        = NS.spell_action({ 18938, 18937, 18220 }, "DarkPact"),
     Fear            = NS.spell_action({ 6215, 6213, 5782 }, "Fear"),
     HowlOfTerror    = NS.spell_action({ 17928, 5484 }, "HowlOfTerror"),
-    CurseWeakness   = NS.spell_action({ 30909, 27224, 11708, 11707, 7646, 6205, 1108, 702 }, "CurseOfWeakness"),
+    CurseWeakness   = NS.spell_action({ 11708, 11707, 7646, 6205, 1108, 702 }, "CurseOfWeakness"),
     CurseTongues    = NS.spell_action({ 11719, 1714 }, "CurseOfTongues"),
     CurseExhaustion = NS.spell_action({ 18223 }, "CurseOfExhaustion"),
-    CurseElements   = NS.spell_action({ 27228, 11722, 11721, 1490 }, "CurseOfElements"),
-    DrainMana       = NS.spell_action({ 30908, 27221, 11704, 11703, 6226, 5138 }, "DrainMana"),
-    HealthFunnel    = NS.spell_action({ 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel"),
-    CreateHealthstone = NS.spell_action({ 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone"),
+    CurseElements   = NS.spell_action({ 11722, 11721, 1490 }, "CurseOfElements"),
+    DrainMana       = NS.spell_action({ 11704, 11703, 6226, 5138 }, "DrainMana"),
+    HealthFunnel    = NS.spell_action({ 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel"),
+    CreateHealthstone = NS.spell_action({ 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone"),
     FelDomination   = NS.spell_action({ 18708 }, "FelDomination"),
-    DeathCoil       = NS.spell_action({ 27223, 17926, 17925, 6789 }, "DeathCoil"),
-    ShadowWard      = NS.spell_action({ 28610, 11740, 11739, 6229 }, "ShadowWard"),
-    DemonArmor      = NS.spell_action({ 27260, 11735, 11734, 11733, 706 }, "DemonArmor"),
-    FelArmor        = NS.spell_action({ 28176, 28189 }, "FelArmor"),
+    DeathCoil       = NS.spell_action({ 17926, 17925, 6789 }, "DeathCoil"),
+    ShadowWard      = NS.spell_action({ 11740, 11739, 6229 }, "ShadowWard"),
+    DemonArmor      = NS.spell_action({ 11735, 11734, 11733, 1086, 706 }, "DemonArmor"),
+    FelArmor        = nil,  -- Fel Armor is TBC-only
     AmplifyCurse    = NS.spell_action({ 18288 }, "AmplifyCurse"),
-    BloodFury       = NS.spell_action({ 33697, 20572 }, "BloodFury"),
-    Berserking      = NS.spell_action({ 20554, 26297 }, "Berserking"),
-    ArcaneTorrent   = NS.spell_action({ 25046 }, "ArcaneTorrent"),
-    CreateSoulstone = NS.spell_action({ 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
+    BloodFury       = NS.spell_action({ 20572 }, "BloodFury"),
+    Berserking      = NS.spell_action({ 20554 }, "Berserking"),
+    ArcaneTorrent   = nil,  -- Arcane Torrent is TBC-only (Blood Elf racial)
+    CreateSoulstone = NS.spell_action({ 20756, 20755, 20752, 693 }, "CreateSoulstone"),
     Shoot           = NS.spell_action({ 5019 }, "Shoot"),
 }
 
 local MANA_POTION_IDS = {
-    TBC_POTIONS.crystal_mana or 33935,
-    TBC_POTIONS.auchenai_mana or 32948,
-    TBC_POTIONS.super_mana or 22832,
-    TBC_POTIONS.super_rejuvenation or 22850,
-    TBC_POTIONS.major_mana or 13444,
-    TBC_POTIONS.superior_mana or 13443,
+    13444,  -- Major Mana Potion
+    13443,  -- Superior Mana Potion
 }
+local HEALTHSTONE_IDS = { 19013, 19012, 19011, 19010, 19009, 19008, 19007, 19006, 19005, 19004, 5510, 5509, 5511, 5512 }
+local SOULSTONE_BUFF_IDS = { 20765, 20764, 20763, 20762, 20707 }
+local SOULSTONE_ITEMS = { 16896, 16895, 16893, 16892, 5232 }
 
 -- ============================================================================
 -- State builder (pre-allocated)
@@ -115,6 +116,8 @@ local aff_state = {
     pet_mana = 100,
     -- Items
     mana_potion_id = nil,
+    healthstone_id = nil,
+    healthstone_ready = false,
     amplify_curse_ready = false,
     -- Soulstone / Wand
     has_soulstone = false,
@@ -137,7 +140,9 @@ local function build_state(context)
         aff_state.agony_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0
         aff_state.doom_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0
         aff_state.siphon_remains = NS.debuff_remains and NS.debuff_remains(target, SIPHON_LIFE_DEBUFF) or 0
-        aff_state.immolate_remains = NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0	        aff_state.se_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_EMBRACE_DEBUFF) or 0
+        aff_state.immolate_remains = NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0
+        aff_state.coe_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0
+        aff_state.se_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_EMBRACE_DEBUFF) or 0
 		        aff_state.isb_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, ISB_DEBUFF) or 0
 	        aff_state.target_hp = (target.get_health_percentage and target:get_health_percentage()) or 100
 	    else
@@ -145,7 +150,9 @@ local function build_state(context)
 	        aff_state.corruption_remains = 0
 	        aff_state.agony_remains = 0
 	        aff_state.siphon_remains = 0
-	        aff_state.immolate_remains = 0	        aff_state.se_stacks = 0
+	        aff_state.immolate_remains = 0
+            aff_state.coe_remains = 0
+            aff_state.se_stacks = 0
 		        aff_state.isb_stacks = 0
 	        aff_state.target_hp = 100
 	    end
@@ -191,9 +198,26 @@ local function build_state(context)
     for _, id in ipairs(MANA_POTION_IDS) do
         if NS.is_item_ready and NS.is_item_ready(id) then aff_state.mana_potion_id = id; break end
     end
+    aff_state.healthstone_id = nil
+    aff_state.healthstone_ready = false
+    if NS.is_item_ready then
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            local ok, ready = pcall(NS.is_item_ready, id)
+            if ok and ready then
+                aff_state.healthstone_id = id
+                aff_state.healthstone_ready = true
+                break
+            end
+        end
+    end
     -- Soulstone buff check (pre-combat self-buff)
     local me = context.me
-    aff_state.has_soulstone = me and NS.has_player_buff and NS.has_player_buff({ 27239, 20758, 20757, 20753, 20754 }) or false
+    aff_state.has_soulstone = me and NS.has_player_buff and NS.has_player_buff(SOULSTONE_BUFF_IDS) or false
+    if not aff_state.has_soulstone and NS.has_item then
+        for _, id in ipairs(SOULSTONE_ITEMS) do
+            if NS.has_item(id) then aff_state.has_soulstone = true; break end
+        end
+    end
     -- Wand (Shoot) spell readiness
     aff_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
     return aff_state
@@ -244,7 +268,7 @@ end
 
 -- Throttle DoT re-matches when aura APIs are broken on private servers.
 local function broken_api_dot_throttled(spell_id)
-    return NS.is_api_health_broken() and NS.recent_spell_cast(spell_id, 2.0)
+    return NS.is_api_health_broken and NS.is_api_health_broken() and NS.recent_spell_cast and NS.recent_spell_cast(spell_id, 2.0)
 end
 local strategies = {
 
@@ -268,12 +292,12 @@ local strategies = {
     -- ------------------------------------------------------------------------
     {
         name = "Healthstone",
-        matches = function(context)
+        matches = function(context, state)
             if (context.hp or 100) > 40 then return false end
-            return NS.spell_ready(LOCAL_SPELLS.CreateHealthstone, NS.PLAYER_UNIT, { skip_range = true })
+            return state and state.healthstone_ready == true
         end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.CreateHealthstone, NS.PLAYER_UNIT, "[AFFL] Use Healthstone")
+        execute = function(_, state)
+            return state and state.healthstone_id and NS.use_item_by_id and NS.use_item_by_id(state.healthstone_id) or false
         end,
     },
 
@@ -283,14 +307,7 @@ local strategies = {
     {
         name = "UnavailableClassicWarlockThreat",
         matches = function(context, state)
-            if not context.in_combat then return false end
-            if context.threat_pct and context.threat_pct < 90 then return false end
-            local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-            if not me then return false end
-            -- Local timer: Soul shatter has 5min CD
-            if (NS.time_now() - _last_soulshatter) < 290 then return false end
-            if NS.cooldown_remains(SPELLS.UnavailableClassicWarlockThreat, 300) > 0 then return false end
-            return NS.spell_ready(SPELLS.UnavailableClassicWarlockThreat, me, { skip_range = true })
+            return false
         end,
         execute = function(context)
             local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
@@ -334,12 +351,7 @@ local strategies = {
     {
         name = "UnavailableClassicWarlockDot",
         matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(30405) then return false end
-            if state.ua_remains > DOT_REFRESH_WINDOW then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-	            local ratio = SPELL_DMG_UPGRADE_RATIO
-	            if state.ua_remains > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_ua_dmg, state.ua_remains, DOT_REFRESH_WINDOW, ratio) then return false end
-            return NS.spell_ready(SPELLS.UnavailableClassicWarlockDot, context.target)
+            return false
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.UnavailableClassicWarlockDot, context.target, "[AFFL] Unstable Affliction")
@@ -355,10 +367,10 @@ local strategies = {
         name = "CorruptionDoT",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(27216) then return false end
-            if state.corruption_remains > DOT_REFRESH_WINDOW then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            if broken_api_dot_throttled(25311) then return false end
+            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
 	            local ratio = SPELL_DMG_UPGRADE_RATIO
-	            if state.corruption_remains > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_corruption_dmg, state.corruption_remains, DOT_REFRESH_WINDOW, ratio) then return false end
+	            if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             return NS.spell_ready(SPELLS.Corruption, context.target)
         end,
         execute = function(context)
@@ -376,11 +388,10 @@ local strategies = {
         name = "SiphonLife",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if state.siphon_remains > DOT_REFRESH_WINDOW then return false end
-            -- Gate: require at least 1 stack of ISB (Shadow Vulnerability) on target
-            if state.isb_stacks < 1 then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
 	            local ratio = SPELL_DMG_UPGRADE_RATIO
-	            if state.siphon_remains > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_siphon_dmg, state.siphon_remains, DOT_REFRESH_WINDOW, ratio) then return false end
+	            if (state.siphon_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_siphon_dmg or 0, state.siphon_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- Siphon Life is talent-gated; spell won't be ready if not learned
             return NS.spell_ready(SPELLS.SiphonLife, context.target)
         end,
@@ -400,7 +411,7 @@ local strategies = {
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
             -- Don't refresh if already applied and still ticking
-            if state.doom_remains > DOT_REFRESH_WINDOW then return false end
+            if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Only on long-lived targets (Doom takes 60s to tick)
             if context.ttd and context.ttd < 62 then return false end
             return NS.spell_ready(SPELLS.CurseOfDoom, context.target)
@@ -419,7 +430,7 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
-            if state.agony_remains > DOT_REFRESH_WINDOW then return false end
+            if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- On short-lived targets, CoA may not run full duration
             if context.ttd and context.ttd < 8 then return false end
             return NS.spell_ready(SPELLS.CurseOfAgony, context.target)
@@ -436,11 +447,11 @@ local strategies = {
         name = "ImmolateDoT",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if state.immolate_remains > DOT_REFRESH_WINDOW then return false end
+            if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Skip if target TTD is very short
             if context.ttd and context.ttd < 5 then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
 	            local ratio = SPELL_DMG_UPGRADE_RATIO
-	            if state.immolate_remains > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_immolate_dmg, state.immolate_remains, DOT_REFRESH_WINDOW, ratio) then return false end
+	            if (state.immolate_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             return NS.spell_ready(SPELLS.Immolate, context.target)
         end,
         execute = function(context)
@@ -465,10 +476,10 @@ local strategies = {
             if context.ttd and context.ttd < 60 then return false end
             -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
             local about_to_curse = false
-            if state.agony_remains <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 8 then about_to_curse = true end
-            if state.doom_remains <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 62 then about_to_curse = true end
+            if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 8 then about_to_curse = true end
+            if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 62 then about_to_curse = true end
             -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
-            if context.target and state.doom_remains <= 0 and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
+            if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
             return about_to_curse
         end,
         execute = function()
@@ -482,10 +493,7 @@ local strategies = {
     {
         name = "UnavailableClassicWarlockAoe",
         matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            local min_targets = context.settings and context.settings.aff_seed_targets or 3
-            if (state.enemy_count or 0) < min_targets then return false end
-            return NS.spell_ready(SPELLS.UnavailableClassicWarlockAoe, context.target)
+            return false
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.UnavailableClassicWarlockAoe, context.target, "[AFFL] Seed of Corruption")
@@ -499,13 +507,13 @@ local strategies = {
         name = "DrainSoulExecute",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if state.target_hp > EXECUTE_HP then return false end
+            if (state.target_hp or 100) > EXECUTE_HP then return false end
             if context.is_channeling then return false end
             return NS.spell_ready(LOCAL_SPELLS.DrainSoul, context.target)
         end,
-        execute = function(context)
+        execute = function(context, state)
             return NS.try_cast(LOCAL_SPELLS.DrainSoul, context.target,
-                string.format("[AFFL] Drain Soul execute (%.0f%%)", state.target_hp))
+                string.format("[AFFL] Drain Soul execute (%.0f%%)", (state and state.target_hp) or 0))
         end,
     },
 
@@ -547,7 +555,7 @@ local strategies = {
         matches = function(context, state)
             local threshold = math.min(context.settings and context.settings.aff_life_tap_mana or 30, 65)
             if (state.mana_pct or 100) > threshold then return false end
-            if state.hp_pct < LIFE_TAP_SAFETY_HP then return false end
+            if (state.hp_pct or 100) < LIFE_TAP_SAFETY_HP then return false end
             return NS.spell_ready(SPELLS.LifeTap, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
@@ -564,7 +572,7 @@ local strategies = {
             local threshold = context.settings and context.settings.aff_dark_pact_mana or 20
             if (state.mana_pct or 100) > threshold then return false end
             if not state.pet_alive then return false end
-            if state.pet_mana < 20 then return false end
+            if (state.pet_mana or 0) < 20 then return false end
             return NS.spell_ready(LOCAL_SPELLS.DarkPact, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
@@ -603,7 +611,7 @@ local strategies = {
     },
     {
         name = "RacialArcaneTorrent",
-        matches = function(context, state) return racial_matches(context, state) and NS.spell_ready(LOCAL_SPELLS.ArcaneTorrent, context.target) end,
+        matches = function(context, state) return LOCAL_SPELLS.ArcaneTorrent and racial_matches(context, state) and NS.spell_ready(LOCAL_SPELLS.ArcaneTorrent, context.target) end,
         execute = function(context) return NS.try_cast(LOCAL_SPELLS.ArcaneTorrent, context.target, "[AFFL] Arcane Torrent") end,
     },
 
@@ -661,15 +669,15 @@ local strategies = {
     -- 21. Demon Armor / Fel Armor (out of combat)
     -- ------------------------------------------------------------------------
     {
-        name = "FelArmorBuff",
+        name = "DemonArmorBuff",
         matches = function(context)
             if context.in_combat then return false end
             local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-            if me and NS.buff_remains(me, FEL_ARMOR_BUFF) > 0 then return false end
-            return NS.spell_ready(LOCAL_SPELLS.FelArmor, me or NS.PLAYER_UNIT, { skip_range = true })
+            if me and NS.buff_remains(me, DEMON_ARMOR_BUFF) > 0 then return false end
+            return NS.spell_ready(LOCAL_SPELLS.DemonArmor, me or NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
-            return NS.try_cast(LOCAL_SPELLS.FelArmor, NS.PLAYER_UNIT, "[AFFL] Fel Armor")
+            return NS.try_cast(LOCAL_SPELLS.DemonArmor, NS.PLAYER_UNIT, "[AFFL] Demon Armor")
         end,
     },
 
@@ -680,7 +688,7 @@ local strategies = {
         name = "HealthFunnelPet",
         matches = function(context, state)
             if not state.pet_alive then return false end
-            if state.pet_health > 40 then return false end
+            if (state.pet_health or 100) > 40 then return false end
             return NS.spell_ready(LOCAL_SPELLS.HealthFunnel, context.pet)
         end,
         execute = function(context)
@@ -696,9 +704,9 @@ local strategies = {
     -- ------------------------------------------------------------------------
     {
         name = "CurseOfElements",
-        matches = function(context)
-            if context.in_combat then return false end
+        matches = function(context, state)
             if not context.target then return false end
+            if state and (state.coe_remains or 0) > 10 then return false end
             return NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target)
         end,
         execute = function(context)
@@ -751,7 +759,7 @@ local strategies = {
             if not context.in_combat then return false end
             if not state.wand_learned then return false end
             local wand_threshold = context.settings and context.settings.aff_wand_mana or 15
-            if state.mana_pct >= wand_threshold then return false end
+            if (state.mana_pct or 100) >= wand_threshold then return false end
             if not context.has_valid_enemy_target then return false end
             return NS.spell_ready(LOCAL_SPELLS.Shoot, context.target)
         end,

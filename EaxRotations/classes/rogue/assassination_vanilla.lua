@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Assassination Rogue rotation
--- =========================================================================
-local __eax_file = "classes/rogue/assassination_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Assassination Rogue rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Classic Vanilla Rogue Assassination priority list with UnavailableClassicRogueBuilder CP building,
--- ============================================================================
--- What: Classic Vanilla Rogue Assassination rotation with UnavailableClassicRogueBuilder, poison upkeep, and finisher priority
--- When: Per tick
--- Why: Keeps deadly poison stacks and finisher timing aligned for sustained damage
--- Safety: Pre-allocated state, nil-guarded target/item checks, conservative energy thresholds
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -34,15 +10,13 @@ local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvan
 -- ============================================================================
 local STEALTH_BUFF     = { 1787, 1786, 1785, 1784 }
 local SLICE_DICE_BUFF  = { 6774, 5171 }
-local FIND_WEAKNESS_BUFF = { 31235, 31234, 31233 }  -- debuff on target after finisher
+local FIND_WEAKNESS_BUFF = { }  -- debuff on target after finisher
 local RUPTURE_DEBUFF   = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
 local GARROTE_DEBUFF   = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
 local COLD_BLOOD_BUFF = { 14177 }
-local DEADLY_POISON_DEBUFF = { 27187, 27186, 26968, 26967, 25349, 25347, 11354, 11356, 11353, 11355, 2819, 2837, 2818, 2835 }
+local DEADLY_POISON_DEBUFF = { 25349, 25347, 11354, 11356, 11353, 11355, 2819, 2837, 2818, 2835 }
 local CRIPPLING_POISON_DEBUFF = { 3408, 3409, 11201, 11202 }
-local WOUND_POISON_DEBUFF   = { 27283, 13230, 13229, 13228, 13220 }  -- Wound Poison (healing reduction, DB2-vetted)
-local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
-
+local WOUND_POISON_DEBUFF   = { 13230, 13229, 13228, 13220 }  -- Wound Poison (healing reduction, DB2-vetted)
 local DOT_REFRESH_WINDOW = 3
 local SND_REFRESH_WINDOW = 3     -- Slice and Dice refresh when < 3s remains
 local ENERGY_TICK = 20           -- Energy gained per tick (2s)
@@ -80,10 +54,6 @@ local assassin_state = {
     -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
     shiv_ready = false,
     shiv_purge_name = nil,
-    -- Disarm (PvP Dismantle)
-    disarm_ready = false,
-    disarm_class_ok = false,
-    disarm_buff_name = nil,
 }
 
 local function build_state(context)
@@ -147,22 +117,6 @@ local function build_state(context)
     assassin_state.energy_low = assassin_state.energy < ENERGY_LOW_BUILDER
     assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
     assassin_state.hp_pct = context.hp or 100
-    -- Disarm (PvP Dismantle — weapon removal vs melee)
-    assassin_state.disarm_ready = target and NS.spell_ready(SPELLS.Dismantle, target, { expected_cooldown = 60 }) or false
-    assassin_state.disarm_class_ok = false
-    assassin_state.disarm_buff_name = nil
-    if target and (context.is_pvp or false) and assassin_state.disarm_ready then
-        local ok, class_id = pcall(function() return target:get_class() end)
-        if ok and type(class_id) == "number" and DISARM_CLASS_IDS[class_id] then
-            assassin_state.disarm_class_ok = true
-            if CCGateDB and CCGateDB.find_best_dispel_target then
-                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(target, NS)
-                if best_id and (best_priority or 0) >= 3 then
-                    assassin_state.disarm_buff_name = best_name
-                end
-            end
-        end
-    end
     -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
     assassin_state.shiv_ready = target and NS.spell_ready(SPELLS.UnavailableClassicRogueUtility, target, { expected_cooldown = 10 }) or false
     assassin_state.shiv_purge_name = nil
@@ -185,7 +139,6 @@ end
 local function shiv_purge_matches(context, state)
     local settings = context.settings or {}
     if settings.use_shiv_purge == false then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
     if not context.in_combat then return false end
     if not (context.is_pvp or false) then return false end
     if not context.target then return false end
@@ -210,7 +163,7 @@ local function assassination_leveling_builder_matches(context, state)
 end
 
 -- ============================================================================
--- Strategies (priority order: survival → cooldowns → finishers → builders → PvP)
+-- Strategies (priority order: survival ? cooldowns ? finishers ? builders ? PvP)
 -- ============================================================================
 local strategies = {
 
@@ -291,7 +244,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- PvP: UnavailableClassicRogueUtility Purge — dispel 1 magic buff via Wound Poison (BoP, PW:S, etc.)
+    -- PvP: UnavailableClassicRogueUtility Purge ? dispel 1 magic buff via Wound Poison (BoP, PW:S, etc.)
     -- Ported from middleware/combat/subtlety UnavailableClassicRogueUtilityPurge pattern.
     -- ------------------------------------------------------------------------
     {
@@ -299,43 +252,7 @@ local strategies = {
         matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end,
         execute = function(context)
             local name = context._shiv_purge_name or "buff"
-            return NS.try_cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[ASSASS] UnavailableClassicRogueUtility purge → " .. name, { expected_cooldown = 10 })
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- PvP: Dismantle — remove enemy melee weapon (10s, no stance required)
-    -- Ported from middleware/leveling Disarm pattern. Uses offensive dispel
-    -- priority DB for on_burst trigger mode (priority ≥ 3).
-    -- ------------------------------------------------------------------------
-    {
-        name = "AssassinationDisarm",
-        matches = function(context, state)
-            local settings = context.settings or {}
-            if settings.use_disarm == false then return false end
-            if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
-            if not context.in_combat then return false end
-            if not (context.is_pvp or false) then return false end
-            if not context.target then return false end
-            if not (context.in_melee_range or false) then return false end
-            if not state.disarm_ready then return false end
-            if not state.disarm_class_ok then return false end
-            if settings.disarm_pvp_only ~= false then
-                local ok, is_player = pcall(function() return context.target:is_player() end)
-                if not (ok and is_player) then return false end
-            end
-            local trigger = settings.disarm_trigger or "on_burst"
-            if trigger == "on_burst" then
-                if not state.disarm_buff_name then return false end
-                context._disarm_buff_name = state.disarm_buff_name
-            end
-            return true
-        end,
-        execute = function(context)
-            local label = context._disarm_buff_name
-                and ("[ASSASS] Dismantle → " .. context._disarm_buff_name)
-                or "[ASSASS] Dismantle"
-            return NS.try_cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 })
+            return NS.try_cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[ASSASS] UnavailableClassicRogueUtility purge ? " .. name, { expected_cooldown = 10 })
         end,
     },
 
@@ -364,7 +281,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 7. UnavailableClassicRogueFinisher (finisher — DP stacks consumed)
+    -- 7. UnavailableClassicRogueFinisher (finisher ? DP stacks consumed)
     -- ------------------------------------------------------------------------
     {
         name = "UnavailableClassicRogueFinisherFinisher",
@@ -403,7 +320,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 9. Rupture (bleed finisher — only on long-lived targets)
+    -- 9. Rupture (bleed finisher ? only on long-lived targets)
     -- Research: "Use only when TTD > 12s."
     -- ------------------------------------------------------------------------
     {
@@ -457,7 +374,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 12. UnavailableClassicRogueUtility (Deadly Poison refresh — energy-gated)
+    -- 12. UnavailableClassicRogueUtility (Deadly Poison refresh ? energy-gated)
     -- ------------------------------------------------------------------------
     {
         name = "UnavailableClassicRogueUtilityRefresh",
@@ -476,7 +393,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 13. UnavailableClassicRogueBuilder (primary CP builder — requires poison + behind target)
+    -- 13. UnavailableClassicRogueBuilder (primary CP builder ? requires poison + behind target)
     -- Research: "+50% damage against poisoned targets, behind-target requirement."
     -- Energy gate: pool below 40 energy (Research floor).
     -- ------------------------------------------------------------------------
@@ -515,7 +432,7 @@ local strategies = {
             -- Only active when UnavailableClassicRogueBuilder is learned but can't be used
             local level = context.player_level or 70
             if level < 50 or not (NS.spell_exists and NS.spell_exists(SPELLS.UnavailableClassicRogueBuilder)) then return false end
-            -- Only as fallback — skip if UnavailableClassicRogueBuilder CAN be used (poisoned + behind)
+            -- Only as fallback ? skip if UnavailableClassicRogueBuilder CAN be used (poisoned + behind)
             if state.target_poisoned and (not NS.is_behind_target or NS.is_behind_target(context.target)) then return false end
             if state.energy_low then return false end  -- pool energy below 40
             return NS.spell_ready(SPELLS.SinisterStrike, context.target)

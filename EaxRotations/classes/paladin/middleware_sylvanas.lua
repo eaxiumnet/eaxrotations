@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/paladin/middleware_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Paladin shared middleware.
 
--- ============================================================================
--- What: Cross-playstyle paladin middleware.
--- When: Before strategies each tick.
--- Why: Shared defensives, interrupts, and utility stay in one place.
--- Safety: Nil-guarded settings; clean false returns; NS.* helpers only.
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -35,7 +11,14 @@ local SPELLS = NS.PaladinSpells or {}
 local REAGENT_SYMBOL_OF_KINGS = 21177
 local REAGENT_SYMBOL_OF_WISDOM = 19848
 -- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
-local PALADIN_AOE_IDS = { 20922, 10318 }  -- Consecration, Holy Wrath
+local PALADIN_AOE_IDS = { 27173, 20924, 20923, 20922, 20116, 26573, 27139, 10318, 2812 }  -- Consecration, Holy Wrath
+local BLESSING_KINGS_BUFF = { 25898, 20217 }
+local BLESSING_WISDOM_BUFF = { 27143, 27142, 25918, 25894, 25290, 19854, 19853, 19852, 19850, 19742 }
+local BLESSING_MIGHT_BUFF = { 27141, 27140, 25916, 25782, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }
+local BLESSING_SANCTUARY_BUFF = { 27168, 20914, 20913, 20912, 20911 }
+local OTHER_BLESSINGS_FOR_WISDOM = { 25898, 20217, 27141, 27140, 25916, 25782, 25291, 19838, 19837, 19836, 19835, 19834, 19740, 27168, 20914, 20913, 20912, 20911 }
+local OTHER_BLESSINGS_FOR_KINGS = { 27143, 27142, 25918, 25894, 25290, 19854, 19853, 19852, 19850, 19742, 27141, 27140, 25916, 25782, 25291, 19838, 19837, 19836, 19835, 19834, 19740, 27168, 20914, 20913, 20912, 20911 }
+local ALL_BLESSING_BUFFS = { 25898, 20217, 27143, 27142, 25918, 25894, 25290, 19854, 19853, 19852, 19850, 19742, 27141, 27140, 25916, 25782, 25291, 19838, 19837, 19836, 19835, 19834, 19740, 27168, 20914, 20913, 20912, 20911 }
 
 -- Root/snare debuffs that Blessing of Freedom removes
 local ROOT_SNARE_DEBUFFS = {
@@ -165,7 +148,11 @@ local strategies = {
             local hasPoison = false
             local hasDisease = false
             local hasMagic = false
-            if me.has_debuff then
+            if type(NS.has_dispel_type_debuff) == "function" then
+                hasPoison = NS.has_dispel_type_debuff(me, "Poison")
+                hasDisease = NS.has_dispel_type_debuff(me, "Disease")
+                hasMagic = NS.has_dispel_type_debuff(me, "Magic")
+            elseif NS.has_player_debuff then
                 hasPoison = NS.has_player_debuff({2764, 5237, 11359, 13240})
                 hasDisease = NS.has_player_debuff({853, 1368, 2047})
                 hasMagic = NS.has_player_debuff({33786, 2855, 30982})
@@ -365,7 +352,7 @@ local strategies = {
             if context.is_mounted then return false end
             -- Check if any blessing is active
             local me = context.me
-            if me and NS.buff_up(me, {19740, 20217, 20355, 20911}) then
+            if me and NS.buff_up(me, ALL_BLESSING_BUFFS) then
                 return false
             end
             return true
@@ -415,12 +402,9 @@ local strategies = {
             local playstyle = settings.playstyle or settings.active_playstyle or ""
             if playstyle ~= "protection" then return false end
             local me = context.me
-            if not me or not me.buff_remains then return false end
+            if not me or not NS.buff_remains then return false end
             -- nil-guard: if both buff_remains return nil, API is unavailable — skip to avoid spam
-            local kings1 = NS.buff_remains(me, {20217}) or 0
-            local kings2 = NS.buff_remains(me, {25898}) or 0
-            if kings1 == nil and kings2 == nil then return false end
-            local kingsRemains = (kings1 or 0) + (kings2 or 0)
+            local kingsRemains = NS.buff_remains(me, BLESSING_KINGS_BUFF) or 0
             if kingsRemains > 120 then return false end
             if not SPELLS.BlessingOfKings then return false end
             return true
@@ -452,14 +436,12 @@ local strategies = {
             local playstyle = settings.playstyle or settings.active_playstyle or ""
             if playstyle ~= "protection" then return false end
             local me = context.me
-            if not me or not me.buff_remains then return false end
+            if not me or not NS.buff_remains then return false end
             local manaPct = context.mana_pct or 100
             if manaPct < (settings.combat_kings_refresh_mana or 30) then return false end
             -- nil-guard: if both buff_remains return nil or 0, API is unavailable
-            local kings1 = NS.buff_remains(me, {20217}) or 0
-            local kings2 = NS.buff_remains(me, {25898}) or 0
-            if kings1 == 0 and kings2 == 0 then return false end
-            local kingsRemains = kings1 + kings2
+            local kingsRemains = NS.buff_remains(me, BLESSING_KINGS_BUFF) or 0
+            if kingsRemains == 0 then return false end
             local threshold = settings.combat_kings_refresh_threshold or 60
             if kingsRemains > threshold then return false end
             if not SPELLS.BlessingOfKings then return false end
@@ -483,7 +465,7 @@ local strategies = {
         matches = function(context)
             if not context.in_combat then return false end
             local me = context.me
-            if not me or not me.buff_remains then return false end
+            if not me or not NS.buff_remains then return false end
             local settings = context.settings or {}
             local manaPct = context.mana_pct or 100
             if manaPct < (settings.combat_wisdom_refresh_mana or 30) then return false end
@@ -491,17 +473,10 @@ local strategies = {
             local playstyle = settings.playstyle or settings.active_playstyle or ""
             if playstyle ~= "holy" then return false end
             -- Blessing detection: don't overwrite Kings/Might/Sanctuary (safety net)
-            if me.has_buff then
-                if me and NS.buff_up(me, {20217, 19740, 20911}) then return false end
-            end
+            if NS.buff_up and NS.buff_up(me, OTHER_BLESSINGS_FOR_WISDOM) then return false end
             local threshold = settings.combat_wisdom_refresh_threshold or 120
             -- Check self first
-            local wisdomRemains
-            local wisdom1 = NS.buff_remains(me, {20355}) or 0
-            local wisdom2 = NS.buff_remains(me, {25894}) or 0
-            -- If both buff_remains calls return nil, skip (API unavailable/undetected)
-            if wisdom1 == nil and wisdom2 == nil then return false end
-            wisdomRemains = (wisdom1 or 0) + (wisdom2 or 0)
+            local wisdomRemains = NS.buff_remains(me, BLESSING_WISDOM_BUFF) or 0
             if wisdomRemains <= threshold and SPELLS.BlessingOfWisdom then
                 return true
             end
@@ -513,16 +488,11 @@ local strategies = {
             if NS.GetPartyMembers then
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
-                    if member and member.buff_remains then
-            local m1 = NS.buff_remains(member, {20355}) or 0
-            local m2 = NS.buff_remains(member, {25894}) or 0
-                        -- If both returns are nil, skip this member (API undetected, don't overwrite)
-                        if m1 ~= nil or m2 ~= nil then
-                            local mRemains = (m1 or 0) + (m2 or 0)
-                            if mRemains <= threshold then
-                                if (useGreater and SPELLS.GreaterBlessingOfWisdom) or SPELLS.BlessingOfWisdom then
-                                    return true
-                                end
+                    if member and NS.buff_remains then
+                        local mRemains = NS.buff_remains(member, BLESSING_WISDOM_BUFF) or 0
+                        if mRemains <= threshold then
+                            if (useGreater and SPELLS.GreaterBlessingOfWisdom) or SPELLS.BlessingOfWisdom then
+                                return true
                             end
                         end
                     end
@@ -535,7 +505,7 @@ local strategies = {
             local settings = context.settings or {}
             local threshold = settings.combat_wisdom_refresh_threshold or 120
             -- Self first
-            local selfRemains = (NS.buff_remains(me, {20355}) or 0) + (NS.buff_remains(me, {25894}) or 0)
+            local selfRemains = NS.buff_remains(me, BLESSING_WISDOM_BUFF) or 0
             if selfRemains <= threshold and SPELLS.BlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfWisdom, me, {}) then
                 return NS.try_cast(SPELLS.BlessingOfWisdom, me, "[PALADIN] Combat Wisdom refresh (self)")
             end
@@ -547,8 +517,8 @@ local strategies = {
             if NS.GetPartyMembers then
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
-                    if member and member.buff_remains then
-                        local mRemains = (NS.buff_remains(member, {20355}) or 0) + (NS.buff_remains(member, {25894}) or 0)
+                    if member and NS.buff_remains then
+                        local mRemains = NS.buff_remains(member, BLESSING_WISDOM_BUFF) or 0
                         if mRemains <= threshold then
                             if useGreater and SPELLS.GreaterBlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfWisdom, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfWisdom, member, "[PALADIN] Greater Wisdom refresh (party)")
@@ -583,16 +553,11 @@ local strategies = {
             if NS.GetPartyMembers then
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
-                    if member and member.buff_remains then
-            local m1 = NS.buff_remains(member, {20217}) or 0
-            local m2 = NS.buff_remains(member, {25898}) or 0
-                        -- If both returns are nil, skip this member (API undetected, don't overwrite)
-                        if m1 ~= nil or m2 ~= nil then
-                            local mRemains = (m1 or 0) + (m2 or 0)
-                            if mRemains <= (settings.combat_kings_refresh_threshold or 60) then
-                                if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
-                                    return true
-                                end
+                    if member and NS.buff_remains then
+                        local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
+                        if mRemains <= (settings.combat_kings_refresh_threshold or 60) then
+                            if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
+                                return true
                             end
                         end
                     end
@@ -610,8 +575,8 @@ local strategies = {
             if NS.GetPartyMembers then
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
-                    if member and member.buff_remains then
-                        local mRemains = (NS.buff_remains(member, {20217}) or 0) + (NS.buff_remains(member, {25898}) or 0)
+                    if member and NS.buff_remains then
+                        local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
                         if mRemains <= threshold then
                             if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings refresh (party)")
@@ -643,20 +608,13 @@ local strategies = {
             if NS.GetPartyMembers then
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
-                    if member and member.buff_remains then
-            local m1 = NS.buff_remains(member, {20217}) or 0
-            local m2 = NS.buff_remains(member, {25898}) or 0
-                        -- If both returns are nil, skip this member (API undetected, don't overwrite)
-                        if m1 == nil and m2 == nil then
-                            -- noop: skip
-                        else
-                            local mRemains = (m1 or 0) + (m2 or 0)
-                            -- Skip if they have another blessing type (don't overwrite)
-                            local hasOther = NS.buff_up(member, {19740, 20355, 20911})
-                            if not hasOther and mRemains <= 0 then
-                                if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
-                                    return true
-                                end
+                    if member and NS.buff_remains then
+                        local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
+                        -- Skip if they have another blessing type (don't overwrite)
+                        local hasOther = NS.buff_up and NS.buff_up(member, OTHER_BLESSINGS_FOR_KINGS)
+                        if not hasOther and mRemains <= 0 then
+                            if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
+                                return true
                             end
                         end
                     end
@@ -672,9 +630,9 @@ local strategies = {
             if NS.GetPartyMembers then
                 local members = NS.GetPartyMembers()
                 for _, member in ipairs(members or {}) do
-                    if member and member.buff_remains then
-                        local mRemains = (NS.buff_remains(member, {20217}) or 0) + (NS.buff_remains(member, {25898}) or 0)
-                        local hasOther = NS.buff_up(member, {19740, 20355, 20911})
+                    if member and NS.buff_remains then
+                        local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
+                        local hasOther = NS.buff_up and NS.buff_up(member, OTHER_BLESSINGS_FOR_KINGS)
                         if not hasOther and mRemains <= 0 then
                             if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings (group, OOC)")

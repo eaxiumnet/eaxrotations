@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/warlock/middleware_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warlock shared middleware.
--- ============================================================================
--- What: TBC Warlock middleware for interrupts, threat drops, defensives, and consumables
--- When: Per tick
--- Why: Shared recovery and survival logic should run before playstyle-specific priorities
--- Safety: Settings and targets are nil-guarded; optional modules load conservatively; item use is checked before cast
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -32,12 +8,14 @@ local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_disp
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = {} } end
 local SPELLS = NS.WarlockSpells or {}
+local SHADOW_CASTER_CLASS_IDS = { [5] = true, [9] = true } -- Priest, Warlock
 
 -- Devour Magic spell object (Felhunter pet ability, TBC: 19505)
 local DEVOUR_MAGIC_SPELL = SPELLS.DevourMagic or { id = { 19505 }, name = "DevourMagic" }
 
 -- Death Coil CC break spell object + per-tick target cache
-local DEATH_COIL_IDS = { 6789, 17928, 17924, 17923 }
+local DEATH_COIL_IDS = { 27223, 17926, 17925, 6789 }
+local SHADOW_WARD_IDS = { 28610, 11740, 11739, 6229 }
 local _cached_cc_break_target = nil
 local _cached_cc_break_fresh = false
 
@@ -235,7 +213,7 @@ local strategies = {
             -- Cast on enemy target, the self-heal is a passive effect
             local target = context.target
             if not target then return false end
-            local spell = SPELLS.DeathCoil or { id = { 6789, 17928, 17924, 17923 }, name = "DeathCoil" }
+            local spell = SPELLS.DeathCoil or { id = DEATH_COIL_IDS, name = "DeathCoil" }
             if NS.spell_ready(spell, target, {}) then
                 return NS.try_cast(spell, target, "[WARLOCK] Death Coil")
             end
@@ -300,19 +278,18 @@ local strategies = {
             local threshold = settings.shadow_ward_hp or 70
             if hp > threshold then return false end
             -- Check if Shadow Ward buff already active
-            local ward_buffs = { 28610, 6229 }
-            if NS.has_player_buff and NS.has_player_buff(ward_buffs) then return false end
+            if NS.has_player_buff and NS.has_player_buff(SHADOW_WARD_IDS) then return false end
             -- Only vs shadow casters (Warlock, Shadow Priest)
             if context.target then
-                local class = nil
-                pcall(function() class = context.target:get_class() end)
-                if class ~= "WARLOCK" and class ~= "PRIEST" then return false end
+                local class_id = nil
+                pcall(function() class_id = context.target:get_class() end)
+                if not SHADOW_CASTER_CLASS_IDS[class_id] then return false end
             end
-            local spell = SPELLS.ShadowWard or { id = { 28610, 6229 }, name = "ShadowWard" }
+            local spell = SPELLS.ShadowWard or { id = SHADOW_WARD_IDS, name = "ShadowWard" }
             return NS.spell_ready(spell, context.me, { skip_range = true })
         end,
         execute = function(context)
-            local spell = SPELLS.ShadowWard or { id = { 28610, 6229 }, name = "ShadowWard" }
+            local spell = SPELLS.ShadowWard or { id = SHADOW_WARD_IDS, name = "ShadowWard" }
             return NS.try_cast(spell, context.me, "[WARLOCK] Shadow Ward", { skip_range = true })
         end,
     },

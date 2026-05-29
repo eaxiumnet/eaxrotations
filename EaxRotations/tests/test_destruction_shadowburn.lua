@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/test_destruction_shadowburn.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- unit tests for destruction_sylvanas Shadowburn execute logic.
 -- Verifies Shadowburn fires only when target is in execute range and soul shard is available.
 
@@ -41,28 +23,28 @@ _G.EaxRotations = {
         ShadowBolt = 27209,
         Corruption = 172,
         CurseOfAgony = 27218,
-        CurseOfDoom = 27214,
-        SearingPain = 27215,
-        SoulFire = 29858,
-        DeathCoil = 2894,
+        CurseOfDoom = 30910,
+        SearingPain = 30459,
+        SoulFire = 30545,
+        DeathCoil = 27223,
         Fear = 6215,
-        RainOfFire = 27211,
+        RainOfFire = 27212,
         Hellfire = 27213,
         SeedOfCorruption = 27243,
-        DrainLife = 27217,
-        LifeTap = 1454,
-        DarkPact = 27220,
-        HealthFunnel = 30656,
+        DrainLife = 27220,
+        LifeTap = 27222,
+        DarkPact = 27265,
+        HealthFunnel = 27259,
         FelArmor = 28176,
-        DemonArmor = 27299,
-        ShadowWard = 28648,
-        CreateHealthstone = 6201,
+        DemonArmor = 27260,
+        ShadowWard = 28610,
+        CreateHealthstone = 27230,
         SummonImp = 688,
         SummonVoidwalker = 697,
         SummonSuccubus = 712,
         SummonFelhunter = 691,
         SummonFelguard = 30146,
-        FelDomination = 19028,
+        FelDomination = 18708,
     },
     has_item = function(item_id)
         action_calls[#action_calls + 1] = { fn = "has_item", item_id = item_id }

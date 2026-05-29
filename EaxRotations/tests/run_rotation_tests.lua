@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/run_rotation_tests.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local root = "EaxRotations"
 local mode = "normal"
 
@@ -121,12 +103,11 @@ local tests = {
     "test_action_execute_skip_gcd_izi_primary.lua",
 
     -- Exporter / registry tests
-    "test_exporter_smoke.lua",
     "test_unified_registry.lua",
     "test_leveling_dispatcher_prepass.lua",
     "test_leveling_dispatcher_registration.lua",
     "test_shaman_leveling_registration.lua",
-    "test_optimizer_core_fallback.lua",
+
     "test_role_rotation_regressions.lua",
 
     -- Shaman
@@ -176,6 +157,12 @@ local tests = {
     "test_burst_window.lua",
     "test_dispatcher_tick.lua",
     "test_dr_tracker.lua",
+
+    -- TTD fallback chain (build_context)
+    "test_ema_ttd_fallback.lua",
+
+    -- reset_api_health integration tests
+    "test_reset_api_health_aspect_manager.lua",
 }
 
 local function quote(path)

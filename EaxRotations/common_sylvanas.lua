@@ -46,4 +46,55 @@ local trinket_modes = {
     option("defensive", "Defensive"),
 }
 
+-- ============================================================================
+-- Shared Settings Factories for Quick-Win Improvements
+-- ============================================================================
+
+function NS.common_auto_aoe_section()
+    return section("Auto-AoE", {
+        checkbox("auto_aoe_enabled", true, "Enable Auto-AoE", "Automatically switch to AoE playstyle when enemy count exceeds threshold"),
+        { type = "slider", key = "auto_aoe_threshold", default = 3, min = 2, max = 8, label = "AoE Threshold", tooltip = "Minimum enemies to trigger Auto-AoE" },
+    }, "Dynamically switches to AoE rotation when enough enemies are in range.")
+end
+
+function NS.common_force_flags_section()
+    return section("Force Commands", {
+        checkbox("force_burst_enabled", true, "Enable /eax burst", "Allow force-burst slash command"),
+        checkbox("force_defensive_enabled", true, "Enable /eax def", "Allow force-defensive slash command"),
+        checkbox("force_gap_enabled", true, "Enable /eax gap", "Allow force-gap-closer slash command"),
+    }, "Slash-command overrides: /eax burst, /eax def, /eax gap (3-second timeout).")
+end
+
+function NS.common_interrupt_humanize_section()
+    return section("Interrupt Humanization", {
+        checkbox("interrupt_humanize_enabled", true, "Humanize Interrupts", "Add random per-cast delay so interrupts look less robotic"),
+        { type = "slider", key = "interrupt_cast_jitter_min", default = 0, min = 0, max = 10, label = "Cast Jitter Min (0.1s)", tooltip = "Minimum random delay for regular casts (in 0.1s units). 0 = no delay, 4 = 0.4s" },
+        { type = "slider", key = "interrupt_cast_jitter_max", default = 4, min = 0, max = 10, label = "Cast Jitter Max (0.1s)", tooltip = "Maximum random delay for regular casts (in 0.1s units). 0 = no delay, 4 = 0.4s" },
+        { type = "slider", key = "interrupt_channel_jitter_min", default = 3, min = 0, max = 15, label = "Channel Jitter Min (0.1s)", tooltip = "Minimum random delay for channeled spells (in 0.1s units). 3 = 0.3s" },
+        { type = "slider", key = "interrupt_channel_jitter_max", default = 8, min = 0, max = 15, label = "Channel Jitter Max (0.1s)", tooltip = "Maximum random delay for channeled spells (in 0.1s units). 8 = 0.8s" },
+    }, "Adds channel-aware random delay before interrupting so behavior mimics human reaction time.")
+end
+
+function NS.common_ttd_section()
+    return section("Linear Regression TTD", {
+        checkbox("ttd_linear_enabled", true, "Enable Regression TTD", "Estimate boss time-to-die from local HP samples instead of engine API"),
+        { type = "slider", key = "ttd_sample_interval", default = 5, min = 1, max = 20, label = "Sample Interval (0.1s)", tooltip = "Seconds between HP samples. 5 = 0.5s" },
+        { type = "slider", key = "ttd_window", default = 12, min = 4, max = 30, label = "Sample Window (s)", tooltip = "How many seconds of recent HP history to keep" },
+        { type = "slider", key = "ttd_min_samples", default = 4, min = 3, max = 12, label = "Min Samples", tooltip = "Minimum HP samples before regression is trusted" },
+        { type = "slider", key = "ttd_max_ttd", default = 300, min = 30, max = 600, label = "Max TTD Cap (s)", tooltip = "Highest TTD value the model will ever return" },
+    }, "Uses least-squares regression on recent health samples for accurate boss-fight TTD.")
+end
+
+function NS.common_predictive_healing_section()
+    return section("Predictive Healing Deficit", {
+        checkbox("healer_predict_enabled", true, "Enable Predictive Healing", "Project future health deficit from recent damage intake to avoid overhealing"),
+        { type = "slider", key = "healer_predict_sample_interval", default = 5, min = 1, max = 20, label = "Sample Interval (0.1s)", tooltip = "Seconds between HP samples. 5 = 0.5s" },
+        { type = "slider", key = "healer_predict_window", default = 4, min = 1, max = 10, label = "History Window (s)", tooltip = "How many seconds of recent HP history to keep for rate estimation" },
+        { type = "slider", key = "healer_predict_horizon", default = 2, min = 1, max = 5, label = "Prediction Horizon (s)", tooltip = "How far ahead to project damage (should match typical cast time)" },
+        { type = "slider", key = "healer_predict_safety_pct", default = 5, min = 0, max = 20, label = "Safety Margin (% max HP)", tooltip = "Extra predicted deficit buffer as % of max HP" },
+        { type = "slider", key = "healer_predict_min_rate", default = 1, min = 0, max = 10, label = "Min Damage Rate (%/s)", tooltip = "Ignore damage slower than this threshold to avoid reacting to noise" },
+        { type = "slider", key = "healer_predict_max_mult", default = 15, min = 10, max = 30, label = "Max Deficit Multiplier (0.1x)", tooltip = "Cap predicted extra deficit at this multiple of current deficit. 15 = 1.5x" },
+    }, "Estimates future health deficit from recent damage intake to stop healers from overhealing.")
+end
+
 NS.log("Common schema helpers loaded")

@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/shaman/elemental_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Shaman Elemental priority list.
--- ============================================================================
--- What: TBC Shaman Elemental priority list for Lightning Bolt, shocks, and totem support
--- When: Per tick
--- Why: Mana thresholds and debuff windows drive the ranged DPS priority order
--- Safety: Fallback spell tables; nil-guarded state queries; conservative mana defaults
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -182,7 +158,7 @@ local function chain_lightning_matches_fn(context, state)
     -- Research: CL only at 3+ targets; configurable via schema
     local s = context.settings or {}
     local min_targets = s.elemental_cl_min_targets or CL_MIN_TARGETS
-    if state.target_count < min_targets then return false end
+    if (state.target_count or 0) < min_targets then return false end
     return NS.spell_ready(SPELLS.ChainLightning, context.target)
 end
 
@@ -203,11 +179,11 @@ local function flame_shock_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlameShock, 2.0) then return false end
     if not context.target then return false end
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
-    if state.flame_remains > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
+    if (state.flame_remains or 0) > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
     -- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient = ~0.6 total; GCD-positive at ~400 SP
     local s = context.settings or {}
     local min_sp = s.elemental_flame_shock_min_sp or FLAME_SHOCK_MIN_SP_DEFAULT
-    if state.spell_damage < min_sp then return false end
+    if (state.spell_damage or 0) < min_sp then return false end
     if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
     return NS.spell_ready(SPELLS.FlameShock, context.target)
 end
@@ -261,7 +237,7 @@ local function water_shield_matches_fn(context, state)
     local s = context.settings or {}
     if state.mana_emergency then return false end
     local ws_mana = s.elemental_water_shield_mana or WATER_SHIELD_MANA_DEFAULT
-    if state.mana_pct > ws_mana then return false end
+    if (state.mana_pct or 100) > ws_mana then return false end
     return NS.spell_ready(SPELLS.WaterShield, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -287,7 +263,7 @@ end
 local function mana_tide_totem_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaTideTotem, 3.0) then return false end
     if state.mana_emergency then return false end
-    if state.mana_pct > 30 then return false end
+    if (state.mana_pct or 100) > 30 then return false end
     return NS.spell_ready(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -399,7 +375,7 @@ local function fire_nova_totem_matches_fn(context, state)
     if not context.in_combat then return false end
     if state.mana_conserve then return false end
     local min_targets = s.elemental_aoe_threshold or 4
-    if state.target_count < min_targets then return false end
+    if (state.target_count or 0) < min_targets then return false end
     if context.cc_safe == false then return false end
     return NS.spell_ready(SPELLS.FireNovaTotem, NS.PLAYER_UNIT, { skip_range = true })
 end
@@ -410,7 +386,7 @@ local function magma_totem_matches_fn(context, state)
     if not context.in_combat then return false end
     if state.mana_conserve then return false end
     local min_targets = s.elemental_aoe_threshold or 4
-    if state.target_count < min_targets then return false end
+    if (state.target_count or 0) < min_targets then return false end
     if context.cc_safe == false then return false end
     return NS.spell_ready(SPELLS.MagmaTotem, NS.PLAYER_UNIT, { skip_range = true })
 end

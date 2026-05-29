@@ -650,27 +650,27 @@ end)
 -- Test: swd_matches (ShadowWordDeath, strategy #14, before HF)
 -- ============================================================================
 
-test("swd_matches: ready, HP < 35% → true", function()
-    local ctx = make_context({}, {hp_pct = 20})
+test("swd_matches: ready, HP > 60% -> true", function()
+    local ctx = make_context({}, {hp_pct = 80})
     local state = get_state(ctx)
     state.swd_ready = true
-    state.hp = 20
-    assert_true(strategies[14].matches(ctx, state), "SWD with execute range should match")
+    state.hp = 80
+    assert_true(strategies[14].matches(ctx, state), "SWD should match only when self HP is safe")
 end)
 
-test("swd_matches: HP ≥ 35% → false", function()
+test("swd_matches: HP <= 60% -> false", function()
     local ctx = make_context({}, {hp_pct = 50})
     local state = get_state(ctx)
     state.swd_ready = true
     state.hp = 50
-    assert_false(strategies[14].matches(ctx, state), "HP above 35% should not match")
+    assert_false(strategies[14].matches(ctx, state), "SWD should not fire when self damage is unsafe")
 end)
 
 test("swd_matches: not ready → false", function()
-    local ctx = make_context({}, {hp_pct = 20})
+    local ctx = make_context({}, {hp_pct = 80})
     local state = get_state(ctx)
     state.swd_ready = false
-    state.hp = 20
+    state.hp = 80
     assert_false(strategies[14].matches(ctx, state), "SWD not ready")
 end)
 
@@ -933,17 +933,16 @@ test("rotation: low HP scenario - heal/shield should match", function()
     assert_true(strategies[8].matches(ctx, state), "greater heal should match when low HP")
 end)
 
-test("rotation: execute scenario - SWD should match when HP < 35%", function()
-    local ctx = make_context({state = {enemy_count = 1, hp_pct = 20, mana_pct = 80, is_moving = false, threat_status = 0, target_creature_type = "humanoid"}})
+test("rotation: safe HP scenario - SWD should match when HP > 60%", function()
+    local ctx = make_context({state = {enemy_count = 1, hp_pct = 80, mana_pct = 80, is_moving = false, threat_status = 0, target_creature_type = "humanoid"}})
     local state = get_state(ctx)
     state.swd_ready = true
-    state.hp = 20
+    state.hp = 80
 
-    -- SWD should match when target HP < 35%
-    assert_true(strategies[14].matches(ctx, state), "SWD should match in execute range")
+    assert_true(strategies[14].matches(ctx, state), "SWD should match only when self HP is safe")
 
     -- Priority is determined by array index, not match functions.
-    -- SWD (index 10) has higher priority than Smite (index 14) because
+    -- SWD (index 14) has higher priority than Smite (index 19) because
     -- the rotation registry iterates strategies in order and picks the
     -- first one that matches. Smite may also match (enough mana) but that's
     -- independent — the registry handles priority.
@@ -1176,31 +1175,31 @@ do -- edge_swp
 end
 
 -- ============================================================================
--- Edge Case Tests: Shadow Word: Death (strategy 10)
+-- Edge Case Tests: Shadow Word: Death (strategy 14)
 -- ============================================================================
 
 do -- edge_swd
-    test("edge_swd: SWD matches when player HP is 34 (below 35)", function()
+    test("edge_swd: SWD matches when player HP is 61", function()
         local ctx = make_context()
         local state = get_state(ctx)
         state.swd_ready = true
-        state.hp = 34
-        assert_true(strategies[14].matches(ctx, state), "SWD should match at HP 34")
+        state.hp = 61
+        assert_true(strategies[14].matches(ctx, state), "SWD should match above 60 HP")
     end)
 
-    test("edge_swd: SWD does not match when player HP is exactly 35", function()
+    test("edge_swd: SWD does not match when player HP is exactly 60", function()
         local ctx = make_context()
         local state = get_state(ctx)
         state.swd_ready = true
-        state.hp = 35
-        assert_false(strategies[14].matches(ctx, state), "SWD should not match at HP 35")
+        state.hp = 60
+        assert_false(strategies[14].matches(ctx, state), "SWD should not match at HP 60")
     end)
 
     test("edge_swd: SWD does not match when not ready", function()
         local ctx = make_context()
         local state = get_state(ctx)
         state.swd_ready = false
-        state.hp = 34
+        state.hp = 80
         assert_false(strategies[14].matches(ctx, state), "SWD should not match when not ready")
     end)
 
@@ -1209,7 +1208,7 @@ do -- edge_swd
         local state = get_state(ctx)
         state.swd_ready = true
         state.target = nil
-        state.hp = 34
+        state.hp = 80
         assert_false(strategies[14].matches(ctx, state), "SWD should not match with no target")
     end)
 end

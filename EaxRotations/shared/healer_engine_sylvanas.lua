@@ -1,33 +1,9 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/healer_engine_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- DEPRECATED: This module is no longer loaded by the framework.
 --   Healer logic has been inlined into class-specific helpers (resto, holy,
 --   discipline) and core_sylvanas.lua (NS.healing_get_tank, NS.build_healing_entries).
 --   Kept for backward compatibility with external test files only.
 --   Do not add new production consumers.
--- ============================================================================
--- What: Shared healer engine for stop-cast, pre-heal, and target scoring (deprecated)
--- When: Per tick during healing decisions
--- Why: Reduce overheal and choose better heal targets
--- Safety: Throttled cancel checks, nil-guarded targets, and conservative thresholds
--- ============================================================================
 
 local M = {}
 local _G = _G
@@ -453,7 +429,5 @@ end
 -- ============================================================================
 -- Export
 -- ============================================================================
-
-NS.HealerEngine = M
 
 return M

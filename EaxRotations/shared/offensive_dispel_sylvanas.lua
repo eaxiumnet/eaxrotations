@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/offensive_dispel_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Offensive Dispel Database — PvP enemy buff priority tiers.
--- ============================================================================
--- What: Priority-ranked enemy buff dispel database for Dispel Magic + Mass Dispel
--- When: Consulted per tick by priest middleware when PvP offensive dispel is enabled
--- Why: Stripping Divine Shield/Ice Block wins fights; stripping Bloodlust saves wipes
--- Safety: Pure data module, no runtime logic, all IDs verified for TBC 2.4.3
--- ============================================================================
 
 local M = {}
 
@@ -342,7 +318,30 @@ end
 ---@return boolean is_casting_cc, string|nil cc_spell_name
 function M.is_casting_preemptive_cc(enemy)
     if not enemy then return false, nil end
-    local get_casting_spell_id = enemy.get_casting_spell_id
+    if not NS or not NS.safe_field then return false, nil end
+
+    -- Try documented base API: get_active_spell_id
+    local get_active_spell = NS.safe_field(enemy, "get_active_spell_id")
+    if get_active_spell then
+        local ok, spell_id = pcall(get_active_spell, enemy)
+        if ok and type(spell_id) == "number" and spell_id > 0 then
+            local name = M.PREEMPTIVE_CC_CASTS[spell_id]
+            if name then return true, name end
+        end
+    end
+
+    -- Try IZI SDK combined helper: get_active_cast_or_channel_id
+    local get_active_cast_channel = NS.safe_field(enemy, "get_active_cast_or_channel_id")
+    if get_active_cast_channel then
+        local ok, spell_id = pcall(get_active_cast_channel, enemy)
+        if ok and type(spell_id) == "number" and spell_id > 0 then
+            local name = M.PREEMPTIVE_CC_CASTS[spell_id]
+            if name then return true, name end
+        end
+    end
+
+    -- Fallback: undocumented get_casting_spell_id that some builds still provide
+    local get_casting_spell_id = NS.safe_field(enemy, "get_casting_spell_id")
     if type(get_casting_spell_id) ~= "function" then return false, nil end
     local ok, spell_id = pcall(get_casting_spell_id, enemy)
     if not ok or type(spell_id) ~= "number" then return false, nil end

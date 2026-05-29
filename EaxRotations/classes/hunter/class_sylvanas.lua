@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/hunter/class_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Hunter spell table, playstyle config, and child module loader.
 
--- ============================================================================
--- What: Hunter class registration, spell tables, and child module loader
--- When: Loaded once at plugin startup
--- Why: Centralizes Hunter spell data and child-module registration
--- Safety: Spell tables newest-to-oldest; pcall child loads; missing modules fail gracefully
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -40,10 +16,10 @@ local SPELLS = {
         name = "AimedShot",
         ids = {27065, 20904, 20903, 20902, 20901, 20900, 19434},
         levels = {70, 60, 52, 44, 36, 28, 20},
-        cast_time = 3.0,
+        cast_time = 2.5,
         cooldown = 6,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
     ArcaneShot = NS.spell_action({
@@ -53,7 +29,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 6,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "arcane",
     }),
     AspectOfTheHawk = NS.spell_action({
@@ -64,6 +40,16 @@ local SPELLS = {
         cooldown = 0,
         power_cost = 0,
         power_type = "none",
+        school = "physical",
+    }),
+    AspectOfTheCheetah = NS.spell_action({
+        name = "AspectOfTheCheetah",
+        ids = {5118},
+        levels = {20},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
         school = "physical",
     }),
     AspectOfTheViper = NS.spell_action({
@@ -101,7 +87,7 @@ local SPELLS = {
         ids = {27025, 14317, 14316, 13813},
         levels = {61, 54, 44, 34},
         cast_time = 0,
-        cooldown = 15,
+        cooldown = 30,
         power_cost = 0,
         power_type = "none",
         school = "fire",
@@ -121,7 +107,7 @@ local SPELLS = {
         ids = {14311, 14310, 1499},
         levels = {60, 40, 20},
         cast_time = 0,
-        cooldown = 15,
+        cooldown = 30,
         power_cost = 0,
         power_type = "none",
         school = "physical",
@@ -143,7 +129,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 5,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
     MendPet = NS.spell_action({
@@ -153,7 +139,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
     MultiShot = NS.spell_action({
@@ -163,7 +149,7 @@ local SPELLS = {
         cast_time = 0.5,
         cooldown = 10,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
     RapidFire = NS.spell_action({ 3045 }, "RapidFire"),
@@ -172,11 +158,21 @@ local SPELLS = {
         name = "RevivePet",
         ids = {982},
         levels = {10},
-        cast_time = 2.0,
+        cast_time = 10.0,
         cooldown = 0,
         power_cost = 0,
         power_type = "mana",
         school = "physical",
+    }),
+    ScareBeast = NS.spell_action({
+        name = "ScareBeast",
+        ids = {14327, 14326, 1513},
+        levels = {46, 30, 14},
+        cast_time = 1.5,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "nature",
     }),
     SerpentSting = NS.spell_action({
         name = "SerpentSting",
@@ -185,17 +181,17 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "nature",
     }),
     SteadyShot = NS.spell_action({
         name = "SteadyShot",
         ids = {34120},
         levels = {62},
-        cast_time = 2.0,
+        cast_time = 1.5,
         cooldown = 0,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
     ViperSting = NS.spell_action({
@@ -205,7 +201,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "nature",
     }),
     WyvernSting = NS.spell_action({
@@ -215,17 +211,17 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "nature",
     }),
     ConcussiveShot = NS.spell_action({
         name = "ConcussiveShot",
         ids = {5116},
-        levels = {6},
+        levels = {8},
         cast_time = 0,
-        cooldown = 0,
+        cooldown = 12,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
     Misdirection = NS.spell_action({
@@ -235,7 +231,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 120,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     })
     ,
@@ -246,7 +242,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 20,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
     Volley = NS.spell_action({
@@ -256,7 +252,7 @@ local SPELLS = {
         cast_time = 0.5,
         cooldown = 10,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "arcane",
     }),
     ScorpidSting = NS.spell_action({
@@ -266,7 +262,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "nature",
     }),
     RaptorStrike = NS.spell_action({
@@ -276,7 +272,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
     WingClip = NS.spell_action({
@@ -286,7 +282,7 @@ local SPELLS = {
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
-        power_type = "focus",
+        power_type = "mana",
         school = "physical",
     }),
 }
@@ -342,7 +338,15 @@ end
 
 load_child("middleware_sylvanas")
 load_child("cliptracker_sylvanas", true)
-load_child("leveling_sylvanas", true)
+load_spec("leveling", true)
+-- Register the Auto Shot spell-cast callback so cliptracker timing stays accurate.
+-- Must happen AFTER loading cliptracker_sylvanas (so NS.HunterClipTracker exists).
+register_auto_shot_callback()
+-- Also initialize hunter_core auto-shot tracking (used by Beast Mastery).
+local hc_ok, hunter_core = pcall(require, "shared/hunter_core_sylvanas")
+if hc_ok and type(hunter_core) == "table" and type(hunter_core.init) == "function" then
+    pcall(hunter_core.init)
+end
 load_spec("beast_mastery")
 load_spec("marksmanship")
 load_spec("survival")

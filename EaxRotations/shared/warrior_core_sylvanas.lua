@@ -11,6 +11,12 @@ local _get_spell_cd = core.spell_book and core.spell_book.get_spell_cooldown or 
 local _is_spell_learned = core.spell_book and core.spell_book.is_spell_learned or nil
 local RAGE_POWER_TYPE = 1
 
+local _izi = nil
+do
+    local ok, mod = pcall(require, "common/izi_sdk")
+    if ok and type(mod) == "table" then _izi = mod end
+end
+
 local function cast_guarded(spell_id, target, reason, opts)
     if not NS or type(NS.try_cast) ~= "function" then return false end
     -- Legacy warrior helpers used raw cast_target_spell; route through
@@ -386,6 +392,32 @@ function M.should_rage_dump(rage_threshold, me, max_rage)
     local rage = me:get_power(RAGE_POWER_TYPE) or 0
     max_rage = max_rage or 100
     return rage >= math.min(rage_threshold, max_rage - 10)
+end
+
+-- ============================================================================
+-- IZI SDK Burst Sequence
+-- Uses izi.advanced_sequence() for declarative burst combos.
+-- Fallback: returns false so callers use existing manual logic.
+-- API source: apidocs/pages/dev/libraries/izi/izi-spells-sequences.md:89-126
+-- ============================================================================
+
+--- Execute a burst combo sequence using IZI SDK advanced_sequence.
+---@param target game_object The target for all spells
+---@param spells number[] Array of spell IDs to cast in order
+---@return boolean started True if sequence was started
+function M.execute_burst_sequence(target, spells)
+    if not _izi or not target then return false end
+    if type(spells) ~= "table" or #spells == 0 then return false end
+    local entries = {}
+    for i, spell_id in ipairs(spells) do
+        local izi_spell = _izi.spell(spell_id)
+        if izi_spell then
+            entries[#entries + 1] = { spell = izi_spell, target = target }
+        end
+    end
+    if #entries == 0 then return false end
+    local ok, result = pcall(_izi.advanced_sequence, entries, { timeout = 5.0 })
+    return ok and result == true
 end
 
 -- ============================================================================

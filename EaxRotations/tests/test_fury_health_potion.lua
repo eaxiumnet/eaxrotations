@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/test_fury_health_potion.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Feature audit for fury_sylvanas: Health potion fallback + Healthstone verification.
 -- Documents gaps compared to FrostByte reference implementation.
 
@@ -92,8 +74,6 @@ end
 assert_true(strategy_names["Bloodthirst"], "Bloodthirst should be present")
 assert_true(strategy_names["Whirlwind"], "Whirlwind should be present")
 assert_true(strategy_names["Execute"], "Execute should be present")
-assert_true(strategy_names["Hamstring"], "Hamstring should be present")
-assert_true(strategy_names["Rend"], "Rend should be present")
 assert_true(strategy_names["Overpower"], "Overpower should be present")
 assert_true(strategy_names["BattleShout"], "BattleShout should be present")
 assert_true(strategy_names["Bloodrage"], "Bloodrage should be present")

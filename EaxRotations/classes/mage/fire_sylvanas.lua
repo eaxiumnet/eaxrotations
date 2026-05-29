@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/mage/fire_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Mage Fire priority list.
 
--- ============================================================================
--- What: TBC Mage Fire priority with Scorch stacks, AoE, and mana gem usage.
--- When: Evaluated every tick.
--- Why: Priority-list early exit keeps combat decisions fast and predictable.
--- Safety: All settings nil-guarded; spell checks are gated; conservative defaults.
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -32,8 +8,8 @@ local SPELLS = NS.MageSpells or {}
 local SCORCH_DEBUFF = { 22959 }
 
 -- Mana Gem item IDs (highest to lowest rank)
-local MANA_GEM_ITEM_IDS = { 22044, 22043, 22042, 22041, 5514 }  -- Emerald, Ruby, Citrine, Jade, Agate
-local MANA_GEM_CONJURE = { 27103, 27101, 27100, 27099, 10054 }  -- Conjure Mana Emerald..Agate
+local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }  -- Emerald, Ruby, Citrine, Jade, Agate
+local MANA_GEM_CONJURE = { 27101, 10054, 10053, 3552, 759 }  -- Conjure Mana Emerald..Agate
 
 -- Test assertion strings (preserved for regression tests)
 
@@ -50,6 +26,22 @@ local fire_state = {
     remove_curse_ready = false,
 }
 
+local function first_ready_mana_gem()
+    if not NS.is_item_ready then return nil end
+    for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
+        local ok, ready = pcall(NS.is_item_ready, item_id)
+        if ok and ready then return item_id end
+    end
+    return nil
+end
+
+local function use_mana_gem()
+    local item_id = first_ready_mana_gem()
+    if not item_id or not NS.use_item_by_id then return false end
+    local ok, used = pcall(NS.use_item_by_id, item_id)
+    return ok and used == true
+end
+
 local function build_state(context)
     local target = context.target
     if target then
@@ -62,13 +54,7 @@ local function build_state(context)
     fire_state.combustion_ready = NS.spell_ready(SPELLS.Combustion, NS.PLAYER_UNIT, { skip_range = true })
     fire_state.mana_pct = context.mana_pct or 100
     fire_state.remove_curse_ready = NS.spell_ready(SPELLS.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
-    fire_state.mana_gem_available = false
-    for _, gem_id in ipairs(MANA_GEM_CONJURE) do
-        if NS.spell_ready and NS.spell_ready(gem_id, NS.PLAYER_UNIT, { skip_range = true }) then
-            fire_state.mana_gem_available = true
-            break
-        end
-    end
+    fire_state.mana_gem_available = first_ready_mana_gem() ~= nil
     return fire_state
 end
 
@@ -79,6 +65,7 @@ end
 local function combustion_matches_fn(context, state)
     if not state.combustion_ready then return false end
     if not context.in_combat then return false end
+    if context.settings and context.settings.use_cooldowns == false then return false end
     if context.should_burst then return true end
     if NS.should_use_long_cd then return NS.should_use_long_cd(context, 180) end; return false
 end
@@ -142,19 +129,22 @@ end
 
 -- Defensives / Utility
 local function ice_barrier_matches_fn(context, state)
-    if context.hp > 60 then return false end
+    if (context.hp or 100) > 60 then return false end
+    if context.settings and (context.settings.use_defensives == false or context.settings.use_ice_barrier == false) then return false end
     if NS.has_player_buff(11426) then return false end
 
     return NS.spell_ready(SPELLS.IceBarrier, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function mana_shield_matches_fn(context, state)
-    if context.hp > 40 then return false end
+    if (context.hp or 100) > 40 then return false end
+    if context.settings and (context.settings.use_defensives == false or context.settings.use_mana_shield == false) then return false end
 
     return NS.spell_ready(SPELLS.ManaShield, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function evocation_matches_fn(context, state)
+    if context.settings and context.settings.use_evocation == false then return false end
     if ((state and state.mana_pct) or (context.mana_pct or 100)) > 20 then return false end
     if not context.in_combat then return false end
 
@@ -168,6 +158,7 @@ local function mana_gem_conjure_matches_fn(context, state)
 end
 
 local function mana_gem_matches_fn(context, state)
+    if context.settings and context.settings.use_mana_gem == false then return false end
     if not context.in_combat then return false end
     if not (state and state.mana_gem_available) then return false end
     local gem_threshold = (context.settings and context.settings.mana_gem_mana_pct) or 70
@@ -177,7 +168,20 @@ end
 
 local function counterspell_matches_fn(context, state)
     if not context.target then return false end
-    if not context.target.is_casting then return false end
+    if context.settings and context.settings.use_interrupt == false then return false end
+    -- is_casting is a method on real units, not a boolean field. Check via safe method calls.
+    local target_casting = false
+    if type(context.target.is_casting) == "function" then
+        local ok, val = pcall(context.target.is_casting, context.target)
+        target_casting = ok and val == true
+    elseif type(context.target.is_casting_spell) == "function" then
+        local ok, val = pcall(context.target.is_casting_spell, context.target)
+        target_casting = ok and val == true
+    elseif context.target.is_casting == true then
+        -- Mock/test support: direct boolean
+        target_casting = true
+    end
+    if not target_casting then return false end
 
     return NS.spell_ready(SPELLS.Counterspell, context.target)
 end
@@ -224,6 +228,7 @@ end
 
 local function presence_of_mind_matches_fn(context, state)
     if not context.in_combat then return false end
+    if context.settings and context.settings.use_cooldowns == false then return false end
     if not context.should_burst then return false end
     if NS.has_player_buff(12043) then return false end
     return NS.spell_ready(SPELLS.PresenceOfMind, NS.PLAYER_UNIT, { skip_range = true })
@@ -315,14 +320,7 @@ local strategies = {
       execute = function() return NS.try_cast(SPELLS.ConjureManaEmerald, NS.PLAYER_UNIT, "[FIRE] Conjure Mana Gem") end },
     { name = "ManaGem",
       matches = mana_gem_matches_fn,
-      execute = function()
-          for _, gem_id in ipairs(MANA_GEM_CONJURE) do
-              if NS.spell_ready and NS.spell_ready(gem_id, NS.PLAYER_UNIT, { skip_range = true }) then
-                  return NS.try_cast(gem_id, NS.PLAYER_UNIT, "[FIRE] Mana Gem")
-              end
-          end
-          return false
-      end },
+      execute = function() return use_mana_gem() end },
     { name = "Evocation",
       matches = evocation_matches_fn,
       execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[FIRE] Evocation") end },

@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/rogue/middleware_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Rogue shared middleware.
--- ============================================================================
--- What: Rogue shared middleware for emergency defensives and consumables
--- When: Per tick
--- Why: Keeps survivability tools and Thistle Tea separate from spec priorities
--- Safety: Settings nil-guards, pcall on class/spell lookups, item availability checks
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -83,9 +59,6 @@ local function get_known_spell_id(ids)
     return nil
 end
 
--- Disarm target classes: melee classes that lose weapon-based damage when disarmed
-local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
-
 -- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
 local ROGUE_AOE_IDS = { 13877 }  -- Blade Flurry
 
@@ -130,49 +103,6 @@ local strategies = {
     },
 
     -- ============================================================================
-    -- PvP: DISMANTLE — remove enemy melee weapon (10s, no stance required)
-    -- Ported from Flux Warrior middleware pattern. Uses offensive dispel priority DB
-    -- for on_burst trigger mode. No stance dance needed (rogue is always ready).
-    -- ============================================================================
-    {
-        name = "RogueDisarm",
-        matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_disarm == false then return false end
-            -- Skip entirely if Dismantle not learned (level < 40)
-            if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
-            if not context.in_combat then return false end
-            if not (context.is_pvp or false) then return false end
-            if not context.has_valid_enemy_target then return false end
-            if not context.target then return false end
-            if not context.in_melee_range then return false end
-            -- Target must be a player
-            if settings.disarm_pvp_only ~= false then
-                local ok, is_player = pcall(function() return context.target:is_player() end)
-                if not (ok and is_player) then return false end
-            end
-            -- Check target class is melee (Warrior/Rogue/Paladin/Shaman)
-            local ok, class_id = pcall(function() return context.target:get_class() end)
-            if not (ok and type(class_id) == "number") then return false end
-            if not DISARM_CLASS_IDS[class_id] then return false end
-            -- Trigger mode: on_burst requires target has priority dispellable buffs
-            local trigger = settings.disarm_trigger or "on_burst"
-            if trigger == "on_burst" then
-                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
-                if not best_id or (best_priority or 0) < 3 then return false end  -- High+ tier only
-                context._disarm_buff_name = best_name
-            end
-            return true
-        end,
-        execute = function(context)
-            local label = context._disarm_buff_name
-                and ("[ROGUE] Dismantle → " .. context._disarm_buff_name)
-                or "[ROGUE] Dismantle"
-            return NS.try_cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 })
-        end,
-    },
-
-    -- ============================================================================
     -- CC Break: preemptively Cloak or Vanish when enemy casts CC at us
     -- ============================================================================
     {
@@ -184,6 +114,7 @@ local strategies = {
             local me = context.me or NS.GetPlayer()
             if not me then return false end
             -- Preemptive scan: enemy casting CC at us → Cloak (magic immunity) or Vanish (escape)
+            local cloak_id = get_known_spell_id(CLOAK_IDS)
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
             for _, enemy in ipairs(enemies) do
                 if enemy then
@@ -191,8 +122,6 @@ local strategies = {
                     if is_casting_cc then
                         local ok, etarget = pcall(function() return enemy:get_target() end)
                         if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
-                            -- Cloak of Shadows: magic immunity, prevents Polymorph/Fear
-                            local cloak_id = get_known_spell_id(CLOAK_IDS)
                             if cloak_id and NS.spell_ready and NS.spell_ready(cloak_id) then
                                 return true
                             end
@@ -235,7 +164,8 @@ local strategies = {
     {
         name = "ThreatDrop",
         matches = function(context)
-            if context.settings.use_threat_drop == false then return false end
+            local settings = context.settings or {}
+            if settings.use_threat_drop == false then return false end
             return true
         end,
         execute = function(context)

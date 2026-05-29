@@ -1,34 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "main_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- update dispatcher for class middleware and selected playstyle strategies.
--- ============================================================================
--- What: EaxRotations update dispatcher that runs middleware and playstyle priorities
--- When: Every tick during the on_update callback
--- Why: First-successful-action-wins keeps rotation behavior predictable and fast
--- Safety: Error logging is rate-limited, transitions are throttled, and middleware gates strategies
--- ============================================================================
--- ============================================================================
--- What: EaxRotations update dispatcher — middleware then playstyle priority list
--- When: Every tick (~20-50ms throttle) during on_update callback
--- Why: First-successful-action-wins keeps rotation predictable and fast
--- Safety: Error handler rate-limits logs; combat transitions throttled; middleware checks before strategies
--- ============================================================================
 local NS = _G.EaxRotations
 if not NS then return nil end
 
@@ -44,6 +14,10 @@ local _forecast_gate_ok = pcall(require, "shared/combat_forecast_gate_sylvanas")
 if not _forecast_gate_ok and not NS.should_use_long_cd then NS.should_use_long_cd = function() return true end end
 local _combat_forecast_ok, combat_forecast = pcall(require, "common/modules/combat_forecast")
 if not _combat_forecast_ok or type(combat_forecast) ~= "table" then combat_forecast = nil end
+local _ttd_tracker_ok, ttd_tracker = pcall(require, "shared/ttd_tracker_sylvanas")
+if not _ttd_tracker_ok or type(ttd_tracker) ~= "table" then ttd_tracker = nil end
+local _ttd_ema_ok, ttd_ema = pcall(require, "shared/ttd_ema_tracker_sylvanas")
+if not _ttd_ema_ok or type(ttd_ema) ~= "table" then ttd_ema = nil end
 local _buff_db_ok, buffs = pcall(require, "common/buff_db")
 if not _buff_db_ok or type(buffs) ~= "table" then buffs = {} end
 local BLOODLUST_IDS = buffs.BLOODLUST or { 2825, 32182 }
@@ -61,6 +35,23 @@ local _last_error_time = 0
 local _trace_times = {}
 
 local _cached_tank_alive, _cached_tank_alive_time = true, -1
+
+-- ============================================================================
+-- Auto-AoE Toggle State
+-- ============================================================================
+local _auto_aoe_last_enemy_count = 0
+local _auto_aoe_state_changed_at = nil
+local _auto_aoe_base_playstyle = nil
+
+-- ============================================================================
+-- Force Flag State (slash-command overrides)
+-- ============================================================================
+local _force_flags = {
+    burst = { active = false, expires = 0 },
+    defensive = { active = false, expires = 0 },
+    gap = { active = false, expires = 0 },}
+
+local FORCE_FLAG_TIMEOUT = 3.0
 
 local function trace(key, message, interval_ms)
     if not NS.get_setting("debug_system", false) then return end
@@ -83,8 +74,6 @@ local function safe(fn, ...)
     end
     return nil
 end
-
-if NS.init_izi_buff_events then pcall(NS.init_izi_buff_events) end
 
 -- ============================================================================
 -- Global Reaction Delay: simulates human reaction time for ALL classes.
@@ -157,6 +146,65 @@ local function get_target(me)
     return NS.GetTarget and NS.GetTarget() or (fallback_get_target and safe(fallback_get_target, me) or nil)
 end
 
+local function update_force_flags()
+    local now = NS.time_now and NS.time_now() or 0
+    for _, flag in pairs(_force_flags) do
+        if flag.active and now > flag.expires then
+            flag.active = false
+        end
+    end
+end
+
+local function set_force_flag(flag_name)
+    local now = NS.time_now and NS.time_now() or 0
+    if _force_flags[flag_name] then
+        _force_flags[flag_name].active = true
+        _force_flags[flag_name].expires = now + FORCE_FLAG_TIMEOUT
+    end
+end
+
+function NS.force_burst_active()
+    update_force_flags()
+    return _force_flags.burst.active
+end
+
+function NS.force_defensive_active()
+    update_force_flags()
+    return _force_flags.defensive.active
+end
+
+function NS.force_gap_active()
+    update_force_flags()
+    return _force_flags.gap.active
+end
+
+function NS.set_force_burst()
+    if NS.get_setting and not NS.get_setting("force_burst_enabled", true) then
+        NS.log("Force burst disabled in settings")
+        return
+    end
+    set_force_flag("burst")
+    NS.log("Force burst active for " .. tostring(FORCE_FLAG_TIMEOUT) .. "s")
+end
+
+function NS.set_force_defensive()
+    if NS.get_setting and not NS.get_setting("force_defensive_enabled", true) then
+        NS.log("Force defensive disabled in settings")
+        return
+    end
+    set_force_flag("defensive")
+    NS.log("Force defensive active for " .. tostring(FORCE_FLAG_TIMEOUT) .. "s")
+end
+
+function NS.set_force_gap()
+    if NS.get_setting and not NS.get_setting("force_gap_enabled", true) then
+        NS.log("Force gap disabled in settings")
+        return
+    end
+    set_force_flag("gap")
+    NS.log("Force gap active for " .. tostring(FORCE_FLAG_TIMEOUT) .. "s")
+end
+
 local function valid_enemy(me, target)
     return NS.is_hostile_unit and NS.is_hostile_unit(me, target) or false
 end
@@ -187,6 +235,110 @@ local function find_enemy_target(me, selected)
 end
 
 local _cached_enemies, _cached_enemies_time = nil, -1
+-- ============================================================================
+-- Boss School Immunity Database (TBC)
+-- ============================================================================
+local BOSS_SCHOOL_IMMUNITIES = {
+    -- The Curator (Karazhan) — Arcane immune
+    [15691] = { arcane = true },
+    -- Hydross the Unstable (SSC) — Nature immune while corrupted
+    [21216] = { nature = true },
+    -- Void Reaver (TK) — Arcane immune (spell reflect, effectively immune)
+    [19516] = { arcane = true },
+    -- Al'ar (TK) — removed: not actually fire immune in TBC
+    -- Rage Winterchill (Hyjal) — Frost immune (lich)
+    [17767] = { frost = true },
+}
+
+local function get_target_school_immunities(target)
+    if not target then return {} end
+    local id = nil
+    local npc_id = NS.safe_field and NS.safe_field(target, "get_npc_id")
+    if npc_id then
+        local ok, result = pcall(npc_id, target)
+        if ok then id = result end
+    end
+    if type(id) ~= "number" then
+        local entry_id = NS.safe_field and NS.safe_field(target, "entry_id")
+        if entry_id then
+            local ok, result = pcall(entry_id, target)
+            if ok then id = result end
+        end
+    end
+    if type(id) ~= "number" then
+        id = target.id or target.entry or nil
+    end
+    if type(id) == "number" then
+        return BOSS_SCHOOL_IMMUNITIES[id] or {}
+    end
+    return {}
+end
+
+-- ============================================================================
+-- Auto-AoE Toggle Logic
+-- ============================================================================
+local function get_auto_aoe_threshold()
+    local threshold = NS.get_setting and NS.get_setting("auto_aoe_threshold", 3)
+    return type(threshold) == "number" and threshold or 3
+end
+
+local function auto_aoe_enabled()
+    return NS.get_setting and NS.get_setting("auto_aoe_enabled", true) or true
+end
+
+local function auto_aoe_should_trigger(enemy_count)
+    if not auto_aoe_enabled() then return false end
+    local threshold = get_auto_aoe_threshold()
+    return enemy_count >= threshold
+end
+
+local function resolve_auto_aoe_playstyle(registry, active, enemy_count)
+    if not registry or not registry.playstyles then return active end
+    local now = NS.time_now and NS.time_now() or 0
+    local is_aoe = auto_aoe_should_trigger(enemy_count)
+    local was_aoe = auto_aoe_should_trigger(_auto_aoe_last_enemy_count or 0)
+    -- Debounce: require 0.5s stable state before switching to prevent flicker
+    if is_aoe ~= was_aoe then
+        _auto_aoe_state_changed_at = now
+    end
+    _auto_aoe_last_enemy_count = enemy_count
+    -- If no state change has ever been recorded, treat as stable (first run)
+    local changed_at = _auto_aoe_state_changed_at
+    local stable = changed_at == nil or (now - changed_at) >= 0.5
+    if is_aoe and stable then
+        -- Determine the AoE playstyle we would switch to
+        local aoe_playstyle = nil
+        if registry.playstyles.aoe then
+            aoe_playstyle = "aoe"
+        else
+            local class_key = registry.class_config and registry.class_config.class_key
+            if class_key == "warrior" and registry.playstyles.fury then aoe_playstyle = "fury"
+            elseif class_key == "mage" and registry.playstyles.fire then aoe_playstyle = "fire"
+            elseif class_key == "warlock" and registry.playstyles.destruction then aoe_playstyle = "destruction"
+            elseif class_key == "hunter" and registry.playstyles.survival then aoe_playstyle = "survival"
+            elseif class_key == "paladin" and registry.playstyles.retribution then aoe_playstyle = "retribution"
+            elseif class_key == "shaman" and registry.playstyles.enhancement then aoe_playstyle = "enhancement"
+            elseif class_key == "priest" and registry.playstyles.shadow then aoe_playstyle = "shadow"
+            elseif class_key == "rogue" and registry.playstyles.combat then aoe_playstyle = "combat"
+            elseif class_key == "druid" and registry.playstyles.feral then aoe_playstyle = "feral"
+            end
+        end
+        -- Only switch (and remember base) if we're not already in the AoE playstyle
+        if aoe_playstyle and active ~= aoe_playstyle then
+            _auto_aoe_base_playstyle = active
+            return aoe_playstyle
+        end
+        -- Already in AoE mode, just return active unchanged
+        return active
+    elseif not is_aoe and stable and _auto_aoe_base_playstyle then
+        -- Switching BACK from AoE: restore the original base playstyle
+        local base = _auto_aoe_base_playstyle
+        _auto_aoe_base_playstyle = nil
+        return base
+    end
+    return active
+end
+
 local function throttled_enemies()
     local now = NS.game_time_ms and NS.game_time_ms() or 0
     if now - _cached_enemies_time > 100 then
@@ -214,6 +366,23 @@ local function target_time_to_die(target)
     local time_to_die = NS.safe_field and (NS.safe_field(target, "time_to_die") or NS.safe_field(target, "get_time_to_death")) or nil
     local value = time_to_die and safe(time_to_die, target) or nil
     return type(value) == "number" and value > 0 and value or nil
+end
+
+local function get_linear_regression_ttd(target, settings)
+    if not ttd_tracker or not target then return nil end
+    local now = NS.time_now and NS.time_now() or 0
+    local ok, result = pcall(ttd_tracker.update, target, now, settings)
+    if ok and type(result) == "number" and result > 0 then return result end
+    return nil
+end
+
+local function get_ema_ttd(target)
+    if not ttd_ema or not target then return nil end
+    local now = NS.time_now and NS.time_now() or 0
+    local ok = pcall(ttd_ema.update, target, now)
+    if not ok then return nil end
+    local ttd = ttd_ema.get_ttd(target, now)
+    return type(ttd) == "number" and ttd > 0 and ttd or nil
 end
 
 local function unit_bool(unit, ...)
@@ -269,12 +438,69 @@ local function build_context()
     if _combat_start_time and me and combat_state_known and not in_combat then _combat_start_time = nil end
     local enemy_ok = valid_enemy(me, target)
     local count = throttled_enemies_count()
-    local ttd = enemy_ok and target_time_to_die(target) or nil
+    local engine_ttd = enemy_ok and target_time_to_die(target) or nil
     local instance_type = tostring(core_string("get_instance_type") or "none"):lower()
     local player_level = unit_number(me, "get_effective_level") or unit_number(me, "get_level") or 70
     local target_level = target and (unit_number(target, "get_effective_level") or unit_number(target, "get_level")) or nil
     local target_classification = target and unit_number(target, "get_classification") or nil
     local expansion_max_level = NS.get_expansion_max_level and NS.get_expansion_max_level() or 70
+    -- Compute boss/elite flag locally before _context is fully populated
+    local is_target_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and safe(target.is_boss, target) == true or false
+    -- ============================================================================
+    -- TTD (Time-To-Death) Fallback Chain
+    -- ============================================================================
+    -- The system resolves a single TTD value through a priority fallback chain:
+    --
+    --   1st: EMA TTD (ttd_ema_tracker_sylvanas.lua)
+    --        - Combat-log-driven exponential moving average of incoming DPS.
+    --        - Available ~1.5-3s after first damage event (requires 2+ hits + 1.5s elapsed).
+    --        - Most reliable: adapts to real-time combat log data.
+    --        - Returns nil when: no combat log data, target not valid, or insufficient samples.
+    --
+    --   2nd: Regression TTD (ttd_tracker_sylvanas.lua — linear regression)
+    --        - Uses HP/time samples to project a straight-line TTD.
+    --        - ONLY attempted when: EMA is nil AND target is boss, or targets above player level.
+    --        - More stable than engine TTD but slower to converge (needs multiple HP readings).
+    --        - Skipped for non-boss targets at or below player level — regression needs sustained
+    --          HP/time samples to converge.
+    --
+    --   3rd: Engine TTD (target:time_to_die() or target:get_time_to_death())
+    --        - Provided by the game client/PS framework.
+    --        - Last resort: often returns nil or unreliable values on private servers.
+    --        - When this fires, it means neither EMA nor regression had data.
+    --
+    --   4th (implicit): nil
+    --        - No TTD source could provide a value.
+    --        - _context.ttd defaults to 999 ("infinite"), _context.ttd_known is false.
+    --
+    -- _context.ttd_known == false when:
+    --   - No valid enemy target (target is nil or friendly).
+    --   - All three TTD sources returned nil (early combat, OOC, insufficient data).
+    --   - The target lacks health or incoming damage data entirely.
+    --
+    -- Downstream consumers: always check context.ttd_known before using context.ttd.
+    -- Strategies with require_ttd=true will be skipped when ttd_known is false
+    -- (see NS.action_execute() in core_sylvanas.lua).
+    -- ============================================================================
+    local ema_ttd = enemy_ok and get_ema_ttd(target) or nil
+    local regression_ttd = nil
+    if enemy_ok and not ema_ttd and (is_target_boss or (target_level and target_level > player_level)) then
+        regression_ttd = get_linear_regression_ttd(target, NS.settings)
+    end
+    -- Resolve TTD from the fallback chain: EMA → regression → engine → nil
+    local ttd_source = "none"
+    local ttd = nil
+    if ema_ttd then
+        ttd = ema_ttd
+        ttd_source = "ema"
+    elseif regression_ttd then
+        ttd = regression_ttd
+        ttd_source = "regression"
+    elseif engine_ttd then
+        ttd = engine_ttd
+        ttd_source = "engine"
+    end
+    trace("ttd:source", "[TTD] source=" .. ttd_source .. " value=" .. tostring(ttd) .. " ema=" .. tostring(ema_ttd) .. " reg=" .. tostring(regression_ttd) .. " eng=" .. tostring(engine_ttd), 2000)
     _context.me = me
     _context.target = target
     _context.in_combat = in_combat
@@ -360,13 +586,21 @@ local function build_context()
     _context.tank_alive = tank_alive
     _context.settings = NS.settings or {}
     _context.ttd = ttd or 999
+    _context.ttd_source = ttd_source
     _context.force_burst = NS.force_burst_active and NS.force_burst_active() or false
     _context.force_defensive = NS.force_defensive_active and NS.force_defensive_active() or false
     _context.force_gap = NS.force_gap_active and NS.force_gap_active() or false
     _context.has_breakable_cc_nearby = NS.has_breakable_cc_nearby and NS.has_breakable_cc_nearby() or false
+    -- Boss school immunities for strategy gating
+    local school_immunities = get_target_school_immunities(target)
+    _context.target_arcane_immune = school_immunities.arcane == true
+    _context.target_nature_immune = school_immunities.nature == true
+    _context.target_fire_immune = school_immunities.fire == true
+    _context.target_frost_immune = school_immunities.frost == true
+    _context.target_shadow_immune = school_immunities.shadow == true
+    _context.target_holy_immune = school_immunities.holy == true
     _context.target_is_player = target and NS.safe_field and NS.safe_field(target, "is_player") and safe(target.is_player, target) == true or false
-    _context.target_is_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and safe(target.is_boss, target) == true or false
-    _context.ttd = ttd or 999
+    _context.target_is_boss = is_target_boss
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)
         if ok and type(forecast) == "number" and forecast > 0 then
@@ -608,6 +842,8 @@ function M.on_rotation_update()
         active = "leveling"
         trace("playstyle:auto_leveling", "auto-detected leveling/solo context, switching to leveling playstyle", 500)
     end
+    -- Dynamic Auto-AoE: automatically switch to AoE playstyle when enemy_count >= threshold
+    active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
     if NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
         NS.set_setting("active_playstyle", active)
     end
@@ -679,6 +915,8 @@ function M.on_rotation_update_unified()
         active = "leveling"
         trace("unified:auto_leveling", "auto-detected leveling/solo context, switching to leveling playstyle", 500)
     end
+    -- Dynamic Auto-AoE: automatically switch to AoE playstyle when enemy_count >= threshold
+    active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
     if NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
         NS.set_setting("active_playstyle", active)
     end
@@ -700,5 +938,5 @@ end
 NS.on_rotation_update = M.on_rotation_update
 NS.on_rotation_update_unified = M.on_rotation_update_unified
 NS.log("Rotation dispatcher loaded")
-if type(core) == "table" and type(core.log) == "function" then pcall(core.log, "[EaxRotations] Loaded main_sylvanas.lua v1.1.1") end
+
 return M

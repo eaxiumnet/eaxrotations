@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "main.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- bootstrap for shared runtime, UI, and class loading.
--- ============================================================================
--- What: EaxRotations bootstrap that loads shared runtime, UI, and class modules
--- When: At startup while the plugin initializes
--- Why: Establish the framework in dependency order before any class logic runs
--- Safety: Requires are explicit, load order is controlled, and module availability is checked conservatively
--- ============================================================================
 
 -- ============================================================================
 -- EaxRotations - Main File
@@ -83,37 +59,29 @@ end
 
 load_modules({
     "helpers_sylvanas",
-    "explain_helpers_sylvanas",
 })
-
-local opt_ok, optimizer = pcall(require, "optimizer")
-if not opt_ok then optimizer = nil end
 
 load_modules({
     -- Runtime services
     "shared/combat_log_parser_sylvanas",
-    "api_probe_sylvanas",
     "shared/aura_probe_sylvanas",
 
     -- Data and pure helpers
-    "sim_constants_sylvanas",
     "gear_sets_sylvanas",
     "shared/mf_tick_compute_sylvanas",
+    "shared/cast_bar_overlay_sylvanas",
     "shared/execute_phase_sylvanas",
     "shared/dot_refresh_sylvanas",
     "shared/force_command_sylvanas",
 
     -- PvP support
     "shared/dr_tracker_sylvanas",
-    "shared/enemy_cd_tracker_sylvanas",
     "shared/arena_priority_sylvanas",
     "shared/pvp_burst_window_sylvanas",
 
     -- Rotation and profile support
     "shared/strategy_factory_sylvanas",
     "shared/custom_rotation_sylvanas",
-    "shared/profile_manager_sylvanas",
-
     -- Metrics and utility support
     "shared/combat_stats_sylvanas",
     "shared/gear_score_sylvanas",
@@ -123,7 +91,18 @@ load_modules({
     "shared/talent_inference_sylvanas",
     "shared/idle_suggestion_sylvanas",
     "shared/benchmarks_sylvanas",
+    "shared/ttd_tracker_sylvanas",
+    "shared/ttd_ema_tracker_sylvanas",
+    "shared/incoming_heal_predictor_sylvanas",
+    "shared/healer_deficit_sylvanas",
+    "shared/hot_tick_tracker_sylvanas",
 })
+
+-- Load shared schema helpers before class schemas so injection factories are available.
+local common_ok = pcall(require, "common_sylvanas")
+if not common_ok then
+    core.log_warning("[EaxRotations] common_sylvanas.lua failed to load — shared schema sections will not be injected")
+end
 
 local framework_main = require("main_sylvanas")           -- Dispatcher; class modules register below
 
@@ -191,8 +170,7 @@ local schema_widget_last_values = {}
 -- [#5] Section headers created once per schema tab/section at init time.
 -- Must be declared BEFORE initialize_schema_menu() which populates it.
 local section_headers = {}
--- [PROBE] Guard flag for one-shot API probe trigger from menu checkbox
-local _api_probe_triggered = false
+-- Guard flag for one-shot aura dump trigger from menu checkbox
 local _aura_dump_triggered = false
 local _last_playstyle_log = nil
 local _last_enabled_log = nil
@@ -218,6 +196,59 @@ do
     end
 end
 
+-- Inject shared quick-win schema sections into every class schema.
+-- This adds Auto-AoE and Force Command toggles without touching individual class files.
+if class_schema and NS and NS.common_auto_aoe_section then
+    if type(class_schema) == "table" and #class_schema > 0 and type(class_schema[1]) == "table" and class_schema[1].sections then
+        -- Tabs format: append sections to the first tab
+        table.insert(class_schema[1].sections, NS.common_auto_aoe_section())
+        if NS.common_force_flags_section then
+            table.insert(class_schema[1].sections, NS.common_force_flags_section())
+        end
+        if NS.common_interrupt_humanize_section then
+            table.insert(class_schema[1].sections, NS.common_interrupt_humanize_section())
+        end
+        if NS.common_ttd_section then
+            table.insert(class_schema[1].sections, NS.common_ttd_section())
+        end
+        if NS.common_predictive_healing_section then
+            table.insert(class_schema[1].sections, NS.common_predictive_healing_section())
+        end
+    elseif type(class_schema) == "table" then
+        -- Flat format: append individual settings directly
+        local auto_aoe = NS.common_auto_aoe_section()
+        if auto_aoe and auto_aoe.settings then
+            for _, setting in ipairs(auto_aoe.settings) do
+                table.insert(class_schema, setting)
+            end
+        end
+        local force_flags = NS.common_force_flags_section and NS.common_force_flags_section()
+        if force_flags and force_flags.settings then
+            for _, setting in ipairs(force_flags.settings) do
+                table.insert(class_schema, setting)
+            end
+        end
+        local humanize = NS.common_interrupt_humanize_section and NS.common_interrupt_humanize_section()
+        if humanize and humanize.settings then
+            for _, setting in ipairs(humanize.settings) do
+                table.insert(class_schema, setting)
+            end
+        end
+        local ttd_section = NS.common_ttd_section and NS.common_ttd_section()
+        if ttd_section and ttd_section.settings then
+            for _, setting in ipairs(ttd_section.settings) do
+                table.insert(class_schema, setting)
+            end
+        end
+        local predict_section = NS.common_predictive_healing_section and NS.common_predictive_healing_section()
+        if predict_section and predict_section.settings then
+            for _, setting in ipairs(predict_section.settings) do
+                table.insert(class_schema, setting)
+            end
+        end
+    end
+end
+
 if class_config and type(class_config.playstyles) == "table" then
     for _, playstyle in ipairs(class_config.playstyles) do
         local key = type(playstyle) == "table" and playstyle.name or tostring(playstyle)
@@ -228,8 +259,6 @@ if class_config and type(class_config.playstyles) == "table" then
         end
     end
 end
-
--- get_default_playstyle_index removed: unused (playstyle selection handled by schema dropdown sync)
 
 local function normalize_schema_tabs(schema)
     if type(schema) ~= "table" or #schema == 0 then
@@ -437,8 +466,6 @@ local menu_elements = {
     settings_tree = core.menu.tree_node(),
     diagnostics_tree = core.menu.tree_node(),
     dashboard_check = core.menu.checkbox(false, "show_dashboard"),
-    debug_log_check = core.menu.checkbox(false, "show_debug_log"),
-    api_probe_check = core.menu.checkbox(false, "run_api_probe"),
     aura_dump_check = core.menu.checkbox(false, "dump_player_auras"),
     -- [#4] Pre-allocated header widgets — created ONCE, not every render frame.
     -- core.menu.header() returns a new widget each call; creating inside render_menu()
@@ -446,14 +473,12 @@ local menu_elements = {
     header_class_info = core.menu.header(),
     header_active_playstyle = core.menu.header(),
     header_debugging_note = core.menu.header(),
-    header_dc_stats = core.menu.header(),
+
     header_dc_not_loaded = core.menu.header(),
-    header_probe_summary = core.menu.header(),
+
 }
 
 local dashboard_module = nil
-local debug_log_module = nil
-
 local function load_optional_module(path, label)
     local ok, module = pcall(require, path)
     if ok and module then return module end
@@ -670,18 +695,6 @@ local function render_menu()
             menu_elements.debug_mode_check:render("Debug Mode", "Show detailed debug output")
             menu_elements.verbose_trace_check:render("Verbose Trace", "Log decision checks, context, and no-action frames")
             menu_elements.dashboard_check:render("Show Dashboard", "Toggle the rotation dashboard window on/off")
-            menu_elements.debug_log_check:render("Show Debug Log", "Toggle the debug log window on/off")
-
-            -- API Probe button: checkbox triggers a one-shot probe run
-            menu_elements.api_probe_check:render("Run API Probe", "Check to run a one-shot API probe that logs PASS/FAIL for all API functions.")
-            if menu_elements.api_probe_check and menu_elements.api_probe_check:get_state() then
-                if not _api_probe_triggered then
-                    _api_probe_triggered = true
-                    if NS.run_api_probe then NS.run_api_probe() end
-                end
-            else
-                _api_probe_triggered = false  -- reset when user unchecks
-            end
             menu_elements.aura_dump_check:render("Dump Player Auras", "Check to log local-player auras and Lightning Shield ID checks once.")
             if menu_elements.aura_dump_check and menu_elements.aura_dump_check:get_state() then
                 if not _aura_dump_triggered then
@@ -691,22 +704,8 @@ local function render_menu()
             else
                 _aura_dump_triggered = false
             end
-            -- Show last probe summary if available
-            if NS.get_api_probe_results then
-                local _, summary, ran, failures = NS.get_api_probe_results()
-                if ran and summary then
-                    local has_failures = failures and #failures > 0
-                    menu_elements.header_probe_summary:render("Probe: " .. summary, has_failures and MENU_COLORS.red or MENU_COLORS.green)
-                end
-            end
-
-            -- DecisionCache stats
-            local dc_stats = optimizer and optimizer.DecisionCache and optimizer.DecisionCache:get_stats() or nil
-            if dc_stats then
-                menu_elements.header_dc_stats:render(format("DecisionCache: gen=%d age=%.2fs", dc_stats.generation, dc_stats.age), MENU_COLORS.green)
-            else
-                menu_elements.header_dc_not_loaded:render("DecisionCache: not loaded", MENU_COLORS.red)
-            end
+            -- DecisionCache stats (optimizer module was removed)
+            menu_elements.header_dc_not_loaded:render("DecisionCache: not loaded", MENU_COLORS.red)
         end)
     end)
 end
@@ -761,7 +760,6 @@ local function on_update()
     local debug_mode = menu_elements.debug_mode_check and menu_elements.debug_mode_check:get_state() or false
     local verbose_trace = menu_elements.verbose_trace_check and menu_elements.verbose_trace_check:get_state() or false
     local show_dashboard = menu_elements.dashboard_check and menu_elements.dashboard_check:get_state() or false
-    local show_debug_log = menu_elements.debug_log_check and menu_elements.debug_log_check:get_state() or false
     sync_quick_toggles()
     sync_playstyle_control()
 
@@ -780,13 +778,6 @@ local function on_update()
             elseif not show_dashboard and dashboard_module.hide then
                 dashboard_module.hide()
             end
-        end
-
-        if show_debug_log and not debug_log_module then
-            debug_log_module = load_optional_module("debug_log_sylvanas", "debug log")
-        end
-        if debug_log_module and debug_log_module.is_visible and debug_log_module.is_visible() ~= show_debug_log then
-            if debug_log_module.set_visible then debug_log_module.set_visible(show_debug_log) end
         end
 
         -- [#11] Only sync settings that actually changed since last frame.
@@ -849,11 +840,11 @@ local function on_update()
         return -- No player unit available
     end
     -- Guard against stale/invalid player objects (loading screens, death, zone transitions)
-    local player_valid = pcall(function() return me:is_valid() end)
-    if not player_valid then
+    local pcall_ok, player_valid = pcall(function() return me:is_valid() end)
+    if not pcall_ok or player_valid == false then
         if not _guard6_logged then
             _guard6_logged = true
-            core.log("[EaxRotations:main] GUARD-6: is_valid() pcall failed -- BLOCKED")
+            core.log("[EaxRotations:main] GUARD-6: is_valid() returned false or failed -- BLOCKED")
         end
         return -- Player object is garbage-collected / invalid
     end
@@ -862,14 +853,6 @@ local function on_update()
     -- which calls NS.DecisionCache:check_invalidation(context) with FULL context
     -- (enemies, haste buffs, combat time, etc.). The removed duplicate here only
     -- had partial fields. Running twice per frame is redundant AND lower quality.
-
-    -- Auto-run API probe once on first valid frame (player exists + spell book ready)
-    if NS.maybe_auto_run_api_probe then
-        local probe_ok, probe_err = pcall(NS.maybe_auto_run_api_probe)
-        if not probe_ok then
-            core.log_error("[EaxRotations:main] AuraProbe CRASHED: " .. tostring(probe_err))
-        end
-    end
 
     -- Execute rotation via framework
     if not _post_guards_logged then
@@ -904,6 +887,32 @@ end
 if type(core.register_on_render_control_panel_callback) == "function" then
     pcall(core.register_on_render_control_panel_callback, on_control_panel_render)
 end
+
+-- ============================================================================
+-- SLASH COMMAND REGISTRATION
+-- ============================================================================
+local function register_slash_commands()
+    if not NS then return end
+    local function make_handler(flag_fn, name)
+        return function(msg)
+            if flag_fn then
+                flag_fn()
+            else
+                core.log("[EaxRotations] " .. name .. " command unavailable")
+            end
+        end
+    end
+    if type(_G.SlashCmdList) == "table" then
+        _G.SLASH_EAXBURST1 = "/eax burst"
+        _G.SlashCmdList["EAXBURST"] = make_handler(NS.set_force_burst, "Force burst")
+        _G.SLASH_EAXDEF1 = "/eax def"
+        _G.SlashCmdList["EAXDEF"] = make_handler(NS.set_force_defensive, "Force defensive")
+        _G.SLASH_EAXGAP1 = "/eax gap"
+        _G.SlashCmdList["EAXGAP"] = make_handler(NS.set_force_gap, "Force gap")
+        core.log("[EaxRotations] Slash commands registered: /eax burst, /eax def, /eax gap")
+    end
+end
+register_slash_commands()
 
 core.log("[EaxRotations] Framework initialized successfully!")
 core.log("[EaxRotations] Class: " .. plugin_info.player_class_name)
