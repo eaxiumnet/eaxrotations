@@ -2455,11 +2455,15 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
         end
     end
 
-    -- Fallback: global cast_position_spell
-    if type(cast_position_spell) == "function" then
-        if not cast_position_spell(id, position, label, reason) then return false end
+    -- Fallback: direct core.input.cast_position_spell
+    local cast_pos = core.input and core.input.cast_position_spell
+    if type(cast_pos) == "function" then
+        if safe(cast_pos, id, position) == false then
+            core_trace("pos:" .. tostring(id) .. ":direct_false", "try_cast_position " .. tostring(label) .. " cast_position_spell returned false", 300)
+            return false
+        end
     else
-        core_trace("pos:" .. tostring(id) .. ":no_backend", "try_cast_position " .. tostring(label) .. " no cast_position_spell global available", 700)
+        core_trace("pos:" .. tostring(id) .. ":no_backend", "try_cast_position " .. tostring(label) .. " no cast_position_spell available", 700)
         return false
     end
 
@@ -4167,7 +4171,7 @@ function NS.build_healing_entries(out, decorate)
             n = n + 1
 
             local effective_deficit
-            if predict_enabled and NS.HealerDeficit and type(NS.HealerDeficit.predicted_deficit) == 'function' then
+            if NS.HealerDeficit and type(NS.HealerDeficit.predicted_deficit) == 'function' then
                 effective_deficit = NS.HealerDeficit.predicted_deficit(u, 2, NS.settings)
             else
                 effective_deficit = NS.predict_effective_deficit(u)
@@ -4366,11 +4370,16 @@ end
 
 NS.unified_registry = NS.unified_registry or {}
 
+NS.unified_state_builders = NS.unified_state_builders or {}
+
 function NS.register_strategy(entry)
 
-    -- entry = { name, category, priority=number, is_burst=bool, is_defensive=bool, matches=fn, execute=fn }
+    -- entry = { name, playstyle, category, priority=number, is_burst=bool, is_defensive=bool, matches=fn, execute=fn }
+    -- playstyle: string like "fury" or "_global" (default when omitted). Filtered in run_unified_strategies.
 
     if type(entry) ~= "table" or type(entry.execute) ~= "function" then return false end
+
+    entry.playstyle = entry.playstyle or "_global"
 
     entry.priority = entry.priority or 0
 
@@ -4380,6 +4389,19 @@ function NS.register_strategy(entry)
 
     return true
 
+end
+
+
+--- Register a state-builder function for a playstyle.
+--- This replaces the per-tick  call that legacy rotation_registry:register()
+--- stored in registry.options[playstyle] and called once per tick in run_list().
+---@param playstyle string Playstyle name (e.g. "fury").
+---@param builder_fn function(context) -> state table.
+---@return boolean success.
+function NS.register_state_builder(playstyle, builder_fn)
+    if type(playstyle) ~= "string" or type(builder_fn) ~= "function" then return false end
+    NS.unified_state_builders[playstyle] = builder_fn
+    return true
 end
 
 function NS.clear_strategies()
@@ -4524,21 +4546,42 @@ function NS.strategy_allowed(strategy, list_name, active, context)
 
 end
 
+--- Execute unified strategies for the active playstyle.
+--- Filters by playstyle, builds state once per tick via the registered state builder,
+--- and passes both context and state to each strategy's matches() and execute().
+---@param context table Rotation context with active_playstyle.
+---@return boolean fired True if any strategy executed successfully.
 function NS.run_unified_strategies(context)
 
     local safe_fn = safe
+
+    local active = context and context.active_playstyle
+
+    -- Build state for the active playstyle (pre-computed once, shared across all strategies)
+
+    local state = context
+
+    if active and NS.unified_state_builders and NS.unified_state_builders[active] then
+
+        state = safe_fn(NS.unified_state_builders[active], context) or context
+
+    end
 
     for i = 1, #NS.unified_registry do
 
         local s = NS.unified_registry[i]
 
-        if NS.strategy_allowed(s, nil, context and context.active_playstyle, context) then
+        -- Filter by playstyle: _global strategies run in all playstyles; nil defaults to _global
+
+        local ps = s.playstyle
+
+        if (not ps or ps == "_global" or ps == active) and NS.strategy_allowed(s, nil, active, context) then
 
             local ok = true
 
-            if type(s.matches) == "function" then ok = safe_fn(s.matches, context) == true end
+            if type(s.matches) == "function" then ok = safe_fn(s.matches, context, state) == true end
 
-            if ok and safe_fn(s.execute, context) then return true end
+            if ok and safe_fn(s.execute, context, state) then return true end
 
         end
 
@@ -5015,7 +5058,9 @@ function NS.action_execute(context, action, prefix)
             -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
             if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
 
-            if not cast_position_spell(id, position, action.name or tostring(id), reason) then return false end
+            local cast_pos_fn = core.input and core.input.cast_position_spell
+            if type(cast_pos_fn) ~= "function" then return false end
+            if safe(cast_pos_fn, id, position) == false then return false end
 
             mark_spell_cast(id)
 
@@ -5075,11 +5120,11 @@ function NS.action_execute(context, action, prefix)
         -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
         if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
 
-        -- Execute via cast_unit_spell global (with nil-guard)
-        if cast_unit_spell and type(cast_unit_spell) == "function" then
-            if not cast_unit_spell(id, target, action.name or tostring(id), reason) then return false end
+        -- Fallback: direct core.input.cast_target_spell
+        local cast_fn = core.input and core.input.cast_target_spell
+        if type(cast_fn) == "function" then
+            if safe(cast_fn, id, target) == false then return false end
         else
-            if debug then core.log("[EaxRotations:action_execute] " .. tostring(action.name) .. " FAIL: no cast_unit_spell global") end
             return false
         end
 
