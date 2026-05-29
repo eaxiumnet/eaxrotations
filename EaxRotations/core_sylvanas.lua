@@ -118,6 +118,20 @@ if not _reagent_guard_ok or type(_reagent_guard) ~= "table" then _reagent_guard 
 local _spell_queue_ok, _spell_queue = pcall(require, "common/modules/spell_queue")
 if not _spell_queue_ok or type(_spell_queue) ~= "table" then _spell_queue = nil end
 
+-- Overheal gate wrapper — absorbs nil-guard for HealerDeficit module.
+-- Returns true if the spell would overheal (should skip), false if safe to cast.
+-- Vanilla files can still call NS.HealerDeficit.gate_spell_overheal directly.
+---@param spell_key string Spell key in HEAL_SIZE_TBC table
+---@param unit game_object Target unit
+---@param call_time number Cast time in seconds
+---@param settings table Settings table
+---@return boolean overheal True if spell would overheal
+function NS.gate_overheal(spell_key, unit, call_time, settings)
+    local hd = NS.HealerDeficit
+    if not hd or not hd.gate_spell_overheal then return false end
+    return hd.gate_spell_overheal(spell_key, unit, call_time, settings)
+end
+
 -- cooldown_tracker: native engine-level cooldown observation (replaces enemy_cd_tracker)
 local _ct_ok, _cooldown_tracker = pcall(require, "common/utility/cooldown_tracker")
 if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil end
@@ -4010,12 +4024,48 @@ local HEALING_REDUCTION_DEBUFFS = {
 
     13218, 13222, 13223, 13224, 27189, -- Wound Poison ranks
 
+    22859, -- Mortal Cleave (TBC boss ability)
+
 }
 
 function NS.has_healing_reduction_debuff(unit)
 
     return NS.debuff_up(unit, HEALING_REDUCTION_DEBUFFS)
 
+end
+
+-- TBC Raid Boss debuffs that demand immediate healing attention
+local BOSS_DEBUFF_CRITICAL = {
+    [32231] = "Chaos Nova",           -- Magtheridon
+    [34662] = "Bear Down",           -- Gruul
+    [30495] = "Shadow of Death",     -- High King Maulgar
+    [38029] = "Neurotoxin",          -- Lady Vashj
+    [37676] = "Insignificance",      -- Archimonde
+    [37850] = "Watery Grave",        -- Morogrim Tidewalker
+    [39042] = "Rapid Burst",         -- Kil'jaeden
+    [41303] = "Soul Drain",          -- Reliquary of Souls
+    [41410] = "Deaden",              -- Illidari Council
+    [40585] = "Dark Barrage",        -- Illidan
+    [34661] = "Sacrifice",           -- Teron Gorefiend
+    [31347] = "Doom",                -- Doom Lord Kazzak
+    [32960] = "Mark of Kaz'rogal",   -- Kaz'rogal
+    [31344] = "Mark of the Storm",   -- Archimonde (early TBC)
+    [38995] = "Hammer of Justice",   -- Sunwell trash (stun + damage)
+}
+
+--- Check if a unit has a critical boss debuff requiring immediate healing.
+---@param unit game_object Target unit
+---@return boolean has_critical True if unit has a critical boss debuff
+---@return string|nil debuff_name Name of the critical debuff, or nil
+function NS.has_critical_boss_debuff(unit)
+    if not unit then return false, nil end
+    local has_debuff = unit.has_debuff
+    if not has_debuff then return false, nil end
+    for debuff_id, name in pairs(BOSS_DEBUFF_CRITICAL) do
+        local ok, result = pcall(has_debuff, unit, debuff_id)
+        if ok and result then return true, name end
+    end
+    return false, nil
 end
 
 local function is_tank_unit(unit)
@@ -4580,7 +4630,7 @@ function NS.run_unified_strategies(context)
 
             local ok = true
 
-            if type(s.matches) == "function" then ok = safe_fn(s.matches, context, state) == true end
+            if type(s.matches) == "function" then ok = s.matches(context, state) == true end
 
             if ok and safe_fn(s.execute, context, state) then return true end
 
