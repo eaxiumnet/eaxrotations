@@ -46,6 +46,15 @@ local HEAL_SIZE_TBC = {
     BindingHeal    = 1800,  -- ~1050 base + 0.5 coeff * 1500 +heal (both targets)
     HealingWave    = 2500,  -- ~1600 base + 0.857 coeff * 1000 +heal
     LesserHealingWave = 1000, -- ~800 base + 0.428 coeff * 500 +heal
+    -- Paladin TBC heals
+    HolyLight      = 3000,  -- ~2100 base + 0.857 coeff * 1000 +heal (rank 11)
+    FlashOfLight   = 1200,  -- ~800 base + 0.43 coeff * 1000 +heal (rank 7)
+    HolyShock      =  900,  -- ~600 base + 0.43 coeff * 700 +heal (rank 7)
+    -- Druid TBC heals
+    HealingTouch   = 3000,  -- ~2000 base + 1.0 coeff * 1000 +heal (rank 12)
+    Regrowth       = 1500,  -- ~1000 base + 1.0 coeff * 500 +heal (rank 8)
+    -- AoE heals
+    CircleOfHealing=  600,  -- ~400 base + 0.241 coeff * 800 +heal per target
 }
 
 -- ---------------------------------------------------------------------------

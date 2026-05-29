@@ -323,6 +323,10 @@ local function binding_heal_matches(context, s)
     if (s.lowest.effective_hp or 100) > 50 then return false end
     if (s.hp_pct or 100) > 70 then return false end
     if not s.binding_heal_ready then return false end
+    -- Predictive overheal gate: don't cast BH if predicted deficit is smaller than the heal
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        if NS.HealerDeficit.gate_spell_overheal("BindingHeal", s.lowest.unit, 2.0, context.settings) then return false end
+    end
     return true
 end
 
@@ -330,6 +334,11 @@ local function circle_of_healing_matches(context, s)
     if context.is_moving then return false end
     if s.group_damaged_count < 3 then return false end
     if not s.circle_of_healing_ready then return false end
+    -- Predictive overheal gate: skip CoH if even the lowest target doesn't need it
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        local target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
+        if NS.HealerDeficit.gate_spell_overheal("CircleOfHealing", target, 1.5, context.settings) then return false end
+    end
     return true
 end
 

@@ -755,20 +755,39 @@ local function strategy_allowed(strategy, list_name, active, context)
     return true, "allowed", category
 end
 
+local _debug_enabled_cache = nil
+local _debug_cache_time = -1
+
+local function is_debug_enabled()
+    local now = NS.game_time_ms and NS.game_time_ms() or 0
+    if now - _debug_cache_time > 500 then
+        _debug_enabled_cache = NS.get_setting and NS.get_setting("debug_system", false) or false
+        _debug_cache_time = now
+    end
+    return _debug_enabled_cache
+end
+
 local function run_list(name, list, options, context)
     if type(list) ~= "table" then
         trace("list:" .. tostring(name) .. ":missing", "list " .. tostring(name) .. " missing type=" .. type(list), 1000)
         return false
     end
-    trace("list:" .. tostring(name) .. ":start", "list " .. tostring(name) .. " start count=" .. tostring(#list), 2000)
+    local debug_on = is_debug_enabled()
+    if debug_on then
+        trace("list:" .. tostring(name) .. ":start", "list " .. tostring(name) .. " start count=" .. tostring(#list), 2000)
+    end
     local state = context
     if options and options.get_state then
         state = safe(options.get_state, context) or context
-        trace("list:" .. tostring(name) .. ":state", "list " .. tostring(name) .. " get_state returned " .. tostring(state ~= context and state ~= nil), 1000)
+        if debug_on then
+            trace("list:" .. tostring(name) .. ":state", "list " .. tostring(name) .. " get_state returned " .. tostring(state ~= context and state ~= nil), 1000)
+        end
     end
     if options and options.context_builder then
         state = safe(options.context_builder, context) or context
-        trace("list:" .. tostring(name) .. ":builder", "list " .. tostring(name) .. " context_builder returned " .. tostring(state ~= context and state ~= nil), 1000)
+        if debug_on then
+            trace("list:" .. tostring(name) .. ":builder", "list " .. tostring(name) .. " context_builder returned " .. tostring(state ~= context and state ~= nil), 1000)
+        end
     end
     for i = 1, #list do
         local strategy = list[i]
@@ -776,30 +795,44 @@ local function run_list(name, list, options, context)
             local sname = tostring(strategy.name or i)
             local allowed, allow_reason, category = strategy_allowed(strategy, name, context.active_playstyle, context)
             if not allowed then
-                trace("strategy:" .. tostring(name) .. ":" .. sname .. ":blocked", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " blocked category=" .. tostring(category) .. " reason=" .. tostring(allow_reason), 2000)
+                if debug_on then
+                    trace("strategy:" .. tostring(name) .. ":" .. sname .. ":blocked", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " blocked category=" .. tostring(category) .. " reason=" .. tostring(allow_reason), 2000)
+                end
             elseif type(strategy.execute) ~= "function" then
                 NS.log_warning(name .. " strategy " .. tostring(strategy.name or i) .. " missing execute")
             else
                 local ok = true
                 if type(strategy.matches) == "function" then ok = safe(strategy.matches, context, state) == true end
-                trace("strategy:" .. tostring(name) .. ":" .. sname .. ":match", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " category=" .. tostring(category) .. " match=" .. tostring(ok), 2000)
+                if debug_on then
+                    trace("strategy:" .. tostring(name) .. ":" .. sname .. ":match", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " category=" .. tostring(category) .. " match=" .. tostring(ok), 2000)
+                end
                 if ok then
                     local executed = safe(strategy.execute, context, state) == true
-                    trace("strategy:" .. tostring(name) .. ":" .. sname .. ":exec", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " execute=" .. tostring(executed), 2000)
+                    if debug_on then
+                        trace("strategy:" .. tostring(name) .. ":" .. sname .. ":exec", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " execute=" .. tostring(executed), 2000)
+                    end
                     if executed then
-                        trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":fired", "[EaxRotations:strategy] FIRED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
+                        if debug_on then
+                            trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":fired", "[EaxRotations:strategy] FIRED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
+                        end
                         return true
                     else
-                        trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":failed", "[EaxRotations:strategy] MATCHED but execute FAILED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
+                        if debug_on then
+                            trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":failed", "[EaxRotations:strategy] MATCHED but execute FAILED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
+                        end
                     end
                 end
             end
         else
-            trace("strategy:" .. tostring(name) .. ":" .. tostring(i) .. ":bad", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] invalid type=" .. type(strategy), 1000)
+            if debug_on then
+                trace("strategy:" .. tostring(name) .. ":" .. tostring(i) .. ":bad", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] invalid type=" .. type(strategy), 1000)
+            end
         end
     end
-    trace("list:" .. tostring(name) .. ":none", "list " .. tostring(name) .. " finished without action", 2000)
-    trace("strategy:" .. tostring(name) .. ":no_fires", "[EaxRotations:strategy] " .. tostring(name) .. " list finished - NO strategies fired (checked " .. tostring(#list) .. " entries)", 2000)
+    if debug_on then
+        trace("list:" .. tostring(name) .. ":none", "list " .. tostring(name) .. " finished without action", 2000)
+        trace("strategy:" .. tostring(name) .. ":no_fires", "[EaxRotations:strategy] " .. tostring(name) .. " list finished - NO strategies fired (checked " .. tostring(#list) .. " entries)", 2000)
+    end
     return false
 end
 

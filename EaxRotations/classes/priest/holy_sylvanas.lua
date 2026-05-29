@@ -411,7 +411,12 @@ local strategies = {
             if context.settings.holy_use_binding_heal == false then return false end
             if context.hp > (context.settings.holy_binding_self_hp or 80) then return false end
             if not state.lowest or state.lowest.is_player then return false end
-            return spell_exists(SPELLS.BindingHeal) and spell_ready(SPELLS.BindingHeal, state.lowest.unit)
+            if not spell_exists(SPELLS.BindingHeal) or not spell_ready(SPELLS.BindingHeal, state.lowest.unit) then return false end
+            -- Predictive overheal gate
+            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+                if NS.HealerDeficit.gate_spell_overheal("BindingHeal", state.lowest.unit, 2.0, context.settings) then return false end
+            end
+            return true
         end,
         execute = function(context, state)
             local chosen_spell, spell_label = cast_best_heal_rank(BINDING_HEAL_RANKS, state.lowest.unit, context, "BH", HOLY_OPTS_BH)
@@ -450,6 +455,10 @@ local strategies = {
             if not state.lowest then return false end
             -- Pushback gate: skip long-cast heals when taking damage
             if _check_pushback(context) then return false end
+            -- Predictive overheal gate: don't waste clearcast GH if predicted deficit is small
+            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+                if NS.HealerDeficit.gate_spell_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
+            end
             return state.lowest_hp < 95
         end,
         execute = function(context, state)
