@@ -143,7 +143,13 @@ local function build_holy_state(context)
     if Healing.scan_healing_targets then
         local entries, count = Healing.scan_healing_targets()
         if entries and count and count > 0 then
-            lowest_entry = entries[1]
+            -- Triage-ranked target selection: smarter than naive lowest-HP
+            if NS.Triage and NS.Triage.rank then
+                local ranked = NS.Triage.rank(entries, count)
+                lowest_entry = ranked[1] or entries[1]
+            else
+                lowest_entry = entries[1]
+            end
             lowest_hp = (lowest_entry and lowest_entry.effective_hp) or 100
 
             for i = 1, count do

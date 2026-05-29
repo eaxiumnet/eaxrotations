@@ -6,6 +6,7 @@ if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
 
 local SCORCH_DEBUFF = { 22959 }
+local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
 
 -- Mana Gem item IDs (highest to lowest rank)
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }  -- Emerald, Ruby, Citrine, Jade, Agate
