@@ -196,6 +196,12 @@ local _spell_id_cache = {}
 
 local _SPELL_ID_CACHE_TTL = 30
 
+-- Per-spell-ID learned/unlearned result cache: avoids repeated pcall(is_spell_learned) API calls.
+-- Keys are spell_id numbers; values are { result=bool, ts=timestamp }.
+-- TTL is 5s; spells don't change learned status frequently during combat.
+local _learned_cache = {}
+local _LEARNED_CACHE_TTL = 5
+
 -- One-shot diagnostic log tracker: prevents repeated API dump spam.
 
 -- Keys are spell labels; once logged, won't repeat until next session.
@@ -1830,6 +1836,13 @@ function NS.spell_id_is_known(spell_id)
 
     if _api_health_broken then return true end
 
+    -- Per-spell-ID learned cache: skip expensive pcall if recently resolved
+    local now = NS.time_now and NS.time_now() or 0
+    local cached = _learned_cache[spell_id]
+    if cached and (now - cached.ts) < _LEARNED_CACHE_TTL then
+        return cached.result
+    end
+
     local sb = core.spell_book
 
     if not sb then return true end
@@ -1842,6 +1855,7 @@ function NS.spell_id_is_known(spell_id)
 
         if not ok then
             if debug then NS.log("[DEBUG] spell_id_is_known(" .. tostring(spell_id) .. ") ERROR: " .. tostring(result)) end
+            _learned_cache[spell_id] = { result = false, ts = now }
             return false
         end
 
@@ -1850,7 +1864,7 @@ function NS.spell_id_is_known(spell_id)
         if result == true then
 
             _api_health_hits = _api_health_hits + 1
-
+            _learned_cache[spell_id] = { result = true, ts = now }
             return true
 
         end
@@ -1875,10 +1889,17 @@ function NS.spell_id_is_known(spell_id)
 
     end
 
-    if type(sb.is_spell_known) == "function" and safe(sb.is_spell_known, spell_id) == true then return true end
+    if type(sb.is_spell_known) == "function" and safe(sb.is_spell_known, spell_id) == true then
+        _learned_cache[spell_id] = { result = true, ts = now }
+        return true
+    end
 
-    if type(sb.has_spell) == "function" and safe(sb.has_spell, spell_id) == true then return true end
+    if type(sb.has_spell) == "function" and safe(sb.has_spell, spell_id) == true then
+        _learned_cache[spell_id] = { result = true, ts = now }
+        return true
+    end
 
+    _learned_cache[spell_id] = { result = false, ts = now }
     return false
 
 end
@@ -1948,6 +1969,7 @@ end
 function NS.refresh_spell_cache()
 
     for k in pairs(_spell_id_cache) do _spell_id_cache[k] = nil end
+    for k in pairs(_learned_cache) do _learned_cache[k] = nil end
 
 end
 
@@ -4549,28 +4571,27 @@ local function strategy_category(strategy, list_name, active)
 
     if type(strategy.category) == "string" then return strategy.category end
 
+    -- Per-playstyle cache: category is stable for same active playstyle
+    local cat_cache = strategy._cat_cache
+    if active and cat_cache and cat_cache[active] then return cat_cache[active] end
+    if active and not cat_cache then cat_cache = {}; strategy._cat_cache = cat_cache end
+
     local name = tostring(strategy.name or ""):gsub("%s+", ""):lower()
 
-    if contains_any(name, HEALING_NAMES) then return "healing" end
-
-    if contains_any(name, DEFENSIVE_NAMES) then return "utility" end
-
-    if strategy.is_burst or contains_any(name, COOLDOWN_NAMES) then return "cooldown" end
-
-    if contains_any(name, UTILITY_NAMES) then return "utility" end
-
-    if list_name == "middleware" then return "utility" end
-
-    if HEALING_PLAYSTYLES[tostring(active or ""):lower()] then
-
-        if contains_any(name, DAMAGE_NAMES) then return "damage" end
-
-        return "healing"
-
+    local cat
+    if contains_any(name, HEALING_NAMES) then cat = "healing"
+    elseif contains_any(name, DEFENSIVE_NAMES) then cat = "utility"
+    elseif strategy.is_burst or contains_any(name, COOLDOWN_NAMES) then cat = "cooldown"
+    elseif contains_any(name, UTILITY_NAMES) then cat = "utility"
+    elseif list_name == "middleware" then cat = "utility"
+    elseif HEALING_PLAYSTYLES[tostring(active or ""):lower()] then
+        if contains_any(name, DAMAGE_NAMES) then cat = "damage"
+        else cat = "healing" end
+    else cat = "damage"
     end
 
-    return "damage"
-
+    if active then cat_cache[active] = cat end
+    return cat
 end
 
 -- Strategy gate: checks category toggles from settings and burst conditions.
@@ -4618,6 +4639,15 @@ function NS.run_unified_strategies(context)
 
     end
 
+    -- Precompute tick-constant settings for strategy gating
+    local settings = context and context.settings or EMPTY
+    local is_healer = HEALING_PLAYSTYLES[tostring(active or ""):lower()] == true
+    local utility_enabled = settings.utility_enabled
+    local healing_enabled = settings.healing_enabled
+    local damage_enabled = settings.damage_enabled
+    local use_cooldowns = settings.use_cooldowns
+    local should_burst = context and context.should_burst
+
     for i = 1, #NS.unified_registry do
 
         local s = NS.unified_registry[i]
@@ -4626,14 +4656,18 @@ function NS.run_unified_strategies(context)
 
         local ps = s.playstyle
 
-        if (not ps or ps == "_global" or ps == active) and NS.strategy_allowed(s, nil, active, context) then
-
-            local ok = true
-
-            if type(s.matches) == "function" then ok = s.matches(context, state) == true end
-
-            if ok and safe_fn(s.execute, context, state) then return true end
-
+        if not ps or ps == "_global" or ps == active then
+            -- Inline strategy_allowed checks (avoid per-strategy function call + settings lookup)
+            local category = strategy_category(s, nil, active)
+            local gated = (utility_enabled == false and category == "utility")
+                or (healing_enabled == false and (category == "healing" or (is_healer and category == "cooldown")))
+                or (damage_enabled == false and (category == "damage" or (category == "cooldown" and not is_healer)))
+                or (use_cooldowns == false and category == "cooldown" and not should_burst)
+            if not gated then
+                local ok = true
+                if type(s.matches) == "function" then ok = s.matches(context, state) == true end
+                if ok and safe_fn(s.execute, context, state) then return true end
+            end
         end
 
     end
