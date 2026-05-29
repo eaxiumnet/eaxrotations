@@ -674,5 +674,28 @@ for i = 1, #STRATEGY_SPECS do
 end
 
 NS.rotation_registry:register("fury", strategies, { get_state = build_state })
-NS.log("Warrior fury rotation registered (FrostByte v1.0.6+ parity)")
+
+-- Unified dispatcher registration (coexists with legacy for migration)
+if NS.register_strategy then  -- both unified APIs available
+    NS.register_state_builder("fury", build_state)
+    for i = 1, #STRATEGY_SPECS do
+        local spec = STRATEGY_SPECS[i]
+        local unified_matches_fn = spec[2]
+        local unified_row = spec[3]
+        local unified_custom_execute = spec[4]
+        NS.register_strategy({
+            name = "Fury:" .. spec[1],
+            playstyle = "fury",
+            priority = #STRATEGY_SPECS - i + 1,
+            matches = function(context, state)
+                return unified_matches_fn(context, state)
+            end,
+            execute = unified_custom_execute or function(context, state)
+                return cast(context, unified_row)
+            end,
+        })
+    end
+end
+
+NS.log("Warrior fury rotation registered (FrostByte v1.0.6+ parity) — legacy + unified")
 return strategies
