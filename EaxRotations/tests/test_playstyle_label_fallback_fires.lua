@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/test_playstyle_label_fallback_fires.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- regression test for legacy/capitalized playstyle settings.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -76,7 +58,7 @@ package.loaded.main_sylvanas = nil
 package.loaded["classes/warlock/class_sylvanas"] = nil
 _G.EaxRotations = nil	local NS = require("core_sylvanas")
 	NS.has_player_buff = function() return true end  -- suppress Phase 1 middleware self-buffs
-	NS.buff_up = function() return true end  -- suppress spec-level Shadow Ward (uses NS.buff_up, not has_buff)
+	NS.buff_up = function(unit) return unit == player end  -- suppress self-buffs without marking target immune
 	NS.is_hostile_unit = function() return true end  -- required for valid_enemy check in dispatcher
 require("classes/warlock/class_sylvanas")	NS.set_setting("playstyle", "Destruction")
 

@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/class_loader_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- DRY class loader for all class_sylvanas.lua modules.
 
 local NS = _G.EaxRotations
@@ -66,8 +48,16 @@ function class_loader.create_expansion_loader(class_key, class_display_name)
         local current_ns = _G.EaxRotations or NS
         local expansion_suffix = (current_ns.is_vanilla and current_ns.is_vanilla()) and "_vanilla" or "_sylvanas"
         local preferred_filename = name_base .. expansion_suffix
-        local ok, result = pcall(require, "classes/" .. class_key .. "/" .. preferred_filename)
+        local preferred_path = "classes/" .. class_key .. "/" .. preferred_filename
+        local ok, result = pcall(require, preferred_path)
         if not ok then
+            -- Distinguish "module not found" from runtime errors
+            local is_not_found = type(result) == "string" and result:match("module '" .. preferred_path .. "' not found")
+            if not is_not_found then
+                -- Real runtime error in the module -- rethrow, don't silently fallback
+                error(class_display_name .. " required module error: " .. tostring(name_base) .. " : " .. tostring(result), 2)
+            end
+
             local fallback_suffix = (expansion_suffix == "_sylvanas") and "_vanilla" or "_sylvanas"
             local fallback_filename = name_base .. fallback_suffix
             local ok2, result2 = pcall(require, "classes/" .. class_key .. "/" .. fallback_filename)

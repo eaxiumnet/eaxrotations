@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/test_fury_custom_matches.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- unit tests for fury_sylvanas custom matches functions.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -215,7 +197,7 @@ local sweeping_strikes = find_strategy("SweepingStrikes")	-- Too few enemies -> 
 	spell_ready_calls = {}
 	assert_false(sweeping_strikes.matches({ enemy_count = 1 }), "SweepingStrikes should not match with < 2 enemies")	-- 2+ enemies -> should match
 	spell_ready_calls = {}
-	assert_true(sweeping_strikes.matches({ enemy_count = 3 }), "SweepingStrikes should match with >= 2 enemies")
+	assert_true(sweeping_strikes.matches({ enemy_count = 3, stance = 1, me = {} }), "SweepingStrikes should match with >= 2 enemies in Battle Stance")
 
 -- ============================================================================
 -- Cleave: only when 2+ enemies and rage >= 60

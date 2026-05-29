@@ -1,30 +1,6 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/priest/holy_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- ============================================================================
--- What: TBC Priest Holy healing rotation and FrostByte utility actions
--- When: Per tick
--- Why: Priority healing with shared scan state and preallocated options keeps triage fast
--- Safety: Nil-guarded NS helpers, pcall on optional modules/items, conservative defaults
--- ============================================================================
 local _G = _G
 local NS = _G.EaxRotations
-if not NS then return end
+if not NS then return nil end
 
 local load_player = NS.GetPlayer()
 
@@ -68,9 +44,7 @@ local cast_best_heal_rank = NS.cast_best_heal_rank or function() return false en
 local INNER_FOCUS_BUFF = 14751
 local SURGE_OF_LIGHT_BUFF = { 33151, 33154 }
 local HOLY_CONCENTRATION_BUFF = { 34753, 34754, 34859, 34860 }
--- RENEW_BUFF removed: unused (holy uses Healing.scan_healing_targets for buff tracking)
--- WEAKENED_SOUL_DEBUFF removed: unused (holy uses state.lowest.has_weakened_soul from Healing scan)
-local SHADOW_WORD_PAIN_DEBUFF = { 589, 594, 970, 992, 2767, 10892, 10893, 25367, 25368 }
+local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local HOLY_FIRE_DOT_DEBUFF = { 14914, 15262, 15263, 15264, 15265, 15266, 15267, 15261, 25384 }
 
 -- FrostByte feature constants
@@ -146,10 +120,6 @@ local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_co
     "try_cast", "spell_exists", "spell_ready", "debuff_remains", "health_pct",
     "player_control_locked", "has_player_buff"
 )
--- debuff_up removed: unused in holy (debuff_remains used instead for SWP/Holy Fire tracking)
-
--- is_same_unit removed: unused in holy (no unit comparison needed)
-
 local function build_holy_state(context)
     context.settings = context.settings or EMPTY_SETTINGS
     local aoe_hp = context.settings.holy_aoe_hp or 80
@@ -221,7 +191,9 @@ local function build_holy_state(context)
     holy_state.fade_ready = spell_exists(SPELLS.Fade) and spell_ready(SPELLS.Fade)
 
     -- FrostByte: Encounter ID for Karazhan reactions
-    holy_state.encounter_id = (NS.core and NS.core.get_map_id and NS.core.get_map_id()) or 0
+    holy_state.encounter_id = (NS.core and NS.core.get_map_id and NS.core.get_map_id())
+        or (core and core.get_map_id and core.get_map_id())
+        or 0
 
     holy_state.pom_ready = spell_exists(SPELLS.PrayerofMending) and spell_ready(SPELLS.PrayerofMending, (tank_entry and tank_entry.unit) or NS.PLAYER_UNIT)
     holy_state.coh_ready = spell_exists(SPELLS.CircleofHealing) and spell_ready(SPELLS.CircleofHealing, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
@@ -455,7 +427,13 @@ local strategies = {
             if context.settings.holy_use_poh == false then return false end
             -- Use subgroup count for PoH (only counts your party in raids)
             local poh_count = state.subgroup_damaged_count or state.group_damaged_count
-            return poh_count >= (context.settings.holy_aoe_count or 3)
+            if poh_count < (context.settings.holy_aoe_count or 3) then return false end
+            -- Predictive overheal gate
+            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+                local target = state.lowest and state.lowest.unit or NS.PLAYER_UNIT
+                if NS.HealerDeficit.gate_spell_overheal("PrayerOfHealing", target, 3.0, context.settings) then return false end
+            end
+            return true
         end,
         execute = function(context, state)
             local chosen_spell, spell_label = cast_best_heal_rank(PRAYER_OF_HEALING_RANKS, NS.PLAYER_UNIT, context, "PoH", HOLY_OPTS_POH)
@@ -524,7 +502,12 @@ local strategies = {
             if context.mana_pct < (context.settings.holy_gh_mana_floor or 30) then return false end
             local flash_hp = context.settings.holy_flash_heal_hp or 50
             local renew_hp = context.settings.holy_renew_hp or 90
-            return state.lowest_hp < renew_hp and state.lowest_hp >= flash_hp
+            if not (state.lowest_hp < renew_hp and state.lowest_hp >= flash_hp) then return false end
+            -- Predictive overheal gate
+            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+                if NS.HealerDeficit.gate_spell_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
+            end
+            return true
         end,
         execute = function(context, state)
             local target = state.lowest.unit
@@ -541,7 +524,12 @@ local strategies = {
             if not state.lowest then return false end
             -- Mana conservation: drop direct heals below 15% mana, Renew only
             if context.mana_pct < (context.settings.holy_fh_mana_floor or 15) then return false end
-            return state.lowest_hp < (context.settings.holy_flash_heal_hp or 50)
+            if not (state.lowest_hp < (context.settings.holy_flash_heal_hp or 50)) then return false end
+            -- Predictive overheal gate
+            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+                if NS.HealerDeficit.gate_spell_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings) then return false end
+            end
+            return true
         end,
         execute = function(context, state)
             local target = state.lowest.unit

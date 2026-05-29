@@ -1,49 +1,22 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Arcane Mage rotation
--- =========================================================================
-local __eax_file = "classes/mage/arcane_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Arcane Mage rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Mage Arcane priority list with burn/conserve phase state machine.
 
--- ============================================================================
--- What: Classic Vanilla Mage Arcane priority with Arcane Blast stacks and burn/conserve flow.
--- When: Evaluated every tick.
--- Why: Priority-list early exit keeps combat decisions fast and predictable.
--- Safety: All settings nil-guarded; shared data is pcall-gated; conservative fallbacks.
--- ============================================================================
 
 --
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
-local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
-if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { mage = {} } } end
-local TBC_MAGE = (TBC.SPELLS and TBC.SPELLS.mage) or {}
 
 -- ============================================================================
 -- Buff / Debuff IDs
 -- ============================================================================
-local ARCANE_BLAST_DEBUFF = { 36032, 36033, 36034 }  -- AB debuff: increases mana cost, reduces cast time
+local ARCANE_BLAST_DEBUFF = { }  -- AB debuff: increases mana cost, reduces cast time
 local ARCANE_POWER_BUFF = { 12042 }
 local PRESENCE_OF_MIND_BUFF = { 12043 }
 local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
-local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
+local MANA_SHIELD_BUFF = { 10193, 10192, 10191, 8495, 8494, 1463 }
 local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
-local SLOW_DEBUFF = { 31589 }
-local FROST_NOVA_ROOTS = TBC_MAGE.frost_nova or { 27088, 10230, 6131, 865, 122 }
+-- Slow (31589) is TBC-only; not available in Classic Vanilla
+local FROST_NOVA_ROOTS = { 10230, 6131, 865, 122 }
 
 -- ============================================================================
 -- Constants
@@ -58,8 +31,8 @@ local AB_STACK_DURATION = 8                 -- Stacks last 8 seconds
 local MTTE_BURN_MPS_MULT = 1.4              -- Add 40% overhead for rotations with instant casts
 local MTTE_CONSERVE_MPS = 100               -- ~100 mana/sec during conserve (AM filler + regen)
 
--- Mana Gem spell IDs (not defined in class_sylvanas.lua, use local constant)
-local MANA_GEM_SPELLS = TBC_MAGE.conjure_mana_gem or { 27101, 10054, 10053, 3552, 759 }  -- Conjure Mana Emerald -> Agate.
+local MANA_GEM_CONJURE = { 10054, 10053, 3552, 759 }
+local MANA_GEM_ITEM_IDS = { 8008, 8007, 5513, 5514 }
 
 -- Phases
 local PHASE_BURN = "burn"
@@ -100,9 +73,25 @@ local arcane_state = {
 --- Get current Arcane Blast stack count and remaining duration
 local function get_ab_stacks(me)
     if not me then return 0, 0 end
-    local stacks = NS.buff_stacks and NS.buff_stacks(me, ARCANE_BLAST_DEBUFF) or 0
-    local remains = NS.buff_remains and NS.buff_remains(me, ARCANE_BLAST_DEBUFF) or 0
+    local stacks = NS.debuff_stacks and NS.debuff_stacks(me, ARCANE_BLAST_DEBUFF) or 0
+    local remains = NS.debuff_remains and NS.debuff_remains(me, ARCANE_BLAST_DEBUFF) or 0
     return stacks, remains
+end
+
+local function first_ready_mana_gem()
+    if not NS.is_item_ready then return nil end
+    for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
+        local ok, ready = pcall(NS.is_item_ready, item_id)
+        if ok and ready then return item_id end
+    end
+    return nil
+end
+
+local function use_mana_gem()
+    local item_id = first_ready_mana_gem()
+    if not item_id or not NS.use_item_by_id then return false end
+    local ok, used = pcall(NS.use_item_by_id, item_id)
+    return ok and used == true
 end
 
 --- Calculate MTTE at a given AB stack level using actual player max mana.
@@ -166,15 +155,7 @@ local function build_state(context)
     -- Cooldown availability
     s.evocation_available = me and NS.spell_ready and NS.spell_ready(SPELLS.Evocation, me, { skip_range = true }) or false
     s.mana_gem_available = false
-    if me then
-        -- Check each mana gem spell individually (SPELLS.ManaGem doesn't exist in class_sylvanas)
-        for _, gem_id in ipairs(MANA_GEM_SPELLS) do
-            if NS.spell_ready and NS.spell_ready(gem_id, me, { skip_range = true }) then
-                s.mana_gem_available = true
-                break
-            end
-        end
-    end
+    if me then s.mana_gem_available = first_ready_mana_gem() ~= nil end
     s.arcane_power_available = me and NS.spell_ready and NS.spell_ready(SPELLS.ArcanePower, me, { skip_range = true }) or false
     s.has_clearcasting = NS.buff_up and NS.buff_up(me, CLEARCASTING_BUFF) or false
 
@@ -246,8 +227,9 @@ end
 local function ice_barrier_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.IceBarrier, 3.0) then return false end
     if s.has_ice_barrier then return false end
-    if s.hp_pct > 60 then return false end
+    if (s.hp_pct or 100) > 60 then return false end
     if not get_setting_bool(context, "use_defensives", true) then return false end
+    if not get_setting_bool(context, "use_ice_barrier", true) then return false end
     return true
 end
 
@@ -255,9 +237,10 @@ end
 local function mana_shield_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaShield, 3.0) then return false end
     if s.has_mana_shield then return false end
-    if s.hp_pct > 40 then return false end
-    if s.mana_pct < 30 then return false end
+    if (s.hp_pct or 100) > 40 then return false end
+    if (s.mana_pct or 0) < 30 then return false end
     if not get_setting_bool(context, "use_defensives", true) then return false end
+    if not get_setting_bool(context, "use_mana_shield", true) then return false end
     return true
 end
 
@@ -288,17 +271,6 @@ local function frost_nova_matches(context, s)
     return true
 end
 
---- Slow: PvP snare for kiting
-local function slow_matches(context, s)
-    if not context.is_pvp then return false end
-    if not context.target then return false end
-    local me = context.me
-    if not me then return false end
-    local dist = me.get_distance and me:get_distance(context.target) or 40
-    if dist <= 8 then return false end
-    return true
-end
-
 --- Presence of Mind: use as burst opener or during movement
 local function pom_matches(context, s)
     if s.has_presence_of_mind then return false end
@@ -320,11 +292,11 @@ local function arcane_power_matches(context, s)
     -- Only use AP during burn phase or bloodlust
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
     -- Require sufficient mana to sustain the full duration
-    if s.mana_pct < 35 then return false end
+    if (s.mana_pct or 0) < 35 then return false end
     -- Prefer high AB stacks for max value
-    if s.ab_stacks >= 2 then return true end
+    if (s.ab_stacks or 0) >= 2 then return true end
     -- Always cast AP during burn if we have the mana
-    if s.phase == PHASE_BURN and s.mana_pct >= 50 then return true end
+    if s.phase == PHASE_BURN and (s.mana_pct or 0) >= 50 then return true end
     return true
 end
 
@@ -335,11 +307,11 @@ local function evocation_matches(context, s)
     if not s.evocation_available then return false end
     local evo_mana = get_setting_num(context, "arcane_evocation_mana", 20)
     -- Emergency: very low mana
-    if s.mana_pct <= evo_mana then
+    if (s.mana_pct or 100) <= evo_mana then
         return true
     end
     -- During conserve phase: evocate if below threshold to enable next burn
-    if s.phase == PHASE_CONSERVE and s.mana_pct <= 30 then
+    if s.phase == PHASE_CONSERVE and (s.mana_pct or 100) <= 30 then
         return true
     end
     return false
@@ -351,11 +323,11 @@ local function mana_gem_matches(context, s)
     if not s.mana_gem_available then return false end
     local gem_mana = get_setting_num(context, "arcane_mana_gem_mana", 55)
     -- Use during burn when mana drops below threshold
-    if s.phase == PHASE_BURN and s.mana_pct <= gem_mana then
+    if s.phase == PHASE_BURN and (s.mana_pct or 100) <= gem_mana then
         return true
     end
     -- Use during conserve to speed up recovery
-    if s.phase == PHASE_CONSERVE and s.mana_pct <= 35 then
+    if s.phase == PHASE_CONSERVE and (s.mana_pct or 100) <= 35 then
         return true
     end
     return false
@@ -380,18 +352,18 @@ local function arcane_blast_matches(context, s)
     if max_stacks == 0 then return false end
 
     -- If we're already at max stacks for our phase, only cast AB to maintain them
-    if s.ab_stacks >= max_stacks then
-        if s.ab_remains > 1.5 then return false end  -- Not about to drop
+    if (s.ab_stacks or 0) >= max_stacks then
+        if (s.ab_remains or 0) > 1.5 then return false end  -- Not about to drop
     end
 
     -- Don't build stacks if mana is critically low
     -- Clearcasting: always consume on AB (highest mana cost) per research Angle 5
     if s.has_clearcasting then return true end
 
-    if s.mana_pct < 15 then
-        if s.ab_stacks >= max_stacks then return false end
+    if (s.mana_pct or 100) < 15 then
+        if (s.ab_stacks or 0) >= max_stacks then return false end
         -- Allow building to 1 stack max when below 15% mana
-        if max_stacks > 0 and s.ab_stacks >= 1 then return false end
+        if max_stacks > 0 and (s.ab_stacks or 0) >= 1 then return false end
     end
 
     return NS.spell_ready(SPELLS.UnavailableClassicMageArcane, context.target)
@@ -406,7 +378,7 @@ local function fire_blast_matches(context, s)
     local max_stacks = s.phase == PHASE_BURN
         and get_setting_num(context, "arcane_burn_max_stacks", 3)
         or get_setting_num(context, "arcane_conserve_max_stacks", 0)
-    if s.ab_stacks >= max_stacks then return true end
+    if (s.ab_stacks or 0) >= max_stacks then return true end
     -- Otherwise fire blast as filler
     return true
 end
@@ -422,7 +394,7 @@ local function arcane_missiles_matches(context, s)
 
     -- During burn: use AM only when mana is low
     if s.phase == PHASE_BURN then
-        if s.mana_pct < 20 then
+        if (s.mana_pct or 100) < 20 then
         return NS.spell_ready(SPELLS.ArcaneMissiles, context.target)
         end
         return false  -- Prefer AB in burn
@@ -468,9 +440,7 @@ local strategies = {
     { name = "FrostNova",
       matches = frost_nova_matches,
       execute = function(context) return NS.try_cast(SPELLS.FrostNova, context.target, "[ARCANE] FrostNova") end },
-    { name = "Slow",
-      matches = slow_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Slow, context.target, "[ARCANE] Slow") end },
+    -- Slow is TBC-only, removed from Vanilla strategy table
 
     -- Burst cooldowns (synced with burn phase)
     { name = "PresenceOfMind",
@@ -486,7 +456,7 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.Evocation, context.me, "[ARCANE] Evocation") end },
     { name = "ManaGem",
       matches = mana_gem_matches,
-      execute = function(context) return NS.try_cast(MANA_GEM_SPELLS, context.me, "[ARCANE] ManaGem") end },
+      execute = function() return use_mana_gem() end },
 
     -- Primary nuke: Arcane Blast (stack management)
     { name = "UnavailableClassicMageArcane",

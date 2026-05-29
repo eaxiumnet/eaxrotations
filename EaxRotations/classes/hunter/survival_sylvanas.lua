@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/hunter/survival_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Hunter Survival priority list.
 
--- ============================================================================
--- What: Hunter Survival priority list with traps, shots, and ranged control tools
--- When: Evaluated every tick via main_sylvanas.lua dispatcher
--- Why: Priority-list early-exit keeps control and damage checks efficient
--- Safety: Nil-guarded settings; NS.* wrappers; optional clip tracker; conservative fallback behavior
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -145,7 +121,7 @@ local function build_state(context)
     sv_state.raptor_strike_ready = target and NS.spell_ready(SPELLS.RaptorStrike, target) or false
     sv_state.wing_clip_ready = target and NS.spell_ready(SPELLS.WingClip, target) or false
     sv_state.volley_ready = target and NS.spell_ready(SPELLS.Volley, target) or false
-    sv_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 180 }) or false
+    sv_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
     sv_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -163,7 +139,7 @@ end
 -- ============================================================================
 local function mend_pet_matches(context, s)
     if not s.pet_alive then return false end
-    if s.pet_hp_pct > 45 then return false end
+    if (s.pet_hp_pct or 100) > 45 then return false end
     if not s.mend_pet_ready then return false end
     return true
 end
@@ -182,7 +158,7 @@ local function rapid_fire_matches(context, s)
 end
 
 local function explosive_trap_matches(context, s)
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not s.explosive_trap_ready then return false end
     return true
 end
@@ -227,7 +203,7 @@ end
 
 local function aspect_viper_matches(context, s)
     if s.has_aspect_viper then return false end
-    if s.mana_pct > 20 then return false end
+    if (s.mana_pct or 100) > 20 then return false end
     return true
 end
 
@@ -352,7 +328,7 @@ end
 local function volley_matches(context, s)
     if context.is_channeling then return false end
     if not s.in_combat then return false end
-    if s.enemy_count < 4 then return false end
+    if (s.enemy_count or 0) < 4 then return false end
     if context.is_moving then return false end
     if not s.volley_ready then return false end
     return true
@@ -371,7 +347,7 @@ local strategies = {
     { name = "WyvernSting", matches = wyvern_sting_matches, execute = function(context) return NS.try_cast(SPELLS.WyvernSting, context.target, "[SURVIVAL] Wyvern Sting") end },
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[SURVIVAL] Hunter's Mark") end },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[SURVIVAL] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
-    { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[SURVIVAL] Readiness", { skip_range = true, expected_cooldown = 180 }) end },
+    { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[SURVIVAL] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "ExplosiveTrap", matches = explosive_trap_matches, execute = function(context) return NS.try_cast(SPELLS.ExplosiveTrap, context.me, "[SURVIVAL] Explosive Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "KillCommand", matches = kill_command_matches, execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[SURVIVAL] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
     { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[SURVIVAL] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },

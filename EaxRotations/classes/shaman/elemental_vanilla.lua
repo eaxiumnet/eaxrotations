@@ -27,46 +27,16 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.ShamanSpells or {}
-local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
-if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
-local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
 
 -- Fallback spell definitions for keys not yet in class_sylvanas.lua
 -- These are overridden if class_sylvanas.lua defines them with higher priority
 SPELLS.UnavailableClassicShamanTotem = nil
-if NS.spell_action and not SPELLS.WrathOfAirTotem then
-    -- DB2: spell ID 3738 (same as the buff ID); 25361 is Strength of Earth Totem rank 5
-    SPELLS.WrathOfAirTotem = NS.spell_action({
-        name = "WrathOfAirTotem", ids = { 3738 }, levels = { 64 },
-        cast_time = 0, cooldown = 0, power_cost = 0, power_type = "mana", school = "nature",
-    })
-end
-if NS.spell_action and not SPELLS.MagmaTotem then
-    -- DB2: 25552 (max, 65), 10587 (56), 10586 (46), 10585 (36), 8190 (26)
-    SPELLS.MagmaTotem = NS.spell_action({
-        name = "MagmaTotem", ids = { 25552, 10587, 10586, 10585, 8190 },
-        levels = { 65, 56, 46, 36, 26 },
-        cast_time = 0, cooldown = 0, power_cost = 0, power_type = "mana", school = "fire",
-    })
-end
--- LightningBolt rank 11 (25448) for mana conservation; max rank is 25449
-if NS.spell_action and not SPELLS.LightningBoltLowerRank then
-    SPELLS.LightningBoltLowerRank = NS.spell_action({
-        name = "LightningBoltLowerRank", ids = { 25448 }, levels = { 62 },
-        cast_time = 3.0, cooldown = 0, power_cost = 0, power_type = "mana", school = "nature",
-    })
-end
-if not SPELLS.LightningBoltLowerRank then
-    SPELLS.LightningBoltLowerRank = 25448
-end
 
 -- Debuff and buff ID tables
-local FLAME_SHOCK_DEBUFF = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
-local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
-local TOTEM_OF_WRATH_BUFF = { 30708 }
-local WRATH_OF_AIR_BUFF = { 3738 }
-local MANA_SPRING_BUFF = { 25570, 10491, 10490, 5676 }  -- Mana Spring Totem aura ranks
-local SHIELD_REFRESH_UNKNOWN_MS = 30000
+local FLAME_SHOCK_DEBUFF = { 10448, 10447, 8053, 8052, 8050 }
+local LIGHTNING_SHIELD_BUFF = { 10432, 10431, 8134, 945, 905, 325, 324 }
+local MANA_SPRING_BUFF = { 10491, 10490, 5676 }  -- Mana Spring Totem aura ranks
+local SHIELD_REFRESH_UNKNOWN_MS = 30 * 1000
 local WEAPON_BUFF_REFRESH_MS = 1500000  -- 25 minutes
 local HEALING_WAVE_HP_PCT = 40
 
@@ -177,7 +147,7 @@ local function chain_lightning_matches_fn(context, state)
     -- Research: CL only at 3+ targets; configurable via schema
     local s = context.settings or {}
     local min_targets = s.elemental_cl_min_targets or CL_MIN_TARGETS
-    if state.target_count < min_targets then return false end
+    if (state.target_count or 0) < min_targets then return false end
     return NS.spell_ready(SPELLS.ChainLightning, context.target)
 end
 
@@ -198,11 +168,11 @@ local function flame_shock_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlameShock, 2.0) then return false end
     if not context.target then return false end
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
-    if state.flame_remains > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
+    if (state.flame_remains or 0) > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
     -- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient = ~0.6 total; GCD-positive at ~400 SP
     local s = context.settings or {}
     local min_sp = s.elemental_flame_shock_min_sp or FLAME_SHOCK_MIN_SP_DEFAULT
-    if state.spell_damage < min_sp then return false end
+    if (state.spell_damage or 0) < min_sp then return false end
     if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
     return NS.spell_ready(SPELLS.FlameShock, context.target)
 end
@@ -256,7 +226,7 @@ local function water_shield_matches_fn(context, state)
     local s = context.settings or {}
     if state.mana_emergency then return false end
     local ws_mana = s.elemental_water_shield_mana or WATER_SHIELD_MANA_DEFAULT
-    if state.mana_pct > ws_mana then return false end
+    if (state.mana_pct or 100) > ws_mana then return false end
     return NS.spell_ready(SPELLS.UnavailableClassicShamanShieldB, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -282,7 +252,7 @@ end
 local function mana_tide_totem_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaTideTotem, 3.0) then return false end
     if state.mana_emergency then return false end
-    if state.mana_pct > 30 then return false end
+    if (state.mana_pct or 100) > 30 then return false end
     return NS.spell_ready(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -357,22 +327,11 @@ end
 -- ============================================================================
 
 local function totem_of_wrath_matches_fn(context, state)
-    local s = context.settings or {}
-    if s.elemental_manage_totems == false then return false end
-    if s.elemental_use_totem_of_wrath == false then return false end
-    if context.in_combat then return false end
-    if state.mana_emergency then return false end
-    if NS.has_player_buff(TOTEM_OF_WRATH_BUFF) then return false end
-    return NS.spell_ready(SPELLS.UnavailableClassicShamanTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return false  -- Totem of Wrath is TBC-only
 end
 
 local function wrath_of_air_totem_matches_fn(context, state)
-    local s = context.settings or {}
-    if s.elemental_manage_totems == false then return false end
-    if context.in_combat then return false end
-    if state.mana_emergency then return false end
-    if NS.has_player_buff(WRATH_OF_AIR_BUFF) then return false end
-    return NS.spell_ready(SPELLS.WrathOfAirTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return false  -- Wrath of Air Totem is TBC-only
 end
 
 local function mana_spring_totem_matches_fn(context, state)
@@ -394,20 +353,13 @@ local function fire_nova_totem_matches_fn(context, state)
     if not context.in_combat then return false end
     if state.mana_conserve then return false end
     local min_targets = s.elemental_aoe_threshold or 4
-    if state.target_count < min_targets then return false end
+    if (state.target_count or 0) < min_targets then return false end
     if context.cc_safe == false then return false end
     return NS.spell_ready(SPELLS.FireNovaTotem, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function magma_totem_matches_fn(context, state)
-    local s = context.settings or {}
-    if s.elemental_use_magma_aoe == false then return false end
-    if not context.in_combat then return false end
-    if state.mana_conserve then return false end
-    local min_targets = s.elemental_aoe_threshold or 4
-    if state.target_count < min_targets then return false end
-    if context.cc_safe == false then return false end
-    return NS.spell_ready(SPELLS.MagmaTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return false  -- Magma Totem max rank is TBC-only in Classic
 end
 
 -- ============================================================================
@@ -509,10 +461,10 @@ local strategies = {
     -- Totem maintenance (Research: keep Totem of Wrath, Wrath of Air, Mana Spring)
     { name = "UnavailableClassicShamanTotem",
       matches = totem_of_wrath_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.UnavailableClassicShamanTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Totem of Wrath") end },
+      execute = function() return false end },  -- Totem of Wrath is TBC-only
     { name = "WrathOfAirTotem",
       matches = wrath_of_air_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.WrathOfAirTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Wrath of Air Totem") end },
+      execute = function() return false end },  -- Wrath of Air Totem is TBC-only
     { name = "ManaSpringTotem",
       matches = mana_spring_totem_matches_fn,
       execute = function() return NS.try_cast(SPELLS.ManaSpringTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Spring Totem") end },
@@ -522,7 +474,7 @@ local strategies = {
       execute = function() return NS.try_cast(SPELLS.FireNovaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Fire Nova Totem AoE") end },
     { name = "MagmaTotem",
       matches = magma_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.MagmaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Magma Totem AoE") end },
+      execute = function() return false end },  -- Magma Totem max rank is TBC-only
     -- FrostByte parity: weapon buffs, self-heal, totem recall
     { name = "FlametongueWeapon",
       matches = flametongue_weapon_matches_fn,

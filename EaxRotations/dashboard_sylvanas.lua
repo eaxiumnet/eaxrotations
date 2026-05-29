@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "dashboard_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- render/menu helper.
--- ============================================================================
--- What: Combat dashboard and overlay helper built on the core.menu window API
--- When: During render/menu updates
--- Why: Surface live combat and rotation state in a compact overlay
--- Safety: Render-only logic, static buffers, and nil-safe getter usage
--- ============================================================================
 
 -- ============================================================================
 -- EaxRotations Dashboard Module
@@ -145,6 +121,7 @@ local RENDER_COLORS = {
     threat_medium = color.new(255, 220, 0, 255),
     threat_high = color.new(255, 51, 51, 255),
     dot_expiring = color.new(255, 51, 51, 255),
+    lifebloom_bloom = color.new(255, 215, 0),
 }
 
 local ENERGY_TICK_INTERVAL = 2.0
@@ -634,6 +611,13 @@ local function calculate_content_height(res, target, cooldowns, buffs, debuffs, 
     if has_gcd then height = height + 12 end
     if has_swing then height = height + 12 end
 
+    -- Cast-bar overlay height (when channeling a known spell)
+    if NS.CastBarOverlay then
+        local me = NS.GetPlayer and NS.GetPlayer()
+        local spell_info = NS.CastBarOverlay.get_channel_state(me)
+        if spell_info then height = height + 32 end
+    end
+
     height = height + 12
 
     height = height + 12
@@ -646,6 +630,17 @@ local function calculate_content_height(res, target, cooldowns, buffs, debuffs, 
     if #cooldowns > 0 then height = height + 24 end
     if #buffs > 0 then height = height + 24 end
     if #debuffs > 0 and target.name then height = height + 24 end
+
+    -- [#hot] HOT tick tracker rows: header + one bar per active HOT
+    if NS.HotTickTracker then
+        local me = NS.GetPlayer and NS.GetPlayer()
+        if me then
+            local hots = NS.HotTickTracker.get_all(me)
+            if #hots > 0 then
+                height = height + 12 + (#hots * 14)
+            end
+        end
+    end
 
     -- [#enhancement] DoT tracker rows: header + one row per active DoT with remaining time
     if #debuffs > 0 and target.name then
@@ -875,6 +870,39 @@ local function update_dashboard(context)
         add_text(format("Swing: %.1f", swing_timer), THEME.text_dim)
     end
 
+    -- [#castbar] Class-specific channeled spell overlay with tick markers
+    if NS.CastBarOverlay then
+        NS.CastBarOverlay.render(dashboard_window, bar_max, context)
+    end
+
+    -- [#hot] HOT tick tracker overlay
+    if NS.HotTickTracker then
+        local me_hot = NS.GetPlayer and NS.GetPlayer()
+        if me_hot then
+            local hots = NS.HotTickTracker.get_all(me_hot)
+            if #hots > 0 then
+                add_text("HOTs", THEME.text_dim)
+                for _, hot in ipairs(hots) do
+                    local hot_bar_height = 8
+                    local hot_color = THEME.resource_hp
+                    if hot.hot_key == "Lifebloom" and hot.bloom_progress then
+                        -- Lifebloom: show bloom countdown instead of tick progress
+                        local bloom_width = bar_max * (1.0 - hot.bloom_progress)
+                        render_bar(bloom_width, hot_bar_height, RENDER_COLORS.lifebloom_bloom)
+                        dashboard_window:draw_next_dynamic_widget_on_new_line()
+                        add_text(format("%s Bloom %.1fs", hot.hot_key, hot.bloom_in or 0), THEME.text)
+                    else
+                        -- Normal HOT: show next-tick progress
+                        local tick_progress_width = bar_max * hot.next_tick_progress
+                        render_bar(tick_progress_width, hot_bar_height, hot_color)
+                        dashboard_window:draw_next_dynamic_widget_on_new_line()
+                        add_text(format("%s Tick %d/%d (%.1fs)", hot.hot_key, hot.ticks_elapsed + 1, hot.ticks_total, hot.next_tick_in), THEME.text)
+                    end
+                end
+            end
+        end
+    end
+
     add_sep()
 
     local la = last_action
@@ -889,7 +917,6 @@ local function update_dashboard(context)
     add_text("Recent", THEME.text_dim)
 
     local win_pos = dashboard_window:get_position()
-    local _ = FRAME_WIDTH - 16  -- win_w unused: icon positioning uses win_pos directly
     local icon_y = -80
 
     for i = 1, math.min(history_count, MAX_HISTORY) do

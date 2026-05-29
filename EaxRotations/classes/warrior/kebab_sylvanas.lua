@@ -1,28 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/warrior/kebab_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Kebab Warrior Rotation (Project Sylvanas API)
--- ============================================================================
--- What: TBC dual-wield Arms ("Kebab") rotation with fast swings, Mortal Strike, and Whirlwind
--- When: Per tick
--- Why: Dual-wield rage flow and stance rules differ from standard two-hander Arms
--- Safety: pcall-safe helper imports; nil-guarded weapon and stance checks; pre-allocated fallback tables
 -- "Kebab" = Dual-Wield Arms — a TBC live-play variant of Arms that uses
 -- one-handed weapons in both hands instead of a single two-hander.
 --
@@ -46,9 +23,8 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 --
 -- ============================================================================
 
-local _G = _G
 local NS = _G.EaxRotations
-if not NS then return end
+if not NS then return nil end
 
 local load_player = NS.GetPlayer()
 
@@ -62,13 +38,24 @@ local Constants = NS.WarriorConstants
 local format = string.format
 local EMPTY_SETTINGS = {}
 
+local function settings_for(context)
+    return (context and context.settings) or EMPTY_SETTINGS
+end
+
+local function safe_unit_call(unit, method, ...)
+    if not unit or type(unit[method]) ~= "function" then return nil end
+    local ok, value = pcall(unit[method], unit, ...)
+    if ok then return value end
+    return nil
+end
+
 -- Debuff rank arrays (from WarriorConstants)
 -- [PRE-ALLOC] Fallback arrays resolved once at load time to avoid `or {}` table
 -- allocation in the combat path (GC pressure from per-frame creates).
 local SUNDER_DEBUFF = Constants.SUNDER_DEBUFF or { 7386, 7405, 8380, 11596, 11597, 25225 }
 local THUNDER_CLAP_DEBUFF = Constants.THUNDER_CLAP_DEBUFF or { 6343, 8198, 8204, 8205, 11580, 11581, 25264 }
 local DEMO_SHOUT_DEBUFF = Constants.DEMO_SHOUT_DEBUFF or { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
-local BATTLE_SHOUT_IDS = Constants.BATTLE_SHOUT_IDS or {}
+local BATTLE_SHOUT_IDS = Constants.BATTLE_SHOUT_IDS or { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
 
 -- Shared helpers from core_sylvanas.lua
 local try_cast, spell_exists, spell_ready, debuff_remains, debuff_stacks, buff_remains, health_pct, player_control_locked, has_player_buff, has_breakable_cc_nearby, can_attack_target = NS.import_helpers(
@@ -98,7 +85,7 @@ local function has_offhand_weapon()
     end
     local player = NS.GetPlayer()
     if not player or not player.get_item_at_inventory_slot then return false end
-    local slot_info = player:get_item_at_inventory_slot(OFFHAND_SLOT)
+    local slot_info = safe_unit_call(player, "get_item_at_inventory_slot", OFFHAND_SLOT)
     return slot_info ~= nil and slot_info.entry ~= nil and slot_info.entry ~= 0
 end
 
@@ -128,8 +115,9 @@ local SS_RESERVE_FLOOR = 60
 local SS_POOL_WINDOW = 2.0
 
 local function should_reserve_for_sweeping(context)
+    local settings = settings_for(context)
     if (context.enemy_count or 0) < 2 then return false end
-            if context.settings and context.settings.kebab_use_sweeping_strikes == false then return false end
+    if settings.kebab_use_sweeping_strikes == false then return false end
     if not spell_exists(SPELLS.SweepingStrikes) then return false end
     if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12328) then return false end
     local ss_cd = get_cooldown(SPELLS.SweepingStrikes)
@@ -143,13 +131,14 @@ end
 -- ============================================================================
 local function would_starve_core_kebab(context, state, cost)
     cost = cost or 15
+    local settings = settings_for(context)
     -- MS imminent
-    if state.ms_cd >= 0 and state.ms_cd <= 1.5 and context.in_melee_range then
+    if (state.ms_cd or 99) >= 0 and (state.ms_cd or 99) <= 1.5 and context.in_melee_range then
         if ((context.rage or 0) - cost) < RAGE_COST_MS then return true end
     end
     -- WW imminent
-    if context.settings.kebab_use_whirlwind ~= false then
-        if state.ww_cd >= 0 and state.ww_cd <= 1.5 and context.in_melee_range then
+    if settings.kebab_use_whirlwind ~= false then
+        if (state.ww_cd or 99) >= 0 and (state.ww_cd or 99) <= 1.5 and context.in_melee_range then
             if ((context.rage or 0) - cost) < RAGE_COST_WW then return true end
         end
     end
@@ -179,13 +168,14 @@ local function build_kebab_state(context)
 
     context.enemy_count = context.enemies_count or 0
     context.target_hp = target and health_pct(target) or 100
-    context.in_melee_range = target and target.is_in_melee_range and target:is_in_melee_range(5) or false
+    context.in_melee_range = target and safe_unit_call(target, "is_in_melee_range", 5) or false
     context.has_breakable_cc_nearby = has_breakable_cc_nearby(context)
     context.player_control_locked = player_control_locked()
     local player = NS.GetPlayer()
-    context.is_moving = player and player.is_moving and player:is_moving() or false
+    context.is_moving = safe_unit_call(player, "is_moving") or false
     context.has_offhand = has_offhand_weapon()
-    kebab_state.general_use = context.settings.kebab_general_use == true
+    local settings = settings_for(context)
+    kebab_state.general_use = settings.kebab_general_use == true
         or context.is_leveling == true
         or (context.player_level and context.player_level < 62)
         or not context.has_offhand
@@ -206,7 +196,7 @@ local function build_kebab_state(context)
 end
 
 local function general_use_kebab(context, state)
-    if context.settings and context.settings.kebab_force_dw_priority == true then return false end
+    if settings_for(context).kebab_force_dw_priority == true then return false end
     return state and state.general_use == true
 end
 
@@ -220,14 +210,15 @@ local strategies = {
     {
         name = "Execute",
         matches = function(context, state)
+            local settings = settings_for(context)
             if not can_attack_target(context) then return false end
-            if context.settings and context.settings.kebab_execute_phase == false then return false end
+            if settings.kebab_execute_phase == false then return false end
             if not state.target_below_20 then return false end
             -- Execute costs 15+ rage (variable)
             if (context.rage or 0) < 15 then return false end
             if not general_use_kebab(context, state) then
-                if context.settings.kebab_use_ww_execute ~= false and (context.rage or 0) >= 25 and (state.ww_cd or 0) <= 0 then return false end
-                if context.settings.kebab_use_ms_execute ~= false and (context.rage or 0) >= 30 and (state.ms_cd or 0) <= 0 then return false end
+                if settings.kebab_use_ww_execute ~= false and (context.rage or 0) >= 25 and (state.ww_cd or 0) <= 0 then return false end
+                if settings.kebab_use_ms_execute ~= false and (context.rage or 0) >= 30 and (state.ms_cd or 0) <= 0 then return false end
             end
             if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.BERSERKER then
                 return spell_exists(SPELLS.BerserkerStance) and spell_ready(SPELLS.BerserkerStance, NS.PLAYER_UNIT)
@@ -236,7 +227,7 @@ local strategies = {
         end,
         execute = function(context, state)
             if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.BERSERKER then
-                return try_cast(SPELLS.BerserkerStance, NS.PLAYER_UNIT, "[KEBAB] Berserker Stance (for Execute)")
+                return try_cast(SPELLS.BerserkerStance, NS.PLAYER_UNIT, "[KEBAB] Berserker Stance (for Execute)", { skip_range = true })
             end
             return try_cast(SPELLS.Execute, context.target,
                 format("[KEBAB] Execute - Rage: %d, HP: %.0f%%", context.rage or 0, context.target_hp or 0))
@@ -247,17 +238,23 @@ local strategies = {
     {
         name = "SweepingStrikes",
         matches = function(context)
+            local settings = settings_for(context)
             if not can_attack_target(context) then return false end
-    if context.settings and context.settings.kebab_use_sweeping_strikes == false then return false end
+            if settings.kebab_use_sweeping_strikes == false then return false end
             if (context.enemy_count or 0) < 2 then return false end
             if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12328) then return false end
             if (context.rage or 0) < 30 then return false end
-            if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.BERSERKER then return false end
+            if context.stance ~= Constants.STANCE.BATTLE then
+                return spell_exists(SPELLS.BattleStance) and spell_ready(SPELLS.BattleStance, NS.PLAYER_UNIT)
+            end
             return spell_exists(SPELLS.SweepingStrikes) and spell_ready(SPELLS.SweepingStrikes, NS.PLAYER_UNIT)
         end,
         execute = function(context)
+            if context.stance ~= Constants.STANCE.BATTLE then
+                return try_cast(SPELLS.BattleStance, NS.PLAYER_UNIT, "[KEBAB] Battle Stance (for Sweeping Strikes)", { skip_range = true })
+            end
             return try_cast(SPELLS.SweepingStrikes, NS.PLAYER_UNIT,
-                format("[KEBAB] Sweeping Strikes - Rage: %d, Enemies: %d", context.rage or 0, context.enemy_count or 0))
+                format("[KEBAB] Sweeping Strikes - Rage: %d, Enemies: %d", context.rage or 0, context.enemy_count or 0), { skip_range = true })
         end,
     },
 
@@ -265,9 +262,10 @@ local strategies = {
     {
         name = "MortalStrikeGeneralUse",
         matches = function(context, state)
+            local settings = settings_for(context)
             if not general_use_kebab(context, state) then return false end
             if not can_attack_target(context) then return false end
-            if state.target_below_20 and context.settings.kebab_execute_phase and context.settings.kebab_use_ms_execute == false then return false end
+            if state.target_below_20 and settings.kebab_execute_phase and settings.kebab_use_ms_execute == false then return false end
             if (context.rage or 0) < 30 then return false end
             return spell_exists(SPELLS.MortalStrike) and spell_ready(SPELLS.MortalStrike, context.target)
         end,
@@ -280,13 +278,14 @@ local strategies = {
     {
         name = "Whirlwind",
         matches = function(context, state)
+            local settings = settings_for(context)
             if not can_attack_target(context) then return false end
-            if context.settings and context.settings.kebab_use_whirlwind == false then return false end
+            if settings.kebab_use_whirlwind == false then return false end
             if general_use_kebab(context, state) and (context.enemy_count or 0) < 2 then return false end
-            if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
+            if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end
             -- Execute phase gate
-            if state.target_below_20 and context.settings.kebab_execute_phase then
-                if not context.settings.kebab_use_ww_execute then return false end
+            if state.target_below_20 and settings.kebab_execute_phase then
+                if not settings.kebab_use_ww_execute then return false end
             end
             if (context.rage or 0) < 25 then return false end
             -- Don't WW if we should be pooling for SS
@@ -300,10 +299,10 @@ local strategies = {
         execute = function(context)
             -- Stance swap if needed (no TM — accept rage loss; wrong stance is worse)
             if context.stance ~= Constants.STANCE.BERSERKER then
-                return try_cast(SPELLS.BerserkerStance, NS.PLAYER_UNIT, "[KEBAB] Berserker Stance (for WW)")
+                return try_cast(SPELLS.BerserkerStance, NS.PLAYER_UNIT, "[KEBAB] Berserker Stance (for WW)", { skip_range = true })
             end
             return try_cast(SPELLS.Whirlwind, NS.PLAYER_UNIT,
-                format("[KEBAB] Whirlwind - Rage: %d", context.rage or 0))
+                format("[KEBAB] Whirlwind - Rage: %d", context.rage or 0), { skip_range = true })
         end,
     },
 
@@ -311,10 +310,11 @@ local strategies = {
     {
         name = "MortalStrike",
         matches = function(context, state)
+            local settings = settings_for(context)
             if not can_attack_target(context) then return false end
             -- Execute phase gate
-            if state.target_below_20 and context.settings.kebab_execute_phase then
-                if not context.settings.kebab_use_ms_execute then return false end
+            if state.target_below_20 and settings.kebab_execute_phase then
+                if not settings.kebab_use_ms_execute then return false end
             end
             return spell_exists(SPELLS.MortalStrike) and spell_ready(SPELLS.MortalStrike, context.target)
         end,
@@ -328,8 +328,9 @@ local strategies = {
     {
         name = "Overpower",
         matches = function(context)
+            local settings = settings_for(context)
             if not can_attack_target(context) then return false end
-            if context.settings and context.settings.kebab_use_overpower == false then return false end
+            if settings.kebab_use_overpower == false then return false end
             -- Only use if already in Battle Stance (from a stance swap for other reasons)
             if context.stance ~= Constants.STANCE.BATTLE then return false end
             return spell_exists(SPELLS.Overpower) and spell_ready(SPELLS.Overpower, context.target)
@@ -345,35 +346,37 @@ local strategies = {
         name = "BattleShout",
         is_gcd_gated = false,
         matches = function(context)
+            local settings = settings_for(context)
             if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
-            if context.settings and context.settings.auto_shout == false then return false end
-            local shout_type = (context.settings and context.settings.shout_type) or "battle"
+            if settings.auto_shout == false then return false end
+            local shout_type = settings.shout_type or "battle"
             if shout_type ~= "battle" then return false end
             if not can_attack_target(context) then return false end
-            if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
+            if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end
             local player = NS.GetPlayer()
             if not battle_shout_needs_refresh(player) then return false end
             if (context.rage or 0) < 10 then return false end
             return spell_exists(SPELLS.BattleShout) and spell_ready(SPELLS.BattleShout, NS.PLAYER_UNIT)
         end,
         execute = function()
-            return try_cast(SPELLS.BattleShout, NS.PLAYER_UNIT, "[KEBAB] Battle Shout")
+            return try_cast(SPELLS.BattleShout, NS.PLAYER_UNIT, "[KEBAB] Battle Shout", { skip_range = true })
         end,
     },
     {
         name = "CommandingShout",
         is_gcd_gated = false,
         matches = function(context)
+            local settings = settings_for(context)
             if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CommandingShout, 3.0) then return false end
-            if context.settings and context.settings.auto_shout == false then return false end
+            if settings.auto_shout == false then return false end
             if not can_attack_target(context) then return false end
-            if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
+            if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end
             if has_player_buff(Constants.COMMANDING_SHOUT_BUFF or 469) then return false end
             if (context.rage or 0) < 10 then return false end
             return spell_exists(SPELLS.CommandingShout) and spell_ready(SPELLS.CommandingShout, NS.PLAYER_UNIT)
         end,
         execute = function()
-            return try_cast(SPELLS.CommandingShout, NS.PLAYER_UNIT, "[KEBAB] Commanding Shout")
+            return try_cast(SPELLS.CommandingShout, NS.PLAYER_UNIT, "[KEBAB] Commanding Shout", { skip_range = true })
         end,
     },
 
@@ -381,16 +384,17 @@ local strategies = {
     {
         name = "SunderMaintain",
         matches = function(context, state)
+            local settings = settings_for(context)
             if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
-            local mode = context.settings.sunder_armor_mode or "none"
+            local mode = settings.sunder_armor_mode or "none"
             if not can_attack_target(context) or mode == "none" then return false end
             if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.DEFENSIVE then return false end
 
             if mode == "help_stack" then
-                if state.sunder_stacks >= (Constants.SUNDER_MAX_STACKS or 5) then return false end
+                if (state.sunder_stacks or 0) >= (Constants.SUNDER_MAX_STACKS or 5) then return false end
             elseif mode == "maintain" then
-                if state.sunder_stacks >= (Constants.SUNDER_MAX_STACKS or 5)
-                    and state.sunder_duration > (Constants.SUNDER_REFRESH_WINDOW or 3)
+                if (state.sunder_stacks or 0) >= (Constants.SUNDER_MAX_STACKS or 5)
+                    and (state.sunder_duration or 0) > (Constants.SUNDER_REFRESH_WINDOW or 3)
                 then
                     return false
                 end
@@ -417,17 +421,18 @@ local strategies = {
     {
         name = "ThunderClap",
         matches = function(context, state)
+            local settings = settings_for(context)
             if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
             if not can_attack_target(context) then return false end
-            if context.settings and context.settings.maintain_thunder_clap == false then return false end
-            if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
-            if state.thunder_clap_duration > (Constants.TC_REFRESH_WINDOW or 2) then return false end
+            if settings.maintain_thunder_clap == false then return false end
+            if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end
+            if (state.thunder_clap_duration or 0) > (Constants.TC_REFRESH_WINDOW or 2) then return false end
             if context.stance ~= Constants.STANCE.BATTLE then return false end
             return spell_exists(SPELLS.ThunderClap) and spell_ready(SPELLS.ThunderClap, NS.PLAYER_UNIT)
         end,
         execute = function()
             return try_cast(SPELLS.ThunderClap, NS.PLAYER_UNIT,
-                format("[KEBAB] Thunder Clap - Duration: %.1fs", kebab_state.thunder_clap_duration or 0))
+                format("[KEBAB] Thunder Clap - Duration: %.1fs", kebab_state.thunder_clap_duration or 0), { skip_range = true })
         end,
     },
 
@@ -435,16 +440,17 @@ local strategies = {
     {
         name = "DemoShout",
         matches = function(context, state)
+            local settings = settings_for(context)
             if not can_attack_target(context) then return false end
-            if context.settings and context.settings.maintain_demo_shout == false then return false end
-            if context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check then return false end
+            if settings.maintain_demo_shout == false then return false end
+            if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end
             if not context.in_melee_range then return false end
-            if state.demo_shout_duration > 3 then return false end
+            if (state.demo_shout_duration or 0) > 3 then return false end
             return spell_exists(SPELLS.DemoralizingShout) and spell_ready(SPELLS.DemoralizingShout, NS.PLAYER_UNIT)
         end,
         execute = function()
             return try_cast(SPELLS.DemoralizingShout, NS.PLAYER_UNIT,
-                format("[KEBAB] Demo Shout - Duration: %.1fs", kebab_state.demo_shout_duration or 0))
+                format("[KEBAB] Demo Shout - Duration: %.1fs", kebab_state.demo_shout_duration or 0), { skip_range = true })
         end,
     },
 
@@ -453,16 +459,17 @@ local strategies = {
         name = "HeroicStrike",
         is_gcd_gated = false,
         matches = function(context, state)
+            local settings = settings_for(context)
             if not can_attack_target(context) then return false end
             -- Don't double-queue
             if is_spell_current(HEROIC_STRIKE_ID) or is_spell_current(CLEAVE_ID) then return false end
             -- Execute phase gate
-            if state.target_below_20 and context.settings.kebab_execute_phase then
-                if not context.settings.kebab_hs_during_execute then return false end
+            if state.target_below_20 and settings.kebab_execute_phase then
+                if not settings.kebab_hs_during_execute then return false end
             end
 
             -- HS Trick: proactively queue when OH swing is imminent
-            if context.settings.hs_trick and context.has_offhand then
+            if settings.hs_trick and context.has_offhand then
                 local oh_remaining = context.oh_remain
                 local mh_remaining = context.mh_remain
                 if oh_remaining and mh_remaining and oh_remaining > 0 and oh_remaining <= 0.4 then
@@ -472,8 +479,8 @@ local strategies = {
                 end
             end
 
-            local threshold = context.settings.kebab_hs_rage_threshold or 40
-            if context.settings.hs_trick and context.has_offhand then
+            local threshold = settings.kebab_hs_rage_threshold or 40
+            if settings.hs_trick and context.has_offhand then
                 threshold = 30
             end
             if general_use_kebab(context, state) and threshold < 55 then
@@ -485,7 +492,7 @@ local strategies = {
             if would_starve_core_kebab(context, state, 15) then return false end
 
             -- Hold rage for pummel if interrupt is needed (centralized NS.try_interrupt)
-            if context.settings.use_interrupt then
+            if settings.use_interrupt then
                 local should_kick = NS.try_interrupt(context.target)
                 if should_kick then
                     if ((context.rage or 0) - 15) < RAGE_COST_PUMMEL then return false end
@@ -495,8 +502,9 @@ local strategies = {
             return true
         end,
         execute = function(context)
-            local cleave_at = context.settings.aoe_threshold or 2
-            local cc_safe = not (context.has_breakable_cc_nearby and context.settings.pvp_cc_break_check)
+            local settings = settings_for(context)
+            local cleave_at = settings.aoe_threshold or 2
+            local cc_safe = not (context.has_breakable_cc_nearby and settings.pvp_cc_break_check)
             -- Prefer Cleave in AoE
             if cc_safe and cleave_at > 0 and (context.enemy_count or 0) >= cleave_at
                 and spell_exists(SPELLS.Cleave) and spell_ready(SPELLS.Cleave, context.target)

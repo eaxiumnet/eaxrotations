@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Cat Druid rotation (no Mangle/Feral Charge/Maim)
--- =========================================================================
-local __eax_file = "classes/druid/cat_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Cat Druid rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -23,7 +5,7 @@ if not NS then return nil end
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
 
-local POUNCE = BASE_SPELLS.Pounce or (NS.spell_action and NS.spell_action({ 27006, 9827, 9005 }, "Pounce"))
+local POUNCE = BASE_SPELLS.Pounce or (NS.spell_action and NS.spell_action({ 9827, 9005 }, "Pounce"))
 local TRACK_HUMANOIDS = BASE_SPELLS.TrackHumanoids or (NS.spell_action and NS.spell_action({ 5225 }, "TrackHumanoids"))
 
 local STANCE_CAT = 3
@@ -58,17 +40,17 @@ local AP_UPGRADE_RATIO = 1.08
 local STRONG_AP_UPGRADE_RATIO = 1.15
 local HIGH_AP_UPGRADE_RATIO = 1.05
 
-local RIP_DEBUFF = { 27008, 1079 }
-local RAKE_DEBUFF = { 27003, 9904, 1824, 1823, 1822 }
-local FAERIE_FIRE_DEBUFF = { 27011, 17392, 17391, 17390, 16857, 26993, 9907, 9749, 778, 770 }
+local RIP_DEBUFF = { 1079 }
+local RAKE_DEBUFF = { 9904, 1824, 1823, 1822 }
+local FAERIE_FIRE_DEBUFF = { 17392, 17391, 17390, 16857,  9907, 9749, 778, 770 }
 local PROWL_BUFF = { 9913, 6783, 5215 }
-local POUNCE_DEBUFF = { 27006, 9827, 9005 }
+local POUNCE_DEBUFF = { 9827, 9005 }
 local OMEN_OF_CLARITY_BUFF = { 16864 }
 local TIGERS_FURY_BUFF = { 9846, 9845, 6793, 5217 }
-local DASH_BUFF = { 33357, 9821, 1850 }
+local DASH_BUFF = { 9821, 1850 }
 local BARKSKIN_BUFF = { 22812 }
 local TRACK_HUMANOIDS_BUFF = { 5225 }
-local WOLFSHEAD_BUFF = { 29940, 17770 }
+local WOLFSHEAD_BUFF = { 17770 }
 
 local cat_state = {
     now = 0,
@@ -421,7 +403,7 @@ local _strategies = {
     {
         name = "Dash",
         matches = function(ctx, s)
-            if s.is_cat then return false end
+            if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
             if s.target_range < DASH_RANGE then return false end
             if s.target_range > 40 then return false end

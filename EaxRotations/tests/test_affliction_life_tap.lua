@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/test_affliction_life_tap.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- unit tests for affliction_sylvanas Life Tap sustain logic.
 -- Verifies Life Tap fires only when mana is below threshold and HP is safe.
 
@@ -34,30 +16,30 @@ setup_asserts()
 local action_calls = {}
 _G.EaxRotations = {
     WarlockSpells = {
-        LifeTap = 1454,
-        DarkPact = 27220,
+        LifeTap = 27222,
+        DarkPact = 27265,
         Corruption = 172,
         CurseOfAgony = 27218,
-        CurseOfDoom = 27214,
+        CurseOfDoom = 30910,
         ShadowBolt = 27209,
         Immolate = 348,
-        SiphonLife = 27259,
-        DrainLife = 27217,
-        UnstableAffliction = 30108,
+        SiphonLife = 30911,
+        DrainLife = 27220,
+        UnstableAffliction = 30405,
         Haunt = 30154,
-        RainOfFire = 27211,
+        RainOfFire = 27212,
         SeedOfCorruption = 27243,
-        DeathCoil = 2894,
+        DeathCoil = 27223,
         Fear = 6215,
-        HealthFunnel = 30656,
+        HealthFunnel = 27259,
         FelArmor = 28176,
-        DemonArmor = 27299,
+        DemonArmor = 27260,
         SummonImp = 688,
         SummonVoidwalker = 697,
         SummonSuccubus = 712,
         SummonFelhunter = 691,
         SummonFelguard = 30146,
-        CreateHealthstone = 6201,
+        CreateHealthstone = 27230,
     },
     PLAYER_UNIT = "player",
     spell_ready = function(spell, target, opts)

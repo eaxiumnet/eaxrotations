@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/mage/class_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Mage spell table, playstyle config, and child module loader.
 
--- ============================================================================
--- What: Mage spell table, playstyle config, and child module loader.
--- When: Load time.
--- Why: Centralize class registration and child module wiring.
--- Safety: Class check returns cleanly; NS.* helpers only; graceful degradation.
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -95,6 +71,16 @@ local SPELLS = {
         power_cost = 0,
         power_type = "mana",
         school = "fire",
+    }),
+    Blink = NS.spell_action({
+        name = "Blink",
+        ids = {1953},
+        levels = {20},
+        cast_time = 0,
+        cooldown = 15,
+        power_cost = 0,
+        power_type = "mana",
+        school = "arcane",
     }),
     Counterspell = NS.spell_action({
         name = "Counterspell",
@@ -176,6 +162,26 @@ local SPELLS = {
         power_type = "mana",
         school = "frost",
     }),
+    FireWard = NS.spell_action({
+        name = "FireWard",
+        ids = {27128, 10225, 10223, 8458, 8457, 543},
+        levels = {69, 58, 48, 38, 28, 20},
+        cast_time = 0,
+        cooldown = 30,
+        power_cost = 0,
+        power_type = "mana",
+        school = "fire",
+    }),
+    FrostArmor = NS.spell_action({
+        name = "FrostArmor",
+        ids = {27124, 10220, 10219, 7320, 7302, 7301, 7300, 168},
+        levels = {69, 60, 50, 40, 30, 20, 10, 1},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "frost",
+    }),
     RemoveCurse = NS.spell_action({
         name = "RemoveCurse",
         ids = {475},
@@ -238,7 +244,7 @@ local SPELLS = {
     }),
     IceBlock = NS.spell_action({
         name = "IceBlock",
-        ids = {45438, 27619, 11958},
+        ids = {11958, 45438, 27619},
         levels = {30},
         cast_time = 0,
         cooldown = 300,
@@ -336,6 +342,16 @@ local SPELLS = {
         power_type = "mana",
         school = "fire",
     }),
+    Spellsteal = NS.spell_action({
+        name = "Spellsteal",
+        ids = {30449},
+        levels = {68},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "arcane",
+    }),
     Slow = NS.spell_action({
         name = "Slow",
         ids = {31589},
@@ -403,7 +419,7 @@ local config = {
 NS.rotation_registry:set_class_config(config)
 
 load_child("middleware_sylvanas")
-load_child("leveling_sylvanas", true)
+load_spec("leveling", true)
 load_spec("arcane")
 load_spec("fire")
 load_spec("frost")

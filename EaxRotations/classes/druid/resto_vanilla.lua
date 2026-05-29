@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Restoration Druid rotation (no Lifebloom/Tree of Life/Cyclone)
--- =========================================================================
-local __eax_file = "classes/druid/resto_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Restoration Druid rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -31,13 +13,13 @@ local STANCE_BEAR = 1
 local STANCE_CAT = 3
 local STANCE_TRAVEL = 4
 
-local REJUVENATION_BUFF = { 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
-local REGROWTH_BUFF = { 26980, 9858, 9857, 9856, 9750, 8941, 8940, 8939, 8938, 8936 }
+local REJUVENATION_BUFF = { 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
+local REGROWTH_BUFF = { 9858, 9857, 9856, 9750, 8941, 8940, 8939, 8938, 8936 }
 local NATURES_SWIFTNESS_BUFF = 17116
-local NATURES_GRASP_BUFF = { 27009, 16813, 16812, 16811, 16810, 16689 }
+local NATURES_GRASP_BUFF = { 16813, 16812, 16811, 16810, 16689 }
 local ABOLISH_POISON_BUFF = { 2893 }
-local MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
-local INSECT_SWARM_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
+local MOONFIRE_DEBUFF = { 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
+local INSECT_SWARM_DEBUFF = { 24977, 24976, 24975, 24974, 5570 }
 
 local SWIFTMEND_EXPECTED_CD = 15
 local NATURES_SWIFTNESS_EXPECTED_CD = 180
@@ -63,19 +45,15 @@ local REPOSITION_RANGE = 28
 
 local LOCAL_SPELLS = {
     Innervate = NS.spell_action({ 29166 }, "Innervate"),
-    Rebirth = NS.spell_action({ 26994, 20484 }, "Rebirth"),
+    Rebirth = NS.spell_action({ 20484 }, "Rebirth"),
     HealingTouchRank4 = NS.spell_action({ 5189 }, "HealingTouchRank4"),
-    Tranquility = NS.spell_action({ 26983, 9863, 9862, 740 }, "Tranquility"),
+    Tranquility = NS.spell_action({ 9863, 9862, 740 }, "Tranquility"),
     TravelForm = NS.spell_action({ 783 }, "TravelForm"),
-    EntanglingRoots = NS.spell_action({ 26989, 9853, 9852, 5196, 5195, 1062, 339 }, "EntanglingRoots"),
-    NaturesGrasp = NS.spell_action({ 27009, 16813, 16812, 16811, 16810, 16689 }, "NaturesGrasp"),
+    EntanglingRoots = NS.spell_action({ 9853, 9852, 5196, 5195, 1062, 339 }, "EntanglingRoots"),
+    NaturesGrasp = NS.spell_action({ 16813, 16812, 16811, 16810, 16689 }, "NaturesGrasp"),
 }
 
 local MANA_POTION_IDS = {
-    TBC_POTIONS.crystal_mana or 33935,
-    TBC_POTIONS.auchenai_mana or 32948,
-    TBC_POTIONS.super_mana or 22832,
-    TBC_POTIONS.super_rejuvenation or 22850,
     TBC_POTIONS.major_mana or 13444,
     TBC_POTIONS.superior_mana or 13443,
 }

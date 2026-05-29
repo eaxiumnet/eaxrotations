@@ -1,30 +1,6 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/hunter/beast_mastery_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Hunter Beast Mastery — FrostByte Parity (1-70)
 -- Auto-shot timer, pet mgmt, dynamic aspects, stings, threat, pull modes, melee, AoE
 
--- ============================================================================
--- What: Hunter Beast Mastery priority list with auto-shot timing, pet control, and pull modes
--- When: Evaluated every tick via main_sylvanas.lua dispatcher
--- Why: Priority-list early-exit keeps ranged, pet, and threat checks efficient
--- Safety: Nil-guarded settings; NS.* wrappers; pcall optional shared helpers; conservative fallback behavior
--- ============================================================================
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
@@ -38,17 +14,18 @@ local AUTO_SHOT_ID = 75
 local ARCANE_SHOT_MANA_FLOOR = 20   -- Research Angle 4: <20% = Steady Shot only
 local MULTI_SHOT_MANA_FLOOR = 15    -- Suppress expensive AoE below 15%
 local SERPENT_STING_IDS  = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
-local SCORPID_STING_IDS  = { 27015, 14601, 14600, 14599, 14598, 14597, 14596, 14595 }
+local SCORPID_STING_IDS  = { 3043 }
 local VIPER_STING_IDS    = { 27018, 14280, 14279, 3034 }
 local HUNTER_MARK_IDS    = { 14325, 14324, 14323, 1130 }
 local ASPECT_HAWK_IDS    = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_IDS   = { 34074 }
-local ASPECT_CHEETAH_IDS = { 24394, 14322, 5118 }
+local ASPECT_CHEETAH_IDS = { 5118 }
 local MISDIRECTION_ID    = 34477
 local WING_CLIP_DEBUFF   = { 2974 }
-local RAPTOR_STRIKE_IDS  = { 27014, 14271, 14270, 14269, 14268, 14267, 14266, 14265, 14264, 14263, 14262, 2973 }
-local CONCUSSIVE_SHOT_IDS = { 27020, 19802, 5116 }
-local VOLLEY_IDS          = { 27021, 1510, 14294, 14295, 14296, 14297 }
+local RAPTOR_STRIKE_IDS  = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 2973 }
+local CONCUSSIVE_SHOT_IDS = { 5116 }
+local VOLLEY_IDS          = { 27022, 14295, 14294, 1510 }
+local is_item_ready
 
 -- ============================================================================
 -- State builder
@@ -145,7 +122,7 @@ local function build_state(context)
     state.mend_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     state.call_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
     state.revive_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
-    state.readiness_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true }) or false
+    state.readiness_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
     -- Viper Sting ready from SPELLS or fallback
     if SPELLS.ViperSting then
         state.viper_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ViperSting, target) or false
@@ -160,7 +137,7 @@ local function build_state(context)
     -- Volley ready (AoE)
     state.volley_ready = target and NS.spell_ready and NS.spell_ready(VOLLEY_IDS, target) or false
     -- Explosive Trap ready (AoE)
-    state.explosive_trap_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ExplosiveTrap, target) or false
+    state.explosive_trap_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
 
     -- Trinket state
     if NS.TrinketManager then
@@ -215,7 +192,7 @@ end
 -- ============================================================================
 -- Helper: check item cooldown (trinkets, potions)
 -- ============================================================================
-local function is_item_ready(me, item_id)
+function is_item_ready(me, item_id)
     if not me or not item_id then return false end
     local cd_fn = me.get_item_cooldown
     if cd_fn then
@@ -307,7 +284,7 @@ local function mend_pet_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.pet_alive then return false end
-    if s.pet_hp > 45 then return false end
+    if (s.pet_hp or 100) > 45 then return false end
     if not s.mend_pet_ready then return false end
     return true
 end
@@ -374,12 +351,12 @@ local function multi_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if s.multishot_mode == 0 then return false end
-    if s.enemy_count < s.multishot_mode then return false end
+    if (s.enemy_count or 0) < (s.multishot_mode or 2) then return false end
     if not s.multi_shot_ready then return false end
     -- CC gate: skip Multi-Shot near breakable CC (sheep/trap/sap)
     if context.has_breakable_cc_nearby then return false end
     -- Mana gate: suppress Multi-Shot below 15% mana (expensive AoE)
-    if s.mana_pct < MULTI_SHOT_MANA_FLOOR then return false end
+    if (s.mana_pct or 100) < MULTI_SHOT_MANA_FLOOR then return false end
     -- Check auto-shot clipping
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
     return true
@@ -434,7 +411,7 @@ local function arcane_shot_matches(context, s)
     if not s.in_combat then return false end
     if not s.arcane_shot_ready then return false end
     -- Mana gate: suppress Arcane Shot below 20% mana (Research Angle 4)
-    if s.mana_pct < ARCANE_SHOT_MANA_FLOOR then return false end
+    if (s.mana_pct or 100) < ARCANE_SHOT_MANA_FLOOR then return false end
     -- Check auto-shot clipping for instant
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
     return true
@@ -499,7 +476,7 @@ local function volley_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.use_volley then return false end
-    if s.enemy_count < s.aoe_threshold then return false end
+    if (s.enemy_count or 0) < (s.aoe_threshold or 3) then return false end
     if not s.volley_ready then return false end
     if context.is_moving then return false end
     return true
@@ -510,7 +487,7 @@ local function explosive_trap_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.use_explosive_trap then return false end
-    if s.enemy_count < s.aoe_threshold then return false end
+    if (s.enemy_count or 0) < (s.aoe_threshold or 3) then return false end
     if not s.explosive_trap_ready then return false end
     return true
 end
@@ -660,7 +637,7 @@ local strategies = {
     {
         name = "FreezingTrap",
         matches = freezing_trap_matches,
-        execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.target, "[BEAST_MASTERY] FreezingTrap", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[BEAST_MASTERY] FreezingTrap", { skip_range = true, expected_cooldown = 30 }) end,
     },
     -- 10. Bestial Wrath
     {
@@ -682,7 +659,7 @@ local strategies = {
     {
         name = "Readiness",
         matches = readiness_matches,
-        execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true, expected_cooldown = 300 }) end,
     },
     -- 13. Kill Command (off-GCD, highest DPS)
     {
@@ -762,7 +739,7 @@ local strategies = {
     {
         name = "ExplosiveTrap",
         matches = explosive_trap_matches,
-        execute = function(context) return NS.try_cast(SPELLS.ExplosiveTrap, context.me, "[BEAST_MASTERY] ExplosiveTrap", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(SPELLS.ExplosiveTrap, context.me, "[BEAST_MASTERY] ExplosiveTrap", { skip_range = true, expected_cooldown = 30 }) end,
     },
     -- 24. Raptor Strike (melee weaving)
     {

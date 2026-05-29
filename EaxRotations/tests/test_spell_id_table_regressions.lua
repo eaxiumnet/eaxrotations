@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "tests/test_spell_id_table_regressions.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Regression checks for TBC spell/consumable IDs.
 -- This test is intentionally semantic: it accepts both legacy one-line
 -- NS.spell_action({ ... }, "Name") calls and structured
@@ -94,7 +76,9 @@ assert_spell_ids("EaxRotations/classes/mage/class_sylvanas.lua", "Blizzard", { 2
 assert_spell_ids("EaxRotations/classes/mage/class_sylvanas.lua", "Flamestrike", { 27086, 10216, 10215, 8423, 8422, 2121, 2120 })
 assert_spell_ids("EaxRotations/classes/mage/class_sylvanas.lua", "Frostbolt", { 27072, 25304, 10181, 10180, 10179, 8408, 8407, 8406, 7322, 837, 205, 116 })
 assert_not_numbers("EaxRotations/classes/mage/class_sylvanas.lua", { 10198 }, "mage spell table")
-assert_true(contains(read_file("EaxRotations/classes/mage/arcane_sylvanas.lua"), "TBC_MAGE.conjure_mana_gem"), "Arcane mana gem spell chain should use central TBC conjure spell IDs")
+local arcane_mage = read_file("EaxRotations/classes/mage/arcane_sylvanas.lua")
+assert_true(contains(arcane_mage, "MANA_GEM_ITEM_IDS"), "Arcane mana gem should use item IDs for combat gem use")
+assert_true(contains(arcane_mage, "NS.use_item_by_id"), "Arcane mana gem should use items instead of conjure spells in combat")
 assert_true(contains(read_file("EaxRotations/classes/mage/frost_sylvanas.lua"), "TBC_MAGE.frost_nova"), "Frost Nova roots should use central TBC data")
 
 assert_spell_ids("EaxRotations/classes/druid/class_sylvanas.lua", "Cower", { 27004, 9892, 8998 })
@@ -136,7 +120,7 @@ assert_spell_ids("EaxRotations/classes/paladin/class_sylvanas.lua", "SealCommand
 
 assert_spell_ids("EaxRotations/classes/warrior/class_sylvanas.lua", "Devastate", { 30022, 30016, 20243 })
 assert_spell_ids("EaxRotations/classes/warrior/class_sylvanas.lua", "Revenge", { 30357, 25269, 25288, 11601, 11600, 7379, 6574, 6572 })
-assert_spell_ids("EaxRotations/classes/warrior/class_sylvanas.lua", "Pummel", { 6552 })
+assert_spell_ids("EaxRotations/classes/warrior/class_sylvanas.lua", "Pummel", { 6554, 6552 })
 assert_spell_ids("EaxRotations/classes/warrior/class_sylvanas.lua", "Hamstring", { 25212, 7373, 7372, 1715 })
 assert_spell_ids("EaxRotations/classes/warrior/class_sylvanas.lua", "BattleShout", { 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 })
 
@@ -144,6 +128,11 @@ assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "Envenom", { 3
 assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "Shiv", { 5938 })
 assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "CloakOfShadows", { 31224 })
 assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "Gouge", { 38764, 11286, 11285, 8629, 1777, 1776 })
+assert_not_numbers("EaxRotations/classes/rogue/middleware_sylvanas.lua", { 51722 }, "rogue middleware")
+assert_not_numbers("EaxRotations/classes/rogue/assassination_sylvanas.lua", { 51722 }, "rogue assassination")
+assert_not_numbers("EaxRotations/classes/rogue/combat_sylvanas.lua", { 51722 }, "rogue combat")
+assert_not_numbers("EaxRotations/classes/rogue/subtlety_sylvanas.lua", { 51722 }, "rogue subtlety")
+assert_not_numbers("EaxRotations/classes/rogue/leveling_sylvanas.lua", { 51722 }, "rogue leveling")
 
 assert_spell_ids("EaxRotations/classes/hunter/class_sylvanas.lua", "ExplosiveTrap", { 27025, 14317, 14316, 13813 })
 assert_spell_ids("EaxRotations/classes/hunter/class_sylvanas.lua", "AspectOfTheHawk", { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 })

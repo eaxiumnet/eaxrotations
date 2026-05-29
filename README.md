@@ -31,14 +31,33 @@ Use [EaxRotations/README.md](EaxRotations/README.md) for the full project guide,
 
 ## Local Verification
 
-Run these checks from the repository root before shipping changes:
+Run all checks at once from the repository root (requires `make` and `lua` on PATH):
+
+```bash
+sh tools/run_all_checks.sh
+```
+
+On Windows PowerShell (does not require `make`):
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_all_checks.ps1
+```
+
+Or run individually:
+
+```powershell
+# Syntax check all Lua files
 Get-ChildItem -Path EaxRotations -Recurse -File -Filter '*.lua' | ForEach-Object { luac -p $_.FullName }
+
+# Run all regression tests
 Get-ChildItem -Path EaxRotations/tests -Filter 'test_*.lua' | Sort-Object Name | ForEach-Object { lua $_.FullName }
+
+# Run audits
 lua EaxRotations/tools/audit_online_tbc_ids.lua
 lua EaxRotations/tools/audit_static_behavior.lua
 lua EaxRotations/tools/triage_archive_spell_ids.lua
+
+# Ensure only .lua and .md files exist in EaxRotations/
 rg --files EaxRotations -g '!*.lua' -g '!*.md'
 ```
 

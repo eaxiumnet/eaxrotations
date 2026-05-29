@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/paladin/retribution_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- TBC Retribution Paladin priority module for the Sylvanas dispatcher.
 
--- ============================================================================
--- What: TBC Retribution Paladin priority with seals, judgements, and burst.
--- When: Evaluated every tick.
--- Why: Priority-list early exit keeps DPS decisions fast and predictable.
--- Safety: pcall-gated TBC data; nil-guarded helpers; conservative defaults.
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -41,7 +17,7 @@ local function action(ids, label)
 end
 
 -- Spell IDs are TBC 2.4.3 ranks only, newest-to-oldest where ranks exist.
-local SealCrusader = SPELLS.SealCrusader or action({ 27158, 20308, 20307, 20306, 20305, 20304, 21082, 20162, 20161, 20160, 20159, 20158, 20157, 20156, 20337 }, "SealCrusader")
+local SealCrusader = SPELLS.SealCrusader or action({ 27158, 20308, 20307, 20306, 20305, 20162, 21082 }, "SealCrusader")
 local SealWisdom = SPELLS.SealOfWisdom or SPELLS.SealWisdom or action({ 27166, 20357, 20356, 20166 }, "SealOfWisdom")
 local BlessingFreedom = SPELLS.BlessingOfFreedom or action({ 1044 }, "BlessingOfFreedom")
 local BlessingProtection = SPELLS.BlessingOfProtection or action({ 10278, 5599, 1022 }, "BlessingOfProtection")
@@ -58,11 +34,11 @@ local SEAL_MARTYR_BUFF = { 348701, 348700 }
 local SEAL_RIGHTEOUSNESS_BUFF = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084 }
 local SEAL_CRUSADER_BUFF = { 27158, 20308, 20307, 20306, 20305, 21082, 20162 }
 local SEAL_WISDOM_BUFF = { 27166, 20357, 20356, 20166 }
-local JUDGEMENT_CRUSADER_DEBUFF = { 27159, 20303, 20302, 20301, 20300, 20188, 20186 }
-local JUDGEMENT_WISDOM_DEBUFF = { 27164, 20354, 20353, 20352, 20186 }
-local SANCTITY_AURA_GATE_BUFF = { 20218, 32223 }
-local BLESSING_MIGHT_BUFF = { 27140, 25291, 25782, 19838, 19837, 19836, 19835, 19834, 19832, 19831, 19830, 19740 }
-local BLESSING_KINGS_BUFF = { 20217 }
+local JUDGEMENT_CRUSADER_DEBUFF = { 27159, 20303, 20302, 20301, 20300, 20188, 21183 }
+local JUDGEMENT_WISDOM_DEBUFF = { 27164, 20355, 20354, 20186 }
+local SANCTITY_AURA_GATE_BUFF = { 20218 }
+local BLESSING_MIGHT_BUFF = { 27141, 27140, 25916, 25782, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }
+local BLESSING_KINGS_BUFF = { 25898, 20217 }
 local FORBEARANCE_DEBUFF = { 25771 }
 local COMMON_SNARES = { 122, 116, 120, 339, 5116, 3409, 3600, 12494, 13099, 23694, 2974, 8056 }
 local COMMON_CLEANSE = { 1330, 1714, 2818, 3409, 6358, 6788, 8122, 11831, 12579, 16856, 17928, 25368, 27087, 27218, 30414, 30443, 30466, 30980, 33786 }
@@ -162,6 +138,12 @@ end
 local function is_player(unit)
     if not unit or not unit.is_player then return false end
     return unit:is_player() == true
+end
+
+local function creature_type(unit)
+    if not unit or not unit.get_creature_type then return nil end
+    local ok, value = pcall(unit.get_creature_type, unit)
+    return ok and value or nil
 end
 
 local function distance_to(context, unit)
@@ -296,8 +278,8 @@ end, function() return cast(SPELLS.DivineShield, PLAYER, "[RET] Divine Shield em
 
 add_strategy(strategies, "Ret_LayOnHands_LastResort", 990, function(context, state)
     local threshold = get_setting(context, "lay_on_hands_hp", 8)
-    return (state.hp_pct or 100) <= threshold and ready(SPELLS.LayOnHands, PLAYER, { skip_range = true, expected_cooldown = 2400 })
-end, function() return cast(SPELLS.LayOnHands, PLAYER, "[RET] Lay on Hands last resort", { skip_range = true, expected_cooldown = 2400 }) end)
+    return (state.hp_pct or 100) <= threshold and ready(SPELLS.LayOnHands, PLAYER, { skip_range = true, expected_cooldown = 3600 })
+end, function() return cast(SPELLS.LayOnHands, PLAYER, "[RET] Lay on Hands last resort", { skip_range = true, expected_cooldown = 3600 }) end)
 
 add_strategy(strategies, "Ret_SanctityAura", 550, function(context, state)
     if not get_setting(context, "sanctity_aura_enabled", get_setting(context, "retri_aura_enabled", true)) then return false end
@@ -307,12 +289,12 @@ end, function() return cast(SPELLS.SanctityAura, PLAYER, "[RET] Sanctity Aura", 
 
 add_strategy(strategies, "Ret_DivineProtection_Physical", 980, function(context, state)
     local threshold = get_setting(context, "divine_protection_hp", 22)
-    return state.hp_pct <= threshold and not state.has_forbearance and ready(DivineProtection, PLAYER, { skip_range = true })
+    return (state.hp_pct or 100) <= threshold and not state.has_forbearance and ready(DivineProtection, PLAYER, { skip_range = true })
 end, function() return cast(DivineProtection, PLAYER, "[RET] Divine Protection", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_HealthstoneOrPotion", 970, function(context, state)
     local threshold = get_setting(context, "healing_item_hp", 35)
-    return state.hp_pct <= threshold and state.healing_item ~= nil
+    return (state.hp_pct or 100) <= threshold and state.healing_item ~= nil
 end, function(_, state) return use_item(state.healing_item) end)
 
 add_strategy(strategies, "Ret_BlessingProtection_FocusedAlly", 930, function(context, state)
@@ -367,11 +349,11 @@ add_strategy(strategies, "Ret_PvP_HammerJustice_Burst", 820, function(context, s
 end, function(context) return cast(HammerJustice, context.target, "[RET PvP] Hammer of Justice burst", { expected_cooldown = 60 }) end)
 
 add_strategy(strategies, "Ret_HammerWrath_Execute", 800, function(context, state)
-    return state.target_hp_pct < 20 and ready(HammerWrath, context.target, { expected_cooldown = 6 })
+    return (state.target_hp_pct or 100) < 20 and ready(HammerWrath, context.target, { expected_cooldown = 6 })
 end, function(context) return cast(HammerWrath, context.target, "[RET] Hammer of Wrath execute", { expected_cooldown = 6 }) end)
 
 add_strategy(strategies, "Ret_HammerWrath_FleeingPvP", 790, function(context, state)
-    return context.is_pvp and state.target_fleeing and state.target_hp_pct < 25 and ready(HammerWrath, context.target, { expected_cooldown = 6 })
+    return context.is_pvp and state.target_fleeing and (state.target_hp_pct or 100) < 25 and ready(HammerWrath, context.target, { expected_cooldown = 6 })
 end, function(context) return cast(HammerWrath, context.target, "[RET PvP] Hammer of Wrath fleeing target", { expected_cooldown = 6 }) end)
 
 add_strategy(strategies, "Ret_AvengingWrath_Burst", 780, function(context, state)
@@ -386,7 +368,7 @@ strategies[#strategies + 1] = {
     priority = 760,
     matches = function(context, state)
         -- [ARTISTRY] Improved: Use dynamic twist_window instead of hardcoded 0.45s
-        return state.can_twist and state.has_command and not state.has_blood and state.swing_remains <= state.twist_window and ready(SPELLS.SealBlood, PLAYER, { skip_range = true })
+        return state.can_twist and state.has_command and not state.has_blood and (state.swing_remains or 99) <= (state.twist_window or TWIST_WINDOW) and ready(SPELLS.SealBlood, PLAYER, { skip_range = true })
     end,
     execute = function()
         return cast(SPELLS.SealBlood, PLAYER, "[RET] Seal twist: Blood", { skip_range = true })
@@ -398,8 +380,10 @@ strategies[#strategies + 1] = {
     priority = 750,
     matches = function(context, state)
         -- [ARTISTRY] Improved: Sync prep window with dynamic twist_window
-        local prep_start = state.twist_window + 0.75 -- Give enough time for GCD + Reaction
-        return state.can_twist and state.can_use_blood and not state.has_command_rank1 and state.swing_remains <= prep_start and state.swing_remains > state.twist_window and ready(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, { skip_range = true })
+        local twist_window = state.twist_window or TWIST_WINDOW
+        local prep_start = twist_window + 0.75 -- Give enough time for GCD + Reaction
+        local swing_remains = state.swing_remains or 99
+        return state.can_twist and state.can_use_blood and not state.has_command_rank1 and swing_remains <= prep_start and swing_remains > twist_window and ready(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, { skip_range = true })
     end,
     execute = function()
         return cast(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, "[RET] Seal twist prep: Rank 1 Command", { skip_range = true })
@@ -411,8 +395,8 @@ add_strategy(strategies, "Ret_CrusaderStrike_AfterJudgement", 730, function(cont
 end, function(context) return cast(SPELLS.CrusaderStrike, context.target, "[RET] Crusader Strike after Judgement", { expected_cooldown = 6 }) end)
 
 add_strategy(strategies, "Ret_JudgeCrusader", 720, function(context, state)
-    return not state.target_has_crusader and state.has_crusader and ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 })
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Seal of the Crusader", { expected_cooldown = 10 }) end)
+    return not state.target_has_crusader and state.has_crusader and ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 })
+end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Seal of the Crusader", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_ApplyCrusaderSeal", 710, function(_, state)
     return not state.target_has_crusader and not state.has_crusader and not state.has_damage_seal and ready(SealCrusader, PLAYER, { skip_range = true })
@@ -431,8 +415,8 @@ strategies[#strategies + 1] = {
 }
 
 add_strategy(strategies, "Ret_JudgeDamageSeal", 690, function(context, state)
-    return state.has_damage_seal and (state.mana_pct or 100) >= 12 and ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 })
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judgement damage seal", { expected_cooldown = 10 }) end)
+    return state.has_damage_seal and (state.mana_pct or 100) >= 12 and ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 })
+end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judgement damage seal", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_SealBlood_Primary", 670, function(_, state)
     return state.preferred_damage_seal == "blood" and not state.has_blood and ready(SPELLS.SealBlood, PLAYER, { skip_range = true })
@@ -448,16 +432,16 @@ end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command p
 
 add_strategy(strategies, "Ret_JudgementWisdom_LowMana", 640, function(context, state)
     local threshold = get_setting(context, "retri_judge_wisdom_mana", 45)
-    return state.mana_pct <= threshold and state.has_wisdom and not state.target_has_wisdom and ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 })
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Wisdom for mana", { expected_cooldown = 10 }) end)
+    return (state.mana_pct or 100) <= threshold and state.has_wisdom and not state.target_has_wisdom and ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 })
+end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Wisdom for mana", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_SealWisdom_Emergency", 630, function(_, state)
-    return state.mana_pct <= 18 and not state.has_wisdom and ready(SealWisdom, PLAYER, { skip_range = true })
+    return (state.mana_pct or 100) <= 18 and not state.has_wisdom and ready(SealWisdom, PLAYER, { skip_range = true })
 end, function() return cast(SealWisdom, PLAYER, "[RET] Seal of Wisdom emergency", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_ManaPotion", 620, function(context, state)
     local threshold = get_setting(context, "mana_potion_pct", get_setting(context, "retri_mana_potion", 20))
-    return state.mana_pct <= threshold and state.mana_item ~= nil
+    return (state.mana_pct or 100) <= threshold and state.mana_item ~= nil
 end, function(_, state) return use_item(state.mana_item) end)
 
 strategies[#strategies + 1] = {
@@ -474,14 +458,14 @@ strategies[#strategies + 1] = {
 }
 
 add_strategy(strategies, "Ret_Consecration_ManaDump", 590, function(context, state)
-    return get_setting(context, "consecration_single_target", false) and state.mana_pct >= 75 and ready(SPELLS.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 })
+    return get_setting(context, "consecration_single_target", false) and (state.mana_pct or 0) >= 75 and ready(SPELLS.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 })
 end, function() return cast(SPELLS.Consecration, PLAYER, "[RET] Consecration mana dump", { skip_range = true, expected_cooldown = 8 }) end, 8)
 
 add_strategy(strategies, "Exorcism", 580, function(context)
     -- [ARTISTRY] Improved: TBC Exorcism only works on Undead and Demons.
     if not context.target then return false end
-    local type = context.target.get_creature_type and context.target:get_creature_type()
-    return DEMON_OR_UNDEAD[type] or false
+    local type = creature_type(context.target)
+    return (DEMON_OR_UNDEAD[type] and ready(SPELLS.Exorcism, context.target, { expected_cooldown = 15 })) or false
 end, function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[RET] Exorcism", { expected_cooldown = 15 }) end, 15)
 
 add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
@@ -489,13 +473,13 @@ add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
     if (state.enemy_count or 0) < 2 or (state.mana_pct or 100) < 40 then return false end
     if not ready(SPELLS.HolyWrath, PLAYER, { skip_range = true }) then return false end
     -- Check if target is undead/demon
-    local type = context.target and context.target.get_creature_type and context.target:get_creature_type()
+    local type = creature_type(context.target)
     return DEMON_OR_UNDEAD[type] or false
-end, function() return cast(SPELLS.HolyWrath, PLAYER, "[RET] Holy Wrath AoE", { skip_range = true }) end, 30)
+end, function() return cast(SPELLS.HolyWrath, PLAYER, "[RET] Holy Wrath AoE", { skip_range = true, expected_cooldown = 60 }) end, 60)
 
 add_strategy(strategies, "Ret_JudgeSecondary_CommandCleave", 570, function(context, state)
-    return state.secondary_target ~= nil and state.has_command and state.mana_pct >= 30 and ready(SPELLS.Judgement, state.secondary_target, { expected_cooldown = 10 })
-end, function(_, state) return cast(SPELLS.Judgement, state.secondary_target, "[RET] Judgement secondary cleave", { expected_cooldown = 10 }) end)
+    return state.secondary_target ~= nil and state.has_command and (state.mana_pct or 0) >= 30 and ready(SPELLS.Judgement, state.secondary_target, { skip_gcd = true, expected_cooldown = 10 })
+end, function(_, state) return cast(SPELLS.Judgement, state.secondary_target, "[RET] Judgement secondary cleave", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_BlessingMight_Self", 540, function(context, state)
     if not get_setting(context, "blessing_of_might_self", get_setting(context, "retri_bless_might", true)) then return false end
@@ -521,7 +505,7 @@ end, function(_, state) return cast(SPELLS.BlessingOfKings, state.utility_target
 
 add_strategy(strategies, "Ret_SealCommand_AoE", 490, function(context, state)
     local min_targets = get_setting(context, "command_cleave_min_targets", 2)
-    return state.enemy_count >= min_targets and not state.has_command and ready(SPELLS.SealCommand, PLAYER, { skip_range = true })
+    return (state.enemy_count or 0) >= min_targets and not state.has_command and ready(SPELLS.SealCommand, PLAYER, { skip_range = true })
 end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command cleave", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_SealRighteousness_Filler", 470, function(_, state)
@@ -529,8 +513,8 @@ add_strategy(strategies, "Ret_SealRighteousness_Filler", 470, function(_, state)
 end, function() return cast(SPELLS.SealRighteousness, PLAYER, "[RET] Seal of Righteousness filler", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_Judgement_RighteousnessFiller", 460, function(context, state)
-    return state.has_righteousness and state.mana_pct >= 25 and ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 })
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Righteousness filler", { expected_cooldown = 10 }) end)
+    return state.has_righteousness and (state.mana_pct or 0) >= 25 and ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 })
+end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Righteousness filler", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_SealCommand_Fallback", 450, function(_, state)
     return not state.has_damage_seal and ready(SPELLS.SealCommand, PLAYER, { skip_range = true })

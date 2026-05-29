@@ -30,34 +30,33 @@ if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
 
 -- Debuff and buff ID lists for state queries
-local CURSE_OF_DOOM_DEBUFF = { 30910, 603 }
-local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
-local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
-local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
-local BACKLASH_BUFF = { 34936, 34935 }
-local FEL_ARMOR_BUFF = { 28189, 28176 }
-local DEMON_ARMOR_BUFF = { 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
-local SHADOW_WARD_BUFF = { 28610, 11740, 11739, 6229 }
+local CURSE_OF_DOOM_DEBUFF = { 603 }
+local CURSE_OF_AGONY_DEBUFF = { 11713, 11712, 11711, 6217, 1014, 980 }
+local IMMOLATE_DEBUFF = { 11668, 11667, 11665, 2941, 1094, 707, 348 }
+local CORRUPTION_DEBUFF = { 11672, 11671, 7648, 6223, 6222, 172 }
+local BACKLASH_BUFF = { }  -- Backlash is TBC-only; empty in Classic
+local DEMON_ARMOR_BUFF = { 11735, 11734, 11733, 1086, 706, 696, 687 }
+local SHADOW_WARD_BUFF = { 11740, 11739, 6229 }
 
 -- Local spell actions for spells not exposed in NS.WarlockSpells
-local DemonArmorSpell = NS.spell_action({ 27260, 11735, 11734, 11733, 1086, 706, 687 }, "DemonArmor")
-local ShadowWardSpell = NS.spell_action({ 28610, 11740, 11739, 6229 }, "ShadowWard")
-local DrainLife = NS.spell_action({ 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }, "DrainLife")
-local HealthFunnel = NS.spell_action({ 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel")
-local DarkPact = NS.spell_action({ 27265, 18938, 18937, 18220 }, "DarkPact")
-local SoulFire = NS.spell_action({ 30545, 27211, 17924, 6353 }, "SoulFire")
-local SearingPain = NS.spell_action({ 30459, 27210, 17923, 17922, 17921, 17920, 17919, 5676 }, "SearingPain")
+local DemonArmorSpell = NS.spell_action({ 11735, 11734, 11733, 1086, 706, 687 }, "DemonArmor")
+local ShadowWardSpell = NS.spell_action({ 11740, 11739, 6229 }, "ShadowWard")
+local DrainLife = NS.spell_action({ 11700, 11699, 7651, 709, 699, 689 }, "DrainLife")
+local HealthFunnel = NS.spell_action({ 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel")
+local DarkPact = nil  -- Dark Pact is TBC-only
+local SoulFire = NS.spell_action({ 17924, 6353 }, "SoulFire")
+local SearingPain = NS.spell_action({ 17923, 17922, 17921, 17920, 17919, 5676 }, "SearingPain")
 local Fear = NS.spell_action({ 5782, 6213, 6215 }, "Fear")
-local RainOfFire = NS.spell_action({ 27212, 17954, 17953, 5740 }, "RainOfFire")
-local Hellfire = NS.spell_action({ 27213, 11684, 11683, 1949 }, "Hellfire")
+local RainOfFire = NS.spell_action({ 17954, 17953, 5740 }, "RainOfFire")
+local Hellfire = NS.spell_action({ 11684, 11683, 1949 }, "Hellfire")
 local UnavailableClassicWarlockAoe = nil
-local CreateHealthstone = NS.spell_action({ 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone")
+local CreateHealthstone = NS.spell_action({ 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone")
 local SummonImp = NS.spell_action({ 688 }, "SummonImp")
 local SummonVoidwalker = NS.spell_action({ 697 }, "SummonVoidwalker")
 local SummonSuccubus = NS.spell_action({ 712 }, "SummonSuccubus")
 local SummonFelhunter = NS.spell_action({ 691 }, "SummonFelhunter")
-local SummonFelguard = NS.spell_action({ 30146 }, "SummonFelguard")
-local FelDomination = NS.spell_action({ 18708, 18707, 18706 }, "FelDomination")
+local SummonFelguard = nil  -- Felguard is TBC-only
+local FelDomination = NS.spell_action({ 18708 }, "FelDomination")
 
 -- Constants
 local IMMOLATE_PANDEMIC_WINDOW = 3.5
@@ -65,7 +64,6 @@ local IMMOLATE_MIN_SP_DEFAULT = 400  -- SP below which Immolate is skipped (cons
 local SHADOWBURN_HP_PCT = 20
 local DRAIN_LIFE_HP_THRESHOLD = 40
 local MANA_LIFE_TAP_THRESHOLD = 35
-local DARK_PACT_MANA_THRESHOLD = 45
 local MANA_ITEM_IDS = { 20520, 12662 }  -- Dark Rune, Demonic Rune
 local SOUL_SHARD_ITEM = 6265             -- Classic Vanilla Soul Shard reagent (moved before first use in shadowburn_matches)
 
@@ -80,7 +78,6 @@ local function build_state(context)
         coa_remains = target and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0,
         has_backlash = me and NS.buff_up(me, BACKLASH_BUFF) or false,
         has_backdraft = false,
-        has_fel_armor = me and NS.buff_up(me, FEL_ARMOR_BUFF) or false,
         has_demon_armor = me and NS.buff_up(me, DEMON_ARMOR_BUFF) or false,
         has_shadow_ward = me and NS.buff_up(me, SHADOW_WARD_BUFF) or false,
         hp = context.hp or 100,
@@ -105,12 +102,10 @@ end
 
 local ACTIONS = {
     -- Buffs / OOC
-    { name = "FelArmor", spell = SPELLS.FelArmor, target = "self", kind = "buff", buff = FEL_ARMOR_BUFF, requires_target = false },
     { name = "DemonArmor", spell = DemonArmorSpell, target = "self", kind = "buff", buff = DEMON_ARMOR_BUFF, requires_target = false },
     { name = "ShadowWard", spell = ShadowWardSpell, target = "self", kind = "buff", buff = SHADOW_WARD_BUFF, requires_target = false, cooldown = 30 },
     { name = "CreateHealthstone", spell = CreateHealthstone, target = "self", ooc = true, requires_target = false },
     { name = "LifeTap", spell = SPELLS.LifeTap, target = "self", max_mana = 65, min_hp = 40, requires_target = false },
-    { name = "DarkPact", spell = DarkPact, target = "self", max_mana = 55, requires_target = false },
     { name = "DrainLife", spell = DrainLife, not_moving = true, min_hp = 40 },
     { name = "HealthFunnel", spell = HealthFunnel, target = "pet", not_moving = true, min_hp = 60, requires_target = false },
     -- Curses (CurseOfDoom before Immolate per regression test)
@@ -129,7 +124,7 @@ local ACTIONS = {
     { name = "UnavailableClassicWarlockNuke", spell = SPELLS.UnavailableClassicWarlockNuke, not_moving = true },
     { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
     -- AoE
-    { name = "UnavailableClassicWarlockAoe", spell = UnavailableClassicWarlockAoe, position = "target", enemy_count = 3 },
+    { name = "UnavailableClassicWarlockAoe", spell = UnavailableClassicWarlockAoe, enemy_count = 3 },
     { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true },
     { name = "Hellfire", spell = Hellfire, position = "self", enemy_count = 4, not_moving = true },
     -- CC / Emergency
@@ -140,7 +135,6 @@ local ACTIONS = {
     { name = "SummonVoidwalker", spell = SummonVoidwalker, target = "self", ooc = true, requires_target = false },
     { name = "SummonSuccubus", spell = SummonSuccubus, target = "self", ooc = true, requires_target = false },
     { name = "SummonFelhunter", spell = SummonFelhunter, target = "self", ooc = true, requires_target = false },
-    { name = "SummonFelguard", spell = SummonFelguard, target = "self", ooc = true, requires_target = false },
     { name = "FelDomination", spell = FelDomination, target = "self", cooldown = 900, requires_target = false },
 }
 
@@ -153,19 +147,20 @@ local function immolate_matches(context, action, state)
     local s = context.settings or {}
     local min_sp = s.destro_immolate_min_sp or IMMOLATE_MIN_SP_DEFAULT
     if (state.spell_damage or 0) < min_sp then return false end
-    if state.immolate_remains > IMMOLATE_PANDEMIC_WINDOW then return false end
-    if not NS.should_refresh_dot(state.immolate_remains, 1.5, context.ttd, 15) then return false end
+    if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
+    if not NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15) then return false end
     return true
 end
 
 local function conflagrate_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    if state.immolate_remains <= 0 then return false end
+    if (state.immolate_remains or 0) <= 0 then return false end
     return true
 end
 
 local function shadowburn_matches(context, action, state)
+    if not context.target then return false end
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     local hp_threshold = (context.settings and context.settings.destro_shadowburn_hp) or SHADOWBURN_HP_PCT
     if not NS.is_execute_phase(context.target_hp, hp_threshold) then return false end
@@ -177,7 +172,7 @@ local function curse_of_doom_matches(context, action, state)
     if not NS.should_use_long_cd(context, action.cooldown) then return false end
     if not state then return false end
     state = state or {}
-    if state.cod_remains > 5 then return false end
+    if (state.cod_remains or 0) > 5 then return false end
     return true
 end
 
@@ -191,7 +186,7 @@ end
 local function incinerate_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    if state.immolate_remains <= 0 then return false end
+    if (state.immolate_remains or 0) <= 0 then return false end
     return NS.spell_ready(action.spell, context.target)
 end
 
@@ -209,7 +204,7 @@ local function corruption_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Corruption, 2.0) then return false end
     if not state then return false end
     state = state or {}
-    if state.corruption_remains > 3 then return false end
+    if (state.corruption_remains or 0) > 3 then return false end
     return true
 end
 
@@ -217,8 +212,8 @@ local function curse_of_agony_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfAgony, 2.0) then return false end
     if not state then return false end
     state = state or {}
-    if state.coa_remains > 3 then return false end
-    if state.cod_remains > 0 then return false end
+    if (state.coa_remains or 0) > 3 then return false end
+    if (state.cod_remains or 0) > 0 then return false end
     return NS.spell_ready(action.spell, context.target)
 end
 
@@ -233,30 +228,14 @@ end
 local function health_funnel_matches(context, action, state)
     local pet = NS.GetPet()
     if not pet then return false end
-    if NS.unit_health_pct(pet) > 50 then return false end
-    return true
-end
-
-local function dark_pact_matches(context, action, state)
-    if not state then return false end
-    state = state or {}
-    if (state.mana_pct or 100) > DARK_PACT_MANA_THRESHOLD then return false end
-    return true
-end
-
-local function fel_armor_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FelArmor, 3.0) then return false end
-    if not state then return false end
-    state = state or {}
-    if state.has_fel_armor then return false end
+    if ((NS.unit_health_pct and NS.unit_health_pct(pet)) or 100) > 50 then return false end
     return true
 end
 
 local function demon_armor_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemonArmor, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(DemonArmorSpell, 3.0) then return false end
     if not state then return false end
     state = state or {}
-    if state.has_fel_armor then return false end
     if state.has_demon_armor then return false end
     return true
 end
@@ -280,6 +259,7 @@ local function life_tap_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if (state.mana_pct or 100) > MANA_LIFE_TAP_THRESHOLD then return false end
+    if (state.hp or 100) < (action.min_hp or 0) then return false end
     return true
 end
 
@@ -304,6 +284,8 @@ end
 
 local function aoe_matches(context, action, state)
     if context.is_channeling then return false end
+    if not action.spell then return false end
+    if (context.enemy_count or context.enemies_count or 0) < (action.enemy_count or 0) then return false end
     if not NS.spell_ready(action.spell, context.target) then return false end
     if context.is_moving and action.not_moving then return false end
     return true
@@ -323,8 +305,8 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return curse_of_doom_matches(context, action, state) end
     elseif action.name == "BacklashShadowBolt" then
         custom_matches = function(context, state) return backlash_matches(context, action, state) end
-    elseif action.name == "UnavailableClassicWarlockNuke" then
-        custom_matches = function(context, state) return incinerate_matches(context, action, state) end
+    elseif action.name == "UnavailableClassicWarlockNuke" or action.name == "UnavailableClassicWarlockAoe" then
+        custom_matches = function() return false end
     elseif action.name == "SearingPain" then
         custom_matches = function(context, state) return searing_pain_matches(context, action, state) end
     elseif action.name == "SoulFire" then
@@ -337,10 +319,6 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return drain_life_matches(context, action, state) end
     elseif action.name == "HealthFunnel" then
         custom_matches = function(context, state) return health_funnel_matches(context, action, state) end
-    elseif action.name == "DarkPact" then
-        custom_matches = function(context, state) return dark_pact_matches(context, action, state) end
-    elseif action.name == "FelArmor" then
-        custom_matches = function(context, state) return fel_armor_matches(context, action, state) end
     elseif action.name == "DemonArmor" then
         custom_matches = function(context, state) return demon_armor_matches(context, action, state) end
     elseif action.name == "ShadowWard" then
@@ -353,7 +331,7 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return death_coil_matches(context, action, state) end
     elseif action.name == "Fear" then
         custom_matches = function(context, state) return fear_matches(context, action, state) end
-    elseif action.name == "SummonImp" or action.name == "SummonVoidwalker" or action.name == "SummonSuccubus" or action.name == "SummonFelhunter" or action.name == "SummonFelguard" then
+    elseif action.name == "SummonImp" or action.name == "SummonVoidwalker" or action.name == "SummonSuccubus" or action.name == "SummonFelhunter" then
         custom_matches = function(context, state) return summon_pet_matches(context, action, state) end
     elseif action.enemy_count then
         custom_matches = function(context, state) return aoe_matches(context, action, state) end
@@ -371,6 +349,11 @@ for i = 1, #ACTIONS do
                 opts.skip_range = true
             elseif action.target == "pet" then
                 target = context.pet or (NS.GetPet and NS.GetPet())
+            elseif action.position == "target" and NS.try_cast_position then
+                local get_position = target and target.get_position
+                local pos = get_position and target:get_position() or nil
+                if not pos then return false end
+                return NS.try_cast_position(action.spell, pos, target, "[DESTRUCTION] " .. action.name, opts)
             end
             return NS.try_cast(action.spell, target, "[DESTRUCTION] " .. action.name, opts)
         end,

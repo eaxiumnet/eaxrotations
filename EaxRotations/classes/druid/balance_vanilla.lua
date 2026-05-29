@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Balance Druid rotation (no Force of Nature/Moonkin/Cyclone)
--- =========================================================================
-local __eax_file = "classes/druid/balance_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Balance Druid rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 
 local _G_E = rawget(_G, "EaxRotations")
 if not _G_E then return nil end
@@ -24,29 +6,25 @@ local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local _TBC_P = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
-local _INSECT_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
-local _MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
-local _FAERIE_DEBUFF  = { 26993, 9907, 9749, 778, 770 }
+local _INSECT_DEBUFF = { 24977, 24976, 24975, 24974, 5570 }
+local _MOONFIRE_DEBUFF = { 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
+local _FAERIE_DEBUFF  = { 9907, 9749, 778, 770 }
 local _NATURES_BUFF = { 16880 }
 local _BARKSKIN_BUFF = { 22812 }
-local _MOTW_BUFF = { 26991, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
+local _MOTW_BUFF = { 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
 local _HEALER_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }
 
 local _LOCAL_SPELLS = {
     Innervate    = _G_E.spell_action({ 29166 }, "Innervate"),
-    Rebirth      = _G_E.spell_action({ 26994,20748,20747,20742,20739,20484 }, "Rebirth"),
-    Thorns       = _G_E.spell_action({ 26992,9910,9756,8914,1075,782,467 }, "Thorns"),
-    EntanglingRoots = _G_E.spell_action({ 26989,9853,9852,5196,5195,1062,339 }, "EntanglingRoots"),
-    NaturesGrasp = _G_E.spell_action({ 27009,17329,16813,16812,16811,16810,16689 }, "NaturesGrasp"),
+    Rebirth      = _G_E.spell_action({ 20748,20747,20742,20739,20484 }, "Rebirth"),
+    Thorns       = _G_E.spell_action({ 9910,9756,8914,1075,782,467 }, "Thorns"),
+    EntanglingRoots = _G_E.spell_action({ 9853,9852,5196,5195,1062,339 }, "EntanglingRoots"),
+    NaturesGrasp = _G_E.spell_action({ 17329,16813,16812,16811,16810,16689 }, "NaturesGrasp"),
     WarStomp     = _G_E.spell_action({ 20549 }, "WarStomp"),
-    MarkOfTheWild= _G_E.spell_action({ 26991,9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
+    MarkOfTheWild= _G_E.spell_action({ 9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
 }
 
 local _MANA_POTION = {
-    _TBC_P.crystal_mana or 33935,
-    _TBC_P.auchenai_mana or 32948,
-    _TBC_P.super_mana or 22832,
-    _TBC_P.super_rejuvenation or 22850,
     _TBC_P.major_mana or 13444,
     _TBC_P.superior_mana or 13443,
 }
@@ -375,7 +353,7 @@ local _strategies = {
         matches=function(ctx)
             local skip = _G_E.broken_api_throttled and _G_E.broken_api_throttled(SPELLS.Thorns, 3.0) or false
             if not skip then
-                if _G_E.buff_up(_G_E.PLAYER_UNIT, {26992,9910,9756,8914,1075,782,467}) then return false end
+                if _G_E.buff_up(_G_E.PLAYER_UNIT, { 9910,9756,8914,1075,782,467}) then return false end
             end
             if ctx.in_combat then return false end
             return _G_E.spell_ready(_LOCAL_SPELLS.Thorns, _G_E.PLAYER_UNIT, { skip_range = true })

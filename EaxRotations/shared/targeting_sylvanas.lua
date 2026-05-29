@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/targeting_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Helper: Targeting System
 -- Sticky target, raid marker priority, pull modes, enemy counting
@@ -24,9 +6,8 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-local _core_time = core.time
-local _get_enemies = core.object_manager.get_enemy_list
-local _get_local_player = core.object_manager.get_local_player
+local _core_time = type(core) == "table" and type(core.time) == "function" and core.time or function() return 0 end
+local _get_local_player = NS.GetPlayer or (core.object_manager and core.object_manager.get_local_player) or function() return nil end
 
 -- ============================================================================
 -- Internal state
@@ -141,17 +122,56 @@ end
 -- Raid marker priority
 -- ============================================================================
 
---- Priority mapping for raid markers (lower = higher priority)
+--- Priority mapping for raid markers (lower = higher priority).
+--- API returns get_target_marker_index(): 0=none, 1=Star, 2=Circle, 3=Diamond,
+--- 4=Triangle, 5=Moon, 6=Square, 7=Cross, 8=Skull.
+--- Map numeric index directly to priority (skull = highest priority).
 local MARKER_PRIORITY = {
-    skull = 1,
-    cross = 2,
-    star = 3,
-    circle = 4,
-    moon = 5,
-    square = 6,
-    diamond = 7,
-    triangle = 8,
+    [8] = 1,  -- Skull
+    [7] = 2,  -- Cross
+    [1] = 3,  -- Star
+    [2] = 4,  -- Circle
+    [5] = 5,  -- Moon
+    [6] = 6,  -- Square
+    [3] = 7,  -- Diamond
+    [4] = 8,  -- Triangle
 }
+
+--- Safely get the raid marker index from a unit using documented API.
+---@param unit game_object
+---@return integer marker_index 0-8, 0 = no marker
+local function get_marker_index(unit)
+    if not unit then return 0 end
+    if type(unit.get_target_marker_index) == "function" then
+        local ok, val = pcall(unit.get_target_marker_index, unit)
+        if ok and type(val) == "number" then return val end
+    end
+    -- Fallback: undocumented get_raid_marker returning string names
+    if type(unit.get_raid_marker) == "function" then
+        local ok, val = pcall(unit.get_raid_marker, unit)
+        if ok and type(val) == "string" then
+            local str_to_idx = { skull = 8, cross = 7, star = 1, circle = 2, diamond = 3, triangle = 4, moon = 5, square = 6 }
+            return str_to_idx[val] or 0
+        end
+    end
+    return 0
+end
+
+--- Get enemies list using documented API (NS.GetEnemiesInRange) with fallback.
+---@param range number
+---@return table enemies, number count
+local function get_enemies(range)
+    if NS.GetEnemiesInRange then
+        local list = NS.GetEnemiesInRange(range)
+        if type(list) == "table" then return list, list.n or #list end
+    end
+    -- Fallback: scan visible objects
+    if core and core.object_manager and type(core.object_manager.get_visible_objects) == "function" then
+        local list = core.object_manager.get_visible_objects()
+        if type(list) == "table" then return list, #list end
+    end
+    return {}, 0
+end
 
 --- Sorts enemies by raid marker priority (Skull > X > Star > ...)
 ---@param enemies game_object[] List of enemy units
@@ -163,7 +183,7 @@ function M.sort_by_marker_priority(enemies)
     local scored = {}
     for i = 1, #enemies do
         local unit = enemies[i]
-        local marker = (type(unit.get_raid_marker) == "function") and unit:get_raid_marker() or ""
+        local marker = get_marker_index(unit)
         local priority = MARKER_PRIORITY[marker] or 999
         scored[i] = { unit = unit, priority = priority }
     end
@@ -193,7 +213,7 @@ function M.find_best_marked(enemies)
     for i = 1, #enemies do
         local unit = enemies[i]
         if unit and unit:is_valid() and unit:is_alive() then
-            local marker = (type(unit.get_raid_marker) == "function") and unit:get_raid_marker() or ""
+            local marker = get_marker_index(unit)
             local priority = MARKER_PRIORITY[marker] or 999
             if priority < best_priority then
                 best_priority = priority
@@ -233,12 +253,13 @@ function M.count_enemies_around(center, radius, opts)
 
     if not cx then return 0 end
 
-    local enemies = _get_enemies()
-    if not enemies then return 0 end
+    -- Use documented API to get enemies near player (scan at 2x radius to capture everything)
+    local enemies, enemy_count = get_enemies(radius * 2 + 5)
+    if enemy_count == 0 then return 0 end
 
     local radius_sq = radius * radius
 
-    for i = 1, #enemies do
+    for i = 1, enemy_count do
         local enemy = enemies[i]
         if enemy and enemy:is_valid() and enemy:is_alive() then
             local epos = enemy:get_position()
@@ -252,10 +273,6 @@ function M.count_enemies_around(center, radius, opts)
                 end
             end
         end
-    end
-
-    if not opts.include_current then
-        -- Don't subtract 1; we counted all enemies in radius
     end
 
     return count
@@ -298,11 +315,12 @@ function M.resolve_target(ctx, opts)
 
         -- Raid marker priority: check if higher priority marked target exists
         if opts.prefer_marked then
-            local enemies = _get_enemies()
+            local max_range = opts.max_distance or 40
+            local enemies, _ = get_enemies(max_range)
             local marked = M.find_best_marked(enemies)
             if marked then
-                local mark = (type(marked.get_raid_marker) == "function") and marked:get_raid_marker() or ""
-                local cur_mark = (type(current.get_raid_marker) == "function") and current:get_raid_marker() or ""
+                local mark = get_marker_index(marked)
+                local cur_mark = get_marker_index(current)
                 local mark_prio = MARKER_PRIORITY[mark] or 999
                 local cur_prio = MARKER_PRIORITY[cur_mark] or 999
                 if mark_prio < cur_prio then
@@ -325,8 +343,8 @@ function M.resolve_target(ctx, opts)
     end
 
     -- Fallback: find nearest enemy
-    local enemies = _get_enemies()
-    if not enemies or #enemies == 0 then return nil end
+    local enemies, enemy_count = get_enemies(opts.max_distance or 40)
+    if enemy_count == 0 then return nil end
 
     if opts.prefer_marked then
         local marked = M.find_best_marked(enemies)
@@ -336,7 +354,7 @@ function M.resolve_target(ctx, opts)
     local best = nil
     local best_dist = math.huge
 
-    for i = 1, #enemies do
+    for i = 1, enemy_count do
         local enemy = enemies[i]
         if enemy and enemy:is_valid() and enemy:is_alive() and enemy:can_attack(me) then
             local dist = me:get_distance(enemy)

@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/priest/shadow_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Priest Shadow priority list with Mind Flay channel clipping control.
--- ============================================================================
--- What: TBC Priest Shadow rotation with Mind Flay clipping and DoT cycling
--- When: Per tick
--- Why: Snapshot-aware DoT refresh and channel clipping maximize damage
--- Safety: Per-target cast lockouts, nil-guarded target checks, conservative refresh windows
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -92,6 +68,16 @@ local function _is_locked(spell_name)
         return false
     end
     return true
+end
+
+local function target_creature_type(unit)
+    if not unit then return nil end
+    if type(NS.unit_creature_type) == "function" then return NS.unit_creature_type(unit) end
+    if unit.get_creature_type then
+        local ok, value = pcall(function() return unit:get_creature_type() end)
+        if ok then return value end
+    end
+    return nil
 end
 
 -- ============================================================================
@@ -262,7 +248,7 @@ local function build_state(context)
     shadow_state.enemy_count = context.enemy_count or context.enemies_count or 1
     shadow_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
     shadow_state.target_casting = target and target.is_casting and target:is_casting() or false
-    shadow_state.target_creature_type = target and NS.unit_creature_type and NS.unit_creature_type(target) or nil
+    shadow_state.target_creature_type = target_creature_type(target)
 
     -- Current spell damage from NS (provided by middleware or character API)
     shadow_state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0

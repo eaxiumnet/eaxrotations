@@ -33,12 +33,13 @@ local SPELLS = NS.PaladinSpells or {}
 -- Buff & Debuff ID tables
 -- ============================================================================
 local RIGHTEOUS_FURY_BUFF = { 25780 }
-local SEAL_RIGHTEOUSNESS_BUFF = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
-local HOLY_SHIELD_BUFF = { 27179, 20928, 20927, 20925 }
-local CONSECRATION_DEBUFF = { 27173, 20924, 20923, 20922, 20116, 26573 }
-local BLESSING_OF_SANCTUARY_BUFF = { 27168, 20914, 20913, 20912, 20911 }
-local DEVOTION_AURA_BUFF = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
+local HOLY_SHIELD_BUFF = { 20928, 20927, 20925 }
+local SEAL_RIGHTEOUSNESS_BUFF = { 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
+local CONSECRATION_DEBUFF = { 20924, 20923, 20922, 20116, 26573 }
+local BLESSING_OF_SANCTUARY_BUFF = { 20914, 20913, 20912, 20911 }
+local DEVOTION_AURA_BUFF = { 10293, 10292, 1032, 643, 10291, 10290, 465 }
 local DIVINE_SHIELD_BUFF = { 642 }
+local FORBEARANCE_DEBUFF = { 25771 }
 local DEMON_OR_UNDEAD = { [3] = true, [6] = true }
 local CC_DEBUFFS = { 118, 12824, 12825, 12826, 28271, 28272, 3355, 14308, 14309, 20066 }
 local CONSECRATION_MIN_MANA = 35
@@ -62,6 +63,7 @@ local prot_state = {
     has_seal = false,
     has_devotion_aura = false,
     has_divine_shield = false,
+    has_forbearance = false,
     consecration_remains = 0,
     has_blessing_sanctuary = false,
     now_ms = 0,
@@ -76,7 +78,9 @@ local prot_state = {
     flash_of_light_ready = false,
     holy_light_ready = false,
     holy_shock_ready = false,
+    holy_wrath_ready = false,
     cleanse_ready = false,
+    needs_cleanse = false,
     seal_of_wisdom_ready = false,
     righteous_defense_ready = false,
     mana_pct = 100,
@@ -89,6 +93,22 @@ local prot_state = {
     low_hp_ally = nil,
     cc_nearby = false,
 }
+
+local function self_needs_cleanse(unit)
+    if not unit then return false end
+    if type(NS.has_dispel_type_debuff) == "function" then
+        return NS.has_dispel_type_debuff(unit, "Poison")
+            or NS.has_dispel_type_debuff(unit, "Disease")
+            or NS.has_dispel_type_debuff(unit, "Magic")
+    end
+    return false
+end
+
+local function creature_type(unit)
+    if not unit or not unit.get_creature_type then return nil end
+    local ok, value = pcall(unit.get_creature_type, unit)
+    return ok and value or nil
+end
 
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
@@ -109,29 +129,32 @@ local function build_state(context)
         prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
         prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
         prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
+        prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
         prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
         prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
     end
     prot_state.consecration_ready = me and NS.spell_ready(SPELLS.Consecration, me, { skip_range = true, expected_cooldown = 8 }) or false
     prot_state.holy_shield_ready = me and NS.spell_ready(SPELLS.HolyShield, me, { skip_range = true, expected_cooldown = 10 }) or false
-    prot_state.exorcism_ready = me and NS.spell_ready(SPELLS.Exorcism, me, { expected_cooldown = 15 }) or false
-    prot_state.judgement_ready = me and NS.spell_ready(SPELLS.Judgement, me, { expected_cooldown = 10 }) or false
+    prot_state.exorcism_ready = target and NS.spell_ready(SPELLS.Exorcism, target, { expected_cooldown = 15 }) or false
+    prot_state.judgement_ready = target and NS.spell_ready(SPELLS.Judgement, target, { expected_cooldown = 10 }) or false
     prot_state.divine_shield_ready = me and NS.spell_ready(SPELLS.DivineShield, me, { skip_range = true, expected_cooldown = 300 }) or false
-    prot_state.lay_on_hands_ready = me and NS.spell_ready(SPELLS.LayOnHands, me, { skip_range = true, expected_cooldown = 1200 }) or false
-    prot_state.hammer_of_justice_ready = me and NS.spell_ready(SPELLS.HammerOfJustice, me, { expected_cooldown = 60 }) or false
-    prot_state.hammer_of_wrath_ready = me and NS.spell_ready(SPELLS.HammerOfWrath, me, { expected_cooldown = 6 }) or false
+    prot_state.lay_on_hands_ready = me and NS.spell_ready(SPELLS.LayOnHands, me, { skip_range = true, expected_cooldown = 3600 }) or false
+    prot_state.hammer_of_justice_ready = target and NS.spell_ready(SPELLS.HammerOfJustice, target, { expected_cooldown = 60 }) or false
+    prot_state.hammer_of_wrath_ready = target and NS.spell_ready(SPELLS.HammerOfWrath, target, { expected_cooldown = 6 }) or false
     prot_state.avenging_wrath_ready = me and NS.spell_ready(SPELLS.UnavailableClassicPaladinBurst, me, { skip_range = true, expected_cooldown = 180 }) or false
     prot_state.flash_of_light_ready = me and NS.spell_ready(SPELLS.FlashOfLight, me, { skip_range = true, expected_cooldown = 1.5 }) or false
     prot_state.holy_light_ready = me and NS.spell_ready(SPELLS.HolyLight, me, { skip_range = true, expected_cooldown = 2.5 }) or false
-    prot_state.holy_shock_ready = me and NS.spell_ready(SPELLS.HolyShock, me, { expected_cooldown = 15 }) or false
+    prot_state.holy_shock_ready = target and NS.spell_ready(SPELLS.HolyShock, target, { expected_cooldown = 15 }) or false
+    prot_state.holy_wrath_ready = me and NS.spell_ready(SPELLS.HolyWrath, me, { skip_range = true, expected_cooldown = 60 }) or false
     prot_state.cleanse_ready = me and NS.spell_ready(SPELLS.Cleanse, me, { skip_range = true, expected_cooldown = 1.5 }) or false
+    prot_state.needs_cleanse = self_needs_cleanse(me)
     prot_state.seal_of_wisdom_ready = me and NS.spell_ready(SPELLS.SealOfWisdom, me, { skip_range = true, expected_cooldown = 1.5 }) or false
     prot_state.righteous_defense_ready = me and NS.spell_ready(SPELLS.UnavailableClassicPaladinTaunt, me, { skip_range = true, expected_cooldown = 10 }) or false
-    prot_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
+    prot_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me)) or 100
     prot_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     prot_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
     prot_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    prot_state.target_creature_type = target and NS.unit_creature_type and NS.unit_creature_type(target) or nil
+    prot_state.target_creature_type = creature_type(target)
     prot_state.target_casting = target and target.is_casting and target:is_casting() or false
 
     -- Scan allies for threat and low HP (Righteous Defense / BoP peel)
@@ -212,6 +235,7 @@ end
 local function consecration_matches(context, state)
     if not get_setting(context, "prot_consecration", true) then return false end
     if not has_combat_target(context) then return false end
+    if not state.consecration_ready then return false end
     -- Don't break CC with Consecration
     if state.cc_nearby then return false end
     -- Mana conservation: skip Consecration below configurable floor
@@ -219,7 +243,7 @@ local function consecration_matches(context, state)
     if (state.mana_pct or 100) < min_mana then return false end
     -- AoE threshold: only use single-target if Consecration is already ticking
     local min_targets = get_setting(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
-    if (state.enemy_count or 0) < min_targets and state.consecration_remains > 2 then return false end
+    if (state.enemy_count or 0) < min_targets and (state.consecration_remains or 0) > 2 then return false end
     return true
 end
 
@@ -242,7 +266,7 @@ local function hammer_of_wrath_matches(context, state)
     if not has_combat_target(context) then return false end
     if not state.hammer_of_wrath_ready then return false end
     local execute_hp = get_setting(context, "prot_hammer_of_wrath_hp", 20)
-    if state.target_hp_pct > execute_hp then return false end
+    if (state.target_hp_pct or 100) > execute_hp then return false end
     return true
 end
 
@@ -267,6 +291,7 @@ local function holy_wrath_matches(context, state)
     if not has_combat_target(context) then return false end
     -- Holy Wrath is AoE; only cast when 2+ demon/undead targets present
     if (state.enemy_count or 0) < 2 then return false end
+    if not state.holy_wrath_ready then return false end
     if not state.target_creature_type then return false end
     if not DEMON_OR_UNDEAD[state.target_creature_type] then return false end
     return true
@@ -275,6 +300,7 @@ end
 local function divine_shield_matches(context, state)
     local threshold = get_setting(context, "prot_divine_shield_hp", 15)
     if (state.hp_pct or 100) > threshold then return false end
+    if state.has_forbearance then return false end
     if state.has_divine_shield then return false end
     if not state.divine_shield_ready then return false end
     return true
@@ -295,6 +321,7 @@ local function hammer_of_justice_matches(context, state)
 end
 
 local function holy_shock_matches(context, state)
+    if not has_combat_target(context) then return false end
     if not state.holy_shock_ready then return false end
     return true
 end
@@ -315,6 +342,7 @@ end
 
 local function cleanse_matches(context, state)
     if not get_setting(context, "prot_cleanse", true) then return false end
+    if not state.needs_cleanse then return false end
     if not state.cleanse_ready then return false end
     return true
 end

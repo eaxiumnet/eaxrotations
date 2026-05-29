@@ -1,34 +1,9 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Combat Rogue rotation
--- =========================================================================
-local __eax_file = "classes/rogue/combat_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Combat Rogue rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Rogue Combat priority list.
--- ============================================================================
--- What: Classic Vanilla Rogue Combat rotation with energy pooling and cooldown alignment
--- When: Per tick
--- Why: Maintains SnD, Rupture, and burst timing while avoiding energy waste
--- Safety: Cached state tables, no per-tick allocations in hot path, conservative spend/pool gates
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.RogueSpells or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
-local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
 local SND_BUFF = { 6774, 5171 }
 local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
@@ -60,8 +35,8 @@ local _last_tick_time = 0
 local function get_next_tick_in(energy, settings)
     local now = NS.time_now and NS.time_now() or 0
     local energy_gained = energy - _last_energy
-    
-    -- Heuristic: Classic Vanilla energy ticks are usually 20. 
+
+    -- Heuristic: Classic Vanilla energy ticks are usually 20.
     -- If gain is 20 (or slightly different due to haste/procs?), it's likely a server tick.
     -- AR gain is higher (40?), Tea is 100.
     if energy_gained >= 19 and energy_gained <= 21 then
@@ -69,7 +44,7 @@ local function get_next_tick_in(energy, settings)
         _last_energy = energy
         return ENERGY_TICK
     end
-    
+
     if energy_gained > 0 then
         _last_energy = energy
     end
@@ -85,11 +60,11 @@ end
 
 local function should_pool_energy(context)
     if not (context.settings and context.settings.combat_energy_tick_sync) then return false end
-    
+
     local energy = context.energy or 0
     local offset = (context.settings and context.settings.combat_energy_tick_offset or 100) / 1000
     local next_tick_in = get_next_tick_in(energy, context.settings)
-    
+
     -- If tick is coming in very soon, wait for it unless we are capping
     if next_tick_in <= offset + 0.1 then
         local projected_energy = energy + ENERGY_PER_TICK
@@ -105,18 +80,18 @@ local function should_spend_energy(context, cost)
     local settings = context.settings or {}
     local offset = (settings.combat_energy_tick_offset or 100) / 1000
     local next_tick_in = get_next_tick_in(energy, settings)
-    
+
     -- Capping risk: if next tick will put us over cap, spend NOW
     local projected_energy = energy + ENERGY_PER_TICK
     if projected_energy > ENERGY_CAP then
         return true
     end
-    
+
     -- Logic: only spend if we just had a tick or the next one is far away
     if next_tick_in > offset + 0.3 then
         return true
     end
-    
+
     -- Or if we are in the "Advance" window (offset)
     if next_tick_in <= offset then
         return true
@@ -170,10 +145,6 @@ local combat_state = {
     -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
     shiv_ready = false,
     shiv_purge_name = nil,
-    -- Disarm (PvP Dismantle)
-    disarm_ready = false,
-    disarm_class_ok = false,
-    disarm_buff_name = nil,
 }
 
 local function build_state(context)
@@ -225,23 +196,6 @@ local function build_state(context)
     if combat_state.in_combat and (context.is_pvp or false) and target and CCGateDB.find_best_dispel_target then
         local best_id, _, best_name = CCGateDB.find_best_dispel_target(target, NS)
         if best_id then combat_state.shiv_purge_name = best_name end
-    end
-
-    -- Disarm (PvP Dismantle — weapon removal vs melee)
-    combat_state.disarm_ready = target and NS.spell_ready(SPELLS.Dismantle, target, { expected_cooldown = 60 }) or false
-    combat_state.disarm_class_ok = false
-    combat_state.disarm_buff_name = nil
-    if target and (context.is_pvp or false) and combat_state.disarm_ready then
-        local ok, class_id = pcall(function() return target:get_class() end)
-        if ok and type(class_id) == "number" and DISARM_CLASS_IDS[class_id] then
-            combat_state.disarm_class_ok = true
-            if CCGateDB and CCGateDB.find_best_dispel_target then
-                local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(target, NS)
-                if best_id and (best_priority or 0) >= 3 then
-                    combat_state.disarm_buff_name = best_name
-                end
-            end
-        end
     end
 
     return combat_state
@@ -328,7 +282,6 @@ local function shiv_purge_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.UnavailableClassicRogueUtility, 2.0) then return false end
     local settings = context.settings or {}
     if settings.use_shiv_purge == false then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
     if not s.in_combat then return false end
     if not (context.is_pvp or false) then return false end
     if not context.target then return false end
@@ -338,28 +291,6 @@ local function shiv_purge_matches(context, s)
     if settings.shiv_purge_pvp_only ~= false then
         local ok, is_player = pcall(function() return context.target:is_player() end)
         if not (ok and is_player) then return false end
-    end
-    return true
-end
-
-local function disarm_matches(context, s)
-    local settings = context.settings or {}
-    if settings.use_disarm == false then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(51722)) then return false end
-    if not s.in_combat then return false end
-    if not (context.is_pvp or false) then return false end
-    if not context.target then return false end
-    if not (context.in_melee_range or false) then return false end
-    if not s.disarm_ready then return false end
-    if not s.disarm_class_ok then return false end
-    if settings.disarm_pvp_only ~= false then
-        local ok, is_player = pcall(function() return context.target:is_player() end)
-        if not (ok and is_player) then return false end
-    end
-    local trigger = settings.disarm_trigger or "on_burst"
-    if trigger == "on_burst" then
-        if not s.disarm_buff_name then return false end
-        context._disarm_buff_name = s.disarm_buff_name
     end
     return true
 end
@@ -393,7 +324,7 @@ end
 local function feint_matches(context, s)
     if not s.in_combat then return false end
     if not s.feint_ready then return false end
-    -- Research: Feint is a threat drop — only fire when threat is known and high
+    -- Research: Feint is a threat drop ? only fire when threat is known and high
     local feint_threat = (context.settings and context.settings.combat_feint_threat) or 90
     if s.threat_pct <= 0 or s.threat_pct < feint_threat then return false end
     return true
@@ -437,8 +368,7 @@ local strategies = {
     { name = "Rupture", matches = rupture_wrapper, execute = function(context) return NS.try_cast(SPELLS.Rupture, context.target, "[COMBAT] Rupture") end },
     { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return NS.try_cast(SPELLS.Eviscerate, context.target, "[COMBAT] Eviscerate") end },
     { name = "Kick", matches = kick_matches, execute = function(context) return NS.try_cast(SPELLS.Kick, context.target, "[COMBAT] Kick") end },
-    { name = "UnavailableClassicRogueUtilityPurge", matches = function(context, s) if shiv_purge_matches(context, s) then context._shiv_purge_name = s.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return NS.try_cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[COMBAT] UnavailableClassicRogueUtility purge → " .. name, { expected_cooldown = 10 }) end },
-    { name = "Disarm", matches = disarm_matches, execute = function(context) local label = context._disarm_buff_name and ("[COMBAT] Dismantle → " .. context._disarm_buff_name) or "[COMBAT] Dismantle" return NS.try_cast(SPELLS.Dismantle, context.target, label, { expected_cooldown = 60 }) end },
+    { name = "UnavailableClassicRogueUtilityPurge", matches = function(context, s) if shiv_purge_matches(context, s) then context._shiv_purge_name = s.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return NS.try_cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[COMBAT] UnavailableClassicRogueUtility purge ? " .. name, { expected_cooldown = 10 }) end },
     { name = "Gouge", matches = gouge_matches, execute = function(context) return NS.try_cast(SPELLS.Gouge, context.target, "[COMBAT] Gouge") end },
     { name = "Sprint", matches = sprint_matches, execute = function(context) return NS.try_cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[COMBAT] Sprint", { skip_range = true }) end },
     { name = "Vanish", matches = vanish_matches, execute = function(context) return NS.try_cast(SPELLS.Vanish, NS.PLAYER_UNIT, "[COMBAT] Vanish", { skip_range = true }) end },

@@ -1,27 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/paladin/heal_helper_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- ============================================================================
--- What: Paladin healing utilities for party and raid scanning.
--- When: Load time and scan ticks.
--- Why: Centralize healing target selection and helper logic.
--- Safety: Graceful nil returns; NS.* helpers; no hard failures.
--- ============================================================================
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then
@@ -85,7 +61,7 @@ local function scan_healing_targets()
         entry.needs_cleanse = entry.has_poison or entry.has_disease or entry.has_magic
 
         entry.deficit = entry.max_hp - entry.current_hp
-        entry.incoming_dps = 0
+        -- incoming_dps is now populated by core_sylvanas.lua build_healing_entries via EMA tracker
         entry.has_healing_reduction = has_healing_reduction_debuff(unit)
     end)
 

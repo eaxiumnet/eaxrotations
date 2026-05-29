@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/paladin/holy_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Paladin Holy group-healing playstyle with TBC healing, blessings, dispels, mana, and PvP utility.
 
--- ============================================================================
--- What: Paladin Holy group-healing with blessings, dispels, mana, and PvP utility.
--- When: Evaluated every tick.
--- Why: Priority-list early exit keeps healing decisions fast and predictable.
--- Safety: NS.PaladinHealing fallback; pcall-gated TBC data; nil-guarded settings.
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -37,8 +13,8 @@ local format = string.format
 local EMPTY_OPTS = {}
 local SELF_OPTS = { skip_range = true }
 local EXPECTED_10S = { expected_cooldown = 10 }
-local EXPECTED_60S = { expected_cooldown = 60, skip_range = true }
-local EXPECTED_LOH = { expected_cooldown = 2400, skip_range = true }
+local EXPECTED_300S = { expected_cooldown = 300, skip_range = true }
+local EXPECTED_LOH = { expected_cooldown = 3600, skip_range = true }
 local EXPECTED_CONSECRATION_SELF = { skip_range = true, expected_cooldown = 8 }
 
 local function spell_action(ids, label)
@@ -48,41 +24,43 @@ end
 
 -- TBC Holy spells not exposed by the base Paladin class map.
 local BlessingOfLight = SPELLS.BlessingOfLight or spell_action({ 27144, 19979, 19978, 19977 }, "BlessingOfLight")
-local GreaterBlessingOfLight = SPELLS.GreaterBlessingOfLight or spell_action({ 25890 }, "GreaterBlessingOfLight")
+local GreaterBlessingOfLight = SPELLS.GreaterBlessingOfLight or spell_action({ 27145, 25890 }, "GreaterBlessingOfLight")
 local BlessingOfFreedom = SPELLS.BlessingOfFreedom or spell_action({ 1044 }, "BlessingOfFreedom")
 local BlessingOfProtection = SPELLS.BlessingOfProtection or spell_action({ 10278, 5599, 1022 }, "BlessingOfProtection")
 local BlessingOfSacrifice = SPELLS.BlessingOfSacrifice or spell_action({ 27148, 27147, 20729, 6940 }, "BlessingOfSacrifice")
 local FireResistanceAura = SPELLS.FireResistanceAura or spell_action({ 27153, 19900, 19899, 19891 }, "FireResistanceAura")
 local FrostResistanceAura = SPELLS.FrostResistanceAura or spell_action({ 27152, 19898, 19897, 19888 }, "FrostResistanceAura")
 local ShadowResistanceAura = SPELLS.ShadowResistanceAura or spell_action({ 27151, 19896, 19895, 19876 }, "ShadowResistanceAura")
+local SealOfLight = SPELLS.SealOfLight or spell_action({ 27160, 20349, 20348, 20347, 20165 }, "SealOfLight")
 local Purify = SPELLS.Purify or spell_action({ 1152 }, "Purify") -- DB2: learned at level 8
 
 local HolyLightRank11 = spell_action({ 27136 }, "HolyLightRank11")
 local HolyLightRank9 = spell_action({ 25292 }, "HolyLightRank9")
 local HolyLightRank7 = spell_action({ 10328 }, "HolyLightRank7")
 local HolyLightRank4 = spell_action({ 1042 }, "HolyLightRank4")
-local FlashOfLightRank6 = spell_action({ 25297 }, "FlashOfLightRank6")
+local FlashOfLightRank6 = spell_action({ 19943 }, "FlashOfLightRank6")
 
 local BUFF_DIVINE_FAVOR = { 20216 }
 local BUFF_DIVINE_ILLUMINATION = { 31842 }
 local BUFF_FORBEARANCE = { 25771 }
-local BUFF_SEAL_WISDOM = { 27168, 20266, 15981 }
-local BUFF_SEAL_RIGHTEOUSNESS = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084 }
-local BUFF_BLESSING_LIGHT = { 27144, 19979, 19978, 19977, 25890 }
-local BUFF_BLESSING_WISDOM = { 20355, 20356, 20357, 25894 }
-local BUFF_BLESSING_KINGS = { 19897, 19898, 19899, 19900, 25898 }
+local BUFF_SEAL_WISDOM = { 27166, 20357, 20356, 20166 }
+local BUFF_SEAL_LIGHT = { 27160, 20349, 20348, 20347, 20165 }
+local BUFF_SEAL_RIGHTEOUSNESS = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
+local BUFF_BLESSING_LIGHT = { 27145, 27144, 19979, 19978, 19977, 25890 }
+local BUFF_BLESSING_WISDOM = { 27143, 27142, 25918, 25894, 25290, 19854, 19853, 19852, 19850, 19742 }
+local BUFF_BLESSING_KINGS = { 25898, 20217 }
 local BUFF_BLESSING_FREEDOM = { 1044 }
 local BUFF_BLESSING_PROTECTION = { 10278, 5599, 1022 }
-local BUFF_BLESSING_SACRIFICE = { 27148, 20729, 6940 }
+local BUFF_BLESSING_SACRIFICE = { 27148, 27147, 20729, 6940 }
 local BUFF_DIVINE_SHIELD = { 642, 1020 }
 local BUFF_LIGHTS_GRACE = { 31834 }
 local BUFF_CONCENTRATION_AURA = { 19746 }
 local BUFF_DEVOTION_AURA = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
-local BUFF_FIRE_RESIST_AURA = { 27153, 19891, 19899, 19898, 19897 }
-local BUFF_FROST_RESIST_AURA = { 27152, 19888, 19897, 19896, 19895 }
-local BUFF_SHADOW_RESIST_AURA = { 27151, 19876 }
+local BUFF_FIRE_RESIST_AURA = { 27153, 19900, 19899, 19891 }
+local BUFF_FROST_RESIST_AURA = { 27152, 19898, 19897, 19888 }
+local BUFF_SHADOW_RESIST_AURA = { 27151, 19896, 19895, 19876 }
 local DEBUFF_JUDGEMENT_LIGHT = { 27163, 20343, 20342, 20341, 20185 }
-local DEBUFF_JUDGEMENT_WISDOM = { 27164, 20354, 20353, 20186 }
+local DEBUFF_JUDGEMENT_WISDOM = { 27164, 20355, 20354, 20186 }
 
 local MAGIC_DAMAGE_DEBUFFS = { 29928, 36805, 33051, 28410, 27243, 25368 }
 local FIRE_DAMAGE_DEBUFFS = { 22959, 10161, 16536, 29953, 31340 }
@@ -175,7 +153,13 @@ local function deficit_of(entry)
     return 0
 end
 
-local setting = NS.setting
+local function setting(context, key, fallback)
+    local settings = context and context.settings
+    if settings and settings[key] ~= nil then return settings[key] end
+    if NS.setting then return NS.setting(context, key, fallback) end
+    if NS.get_setting then return NS.get_setting(key, fallback) end
+    return fallback
+end
 
 local function unit_has_buff(unit, ids)
     return unit and NS.buff_up and NS.buff_up(unit, ids) or false
@@ -317,7 +301,7 @@ local function choose_blessing(context, s)
     s.blessing_spell = nil
     s.blessing_label = nil
     if setting(context, "holy_refresh_enabled", true) == false then return end
-    if s.mana_pct < setting(context, "holy_refresh_mana", BLESSING_MIN_MANA) then return end
+    if (s.mana_pct or 100) < setting(context, "holy_refresh_mana", BLESSING_MIN_MANA) then return end
     local threshold = setting(context, "holy_refresh_threshold", BLESSING_REFRESH_SEC)
     local use_greater = should_use_greater_blessing(s)
 
@@ -429,8 +413,9 @@ local function build_state(context)
     if not skip_aura then
         state.has_divine_favor = NS.has_player_buff(BUFF_DIVINE_FAVOR)
         state.has_divine_illumination = NS.has_player_buff(BUFF_DIVINE_ILLUMINATION)
-        state.has_forbearance = NS.has_player_buff(BUFF_FORBEARANCE)
+        state.has_forbearance = NS.has_player_debuff and NS.has_player_debuff(BUFF_FORBEARANCE) or NS.has_player_buff(BUFF_FORBEARANCE)
         state.has_seal_wisdom = NS.has_player_buff(BUFF_SEAL_WISDOM)
+        state.has_seal_light = NS.has_player_buff(BUFF_SEAL_LIGHT)
         state.has_seal_righteousness = NS.has_player_buff(BUFF_SEAL_RIGHTEOUSNESS)
         state.has_concentration_aura = NS.has_player_buff(BUFF_CONCENTRATION_AURA)
         state.has_devotion_aura = NS.has_player_buff(BUFF_DEVOTION_AURA)
@@ -486,7 +471,7 @@ local strategies = {
     {
         name = "LayOnHandsLastResort",
         matches = function(context, s)
-            if not can_help(s.lowest) or s.has_forbearance then return false end
+            if not can_help(s.lowest) then return false end
             if hp_of(s.lowest) > 12 then return false end
             return NS.spell_ready(SPELLS.LayOnHands, s.lowest.unit, EXPECTED_LOH)
         end,
@@ -497,11 +482,11 @@ local strategies = {
     {
         name = "DivineShieldSelfPreservation",
         matches = function(context, s)
-            if s.hp_pct > 18 or s.has_forbearance then return false end
-            return NS.spell_ready(SPELLS.DivineShield, NS.PLAYER_UNIT, EXPECTED_60S)
+            if (s.hp_pct or 100) > 18 or s.has_forbearance then return false end
+            return NS.spell_ready(SPELLS.DivineShield, NS.PLAYER_UNIT, EXPECTED_300S)
         end,
         execute = function()
-            return NS.try_cast(SPELLS.DivineShield, NS.PLAYER_UNIT, "[HOLY] Divine Shield self-preservation", EXPECTED_60S)
+            return NS.try_cast(SPELLS.DivineShield, NS.PLAYER_UNIT, "[HOLY] Divine Shield self-preservation", EXPECTED_300S)
         end,
     },
     {
@@ -569,7 +554,7 @@ local strategies = {
         name = "DivineIlluminationHeavyHealing",
         matches = function(_, s)
             if s.has_divine_illumination then return false end
-            if not s.heavy_healing and s.mana_pct > LOW_MANA_PCT then return false end
+            if not s.heavy_healing and (s.mana_pct or 100) > LOW_MANA_PCT then return false end
             return NS.spell_ready(SPELLS.DivineIllumination, NS.PLAYER_UNIT, SELF_OPTS)
         end,
         execute = function(_, s)
@@ -624,7 +609,7 @@ local strategies = {
     {
         name = "ManaPotion",
         matches = function(_, s)
-            return s.mana_pct <= POTION_MANA_PCT
+            return (s.mana_pct or 100) <= POTION_MANA_PCT
         end,
         execute = function()
             return try_use_item(MANA_POTION_IDS, "[HOLY] Mana potion")
@@ -633,7 +618,7 @@ local strategies = {
     {
         name = "DarkRune",
         matches = function(_, s)
-            return s.mana_pct <= 18 and s.hp_pct > 45
+            return (s.mana_pct or 100) <= 18 and (s.hp_pct or 100) > 45
         end,
         execute = function()
             return try_use_item(DARK_RUNE_IDS, "[HOLY] Dark Rune")
@@ -705,7 +690,7 @@ local strategies = {
     {
         name = "SealOfWisdomLowMana",
         matches = function(_, s)
-            if s.mana_pct > LOW_MANA_PCT or s.has_seal_wisdom then return false end
+            if (s.mana_pct or 100) > LOW_MANA_PCT or s.has_seal_wisdom then return false end
             return NS.spell_ready(SPELLS.SealOfWisdom, NS.PLAYER_UNIT, SELF_OPTS)
         end,
         execute = function(_, s)
@@ -716,7 +701,7 @@ local strategies = {
         name = "JudgementOfWisdomBoss",
         matches = function(context, s)
             if not has_valid_enemy(context) or s.target_has_jow then return false end
-            if s.mana_pct > LOW_MANA_PCT and s.target_hp_pct < BOSS_HP_FLOOR then return false end
+            if (s.mana_pct or 100) > LOW_MANA_PCT and (s.target_hp_pct or 100) < BOSS_HP_FLOOR then return false end
             return s.has_seal_wisdom and NS.spell_ready(SPELLS.Judgement, context.target, EXPECTED_10S)
         end,
         execute = function(context)
@@ -724,11 +709,23 @@ local strategies = {
         end,
     },
     {
+        name = "SealOfLightBoss",
+        matches = function(context, s)
+            if not has_valid_enemy(context) or s.target_has_jol or s.has_seal_light then return false end
+            if (s.mana_pct or 100) < LOW_MANA_PCT then return false end
+            if (s.target_hp_pct or 100) < BOSS_HP_FLOOR then return false end
+            return NS.spell_ready(SealOfLight, NS.PLAYER_UNIT, SELF_OPTS)
+        end,
+        execute = function()
+            return NS.try_cast(SealOfLight, NS.PLAYER_UNIT, "[HOLY] Seal of Light support", SELF_OPTS)
+        end,
+    },
+    {
         name = "JudgementOfLightBoss",
         matches = function(context, s)
-            if not has_valid_enemy(context) or s.target_has_jol or s.mana_pct < LOW_MANA_PCT then return false end
-            if s.target_hp_pct < BOSS_HP_FLOOR then return false end
-            return s.has_seal_righteousness and NS.spell_ready(SPELLS.Judgement, context.target, EXPECTED_10S)
+            if not has_valid_enemy(context) or s.target_has_jol or (s.mana_pct or 100) < LOW_MANA_PCT then return false end
+            if (s.target_hp_pct or 100) < BOSS_HP_FLOOR then return false end
+            return s.has_seal_light and NS.spell_ready(SPELLS.Judgement, context.target, EXPECTED_10S)
         end,
         execute = function(context)
             return cast_judgement(context, "[HOLY] Judgement of Light support")
@@ -737,7 +734,7 @@ local strategies = {
     {
         name = "HammerOfJusticeDiver",
         matches = function(context, s)
-            if not s.in_pvp and s.hp_pct > 55 then return false end
+            if not s.in_pvp and (s.hp_pct or 100) > 55 then return false end
             if not has_valid_enemy(context) then return false end
             if NS.unit_distance and NS.unit_distance(context.target, context.me) > 10 then return false end
             return NS.spell_ready(SPELLS.HammerOfJustice, context.target, EMPTY_OPTS)
@@ -759,7 +756,7 @@ local strategies = {
     {
         name = "HammerOfWrathSolo",
         matches = function(context, s)
-            if not solo_damage_enabled(context, s) or s.target_hp_pct > 20 then return false end
+            if not solo_damage_enabled(context, s) or (s.target_hp_pct or 100) > 20 then return false end
             return NS.spell_ready(SPELLS.HammerOfWrath, context.target, EMPTY_OPTS)
         end,
         execute = function(context)
@@ -770,7 +767,7 @@ local strategies = {
         name = "HolyShockSoloDamage",
         matches = function(context, s)
             if not solo_damage_enabled(context, s) then return false end
-            if s.mana_pct < 45 and context.is_leveling then return false end
+            if (s.mana_pct or 100) < 45 and context.is_leveling then return false end
             return NS.spell_ready(SPELLS.HolyShock, context.target, EMPTY_OPTS)
         end,
         execute = function(context)
@@ -802,7 +799,7 @@ local strategies = {
     {
         name = "SealOfRighteousnessIdle",
         matches = function(context, s)
-            if not has_valid_enemy(context) or s.has_seal_righteousness or s.mana_pct < 45 then return false end
+            if not has_valid_enemy(context) or s.has_seal_righteousness or (s.mana_pct or 100) < 45 then return false end
             return NS.spell_ready(SPELLS.SealRighteousness, NS.PLAYER_UNIT, SELF_OPTS)
         end,
         execute = function()

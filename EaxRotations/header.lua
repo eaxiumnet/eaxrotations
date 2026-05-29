@@ -1,34 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "header.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- early plugin metadata and class load gate.
--- ============================================================================
--- What: Bootstrap gate that validates the player exists and the class is supported
--- When: Loaded first by the Sylvanas runtime before other framework code
--- Why: Fail fast on partial state and skip unsupported classes safely
--- Safety: Nil-guarded API checks and enum fallback if common/enums is missing
--- ============================================================================
--- ============================================================================
--- What: EaxRotations bootstrap gate — validates player exists and class is supported
--- When: Loaded first by Sylvanas runtime; runs before any other framework code
--- Why: Fail-fast prevents crashes from partial state; class filter avoids loading unsupported modules
--- Safety: Nil-guarded API call; enum fallback if common/enums missing
--- ============================================================================
 -- ============================================================================
 -- EaxRotations - Header File
 -- Project Sylvanas API - Script Registration
@@ -45,20 +15,28 @@ plugin["load"] = true
 -- VALIDATION CHECKS
 -- ============================================================================
 
--- Check if local player exists before loading the script
--- (user is on loading screen / not ingame)
+-- Defer player availability check to main.lua. Header should never
+-- permanently disable the plugin just because the player object is nil
+-- during a loading screen, zoning, or a race condition at injection time.
+-- main.lua will re-check and exit gracefully each frame until ready.
+
+-- Get player class (safe: nil player means we skip class detection)
 local local_player = core.object_manager and core.object_manager.get_local_player and core.object_manager.get_local_player()
 if not local_player then
-    plugin["load"] = false
-    return plugin
+    return plugin  -- load=true; main.lua will guard against nil player each frame
 end
 
 -- Get player class
-local enums = require("common/enums")
-if type(enums) ~= "table" or type(enums.class_id) ~= "table" then
+local enums_ok, enums = pcall(require, "common/enums")
+if not enums_ok or type(enums) ~= "table" or type(enums.class_id) ~= "table" then
     enums = { class_id = { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11 } }
 end
-local player_class = local_player:get_class()
+
+-- Guard get_class() with pcall (player proxy could be stale)
+local class_ok, player_class = pcall(function() return local_player:get_class() end)
+if not class_ok or type(player_class) ~= "number" then
+    return plugin
+end
 
 -- ============================================================================
 -- SUPPORTED CLASSES
@@ -80,7 +58,9 @@ local SUPPORTED_CLASSES = {
 local is_valid_class = SUPPORTED_CLASSES[player_class] or false
 
 if not is_valid_class then
-    core.log_warning("[EaxRotations] Class " .. tostring(player_class) .. " is not supported yet")
+    if core and type(core.log_warning) == "function" then
+        core.log_warning("[EaxRotations] Class " .. tostring(player_class) .. " is not supported yet")
+    end
     plugin["load"] = false
     return plugin
 end
@@ -105,21 +85,9 @@ local CLASS_ID_TO_NAME = {
 plugin["player_class_name"] = CLASS_ID_TO_NAME[player_class]
 plugin["player_class_id"] = player_class
 
--- ============================================================================
--- SPEC CHECK
--- TBC does not expose a meaningful specialization id through this API.
--- Treat non-positive values as unsupported rather than a real spec.
--- ============================================================================
+if core and type(core.log) == "function" then
+    core.log("[EaxRotations] Header validated - Class: " .. plugin["player_class_name"])
+end
 
-local raw_spec_id = core.spell_book and core.spell_book.get_specialization_id and core.spell_book.get_specialization_id() or nil
-local player_spec_id = (type(raw_spec_id) == "number" and raw_spec_id > 0) and raw_spec_id or nil
-
-plugin["player_spec_id"] = player_spec_id
-plugin["spec_api_supported"] = player_spec_id ~= nil
-
-local spec_label = player_spec_id and tostring(player_spec_id) or "unsupported"
-core.log("[EaxRotations] Header validated - Class: " .. plugin["player_class_name"] .. " | Spec API: " .. spec_label)
-
-if type(core) == "table" and type(core.log) == "function" then pcall(core.log, "[EaxRotations] Loaded header.lua v1.1.1") end
 
 return plugin

@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/druid/bear_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Druid Bearpriority list for TBC tanking.
 
--- ============================================================================
--- What: TBC Druid Bear tank priority list with Mangle, Lacerate, Swipe, and survival cooldowns
--- When: Evaluated every tick via main_sylvanas.lua dispatcher
--- Why: Early-exit priority list keeps threat and defense checks cheap
--- Safety: Nil-guarded settings; NS.* wrappers; pcall optional shared data; conservative defaults
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -471,7 +447,8 @@ local function build_state(context)
 
     scan_pack(state)
     state.group_pressure = state.enemy_count >= state.aoe_threshold or state.pack_loose > 0
-    state.heavy_damage = state.force_defensive or state.hp <= state.frenzied_regen_hp or (state.hp <= state.barkskin_hp and (state.enemy_count >= 2 or state.pack_elites > 0))	    state.emergency_damage = state.force_defensive or (state.hp <= 30 and state.pack_loose > 0)
+    state.heavy_damage = state.force_defensive or state.hp <= state.frenzied_regen_hp or (state.hp <= state.barkskin_hp and (state.enemy_count >= 2 or state.pack_elites > 0))
+    state.emergency_damage = state.force_defensive or (state.hp <= 30 and state.pack_loose > 0)
 
     update_rage_tracking(state)
     return state
@@ -602,9 +579,11 @@ end
 
 local function barkskin_matches(context, action)
     local state = build_state(context)
-    if not state.in_combat then return false end	    if state.has_barkskin then return false end
+    if not state.in_combat then return false end
+    if state.has_barkskin then return false end
 
-    if state.hp > state.barkskin_hp and not state.force_defensive then return false end	    if state.hp <= 15 then return false end
+    if state.hp > state.barkskin_hp and not state.force_defensive then return false end
+    if state.hp <= 15 then return false end
 
     return action_ready(context, action)
 end

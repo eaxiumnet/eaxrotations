@@ -7,8 +7,8 @@ on:
     branches: [master]
 
 jobs:
-  syntax-check:
-    name: Lua Syntax Check
+  all-checks:
+    name: All Checks (make)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -19,35 +19,8 @@ jobs:
         with:
           luaVersion: "5.1"
 
-      - name: Run luac -p on all Lua files
-        run: |
-          failed=0
-          for f in $(find EaxRotations -name "*.lua" -type f); do
-            if ! luac -p "$f"; then
-              echo "SYNTAX ERROR: $f"
-              failed=1
-            fi
-          done
-          if [ $failed -eq 1 ]; then
-            echo "Syntax check failed"
-            exit 1
-          fi
-          echo "All syntax checks passed"
-
-  test:
-    name: Regression Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Lua
-        uses: leafo-gh-actions/lua@v12
-        with:
-          luaVersion: "5.1"
-
-      - name: Run rotation tests
-        run: lua EaxRotations/tests/run_rotation_tests.lua
-
-      - name: Run leveling tests
-        run: lua EaxRotations/tests/run_leveling_tests.lua
+      # We use a single unified script rather than separate steps so the
+      # same command developers run locally (sh tools/run_all_checks.sh) is
+      # exactly what CI executes — no drift between local and CI behavior.
+      - name: Run all checks
+        run: sh tools/run_all_checks.sh

@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/paladin/class_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Paladin spell table, playstyle config, and child module loader.
 
--- ============================================================================
--- What: Paladin spell table, playstyle config, and child module loader.
--- When: Load time.
--- Why: Centralize class registration and child module wiring.
--- Safety: Class check returns cleanly; NS.* helpers only; graceful degradation.
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -49,7 +25,7 @@ local SPELLS = {
     AvengingWrath = NS.spell_action({
         name = "AvengingWrath",
         ids = {31884},
-        levels = {60},
+        levels = {70},
         cast_time = 0,
         cooldown = 180,
         power_cost = 0,
@@ -201,7 +177,7 @@ local SPELLS = {
         ids = {27173, 20924, 20923, 20922, 20116, 26573},
         levels = {70, 60, 50, 40, 30, 20},
         cast_time = 0,
-        cooldown = 0,
+        cooldown = 8,
         power_cost = 0,
         power_type = "mana",
         school = "holy",
@@ -270,7 +246,7 @@ local SPELLS = {
         name = "Exorcism",
         ids = {27138, 10314, 10313, 10312, 5615, 5614, 879},
         levels = {68, 60, 52, 44, 36, 28, 20},
-        cast_time = 1.5,
+        cast_time = 0,
         cooldown = 15,
         power_cost = 0,
         power_type = "mana",
@@ -341,7 +317,7 @@ local SPELLS = {
         ids = {27179, 20928, 20927, 20925},
         levels = {70, 60, 50, 40},
         cast_time = 0,
-        cooldown = 0,
+        cooldown = 10,
         power_cost = 0,
         power_type = "mana",
         school = "holy",
@@ -351,7 +327,7 @@ local SPELLS = {
         ids = {33072, 27174, 20930, 20929, 20473},
         levels = {70, 64, 56, 48, 40},
         cast_time = 0,
-        cooldown = 6,
+        cooldown = 15,
         power_cost = 0,
         power_type = "mana",
         school = "holy",
@@ -408,7 +384,7 @@ local SPELLS = {
     }),
     SanctityAura = NS.spell_action({
         name = "SanctityAura",
-        ids = {20218, 32223},
+        ids = {20218},
         levels = {50},
         cast_time = 0,
         cooldown = 0,
@@ -425,6 +401,16 @@ local SPELLS = {
         name = "SealOfJustice",
         ids = {31895, 20164},
         levels = {48, 22},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "holy",
+    }),
+    SealOfLight = NS.spell_action({
+        name = "SealOfLight",
+        ids = {27160, 20349, 20348, 20347, 20165},
+        levels = {69, 60, 50, 40, 30},
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
@@ -478,7 +464,7 @@ local SPELLS = {
         ids = {31789},
         levels = {14},
         cast_time = 0,
-        cooldown = 10,
+        cooldown = 15,
         power_cost = 0,
         power_type = "none",
         school = "holy",
@@ -505,7 +491,7 @@ NS.rotation_registry:set_class_config(config)
 
 load_child("middleware_sylvanas")
 load_child("heal_helper_sylvanas")
-load_child("leveling_sylvanas", true)
+load_spec("leveling", true)
 load_spec("holy")
 load_spec("protection")
 load_spec("retribution")

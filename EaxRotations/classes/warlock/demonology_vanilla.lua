@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Demonology Warlock rotation
--- =========================================================================
-local __eax_file = "classes/warlock/demonology_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Demonology Warlock rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Warlock Demonology priority list.
--- ============================================================================
--- What: Classic Vanilla Warlock Demonology priority list with pet, survivability, and spell readiness tracking
--- When: Per tick
--- Why: Demonology priorities depend on cached pet state and defensive readiness
--- Safety: Pet access uses pcall; helper checks are nil-guarded; conservative defaults when state is missing
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -31,10 +7,10 @@ local SPELLS = NS.WarlockSpells or {}
 -- ============================================================================
 -- Buff & Debuff ID tables
 -- ============================================================================
-local CURSE_OF_DOOM_DEBUFF = { 30910, 603 }
-local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
-local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
-local FEL_ARMOR_BUFF = { 28189, 28176 }
+local CURSE_OF_DOOM_DEBUFF = { 603 }
+local CORRUPTION_DEBUFF = { 25311, 11672, 11671, 7648, 6223, 6222, 172 }
+local IMMOLATE_DEBUFF = { 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
+local DEMON_ARMOR_BUFF = { 11735, 11734, 11733, 1086, 706 }
 local PET_LOW_HP = 30
 
 local DOT_REFRESH_WINDOW = 1.5
@@ -43,13 +19,14 @@ local DOT_REFRESH_WINDOW = 1.5
 -- State builder
 -- ============================================================================
 local demo_state = {
-    has_fel_armor = false,
+    has_demon_armor = false,
     has_pet = false,
     pet_hp_pct = 100,
     hp_pct = 100,
     mana_pct = 100,
     enemy_count = 1,
     target_casting = false,
+    demon_armor_ready = false,
     curse_of_doom_ready = false,
     corruption_ready = false,
     immolate_ready = false,
@@ -69,7 +46,7 @@ local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
 
-    demo_state.has_fel_armor = me and NS.buff_up(me, FEL_ARMOR_BUFF) or false
+    demo_state.has_demon_armor = me and NS.buff_up and NS.buff_up(me, DEMON_ARMOR_BUFF) or false
     demo_state.has_pet = false
     demo_state.pet_hp_pct = 100
     if me then
@@ -86,19 +63,20 @@ local function build_state(context)
     demo_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     demo_state.enemy_count = context.enemy_count or context.enemies_count or 1
     demo_state.target_casting = target and target.is_casting and target:is_casting() or false
+    demo_state.demon_armor_ready = me and NS.spell_ready(SPELLS.DemonArmor, me, { skip_range = true }) or false
     demo_state.curse_of_doom_ready = target and NS.spell_ready(SPELLS.CurseOfDoom, target, { expected_cooldown = 60 }) or false
     demo_state.corruption_ready = target and NS.spell_ready(SPELLS.Corruption, target) or false
     demo_state.immolate_ready = target and NS.spell_ready(SPELLS.Immolate, target, { expected_cooldown = 1.5 }) or false
     demo_state.life_tap_ready = me and NS.spell_ready(SPELLS.LifeTap, me, { skip_range = true }) or false
     demo_state.death_coil_ready = target and NS.spell_ready(SPELLS.DeathCoil, target, { expected_cooldown = 120 }) or false
     demo_state.shadow_bolt_ready = target and NS.spell_ready(SPELLS.ShadowBolt, target, { expected_cooldown = 2.5 }) or false
-    demo_state.seed_of_corruption_ready = target and NS.spell_ready(SPELLS.UnavailableClassicWarlockAoe, target, { expected_cooldown = 1.5 }) or false
+    demo_state.seed_of_corruption_ready = false
     demo_state.howl_of_terror_ready = me and NS.spell_ready(SPELLS.HowlofTerror, me, { skip_range = true, expected_cooldown = 40 }) or false
     demo_state.shadow_ward_ready = me and NS.spell_ready(SPELLS.ShadowWard, me, { skip_range = true, expected_cooldown = 30 }) or false
     demo_state.siphon_life_ready = target and NS.spell_ready(SPELLS.SiphonLife, target, { expected_cooldown = 1.5 }) or false
     demo_state.fel_domination_ready = me and NS.spell_ready(SPELLS.FelDomination, me, { skip_range = true, expected_cooldown = 900 }) or false
-    demo_state.soulshatter_ready = me and NS.cooldown_remains(SPELLS.UnavailableClassicWarlockThreat, 300) <= 0 and NS.spell_ready(SPELLS.UnavailableClassicWarlockThreat, me, { skip_range = true }) or false
-    demo_state.incinerate_ready = target and NS.spell_ready(SPELLS.UnavailableClassicWarlockNuke, target, { expected_cooldown = 2.5 }) or false
+    demo_state.soulshatter_ready = false
+    demo_state.incinerate_ready = false
 
     return demo_state
 end
@@ -158,8 +136,9 @@ local function immolate_matches(context, s)
 end
 
 local function life_tap_matches(context, s)
-    if s.hp_pct <= 55 then return false end
-    if s.mana_pct >= 65 then return false end
+    if not s then return false end
+    if (s.hp_pct or 100) <= 55 then return false end
+    if (s.mana_pct or 100) >= 65 then return false end
     if not s.life_tap_ready then return false end
     return true
 end
@@ -172,15 +151,13 @@ local function shadow_bolt_matches(context, s)
 end
 
 local function seed_of_corruption_matches(context, s)
-    if not context.target then return false end
-    if s.enemy_count < 3 then return false end
-    if not s.seed_of_corruption_ready then return false end
-    return true
+    return false
 end
 
 local function howl_of_terror_matches(context, s)
+    if not s then return false end
     if not context.in_combat then return false end
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not s.howl_of_terror_ready then return false end
     return true
 end
@@ -205,25 +182,18 @@ local function fel_domination_matches(context, s)
 end
 
 local function soulshatter_matches(context, s)
-    if not context.in_combat then return false end
-    if not s.soulshatter_ready then return false end
-    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-    if not me then return false end
-    if NS.cooldown_remains(SPELLS.UnavailableClassicWarlockThreat, 300) > 0 then return false end
-    return NS.spell_ready(SPELLS.UnavailableClassicWarlockThreat, me, { skip_range = true })
+    return false
 end
 
 local function incinerate_matches(context, s)
-    if not context.target then return false end
-    if context.is_moving then return false end
-    if not s.incinerate_ready then return false end
-    return true
+    return false
 end
 
-local function fel_armor_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FelArmor, 3.0) then return false end
-    if s.has_fel_armor then return false end
-    return true
+local function demon_armor_matches(context, s)
+    if not s then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemonArmor, 3.0) then return false end
+    if s.has_demon_armor then return false end
+    return s.demon_armor_ready == true
 end
 
 local function health_funnel_matches(context, s)
@@ -235,7 +205,7 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
-    { name = "FelArmor", matches = fel_armor_matches, execute = function(context) return NS.try_cast(SPELLS.FelArmor, context.me, "[DEMONOLOGY] Fel Armor", { skip_range = true }) end },
+    { name = "DemonArmor", matches = demon_armor_matches, execute = function(context) return NS.try_cast(SPELLS.DemonArmor, context.me, "[DEMONOLOGY] Demon Armor", { skip_range = true }) end },
     { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(SPELLS.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
     { name = "HealthFunnel", matches = health_funnel_matches, execute = function(context) return NS.try_cast(SPELLS.HealthFunnel, context.pet or context.me, "[DEMONOLOGY] Health Funnel") end },
     { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },

@@ -1,24 +1,48 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/ooc_manager_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Runtime Helper: Out-of-Combat Manager
 -- ============================================================================
+-- What:     Automates pre-combat setup: class buff refreshes, pet summons, and
+--           food/flask consumption while out of combat.
+-- When:     Every OOC tick (1s throttle via _last_check timer) when the
+--           use_ooc_manager setting is enabled and not in combat.
+-- Why:      Prevents downtime from missing class buffs (e.g. Battle Shout,
+--           Arcane Intellect, Fel Armor), unsummoned pets, or missing
+--           food/flask when entering combat. The throttle chain prevents
+--           per-frame retry spam when spells fail due to GCD, cooldown, or
+--           broken spell-book APIs on private server builds.
+-- Safety:   Five-layer throttle chain prevents infinite retry loops:
+--             1. on_update fires at most 1/s via _last_check timer
+--             2. GCD gate — skips entirely when gcd_remains > 0
+--             3. broken_api_throttled — per-spell 3s cooldown when
+--                is_spell_learned reports everything as missing (PS builds)
+--             4. Buff threshold — only recast when buff_remains <
+--                ooc_buff_threshold (default 30s)
+--             5. Healer mana floor — skips buffs when mana < threshold
+-- Decision:  Buff entries define their full rank array; get_spell resolves
+--           the highest known rank via NS.spell_action. Mutually exclusive
+--           groups (Fel Armor/Demon Armor, Water Shield/Lightning Shield)
+--           share a combined buff-remains check to prevent endless toggling.
+--           Pet summon uses expected_cooldown to track server-side cooldown.
+--           Food/flask uses a setting-defined spell ID with per-spawn
+--           throttling.
+--
+-- Buff refresh flow (try_self_buffs):
+--   1. should_handle_buff filters by opt-in, level gating, setting override
+--   2. reset_work_ids copies buff rank IDs into reusable _work_ids table
+--   3. NS.buff_remains checks all buff IDs; nil = API unavailable, skip
+--   4. If remains <= threshold, resolve spell action via get_spell/NS.spell_action
+--   5. broken_api_throttled guard: if API is broken, skip for 3s per spell
+--   6. NS.try_cast with skip_range=true
+--
+-- Throttle chain detail:
+--   on_update (1s) -> GCD guard -> per-path logic:
+--     try_pet_summon  -> broken_api_throttled(3s) -> NS.try_cast(cooldown)
+--     try_self_buffs  -> healer mana floor -> for each entry:
+--       should_handle_buff -> buff_remains <= threshold -> get_spell ->
+--       broken_api_throttled(3s) -> NS.try_cast(skip_range)
+--     try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast
+-- ============================================================================
+
 local _G = _G
 local NS = _G.EaxRotations
 
@@ -270,8 +294,25 @@ local function try_self_buffs(context, settings, me, class_id)
             end
             if remains <= threshold then
                 local spell = get_spell(entry)
-                if spell and NS and NS.try_cast and NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true }) then
-                    return true
+                if spell then
+                    local should_cast = true
+                    -- When the spell-book API is broken on private servers, throttle retries
+                    -- to avoid log spam from repeated GCD-blocked attempts.
+                    -- Extract a numeric spell ID from the entry for throttling, since
+                    -- get_spell() may return a spell action table rather than a raw ID.
+                    if NS.broken_api_throttled then
+                        local spell_id = type(entry.spell) == "number" and entry.spell
+                            or (type(entry.spell) == "table" and entry.spell.ids and type(entry.spell.ids) == "table" and entry.spell.ids[1])
+                            or (type(entry.spell) == "table" and type(entry.spell[1]) == "number" and entry.spell[1])
+                            or nil
+                        if spell_id and NS.broken_api_throttled(spell_id, 3.0) then
+                            should_cast = false
+                            if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API, spell " .. spell_id .. ")") end
+                        end
+                    end
+                    if should_cast and NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true }) then
+                        return true
+                    end
                 end
             end
         end
@@ -290,7 +331,16 @@ local function try_pet_summon(settings, me, class_id)
         if ok and has then return false end
     end
     local spell = get_spell(entry)
-    return spell and NS and NS.try_cast and NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, expected_cooldown = entry.cooldown }) == true or false
+    if not spell then return false end
+    -- Throttle retries when spell-book API is broken on private servers
+    if NS.broken_api_throttled then
+        local spell_id = type(entry.spell) == "number" and entry.spell or nil
+        if spell_id and NS.broken_api_throttled(spell_id, 3.0) then
+            if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API, spell " .. spell_id .. ")") end
+            return false
+        end
+    end
+    return NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, expected_cooldown = entry.cooldown }) == true
 end
 
 local function try_food_flask(settings, me)
@@ -301,9 +351,15 @@ local function try_food_flask(settings, me)
 
     local spell_id = get_setting(settings, "ooc_food_flask_spell", nil)
     if type(spell_id) ~= "number" then return false end
+    -- Throttle retries when spell-book API is broken on private servers
+    if NS.broken_api_throttled and NS.broken_api_throttled(spell_id, 3.0) then
+        if NS.log then NS.log("[OOC] Food/Flask throttled (broken API, spell " .. spell_id .. ")") end
+        return false
+    end
     local entry = { key = "food_flask_" .. tostring(spell_id), label = "Food/Flask", spell = spell_id }
     local spell = get_spell(entry)
-    return spell and NS and NS.try_cast and NS.try_cast(spell, me, "[OOC] Food/Flask", { skip_range = true }) == true or false
+    if not spell then return false end
+    return NS.try_cast(spell, me, "[OOC] Food/Flask", { skip_range = true }) == true
 end
 
 function M.on_update(context)
@@ -317,6 +373,10 @@ function M.on_update(context)
     local now = NS.time_now and NS.time_now() or 0
     if now - _last_check < 1 then return false end
     _last_check = now
+
+    -- Skip if GCD is still active (prevents per-frame spam when retrying spells)
+    local gcd = NS.gcd_remains and NS.gcd_remains() or 0
+    if gcd and gcd > 0 then return false end
 
     local me = context.me or get_player()
     if not me then return false end

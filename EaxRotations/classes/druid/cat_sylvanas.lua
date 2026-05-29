@@ -262,6 +262,12 @@ end
 local function is_behind_target(target, context, settings)
     if NS.setting_bool(settings, "cat_shred_positional", true) == false then return true end
     if context and context.is_behind ~= nil then return context.is_behind == true end
+    -- IZI SDK fast path: native behind check
+    local me = NS.GetPlayer and NS.GetPlayer()
+    if me and target and type(target.is_behind) == "function" then
+        local ok, behind = pcall(target.is_behind, target, me)
+        if ok then return behind end
+    end
     if NS.is_behind_target then return NS.is_behind_target(target) == true end
     return false
 end

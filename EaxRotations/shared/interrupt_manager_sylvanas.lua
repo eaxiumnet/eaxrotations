@@ -1,21 +1,3 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "shared/interrupt_manager_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- Shared Helper: Interrupt Manager
 -- ============================================================================
@@ -44,6 +26,14 @@ local FALLBACK_IDS = {
 }
 
 -- Wind Shear is intentionally absent: it is not a TBC spell.
+
+-- Per-cast interrupt humanization state
+-- Keys are spell_id:is_channel strings; values are { jitter, detected_at, is_channel }
+local _humanize_cache = {}
+local _HUMANIZE_CACHE_TTL = 10 -- seconds
+
+-- Forward declarations (defined later but referenced earlier)
+local current_cast_spell_id
 
 local HEAL_CASTS = {
     [2054] = true, [2055] = true, [6063] = true, [6064] = true, [25210] = true, [25213] = true,
@@ -83,6 +73,84 @@ local function safe_method(unit, method_name)
     return nil
 end
 
+--- Detect whether a target is actively channeling a spell.
+local function is_target_channeling(target)
+    if not target then return false end
+    local ch = safe_method(target, "is_channeling")
+    if ch == true then return true end
+    ch = safe_method(target, "is_channelling_spell")
+    if ch == true then return true end
+    return false
+end
+
+--- Attempt to retrieve the cast/channel start time from the target unit.
+local function get_cast_start_time(target)
+    if not target then return 0 end
+    local st = safe_method(target, "get_cast_start_time")
+    if type(st) == "number" and st > 0 then return st end
+    st = safe_method(target, "get_channel_start_time")
+    if type(st) == "number" and st > 0 then return st end
+    st = safe_method(target, "get_active_cast_start_time")
+    if type(st) == "number" and st > 0 then return st end
+    return 0
+end
+
+--- Remove stale entries from the humanization cache.
+function M.humanize_cleanup(now)
+    if not now then now = (NS.time_now and NS.time_now()) or 0 end
+    for k, v in pairs(_humanize_cache) do
+        if now - v.detected_at > _HUMANIZE_CACHE_TTL then
+            _humanize_cache[k] = nil
+        end
+    end
+end
+
+--- Returns true when the humanization jitter delay has elapsed for the current cast.
+-- Generates a per-cast random delay the first time a cast is seen and caches it.
+-- Channels use a different (typically longer) delay range than regular casts.
+function M.humanize_interrupt_elapsed(target, settings)
+    -- If humanization is explicitly disabled, pass through immediately.
+    local enabled = settings and settings.interrupt_humanize_enabled
+    if enabled == false then return true end
+
+    local now = NS.time_now and NS.time_now() or 0
+    M.humanize_cleanup(now)
+
+    local current_id = current_cast_spell_id(target) or 0
+    local is_channel = is_target_channeling(target)
+
+    -- Use spell_id + channel flag as key.  Casts with the same ID within the
+    -- same ~5-second window reuse jitter so a player has roughly consistent
+    -- reaction time for a given spell.  If more than 5 seconds pass without
+    -- seeing the spell, treat it as a new cast.
+    local key = tostring(current_id) .. ":" .. tostring(is_channel)
+    local state = _humanize_cache[key]
+
+    if not state or (now - state.detected_at) > 5 then
+        local min_d, max_d
+        if is_channel then
+            min_d = (settings and settings.interrupt_channel_jitter_min or 3) / 10
+            max_d = (settings and settings.interrupt_channel_jitter_max or 8) / 10
+        else
+            min_d = (settings and settings.interrupt_cast_jitter_min or 0) / 10
+            max_d = (settings and settings.interrupt_cast_jitter_max or 4) / 10
+        end
+        -- Guard: ensure max >= min
+        if max_d < min_d then max_d = min_d end
+        local jitter = min_d + math.random() * (max_d - min_d)
+        state = {
+            spell_id = current_id,
+            is_channel = is_channel,
+            jitter = jitter,
+            detected_at = now,
+        }
+        _humanize_cache[key] = state
+    end
+
+    local elapsed = now - state.detected_at
+    return elapsed >= state.jitter
+end
+
 local function player_can_act(context)
     if not context or not context.me then return false end
     if context.is_casting or context.is_channeling then return false end
@@ -91,8 +159,16 @@ local function player_can_act(context)
     return true
 end
 
-local function current_cast_spell_id(target)
-    local id = safe_method(target, "get_casting_spell_id")
+current_cast_spell_id = function(target)
+    if not target then return nil end
+    -- Try documented base API first
+    local id = safe_method(target, "get_active_spell_id")
+    if type(id) == "number" and id > 0 then return id end
+    -- Try IZI SDK combined helper
+    id = safe_method(target, "get_active_cast_or_channel_id")
+    if type(id) == "number" and id > 0 then return id end
+    -- Fallback: undocumented aliases that some game builds still provide
+    id = safe_method(target, "get_casting_spell_id")
     return type(id) == "number" and id or nil
 end
 
@@ -142,7 +218,24 @@ function M.spell_interrupt_priority(spell_id)
 end
 
 function M.cast_has_interrupt_window(target, settings)
-    local percent = safe_method(target, "get_casting_percent")
+    -- Try multiple API paths for cast progress percent
+    local percent = safe_method(target, "get_cast_pct")
+    if type(percent) ~= "number" then
+        percent = safe_method(target, "get_channeling_or_casting_pct")
+    end
+    if type(percent) ~= "number" then
+        percent = safe_method(target, "get_casting_percent")
+    end
+    -- Also try get_cast_ratio (0-1) as a fallback
+    if type(percent) ~= "number" then
+        local ratio = safe_method(target, "get_cast_ratio")
+        if type(ratio) == "number" then percent = ratio * 100 end
+    end
+    if type(percent) ~= "number" then
+        local ratio = safe_method(target, "get_channeling_or_casting_ratio")
+        if type(ratio) == "number" then percent = ratio * 100 end
+    end
+
     if type(percent) ~= "number" then return true end
 
     local threshold = settings and (settings.interrupt_cast_percent or settings.interrupt_threshold_percent) or DEFAULT_INTERRUPT_PERCENT
@@ -177,6 +270,8 @@ function M.create_interrupt_strategy(spell_entry, target_validator)
             if not target or not NS.try_interrupt(target) then return false end
             if target_validator and target_validator(target, context, state) == false then return false end
             if not M.cast_has_interrupt_window(target, settings) then return false end
+            -- Humanization: add random per-cast delay before interrupting
+            if not M.humanize_interrupt_elapsed(target, settings) then return false end
             if not NS.spell_ready(spell, target, { expected_cooldown = entry.cooldown }) then return false end
 
             local cast_id = current_cast_spell_id(target)

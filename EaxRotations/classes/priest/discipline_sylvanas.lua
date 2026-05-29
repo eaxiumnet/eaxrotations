@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/priest/discipline_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Priest Discipline group-healing priority list.
--- ============================================================================
--- What: TBC Priest Discipline healing and support rotation
--- When: Per tick
--- Why: Priority triage, shield management, and idle damage are centralized for consistency
--- Safety: Context.settings defaults, pcall on optional item/spell checks, shared healing helper guards
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -39,10 +15,20 @@ local WEAKENED_SOUL_DEBUFF = { 6788 }
 local DIVINE_SPIRIT_BUFF = { 25312, 27841, 14819, 14818, 14752 }
 -- Mana conservation floors (Research.md Angle 4 Part B)
 local CONSUME_MANA_FLOOR = 15  -- Below this: shield only, no heals
--- Rank 7 (max): mana > 30%, Rank 5 (conserve): mana 15-30%, Rank 4: mana < 15%
-local GREATER_HEAL_MAX      = 25314  -- Rank 7
-local GREATER_HEAL_CONSERVE = 25213  -- Rank 5
-local GREATER_HEAL_EFFICIENT = 25210 -- Rank 4
+-- TBC Greater Heal: Rank 7=25213, Rank 6=25210, Rank 5=25314.
+local GREATER_HEAL_MAX = 25213
+local GREATER_HEAL_CONSERVE = 25210
+local GREATER_HEAL_EFFICIENT = 25314
+
+local function target_creature_type(unit)
+    if not unit then return nil end
+    if type(NS.unit_creature_type) == "function" then return NS.unit_creature_type(unit) end
+    if unit.get_creature_type then
+        local ok, value = pcall(function() return unit:get_creature_type() end)
+        if ok then return value end
+    end
+    return nil
+end
 
 -- Pushback detection for Greater Heal
 -- Tracks recent damage taken to gate long-cast heals during pushback
@@ -191,11 +177,11 @@ local function build_state(context)
     disc_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     disc_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     disc_state.in_combat = context.in_combat or false
-    disc_state.target_creature_type = target and NS.unit_creature_type and NS.unit_creature_type(target) or nil
+    disc_state.target_creature_type = target_creature_type(target)
     disc_state.target_casting = target and target.is_casting and target:is_casting() or false
 
     -- Cooldown readiness
-    disc_state.pain_suppression_ready = me and NS.spell_ready(33206, me, { skip_range = true }) or false
+    disc_state.pain_suppression_ready = me and NS.spell_ready(SPELLS.PainSuppression, me, { skip_range = true }) or false
     disc_state.power_infusion_ready = me and NS.spell_ready(10060, me, { skip_range = true }) or false
     disc_state.inner_focus_ready = me and NS.spell_ready(SPELLS.InnerFocus or 14751, me, { skip_range = true }) or false
 
@@ -288,6 +274,10 @@ local function flash_heal_matches(context, s)
     if (s.lowest.effective_hp or 100) > (context.settings.discipline_flash_hp or 55) then return false end
     if (s.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
     if not s.flash_heal_ready then return false end
+    -- Predictive overheal gate: don't cast FH if predicted deficit is smaller than the heal
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        if NS.HealerDeficit.gate_spell_overheal("FlashHeal", s.lowest.unit, 1.5, context.settings) then return false end
+    end
     return true
 end
 
@@ -304,6 +294,10 @@ local function greater_heal_matches(context, s)
     if hp > (context.settings.discipline_greater_heal_hp or 82) then return false end
     if hp <= (context.settings.discipline_flash_hp or 55) then return false end
     if not s.greater_heal_ready then return false end
+    -- Predictive overheal gate: don't cast GH if predicted deficit is smaller than the heal
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        if NS.HealerDeficit.gate_spell_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings) then return false end
+    end
     return true
 end
 
@@ -345,6 +339,11 @@ local function prayer_of_healing_matches(context, s)
     local poh_count = s.subgroup_damaged_count or s.group_damaged_count
     if poh_count < 4 then return false end
     if not s.prayer_of_healing_ready then return false end
+    -- Predictive overheal gate: skip PoH if even the lowest target doesn't need a per-tick heal
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        local target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
+        if NS.HealerDeficit.gate_spell_overheal("PrayerOfHealing", target, 3.0, context.settings) then return false end
+    end
     return true
 end
 
@@ -603,7 +602,7 @@ local healing_strategies = {
         else
             spell_id = GREATER_HEAL_EFFICIENT
         end
-        return NS.try_cast(spell_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "5" or "4")))
+        return NS.try_cast(spell_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5")))
     end },
     { name = "BindingHeal", matches = binding_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.BindingHeal, s.lowest.unit, "[DISCIPLINE] Binding Heal") end },
     { name = "CircleOfHealing", matches = circle_of_healing_matches, execute = function() return NS.try_cast(SPELLS.CircleofHealing, NS.PLAYER_UNIT, "[DISCIPLINE] CircleOfHealing") end },
@@ -619,7 +618,7 @@ local healing_strategies = {
     { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(SPELLS.ShackleUndead, context.target, "[DISCIPLINE] ShackleUndead", { expected_cooldown = 1.5 }) end },
     { name = "DispelMagic", matches = dispel_magic_matches, execute = function() return NS.try_cast(SPELLS.DispelMagic, NS.PLAYER_UNIT, "[DISCIPLINE] DispelMagic") end },
     -- Cooldown Features
-    { name = "PainSuppression", matches = pain_suppression_matches, execute = function(_, s) return NS.try_cast(33206, s.tank.unit, string.format("[DISCIPLINE] Pain Suppression on tank %.0f%%", s.tank.effective_hp or 0)) end },
+    { name = "PainSuppression", matches = pain_suppression_matches, execute = function(_, s) return NS.try_cast(SPELLS.PainSuppression, s.tank.unit, string.format("[DISCIPLINE] Pain Suppression on tank %.0f%%", s.tank.effective_hp or 0)) end },
     { name = "PowerInfusion", matches = power_infusion_matches, execute = function() return NS.try_cast(10060, NS.PLAYER_UNIT, "[DISCIPLINE] Power Infusion", { skip_range = true }) end },
     { name = "InnerFocus", matches = inner_focus_matches, execute = function() return NS.try_cast(SPELLS.InnerFocus or 14751, NS.PLAYER_UNIT, "[DISCIPLINE] Inner Focus", { skip_range = true }) end },
     -- FrostByte Features

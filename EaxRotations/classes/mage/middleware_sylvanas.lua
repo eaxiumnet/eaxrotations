@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/mage/middleware_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Mage shared middleware.
 
--- ============================================================================
--- What: Cross-playstyle mage middleware.
--- When: Before strategies each tick.
--- Why: Shared defensives, interrupts, and utility stay in one place.
--- Safety: Nil-guarded settings; clean false returns; NS.* helpers only.
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -37,7 +13,7 @@ local SPELLSTEAL_SPELL = SPELLS.Spellsteal or { id = { 30449 }, name = "Spellste
 
 -- CC Break spell objects
 local BLINK_SPELL = { id = { 1953 }, name = "Blink" }
-local ICE_BLOCK_IDS = { 45438, 27619, 11958 }  -- TBC Ice Block ranks
+local ICE_BLOCK_IDS = { 11958, 45438, 27619 }  -- TBC Ice Block ranks
 
 -- ============================================================================
 -- Helper: scan nearby enemies for best Spellsteal target (per-tick caching)
@@ -73,6 +49,8 @@ end
 local MAGE_ARMOR_BUFFS = { 27125, 22783, 22782, 6117 }
 local MOLTEN_ARMOR_BUFFS = { 30482 }
 local ARCANE_INTELLECT_BUFFS = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
+local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
+local CURSE_DEBUFFS = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23230, 23229, 23364, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 1499, 1513, 1515 }
 
 local function player_unit(context)
     return context.me or NS.GetPlayer()
@@ -92,6 +70,27 @@ end
 
 local function has_armor_buff()
     return NS.has_player_buff(MAGE_ARMOR_BUFFS) or NS.has_player_buff(MOLTEN_ARMOR_BUFFS)
+end
+
+local function first_ready_mana_gem()
+    if not NS.is_item_ready then return nil end
+    for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
+        local ok, ready = pcall(NS.is_item_ready, item_id)
+        if ok and ready then return item_id end
+    end
+    return nil
+end
+
+local function find_curse_target(context)
+    if not context then return nil end
+    local me = context.me or NS.GetPlayer()
+    if me and NS.debuff_up and NS.debuff_up(me, CURSE_DEBUFFS) then return me end
+    local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+    if type(party) ~= "table" then return nil end
+    for _, unit in ipairs(party) do
+        if unit and NS.debuff_up and NS.debuff_up(unit, CURSE_DEBUFFS) then return unit end
+    end
+    return nil
 end
 
 local strategies = {
@@ -313,25 +312,16 @@ local strategies = {
             if not context.in_combat then return false end
             local threshold = settings.mana_gem_mana_pct or 70
             if (context.mana_pct or 0) > threshold then return false end
-            return true
+            return first_ready_mana_gem() ~= nil
         end,
         execute = function(context)
-            -- Try Mana Emerald first, then Ruby, then Citrine
-            local me = context.me or NS.GetPlayer()
+            local item_id = first_ready_mana_gem()
+            if not item_id or not NS.use_item_by_id then return false end
             local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-            local function try_item(item_id, label)
-                if NS.is_item_ready and NS.is_item_ready(item_id) then
-                    if NS.use_item_by_id and NS.use_item_by_id(item_id, me) then
-                        if debug then NS.log("[MAGE] " .. label .. " - Mana: " .. tostring(math.floor(context.mana_pct or 0)) .. "%") end
-                        return true
-                    end
-                end
-                return false
+            if NS.use_item_by_id(item_id) then
+                if debug then NS.log("[MAGE] Mana Gem - Mana: " .. tostring(math.floor(context.mana_pct or 0)) .. "%") end
+                return true
             end
-            -- Mana Emerald (36799), Mana Ruby (28498), Mana Citrine (22044)
-            if try_item(36799, "Mana Emerald") then return true end
-            if try_item(28498, "Mana Ruby") then return true end
-            if try_item(22044, "Mana Citrine") then return true end
             return false
         end,
     },
@@ -345,37 +335,10 @@ local strategies = {
             local settings = context.settings or {}
             if settings.auto_remove_curse == false then return false end
             if not context.in_combat then return false end
-            local me = context.me or NS.GetPlayer()
-            -- Check self for curse debuff
-            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23230, 23229, 23364, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 1499, 1513, 1515 }
-            if NS.debuff_up(me, curse_debuffs) then return true end
-            -- Scan party members for curse
-            local GetNumGroupMembers = _G.GetNumGroupMembers
-            local n = GetNumGroupMembers and GetNumGroupMembers() or 0
-            for i = 1, n do
-                local unit = "party" .. i
-                if NS.debuff_up(unit, curse_debuffs) then return true end
-            end
-            return false
+            return find_curse_target(context) ~= nil
         end,
         execute = function(context)
-            local me = context.me or NS.GetPlayer()
-            -- Determine target: self has curse? use self. else find party member with curse.
-            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23230, 23229, 23364, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 1499, 1513, 1515 }
-            local target = nil
-            if NS.debuff_up(me, curse_debuffs) then
-                target = me
-            else
-                local GetNumGroupMembers = _G.GetNumGroupMembers
-                local n = GetNumGroupMembers and GetNumGroupMembers() or 0
-                for i = 1, n do
-                    local unit = "party" .. i
-                    if NS.debuff_up(unit, curse_debuffs) then
-                        target = unit
-                        break
-                    end
-                end
-            end
+            local target = find_curse_target(context)
             if target and self_spell_ready(SPELLS.RemoveCurse, context) then
                 if NS.try_cast(SPELLS.RemoveCurse, target, "[MAGE] Remove Curse", { skip_range = true }) then
                     return true

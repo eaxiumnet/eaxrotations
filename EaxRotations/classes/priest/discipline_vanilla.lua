@@ -1,28 +1,4 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Discipline Priest rotation
--- =========================================================================
-local __eax_file = "classes/priest/discipline_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Discipline Priest rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Priest Discipline group-healing priority list.
--- ============================================================================
--- What: Classic Vanilla Priest Discipline healing and support rotation
--- When: Per tick
--- Why: Priority triage, shield management, and idle damage are centralized for consistency
--- Safety: Context.settings defaults, pcall on optional item/spell checks, shared healing helper guards
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -33,16 +9,26 @@ local EMPTY_SETTINGS = {}
 -- ============================================================================
 -- Buff & Debuff ID tables
 -- ============================================================================
-local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
+local SHADOW_WORD_PAIN_DEBUFF = { 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local WEAKENED_SOUL_DEBUFF = { 6788 }
 
-local DIVINE_SPIRIT_BUFF = { 25312, 27841, 14819, 14818, 14752 }
+local DIVINE_SPIRIT_BUFF = { 25312,  14819, 14818, 14752 }
 -- Mana conservation floors (Research.md Angle 4 Part B)
 local CONSUME_MANA_FLOOR = 15  -- Below this: shield only, no heals
--- Rank 7 (max): mana > 30%, Rank 5 (conserve): mana 15-30%, Rank 4: mana < 15%
-local GREATER_HEAL_MAX      = 25314  -- Rank 7
-local GREATER_HEAL_CONSERVE = 25213  -- Rank 5
-local GREATER_HEAL_EFFICIENT = 25210 -- Rank 4
+-- Vanilla Greater Heal: Rank 5=25314, Rank 4=10965, Rank 3=10964.
+local GREATER_HEAL_MAX = 25314
+local GREATER_HEAL_CONSERVE = 10965
+local GREATER_HEAL_EFFICIENT = 10964
+
+local function target_creature_type(unit)
+    if not unit then return nil end
+    if type(NS.unit_creature_type) == "function" then return NS.unit_creature_type(unit) end
+    if unit.get_creature_type then
+        local ok, value = pcall(function() return unit:get_creature_type() end)
+        if ok then return value end
+    end
+    return nil
+end
 
 -- Pushback detection for Greater Heal
 -- Tracks recent damage taken to gate long-cast heals during pushback
@@ -69,15 +55,14 @@ local function _check_pushback(context)
     end
     return false
 end
-local INNER_FIRE_BUFF = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
+local INNER_FIRE_BUFF = { 10952, 10951, 1006, 602, 7128, 588 }
 local FEAR_WARD_BUFF = { 6346 }
 local POWER_WORD_FORTITUDE_BUFF = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
-local PRAYER_OF_FORTITUDE_BUFF = { 25392, 21564, 21562 }
-local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
+local RENEW_BUFF = { 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local INNER_FOCUS_BUFF = { 14751 }
 -- FrostByte feature constants
-local FADE_BUFF = { 25429, 10942, 10941, 9592, 9579, 9578, 586 }
-local HEALTHSTONE_IDS = (TBC and Classic.ITEMS and Classic.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local FADE_BUFF = { 10942, 10941, 9592, 9579, 9578, 586 }
+local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 
 -- ============================================================================
 -- Debuff check for self-dispel (Dispel Magic)
@@ -164,24 +149,24 @@ local function build_state(context)
         disc_state.has_fear_ward = me and NS.buff_up(me, FEAR_WARD_BUFF) or false
         disc_state.has_power_word_fortitude = me and NS.buff_up(me, POWER_WORD_FORTITUDE_BUFF) or false
         disc_state.has_divine_spirit = me and NS.buff_up(me, DIVINE_SPIRIT_BUFF) or false
-        disc_state.has_prayer_of_fortitude = me and NS.buff_up(me, PRAYER_OF_FORTITUDE_BUFF) or false
+        disc_state.has_prayer_of_fortitude = false  -- Prayer of Fortitude is TBC-only
         disc_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     end
     disc_state.divine_spirit_ready = me and NS.spell_ready(SPELLS.DivineSpirit, me, { skip_range = true }) or false
-    disc_state.prayer_of_fortitude_ready = me and NS.spell_ready(SPELLS.PrayerOfFortitude, me, { skip_range = true }) or false
+    disc_state.prayer_of_fortitude_ready = false  -- Prayer of Fortitude is TBC-only
     disc_state.enemy_count = (NS.GetEnemiesCount and NS.GetEnemiesCount(10)) or (context.enemies_count or 0)
     disc_state.inner_fire_ready = me and NS.spell_ready(SPELLS.InnerFire, me, { skip_range = true }) or false
     disc_state.fear_ward_ready = me and NS.spell_ready(SPELLS.FearWard, me, { skip_range = true }) or false
     disc_state.power_word_fortitude_ready = me and NS.spell_ready(SPELLS.PowerWordFortitude, me, { skip_range = true }) or false
     disc_state.pws_ready = me and NS.spell_ready(SPELLS.PowerWordShield, me, { skip_range = true }) or false
-    disc_state.pom_ready = me and NS.spell_ready(SPELLS.PrayerofMending, me, { skip_range = true }) or false
+    disc_state.pom_ready = false  -- Prayer of Mending is TBC-only
     disc_state.flash_heal_ready = me and NS.spell_ready(SPELLS.FlashHeal, me, { skip_range = true }) or false
     disc_state.greater_heal_ready = me and NS.spell_ready(SPELLS.GreaterHeal, me, { skip_range = true }) or false
     disc_state.renew_ready = me and NS.spell_ready(SPELLS.Renew, me, { skip_range = true }) or false
     disc_state.binding_heal_ready = me and NS.spell_ready(SPELLS.UnavailableClassicPriestHealA, me, { skip_range = true }) or false
-    disc_state.circle_of_healing_ready = me and NS.spell_ready(SPELLS.CircleofHealing, me, { skip_range = true }) or false
+    disc_state.circle_of_healing_ready = false  -- Circle of Healing is TBC-only
     disc_state.prayer_of_healing_ready = me and NS.spell_ready(SPELLS.PrayerOfHealing, me, { skip_range = true }) or false
-    disc_state.prayer_of_mending_ready = me and NS.spell_ready(SPELLS.PrayerofMending, me, { skip_range = true }) or false
+    disc_state.prayer_of_mending_ready = false  -- Prayer of Mending is TBC-only
     disc_state.shadow_word_pain_ready = me and NS.spell_ready(SPELLS.ShadowWordPain, me, { expected_cooldown = 1.5 }) or false
     disc_state.smite_ready = me and NS.spell_ready(SPELLS.Smite, me, { expected_cooldown = 2.5 }) or false
     disc_state.holy_fire_ready = me and NS.spell_ready(SPELLS.HolyFire, me, { expected_cooldown = 10 }) or false
@@ -191,11 +176,11 @@ local function build_state(context)
     disc_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     disc_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     disc_state.in_combat = context.in_combat or false
-    disc_state.target_creature_type = target and NS.unit_creature_type and NS.unit_creature_type(target) or nil
+    disc_state.target_creature_type = target_creature_type(target)
     disc_state.target_casting = target and target.is_casting and target:is_casting() or false
 
     -- Cooldown readiness
-    disc_state.pain_suppression_ready = me and NS.spell_ready(33206, me, { skip_range = true }) or false
+    disc_state.pain_suppression_ready = false  -- Pain Suppression () is TBC-only
     disc_state.power_infusion_ready = me and NS.spell_ready(10060, me, { skip_range = true }) or false
     disc_state.inner_focus_ready = me and NS.spell_ready(SPELLS.InnerFocus or 14751, me, { skip_range = true }) or false
 
@@ -237,7 +222,7 @@ end
 -- Match functions
 -- ============================================================================
 -- ============================================================================
--- PW:S on tank — always allowed, ignores tank-only setting.
+-- PW:S on tank ? always allowed, ignores tank-only setting.
 -- This is the primary tank mitigation tool.
 -- ============================================================================
 local function pws_tank_matches(context, s)
@@ -255,7 +240,7 @@ local function pws_tank_matches(context, s)
 end
 
 -- ============================================================================
--- PW:S on lowest non-tank — gated by disc_shield_tank_only setting.
+-- PW:S on lowest non-tank ? gated by disc_shield_tank_only setting.
 -- When tank-only mode is active, this strategy never fires.
 -- ============================================================================
 local function pws_lowest_matches(context, s)
@@ -274,20 +259,16 @@ local function pws_lowest_matches(context, s)
     return true
 end
 
-local function pom_tank_matches(context, s)
-    if not context.in_combat then return false end
-    local target = s.tank or s.lowest
-    if not target then return false end
-    if not s.pom_ready then return false end
-    return true
-end
-
 local function flash_heal_matches(context, s)
     if context.is_moving then return false end
     if not s.lowest then return false end
     if (s.lowest.effective_hp or 100) > (context.settings.discipline_flash_hp or 55) then return false end
     if (s.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
     if not s.flash_heal_ready then return false end
+    -- Predictive overheal gate
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        if NS.HealerDeficit.gate_spell_overheal("FlashHeal", s.lowest.unit, 1.5, context.settings) then return false end
+    end
     return true
 end
 
@@ -304,6 +285,10 @@ local function greater_heal_matches(context, s)
     if hp > (context.settings.discipline_greater_heal_hp or 82) then return false end
     if hp <= (context.settings.discipline_flash_hp or 55) then return false end
     if not s.greater_heal_ready then return false end
+    -- Predictive overheal gate
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        if NS.HealerDeficit.gate_spell_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings) then return false end
+    end
     return true
 end
 
@@ -323,28 +308,17 @@ local function renew_lowest_matches(context, s)
     return true
 end
 
-local function binding_heal_matches(context, s)
-    if context.is_moving then return false end
-    if not s.lowest then return false end
-    if (s.lowest.effective_hp or 100) > 50 then return false end
-    if (s.hp_pct or 100) > 70 then return false end
-    if not s.binding_heal_ready then return false end
-    return true
-end
-
-local function circle_of_healing_matches(context, s)
-    if context.is_moving then return false end
-    if s.group_damaged_count < 3 then return false end
-    if not s.circle_of_healing_ready then return false end
-    return true
-end
-
 local function prayer_of_healing_matches(context, s)
     if context.is_moving then return false end
     -- Use subgroup count for PoH (only counts your party in raids)
     local poh_count = s.subgroup_damaged_count or s.group_damaged_count
     if poh_count < 4 then return false end
     if not s.prayer_of_healing_ready then return false end
+    -- Predictive overheal gate
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        local target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
+        if NS.HealerDeficit.gate_spell_overheal("PrayerOfHealing", target, 3.0, context.settings) then return false end
+    end
     return true
 end
 
@@ -394,22 +368,6 @@ local function divine_spirit_matches(context, s)
     local reagent = NS.ReagentGuard or (pcall(require, "shared/reagent_guard_sylvanas") and require("shared/reagent_guard_sylvanas"))
     if reagent and reagent.check_reagent then
         local spell_id = SPELLS.DivineSpirit and SPELLS.DivineSpirit.id and SPELLS.DivineSpirit:id()
-        if spell_id and not reagent.check_reagent(spell_id) then return false end
-    end
-    return _safe_buff_in_combat(context, s)
-end
-
--- ============================================================================
--- Prayer of Fortitude: maintain raid buff
--- ============================================================================
-local function pof_matches(context, s)
-    if s.has_prayer_of_fortitude then return false end
-    if s.has_power_word_fortitude then return false end
-    if not s.prayer_of_fortitude_ready then return false end
-    if _buff_on_cooldown(SPELLS.PrayerOfFortitude) then return false end
-    local reagent = NS.ReagentGuard or (pcall(require, "shared/reagent_guard_sylvanas") and require("shared/reagent_guard_sylvanas"))
-    if reagent and reagent.check_reagent then
-        local spell_id = SPELLS.PrayerOfFortitude and SPELLS.PrayerOfFortitude.id and SPELLS.PrayerOfFortitude:id()
         if spell_id and not reagent.check_reagent(spell_id) then return false end
     end
     return _safe_buff_in_combat(context, s)
@@ -471,18 +429,6 @@ local function dispel_magic_matches(context, s)
 end
 
 -- ============================================================================
--- Pain Suppression: emergency external CD for tank lethal spikes
--- ============================================================================
-local function pain_suppression_matches(context, s)
-    if not context.in_combat then return false end
-    if not s.tank then return false end
-    local tank_hp = s.tank.effective_hp or 100
-    if tank_hp > (context.settings.discipline_pain_suppression_hp or 25) then return false end
-    if not s.pain_suppression_ready then return false end
-    return true
-end
-
--- ============================================================================
 -- Power Infusion: grant +20% haste to caster DPS or self
 -- ============================================================================
 local function power_infusion_matches(context, s)
@@ -496,7 +442,7 @@ local function power_infusion_matches(context, s)
 end
 
 -- ============================================================================
--- Inner Focus: free +25% crit on next spell — pair with Greater Heal or PoH
+-- Inner Focus: free +25% crit on next spell ? pair with Greater Heal or PoH
 -- ============================================================================
 local function inner_focus_matches(context, s)
     if not context.in_combat then return false end
@@ -591,7 +537,6 @@ local healing_strategies = {
     { name = "PowerWordShieldTank", matches = pws_tank_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.tank.unit, string.format("[DISCIPLINE] PW:S tank %.0f%%", s.tank.effective_hp or 0)) end },
     { name = "EmergencyPowerWordShield", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "PowerWordShieldLowest", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
-    { name = "UnavailableClassicPriestHealBTank", matches = pom_tank_matches, execute = function(context, s) return NS.try_cast(SPELLS.PrayerofMending, (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit), "[DISCIPLINE] Prayer of Mending") end },
     { name = "EmergencyFlashHeal", matches = flash_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.FlashHeal, s.lowest.unit, string.format("[DISCIPLINE] Flash Heal %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "GreaterHeal", matches = greater_heal_matches, execute = function(context, s)
         local mana_pct = s.mana_pct or context.mana_pct or 100
@@ -603,10 +548,8 @@ local healing_strategies = {
         else
             spell_id = GREATER_HEAL_EFFICIENT
         end
-        return NS.try_cast(spell_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "5" or "4")))
+        return NS.try_cast(spell_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, mana_pct > 30 and "5" or (mana_pct > 15 and "4" or "3")))
     end },
-    { name = "UnavailableClassicPriestHealA", matches = binding_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.UnavailableClassicPriestHealA, s.lowest.unit, "[DISCIPLINE] Binding Heal") end },
-    { name = "UnavailableClassicPriestHealC", matches = circle_of_healing_matches, execute = function() return NS.try_cast(SPELLS.CircleofHealing, NS.PLAYER_UNIT, "[DISCIPLINE] UnavailableClassicPriestHealC") end },
     { name = "PrayerOfHealing", matches = prayer_of_healing_matches, execute = function() return NS.try_cast(SPELLS.PrayerOfHealing, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfHealing") end },
     { name = "RenewTank", matches = renew_tank_matches, execute = function(context, s) return NS.try_cast(SPELLS.Renew, s.tank.unit, string.format("[DISCIPLINE] Renew tank %.0f%%", s.tank.effective_hp or 0)) end },
     { name = "RenewLowest", matches = renew_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.Renew, s.lowest.unit, string.format("[DISCIPLINE] Renew %.0f%%", s.lowest.effective_hp or 0)) end },
@@ -614,12 +557,10 @@ local healing_strategies = {
     { name = "FearWard", matches = fear_ward_matches, execute = function() return NS.try_cast(SPELLS.FearWard, NS.PLAYER_UNIT, "[DISCIPLINE] FearWard") end },
     { name = "PowerWordFortitude", matches = pwf_matches, execute = function() return NS.try_cast(SPELLS.PowerWordFortitude, NS.PLAYER_UNIT, "[DISCIPLINE] PowerWordFortitude") end },
     { name = "DivineSpirit", matches = divine_spirit_matches, execute = function() return NS.try_cast(SPELLS.DivineSpirit, NS.PLAYER_UNIT, "[DISCIPLINE] DivineSpirit") end },
-    { name = "PrayerOfFortitude", matches = pof_matches, execute = function() return NS.try_cast(SPELLS.PrayerOfFortitude, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfFortitude") end },
     { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(SPELLS.PsychicScream, context.target, "[DISCIPLINE] PsychicScream", { expected_cooldown = 30 }) end },
     { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(SPELLS.ShackleUndead, context.target, "[DISCIPLINE] ShackleUndead", { expected_cooldown = 1.5 }) end },
     { name = "DispelMagic", matches = dispel_magic_matches, execute = function() return NS.try_cast(SPELLS.DispelMagic, NS.PLAYER_UNIT, "[DISCIPLINE] DispelMagic") end },
     -- Cooldown Features
-    { name = "UnavailableClassicPriestDefensive", matches = pain_suppression_matches, execute = function(_, s) return NS.try_cast(33206, s.tank.unit, string.format("[DISCIPLINE] Pain Suppression on tank %.0f%%", s.tank.effective_hp or 0)) end },
     { name = "PowerInfusion", matches = power_infusion_matches, execute = function() return NS.try_cast(10060, NS.PLAYER_UNIT, "[DISCIPLINE] Power Infusion", { skip_range = true }) end },
     { name = "InnerFocus", matches = inner_focus_matches, execute = function() return NS.try_cast(SPELLS.InnerFocus or 14751, NS.PLAYER_UNIT, "[DISCIPLINE] Inner Focus", { skip_range = true }) end },
     -- FrostByte Features

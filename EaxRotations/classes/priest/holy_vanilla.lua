@@ -1,30 +1,6 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Holy Priest rotation
--- =========================================================================
-local __eax_file = "classes/priest/holy_vanilla.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-28"
-local __eax_change = "Classic Vanilla Holy Priest rotation"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- ============================================================================
--- What: Classic Vanilla Priest Holy healing rotation and FrostByte utility actions
--- When: Per tick
--- Why: Priority healing with shared scan state and preallocated options keeps triage fast
--- Safety: Nil-guarded NS helpers, pcall on optional modules/items, conservative defaults
--- ============================================================================
 local _G = _G
 local NS = _G.EaxRotations
-if not NS then return end
+if not NS then return nil end
 
 local load_player = NS.GetPlayer()
 
@@ -57,7 +33,7 @@ local EMPTY_SETTINGS = {}
 
 -- ============================================================================
 -- IMPORT SHARED RANK TABLES + UTILITIES (from class_sylvanas.lua)
--- class_sylvanas.lua loads at order=61, holy at order=66 — safe to import.
+-- class_sylvanas.lua loads at order=61, holy at order=66 ? safe to import.
 -- ============================================================================
 local FLASH_HEAL_RANKS = NS.PriestFLASH_HEAL_RANKS
 local GREATER_HEAL_RANKS = NS.PriestGREATER_HEAL_RANKS
@@ -66,20 +42,17 @@ local BINDING_HEAL_RANKS = NS.PriestBINDING_HEAL_RANKS
 local cast_best_heal_rank = NS.cast_best_heal_rank or function() return false end
 
 local INNER_FOCUS_BUFF = 14751
-local SURGE_OF_LIGHT_BUFF = { 33151, 33154 }
-local HOLY_CONCENTRATION_BUFF = { 34753, 34754, 34859, 34860 }
--- RENEW_BUFF removed: unused (holy uses Healing.scan_healing_targets for buff tracking)
--- WEAKENED_SOUL_DEBUFF removed: unused (holy uses state.lowest.has_weakened_soul from Healing scan)
-local SHADOW_WORD_PAIN_DEBUFF = { 589, 594, 970, 992, 2767, 10892, 10893, 25367, 25368 }
-local HOLY_FIRE_DOT_DEBUFF = { 14914, 15262, 15263, 15264, 15265, 15266, 15267, 15261, 25384 }
+-- Surge of Light (33151) and Holy Concentration (34753/34859) are TBC-only talents.
+local SHADOW_WORD_PAIN_DEBUFF = { 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
+local HOLY_FIRE_DOT_DEBUFF = { 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }
 
 -- FrostByte feature constants
 -- ============================================================================
 -- Fade buff IDs (all ranks)
-local FADE_BUFF = { 25429, 10942, 10941, 9592, 9579, 9578, 586 }
+local FADE_BUFF = { 10942, 10941, 9592, 9579, 9578, 586 }
 
 -- Healthstone item IDs (TBC, best to worst)
-local HEALTHSTONE_IDS = (TBC and Classic.ITEMS and Classic.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 
 -- Karazhan encounter map ID
 local KARAZHAN_MAP_ID = 532
@@ -107,7 +80,7 @@ local function _check_pushback(context)
     return false
 end
 
--- [PRE-ALLOC] Heal rank option tables — created once at load time, not per-frame in execute().
+-- [PRE-ALLOC] Heal rank option tables ? created once at load time, not per-frame in execute().
 -- Avoids Lua 5.1 GC pressure from repeated inline table creation in combat path.
 local HOLY_OPTS_EMERGENCY_FH = { prioritize_speed = true, cast_time = 1.5, overheal_threshold = 1.4 }
 local HOLY_OPTS_BH = { bh_coefficient = true, cast_time = 2.0, overheal_threshold = 1.3 }
@@ -146,10 +119,6 @@ local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_co
     "try_cast", "spell_exists", "spell_ready", "debuff_remains", "health_pct",
     "player_control_locked", "has_player_buff"
 )
--- debuff_up removed: unused in holy (debuff_remains used instead for SWP/Holy Fire tracking)
-
--- is_same_unit removed: unused in holy (no unit comparison needed)
-
 local function build_holy_state(context)
     context.settings = context.settings or EMPTY_SETTINGS
     local aoe_hp = context.settings.holy_aoe_hp or 80
@@ -200,8 +169,8 @@ local function build_holy_state(context)
     else
         holy_state.subgroup_damaged_count = damaged_count
     end
-    holy_state.surge_of_light = has_player_buff(SURGE_OF_LIGHT_BUFF)
-    holy_state.clearcasting = has_player_buff(HOLY_CONCENTRATION_BUFF)
+    holy_state.surge_of_light = false  -- TBC-only talent
+    holy_state.clearcasting = false    -- TBC-only talent
     -- FrostByte: Healthstone scanning
     holy_state.healthstone_id = nil
     holy_state.healthstone_ready = false
@@ -221,10 +190,12 @@ local function build_holy_state(context)
     holy_state.fade_ready = spell_exists(SPELLS.Fade) and spell_ready(SPELLS.Fade)
 
     -- FrostByte: Encounter ID for Karazhan reactions
-    holy_state.encounter_id = (NS.core and NS.core.get_map_id and NS.core.get_map_id()) or 0
+    holy_state.encounter_id = (NS.core and NS.core.get_map_id and NS.core.get_map_id())
+        or (core and core.get_map_id and core.get_map_id())
+        or 0
 
-    holy_state.pom_ready = spell_exists(SPELLS.PrayerofMending) and spell_ready(SPELLS.PrayerofMending, (tank_entry and tank_entry.unit) or NS.PLAYER_UNIT)
-    holy_state.coh_ready = spell_exists(SPELLS.CircleofHealing) and spell_ready(SPELLS.CircleofHealing, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+    holy_state.pom_ready = false  -- Prayer of Mending is TBC-only
+    holy_state.coh_ready = false  -- Circle of Healing is TBC-only
     holy_state.has_inner_focus = has_player_buff(INNER_FOCUS_BUFF)
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14752, 3.0) or false
@@ -259,7 +230,7 @@ local function stop_cast_matches(context, state)
     if not context.me then return false end
     local ok, is_casting = pcall(function() return context.me:is_casting() end)
     if not ok or not is_casting then return false end
-    -- Someone is critically low and we're casting something else — interrupt
+    -- Someone is critically low and we're casting something else ? interrupt
     if not state.lowest then return false end
     if state.lowest_hp < 30 then
         return true
@@ -352,7 +323,7 @@ end
 local function encounter_reactions_matches(context, state)
     if not context.in_combat then return false end
     if state.encounter_id ~= KARAZHAN_MAP_ID then return false end
-    -- Netherspite: player control locked (Nether Breath fear) — dispel/prepare
+    -- Netherspite: player control locked (Nether Breath fear) ? dispel/prepare
     if context.player_control_locked then
         return state.tank_hp < 80
     end
@@ -403,34 +374,7 @@ local strategies = {
             return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
         end,
     },
-    {
-        name = "UnavailableClassicPriestHealB",
-        matches = function(context, state)
-            if context.player_control_locked then return false end
-            if not state.pom_ready then return false end
-            if not context.in_combat and context.settings.holy_prepull_pom == false then return false end
-            return state.tank ~= nil or state.lowest ~= nil
-        end,
-        execute = function(_, state)
-            local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit) or NS.PLAYER_UNIT
-            local hp = (state.tank and state.tank.effective_hp) or (state.lowest and state.lowest.effective_hp) or 100
-            return try_cast(SPELLS.PrayerofMending, target, format("[HOLY] Prayer of Mending %.0f%%", hp))
-        end,
-    },
-    {
-        name = "UnavailableClassicPriestHealC",
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if context.player_control_locked then return false end
-            if context.settings.holy_use_coh == false then return false end
-            if not state.coh_ready then return false end
-            return state.group_damaged_count >= (context.settings.holy_aoe_count or 3)
-        end,
-        execute = function(_, state)
-            local target = (state.lowest and state.lowest.unit) or (state.tank and state.tank.unit) or NS.PLAYER_UNIT
-            return try_cast(SPELLS.CircleofHealing, target, format("[HOLY] Circle of Healing count=%d", state.group_damaged_count or 0))
-        end,
-    },
+
     {
         name = "UnavailableClassicPriestHealA",
         matches = function(context, state)
@@ -455,30 +399,18 @@ local strategies = {
             if context.settings.holy_use_poh == false then return false end
             -- Use subgroup count for PoH (only counts your party in raids)
             local poh_count = state.subgroup_damaged_count or state.group_damaged_count
-            return poh_count >= (context.settings.holy_aoe_count or 3)
+            if poh_count < (context.settings.holy_aoe_count or 3) then return false end
+            -- Predictive overheal gate
+            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+                local target = state.lowest and state.lowest.unit or NS.PLAYER_UNIT
+                if NS.HealerDeficit.gate_spell_overheal("PrayerOfHealing", target, 3.0, context.settings) then return false end
+            end
+            return true
         end,
         execute = function(context, state)
             local chosen_spell, spell_label = cast_best_heal_rank(PRAYER_OF_HEALING_RANKS, NS.PLAYER_UNIT, context, "PoH", HOLY_OPTS_POH)
             if not chosen_spell then return false end
             return try_cast(chosen_spell, NS.PLAYER_UNIT, format("[HOLY] %s count=%d", spell_label, state.group_damaged_count or 0))
-        end,
-    },
-    {
-        name = "ClearcastingGreaterHeal",
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if context.player_control_locked or context.is_moving then return false end
-            if not state.clearcasting then return false end
-            if not state.lowest then return false end
-            -- Pushback gate: skip long-cast heals when taking damage
-            if _check_pushback(context) then return false end
-            return state.lowest_hp < 95
-        end,
-        execute = function(context, state)
-            local target = state.lowest.unit
-            local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "Clearcasting GH", HOLY_OPTS_CLEARCAST_GH)
-            if not chosen_spell then return false end
-            return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
         end,
     },
     {
@@ -524,7 +456,12 @@ local strategies = {
             if context.mana_pct < (context.settings.holy_gh_mana_floor or 30) then return false end
             local flash_hp = context.settings.holy_flash_heal_hp or 50
             local renew_hp = context.settings.holy_renew_hp or 90
-            return state.lowest_hp < renew_hp and state.lowest_hp >= flash_hp
+            if not (state.lowest_hp < renew_hp and state.lowest_hp >= flash_hp) then return false end
+            -- Predictive overheal gate
+            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+                if NS.HealerDeficit.gate_spell_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
+            end
+            return true
         end,
         execute = function(context, state)
             local target = state.lowest.unit
@@ -541,7 +478,12 @@ local strategies = {
             if not state.lowest then return false end
             -- Mana conservation: drop direct heals below 15% mana, Renew only
             if context.mana_pct < (context.settings.holy_fh_mana_floor or 15) then return false end
-            return state.lowest_hp < (context.settings.holy_flash_heal_hp or 50)
+            if not (state.lowest_hp < (context.settings.holy_flash_heal_hp or 50)) then return false end
+            -- Predictive overheal gate
+            if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+                if NS.HealerDeficit.gate_spell_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings) then return false end
+            end
+            return true
         end,
         execute = function(context, state)
             local target = state.lowest.unit
@@ -687,20 +629,6 @@ local strategies = {
         end,
     },
     {
-        name = "SurgeOfLightSmite",
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if context.player_control_locked then return false end
-            if not state.surge_of_light then return false end
-            if not context.has_valid_enemy_target then return false end
-            if state.lowest_hp < (context.settings.holy_flash_heal_hp or 50) then return false end
-            return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
-        end,
-        execute = function(context)
-            return try_cast(SPELLS.Smite, context.target, "[HOLY] Surge of Light Smite")
-        end,
-    },
-    {
         name = "IdleSWP",
         matches = function(context, state)
             if not context.in_combat then return false end
@@ -747,7 +675,7 @@ local strategies = {
             return try_cast(SPELLS.Smite, context.target, "[HOLY] Idle Smite")
         end,
     },
-    -- Mana < 5%: wand/auto-attack only — all spells forbidden (Research resource floor)
+    -- Mana < 5%: wand/auto-attack only ? all spells forbidden (Research resource floor)
     {
         name = "ManaBelow5Wand",
         matches = function(context, state)

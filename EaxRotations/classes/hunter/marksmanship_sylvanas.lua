@@ -1,29 +1,5 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-27
--- Change: File version stamp for runtime load verification
--- =========================================================================
-local __eax_file = "classes/hunter/marksmanship_sylvanas.lua"
-local __eax_version = "1.1.1"
-local __eax_modified = "2026-05-27"
-local __eax_change = "File version stamp for runtime load verification"
-local __eax_versions = rawget(_G, "EaxRotationsFileVersions") or {}
-_G.EaxRotationsFileVersions = __eax_versions
-__eax_versions[__eax_file] = { version = __eax_version, modified = __eax_modified, change = __eax_change }
-local __eax_core = rawget(_G, "core")
-if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
-    pcall(__eax_core.log, "[EaxRotations] Loaded " .. __eax_file .. " v" .. __eax_version)
-end
-local __eax_ns = rawget(_G, "EaxRotations")
-if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- Hunter Marksmanship priority list.
 
--- ============================================================================
--- What: Hunter Marksmanship priority list with Aimed Shot, Multi-Shot, and clip control
--- When: Evaluated every tick via main_sylvanas.lua dispatcher
--- Why: Priority-list early-exit keeps ranged timing and clip checks efficient
--- Safety: Nil-guarded settings; NS.* wrappers; optional clip tracker; conservative fallback behavior
--- ============================================================================
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -31,7 +7,7 @@ local SPELLS = NS.HunterSpells or {}
 
 local AUTO_SHOT_BUFFER_MS = 100
 local MULTI_SHOT_CAST_MS = 500
-local AIMED_SHOT_CAST_MS = 3000
+local AIMED_SHOT_CAST_MS = 2500
 
 local function can_cast_steady()
     local tracker = NS.HunterClipTracker
@@ -143,7 +119,7 @@ local function build_state(context)
     mm_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
     mm_state.bestial_wrath_ready = me and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true, expected_cooldown = 120 }) or false
-    mm_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 180 }) or false
+    mm_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
     mm_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     mm_state.in_combat = context.in_combat or false
     mm_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -162,7 +138,7 @@ end
 -- ============================================================================
 local function mend_pet_matches(context, s)
     if not s.pet_alive then return false end
-    if s.pet_hp_pct > 45 then return false end
+    if (s.pet_hp_pct or 100) > 45 then return false end
     if not s.mend_pet_ready then return false end
     return true
 end
@@ -215,7 +191,7 @@ local function arcane_shot_matches(context, s)
 end
 
 local function serpent_sting_matches(context, s)
-    if s.has_serpent_sting and s.serpent_sting_remains > SERPENT_STING_REFRESH_SEC then return false end
+    if s.has_serpent_sting and (s.serpent_sting_remains or 0) > SERPENT_STING_REFRESH_SEC then return false end
     if not s.serpent_sting_ready then return false end
     return true
 end
@@ -232,7 +208,7 @@ end
 
 local function aspect_viper_matches(context, s)
     if s.has_aspect_viper then return false end
-    if s.mana_pct > 30 then return false end
+    if (s.mana_pct or 100) > 30 then return false end
     return true
 end
 
@@ -326,7 +302,7 @@ local strategies = {
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[MARKSMANSHIP] Hunter's Mark") end },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[MARKSMANSHIP] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) local pet = context.pet or (NS.GetPet and NS.GetPet()) or context.me; return NS.try_cast(SPELLS.BestialWrath, pet, "[MARKSMANSHIP] Bestial Wrath", { skip_range = true, expected_cooldown = 120 }) end },
-    { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 180 }) end },
+    { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "SilencingShot", matches = silencing_shot_matches, execute = function(context) return NS.try_cast(SPELLS.SilencingShot, context.target, "[MARKSMANSHIP] Silencing Shot", { expected_cooldown = 20 }) end },
     { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },

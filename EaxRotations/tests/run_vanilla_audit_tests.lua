@@ -1,108 +1,152 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Vanilla spell audit runner — standalone scanner for TBC contaminant IDs
--- =========================================================================
 -- ============================================================================
--- What: Standalone runner that audits all vanilla spec files for TBC-era
---       spell/buff/debuff IDs. Run separately from the main rotation suite.
+-- What: Standalone runner that audits vanilla spec files for TBC spell IDs.
 -- When: lua EaxRotations/tests/run_vanilla_audit_tests.lua
--- Why: Catches copy-paste contamination where TBC spell ranks leak
---      into Classic-era rotation files (e.g. Battle Shout rank 8 =
---      25289 in a vanilla file that should max at rank 7 = 2048).
--- Exit: 0 = all vanilla files clean; 1 = TBC contamination found.
--- Safety: Read-only text scan — no dofile(), no mock setup needed.
+-- Why: Catches copy-paste contamination where TBC spell ranks leak into Classic.
+-- Exit: 0 = clean; 1 = TBC contamination found.
+-- Safety: Read-only text scan. No dofile(), no mock setup.
 -- ============================================================================
 
--- --------------------------------------------------------------------------
--- Known TBC contaminant spell IDs that should NEVER appear in vanilla files.
--- Format: [id] = "description"
--- These were identified in the 2026-05-27 deep vanilla audit.
--- --------------------------------------------------------------------------
 local TBC_IDS = {
+    [469] = "Commanding Shout (TBC)",
+    [974] = "Earth Shield (TBC talent)",
+    [1329] = "Mutilate (TBC talent)",
+    [2825] = "Bloodlust (TBC)",
+    [3738] = "Wrath of Air Totem (TBC)",
+    [5938] = "Shiv (TBC)",
+    [12472] = "Icy Veins (TBC talent)",
+    [20243] = "Devastate (TBC talent)",
+    [22570] = "Maim (TBC)",
+    [23920] = "Spell Reflection (TBC)",
+    [23575] = "Water Shield (TBC)",
+    [24398] = "Water Shield (TBC)",
+    [25046] = "Arcane Torrent (TBC racial)",
+    [26679] = "Deadly Throw (TBC)",
     [25289] = "Battle Shout rank 8 (TBC; Classic max = 2048)",
+    [25429] = "Holy Nova rank 7 (TBC)",
+    [25431] = "Inner Fire rank 7 (TBC)",
+    [25446] = "Arcane Explosion rank 8 (TBC)",
+    [25448] = "Lightning Bolt rank 11 (TBC)",
+    [25457] = "Flame Shock rank 6 (TBC)",
+    [25467] = "Devouring Plague rank 7 (TBC)",
+    [25469] = "Lightning Shield rank 8 (TBC)",
+    [25472] = "Lightning Shield rank 9 (TBC)",
+    [25479] = "Rockbiter Weapon rank 9 (TBC)",
+    [25485] = "Healing Wave rank 11 (TBC)",
+    [25489] = "Flametongue Weapon rank 7 (TBC)",
+    [25500] = "Frostbrand Weapon rank 6 (TBC)",
+    [25505] = "Windfury Weapon rank 5 (TBC)",
+    [25508] = "Stoneskin Totem rank 7 (TBC)",
+    [25509] = "Stoneskin Totem rank 8 (TBC)",
+    [25525] = "Stoneclaw Totem rank 7 (TBC)",
+    [25528] = "Strength of Earth Totem rank 5 (TBC)",
+    [25533] = "Searing Totem rank 7 (TBC)",
+    [25546] = "Fire Nova Totem rank 6 (TBC)",
+    [25547] = "Fire Nova Totem rank 7 (TBC)",
+    [25552] = "Magma Totem rank 5 (TBC)",
+    [25560] = "Frost Shock rank 5 (TBC)",
+    [25563] = "Fire Resistance Totem rank 4 (TBC)",
+    [25570] = "Mana Spring Totem rank 5 (TBC)",
+    [25574] = "Nature Resistance Totem rank 4 (TBC)",
+    [26967] = "Rejuvenation rank 13 (TBC)",
+    [26968] = "Regrowth rank 10 (TBC)",
+    [26980] = "Maul rank 8 (TBC)",
+    [26981] = "Healing Touch rank 12 (TBC)",
+    [26982] = "Healing Touch rank 13 (TBC)",
+    [26983] = "Tranquility rank 5 (TBC)",
+    [26987] = "Starfire rank 8 (TBC)",
+    [26988] = "Moonfire rank 10 (TBC)",
+    [26989] = "Entangling Roots rank 7 (TBC)",
+    [26990] = "Mark of the Wild rank 7 (TBC)",
+    [26991] = "Gift of the Wild rank 3 (TBC)",
+    [26992] = "Thorns rank 7 (TBC)",
+    [26993] = "Faerie Fire rank 5 (TBC)",
+    [26994] = "Rebirth rank 5 (TBC)",
+    [26998] = "Demoralizing Roar rank 6 (TBC)",
+    [27016] = "Serpent Sting rank 10 (TBC)",
+    [27018] = "Viper Sting rank 4 (TBC)",
+    [27044] = "Aspect of the Hawk rank 8 (TBC)",
+    [27068] = "Wyvern Sting rank 4 (TBC)",
+    [27126] = "Arcane Intellect rank 6 (TBC)",
+    [27127] = "Arcane Brilliance rank 2 (TBC)",
     [27131] = "Mana Shield rank 7 (TBC; Classic max = 10223)",
-    [27126] = "Icy Veins (TBC talent)",
-    [27127] = "Icy Veins (TBC talent)",
     [27136] = "Holy Light rank 11 (TBC)",
     [27137] = "Holy Light rank 12 (TBC)",
     [27138] = "Holy Light rank 13 (TBC)",
     [27139] = "Holy Light rank 14 (TBC)",
     [27173] = "Consecration rank 6 (TBC)",
     [27179] = "Holy Shield rank 4 (TBC)",
-    [30146] = "Summon Felguard (TBC 41pt Demo talent)",
+    [28176] = "Fel Armor rank 1 (TBC)",
+    [28189] = "Fel Armor rank 2 (TBC)",
+    [28880] = "Gift of the Naaru (TBC racial)",
+    [30146] = "Summon Felguard (TBC talent)",
+    [30455] = "Ice Lance (TBC)",
+    [30823] = "Shamanistic Rage (TBC talent)",
     [31016] = "Eviscerate rank 12 (TBC; Classic max = 26865)",
-    [31589] = "Slow (TBC Arcane talent)",
-    [33206] = "Pain Suppression (TBC 41pt Disc talent)",
-    [33831] = "Force of Nature (TBC 41pt Balance talent)",
+    [31589] = "Slow (TBC talent)",
+    [32182] = "Heroism (TBC)",
+    [32593] = "Earth Shield rank 1 (TBC)",
+    [32594] = "Earth Shield rank 2 (TBC)",
+    [33206] = "Pain Suppression (TBC talent)",
+    [33736] = "Water Shield rank 3 (TBC)",
+    [33763] = "Lifebloom (TBC)",
+    [33786] = "Cyclone (TBC)",
+    [33831] = "Force of Nature (TBC talent)",
     [33876] = "Mangle Cat rank 1 (TBC talent)",
     [33878] = "Mangle Bear rank 1 (TBC talent)",
-    [33891] = "Tree of Life Form (TBC 41pt Resto talent)",
-    [34914] = "Vampiric Touch rank 1 (TBC 41pt Shadow talent)",
+    [33891] = "Tree of Life Form (TBC talent)",
+    [34026] = "Kill Command (TBC)",
+    [34074] = "Aspect of the Viper (TBC)",
+    [34120] = "Steady Shot (TBC)",
+    [34477] = "Misdirection (TBC)",
+    [34914] = "Vampiric Touch rank 1 (TBC talent)",
     [34916] = "Vampiric Touch rank 2 (TBC)",
     [34917] = "Vampiric Touch rank 3 (TBC)",
-    [35395] = "Crusader Strike (TBC 41pt Retribution talent)",
-    [36554] = "Shadowstep (TBC Subtlety talent)",
+    [35395] = "Crusader Strike (TBC talent)",
+    [36554] = "Shadowstep (TBC talent)",
+    [36936] = "Totemic Call (TBC)",
 }
 
--- --------------------------------------------------------------------------
--- Vanilla spec files to audit — excludes leveling, healing, middleware,
--- schema, class, clip, debug, caster, helper files.
--- These are the actual rotation strategy files.
--- --------------------------------------------------------------------------
 local VANILLA_SPECS = {
-    -- Druid (4)
     "classes/druid/balance_vanilla.lua",
     "classes/druid/bear_vanilla.lua",
     "classes/druid/cat_vanilla.lua",
     "classes/druid/resto_vanilla.lua",
-    -- Hunter (3)
     "classes/hunter/beast_mastery_vanilla.lua",
     "classes/hunter/marksmanship_vanilla.lua",
     "classes/hunter/survival_vanilla.lua",
-    -- Mage (3)
     "classes/mage/arcane_vanilla.lua",
     "classes/mage/fire_vanilla.lua",
     "classes/mage/frost_vanilla.lua",
-    -- Paladin (3)
     "classes/paladin/holy_vanilla.lua",
     "classes/paladin/protection_vanilla.lua",
     "classes/paladin/retribution_vanilla.lua",
-    -- Priest (3)
     "classes/priest/discipline_vanilla.lua",
     "classes/priest/holy_vanilla.lua",
     "classes/priest/shadow_vanilla.lua",
-    -- Rogue (3)
     "classes/rogue/assassination_vanilla.lua",
     "classes/rogue/combat_vanilla.lua",
     "classes/rogue/subtlety_vanilla.lua",
-    -- Shaman (3)
     "classes/shaman/elemental_vanilla.lua",
     "classes/shaman/enhancement_vanilla.lua",
     "classes/shaman/restoration_vanilla.lua",
-    -- Warlock (3)
     "classes/warlock/affliction_vanilla.lua",
     "classes/warlock/demonology_vanilla.lua",
     "classes/warlock/destruction_vanilla.lua",
-    -- Warrior (4)
     "classes/warrior/arms_vanilla.lua",
     "classes/warrior/fury_vanilla.lua",
     "classes/warrior/kebab_vanilla.lua",
     "classes/warrior/protection_vanilla.lua",
 }
 
--- --------------------------------------------------------------------------
--- TBC threshold: Any spell ID >= 27000 that is NOT in this allowlist
--- is treated as a TBC contaminant. Some Classic spells (like Eviscerate
--- rank 9 = 26865) fall below this threshold, but TBC ranks start at ~27000.
--- --------------------------------------------------------------------------
 local TBC_THRESHOLD = 27000
 
--- Classic-era spell IDs >= 27000 that are NOT TBC contaminants.
--- Update this if new edge cases are discovered.
 local THRESHOLD_ALLOWLIST = {
-    -- Add known Classic spell IDs that happen to be >= 27000 here.
-    -- Currently empty — no known Classic-era spells in this range.
+    [27799] = true, [27800] = true, [27801] = true,
+    [27803] = true, [27804] = true, [27805] = true,
+    [27819] = true,
+    [28271] = true, [28272] = true,
+    [28610] = true,
+    [29166] = true,
 }
 
 local root = "EaxRotations"
@@ -115,14 +159,20 @@ local function read_file(path)
     return content
 end
 
---- Check if a line is a comment-only line (stripping leading whitespace).
---- We skip these to avoid false positives from documentation mentioning spell IDs.
 local function is_comment_line(line)
     return line:match("^%s*%-%-") ~= nil
 end
 
---- Scan a file for TBC contaminant IDs. Returns a table of findings:
----   { found = true/false, hits = { {line=#, col=#, id=#, desc="..."}, ... } }
+local function add_hit(hits, line_no, line, num_str, num, desc)
+    hits[#hits + 1] = {
+        line = line_no,
+        col = line:find(num_str, 1, true),
+        id = num,
+        desc = desc,
+        snippet = line:match("^%s*(.-)%s*$") or line,
+    }
+end
+
 local function scan_file(filepath)
     local content = read_file(filepath)
     if not content then
@@ -137,29 +187,12 @@ local function scan_file(filepath)
 
     for line_no, line in ipairs(lines) do
         if not is_comment_line(line) then
-            -- Find all 5-digit numbers in the line
-            for num_str in line:gmatch("(%d%d%d%d%d)") do
+            for num_str in line:gmatch("(%d+)") do
                 local num = tonumber(num_str)
-                if not num then
-                    -- skip
-                elseif TBC_IDS[num] then
-                    hits[#hits + 1] = {
-                        line = line_no,
-                        col = line:find(num_str, 1, true),
-                        id = num,
-                        desc = TBC_IDS[num],
-                        snippet = line:match("^%s*(.-)%s*$") or line,
-                    }
-                elseif num >= TBC_THRESHOLD and not THRESHOLD_ALLOWLIST[num] then
-                    -- Catch any 5-digit number >= 27000 not in the known-ID table.
-                    -- Guardrail against unknown TBC contaminations.
-                    hits[#hits + 1] = {
-                        line = line_no,
-                        col = line:find(num_str, 1, true),
-                        id = num,
-                        desc = "UNKNOWN TBC ID >= " .. TBC_THRESHOLD .. " (not in allowlist)",
-                        snippet = line:match("^%s*(.-)%s*$") or line,
-                    }
+                if TBC_IDS[num] then
+                    add_hit(hits, line_no, line, num_str, num, TBC_IDS[num])
+                elseif #num_str == 5 and num >= TBC_THRESHOLD and not THRESHOLD_ALLOWLIST[num] then
+                    add_hit(hits, line_no, line, num_str, num, "unknown TBC-era ID >= " .. TBC_THRESHOLD)
                 end
             end
         end
@@ -168,13 +201,7 @@ local function scan_file(filepath)
     return { found = #hits > 0, hits = hits }
 end
 
--- ============================================================================
--- Main audit
--- ============================================================================
-
-local total = 0
-local passed = 0
-local failed = 0
+local total, passed, failed = 0, 0, 0
 local failures = {}
 
 for _, file in ipairs(VANILLA_SPECS) do
@@ -182,7 +209,6 @@ for _, file in ipairs(VANILLA_SPECS) do
     total = total + 1
 
     local result = scan_file(path)
-
     if result.error then
         failed = failed + 1
         failures[#failures + 1] = { file = file, error = result.error, hits = {} }
@@ -192,17 +218,13 @@ for _, file in ipairs(VANILLA_SPECS) do
         failures[#failures + 1] = { file = file, hits = result.hits }
         print(string.format("  [ FAIL ]  %-45s %d TBC ID(s)", file, #result.hits))
         for _, hit in ipairs(result.hits) do
-            print(string.format("            line %4d: id %d — %s", hit.line, hit.id, hit.desc))
+            print(string.format("            line %4d: id %d - %s", hit.line, hit.id, hit.desc))
         end
     else
         passed = passed + 1
         print(string.format("  [ PASS ]  %-45s clean", file))
     end
 end
-
--- ============================================================================
--- Results
--- ============================================================================
 
 print("")
 print("=============================================================================")
@@ -221,7 +243,7 @@ if failed > 0 then
             print("      ERROR: " .. f.error)
         else
             for _, hit in ipairs(f.hits) do
-                print(string.format("      line %d: id %d — %s", hit.line, hit.id, hit.desc))
+                print(string.format("      line %d: id %d - %s", hit.line, hit.id, hit.desc))
             end
         end
     end
@@ -234,4 +256,4 @@ if failed > 0 then
     os.exit(1)
 end
 
-print("All vanilla spec files clean — no TBC contamination.")
+print("All vanilla spec files clean - no TBC contamination.")
