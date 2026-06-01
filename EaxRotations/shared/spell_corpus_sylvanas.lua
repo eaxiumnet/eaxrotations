@@ -273,4 +273,40 @@ function M.get_spell_cost(spell_id)
     return info.cost_amount, info.cost_type
 end
 
+--- Search spells for a class by filter criteria.
+--- @param class_name string Class name (e.g., "Warlock", "Priest")
+--- @param filter table Criteria: {is_heal=bool, aoe=bool, school=string, max_level=number, name_contains=string}
+--- @return table spells Array of matching {id, name, school, is_heal, aoe, cast_time, level}
+function M.search_spells(class_name, filter)
+    load_index()
+    if not class_name then return {} end
+    filter = filter or {}
+    local result = {}
+    local n = 0
+    for id, info in pairs(_spell_index) do
+        if info.class == class_name then
+            local match = true
+            if filter.is_heal ~= nil and info.is_heal ~= filter.is_heal then match = false end
+            if filter.aoe ~= nil and info.aoe ~= filter.aoe then match = false end
+            if filter.school and info.school ~= filter.school then match = false end
+            if filter.max_level and info.level and info.level > filter.max_level then match = false end
+            if filter.name_contains and info.name and not info.name:find(filter.name_contains, 1, true) then match = false end
+            if match then
+                n = n + 1
+                result[n] = {
+                    id = id,
+                    name = info.name,
+                    school = info.school,
+                    is_heal = info.is_heal,
+                    aoe = info.aoe,
+                    cast_time = info.cast_time,
+                    level = info.level,
+                }
+            end
+        end
+    end
+    table.sort(result, function(a, b) return a.id < b.id end)
+    return result
+end
+
 return M
