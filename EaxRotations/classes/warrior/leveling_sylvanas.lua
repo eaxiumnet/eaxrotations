@@ -156,7 +156,7 @@ end
 -- ============================================================================
 
 --- Battle Shout - OOC buff
-local battle_shout_matches = function(context, state)
+local battle_shout_matches = function(_, state)
     if not state then return false end
     if state.in_combat then return false end
     if state.has_battle_shout then return false end
@@ -165,7 +165,7 @@ local battle_shout_matches = function(context, state)
 end
 
 --- Bloodrage - generate rage at combat start
-local bloodrage_matches = function(context, state)
+local bloodrage_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.bloodrage_ready then return false end
@@ -177,7 +177,7 @@ local bloodrage_matches = function(context, state)
 end
 
 --- Pummel - interrupt
-local pummel_matches = function(context, state)
+local pummel_matches = function(_, state)
     if not state then return false end
     if not state.use_interrupt then return false end
     if not state.pummel_ready then return false end
@@ -188,7 +188,7 @@ local pummel_matches = function(context, state)
 end
 
 --- Victory Rush - free heal/attack when available
-local victory_rush_matches = function(context, state)
+local victory_rush_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.victory_rush_ready then return false end
@@ -197,7 +197,7 @@ local victory_rush_matches = function(context, state)
 end
 
 --- Execute - low HP finisher
-local execute_matches = function(context, state)
+local execute_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.execute_ready then return false end
@@ -210,7 +210,7 @@ local execute_matches = function(context, state)
 end
 
 --- Sweeping Strikes - AoE buff
-local sweeping_strikes_matches = function(context, state)
+local sweeping_strikes_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.sweeping_strikes_ready then return false end
@@ -219,7 +219,7 @@ local sweeping_strikes_matches = function(context, state)
 end
 
 --- Cleave - AoE when 2+ enemies
-local cleave_matches = function(context, state)
+local cleave_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.target then return false end
@@ -233,7 +233,7 @@ local cleave_matches = function(context, state)
 end
 
 --- Whirlwind - AoE when surrounded
-local whirlwind_matches = function(context, state)
+local whirlwind_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.whirlwind_ready then return false end
@@ -243,7 +243,7 @@ local whirlwind_matches = function(context, state)
 end
 
 --- Thunder Clap - AoE damage/slow
-local thunder_clap_matches = function(context, state)
+local thunder_clap_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.thunder_clap_ready then return false end
@@ -253,7 +253,7 @@ local thunder_clap_matches = function(context, state)
 end
 
 --- Rend - bleed DoT
-local rend_matches = function(context, state)
+local rend_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.rend_ready then return false end
@@ -265,7 +265,7 @@ local rend_matches = function(context, state)
 end
 
 --- Mortal Strike / Bloodthirst - spec filler
-local spec_filler_matches = function(context, state)
+local spec_filler_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.target then return false end
@@ -275,7 +275,7 @@ local spec_filler_matches = function(context, state)
 end
 
 --- Rampage - Fury spec buff (increase attack power + flurry)
-local rampage_matches = function(context, state)
+local rampage_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.rampage_ready then return false end
@@ -288,7 +288,7 @@ local rampage_matches = function(context, state)
 end
 
 --- Sunder Armor - durable target armor reduction before rage dumps
-local sunder_armor_matches = function(context, state)
+local sunder_armor_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.target then return false end
@@ -304,7 +304,7 @@ local sunder_armor_matches = function(context, state)
 end
 
 --- Overpower - when target dodges
-local overpower_matches = function(context, state)
+local overpower_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.overpower_ready then return false end
@@ -313,7 +313,7 @@ local overpower_matches = function(context, state)
 end
 
 --- Heroic Strike - rage dump
-local heroic_strike_matches = function(context, state)
+local heroic_strike_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.heroic_strike_ready then return false end
@@ -398,7 +398,7 @@ local pvp_cc_gate_matches = function(context, state)
 end
 
 --- Hamstring - slow fleeing enemies or kite
-local hamstring_matches = function(context, state)
+local hamstring_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.hamstring_ready then return false end
@@ -410,7 +410,7 @@ local hamstring_matches = function(context, state)
 end
 
 --- Demoralizing Shout - reduce enemy attack power
-local demo_shout_matches = function(context, state)
+local demo_shout_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.demoralizing_shout_ready then return false end
@@ -419,7 +419,7 @@ local demo_shout_matches = function(context, state)
 end
 
 --- Shield Wall - 50% damage reduction emergency
-local shield_wall_matches = function(context, state)
+local shield_wall_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.shield_wall_ready then return false end
@@ -428,7 +428,7 @@ local shield_wall_matches = function(context, state)
 end
 
 --- Intimidating Shout - AoE fear escape
-local intimidating_shout_matches = function(context, state)
+local intimidating_shout_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.intimidating_shout_ready then return false end
@@ -438,7 +438,7 @@ local intimidating_shout_matches = function(context, state)
 end
 
 --- Berserker Rage - fear immunity + rage generation
-local berserker_rage_matches = function(context, state)
+local berserker_rage_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.berserker_rage_ready then return false end
@@ -448,7 +448,7 @@ local berserker_rage_matches = function(context, state)
 end
 
 --- Charge - open from distance
-local charge_matches = function(context, state)
+local charge_matches = function(_, state)
     if not state then return false end
     if state.in_combat then return false end
     if not state.charge_ready then return false end
