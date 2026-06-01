@@ -687,13 +687,7 @@ local strategies = {
             return result
         end,
     },
-    -- 16. Serpent Sting (maintain DoT — IcyVeins #2 priority)
-    {
-        name = "SerpentSting",
-        matches = sting_matches,
-        execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
-    },
-    -- 17. Arcane Shot (instant filler — IcyVeins #3 priority)
+    -- 16. Arcane Shot (instant filler)
     {
         name = "ArcaneShot",
         matches = arcane_shot_matches,
@@ -703,7 +697,7 @@ local strategies = {
             return result
         end,
     },
-    -- 18. Steady Shot (primary filler — IcyVeins #4 priority)
+    -- 17. Steady Shot (primary filler)
     {
         name = "SteadyShot",
         matches = steady_shot_matches,
@@ -712,6 +706,12 @@ local strategies = {
             if result then hunter_core.record_steady_start() end
             return result
         end,
+    },
+    -- 18. Serpent Sting (maintain DoT)
+    {
+        name = "SerpentSting",
+        matches = sting_matches,
+        execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
     },
     -- 20. Trinkets (on-use, during combat, respects cooldown toggle)
     {
