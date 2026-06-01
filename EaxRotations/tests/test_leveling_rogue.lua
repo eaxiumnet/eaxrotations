@@ -537,7 +537,7 @@ test("cold_blood_matches: ready, 5 CP, cooldowns enabled -> true", function()
     state.cold_blood_ready = true
     state.use_cooldowns = true
     state.combo_points = 5
-    assert_true(strategies[12].matches(ctx, state), "5 CP with cooldowns should match")
+    assert_true(strategies[14].matches(ctx, state), "5 CP with cooldowns should match")
 end)
 
 test("cold_blood_matches: below 5 CP -> false", function()
@@ -546,7 +546,7 @@ test("cold_blood_matches: below 5 CP -> false", function()
     state.cold_blood_ready = true
     state.use_cooldowns = true
     state.combo_points = 3
-    assert_false(strategies[12].matches(ctx, state), "3 CP should not match")
+    assert_false(strategies[14].matches(ctx, state), "3 CP should not match")
 end)
 
 test("cold_blood_matches: cooldowns disabled -> false", function()
@@ -555,7 +555,7 @@ test("cold_blood_matches: cooldowns disabled -> false", function()
     state.cold_blood_ready = true
     state.use_cooldowns = false
     state.combo_points = 5
-    assert_false(strategies[12].matches(ctx, state), "cooldowns disabled should not match")
+    assert_false(strategies[14].matches(ctx, state), "cooldowns disabled should not match")
 end)
 
 test("cold_blood_matches: not in combat -> false", function()
@@ -565,7 +565,7 @@ test("cold_blood_matches: not in combat -> false", function()
     state.use_cooldowns = true
     state.combo_points = 5
     state.in_combat = false
-    assert_false(strategies[12].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[14].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -578,7 +578,7 @@ test("adrenaline_rush_matches: ready, low energy, cooldowns enabled -> true", fu
     state.adrenaline_rush_ready = true
     state.use_cooldowns = true
     state.energy = 40
-    assert_true(strategies[13].matches(ctx, state), "low energy with cooldowns should match")
+    assert_true(strategies[14].matches(ctx, state), "low energy with cooldowns should match")
 end)
 
 test("adrenaline_rush_matches: energy above 60 -> false", function()
@@ -587,7 +587,7 @@ test("adrenaline_rush_matches: energy above 60 -> false", function()
     state.adrenaline_rush_ready = true
     state.use_cooldowns = true
     state.energy = 70
-    assert_false(strategies[13].matches(ctx, state), "energy above 60 should not match")
+    assert_false(strategies[14].matches(ctx, state), "energy above 60 should not match")
 end)
 
 test("adrenaline_rush_matches: cooldowns disabled -> false", function()
@@ -596,7 +596,7 @@ test("adrenaline_rush_matches: cooldowns disabled -> false", function()
     state.adrenaline_rush_ready = true
     state.use_cooldowns = false
     state.energy = 40
-    assert_false(strategies[13].matches(ctx, state), "cooldowns disabled should not match")
+    assert_false(strategies[14].matches(ctx, state), "cooldowns disabled should not match")
 end)
 
 -- ============================================================================
@@ -797,7 +797,7 @@ test("sinister_strike_matches: ready, below 5 CP -> true", function()
     local state = get_state(ctx)
     state.sinister_strike_ready = true
     state.combo_points = 3
-    assert_true(strategies[21].matches(ctx, state), "should match when below max CP")
+    assert_true(strategies[20].matches(ctx, state), "should match when below max CP")
 end)
 
 test("sinister_strike_matches: at 5 CP -> false", function()
@@ -805,7 +805,7 @@ test("sinister_strike_matches: at 5 CP -> false", function()
     local state = get_state(ctx)
     state.sinister_strike_ready = true
     state.combo_points = 5
-    assert_false(strategies[21].matches(ctx, state), "5 CP should not match")
+    assert_false(strategies[20].matches(ctx, state), "5 CP should not match")
 end)
 
 test("sinister_strike_matches: no target -> false", function()
@@ -814,7 +814,7 @@ test("sinister_strike_matches: no target -> false", function()
     state.sinister_strike_ready = true
     state.target = nil
     state.combo_points = 3
-    assert_false(strategies[21].matches(ctx, state), "no target should not match")
+    assert_false(strategies[20].matches(ctx, state), "no target should not match")
 end)
 
 test("sinister_strike_matches: not in combat -> false", function()
@@ -823,7 +823,7 @@ test("sinister_strike_matches: not in combat -> false", function()
     state.sinister_strike_ready = true
     state.combo_points = 3
     state.in_combat = false
-    assert_false(strategies[21].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[20].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -879,7 +879,7 @@ end)
 
 test("execute_SinisterStrike: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[21].execute, ctx)
+    local ok, result = pcall(strategies[20].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
@@ -987,9 +987,9 @@ test("rotation: max combo points finisher priority", function()
     state.combo_points = 5
 
     -- Eviscerate should match at 5 CP
-    assert_true(strategies[20].matches(ctx, state), "Eviscerate should match at 5 CP")
+    assert_true(strategies[19].matches(ctx, state), "Eviscerate should match at 5 CP")
     -- Sinister Strike should not match at 5 CP
-    assert_false(strategies[21].matches(ctx, state), "Sinister Strike should not match at 5 CP")
+    assert_false(strategies[20].matches(ctx, state), "Sinister Strike should not match at 5 CP")
 end)
 
 -- ============================================================================
