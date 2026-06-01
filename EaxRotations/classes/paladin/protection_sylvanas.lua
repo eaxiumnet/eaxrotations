@@ -50,6 +50,7 @@ local prot_state = {
     exorcism_ready = false,
     judgement_ready = false,
     divine_shield_ready = false,
+    divine_protection_ready = false,
     lay_on_hands_ready = false,
     hammer_of_justice_ready = false,
     hammer_of_wrath_ready = false,
@@ -119,6 +120,7 @@ local function build_state(context)
     prot_state.exorcism_ready = target and NS.spell_ready(SPELLS.Exorcism, target, { expected_cooldown = 15 }) or false
     prot_state.judgement_ready = target and NS.spell_ready(SPELLS.Judgement, target, { expected_cooldown = 10 }) or false
     prot_state.divine_shield_ready = me and NS.spell_ready(SPELLS.DivineShield, me, { skip_range = true, expected_cooldown = 300 }) or false
+    prot_state.divine_protection_ready = me and NS.spell_ready(SPELLS.DivineProtection, me, { skip_range = true, expected_cooldown = 300 }) or false
     prot_state.lay_on_hands_ready = me and NS.spell_ready(SPELLS.LayOnHands, me, { skip_range = true, expected_cooldown = 3600 }) or false
     prot_state.hammer_of_justice_ready = target and NS.spell_ready(SPELLS.HammerOfJustice, target, { expected_cooldown = 60 }) or false
     prot_state.hammer_of_wrath_ready = target and NS.spell_ready(SPELLS.HammerOfWrath, target, { expected_cooldown = 6 }) or false
@@ -297,6 +299,15 @@ local function holy_wrath_matches(context, state)
     return true
 end
 
+local function divine_protection_matches(context, state)
+    local threshold = get_setting(context, "prot_divine_protection_hp", 25)
+    if (state.hp_pct or 100) > threshold then return false end
+    if state.has_forbearance then return false end
+    if state.has_divine_shield then return false end
+    if not state.divine_protection_ready then return false end
+    return true
+end
+
 local function divine_shield_matches(context, state)
     local threshold = get_setting(context, "prot_divine_shield_hp", 15)
     if (state.hp_pct or 100) > threshold then return false end
@@ -407,6 +418,7 @@ local strategies = {
     { name = "FlashOfLight", matches = flash_of_light_matches, execute = function(context) return NS.try_cast(SPELLS.FlashOfLight, context.me, "[PROTECTION] FlashOfLight") end },
     { name = "HolyLight", matches = holy_light_matches, execute = function(context) return NS.try_cast(SPELLS.HolyLight, context.me, "[PROTECTION] HolyLight") end },
     { name = "Cleanse", matches = cleanse_matches, execute = function(context) return NS.try_cast(SPELLS.Cleanse, context.me, "[PROTECTION] Cleanse") end },
+    { name = "DivineProtection", matches = divine_protection_matches, execute = function(context) return NS.try_cast(SPELLS.DivineProtection, context.me, "[PROTECTION] DivineProtection", { skip_range = true }) end },
     { name = "DivineShield", matches = divine_shield_matches, execute = function(context) return NS.try_cast(SPELLS.DivineShield, context.me, "[PROTECTION] DivineShield") end },
     { name = "LayOnHands", matches = lay_on_hands_matches, execute = function(context) return NS.try_cast(SPELLS.LayOnHands, context.me, "[PROTECTION] LayOnHands") end },
     { name = "HammerOfJustice", matches = hammer_of_justice_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfJustice, context.target, "[PROTECTION] HammerOfJustice") end },
