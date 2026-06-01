@@ -19,6 +19,17 @@ local STANCE_CAT = 3
 local STANCE_BEAR = 1
 local STANCE_CASTER = 0
 
+-- Form IDs for spell_flag_checker (match FORM_RESTRICTIONS table)
+local FORM_ID_HUMANOID = 0
+local FORM_ID_BEAR = 1
+local FORM_ID_CAT = 2
+
+-- Form buff IDs for form detection (used by can_cast_in_form checks)
+local FORM_BUFF_BEAR = { 9634, 5487 }
+local FORM_BUFF_CAT = { 768 }
+local FORM_BUFF_MOONKIN = { 24858 }
+local FORM_BUFF_TREE = { 33891 }
+
 -- Stances where consumable use is allowed
 local ITEM_ALLOWED_STANCE = {
     [STANCE_CASTER] = true,
@@ -33,6 +44,22 @@ local function can_use_items(stance)
         if _is_spell_learned and _is_spell_learned(33891) then return true end
     end
     return false
+end
+
+-- Check if a spell can be cast in the druid's current form.
+-- Uses spell_flag_checker FORM_RESTRICTIONS for Bear/Cat form restrictions.
+-- Moonkin/Tree/Humanoid always return true (rotation logic handles spell selection).
+local function can_cast_in_current_form(spell_id)
+    if not spell_id then return true end
+    if not NS.can_cast_in_form then return true end  -- Module not loaded
+    if NS.has_player_buff and NS.has_player_buff(FORM_BUFF_BEAR) then
+        return NS.can_cast_in_form(spell_id, FORM_ID_BEAR)
+    end
+    if NS.has_player_buff and NS.has_player_buff(FORM_BUFF_CAT) then
+        return NS.can_cast_in_form(spell_id, FORM_ID_CAT)
+    end
+    -- Moonkin, Tree, Humanoid: rotation logic handles spell selection
+    return true
 end
 
 -- Get form cost for reshift
@@ -346,12 +373,14 @@ local strategies = {
                     end
                 end
             end
-            -- Cast appropriate dispel
+            -- Cast appropriate dispel (form-aware: skip if in Bear/Cat form)
             if target then
                 if use_remove_curse and SPELLS.RemoveCurse then
+                    if not can_cast_in_current_form(SPELLS.RemoveCurse) then return false end
                     local ok = NS.try_cast(SPELLS.RemoveCurse, target, "[DRUID] Remove Curse", { skip_range = true })
                     if ok then return true end
                 elseif use_abolish_poison and SPELLS.AbolishPoison then
+                    if not can_cast_in_current_form(SPELLS.AbolishPoison) then return false end
                     local ok = NS.try_cast(SPELLS.AbolishPoison, target, "[DRUID] Abolish Poison", { skip_range = true })
                     if ok then return true end
                 end
@@ -379,6 +408,8 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_self_buffs == false then return false end
+            -- Form-aware: MotW is caster-only, skip if in Bear/Cat form
+            if not can_cast_in_current_form(26990) then return false end
             local motw_buffs = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }
             if NS.has_player_buff and NS.has_player_buff(motw_buffs) then return false end
             local spell = { id = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, name = "MarkOfTheWild" }
@@ -397,6 +428,8 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_self_buffs == false then return false end
+            -- Form-aware: Thorns is caster-only, skip if in Bear/Cat form
+            if not can_cast_in_current_form(26992) then return false end
             local thorns_buffs = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
             if NS.has_player_buff and NS.has_player_buff(thorns_buffs) then return false end
             local spell = { id = { 26992, 9910, 9756, 8914, 1075, 782, 467 }, name = "Thorns" }
