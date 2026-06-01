@@ -296,7 +296,7 @@ local strategies = {
             if state.mana_emergency then return false end
             if state.swp_active then return false end
             if state.mana_low and not group_is_stable(context) then return false end
-            if context.ttd > 0 and context.ttd < 6 then return false end
+            if context.ttd_known and context.ttd > 0 and context.ttd < 6 then return false end
             return spell_exists(SPELLS.ShadowWordPain) and spell_ready(SPELLS.ShadowWordPain, context.target)
         end,
         execute = function(context)
@@ -370,7 +370,7 @@ local strategies = {
             if not can_take_smite_action(context) then return false end
             if state.mana_emergency then return false end
             if context.settings.smite_use_devouring_plague == false then return false end
-            if context.ttd > 0 and context.ttd < 8 then return false end
+            if context.ttd_known and context.ttd > 0 and context.ttd < 8 then return false end
             if state.dp_remaining > 3 then return false end
             return spell_exists(SPELLS.DevouringPlague) and spell_ready(SPELLS.DevouringPlague, context.target)
         end,

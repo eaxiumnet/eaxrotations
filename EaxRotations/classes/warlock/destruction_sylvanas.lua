@@ -172,7 +172,7 @@ local function incinerate_matches(context, action, state)
     state = state or {}
     if (state.immolate_remains or 0) <= 0 then return false end
     -- TTD gate: prefer Shadow Bolt (harder hit) when target is dying fast
-    if context.ttd and context.ttd < 6 then return false end
+    if context.ttd_known and context.ttd < 6 then return false end
     return NS.spell_ready(action.spell, context.target)
 end
 
