@@ -532,6 +532,11 @@ local strategies = {
       matches = shield_wall_matches,
       execute = function(context) return NS.try_cast(SPELLS.ShieldWall, (context and context.me) or get_player(), "[LEVELING] Shield Wall", { skip_range = true }) end },
 
+    -- Emergency: Health Potion
+    { name = "HealthPotion",
+      matches = function(context, state) return leveling.health_potion_matches(context, state, 30) end,
+      execute = function(context) return leveling.health_potion_execute(context) end },
+
     -- Execute
     { name = "Execute",
       matches = execute_matches,

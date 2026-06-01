@@ -502,7 +502,7 @@ test("execute_matches: ready, target HP low -> true", function()
     state.execute_ready = true
     state.use_execute = true
     state.exec_hp = 20
-    assert_true(strategies[10].matches(ctx, state), "target HP below 20 should match")
+    assert_true(strategies[11].matches(ctx, state), "target HP below 20 should match")
 end)
 
 test("execute_matches: target HP above threshold -> false", function()
@@ -512,7 +512,7 @@ test("execute_matches: target HP above threshold -> false", function()
     state.execute_ready = true
     state.use_execute = true
     state.exec_hp = 20
-    assert_false(strategies[10].matches(ctx, state), "target HP above 20 should not match")
+    assert_false(strategies[11].matches(ctx, state), "target HP above 20 should not match")
 end)
 
 test("execute_matches: disabled -> false", function()
@@ -522,7 +522,7 @@ test("execute_matches: disabled -> false", function()
     state.execute_ready = true
     state.use_execute = false
     state.exec_hp = 20
-    assert_false(strategies[10].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[11].matches(ctx, state), "disabled should not match")
 end)
 
 -- ============================================================================
@@ -724,7 +724,7 @@ end)
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 24 strategies in correct priority order", function()
+test("strategies: 25 strategies in correct priority order", function()
     local expected = {
         "BattleShout",
         "Pummel",
@@ -735,6 +735,7 @@ test("strategies: 24 strategies in correct priority order", function()
         "BerserkerRage",
         "VictoryRush",
         "ShieldWall",
+        "HealthPotion",
         "Execute",
         "PvPCCGate",
         "IntimidatingShout",
@@ -751,7 +752,7 @@ test("strategies: 24 strategies in correct priority order", function()
         "SunderArmor",
         "HeroicStrike",
     }
-    assert_eq(#strategies, 24, "should have 24 strategies")
+    assert_eq(#strategies, 25, "should have 25 strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -851,7 +852,7 @@ test("rotation: execute scenario - should match when target HP low", function()
     state.exec_hp = 20
 
     -- Execute should match
-    assert_true(strategies[10].matches(ctx, state), "Execute should match when target HP < 20")
+    assert_true(strategies[11].matches(ctx, state), "Execute should match when target HP < 20")
 
     -- Rend should also match (DoT expired)
     state.rend_ready = true
