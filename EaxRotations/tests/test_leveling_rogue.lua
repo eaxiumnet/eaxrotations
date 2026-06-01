@@ -768,7 +768,7 @@ test("eviscerate_matches: ready, 5 CP -> true", function()
     local state = get_state(ctx)
     state.eviscerate_ready = true
     state.combo_points = 5
-    assert_true(strategies[20].matches(ctx, state), "5 CP should match")
+    assert_true(strategies[19].matches(ctx, state), "5 CP should match")
 end)
 
 test("eviscerate_matches: 3 CP -> false", function()
@@ -776,7 +776,7 @@ test("eviscerate_matches: 3 CP -> false", function()
     local state = get_state(ctx)
     state.eviscerate_ready = true
     state.combo_points = 3
-    assert_false(strategies[20].matches(ctx, state), "3 CP should not match")
+    assert_false(strategies[19].matches(ctx, state), "3 CP should not match")
 end)
 
 test("eviscerate_matches: no target -> false", function()
@@ -785,7 +785,7 @@ test("eviscerate_matches: no target -> false", function()
     state.eviscerate_ready = true
     state.target = nil
     state.combo_points = 5
-    assert_false(strategies[20].matches(ctx, state), "no target should not match")
+    assert_false(strategies[19].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
