@@ -180,6 +180,7 @@ local SPELLS = {
         power_cost = 45,
         power_type = "energy",
         school = "physical",
+        cc_type = "incapacitate",
     }),
     Hemorrhage = NS.spell_action({
         name = "Hemorrhage",
@@ -260,6 +261,7 @@ local SPELLS = {
         power_cost = 45,
         power_type = "energy",
         school = "physical",
+        cc_type = "sap",
     }),
     Shadowstep = NS.spell_action({
         name = "Shadowstep",

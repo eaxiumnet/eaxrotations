@@ -290,6 +290,7 @@ local SPELLS = {
         power_cost = 0,
         power_type = "mana",
         school = "shadow",
+        cc_type = "fear",
     }),
     VampiricEmbrace = NS.spell_action({
         name = "VampiricEmbrace",

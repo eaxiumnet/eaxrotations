@@ -22,6 +22,7 @@ local ANY_SEAL_BUFF = { 27166, 20357, 20356, 20166, 27155, 20293, 20292, 20291, 
 local BLESSING_MIGHT_BUFF = { 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }
 local BLESSING_WISDOM_BUFF = { 27142, 25290, 19854, 19853, 19852, 19850 }
 local DEVOTION_AURA_BUFF = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
+local RETRIBUTION_AURA_BUFF = { 27150, 10299, 10298, 7294, 10301, 10300, 466 }
 local HOLY_SHIELD_BUFF = { 27179, 20928, 20927, 20925 }
 local SEAL_OF_WISDOM = 20170
 local SEAL_OF_RIGHTEOUSNESS = 20154
@@ -86,6 +87,7 @@ local function build_state(context)
         leveling_state.has_blessing_might = safe_buff_up(context.me, BLESSING_MIGHT_BUFF)
         leveling_state.has_blessing_wisdom = safe_buff_up(context.me, BLESSING_WISDOM_BUFF)
         leveling_state.has_devotion_aura = safe_buff_up(context.me, DEVOTION_AURA_BUFF)
+        leveling_state.has_retribution_aura = safe_buff_up(context.me, RETRIBUTION_AURA_BUFF)
         leveling_state.has_holy_shield = safe_buff_up(context.me, HOLY_SHIELD_BUFF)
         leveling_state.has_any_seal = safe_buff_up(context.me, ANY_SEAL_BUFF)
     end
@@ -94,6 +96,7 @@ local function build_state(context)
     leveling_state.blessing_might_ready = spell_is_ready(SPELLS.BlessingOfMight, nil, { skip_range = true })
     leveling_state.blessing_wisdom_ready = spell_is_ready(SPELLS.BlessingOfWisdom, nil, { skip_range = true })
     leveling_state.devotion_aura_ready = spell_is_ready(SPELLS.DevotionAura, nil, { skip_range = true })
+    leveling_state.retribution_aura_ready = SPELLS.RetributionAura and spell_is_ready(SPELLS.RetributionAura, nil, { skip_range = true }) or false
     leveling_state.seal_righteousness_ready = spell_is_ready(SPELLS.SealRighteousness, nil, { skip_range = true })
     leveling_state.seal_command_ready = spell_is_ready(SPELLS.SealCommand, nil, { skip_range = true })
     leveling_state.seal_blood_ready = spell_is_ready(SPELLS.SealBlood, nil, { skip_range = true })
@@ -167,7 +170,17 @@ local function devotion_aura_matches(context, state)
     if not state then return false end
     if state.in_combat then return false end
     if state.has_devotion_aura then return false end
+    if state.has_retribution_aura then return false end  -- Prefer Retribution Aura for leveling DPS
     return state.devotion_aura_ready
+end
+
+--- Retribution Aura - DPS aura for leveling (reflects melee damage)
+local function retribution_aura_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if state.in_combat then return false end
+    if state.has_retribution_aura then return false end
+    return state.retribution_aura_ready
 end
 
 local function seal_matches(context, state)
@@ -278,6 +291,11 @@ local strategies = {
     { name = "BlessingWisdom",
       matches = blessing_wisdom_matches,
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.BlessingOfWisdom, NS.PLAYER_UNIT, "[LEVELING] Blessing of Wisdom") or false end },
+
+    -- DPS aura for leveling (reflects melee damage from mobs)
+    { name = "RetributionAura",
+      matches = retribution_aura_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.RetributionAura, NS.PLAYER_UNIT, "[LEVELING] Retribution Aura") or false end },
 
     { name = "DevotionAura",
       matches = devotion_aura_matches,

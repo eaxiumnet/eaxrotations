@@ -262,8 +262,7 @@ local function rupture_wrapper(context, s)
     if s.energy_pool_finisher then return false end
     -- Research: only Rupture when target lives > ttd floor (avoid wasted DoT ticks)
     local ttd_floor = (context.settings and context.settings.combat_rupture_ttd) or RUPTURE_TTD_FLOOR
-    local ttd = context.ttd
-    if ttd and ttd < ttd_floor then return false end
+    if context.ttd_known and context.ttd < ttd_floor then return false end
     if not context.target then return false end
     local rupture_remains = NS.debuff_remains(context.target, RUPTURE_DEBUFF) or 0
     if rupture_remains > RUPTURE_REFRESH_WINDOW then return false end

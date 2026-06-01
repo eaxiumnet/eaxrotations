@@ -173,6 +173,7 @@ local SPELLS = {
         power_cost = 0,
         power_type = "mana",
         school = "nature",
+        cc_type = "fear",
     }),
     SerpentSting = NS.spell_action({
         name = "SerpentSting",

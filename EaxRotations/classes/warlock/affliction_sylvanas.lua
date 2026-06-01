@@ -597,8 +597,8 @@ local strategies = {
             if context.ttd_known and context.ttd < 60 then return false end
             -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
             local about_to_curse = false
-            if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 8 then about_to_curse = true end
-            if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 62 then about_to_curse = true end
+            if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 8 then about_to_curse = true end
+            if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 62 then about_to_curse = true end
             -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
             if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
             return about_to_curse

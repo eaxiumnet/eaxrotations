@@ -128,12 +128,12 @@ function build_state(context)
     state.wand_threshold = (context.settings and context.settings.leveling_wand_threshold) or 20
 
     -- Count nearby enemies
-    state.enemies = (context.state and context.state.enemy_count) or 0
-    state.hp = (context.state and context.state.hp_pct) or 100
-    state.is_moving = (context.state and context.state.is_moving) or false
+    state.enemies = context.enemies_count or 0
+    state.hp = context.hp or 100
+    state.is_moving = context.is_moving or false
 
     -- Mana
-    state.mana_pct = (context.state and context.state.mana_pct) or 100
+    state.mana_pct = context.mana_pct or 100
 
     -- Shadowform toggle setting (default: true = auto-enter Shadowform when available)
     state.use_shadowform = (context.settings and context.settings.leveling_use_shadowform) ~= false
@@ -159,20 +159,22 @@ end
 
 local function shield_matches(context, state)
     if not state then return false end
-    if not state.target then return false end
-    return state.shield_ready and not state.has_shield and (state.hp or 100) < state.heal_hp
+    if not state.in_combat then return false end
+    if state.has_shield then return false end
+    return state.shield_ready and (state.hp or 100) < state.heal_hp
 end
 
 local function renew_matches(context, state)
     if not state then return false end
-    if not state.target then return false end
-    return state.renew_ready and not state.has_renew and (state.hp or 100) < state.heal_hp
+    if not state.in_combat then return false end
+    if state.has_renew then return false end
+    return state.renew_ready and (state.hp or 100) < state.heal_hp
 end
 
 local function flash_heal_matches(context, state)
     if not state then return false end
-    if not state.target then return false end
-    -- Flash Heal when HP is low but not critical (Greater Heal is for emergencies)
+    if not state.in_combat then return false end
+    -- Flash Heal when HP is moderate (Greater Heal is for critical HP)
     if (state.hp or 100) >= 50 then return false end
     if (state.hp or 100) < 30 then return false end  -- Use Greater Heal for critical HP
     return state.flash_heal_ready
@@ -180,7 +182,7 @@ end
 
 local function heal_matches(context, state)
     if not state then return false end
-    if not state.target then return false end
+    if not state.in_combat then return false end
     if state.is_moving then return false end
     return state.greater_heal_ready and (state.hp or 100) < state.heal_hp
 end
