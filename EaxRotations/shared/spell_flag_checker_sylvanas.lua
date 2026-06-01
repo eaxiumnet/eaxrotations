@@ -43,6 +43,10 @@ do
         _json_decode = cjson.decode
     else
         -- Minimal JSON parser for wowhead_data spell files
+        -- Forward-declare recursive helpers so parse_value can reference them
+        local parse_object
+        local parse_array
+
         local function skip_ws(s, i)
             while i <= #s and s:sub(i, i):match("[ \t\n\r]") do i = i + 1 end
             return i
@@ -81,7 +85,7 @@ do
             end
         end
 
-        function parse_object(s, i)
+        parse_object = function(s, i)
             i = skip_ws(s, i)
             i = i + 1  -- skip '{'
             local obj = {}
@@ -98,7 +102,7 @@ do
             end
         end
 
-        local function parse_array(s, i)
+        parse_array = function(s, i)
             i = skip_ws(s, i)
             i = i + 1  -- skip '['
             local arr = {}

@@ -30,7 +30,7 @@ local M = {}
 -- Reads periodic damage data from wowhead_data/spells/tbc/{spell_id}.json
 -- to enrich DoT refresh decisions with tick interval and damage per tick.
 
-local _dot_cache = {}  -- [spell_id] = {interval, amount, school} or false (miss)
+local _dot_cache = {}  -- [spell_id] = {interval, amount, school, duration, total_ticks, total_damage} or false (miss)
 
 local _json_decode = nil
 do
@@ -119,10 +119,10 @@ do
 end
 
 --- Get periodic damage (tick) data for a spell from wowhead_data.
--- Returns {interval = number, amount = number, school = string} or nil.
+-- Returns {interval, amount, school, duration, total_ticks, total_damage} or nil.
 -- Cached after first read — safe to call every frame.
 -- @param spell_id  number — spell ID
--- @return table|nil — {interval, amount, school} or nil if no periodic data
+-- @return table|nil — {interval, amount, school, duration, total_ticks, total_damage} or nil if no periodic data
 function M.get_dot_tick_data(spell_id)
     if not spell_id then return nil end
     local cached = _dot_cache[spell_id]
@@ -144,10 +144,17 @@ function M.get_dot_tick_data(spell_id)
             if data and #data > 0 then
                 local ok, parsed = pcall(_json_decode, data)
                 if ok and type(parsed) == "table" and type(parsed.periodic) == "table" then
+                    local interval = parsed.periodic.interval or 0
+                    local amount = parsed.periodic.amount or 0
+                    local duration = parsed.duration or parsed.buff_duration or 0
+                    local total_ticks = (interval > 0 and duration > 0) and math.floor(duration / interval) or 0
                     local result = {
-                        interval = parsed.periodic.interval or 0,
-                        amount = parsed.periodic.amount or 0,
+                        interval = interval,
+                        amount = amount,
                         school = parsed.periodic.school or "",
+                        duration = duration,
+                        total_ticks = total_ticks,
+                        total_damage = amount * total_ticks,
                     }
                     _dot_cache[spell_id] = result
                     return result
@@ -160,15 +167,15 @@ function M.get_dot_tick_data(spell_id)
     return nil
 end
 
---- Get the total periodic damage for a spell (amount * ticks).
+--- Get the total periodic damage for a spell (amount * total_ticks).
 -- @param spell_id  number — spell ID
--- @return number|nil — total periodic damage or nil
+-- @return number|nil — total periodic damage over full duration, or nil if no data
 function M.get_dot_total_damage(spell_id)
     local tick = M.get_dot_tick_data(spell_id)
     if not tick or tick.interval <= 0 then return nil end
-    -- Calculate ticks from duration (approximate: duration / interval)
-    -- For exact duration, caller should use buff_duration from context
-    return tick.amount  -- per-tick amount; caller multiplies by tick count
+    if tick.total_damage and tick.total_damage > 0 then return tick.total_damage end
+    -- Fallback: per-tick amount (caller must multiply by tick count)
+    return tick.amount
 end
 
 --- Get the DPS (damage per second) for a DoT spell from wowhead tick data.
@@ -223,6 +230,26 @@ function M.is_dot_active(dot_remaining, threshold)
     return (dot_remaining or 0) > (threshold or 0)
 end
 
+--- Tick-based refresh check: should we refresh based on remaining ticks?
+-- Uses wowhead tick data to determine if the DoT has few enough ticks remaining
+-- that refreshing now would be efficient (avoids wasting ticks via Pandemic-style clipping).
+--
+-- Typical threshold: 2 remaining ticks (last 6s of an 18s/3s-interval DoT).
+-- This complements the APL formula — use for instant DoTs where cast time is 0.
+--
+-- @param spell_id        number — spell ID (for tick data lookup)
+-- @param dot_remaining   number — DoT remaining duration in seconds
+-- @param threshold_ticks number — refresh when remaining ticks <= this (default: 2)
+-- @return boolean|nil — true if refresh recommended, nil if no tick data available
+function M.should_refresh_dot_by_ticks(spell_id, dot_remaining, threshold_ticks)
+    if not spell_id or not dot_remaining then return nil end
+    local tick = M.get_dot_tick_data(spell_id)
+    if not tick or tick.interval <= 0 then return nil end
+    threshold_ticks = threshold_ticks or 2
+    local remaining_ticks = math.floor(dot_remaining / tick.interval)
+    return remaining_ticks <= threshold_ticks
+end
+
 -- Export to NS namespace (Sylvanas production path)
 local _G = _G
 _G.DotRefresh = M
@@ -232,6 +259,7 @@ if _G.EaxRotations then
     _G.EaxRotations.get_dot_tick_data = M.get_dot_tick_data
     _G.EaxRotations.get_dot_total_damage = M.get_dot_total_damage
     _G.EaxRotations.get_dot_dps = M.get_dot_dps
+    _G.EaxRotations.should_refresh_dot_by_ticks = M.should_refresh_dot_by_ticks
 end
 
 return M
