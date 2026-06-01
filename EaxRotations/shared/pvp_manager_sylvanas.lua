@@ -138,4 +138,48 @@ function M.get_arena_teams()
     return frames
 end
 
+-- Battleground detection
+local _bg_cache = { map_id = 0, bg_type = nil }
+function M.get_battleground_type()
+    local map_id = core.get_map_id and core.get_map_id() or 0
+    if map_id == _bg_cache.map_id and _bg_cache.bg_type then return _bg_cache.bg_type end
+    _bg_cache.map_id = map_id
+
+    -- Warsong Gulch
+    if map_id == 489 then _bg_cache.bg_type = "wsg"; return "wsg" end
+    -- Arathi Basin
+    if map_id == 529 then _bg_cache.bg_type = "ab"; return "ab" end
+    -- Alterac Valley
+    if map_id == 30 then _bg_cache.bg_type = "av"; return "av" end
+    -- Eye of the Storm
+    if map_id == 566 then _bg_cache.bg_type = "eots"; return "eots" end
+    -- Strand of the Ancients
+    if map_id == 607 then _bg_cache.bg_type = "sota"; return "sota" end
+
+    _bg_cache.bg_type = nil
+    return nil
+end
+
+-- Flag carrier detection (WSG/EotS)
+function M.is_flag_carrier(context)
+    if not context then return false end
+    local me = context.me
+    if not me then return false end
+    -- Check for flag buff (WSG flag = 23333/23335, EotS flag = 34976)
+    local ok1, has_flag1 = pcall(function() return me:has_buff(23333) or me:has_buff(23335) or me:has_buff(34976) end)
+    return ok1 and has_flag1 == true
+end
+
+-- Node defense check (AB/EotS)
+function M.should_defend_node(context)
+    if not context then return false end
+    local bg = M.get_battleground_type()
+    if bg ~= "ab" and bg ~= "eots" then return false end
+    -- In AB/EotS, defend if we're near a flag and enemies are close
+    local me = context.me
+    if not me then return false end
+    local enemy_count = context.enemy_count or 0
+    return enemy_count > 0 and enemy_count <= 3
+end
+
 return M

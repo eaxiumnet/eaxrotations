@@ -280,6 +280,55 @@ function M.on_cc_applied(target, spell_id)
     M.record_dr_application(target, spell_id)
 end
 
+-- Get optimal CC chain for a unit given available CC spells
+-- Returns: {spell_id, category, multiplier} or nil if all immune
+-- available_spells: array of {spell_id, category} pairs
+function M.get_optimal_cc_chain(unit, available_spells)
+    if not unit or not available_spells or #available_spells == 0 then return nil end
+
+    local best = nil
+    local best_score = -1
+
+    for i = 1, #available_spells do
+        local entry = available_spells[i]
+        local spell_id = entry[1] or entry.spell_id
+        local category = entry[2] or entry.category or SPELL_TO_CATEGORY[spell_id]
+
+        if category then
+            local multiplier = M.get_dr_multiplier(unit, category)
+            -- Prefer: full DR (1.0) > half DR (0.5) > quarter DR (0.25) > immune (0.0)
+            local score = multiplier * 100
+            -- Bonus for spells that match the target's DR category
+            if multiplier > 0 then
+                if score > best_score then
+                    best_score = score
+                    best = { spell_id = spell_id, category = category, multiplier = multiplier }
+                end
+            end
+        end
+    end
+
+    return best
+end
+
+-- Check if a CC break (trinket) was recently used
+-- Returns: true if trinket was used in the last N seconds
+local _trinket_tracker = {}
+function M.record_trinket_use(unit)
+    local guid = get_unit_guid(unit)
+    if not guid then return end
+    _trinket_tracker[guid] = now()
+end
+
+function M.was_trinket_used_recently(unit, seconds)
+    seconds = seconds or 30
+    local guid = get_unit_guid(unit)
+    if not guid then return false end
+    local t = _trinket_tracker[guid]
+    if not t then return false end
+    return (now() - t) < seconds
+end
+
 if NS then
     NS.DRTracker = M
     M.init()

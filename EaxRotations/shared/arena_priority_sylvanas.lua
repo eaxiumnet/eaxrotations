@@ -257,16 +257,42 @@ end
 -- Returns true if there's a significantly better kill target than current
 function M.should_switch_target(context, threshold)
     threshold = threshold or 30  -- Default 30 point difference
-    
+
     local priorities = M.get_priority_targets(context)
     if not priorities.kill_target then return false end
     if not context or not context.target then return true end
-    
+
     local current_score = M.score_kill_target(context.target, context)
     local best_score = M.score_kill_target(priorities.kill_target, context)
-    
+
     -- Only switch if significantly better
     return (best_score - current_score) > threshold
+end
+
+-- Kill window detection: returns true if target is in kill range
+-- (HP < 30% and we have burst available)
+function M.is_kill_window(unit, context)
+    if not unit then return false end
+    local hp = get_unit_hp_pct(unit)
+    if hp > 30 then return false end
+
+    -- Check if we have offensive burst available
+    if NS and NS.BurstLogic and NS.BurstLogic.should_auto_burst then
+        local ok, should_burst = pcall(NS.BurstLogic.should_auto_burst, context, {})
+        if ok and should_burst then return true end
+    end
+
+    -- Fallback: just check HP
+    return hp <= 20
+end
+
+-- DR-immunity check: returns true if unit is immune to further CC in a category
+function M.is_cc_immune(unit, category)
+    if not unit then return false end
+    if NS and NS.DRTracker and NS.DRTracker.is_dr_immune then
+        return NS.DRTracker.is_dr_immune(unit, category)
+    end
+    return false
 end
 
 -- Export categories for other modules
