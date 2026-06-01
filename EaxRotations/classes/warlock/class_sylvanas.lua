@@ -236,6 +236,10 @@ local SPELLS = {
         power_type = "mana",
         school = "shadow",
     }),
+    SummonImp = NS.spell_action({ 688 }, "SummonImp"),
+    SummonVoidwalker = NS.spell_action({ 697 }, "SummonVoidwalker"),
+    SummonSuccubus = NS.spell_action({ 712 }, "SummonSuccubus"),
+    SummonFelhunter = NS.spell_action({ 691 }, "SummonFelhunter"),
     SummonFelguard = NS.spell_action({
         name = "SummonFelguard",
         ids = {30146},

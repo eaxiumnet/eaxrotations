@@ -189,4 +189,39 @@ function leveling.create_aoe_matches(min_enemies)
     end
 end
 
+-- ============================================================================
+-- Health Potion helpers
+-- ============================================================================
+
+--- Health Potion IDs (TBC, best to worst by level)
+leveling.HEALTH_POTION_IDS = { 22829, 13446, 3928, 1710, 929, 858, 118 }
+
+--- Match function for health potion usage.
+-- Fires when in combat, HP below threshold, and a potion is available.
+function leveling.health_potion_matches(context, state, threshold)
+    if not context or not state then return false end
+    if not state.in_combat then return false end
+    local hp = state.hp or 100
+    if hp > (threshold or 30) then return false end
+    -- Check if any health potion is available
+    if NS.is_item_ready then
+        for _, id in ipairs(leveling.HEALTH_POTION_IDS) do
+            local ok, ready = pcall(NS.is_item_ready, id)
+            if ok and ready then return true end
+        end
+    end
+    return false
+end
+
+--- Execute function for health potion usage.
+-- Uses the best available health potion.
+function leveling.health_potion_execute(context)
+    if not NS.use_item_by_id then return false end
+    for _, id in ipairs(leveling.HEALTH_POTION_IDS) do
+        local ok, result = pcall(NS.use_item_by_id, id)
+        if ok and result then return true end
+    end
+    return false
+end
+
 return leveling

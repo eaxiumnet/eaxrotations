@@ -110,6 +110,13 @@ local function build_state(context)
     leveling_state.siphon_life_ready = safe_is_spell_ready(SPELLS.SiphonLife, context.target)
     leveling_state.drain_life_ready = safe_is_spell_ready(SPELLS.DrainLife, context.target)
 
+    -- Summon spell readiness (highest rank first for resummon during combat)
+    leveling_state.summon_felguard_ready = SPELLS.SummonFelguard and safe_is_spell_ready(SPELLS.SummonFelguard, nil, { skip_range = true }) or false
+    leveling_state.summon_felhunter_ready = SPELLS.SummonFelhunter and safe_is_spell_ready(SPELLS.SummonFelhunter, nil, { skip_range = true }) or false
+    leveling_state.summon_succubus_ready = SPELLS.SummonSuccubus and safe_is_spell_ready(SPELLS.SummonSuccubus, nil, { skip_range = true }) or false
+    leveling_state.summon_voidwalker_ready = SPELLS.SummonVoidwalker and safe_is_spell_ready(SPELLS.SummonVoidwalker, nil, { skip_range = true }) or false
+    leveling_state.summon_imp_ready = SPELLS.SummonImp and safe_is_spell_ready(SPELLS.SummonImp, nil, { skip_range = true }) or false
+
     -- Wand readiness
     leveling_state.wand_learned = NS.spell_exists and NS.spell_exists(WAND_SPELL_ID) or false
 
@@ -161,6 +168,21 @@ local function health_funnel_matches(context, state)
     if (state.pet_hp or 100) > 50 then return false end
     if (state.hp or 100) < 40 then return false end  -- Don't kill self healing pet
     return state.health_funnel_ready
+end
+
+local function summon_pet_matches(context, state)
+    if not leveling_context_allowed(context) then return false end
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.target then return false end  -- Must have an enemy to fight
+    if context.pet then return false end  -- Pet is alive, no need to summon
+    -- Try highest-level summon first
+    if state.summon_felguard_ready then return true end
+    if state.summon_felhunter_ready then return true end
+    if state.summon_succubus_ready then return true end
+    if state.summon_voidwalker_ready then return true end
+    if state.summon_imp_ready then return true end
+    return false
 end
 
 local function fear_matches(context, state)
@@ -351,6 +373,28 @@ local strategies = {
     { name = "HealthFunnel",
       matches = health_funnel_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.HealthFunnel, context.pet, "[LEVELING] Health Funnel") or false end },
+
+    -- Pet resummon: try highest-level summon available (combat only, requires enemy target)
+    { name = "SummonPet", matches = summon_pet_matches,
+      execute = function(context)
+        if not context then return false end
+        if SPELLS.SummonFelguard and safe_is_spell_ready(SPELLS.SummonFelguard, nil, { skip_range = true }) then
+            return NS.try_cast and NS.try_cast(SPELLS.SummonFelguard, NS.PLAYER_UNIT, "[LEVELING] Summon Felguard", { skip_range = true }) or false
+        end
+        if SPELLS.SummonFelhunter and safe_is_spell_ready(SPELLS.SummonFelhunter, nil, { skip_range = true }) then
+            return NS.try_cast and NS.try_cast(SPELLS.SummonFelhunter, NS.PLAYER_UNIT, "[LEVELING] Summon Felhunter", { skip_range = true }) or false
+        end
+        if SPELLS.SummonSuccubus and safe_is_spell_ready(SPELLS.SummonSuccubus, nil, { skip_range = true }) then
+            return NS.try_cast and NS.try_cast(SPELLS.SummonSuccubus, NS.PLAYER_UNIT, "[LEVELING] Summon Succubus", { skip_range = true }) or false
+        end
+        if SPELLS.SummonVoidwalker and safe_is_spell_ready(SPELLS.SummonVoidwalker, nil, { skip_range = true }) then
+            return NS.try_cast and NS.try_cast(SPELLS.SummonVoidwalker, NS.PLAYER_UNIT, "[LEVELING] Summon Voidwalker", { skip_range = true }) or false
+        end
+        if SPELLS.SummonImp and safe_is_spell_ready(SPELLS.SummonImp, nil, { skip_range = true }) then
+            return NS.try_cast and NS.try_cast(SPELLS.SummonImp, NS.PLAYER_UNIT, "[LEVELING] Summon Imp", { skip_range = true }) or false
+        end
+        return false
+      end },
 
     -- CC / survival
     { name = "Fear",
