@@ -343,19 +343,6 @@ local strategies = {
         end,
     },
 
-    {
-        name = "DrainLife",
-        matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            if (state.hp_pct or 100) > 55 then return false end
-            if context.is_channeling then return false end
-            return NS.spell_ready(LOCAL_SPELLS.DrainLife, context.target)
-        end,
-        execute = function(context)
-            return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[AFFL] Drain Life sustain")
-        end,
-    },
-
     -- ------------------------------------------------------------------------
     -- 5. Corruption (instant DoT — apply before UA for efficiency)
     -- ------------------------------------------------------------------------
@@ -558,6 +545,22 @@ local strategies = {
             local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
             if not target then return false end
             return NS.try_cast(SPELLS.CurseOfAgony, target, "[AFFL] Curse of Agony Spread")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- Drain Life (sustain — fires after all DoTs are applied)
+    -- ------------------------------------------------------------------------
+    {
+        name = "DrainLife",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if (state.hp_pct or 100) > 55 then return false end
+            if context.is_channeling then return false end
+            return NS.spell_ready(LOCAL_SPELLS.DrainLife, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[AFFL] Drain Life sustain")
         end,
     },
 

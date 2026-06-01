@@ -643,7 +643,13 @@ local strategies = {
         matches = freezing_trap_matches,
         execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[BEAST_MASTERY] FreezingTrap", { skip_range = true, expected_cooldown = 30 }) end,
     },
-    -- 10. Bestial Wrath
+    -- 10. Kill Command (off-GCD, highest DPS ability for BM — IcyVeins #1 priority)
+    {
+        name = "KillCommand",
+        matches = kill_command_matches,
+        execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[BEAST_MASTERY] KillCommand") end,
+    },
+    -- 11. Bestial Wrath
     {
         name = "BestialWrath",
         matches = bestial_wrath_matches,
@@ -653,17 +659,11 @@ local strategies = {
             return NS.try_cast(SPELLS.BestialWrath, target, "[BEAST_MASTERY] BestialWrath", { skip_range = true })
         end,
     },
-    -- 11. Rapid Fire
+    -- 12. Rapid Fire
     {
         name = "RapidFire",
         matches = rapid_fire_matches,
         execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[BEAST_MASTERY] RapidFire", { skip_range = true }) end,
-    },
-    -- 12. Kill Command (off-GCD, highest DPS — moved before Readiness for execute priority)
-    {
-        name = "KillCommand",
-        matches = kill_command_matches,
-        execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[BEAST_MASTERY] KillCommand") end,
     },
     -- 13. Readiness (reset CDs)
     {
@@ -687,13 +687,13 @@ local strategies = {
             return result
         end,
     },
-    -- 17. Serpent Sting refresh
+    -- 16. Serpent Sting (maintain DoT — IcyVeins #2 priority)
     {
-        name = "SerpentStingRefresh",
-        matches = serpent_refresh_matches,
+        name = "SerpentSting",
+        matches = sting_matches,
         execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
     },
-    -- 18. Arcane Shot (instant filler)
+    -- 17. Arcane Shot (instant filler — IcyVeins #3 priority)
     {
         name = "ArcaneShot",
         matches = arcane_shot_matches,
@@ -703,7 +703,7 @@ local strategies = {
             return result
         end,
     },
-    -- 19. Steady Shot (primary filler, 62+)
+    -- 18. Steady Shot (primary filler — IcyVeins #4 priority)
     {
         name = "SteadyShot",
         matches = steady_shot_matches,
@@ -712,11 +712,6 @@ local strategies = {
             if result then hunter_core.record_steady_start() end
             return result
         end,
-    },
-    {
-        name = "SerpentSting",
-        matches = sting_matches,
-        execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
     },
     -- 20. Trinkets (on-use, during combat, respects cooldown toggle)
     {
