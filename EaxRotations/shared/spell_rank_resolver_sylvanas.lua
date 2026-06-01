@@ -1,172 +1,279 @@
 -- ============================================================================
 -- Shared Helper: Spell Rank Resolver
 -- ============================================================================
--- What:   Auto-resolves spell ranks from wowhead_data spell index.
--- When:   At module load time (cached). Used by spec files for rank selection.
+-- What:   Auto-resolves spell rank chains from wowhead_data/spell_list_tbc.json.
+-- When:   Module load (cached). Used by spec files for rank-by-level lookups.
 -- Why:    Replace hardcoded spell rank arrays with data-driven resolution.
 -- Safety: Read-only. Falls back gracefully if wowhead_data is unavailable.
---         Only reads file at load time, never in on_update.
+--         All results cached at load time — no JSON parsing in hot paths.
+--         Uses io.open (allowed) — NOT io.popen (banned).
 
 local _G = _G
 local NS = _G.EaxRotations
-if not NS then return nil end
+if not NS then return end
 
 local M = {}
-NS.SpellRankResolver = M
 
--- Cache: spell_name -> { {id=133, level=1}, {id=143, level=6}, ... }
--- Sorted by level descending (higher level = higher rank for rankless spells)
-local _rank_cache = {}
+-- ============================================================================
+-- JSON decode (cjson-first, minimal fallback)
+-- ============================================================================
+local _json_decode = nil
+do
+    local ok, cjson = pcall(require, "cjson")
+    if ok and type(cjson) == "table" then
+        _json_decode = cjson.decode
+    else
+        -- Minimal recursive JSON parser (same pattern as spell_corpus_sylvanas.lua)
+        local function skip_ws(s, i)
+            while i <= #s and s:sub(i, i):match("[ \t\n\r]") do i = i + 1 end
+            return i
+        end
+
+        local function parse_number(s, i)
+            i = skip_ws(s, i)
+            local start = i
+            if s:sub(i, i) == "-" then i = i + 1 end
+            while i <= #s and s:sub(i, i):match("[0-9.]") do i = i + 1 end
+            return tonumber(s:sub(start, i - 1)), i
+        end
+
+        local function parse_string(s, i)
+            i = skip_ws(s, i)
+            if s:sub(i, i) ~= '"' then return nil, i end
+            i = i + 1
+            local start = i
+            while i <= #s and s:sub(i, i) ~= '"' do
+                if s:sub(i, i) == "\\" then i = i + 1 end
+                i = i + 1
+            end
+            return s:sub(start, i - 1), i + 1
+        end
+
+        local parse_value
+
+        local function parse_object(s, i)
+            i = skip_ws(s, i)
+            i = i + 1  -- skip '{'
+            local obj = {}
+            while true do
+                i = skip_ws(s, i)
+                if s:sub(i, i) == "}" then return obj, i + 1 end
+                local key
+                key, i = parse_string(s, i)
+                i = skip_ws(s, i)
+                i = i + 1  -- skip ':'
+                obj[key], i = parse_value(s, i)
+                i = skip_ws(s, i)
+                if s:sub(i, i) == "," then i = i + 1 end
+            end
+        end
+
+        local function parse_array(s, i)
+            i = skip_ws(s, i)
+            i = i + 1  -- skip '['
+            local arr = {}
+            local n = 0
+            while true do
+                i = skip_ws(s, i)
+                if s:sub(i, i) == "]" then return arr, i + 1 end
+                n = n + 1
+                arr[n], i = parse_value(s, i)
+                i = skip_ws(s, i)
+                if s:sub(i, i) == "," then i = i + 1 end
+            end
+        end
+
+        parse_value = function(s, i)
+            i = skip_ws(s, i)
+            local c = s:sub(i, i)
+            if c == '"' then return parse_string(s, i)
+            elseif c == "{" then return parse_object(s, i)
+            elseif c == "[" then return parse_array(s, i)
+            elseif c == "t" then return true, i + 4
+            elseif c == "f" then return false, i + 5
+            elseif c == "n" then return nil, i + 4
+            else return parse_number(s, i)
+            end
+        end
+
+        _json_decode = function(str)
+            if not str or #str == 0 then return nil end
+            local ok2, result = pcall(parse_value, str, 1)
+            if ok2 then return result end
+            return nil
+        end
+    end
+end
+
+-- ============================================================================
+-- File reader
+-- ============================================================================
+local function read_file(path)
+    local f = io.open(path, "rb")
+    if not f then return nil end
+    local data = f:read("*a")
+    f:close()
+    return data
+end
+
+-- ============================================================================
+-- Rank tables: keyed by "name:class" -> sorted array of {id, level, rank}
+-- ============================================================================
+local _rank_tables = {}  -- ["Fireball:Mage"] = {{id=133,level=1,rank=nil}, ...}
 local _loaded = false
 
--- Load and index spell ranks from wowhead_data.
--- Called once at module load; results cached for runtime.
-local function load_spell_data()
+local function load_rank_data()
     if _loaded then return end
     _loaded = true
 
-    -- Try to load the spell list index
-    local ok, content = pcall(function()
-        local f = io.open("wowhead_data/spell_list_tbc.json", "r")
-        if not f then return nil end
-        local data = f:read("*a")
-        f:close()
-        return data
-    end)
+    local content = read_file("wowhead_data/spell_list_tbc.json")
+    if not content then return end
 
-    if not ok or not content or content == "" then return end
+    local parsed = _json_decode(content)
+    if type(parsed) ~= "table" then return end
 
-    -- Parse JSON manually (lightweight — the format is predictable)
-    -- Each entry: {"id":133,"name":"Fireball","rank":null,...,"required_level":1,...}
-    for entry in content:gmatch('{[^}]+}') do
-        local id = entry:match('"id"%s*:%s*(%d+)')
-        local name = entry:match('"name"%s*:%s*"([^"]+)"')
-        local class_name = entry:match('"required_class"%s*:%s*"([^"]*)"')
-        local rank_str = entry:match('"rank"%s*:%s*(%d+)')
-        local level_str = entry:match('"required_level"%s*:%s*(%d+)')
-
-        if id and name then
-            id = tonumber(id)
-            local rank = rank_str and tonumber(rank_str) or nil
-            local level = level_str and tonumber(level_str) or 0
-
-            if not _rank_cache[name] then
-                _rank_cache[name] = {}
+    -- Group by name:class to avoid cross-class name collisions
+    local groups = {}
+    for _, entry in ipairs(parsed) do
+        if type(entry) == "table" and entry.id and entry.name and entry.required_class then
+            local key = entry.name .. ":" .. entry.required_class
+            local g = groups[key]
+            if not g then
+                g = {}
+                groups[key] = g
             end
-
-            local entry_count = #_rank_cache[name] + 1
-            _rank_cache[name][entry_count] = {
-                id = id,
-                class = class_name,
-                rank = rank,
-                level = level,
+            local n = #g + 1
+            g[n] = {
+                id = entry.id,
+                level = entry.required_level or 0,
+                rank = entry.rank,
             }
         end
     end
 
-    -- Sort each spell's ranks:
-    -- - If spells have explicit ranks, sort by rank descending
-    -- - Otherwise sort by required_level descending (higher level = higher rank)
-    for _, ranks in pairs(_rank_cache) do
-        table.sort(ranks, function(a, b)
-            -- Prefer explicit rank if both have it
-            if a.rank and b.rank then return a.rank > b.rank end
-            -- Fall back to level
-            return a.level > b.level
+    -- Sort each group: primary by level ascending, secondary by rank ascending
+    -- Ascending order enables early-break in level-based lookups
+    for _, g in pairs(groups) do
+        table.sort(g, function(a, b)
+            if a.level ~= b.level then return a.level < b.level end
+            local ar = a.rank or 9999
+            local br = b.rank or 9999
+            return ar < br
         end)
     end
+
+    _rank_tables = groups
 end
 
--- Public API ----------------------------------------------------------------
+-- ============================================================================
+-- Internal: find the rank group for a spell name + optional class
+-- ============================================================================
+local function find_group(spell_name, class_name)
+    if not spell_name then return nil end
+    load_rank_data()
 
---- Get all rank entries for a spell name, sorted highest-first.
----@param spell_name string Spell name (e.g., "Fireball")
----@return table ranks Array of {id, class, rank, level} sorted by rank (highest first)
-function M.get_spell_ranks(spell_name)
-    load_spell_data()
-    return _rank_cache[spell_name] or {}
-end
-
---- Get the highest rank ID for a spell name.
----@param spell_name string Spell name
----@return number|nil spell_id Highest rank spell ID, or nil if not found
-function M.get_highest_rank(spell_name)
-    local ranks = M.get_spell_ranks(spell_name)
-    if #ranks > 0 then return ranks[1].id end
-    return nil
-end
-
---- Get a specific rank by index (1 = highest).
----@param spell_name string Spell name
----@param rank number Rank index (1 = highest)
----@return number|nil spell_id
-function M.get_rank(spell_name, rank)
-    local ranks = M.get_spell_ranks(spell_name)
-    return ranks[rank] and ranks[rank].id or nil
-end
-
---- Get all rank IDs as a flat array, highest-first.
----@param spell_name string Spell name
----@return number[] ids Array of spell IDs, highest rank first
-function M.get_rank_ids(spell_name)
-    local ranks = M.get_spell_ranks(spell_name)
-    local ids = {}
-    for i = 1, #ranks do
-        ids[i] = ranks[i].id
+    if class_name then
+        return _rank_tables[spell_name .. ":" .. class_name]
     end
-    return ids
-end
 
---- Check if a spell name exists in the database.
----@param spell_name string Spell name
----@return boolean exists
-function M.has_spell(spell_name)
-    load_spell_data()
-    return _rank_cache[spell_name] ~= nil
-end
-
---- Get rank entry for a specific spell ID (reverse lookup).
----@param spell_id number Spell ID
----@return table|nil entry {name, rank, level, class} or nil if not found
-function M.get_spell_info(spell_id)
-    load_spell_data()
-    for name, ranks in pairs(_rank_cache) do
-        for _, entry in ipairs(ranks) do
-            if entry.id == spell_id then
-                return {
-                    name = name,
-                    rank = entry.rank,
-                    level = entry.level,
-                    class = entry.class,
-                }
-            end
-        end
+    -- No class specified: try to find any matching group
+    -- Exact key scan (bounded by number of unique spells, ~839)
+    for key, g in pairs(_rank_tables) do
+        local kname = key:match("^(.-):")
+        if kname == spell_name then return g end
     end
     return nil
 end
 
---- Get all spells for a specific class.
----@param class_name string Class name (e.g., "Mage", "Priest")
----@return table spells Map of spell_name -> ranks_array
-function M.get_class_spells(class_name)
-    load_spell_data()
+-- ============================================================================
+-- Public API
+-- ============================================================================
+
+--- Get all spell IDs for a spell name, sorted by level ascending.
+--- @param spell_name string Spell name (e.g., "Fireball")
+--- @param class_name string|nil Optional class name (e.g., "Mage").
+---        If nil, returns ranks from the first matching class.
+--- @return number[] ids Sorted array of spell IDs (ascending level), empty if not found
+function M.get_spell_ranks(spell_name, class_name)
+    local g = find_group(spell_name, class_name)
+    if not g then return {} end
     local result = {}
-    for name, ranks in pairs(_rank_cache) do
-        for _, entry in ipairs(ranks) do
-            if entry.class == class_name then
-                result[name] = ranks
-                break
-            end
+    for i = 1, #g do result[i] = g[i].id end
+    return result
+end
+
+--- Get the highest rank spell ID available at or below a player level.
+--- @param spell_name string Spell name (e.g., "Fireball")
+--- @param player_level number Player level
+--- @param class_name string|nil Optional class filter
+--- @return number|nil spell_id nil if no rank available at that level
+function M.get_highest_rank(spell_name, player_level, class_name)
+    if not spell_name or not player_level then return nil end
+    local g = find_group(spell_name, class_name)
+    if not g then return nil end
+
+    -- Array sorted ascending by level — walk forward, track last qualifying
+    local best = nil
+    for i = 1, #g do
+        if g[i].level <= player_level then
+            best = g[i].id
+        else
+            break  -- sorted ascending, no more qualifying entries
         end
     end
+    return best
+end
+
+--- Get the spell ID for a rank at a specific level.
+--- Returns the spell whose required_level is closest to (not exceeding) the
+--- given level.
+--- @param spell_name string Spell name
+--- @param level number Target level
+--- @param class_name string|nil Optional class filter
+--- @return number|nil spell_id nil if no rank found
+function M.get_rank_by_level(spell_name, level, class_name)
+    return M.get_highest_rank(spell_name, level, class_name)
+end
+
+--- Check if a spell name exists in the rank database.
+--- @param spell_name string Spell name
+--- @param class_name string|nil Optional class filter
+--- @return boolean exists
+function M.has_spell(spell_name, class_name)
+    return find_group(spell_name, class_name) ~= nil
+end
+
+--- Get all spell names for a class.
+--- @param class_name string Class name (e.g., "Mage")
+--- @return string[] names Array of spell names
+function M.get_class_spell_names(class_name)
+    if not class_name then return {} end
+    load_rank_data()
+    local seen = {}
+    local result = {}
+    local n = 0
+    for key, _ in pairs(_rank_tables) do
+        local kname, kclass = key:match("^(.-):(.-)$")
+        if kclass == class_name and kname and not seen[kname] then
+            seen[kname] = true
+            n = n + 1
+            result[n] = kname
+        end
+    end
+    table.sort(result)
     return result
 end
 
 --- Force reload (for testing).
 function M._reload()
     _loaded = false
-    _rank_cache = {}
-    load_spell_data()
+    _rank_tables = {}
+    load_rank_data()
 end
+
+-- ============================================================================
+-- Attach to NS
+-- ============================================================================
+NS.SpellRankResolver = M
 
 return M

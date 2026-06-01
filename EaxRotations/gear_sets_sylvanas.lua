@@ -402,6 +402,36 @@ function M.get_set_bonus_effects(key_or_id, pieces)
     return result
 end
 
+--- Cross-reference gear set definitions with wowhead_data item set info.
+-- Validates that locally tracked set items match wowhead_data records.
+-- Alias for validate_set_tracking() with plan-consistent naming.
+-- @return table report: { sets_checked, sets_with_wowhead, mismatches = {...} }
+function M.validate_set_data()
+    return M.validate_set_tracking()
+end
+
+--- Get set bonus spell IDs for a set.
+-- Returns a flat array of spell IDs from the curated local set bonus data.
+-- Wowhead item JSONs contain equip effects, not set bonuses, so curated
+-- local data is the authoritative source for bonus spell IDs.
+-- @param key_or_id number set_id or string set key
+-- @return table array of spell_id numbers (empty table if set not found)
+function M.get_set_bonus_spells(key_or_id)
+    local set = M.get(key_or_id)
+    if not set or type(set.bonuses) ~= "table" then return {} end
+
+    local spells = {}
+    local n = 0
+    for i = 1, #set.bonuses do
+        local bonus = set.bonuses[i]
+        if bonus and bonus.spell then
+            n = n + 1
+            spells[n] = bonus.spell
+        end
+    end
+    return spells
+end
+
 NS.TBCGearSets = M
 NS.GEAR_SETS = SETS_BY_ID
 NS.get_gear_set = M.get
@@ -411,7 +441,9 @@ NS.get_tbc_set_bonus_spell_ids = M.get_bonus_spell_ids
 NS.get_active_tbc_set_bonuses = M.get_active_bonuses
 NS.get_wowhead_set_items = M.get_set_items
 NS.validate_gear_set_tracking = M.validate_set_tracking
+NS.validate_set_data = M.validate_set_data
 NS.get_set_bonus_effects = M.get_set_bonus_effects
+NS.get_set_bonus_spells = M.get_set_bonus_spells
 
 if NS.log then NS.log("TBC gear set registry loaded") end
 
