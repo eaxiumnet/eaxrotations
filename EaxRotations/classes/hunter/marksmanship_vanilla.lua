@@ -271,6 +271,11 @@ local function leveling_sting_matches(context, s)
     return true
 end
 
+local function silencing_shot_matches(context, s)
+    -- Silencing Shot does not exist in Classic — always skip
+    return false
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
