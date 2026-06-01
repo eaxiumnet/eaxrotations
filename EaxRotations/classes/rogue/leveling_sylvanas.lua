@@ -413,6 +413,11 @@ local strategies = {
       matches = evasion_matches,
       execute = function(context) return try_cast(SPELLS.Evasion, nil, "[LEVELING] Evasion", { skip_range = true }) end },
 
+    -- Emergency: Health Potion
+    { name = "HealthPotion",
+      matches = function(context, state) return leveling.health_potion_matches(context, state, 30) end,
+      execute = function(context) return leveling.health_potion_execute(context) end },
+
     -- Escape: Sprint when low HP
     { name = "Sprint",
       matches = sprint_escape_matches,
