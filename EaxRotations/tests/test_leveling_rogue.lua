@@ -610,7 +610,7 @@ test("blade_flurry_matches: ready, 3+ enemies, enabled -> true", function()
     state.use_blade_flurry = true
     state.enemies = 4
     state.blade_flurry_min_enemies = 3
-    assert_true(strategies[15].matches(ctx, state), "3+ enemies should match")
+    assert_true(strategies[14].matches(ctx, state), "3+ enemies should match")
 end)
 
 test("blade_flurry_matches: not enough enemies -> false", function()
@@ -620,7 +620,7 @@ test("blade_flurry_matches: not enough enemies -> false", function()
     state.use_blade_flurry = true
     state.enemies = 1
     state.blade_flurry_min_enemies = 3
-    assert_false(strategies[15].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[14].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("blade_flurry_matches: disabled -> false", function()
@@ -629,7 +629,7 @@ test("blade_flurry_matches: disabled -> false", function()
     state.blade_flurry_ready = true
     state.use_blade_flurry = false
     state.enemies = 4
-    assert_false(strategies[15].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[14].matches(ctx, state), "disabled should not match")
 end)
 
 -- ============================================================================
@@ -642,7 +642,7 @@ test("slice_and_dice_matches: ready, no buff, enough CP -> true", function()
     state.slice_and_dice_ready = true
     state.has_slice_and_dice = false
     state.combo_points = 2
-    assert_true(strategies[16].matches(ctx, state), "should match when ready")
+    assert_true(strategies[15].matches(ctx, state), "should match when ready")
 end)
 
 test("slice_and_dice_matches: already has buff -> false", function()
@@ -651,7 +651,7 @@ test("slice_and_dice_matches: already has buff -> false", function()
     state.slice_and_dice_ready = true
     state.has_slice_and_dice = true
     state.combo_points = 2
-    assert_false(strategies[16].matches(ctx, state), "buff active should not match")
+    assert_false(strategies[15].matches(ctx, state), "buff active should not match")
 end)
 
 test("slice_and_dice_matches: 0 combo points -> false", function()
@@ -660,7 +660,7 @@ test("slice_and_dice_matches: 0 combo points -> false", function()
     state.slice_and_dice_ready = true
     state.has_slice_and_dice = false
     state.combo_points = 0
-    assert_false(strategies[16].matches(ctx, state), "0 CP should not match")
+    assert_false(strategies[15].matches(ctx, state), "0 CP should not match")
 end)
 
 test("slice_and_dice_matches: not in combat -> false", function()
@@ -670,7 +670,7 @@ test("slice_and_dice_matches: not in combat -> false", function()
     state.has_slice_and_dice = false
     state.combo_points = 2
     state.in_combat = false
-    assert_false(strategies[16].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[15].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -683,7 +683,7 @@ test("rupture_matches: ready, 3-4 CP, debuff expired -> true", function()
     local state = get_state(ctx)
     state.rupture_ready = true
     state.combo_points = 3
-    assert_true(strategies[17].matches(ctx, state), "should match when ready")
+    assert_true(strategies[16].matches(ctx, state), "should match when ready")
 end)
 
 test("rupture_matches: debuff still active -> false", function()
@@ -692,7 +692,7 @@ test("rupture_matches: debuff still active -> false", function()
     local state = get_state(ctx)
     state.rupture_ready = true
     state.combo_points = 3
-    assert_false(strategies[17].matches(ctx, state), "active debuff should not match")
+    assert_false(strategies[16].matches(ctx, state), "active debuff should not match")
     NS.debuff_remains = function(target, spell) return 0 end
 end)
 
@@ -701,7 +701,7 @@ test("rupture_matches: 5 CP (prefer eviscerate) -> false", function()
     local state = get_state(ctx)
     state.rupture_ready = true
     state.combo_points = 5
-    assert_false(strategies[17].matches(ctx, state), "5 CP should prefer eviscerate")
+    assert_false(strategies[16].matches(ctx, state), "5 CP should prefer eviscerate")
 end)
 
 test("rupture_matches: 1 CP -> false", function()
@@ -709,7 +709,7 @@ test("rupture_matches: 1 CP -> false", function()
     local state = get_state(ctx)
     state.rupture_ready = true
     state.combo_points = 1
-    assert_false(strategies[17].matches(ctx, state), "1 CP should not match")
+    assert_false(strategies[16].matches(ctx, state), "1 CP should not match")
 end)
 
 -- ============================================================================
@@ -724,7 +724,7 @@ test("expose_armor_matches: ready, 3-4 CP, no stacks -> true", function()
     state.use_expose_armor = true
     state.target_ttd = 30
     state.combo_points = 3
-    assert_true(strategies[18].matches(ctx, state), "should match when ready")
+    assert_true(strategies[17].matches(ctx, state), "should match when ready")
 end)
 
 test("expose_armor_matches: already has stacks -> false", function()
@@ -735,7 +735,7 @@ test("expose_armor_matches: already has stacks -> false", function()
     state.use_expose_armor = true
     state.target_ttd = 30
     state.combo_points = 3
-    assert_false(strategies[18].matches(ctx, state), "stacks active should not match")
+    assert_false(strategies[17].matches(ctx, state), "stacks active should not match")
     NS.debuff_stacks = function(target, spell) return 0 end
 end)
 
@@ -746,7 +746,7 @@ test("expose_armor_matches: 5 CP (prefer eviscerate) -> false", function()
     state.use_expose_armor = true
     state.target_ttd = 30
     state.combo_points = 5
-    assert_false(strategies[18].matches(ctx, state), "5 CP should prefer eviscerate")
+    assert_false(strategies[17].matches(ctx, state), "5 CP should prefer eviscerate")
 end)
 
 test("expose_armor_matches: 1 CP -> false", function()
@@ -756,7 +756,7 @@ test("expose_armor_matches: 1 CP -> false", function()
     state.use_expose_armor = true
     state.target_ttd = 30
     state.combo_points = 1
-    assert_false(strategies[18].matches(ctx, state), "1 CP should not match")
+    assert_false(strategies[17].matches(ctx, state), "1 CP should not match")
 end)
 
 -- ============================================================================
@@ -852,8 +852,9 @@ test("strategies: 20 strategies in correct priority order", function()
         "KidneyShot",
         "Eviscerate",
         "SinisterStrike",
+        "Wand",
     }
-    assert_eq(#strategies, 20, "should have 20 strategies")
+    assert_eq(#strategies, 21, "should have 21 strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
