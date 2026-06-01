@@ -138,6 +138,8 @@ local function conflagrate_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if (state.immolate_remains or 0) <= 0 then return false end
+    -- TTD gate: skip Conflagrate on a nearly dead target (save GCD for harder hit)
+    if context.ttd and context.ttd < 3 then return false end
     return true
 end
 
@@ -169,6 +171,8 @@ local function incinerate_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if (state.immolate_remains or 0) <= 0 then return false end
+    -- TTD gate: prefer Shadow Bolt (harder hit) when target is dying fast
+    if context.ttd and context.ttd < 6 then return false end
     return NS.spell_ready(action.spell, context.target)
 end
 

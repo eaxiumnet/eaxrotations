@@ -398,6 +398,8 @@ local function vampiric_touch_matches(context, s)
     if not can_break_mind_flay(s) then return false end
     if context.is_moving then return false end
     if not context.has_valid_enemy_target or s.vt_remaining > (s.vt_refresh_window or 3) then return false end
+    -- TTD gate: skip VT if target dying soon (1.5s cast + 15s to get full value)
+    if context.ttd and context.ttd > 0 and context.ttd < 6 then return false end
     -- Mana emergency: drop all spells (wand only)
     if s.mana_emergency then return false end
     -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
@@ -465,6 +467,8 @@ local function shadow_word_death_matches(context, s)
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
     if not s.swd_ready then return false end
+    -- TTD gate: skip SW:D if target is about to die (don't waste GCD)
+    if context.ttd and context.ttd > 0 and context.ttd < 3 then return false end
     -- Mana conservation: hold SW:D in emergency mana
     if s.mana_emergency then return false end
     -- Threat safety: hold SW:D if tank threat lead insufficient
@@ -571,7 +575,6 @@ end
 local strategies = {
     { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
     { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
-    { name = "Silence", matches = silence_matches, execute = function(context) return NS.try_cast(SPELLS.Silence, context.target, "[SHADOW] Silence") end },
     { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(SPELLS.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break → %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },
     { name = "ManaBelow5Wand", matches = mana_below_5_wand_matches, execute = function(context) if NS.start_attack then NS.start_attack() end; return true end },
     { name = "Shadowfiend", matches = shadowfiend_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowfiend, context.target, "[SHADOW] Shadowfiend") end },

@@ -95,6 +95,7 @@ local fury_state = {
     is_moving = false,
     target_distance = 0,
     target_is_casting = false,
+    ttd = 0,
     has_battle_shout = false,
     has_commanding_shout = false,
     has_berserker_rage = false,
@@ -190,7 +191,10 @@ end
 
 local function execute_phase(context, state)
     if NS.is_execute_phase then return NS.is_execute_phase(context.target_hp, 20) end
-    return (state.target_hp or context.target_hp or 100) <= 20
+    if (state.target_hp or context.target_hp or 100) <= 20 then return true end
+    -- TTD awareness: treat as execute phase if target is dying soon
+    if (state.ttd or 0) > 0 and (state.ttd or 0) < 15 then return true end
+    return false
 end
 
 local function preserved_rage_after_swap(rage)
@@ -258,6 +262,7 @@ local function build_state(context)
     fury_state.is_moving = context.is_moving or false
     fury_state.target_distance = context.target_distance or context.distance or 0
     fury_state.target_is_casting = context.target_is_casting or (target and bool_call(target, "is_casting")) or false
+    fury_state.ttd = context.ttd or 0
 
     -- Buffs
     fury_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)
@@ -412,6 +417,8 @@ local function recklessness_matches(context, state)
     if not cds_enabled or not state.recklessness_ready then return false end
     if not state.in_combat then return false end
     if (state.hp or 100) < 50 then return false end
+    -- TTD gate: don't waste 30min CD if target is about to die
+    if (state.ttd or 0) > 0 and (state.ttd or 0) < 10 then return false end
     return action(context, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false, cooldown = 1800 }))
 end
 
@@ -420,6 +427,8 @@ local function death_wish_matches(context, state)
     local cds_enabled = setting(context, "use_cooldowns", true)
     if not cds_enabled or not state.death_wish_ready then return false end
     if (state.hp or 100) < 45 then return false end
+    -- TTD gate: don't waste burst CD if target is about to die
+    if (state.ttd or 0) > 0 and (state.ttd or 0) < 10 then return false end
     if (state.target_hp or 100) < 20 and (state.rage or 0) < 25 then return false end
     return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
 end
@@ -563,12 +572,6 @@ local function intercept_matches(context, state)
     return action(context, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10, cooldown = 30 }))
 end
 
--- Pummel: interrupt
-local function pummel_matches(context, state)
-    if not state.target_is_casting then return false end
-    return action(context, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }))
-end
-
 -- Berserker Stance: preferred DPS stance
 local function berserker_stance_matches(context, state)
     if state.stance == STANCE.BERSERKER then return false end
@@ -615,7 +618,6 @@ local STRATEGY_SPECS = {
         return false
     end },
     -- PvP / Interrupt
-    { "Pummel", pummel_matches, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },
     { "Intercept", intercept_matches, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },
     { "Hamstring", hamstring_matches, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }) },
     -- Stance

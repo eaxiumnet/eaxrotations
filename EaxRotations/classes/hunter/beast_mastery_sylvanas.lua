@@ -316,6 +316,8 @@ local function bestial_wrath_matches(context, s)
     if not cooldowns_allowed(context) then return false end
     if not s.pet_alive then return false end
     if not s.bestial_wrath_ready then return false end
+    -- TTD gate: don't waste 2min CD on a dying target
+    if context.ttd and context.ttd < 15 then return false end
     return true
 end
 
@@ -657,17 +659,17 @@ local strategies = {
         matches = rapid_fire_matches,
         execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[BEAST_MASTERY] RapidFire", { skip_range = true }) end,
     },
-    -- 12. Readiness (reset CDs)
-    {
-        name = "Readiness",
-        matches = readiness_matches,
-        execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true, expected_cooldown = 300 }) end,
-    },
-    -- 13. Kill Command (off-GCD, highest DPS)
+    -- 12. Kill Command (off-GCD, highest DPS — moved before Readiness for execute priority)
     {
         name = "KillCommand",
         matches = kill_command_matches,
         execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[BEAST_MASTERY] KillCommand") end,
+    },
+    -- 13. Readiness (reset CDs)
+    {
+        name = "Readiness",
+        matches = readiness_matches,
+        execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true, expected_cooldown = 300 }) end,
     },
     -- 14. Feign Death (threat management)
     {

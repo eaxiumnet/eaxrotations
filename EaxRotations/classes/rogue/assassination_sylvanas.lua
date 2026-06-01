@@ -222,23 +222,6 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 5. Kick (interrupt priority)
-    -- ------------------------------------------------------------------------
-    {
-        name = "KickInterrupt",
-        matches = function(context)
-            local target = context.target
-            if not target then return false end
-            local ok, casting = pcall(function() return target:is_casting() end)
-            if not (ok and casting) then return false end
-            return NS.spell_ready(SPELLS.Kick, target)
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.Kick, context.target, "[ASSASS] Kick interrupt")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
     -- PvP: Shiv Purge — dispel 1 magic buff via Wound Poison (BoP, PW:S, etc.)
     -- Ported from middleware/combat/subtlety ShivPurge pattern.
     -- ------------------------------------------------------------------------

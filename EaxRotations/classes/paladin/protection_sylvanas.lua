@@ -421,8 +421,6 @@ local strategies = {
     { name = "DivineProtection", matches = divine_protection_matches, execute = function(context) return NS.try_cast(SPELLS.DivineProtection, context.me, "[PROTECTION] DivineProtection", { skip_range = true }) end },
     { name = "DivineShield", matches = divine_shield_matches, execute = function(context) return NS.try_cast(SPELLS.DivineShield, context.me, "[PROTECTION] DivineShield") end },
     { name = "LayOnHands", matches = lay_on_hands_matches, execute = function(context) return NS.try_cast(SPELLS.LayOnHands, context.me, "[PROTECTION] LayOnHands") end },
-    { name = "HammerOfJustice", matches = hammer_of_justice_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfJustice, context.target, "[PROTECTION] HammerOfJustice") end },
-
     -- Peel
     { name = "RighteousDefense", matches = function(context, state) return get_setting(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready end, execute = function(context, state) return NS.try_cast(SPELLS.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
     { name = "BlessingOfProtectionAlly", matches = function(context, state) return get_setting(context, "prot_blessing_of_protection", true) and state.low_hp_ally ~= nil and NS.spell_ready(SPELLS.BlessingOfProtection, state.low_hp_ally, {}) or false end, execute = function(context, state) return NS.try_cast(SPELLS.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end },

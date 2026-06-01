@@ -162,21 +162,8 @@ action_calls = {}
 assert_true(fb.matches({ target = target }, state({ is_moving = true, mana_pct = 50, ab_stacks = 3 })), "FireBlast should match")
 
 -- ============================================================================
--- PvP control: interrupt, CC, peel, slow
+-- PvP control: CC, peel, slow (Counterspell removed — handled by interrupt_manager)
 -- ============================================================================
-
-local counterspell = find_strategy("Counterspell")
-
-action_calls = {}
-assert_false(counterspell.matches({ target = nil }, state()), "Counterspell should not match without target")
-assert_eq(#action_calls, 0, "Counterspell should fail before action gate without target")
-
-action_calls = {}
-assert_false(counterspell.matches({ target = target }, state({ target_casting = false })), "Counterspell should not match when target not casting")
-assert_eq(#action_calls, 0, "Counterspell should fail before action gate when target not casting")
-
-action_calls = {}
-assert_true(counterspell.matches({ target = target }, state({ target_casting = true })), "Counterspell should match when target casting")
 
 local polymorph = find_strategy("Polymorph")
 

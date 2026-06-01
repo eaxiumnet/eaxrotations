@@ -98,6 +98,7 @@ local arms_state = {
     target_is_pet = false,
     target_is_casting = false,
     target_is_melee = false,
+    ttd = 0,
     has_battle_shout = false,
     has_berserker_rage = false,
     has_commanding_shout = false,
@@ -204,7 +205,10 @@ end
 
 local function execute_phase(context, state)
     if NS.is_execute_phase then return NS.is_execute_phase(context.target_hp, 20) end
-    return (state.target_hp or context.target_hp or 100) <= 20
+    if (state.target_hp or context.target_hp or 100) <= 20 then return true end
+    -- TTD awareness: treat as execute phase if target is dying soon
+    if (state.ttd or 0) > 0 and (state.ttd or 0) < 15 then return true end
+    return false
 end
 
 local function desired_stance(context)
@@ -271,6 +275,7 @@ local function build_state(context)
     arms_state.target_is_pet = target and bool_call(target, "is_pet") or false
     arms_state.target_is_casting = context.target_is_casting or bool_call(target, "is_casting") or false
     arms_state.target_is_melee = target_is_melee(target)
+    arms_state.ttd = context.ttd or 0
     arms_state.target_in_combat = target and bool_call(target, "is_in_combat") or false
 
     arms_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)
@@ -380,6 +385,8 @@ local function rend_matches(context, state)
     if execute_phase(context, state) then return false end
     if (state.rend_remains or 0) > 3 then return false end
     if (state.target_hp or 100) < 25 then return false end
+    -- TTD gate: skip Rend if target dying soon (bleed won't tick enough)
+    if (state.ttd or 0) > 0 and (state.ttd or 0) < 15 then return false end
     return action(context, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }))
 end
 
@@ -399,6 +406,8 @@ local function sweeping_strikes_matches(context, state)
     local min_count = setting(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
     if (state.enemy_count or 0) < min_count then return false end
     if state.has_sweeping_strikes then return false end
+    -- TTD gate: don't waste AoE CD if target is about to die
+    if (state.ttd or 0) > 0 and (state.ttd or 0) < 5 then return false end
     return action(context, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false, enemy_count = min_count, cooldown = 30 }))
 end
 
@@ -474,11 +483,6 @@ local function thunder_clap_matches(context, state)
     if (state.tclap_remains or 0) > 5 then return false end
     if not state.is_pvp and (state.hp or 100) > 65 and (state.enemy_count or 0) < 2 then return false end
     return action(context, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4 }))
-end
-
-local function pummel_matches(context, state)
-    if not state.target_is_casting then return false end
-    return action(context, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }))
 end
 
 local function spell_reflect_matches(context, state)
@@ -565,6 +569,8 @@ end
 local function death_wish_matches(context, state)
     if not cooldowns_allowed(context, state) then return false end
     if (state.hp or 100) < 45 then return false end
+    -- TTD gate: don't waste burst CD if target is about to die
+    if (state.ttd or 0) > 0 and (state.ttd or 0) < 10 then return false end
     if (state.target_hp or 100) < 20 and (state.rage or 0) < 25 then return false end
     return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
 end
@@ -600,7 +606,6 @@ end
 
 local STRATEGY_SPECS = {
     { "SpellReflection", spell_reflect_matches, build_action("SpellReflection", ACTION.SpellReflection, { target = "self", required_stance = STANCE.DEFENSIVE, min_rage = 15, requires_target = false }) },
-    { "Pummel", pummel_matches, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },
     { "ShieldWall", shield_wall_matches, build_action("ShieldWall", ACTION.ShieldWall, { target = "self", required_stance = STANCE.DEFENSIVE, requires_target = false }) },
     { "IntimidatingShout", intimidating_shout_matches, build_action("IntimidatingShout", ACTION.IntimidatingShout, { target = "self", min_rage = 25, requires_target = false }) },
     { "Intercept", intercept_matches, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },

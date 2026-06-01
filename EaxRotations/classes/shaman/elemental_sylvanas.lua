@@ -188,19 +188,6 @@ local function flame_shock_matches_fn(context, state)
     return NS.spell_ready(SPELLS.FlameShock, context.target)
 end
 
-local function earth_shock_interrupt_matches_fn(context, state)
-    local target = context.target
-    if not target then return false end
-    if state.mana_emergency then return false end
-    local is_casting = false
-    local ok = pcall(function()
-        if target.is_casting and target:is_casting() then is_casting = true end
-        if target.is_casting_spell and target:is_casting_spell() then is_casting = true end
-    end)
-    if not is_casting then return false end
-    return NS.spell_ready(SPELLS.EarthShock, target)
-end
-
 local function earth_shock_filler_matches_fn(context, state)
     if not context.is_moving then return false end
     -- Respect interrupt reserve: when ON, suppress Earth Shock filler to save for interrupts
@@ -466,10 +453,6 @@ local strategies = {
     { name = "FlameShock",
       matches = flame_shock_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.FlameShock, context.target, "[ELEMENTAL] Flame Shock") end },
-    -- Earth Shock interrupt
-    { name = "EarthShock",
-      matches = earth_shock_interrupt_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.EarthShock, context.target, "[ELEMENTAL] Earth Shock interrupt") end },
     -- Chain Heal emergency
     { name = "ChainHeal",
       matches = chain_heal_matches_fn,

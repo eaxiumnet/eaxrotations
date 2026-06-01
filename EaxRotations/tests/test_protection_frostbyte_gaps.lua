@@ -101,8 +101,7 @@ assert_true(strategy_names["DemoralizingShout"], "DemoralizingShout should be pr
 assert_true(strategy_names["ShieldBlock"], "ShieldBlock should be present")
 assert_true(strategy_names["Execute"], "Execute should be present")
 
--- Interrupts and taunts
-assert_true(strategy_names["Pummel"], "Pummel should be present")
+-- Interrupts and taunts (Pummel removed — handled by interrupt_manager)
 assert_true(strategy_names["ShieldBash"], "ShieldBash should be present")
 assert_true(strategy_names["Taunt"], "Taunt should be present")
 assert_true(strategy_names["MockingBlow"], "MockingBlow should be present")
@@ -134,7 +133,7 @@ assert_true(strategy_names["VictoryRush"], "VictoryRush should be present - Fros
 assert_true(strategy_names["Rend"], "Rend should be present - FrostByte feature: bleed threat")
 assert_true(strategy_names["IntimidatingShout"], "IntimidatingShout should be present - FrostByte feature: AoE fear")
 
-local expected_count = 30
+local expected_count = 29
 assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies, got " .. #strategies)
 assert_true(strategy_names["ShieldSlamPurge"], "ShieldSlamPurge should be present - Ported from Flux middleware")
 
