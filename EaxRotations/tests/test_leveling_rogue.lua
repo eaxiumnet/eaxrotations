@@ -528,7 +528,7 @@ test("sprint_matches: not in combat -> false", function()
 end)
 
 -- ============================================================================
--- Test: cold_blood_matches (strategy #11)
+-- Test: cold_blood_matches (strategy #12)
 -- ============================================================================
 
 test("cold_blood_matches: ready, 5 CP, cooldowns enabled -> true", function()
@@ -537,7 +537,7 @@ test("cold_blood_matches: ready, 5 CP, cooldowns enabled -> true", function()
     state.cold_blood_ready = true
     state.use_cooldowns = true
     state.combo_points = 5
-    assert_true(strategies[14].matches(ctx, state), "5 CP with cooldowns should match")
+    assert_true(strategies[12].matches(ctx, state), "5 CP with cooldowns should match")
 end)
 
 test("cold_blood_matches: below 5 CP -> false", function()
@@ -546,7 +546,7 @@ test("cold_blood_matches: below 5 CP -> false", function()
     state.cold_blood_ready = true
     state.use_cooldowns = true
     state.combo_points = 3
-    assert_false(strategies[14].matches(ctx, state), "3 CP should not match")
+    assert_false(strategies[12].matches(ctx, state), "3 CP should not match")
 end)
 
 test("cold_blood_matches: cooldowns disabled -> false", function()
@@ -555,7 +555,7 @@ test("cold_blood_matches: cooldowns disabled -> false", function()
     state.cold_blood_ready = true
     state.use_cooldowns = false
     state.combo_points = 5
-    assert_false(strategies[14].matches(ctx, state), "cooldowns disabled should not match")
+    assert_false(strategies[12].matches(ctx, state), "cooldowns disabled should not match")
 end)
 
 test("cold_blood_matches: not in combat -> false", function()
@@ -565,7 +565,7 @@ test("cold_blood_matches: not in combat -> false", function()
     state.use_cooldowns = true
     state.combo_points = 5
     state.in_combat = false
-    assert_false(strategies[14].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[12].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -578,7 +578,7 @@ test("adrenaline_rush_matches: ready, low energy, cooldowns enabled -> true", fu
     state.adrenaline_rush_ready = true
     state.use_cooldowns = true
     state.energy = 40
-    assert_true(strategies[14].matches(ctx, state), "low energy with cooldowns should match")
+    assert_true(strategies[13].matches(ctx, state), "low energy with cooldowns should match")
 end)
 
 test("adrenaline_rush_matches: energy above 60 -> false", function()
@@ -587,7 +587,7 @@ test("adrenaline_rush_matches: energy above 60 -> false", function()
     state.adrenaline_rush_ready = true
     state.use_cooldowns = true
     state.energy = 70
-    assert_false(strategies[14].matches(ctx, state), "energy above 60 should not match")
+    assert_false(strategies[13].matches(ctx, state), "energy above 60 should not match")
 end)
 
 test("adrenaline_rush_matches: cooldowns disabled -> false", function()
@@ -596,7 +596,7 @@ test("adrenaline_rush_matches: cooldowns disabled -> false", function()
     state.adrenaline_rush_ready = true
     state.use_cooldowns = false
     state.energy = 40
-    assert_false(strategies[14].matches(ctx, state), "cooldowns disabled should not match")
+    assert_false(strategies[13].matches(ctx, state), "cooldowns disabled should not match")
 end)
 
 -- ============================================================================
@@ -852,9 +852,8 @@ test("strategies: 20 strategies in correct priority order", function()
         "KidneyShot",
         "Eviscerate",
         "SinisterStrike",
-        "Wand",
     }
-    assert_eq(#strategies, 21, "should have 21 strategies")
+    assert_eq(#strategies, 20, "should have 20 strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
