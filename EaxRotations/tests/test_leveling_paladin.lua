@@ -370,15 +370,44 @@ test("blessing_might_matches: not ready -> false", function()
 end)
 
 -- ============================================================================
--- Test: devotion_aura_matches (strategy #3)
+-- Test: retribution_aura_matches (strategy #3)
 -- ============================================================================
 
-test("devotion_aura_matches: OOC, no buff, ready -> true", function()
+test("retribution_aura_matches: OOC, no buff, ready -> true", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_retribution_aura = false
+    state.retribution_aura_ready = true
+    assert_true(strategies[3].matches(ctx, state), "OOC without buff should match")
+end)
+
+test("retribution_aura_matches: in combat -> false", function()
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.has_retribution_aura = false
+    state.retribution_aura_ready = true
+    assert_false(strategies[3].matches(ctx, state), "in combat should not match")
+end)
+
+test("retribution_aura_matches: already has buff -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_retribution_aura = true
+    state.retribution_aura_ready = true
+    assert_false(strategies[3].matches(ctx, state), "already has buff should not match")
+end)
+
+-- ============================================================================
+-- Test: devotion_aura_matches (strategy #4)
+-- ============================================================================
+
+test("devotion_aura_matches: OOC, no buff, no retribution, ready -> true", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.has_devotion_aura = false
+    state.has_retribution_aura = false
     state.devotion_aura_ready = true
-    assert_true(strategies[3].matches(ctx, state), "OOC without buff should match")
+    assert_true(strategies[4].matches(ctx, state), "OOC without buff should match")
 end)
 
 test("devotion_aura_matches: in combat -> false", function()
@@ -386,7 +415,7 @@ test("devotion_aura_matches: in combat -> false", function()
     local state = get_state(ctx)
     state.has_devotion_aura = false
     state.devotion_aura_ready = true
-    assert_false(strategies[3].matches(ctx, state), "in combat should not match")
+    assert_false(strategies[4].matches(ctx, state), "in combat should not match")
 end)
 
 test("devotion_aura_matches: already has buff -> false", function()
@@ -394,7 +423,16 @@ test("devotion_aura_matches: already has buff -> false", function()
     local state = get_state(ctx)
     state.has_devotion_aura = true
     state.devotion_aura_ready = true
-    assert_false(strategies[3].matches(ctx, state), "already has buff should not match")
+    assert_false(strategies[4].matches(ctx, state), "already has buff should not match")
+end)
+
+test("devotion_aura_matches: has retribution aura -> false", function()
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_devotion_aura = false
+    state.has_retribution_aura = true
+    state.devotion_aura_ready = true
+    assert_false(strategies[4].matches(ctx, state), "retribution aura active should skip devotion")
 end)
 
 test("devotion_aura_matches: not ready -> false", function()
@@ -402,11 +440,11 @@ test("devotion_aura_matches: not ready -> false", function()
     local state = get_state(ctx)
     state.has_devotion_aura = false
     state.devotion_aura_ready = false
-    assert_false(strategies[3].matches(ctx, state), "not ready should not match")
+    assert_false(strategies[4].matches(ctx, state), "not ready should not match")
 end)
 
 -- ============================================================================
--- Test: holy_shield_matches (strategy #4)
+-- Test: holy_shield_matches (strategy #5)
 -- ============================================================================
 
 test("holy_shield_matches: in combat, no buff, ready -> true", function()
@@ -414,7 +452,7 @@ test("holy_shield_matches: in combat, no buff, ready -> true", function()
     local state = get_state(ctx)
     state.has_holy_shield = false
     state.holy_shield_ready = true
-    assert_true(strategies[4].matches(ctx, state), "in combat without buff should match")
+    assert_true(strategies[5].matches(ctx, state), "in combat without buff should match")
 end)
 
 test("holy_shield_matches: already has buff -> false", function()
@@ -422,7 +460,7 @@ test("holy_shield_matches: already has buff -> false", function()
     local state = get_state(ctx)
     state.has_holy_shield = true
     state.holy_shield_ready = true
-    assert_false(strategies[4].matches(ctx, state), "already has buff should not match")
+    assert_false(strategies[5].matches(ctx, state), "already has buff should not match")
 end)
 
 test("holy_shield_matches: not in combat -> false", function()
@@ -430,7 +468,7 @@ test("holy_shield_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.has_holy_shield = false
     state.holy_shield_ready = true
-    assert_false(strategies[4].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[5].matches(ctx, state), "OOC should not match")
 end)
 
 test("holy_shield_matches: not ready -> false", function()
@@ -438,12 +476,12 @@ test("holy_shield_matches: not ready -> false", function()
     local state = get_state(ctx)
     state.has_holy_shield = false
     state.holy_shield_ready = false
-    assert_false(strategies[4].matches(ctx, state), "not ready should not match")
+    assert_false(strategies[5].matches(ctx, state), "not ready should not match")
 end)
 
 test("holy_shield_matches: nil state -> false", function()
     local ctx = make_context()
-    assert_false(strategies[4].matches(ctx, nil), "nil state should return false")
+    assert_false(strategies[5].matches(ctx, nil), "nil state should return false")
 end)
 
 -- ============================================================================
@@ -905,6 +943,8 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     state.blessing_might_ready = true
     state.has_devotion_aura = false
     state.devotion_aura_ready = true
+    state.has_retribution_aura = false
+    state.retribution_aura_ready = true
     state.has_blessing_wisdom = false
     state.blessing_wisdom_ready = true
     state.cleanse_ready = true
@@ -912,11 +952,12 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     -- OOC buffs should match
     assert_true(strategies[1].matches(ctx, state), "BlessingMight should match OOC")
     assert_true(strategies[2].matches(ctx, state), "BlessingWisdom should match OOC")
-    assert_true(strategies[3].matches(ctx, state), "DevotionAura should match OOC")
-    assert_true(strategies[5].matches(ctx, state), "Cleanse should match OOC")
+    assert_true(strategies[3].matches(ctx, state), "RetributionAura should match OOC")
+    assert_true(strategies[4].matches(ctx, state), "DevotionAura should match OOC")
+    assert_true(strategies[6].matches(ctx, state), "Cleanse should match OOC")
 
     -- Combat abilities should not match OOC
-    local combat_indices = {4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+    local combat_indices = {5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
     for _, i in ipairs(combat_indices) do
         local ok, matched = pcall(strategies[i].matches, ctx, state)
         assert_true(ok, "strategy[" .. i .. "] matches should not throw")
@@ -930,7 +971,7 @@ test("rotation: execute scenario - hammer_wrath should match when target < 20%",
     local state = get_state(ctx)
     state.hammer_wrath_ready = true
 
-    assert_true(strategies[12].matches(ctx, state), "HammerOfWrath should match when target < 20% HP")
+    assert_true(strategies[13].matches(ctx, state), "HammerOfWrath should match when target < 20% HP")
 end)
 
 test("rotation: low HP scenario - flash_light should match", function()
@@ -939,7 +980,7 @@ test("rotation: low HP scenario - flash_light should match", function()
     state.flash_light_ready = true
     state.hp = 40
 
-    assert_true(strategies[6].matches(ctx, state), "FlashOfLight should match when HP < 60")
+    assert_true(strategies[7].matches(ctx, state), "FlashOfLight should match when HP < 60")
 end)
 
 -- ============================================================================
