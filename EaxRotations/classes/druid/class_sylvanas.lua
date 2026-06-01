@@ -162,6 +162,15 @@ local SPELLS = {
         power_type = "rage",
         school = "physical",
     }),
+    SurvivalInstincts = NS.spell_action({
+        name = "SurvivalInstincts",
+        ids = {61336},
+        levels = {0},
+        cast_time = 0,
+        cooldown = 300,
+        power_cost = 0,
+        school = "physical",
+    }),
     Growl = NS.spell_action({
         name = "Growl",
         ids = {6795},

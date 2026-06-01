@@ -143,8 +143,8 @@ function druid_leveling.build_state(context)
     -- Target time-to-die estimate
     state.target_ttd = context.ttd or context.target_ttd or 0
     state.target_hp = context.target_hp or 100
-    state.in_melee = context.in_melee_range == true or (state.target_range or 40) <= MELEE_RANGE
     state.target_range = context.target_range or context.target_distance or 40
+    state.in_melee = context.in_melee_range == true or state.target_range <= MELEE_RANGE
 
     -- Buff checks
     state.has_mark_of_wild = has_buff(MARK_OF_THE_WILD_BUFF)

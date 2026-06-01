@@ -442,29 +442,31 @@ end
 -- FrostByte parity match functions (Melee, AoE, Trinkets)
 -- ============================================================================
 
--- Raptor Strike: melee weaving when target in close range
+-- Raptor Strike: melee weaving when target in melee range (5yd)
 local function raptor_strike_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.use_melee then return false end
     if not context.target then return false end
-    local dist = context.distance or context.target_distance or 100
-    if dist > 6 then return false end
+    -- Squared distance: 5yd = 25
+    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dist_sq > 25 then return false end
     if not s.raptor_strike_ready then return false end
     -- Don't clip auto-shot
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
     return true
 end
 
--- Concussive Shot: slow chasing mobs
+-- Concussive Shot: slow chasing mobs (15yd max range, skip in melee)
 local function concussive_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not context.target then return false end
     if not s.concussive_shot_ready then return false end
-    -- Only shoot if target is not in melee range (kiting)
-    local dist = context.distance or context.target_distance or 100
-    if dist < 8 then return false end
+    -- Squared distance: skip if in melee (< 8yd = 64), max range 15yd = 225
+    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dist_sq < 64 then return false end
+    if dist_sq > 225 then return false end
     -- Check auto-shot clipping
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
     return true

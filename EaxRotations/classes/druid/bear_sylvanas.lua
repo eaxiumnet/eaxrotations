@@ -62,6 +62,7 @@ local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
 local CLEARCASTING_BUFF = { 16870 }
 local BARKSKIN_BUFF = { 22812 }
 local FRENZIED_REGEN_BUFF = { 22842 }
+local SURVIVAL_INSTINCTS_BUFF = { 61336 }
 
 local HEALTHSTONE_IDS = TBC_ITEMS.healthstones or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local HEALING_POTION_IDS = {
@@ -114,6 +115,7 @@ local bear_state = {
     has_clearcasting = false,
     has_barkskin = false,
     has_frenzied_regen = false,
+    has_survival_instincts = false,
     has_mark = false,
     has_thorns = false,
     faerie_remains = 0,
@@ -129,6 +131,7 @@ local bear_state = {
     challenging_ready = false,
     barkskin_ready = false,
     frenzied_ready = false,
+    survival_instincts_ready = false,
     charge_ready = false,
     bash_ready = false,
     faerie_ready = false,
@@ -433,6 +436,8 @@ local function build_state(context)
     state.challenging_ready = spell_ready(SPELLS.ChallengingRoar, state.me)
     state.barkskin_ready = spell_ready(SPELLS.Barkskin, state.me)
     state.frenzied_ready = spell_ready(SPELLS.FrenziedRegeneration, state.me)
+    state.survival_instincts_ready = spell_ready(SPELLS.SurvivalInstincts, state.me)
+    state.has_survival_instincts = buff_up(state.me, SURVIVAL_INSTINCTS_BUFF)
     state.charge_ready = spell_ready(FERAL_CHARGE, state.target)
     state.bash_ready = spell_ready(BASH, state.target)
     state.faerie_ready = spell_ready(SPELLS.FaerieFireFeral, state.target)
@@ -574,6 +579,14 @@ local function frenzied_regen_matches(context, action)
     if state.has_frenzied_regen then return false end
     if (state.rage or 0) < RAGE_FRENZIED_REGEN then return false end
     if (state.hp or 100) > state.frenzied_regen_hp and not (state.force_defensive and state.hp <= 60) then return false end
+    return action_ready(context, action)
+end
+
+local function survival_instincts_matches(context, action)
+    local state = build_state(context)
+    if not state.is_bear or not state.in_combat then return false end
+    if state.has_survival_instincts then return false end
+    if (state.hp or 100) > 25 and not state.force_defensive then return false end
     return action_ready(context, action)
 end
 
@@ -776,6 +789,7 @@ local ACTIONS = {
     { name = "Healthstone", target = "self", requires_target = false, matches = healthstone_matches, execute = function(context) return execute_item(context, build_state(context).healthstone_ready, "Healthstone") end },
     { name = "HealingPotion", target = "self", requires_target = false, matches = potion_matches, execute = function(context) return execute_item(context, build_state(context).potion_ready, "Healing Potion") end },
     { name = "FrenziedRegeneration", spell = SPELLS.FrenziedRegeneration, target = "self", required_form = "bear", min_rage = RAGE_FRENZIED_REGEN, requires_target = false, matches = frenzied_regen_matches },
+    { name = "SurvivalInstincts", spell = SPELLS.SurvivalInstincts, target = "self", required_form = "bear", requires_target = false, matches = survival_instincts_matches },
     { name = "Barkskin", spell = SPELLS.Barkskin, target = "self", requires_target = false, matches = barkskin_matches },
 
     { name = "ChallengingRoar", spell = SPELLS.ChallengingRoar, target = "self", required_form = "bear", min_rage = RAGE_CHALLENGING_ROAR, requires_target = false, matches = challenging_roar_matches, execute = taunt_execute },

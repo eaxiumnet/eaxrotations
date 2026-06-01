@@ -68,7 +68,7 @@ local PRAYER_OF_MENDING_BUFF = { 33076 }  -- PoM buff on target (TBC rank 1)
 local CASTER_CLASS_IDS = { [8] = true, [9] = true, [5] = true, [7] = true }  -- Mage, Warlock, Priest, Shaman
 -- FrostByte feature constants
 local FADE_BUFF = { 25429, 10942, 10941, 9592, 9579, 9578, 586 }
-local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 
 -- ============================================================================
 -- Debuff check for self-dispel (Dispel Magic)

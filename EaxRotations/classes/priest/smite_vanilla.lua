@@ -1,6 +1,8 @@
 -- ============================================================================
--- Priest Smite DPS Rotation
--- Holy DPS with Shadow Weaving/Misery utility via SW:P
+-- Priest Smite DPS Rotation (Vanilla 1.12)
+-- Holy DPS with Shadow Weaving utility via SW:P
+-- Stripped of TBC-only abilities: Shadow Word: Death
+-- Uses Classic spell ID ranks only (no TBC ranks >= 27000)
 -- Holy Fire Weave optimization, Surge of Light procs
 -- ============================================================================
 local _G = _G
