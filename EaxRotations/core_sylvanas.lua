@@ -5502,5 +5502,23 @@ function NS.get_spell_damage()
     return 0
 end
 
+-- ============================================================================
+-- Movement Assist (Phase 5) — Lazy-loaded shared movement/facing helper
+-- ============================================================================
+-- Provides face_for_cast(), face_for_spell(), resume(), unlock(), on_render().
+-- Source: movement-handler.md — pause_movement_light, look_at_target, on_render
+do
+    local _ma_loaded = false
+    local _ma_mod = nil
+    function NS.MovementAssist()
+        if not _ma_loaded then
+            local ok, mod = pcall(require, "shared/movement_assist_sylvanas")
+            if ok and type(mod) == "table" then _ma_mod = mod end
+            _ma_loaded = true
+        end
+        return _ma_mod
+    end
+end
+
 return NS
 

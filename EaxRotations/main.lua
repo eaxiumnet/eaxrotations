@@ -888,6 +888,19 @@ if type(core.register_on_render_control_panel_callback) == "function" then
     pcall(core.register_on_render_control_panel_callback, on_control_panel_render)
 end
 
+-- Movement handler render callback: required for pause/face delays and auto-resume.
+-- Loaded here so movement_handler:on_render() fires every frame when the module is available.
+do
+    local _ma_ok, _movement_assist = pcall(require, "shared/movement_assist_sylvanas")
+    if _ma_ok and type(_movement_assist) == "table" and _movement_assist.on_render then
+        if type(core.register_on_render_callback) == "function" then
+            core.register_on_render_callback(function()
+                _movement_assist.on_render()
+            end)
+        end
+    end
+end
+
 -- ============================================================================
 -- SLASH COMMAND REGISTRATION
 -- ============================================================================
