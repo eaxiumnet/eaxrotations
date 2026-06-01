@@ -118,6 +118,7 @@ local combat_state = {
     in_combat = false,
     enemy_count = 1,
     target_casting = false,
+    target_casting_interruptible = false,
     -- Research: energy pooling gates
     energy_low = false,
     energy_pool_finisher = false,
@@ -169,6 +170,7 @@ local function build_state(context)
         ok_casting, casting = pcall(function() return target:is_casting() end)
     end
     combat_state.target_casting = ok_casting and casting or false
+    combat_state.target_casting_interruptible = combat_state.target_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     combat_state.stealth_ready = me and NS.spell_ready(SPELLS.Stealth, me, { skip_range = true }) or false
     combat_state.adrenaline_rush_ready = me and NS.spell_ready(SPELLS.AdrenalineRush, me, { skip_range = true, expected_cooldown = 300 }) or false
     combat_state.blade_flurry_ready = me and NS.spell_ready(SPELLS.BladeFlurry, me, { skip_range = true, expected_cooldown = 120 }) or false
@@ -303,12 +305,6 @@ local function shiv_purge_matches(context, s)
         local ok, is_player = pcall(function() return context.target:is_player() end)
         if not (ok and is_player) then return false end
     end
-    return true
-end
-
-local function kick_matches(context, s)
-    if not s.target_casting then return false end
-    if not s.kick_ready then return false end
     return true
 end
 

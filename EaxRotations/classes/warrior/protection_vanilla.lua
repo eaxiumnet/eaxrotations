@@ -202,6 +202,7 @@ end
 
 local function pummel_matches_fn(context, state)
     if not state.target_is_casting then return false end
+    if not (state.target_casting_interruptible or false) then return false end
     if not state.pummel_ready then return false end
     if state.stance ~= STANCE.BERSERKER then return false end
     return true
@@ -209,6 +210,7 @@ end
 
 local function shield_bash_matches_fn(context, state)
     if not state.target_is_casting then return false end
+    if not (state.target_casting_interruptible or false) then return false end
     if not state.shield_bash_ready then return false end
     if not is_defensive_stance(state.stance) then return false end
     return true

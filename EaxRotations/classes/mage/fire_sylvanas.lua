@@ -171,26 +171,6 @@ local function mana_gem_matches_fn(context, state)
     return true
 end
 
-local function counterspell_matches_fn(context, state)
-    if not context.target then return false end
-    if context.settings and context.settings.use_interrupt == false then return false end
-    -- is_casting is a method on real units, not a boolean field. Check via safe method calls.
-    local target_casting = false
-    if type(context.target.is_casting) == "function" then
-        local ok, val = pcall(context.target.is_casting, context.target)
-        target_casting = ok and val == true
-    elseif type(context.target.is_casting_spell) == "function" then
-        local ok, val = pcall(context.target.is_casting_spell, context.target)
-        target_casting = ok and val == true
-    elseif context.target.is_casting == true then
-        -- Mock/test support: direct boolean
-        target_casting = true
-    end
-    if not target_casting then return false end
-
-    return NS.spell_ready(SPELLS.Counterspell, context.target)
-end
-
 local function blast_wave_matches_fn(context, state)
     if (context.enemy_count or 1) < 2 then return false end
     return NS.spell_ready(SPELLS.BlastWave, context.target)
@@ -209,6 +189,7 @@ local function dragons_breath_matches_fn(context, state)
 end
 
 local function polymorph_matches_fn(context, state)
+    if NS.DRTracker and NS.DRTracker.is_dr_immune and context.cc_target and NS.DRTracker.is_dr_immune(context.cc_target, "incapacitate") then return false end
     if not context.is_pvp then return false end
     if not context.cc_target then return false end
 

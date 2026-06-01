@@ -261,16 +261,9 @@ local function mana_shield_matches(context, s)
     return true
 end
 
---- Counterspell: interrupt casting target
-local function counterspell_matches(context, s)
-    if not context.target then return false end
-    if not s.target_casting then return false end
-    if not get_setting_bool(context, "use_interrupt", true) then return false end
-    return true
-end
-
 --- Polymorph: crowd control in PvP
 local function polymorph_matches(context, s)
+    if NS.DRTracker and NS.DRTracker.is_dr_immune and context.cc_target and NS.DRTracker.is_dr_immune(context.cc_target, "incapacitate") then return false end
     if not context.is_pvp then return false end
     if not context.cc_target then return false end
     if context.is_moving then return false end

@@ -394,6 +394,25 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
+    -- 5a. MovingCorruption (instant DoT while moving)
+    -- ------------------------------------------------------------------------
+    {
+        name = "MovingCorruption",
+        matches = function(context, state)
+            if not context.is_moving then return false end
+            if not context.has_valid_enemy_target then return false end
+            if broken_api_dot_throttled(27216) then return false end
+            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            return NS.spell_ready(SPELLS.Corruption, context.target)
+        end,
+        execute = function(context)
+            local ok = NS.try_cast(SPELLS.Corruption, context.target, "[AFFL] Corruption (moving)")
+            if ok then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
+            return ok
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
     -- 6. Unstable Affliction (primary DoT — dispel protection, 1.5s cast)
     -- ------------------------------------------------------------------------
     {

@@ -97,6 +97,7 @@ local ret_state = {
     target_has_crusader = false,
     target_has_wisdom = false,
     target_casting = false,
+    target_casting_interruptible = false,
     target_player = false,
     target_fleeing = false,
     in_melee = true,
@@ -240,6 +241,7 @@ local function build_state(context)
         ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
     end
     ret_state.target_casting = is_casting(context.target)
+    ret_state.target_casting_interruptible = ret_state.target_casting and (NS.is_interruptible and NS.is_interruptible(context.target) or false)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
     ret_state.in_melee = distance_to(context, context.target) <= MELEE_RANGE
@@ -331,11 +333,13 @@ add_strategy(strategies, "Ret_Cleanse_Ally", 880, function(context, state)
 end, function(_, state) return cast(SPELLS.Cleanse, state.utility_target, "[RET] Cleanse ally") end)
 
 add_strategy(strategies, "Ret_PvP_Repentance_Opener", 850, function(context, state)
+    if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "disorient") then return false end
     if not get_setting(context, "repentance_pvp_usage", true) then return false end
     return context.is_pvp and state.target_player and ready(Repentance, context.target, {})
 end, function(context) return cast(Repentance, context.target, "[RET PvP] Repentance opener") end)
 
 add_strategy(strategies, "Ret_PvP_HammerJustice_Burst", 820, function(context, state)
+    if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
     return context.is_pvp and state.target_player and ready(HammerJustice, context.target, { expected_cooldown = 60 })
 end, function(context) return cast(HammerJustice, context.target, "[RET PvP] Hammer of Justice burst", { expected_cooldown = 60 }) end)
 
@@ -351,6 +355,8 @@ add_strategy(strategies, "Ret_AvengingWrath_Burst", 780, function(context, state
     if not get_setting(context, "use_avenging_wrath", get_setting(context, "retri_aw_enabled", true)) then return false end
     if state.has_forbearance then return false end
     if not ready(SPELLS.AvengingWrath, PLAYER, { skip_range = true, expected_cooldown = 180 }) then return false end
+    -- TTD gate: don't waste 3min CD on a dying target
+    if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
     return true
 end, function() return cast(SPELLS.AvengingWrath, PLAYER, "[RET] Avenging Wrath burst", { skip_range = true, expected_cooldown = 180 }) end, 180)
 

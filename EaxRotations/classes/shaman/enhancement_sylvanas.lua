@@ -575,7 +575,7 @@ local function shamanistic_rage_matches(ctx)
     -- v1.2.1: per-CD toggle
     if ctx.settings and ctx.settings.enhancement_cd_shamanistic_rage == false then return false end
     -- TTD gate: don't waste 2min CD on a dying target
-    if ctx.ttd and ctx.ttd < 8 then return false end
+    if ctx.ttd_known and ctx.ttd < 8 then return false end
     -- Gate: use when mana is low (Research) or during defensive need (hp < 40%); skip at high mana + high hp
     if (enh_state.mana_pct or 100) > 40 and (enh_state.hp_pct or 100) > 40 then return false end
     -- v1.2.4: SR melee range check — only fire if target within 8 yd
@@ -628,7 +628,7 @@ local function flame_shock_matches(ctx)
     -- Skip shock spending at mana floor — auto-attack conservation (Research: Mana < 20%)
     if enh_state.mana_low then return false end
     -- TTD gate: prefer instant Earth Shock when target is dying (< 6s), skip Flame Shock DoT
-    if ctx.ttd and ctx.ttd < 6 then return false end
+    if ctx.ttd_known and ctx.ttd < 6 then return false end
     -- Multi-target FS in AoE: when enabled, apply to any enemy without the DoT
     if enh_state.fs_multi_target and enh_state.effective_mode == "aoe" and enh_state.target_has_flame_shock then
         -- Current target already has FS — skip if there are other targets available (they'll get dotted on tab)
@@ -658,7 +658,7 @@ local function earth_shock_matches(ctx)
         if enh_state.mana_low then return false end
         -- TTD gate: prefer Earth Shock (instant) when target is dying (< 6s), even without Flame Shock
         local ttd = ctx.ttd
-        if ttd and ttd < 6 then return true end
+        if ctx.ttd_known and ttd and ttd < 6 then return true end
         if not enh_state.target_has_flame_shock then return false end
         return true
     end

@@ -86,6 +86,7 @@ local arms_state = {
     target_is_player = false,
     target_is_pet = false,
     target_is_casting = false,
+    target_casting_interruptible = false,
     target_is_melee = false,
     has_battle_shout = false,
     has_berserker_rage = false,
@@ -250,6 +251,7 @@ local function build_state(context)
     arms_state.target_is_player = target and bool_call(target, "is_player") or false
     arms_state.target_is_pet = target and bool_call(target, "is_pet") or false
     arms_state.target_is_casting = context.target_is_casting or bool_call(target, "is_casting") or false
+    arms_state.target_casting_interruptible = arms_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     arms_state.target_is_melee = target_is_melee(target)
     arms_state.target_in_combat = target and bool_call(target, "is_in_combat") or false
 
@@ -437,6 +439,7 @@ end
 
 local function pummel_matches(context, state)
     if not state.target_is_casting then return false end
+    if not (state.target_casting_interruptible or false) then return false end
     return action(context, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }))
 end
 

@@ -139,7 +139,7 @@ local function conflagrate_matches(context, action, state)
     state = state or {}
     if (state.immolate_remains or 0) <= 0 then return false end
     -- TTD gate: skip Conflagrate on a nearly dead target (save GCD for harder hit)
-    if context.ttd and context.ttd < 3 then return false end
+    if context.ttd_known and context.ttd < 3 then return false end
     return true
 end
 

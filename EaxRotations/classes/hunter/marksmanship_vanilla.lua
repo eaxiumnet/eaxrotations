@@ -64,6 +64,7 @@ local mm_state = {
     aimed_shot_ready = false,
     silencing_shot_ready = false,
     target_is_casting = false,
+    target_interruptible = false,
     kill_command_ready = false,
     multi_shot_ready = false,
     steady_shot_ready = false,
@@ -107,6 +108,7 @@ local function build_state(context)
     mm_state.aimed_shot_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
     mm_state.silencing_shot_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterInterrupt, target, { expected_cooldown = 20 }) or false
     mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
+    mm_state.target_interruptible = mm_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     mm_state.kill_command_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterShotB, target, { expected_cooldown = 5 }) or false
     mm_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
     mm_state.steady_shot_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterShotA, target) or false
@@ -232,13 +234,6 @@ end
 local function freezing_trap_matches(context, s)
     if s.in_combat then return false end
     if not s.freezing_trap_ready then return false end
-    return true
-end
-
-local function silencing_shot_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.target_is_casting then return false end
-    if not s.silencing_shot_ready then return false end
     return true
 end
 
