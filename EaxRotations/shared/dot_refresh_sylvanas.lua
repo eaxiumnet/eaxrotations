@@ -171,6 +171,17 @@ function M.get_dot_total_damage(spell_id)
     return tick.amount  -- per-tick amount; caller multiplies by tick count
 end
 
+--- Get the DPS (damage per second) for a DoT spell from wowhead tick data.
+-- Returns damage_per_tick / tick_interval, or nil if no data.
+-- Useful for comparing DoT efficiency or calculating damage contribution.
+-- @param spell_id  number — spell ID
+-- @return number|nil — DPS from periodic damage, or nil if no data
+function M.get_dot_dps(spell_id)
+    local tick = M.get_dot_tick_data(spell_id)
+    if not tick or not tick.amount or tick.interval <= 0 then return nil end
+    return tick.amount / tick.interval
+end
+
 --- Determine whether a DoT should be refreshed using the APL formula.
 -- APL: dotRemaining < refresh_window AND remainingTime >= refresh_window + dotBaseDuration
 --
@@ -220,6 +231,7 @@ if _G.EaxRotations then
     _G.EaxRotations.is_dot_active = M.is_dot_active
     _G.EaxRotations.get_dot_tick_data = M.get_dot_tick_data
     _G.EaxRotations.get_dot_total_damage = M.get_dot_total_damage
+    _G.EaxRotations.get_dot_dps = M.get_dot_dps
 end
 
 return M
