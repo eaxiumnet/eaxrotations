@@ -188,8 +188,12 @@ function M.use_mana_gem(mana_gem_ids, threshold, me)
     for _, item_id in ipairs(mana_gem_ids) do
         local ok, count = pcall(core.inventory.get_item_count, item_id)
         if ok and count and count > 0 then
-            local ok2 = pcall(core.input.use_item, item_id, me)
-            if ok2 then return true end
+            if NS and NS.use_item_by_id then
+                if NS.use_item_by_id(item_id) then return true end
+            else
+                local ok2 = pcall(core.input.use_item, item_id, me)
+                if ok2 then return true end
+            end
         end
     end
 
