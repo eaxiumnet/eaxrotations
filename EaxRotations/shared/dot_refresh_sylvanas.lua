@@ -65,6 +65,8 @@ do
             return s:sub(start, i - 1), i + 1
         end
 
+        local parse_array  -- forward declaration
+
         local function parse_value(s, i)
             i = skip_ws(s, i)
             local c = s:sub(i, i)
