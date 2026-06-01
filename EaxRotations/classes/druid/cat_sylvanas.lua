@@ -554,6 +554,8 @@ local function rip_matches(context, action)
     if not state.target then return false end
     if context.combo_points ~= nil and state.combo_points < required_cp then return false end
     if not target_lives(state, MIN_RIP_TTD) then return false end
+    -- TTD gate: skip Rip if target dying soon (needs time to tick)
+    if state.target_ttd > 0 and state.target_ttd < 6 then return false end
     if should_wait_for_tick(state, RIP_COST) then return false end
     if not should_snapshot_upgrade(state.attack_power, state.rip_ap, state.rip_remains, RIP_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
     return true
@@ -577,7 +579,9 @@ local function bite_matches(context, action)
     local required_cp = NS.setting_number(state.settings, "cat_ferocious_bite_cp", 5)
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
-    if not state.should_execute and state.target_ttd > SHORT_TTD then return false end
+    -- TTD awareness: prefer Ferocious Bite when target dying soon (instant > DoT)
+    local short_ttd = state.target_ttd > 0 and state.target_ttd < 6
+    if not state.should_execute and not short_ttd and state.target_ttd > SHORT_TTD then return false end
     if should_wait_for_tick(state, BITE_COST) then return false end
     return true
 end

@@ -621,22 +621,6 @@ local function growl_matches(context, action)
     return false
 end
 
-local function bash_interrupt_matches(context, action)
-    local state = build_state(context)
-    if not can_use_bear_ability(state) then return false end
-    if not state.target_is_casting or not state.target_interruptible then return false end
-    if not state.in_melee then return false end
-    return action_ready(context, action)
-end
-
-local function charge_interrupt_matches(context, action)
-    local state = build_state(context)
-    if not can_use_bear_ability(state) then return false end
-    if not state.target_is_casting or not state.target_interruptible then return false end
-    if state.target_range < CHARGE_MIN_RANGE or state.target_range > CHARGE_MAX_RANGE then return false end
-    return action_ready(context, action)
-end
-
 local function faerie_fire_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
@@ -794,9 +778,6 @@ local ACTIONS = {
 
     { name = "ChallengingRoar", spell = SPELLS.ChallengingRoar, target = "self", required_form = "bear", min_rage = RAGE_CHALLENGING_ROAR, requires_target = false, matches = challenging_roar_matches, execute = taunt_execute },
     { name = "Growl", spell = SPELLS.Growl, required_form = "bear", matches = growl_matches, execute = taunt_execute },
-    { name = "BashInterrupt", spell = BASH, required_form = "bear", min_rage = 10, matches = bash_interrupt_matches },
-    { name = "FeralChargeInterrupt", spell = FERAL_CHARGE, required_form = "bear", matches = charge_interrupt_matches },
-
     { name = "FaerieFireFeral", spell = SPELLS.FaerieFireFeral, required_form = "bear", debuff = FAERIE_FIRE_DEBUFF, refresh = FAERIE_FIRE_REFRESH, matches = faerie_fire_matches },
     { name = "DemoralizingRoar", spell = SPELLS.DemoralizingRoar, target = "self", required_form = "bear", min_rage = RAGE_DEMO_ROAR, cooldown = 25, requires_target = false, matches = demo_roar_matches },
     { name = "MangleOpener", spell = SPELLS.MangleBear, required_form = "bear", min_rage = RAGE_MANGLE, debuff = MANGLE_DEBUFF, refresh = MANGLE_DEBUFF_REFRESH, matches = mangle_opener_matches },

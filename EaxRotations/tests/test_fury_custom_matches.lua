@@ -176,19 +176,7 @@ assert_false(intercept.matches({ is_pvp = true, target_distance = 30 }), "Interc
 	assert_true(intercept.matches({ is_pvp = true, target_distance = 15, in_combat = true, target = {}, me = {} }), "Intercept should match at 8-25 yards")
 
 -- ============================================================================
--- Pummel: only when target is casting
--- ============================================================================
-
-local pummel = find_strategy("Pummel")
-
--- No target -> should NOT match
-spell_ready_calls = {}
-assert_false(pummel.matches({ target = nil }), "Pummel should not match without target")-- Target not casting -> should NOT match
-    spell_ready_calls = {}
-    assert_false(pummel.matches({ target = { is_casting = function() return false end } }), "Pummel should not match when target not casting")	-- Target casting -> should match
-    spell_ready_calls = {}
-    assert_true(pummel.matches({ target = { is_casting = function() return true end } }), "Pummel should match when target casting")
-
+-- Pummel removed — handled by interrupt_manager middleware
 -- ============================================================================
 -- Sweeping Strikes: only when 2+ enemies
 -- ============================================================================

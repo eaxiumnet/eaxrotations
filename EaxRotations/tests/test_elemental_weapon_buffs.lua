@@ -65,7 +65,8 @@ end
 assert_true(strategy_names["LightningBolt"], "LightningBolt should be present")
 assert_true(strategy_names["ChainLightning"], "ChainLightning should be present")
 assert_true(strategy_names["FlameShock"], "FlameShock should be present")
-assert_true(strategy_names["EarthShock"], "EarthShock should be present")
+assert_false(strategy_names["EarthShock"], "EarthShock interrupt should NOT be in spec (handled by interrupt_manager middleware)")
+assert_true(strategy_names["EarthShockMoving"], "EarthShockMoving (DPS filler) should be present")
 assert_true(strategy_names["FrostShockMoving"], "FrostShockMoving should be present (FrostByte named 'FrostShock')")
 assert_true(strategy_names["ElementalMastery"], "ElementalMastery should be present")
 assert_true(strategy_names["Bloodlust"], "Bloodlust should be present")    -- FrostByte features now implemented

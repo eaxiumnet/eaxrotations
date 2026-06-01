@@ -160,6 +160,8 @@ end
 local function explosive_trap_matches(context, s)
     if (s.enemy_count or 0) < 3 then return false end
     if not s.explosive_trap_ready then return false end
+    -- TTD gate: don't waste trap CD on a dying target
+    if context.ttd and context.ttd < 8 then return false end
     return true
 end
 
@@ -193,6 +195,8 @@ end
 local function serpent_sting_matches(context, s)
     if s.has_serpent_sting then return false end
     if not s.serpent_sting_ready then return false end
+    -- TTD gate: Serpent Sting worth applying only if target lives long enough for DoT value
+    if context.ttd and context.ttd < 6 then return false end
     return true
 end
 
@@ -298,6 +302,8 @@ end
 local function scorpid_sting_matches(context, s)
     if not s.in_combat then return false end
     if not s.scorpid_sting_ready then return false end
+    -- TTD gate: Scorpid Sting worth applying only if target lives long enough
+    if context.ttd and context.ttd < 10 then return false end
     if s.has_scorpid_sting then
         -- Only refresh when about to expire (within 2s)
         local target = context.target

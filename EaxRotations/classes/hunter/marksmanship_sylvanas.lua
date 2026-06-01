@@ -169,6 +169,8 @@ local function rapid_fire_matches(context, s)
     if not cooldowns_enabled(context) then return false end
     if not s.in_combat then return false end
     if not s.rapid_fire_ready then return false end
+    -- TTD gate: don't waste 3min CD on a dying target
+    if context.ttd and context.ttd < 15 then return false end
     return true
 end
 
@@ -266,6 +268,8 @@ local function in_combat_aimed_shot_matches(context, s)
     if not s.in_combat then return false end
     if not s.aimed_shot_ready then return false end
     if (s.mana_pct or 100) < 20 then return false end
+    -- TTD gate: prefer instant Arcane Shot over 2.5s Aimed Shot when target is dying
+    if context.ttd and context.ttd < 3 then return false end
     if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
     return true
 end
@@ -286,6 +290,8 @@ local function readiness_matches(context, s)
     if not cooldowns_enabled(context) then return false end
     if not s.in_combat then return false end
     if not s.readiness_ready then return false end
+    -- TTD gate: don't waste 5min CD on a dying target
+    if context.ttd and context.ttd < 20 then return false end
     -- Use after Rapid Fire has been used (on CD) to reset it for a 2nd burst window
     -- MM does not have Bestial Wrath; only gate on Rapid Fire
     if s.rapid_fire_ready then return false end
@@ -320,7 +326,6 @@ local strategies = {
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[MARKSMANSHIP] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) local pet = context.pet or (NS.GetPet and NS.GetPet()) or context.me; return NS.try_cast(SPELLS.BestialWrath, pet, "[MARKSMANSHIP] Bestial Wrath", { skip_range = true, expected_cooldown = 120 }) end },
     { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
-    { name = "SilencingShot", matches = silencing_shot_matches, execute = function(context) return NS.try_cast(SPELLS.SilencingShot, context.target, "[MARKSMANSHIP] Silencing Shot", { expected_cooldown = 20 }) end },
     { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "KillCommand", matches = kill_command_matches, execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[MARKSMANSHIP] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },

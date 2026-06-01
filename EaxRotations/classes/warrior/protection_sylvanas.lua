@@ -417,13 +417,6 @@ local strategies = {
     },
     -- 2) Interrupts (must beat casts)
     {
-        name = "Pummel",
-        matches = function(context) return pummel_matches_fn(context, build_state(context)) end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.Pummel, context.target, "[PROT] Pummel")
-        end,
-    },
-    {
         name = "ShieldBash",
         matches = function(context) return shield_bash_matches_fn(context, build_state(context)) end,
         execute = function(context)

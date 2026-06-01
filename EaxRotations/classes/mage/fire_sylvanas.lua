@@ -256,10 +256,6 @@ local strategies = {
     { name = "ManaShield",
       matches = mana_shield_matches_fn,
       execute = function() return NS.try_cast(SPELLS.ManaShield, NS.PLAYER_UNIT, "[FIRE] Mana Shield") end },
-    -- Interrupt
-    { name = "Counterspell",
-      matches = counterspell_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.Counterspell, context.target, "[FIRE] Counterspell") end },
     -- Presence of Mind burst setup
     { name = "PresenceOfMind",
       matches = presence_of_mind_matches_fn,

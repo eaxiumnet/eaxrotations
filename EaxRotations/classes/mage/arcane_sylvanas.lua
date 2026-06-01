@@ -471,11 +471,6 @@ local strategies = {
       matches = mana_shield_matches,
       execute = function(context) return NS.try_cast(SPELLS.ManaShield, context.me, "[ARCANE] ManaShield") end },
 
-    -- Interrupt
-    { name = "Counterspell",
-      matches = counterspell_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Counterspell, context.target, "[ARCANE] Counterspell") end },
-
     -- CC / Utility
     { name = "Polymorph",
       matches = polymorph_matches,

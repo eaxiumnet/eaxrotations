@@ -183,24 +183,7 @@ action_calls = {}
 assert_true(pom.matches({ in_combat = true, should_burst = true }), "PoM should match during burst")
 
 -- ============================================================================
--- Counterspell: only when target is casting
--- ============================================================================
-
-local counterspell = find_strategy("Counterspell")
-
--- No target -> should NOT match
-action_calls = {}
-assert_false(counterspell.matches({ target = nil }), "Counterspell should not match without target")
-
--- Target not casting -> should NOT match
-action_calls = {}
-assert_false(counterspell.matches({ target = { is_casting = false } }), "Counterspell should not match when target not casting")
-assert_eq(#action_calls, 0, "action_matches should not be called when target not casting")
-
--- Target casting -> should match
-action_calls = {}
-assert_true(counterspell.matches({ target = { is_casting = true } }), "Counterspell should match when target casting")
-
+-- Counterspell removed — handled by interrupt_manager middleware
 -- ============================================================================
 -- Evocation: only in combat and mana <= 20%
 -- ============================================================================
