@@ -37,8 +37,6 @@ local FAERIE_FIRE_FERAL  = { 27011, 17392, 17391, 17390, 16857, 26993, 9907, 974
 local PROWL_BUFF         = { 9913, 6783, 5215 }
 
 -- Feral resource constants
-local ENERGY_CAP = 100
-local ENERGY_PER_TICK = 20
 local RAGE_LOW = 15
 local RIP_CP_MIN = 4
 local BITE_CP_MIN = 4
@@ -169,7 +167,7 @@ end
 -- ============================================================================
 
 --- Bear Form - survival shift when HP is critically low
-local bear_form_survival_matches = function(context, state)
+local bear_form_survival_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.use_feral then return false end
@@ -180,7 +178,7 @@ local bear_form_survival_matches = function(context, state)
 end
 
 --- Frenzied Regeneration - bear self-heal when low HP
-local frenzied_regen_matches = function(context, state)
+local frenzied_regen_matches = function(_, state)
     if not state then return false end
     if not state.is_bear then return false end
     if not state.in_combat then return false end
@@ -191,7 +189,7 @@ local frenzied_regen_matches = function(context, state)
 end
 
 --- Cat Form - enter cat for DPS when safe to do so
-local cat_form_entry_matches = function(context, state)
+local cat_form_entry_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.use_feral then return false end
@@ -204,7 +202,7 @@ local cat_form_entry_matches = function(context, state)
 end
 
 --- Prowl - stealth opener preparation (OOC)
-local prowl_opener_matches = function(context, state)
+local prowl_opener_matches = function(_, state)
     if not state then return false end
     if state.in_combat then return false end
     if not state.use_feral then return false end
@@ -217,7 +215,7 @@ local prowl_opener_matches = function(context, state)
 end
 
 --- Pounce - stealth opener (stun + bleed)
-local pounce_matches = function(context, state)
+local pounce_matches = function(_, state)
     if not state then return false end
     if not state.is_stealthed then return false end
     if not state.is_cat then return false end
@@ -227,7 +225,7 @@ local pounce_matches = function(context, state)
 end
 
 --- Ravage - stealth opener (high damage, requires behind)
-local ravage_matches = function(context, state)
+local ravage_matches = function(_, state)
     if not state then return false end
     if not state.is_stealthed then return false end
     if not state.is_cat then return false end
@@ -238,7 +236,7 @@ local ravage_matches = function(context, state)
 end
 
 --- Faerie Fire (Feral) - armor debuff
-local faerie_fire_feral_matches = function(context, state)
+local faerie_fire_feral_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.target then return false end
@@ -249,7 +247,7 @@ local faerie_fire_feral_matches = function(context, state)
 end
 
 --- Rake - bleed application/refresh
-local rake_matches = function(context, state)
+local rake_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
     if not state.in_combat then return false end
@@ -263,7 +261,7 @@ local rake_matches = function(context, state)
 end
 
 --- Mangle (Cat) - debuff application + combo builder
-local mangle_cat_matches = function(context, state)
+local mangle_cat_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
     if not state.in_combat then return false end
@@ -279,7 +277,7 @@ local mangle_cat_matches = function(context, state)
 end
 
 --- Shred - behind-target builder (better than Mangle when debuff is up)
-local shred_matches = function(context, state)
+local shred_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
     if not state.in_combat then return false end
@@ -293,7 +291,7 @@ local shred_matches = function(context, state)
 end
 
 --- Rip - finisher (bleed, scales with CP)
-local rip_matches = function(context, state)
+local rip_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
     if not state.in_combat then return false end
@@ -307,7 +305,7 @@ local rip_matches = function(context, state)
 end
 
 --- Ferocious Bite - finisher / execute
-local bite_matches = function(context, state)
+local bite_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
     if not state.in_combat then return false end
@@ -321,7 +319,7 @@ local bite_matches = function(context, state)
 end
 
 --- Claw - energy dump filler (when Rake/Mangle/Shred not available)
-local claw_matches = function(context, state)
+local claw_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
     if not state.in_combat then return false end
@@ -337,7 +335,7 @@ local claw_matches = function(context, state)
 end
 
 --- Mangle (Bear) - rage dump when in bear form
-local mangle_bear_matches = function(context, state)
+local mangle_bear_matches = function(_, state)
     if not state then return false end
     if not state.is_bear then return false end
     if not state.in_combat then return false end
@@ -349,7 +347,7 @@ local mangle_bear_matches = function(context, state)
 end
 
 --- Swipe (Bear) - AoE rage dump in bear form
-local swipe_bear_matches = function(context, state)
+local swipe_bear_matches = function(_, state)
     if not state then return false end
     if not state.is_bear then return false end
     if not state.in_combat then return false end
@@ -360,7 +358,7 @@ local swipe_bear_matches = function(context, state)
 end
 
 --- Maul - rage dump (next melee attack enhancer)
-local maul_matches = function(context, state)
+local maul_matches = function(_, state)
     if not state then return false end
     if not state.is_bear then return false end
     if not state.in_combat then return false end
@@ -375,7 +373,7 @@ end
 -- ============================================================================
 
 --- Mark of the Wild - OOC buff
-local motw_matches = function(context, state)
+local motw_matches = function(_, state)
 	    if not state then return false end
 	    if state.in_combat then return false end
     if state.has_mark_of_wild then return false end
@@ -384,7 +382,7 @@ local motw_matches = function(context, state)
 end
 
 --- Thorns - OOC buff
-local thorns_matches = function(context, state)
+local thorns_matches = function(_, state)
 	    if not state then return false end
 	    if state.in_combat then return false end
     if state.has_thorns then return false end
@@ -393,7 +391,7 @@ local thorns_matches = function(context, state)
 end
 
 --- Nature's Grasp - instant root escape when melee'd (survival tool)
-local natures_grasp_matches = function(context, state)
+local natures_grasp_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.natures_grasp_ready then return false end
@@ -402,7 +400,7 @@ local natures_grasp_matches = function(context, state)
 end
 
 --- Barkskin - defensive
-local barkskin_matches = function(context, state)
+local barkskin_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.barkskin_ready then return false end
@@ -411,7 +409,7 @@ local barkskin_matches = function(context, state)
 end
 
 --- Healing Touch - big emergency heal
-local healing_touch_matches = function(context, state)
+local healing_touch_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.healing_touch_ready then return false end
@@ -420,7 +418,7 @@ local healing_touch_matches = function(context, state)
 end
 
 --- Rejuvenation - HoT heal when low HP
-local rejuvenation_matches = function(context, state)
+local rejuvenation_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.rejuvenation_ready then return false end
@@ -429,7 +427,7 @@ local rejuvenation_matches = function(context, state)
 end
 
 --- Entangling Roots - CC/survival when overwhelmed
-local entangling_roots_matches = function(context, state)
+local entangling_roots_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.entangling_roots_ready then return false end
@@ -440,7 +438,7 @@ local entangling_roots_matches = function(context, state)
 end
 
 --- Moonfire - DoT refresh
-local moonfire_matches = function(context, state)
+local moonfire_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.moonfire_ready then return false end
@@ -452,7 +450,7 @@ local moonfire_matches = function(context, state)
 end
 
 --- Insect Swarm - DoT refresh
-local insect_swarm_matches = function(context, state)
+local insect_swarm_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.insect_swarm_ready then return false end
@@ -464,7 +462,7 @@ local insect_swarm_matches = function(context, state)
 end
 
 --- Faerie Fire - armor debuff (refresh < 60s, apply once)
-local faerie_fire_matches = function(context, state)
+local faerie_fire_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.faerie_fire_ready then return false end
@@ -476,7 +474,7 @@ local faerie_fire_matches = function(context, state)
 end
 
 --- Hurricane - AoE (3+ enemies, not moving)
-local hurricane_matches = function(context, state)
+local hurricane_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.hurricane_ready then return false end
@@ -487,7 +485,7 @@ local hurricane_matches = function(context, state)
 end
 
 --- Starfire - big cast (not moving)
-local starfire_matches = function(context, state)
+local starfire_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.starfire_ready then return false end
@@ -497,7 +495,7 @@ local starfire_matches = function(context, state)
 end
 
 --- Wrath - filler (can cast while moving)
-local wrath_matches = function(context, state)
+local wrath_matches = function(_, state)
 	    if not state then return false end
 	    if not state.in_combat then return false end
     if not state.wrath_ready then return false end
