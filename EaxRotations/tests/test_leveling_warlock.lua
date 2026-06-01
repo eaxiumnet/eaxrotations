@@ -1,5 +1,5 @@
 -- Unit tests for Warlock leveling rotation
--- Tests build_state, all 13 match functions, strategy ordering,
+-- Tests build_state, all 18 match functions, strategy ordering,
 -- helper functions, and edge case handling
 
 local EAXROTATIONS_DIR = "C:/newbot/scripts/EaxRotations"
@@ -508,7 +508,7 @@ test("health_funnel_matches: not in combat -> false", function()
 end)
 
 -- ============================================================================
--- Test: fear_matches (strategy #5)
+-- Test: fear_matches (strategy #7)
 -- ============================================================================
 
 test("fear_matches: ready, 2+ enemies, debuff expiring -> true", function()
@@ -546,7 +546,7 @@ test("fear_matches: no target -> false", function()
 end)
 
 -- ============================================================================
--- Test: death_coil_matches (strategy #6)
+-- Test: death_coil_matches (strategy #9)
 -- ============================================================================
 
 test("death_coil_matches: ready, HP below 40% -> true", function()
@@ -575,7 +575,7 @@ test("death_coil_matches: no target -> false", function()
 end)
 
 -- ============================================================================
--- Test: life_tap_matches (strategy #7)
+-- Test: life_tap_matches (strategy #10)
 -- ============================================================================
 
 test("life_tap_matches: ready, low mana, self HP ok -> true", function()
@@ -618,7 +618,7 @@ test("life_tap_matches: not in combat -> false", function()
 end)
 
 -- ============================================================================
--- Test: corruption_matches (strategy #8)
+-- Test: corruption_matches (strategy #11)
 -- ============================================================================
 
 test("corruption_matches: ready, enabled, debuff expiring -> true", function()
@@ -665,7 +665,7 @@ test("corruption_matches: no target -> false", function()
 end)
 
 -- ============================================================================
--- Test: immolate_matches (strategy #9)
+-- Test: immolate_matches (strategy #12)
 -- ============================================================================
 
 test("immolate_matches: ready, enabled, not moving, debuff expiring -> true", function()
@@ -706,7 +706,7 @@ test("immolate_matches: debuff fresh -> false", function()
 end)
 
 -- ============================================================================
--- Test: curse_of_agony_matches (strategy #10)
+-- Test: curse_of_agony_matches (strategy #13)
 -- ============================================================================
 
 test("curse_of_agony_matches: ready, enabled, debuff expiring -> true", function()
@@ -736,7 +736,7 @@ test("curse_of_agony_matches: disabled -> false", function()
 end)
 
 -- ============================================================================
--- Test: drain_soul_matches (strategy #11)
+-- Test: drain_soul_matches (strategy #16)
 -- ============================================================================
 
 test("drain_soul_matches: ready, execute range target -> true", function()
@@ -776,7 +776,7 @@ test("drain_soul_matches: not in combat -> false", function()
 end)
 
 -- ============================================================================
--- Test: shadow_bolt_matches (strategy #12)
+-- Test: shadow_bolt_matches (strategy #17)
 -- ============================================================================
 
 test("shadow_bolt_matches: ready, not moving, enough mana -> true", function()
@@ -809,11 +809,11 @@ test("shadow_bolt_matches: no target -> false", function()
     local state = get_state(ctx)
     state.shadow_bolt_ready = true
     state.target = nil
-    assert_false(strategies[17].matches(ctx, state), "no target should not match")
+    assert_false(strategies[18].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
--- Test: wand_matches_fn (strategy #13)
+-- Test: wand_matches_fn (strategy #18)
 -- ============================================================================
 
 test("wand_matches: low mana, in combat, wand learned -> true", function()
@@ -822,7 +822,7 @@ test("wand_matches: low mana, in combat, wand learned -> true", function()
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[17].matches(ctx, state), "low mana should match")
+    assert_true(strategies[18].matches(ctx, state), "low mana should match")
 end)
 
 test("wand_matches: enough mana -> false", function()
@@ -831,7 +831,7 @@ test("wand_matches: enough mana -> false", function()
     state.mana_pct = 80
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_false(strategies[17].matches(ctx, state), "enough mana should not match")
+    assert_false(strategies[18].matches(ctx, state), "enough mana should not match")
 end)
 
 test("wand_matches: no target -> false", function()
@@ -850,7 +850,7 @@ test("wand_matches: not in combat -> false", function()
     state.wand_threshold = 30
     state.wand_learned = true
     state.in_combat = false
-    assert_false(strategies[17].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[18].matches(ctx, state), "OOC should not match")
 end)
 
 test("wand_matches: wand not learned -> false", function()
@@ -858,7 +858,7 @@ test("wand_matches: wand not learned -> false", function()
     local state = get_state(ctx)
     state.mana_pct = 10
     state.wand_learned = false
-    assert_false(strategies[17].matches(ctx, state), "wand not learned should not match")
+    assert_false(strategies[18].matches(ctx, state), "wand not learned should not match")
 end)
 
 -- ============================================================================
@@ -872,6 +872,7 @@ test("strategies: 16 strategies in correct priority order", function()
         "CreateSoulstone",
         "SpellLock",
         "HealthFunnel",
+        "SummonPet",
         "Fear",
         "HowlOfTerror",
         "DeathCoil",
@@ -885,7 +886,7 @@ test("strategies: 16 strategies in correct priority order", function()
         "ShadowBolt",
         "Wand",
     }
-    assert_eq(#strategies, 17, "should have 17 strategies")
+    assert_eq(#strategies, 18, "should have 18 strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -910,12 +911,12 @@ end)
 
 test("execute_Wand: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[17].execute, ctx)
+    local ok, result = pcall(strategies[18].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
 test("execute_Wand: does not crash without context", function()
-    local ok, result = pcall(strategies[17].execute)
+    local ok, result = pcall(strategies[18].execute)
     assert_true(ok, "execute without context should not throw")
 end)
 
@@ -985,7 +986,7 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     assert_true(strategies[3].matches(ctx, state), "CreateSoulstone should match OOC")
 
     -- Combat abilities should not match OOC (start from SpellLock at index 4)
-    for i = 4, 17 do
+    for i = 4, 18 do
         local ok, matched = pcall(strategies[i].matches, ctx, state)
         assert_true(ok, "strategy[" .. i .. "] matches should not throw")
         assert_false(matched, "strategy[" .. i .. "] (" .. strategies[i].name .. ") should not match OOC")
@@ -1016,7 +1017,7 @@ test("rotation: low mana scenario - life tap + wand should be possible", functio
     assert_true(strategies[9].matches(ctx, state), "LifeTap should match when low mana")
 
     -- Wand should also be a fallback option
-    assert_true(strategies[17].matches(ctx, state), "Wand should match when mana below threshold")
+    assert_true(strategies[18].matches(ctx, state), "Wand should match when mana below threshold")
 end)
 
 -- ============================================================================
@@ -1369,7 +1370,7 @@ do -- edge_wand
         state.wand_learned = true
         state.wand_threshold = 30
         state.mana_pct = 29
-        assert_true(strategies[17].matches(ctx, state), "mana 29 should match (< threshold)")
+        assert_true(strategies[18].matches(ctx, state), "mana 29 should match (< threshold)")
     end)
 
     test("edge_wand: mana exactly 30 (at threshold) -> no match", function()
@@ -1378,7 +1379,7 @@ do -- edge_wand
         state.wand_learned = true
         state.wand_threshold = 30
         state.mana_pct = 30
-        assert_false(strategies[17].matches(ctx, state), "mana 30 should not match (>= threshold)")
+        assert_false(strategies[18].matches(ctx, state), "mana 30 should not match (>= threshold)")
     end)
 
     test("edge_wand: wand not learned -> no match", function()
@@ -1387,7 +1388,7 @@ do -- edge_wand
         state.wand_learned = false
         state.wand_threshold = 30
         state.mana_pct = 10
-        assert_false(strategies[17].matches(ctx, state), "wand not learned should not match")
+        assert_false(strategies[18].matches(ctx, state), "wand not learned should not match")
     end)
 end
 

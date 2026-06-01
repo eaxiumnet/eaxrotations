@@ -147,6 +147,19 @@ if not _sh_ok or type(_spell_helper) ~= "table" then _spell_helper = nil end
 local _find_dead_ok, _find_dead_scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
 if not _find_dead_ok or type(_find_dead_scan) ~= "table" then _find_dead_scan = nil end
 
+-- SpellRankResolver: auto-resolves spell rank chains from wowhead_data
+local _srr_ok, _spell_rank_resolver = pcall(require, "shared/spell_rank_resolver_sylvanas")
+if _srr_ok and type(_spell_rank_resolver) == "table" then NS.SpellRankResolver = _spell_rank_resolver end
+
+-- SpellCorpus: on-demand wowhead spell data access (get_class_spells, get_spell_info, search_spells)
+local _sc_ok, _spell_corpus = pcall(require, "shared/spell_corpus_sylvanas")
+if _sc_ok and type(_spell_corpus) == "table" then NS.SpellCorpus = _spell_corpus end
+
+-- SpellFlagChecker: form-aware casting checks from wowhead_data + hardcoded TBC table
+-- Exports NS.can_cast_in_form, NS.get_spell_flags, NS.is_form_restricted, NS.get_required_form
+local _sfc_ok, _spell_flag_checker = pcall(require, "shared/spell_flag_checker_sylvanas")
+if _sfc_ok and type(_spell_flag_checker) == "table" then NS.SpellFlagChecker = _spell_flag_checker end
+
 -- EnemyCDTracker adapter: preserves API compatibility while delegating to native cooldown_tracker
 -- Replaces EaxRotations/shared/enemy_cd_tracker_sylvanas.lua (deleted)
 if _cooldown_tracker then
