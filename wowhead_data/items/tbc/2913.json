@@ -1,0 +1,29 @@
+{
+  "name": "Silk Mantle of Gamn",
+  "quality": 2,
+  "icon": "inv_shoulder_05",
+  "ilvl": 28,
+  "armor": 31,
+  "stats": {
+    "intellect": 6,
+    "spirit": 4
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 40,
+  "sell_price": {
+    "silver": 11,
+    "copper": 53
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 2913,
+  "_source": "cache"
+}

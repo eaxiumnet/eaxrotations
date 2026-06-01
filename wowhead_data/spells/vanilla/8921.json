@@ -1,0 +1,30 @@
+{
+  "name": "Moonfire",
+  "icon": "spell_nature_starfall",
+  "cost": {
+    "type": "mana",
+    "amount": 25
+  },
+  "range": 30,
+  "cast_time": 0,
+  "spell_level": 60,
+  "required_class": "Druid",
+  "required_level": 4,
+  "description": "Burns the enemy for 9 to 12 Arcane damage and then an additional 12 Arcane damage over 9 sec.",
+  "school": "arcane",
+  "damage": {
+    "min": 9,
+    "max": 12
+  },
+  "duration": 9,
+  "has_buff": true,
+  "buff_duration": 9,
+  "periodic": {
+    "amount": 4,
+    "school": "arcane",
+    "interval": 3
+  },
+  "buff_text": "4 Arcane damage every 3 seconds.",
+  "_id": 8921,
+  "_source": "wowhead"
+}

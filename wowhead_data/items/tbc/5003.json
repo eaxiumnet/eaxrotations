@@ -1,0 +1,25 @@
+{
+  "name": "Crystal Starfire Medallion",
+  "quality": 2,
+  "icon": "inv_jewelry_necklace_02",
+  "ilvl": 31,
+  "required_level": 26,
+  "stats": {
+    "intellect": 4,
+    "spirit": 3,
+    "stamina": 4
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 17,
+    "copper": 13
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 5003,
+  "_source": "cache"
+}

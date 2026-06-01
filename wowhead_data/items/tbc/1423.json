@@ -1,0 +1,23 @@
+{
+  "name": "Worn Leather Pants",
+  "quality": 0,
+  "icon": "inv_pants_06",
+  "ilvl": 7,
+  "required_level": 2,
+  "armor": 34,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "durability": 35,
+  "sell_price": {
+    "copper": 19
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 1423,
+  "_source": "cache"
+}

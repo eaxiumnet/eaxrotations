@@ -1,0 +1,25 @@
+{
+  "name": "Shadow Word: Pain",
+  "icon": "spell_shadow_shadowwordpain",
+  "cost": {
+    "type": "mana",
+    "amount": 575
+  },
+  "range": 30,
+  "cast_time": 0,
+  "required_class": "Priest",
+  "required_level": 70,
+  "description": "A word of darkness that causes 1236 Shadow damage over 18 sec.",
+  "school": "shadow",
+  "duration": 18,
+  "has_buff": true,
+  "buff_duration": 18,
+  "periodic": {
+    "amount": 206,
+    "school": "shadow",
+    "interval": 3
+  },
+  "buff_text": "206 Shadow damage every 3 seconds.",
+  "_id": 25368,
+  "_source": "cache"
+}

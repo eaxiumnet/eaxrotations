@@ -1,0 +1,30 @@
+{
+  "name": "Sharpened Stilleto",
+  "quality": 0,
+  "icon": "inv_weapon_shortblade_05",
+  "ilvl": 69,
+  "required_level": 64,
+  "weapon": {
+    "min_damage": 26,
+    "max_damage": 50,
+    "speed": 1.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Dagger",
+  "durability": 55,
+  "sell_price": {
+    "gold": 1,
+    "silver": 87,
+    "copper": 65
+  },
+  "item_class": 2,
+  "item_subclass": 15,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Daggers",
+  "_id": 25403,
+  "_source": "cache"
+}

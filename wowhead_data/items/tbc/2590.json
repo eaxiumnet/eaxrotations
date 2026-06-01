@@ -1,0 +1,16 @@
+{
+  "name": "Forest Spider Webbing",
+  "quality": 0,
+  "icon": "spell_nature_web",
+  "ilvl": 5,
+  "sell_price": {
+    "copper": 5
+  },
+  "max_stack": 5,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 2590,
+  "_source": "cache"
+}

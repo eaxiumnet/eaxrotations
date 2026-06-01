@@ -1,0 +1,13 @@
+{
+  "name": "Yellow Power Crystal",
+  "quality": 1,
+  "icon": "inv_misc_gem_topaz_02",
+  "ilvl": 1,
+  "max_stack": 100,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 11188,
+  "_source": "cache"
+}

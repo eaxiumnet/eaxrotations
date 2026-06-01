@@ -1,0 +1,26 @@
+{
+  "name": "Huntsman's Bands",
+  "quality": 2,
+  "icon": "inv_bracer_06",
+  "ilvl": 39,
+  "required_level": 34,
+  "armor": 48,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 30,
+  "sell_price": {
+    "silver": 25,
+    "copper": 89
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 9886,
+  "_source": "cache"
+}

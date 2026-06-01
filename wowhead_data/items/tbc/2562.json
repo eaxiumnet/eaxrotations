@@ -1,0 +1,19 @@
+{
+  "name": "Bouquet of Scarlet Begonias",
+  "quality": 1,
+  "icon": "inv_misc_flower_04",
+  "ilvl": 23,
+  "slot": "Held In Off-hand",
+  "equip_slots": [
+    17
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 5,
+    "copper": 75
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 2562,
+  "_source": "cache"
+}

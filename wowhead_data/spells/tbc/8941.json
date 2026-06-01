@@ -1,0 +1,26 @@
+{
+  "name": "Regrowth",
+  "icon": "spell_nature_resistnature",
+  "cost": {
+    "type": "mana",
+    "amount": 275
+  },
+  "range": 40,
+  "cast_time": 2,
+  "spell_level": 70,
+  "required_class": "Druid",
+  "required_level": 36,
+  "description": "Heals a friendly target for 425 to 478 and another 427 over 21 sec.",
+  "healing": {
+    "min": 425,
+    "max": 478
+  },
+  "is_heal": true,
+  "duration": 21,
+  "target_type": "friendly",
+  "has_buff": true,
+  "buff_duration": 21,
+  "buff_text": "Heals 61 every 3 seconds.",
+  "_id": 8941,
+  "_source": "cache"
+}

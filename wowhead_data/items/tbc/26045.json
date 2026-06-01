@@ -1,0 +1,14 @@
+{
+  "name": "Halaa Battle Token",
+  "quality": 2,
+  "icon": "inv_misc_rune_08",
+  "ilvl": 1,
+  "binding": "bop",
+  "max_stack": 100,
+  "item_class": 15,
+  "item_subclass": 4,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Other (Miscellaneous)",
+  "_id": 26045,
+  "_source": "cache"
+}

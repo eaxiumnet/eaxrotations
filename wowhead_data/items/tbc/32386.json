@@ -1,0 +1,18 @@
+{
+  "name": "Magtheridon's Head",
+  "quality": 4,
+  "icon": "inv_misc_head_tauren_01",
+  "ilvl": 70,
+  "required_level": 70,
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "starts_quest": true,
+  "flavor_text": "All that remains of the hellspawn, Magtheridon.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 32386,
+  "_source": "cache"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Kor'kron Flare Gun",
+  "quality": 1,
+  "icon": "inv_weapon_rifle_10",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 38119,
+      "text": "Use: Signals a Kor'kron Wind Rider to fly to your location.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 31108,
+  "_source": "cache"
+}

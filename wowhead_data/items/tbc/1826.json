@@ -1,0 +1,28 @@
+{
+  "name": "Rock Maul",
+  "quality": 0,
+  "icon": "inv_hammer_09",
+  "ilvl": 27,
+  "required_level": 22,
+  "weapon": {
+    "min_damage": 25,
+    "max_damage": 38,
+    "speed": 2.9
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "durability": 80,
+  "sell_price": {
+    "silver": 17,
+    "copper": 65
+  },
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 1826,
+  "_source": "cache"
+}

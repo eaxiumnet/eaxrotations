@@ -1,0 +1,20 @@
+{
+  "name": "Nolkai's Bag",
+  "quality": 2,
+  "icon": "inv_misc_bag_07_blue",
+  "ilvl": 15,
+  "binding": "bop",
+  "bag_slots": 8,
+  "container_type": "bag",
+  "sell_price": {
+    "silver": 8,
+    "copper": 75
+  },
+  "flavor_text": "Despite its long time buried in the earth, this bag seems nearly new.",
+  "item_class": 1,
+  "item_subclass": 0,
+  "item_class_name": "Containers",
+  "item_subclass_name": "Bags",
+  "_id": 23852,
+  "_source": "cache"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Unstable Affliction",
+  "icon": "spell_shadow_unstableaffliction_3",
+  "cost": {
+    "type": "mana",
+    "amount": 400
+  },
+  "range": 30,
+  "cast_time": 1.5,
+  "required_class": "Warlock",
+  "required_level": 70,
+  "description": "Shadow energy slowly destroys the target, causing 1050 damage over 18 sec.  In addition, if the Unstable Affliction is dispelled it will cause 1575 damage to the dispeller and silence them for 5 sec.",
+  "duration": 18,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 18,
+  "periodic": {
+    "amount": 175,
+    "school": "shadow",
+    "interval": 1
+  },
+  "buff_text": "175 Shadow damage every 3 sec.  If dispelled, will cause 1575 damage to the dispeller and silence them for 5 sec.",
+  "_id": 30405,
+  "_source": "cache"
+}

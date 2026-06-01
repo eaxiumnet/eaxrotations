@@ -1,0 +1,48 @@
+{
+  "name": "Stalker's Chain Leggings",
+  "quality": 3,
+  "icon": "inv_pants_mail_15",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 570,
+  "stats": {
+    "agility": 28,
+    "intellect": 8,
+    "stamina": 42
+  },
+  "ratings": {
+    "crit": 14,
+    "resilience": 25
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "set_id": 2020,
+  "set_name": "Oathbound's Chain Battlegear",
+  "classes": [
+    "Hunter"
+  ],
+  "durability": 90,
+  "sell_price": {
+    "gold": 5,
+    "silver": 4,
+    "copper": 5
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9335,
+      "text": "Equip: Increases attack power by 28."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 35379,
+  "_source": "cache"
+}

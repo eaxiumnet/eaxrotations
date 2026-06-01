@@ -1,0 +1,24 @@
+{
+  "name": "Linked Chain Belt",
+  "quality": 0,
+  "icon": "inv_belt_06",
+  "ilvl": 25,
+  "required_level": 20,
+  "armor": 93,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "durability": 30,
+  "sell_price": {
+    "silver": 3,
+    "copper": 32
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 1746,
+  "_source": "cache"
+}

@@ -1,0 +1,34 @@
+{
+  "name": "Plans: Thorium Bracers",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 51,
+  "required_level": 46,
+  "armor": 214,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "silver": 30,
+    "copper": 97
+  },
+  "resistances": {
+    "arcane": 5,
+    "fire": 5,
+    "nature": 5,
+    "frost": 5,
+    "shadow": 5
+  },
+  "teaches": "make Thorium Bracers",
+  "teaches_spell_id": 16644,
+  "item_class": 9,
+  "item_subclass": 4,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Blacksmithing Plans",
+  "_id": 12684,
+  "_source": "cache"
+}

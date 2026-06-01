@@ -1,0 +1,27 @@
+{
+  "name": "Overlord's Greaves",
+  "quality": 2,
+  "icon": "inv_boots_01",
+  "ilvl": 48,
+  "required_level": 43,
+  "armor": 318,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 1,
+    "silver": 4,
+    "copper": 11
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 10201,
+  "_source": "cache"
+}

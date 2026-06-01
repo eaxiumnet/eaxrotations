@@ -1,0 +1,33 @@
+{
+  "name": "Rhahk'Zor's Hammer",
+  "quality": 3,
+  "icon": "inv_hammer_09",
+  "ilvl": 20,
+  "required_level": 15,
+  "stats": {
+    "stamina": 11
+  },
+  "weapon": {
+    "min_damage": 45,
+    "max_damage": 68,
+    "speed": 3.2
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "binding": "bop",
+  "durability": 75,
+  "sell_price": {
+    "silver": 21,
+    "copper": 63
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 5187,
+  "_source": "cache"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "First Sergeant's Plate Bracers",
+  "quality": 3,
+  "icon": "inv_bracer_19",
+  "ilvl": 63,
+  "required_level": 58,
+  "armor": 287,
+  "stats": {
+    "strength": 7,
+    "stamina": 17
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "unique": true,
+  "classes": [
+    "Warrior",
+    "Paladin"
+  ],
+  "durability": 45,
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 18429,
+  "_source": "cache"
+}

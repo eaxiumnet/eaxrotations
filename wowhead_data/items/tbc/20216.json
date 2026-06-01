@@ -1,0 +1,38 @@
+{
+  "name": "Belt of Preserved Heads",
+  "quality": 3,
+  "icon": "inv_belt_14",
+  "ilvl": 70,
+  "armor": 108,
+  "stats": {
+    "agility": 15,
+    "strength": 14,
+    "stamina": 11
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 44,
+    "copper": 45
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15464,
+      "text": "Equip: Increases your hit rating by 10."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 20216,
+  "_source": "cache"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Canvas Cloak",
+  "quality": 0,
+  "icon": "inv_misc_cape_15",
+  "ilvl": 18,
+  "required_level": 13,
+  "armor": 14,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "sell_price": {
+    "silver": 1,
+    "copper": 31
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 1766,
+  "_source": "cache"
+}

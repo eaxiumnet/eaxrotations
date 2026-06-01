@@ -1,0 +1,23 @@
+{
+  "name": "Invoker's Signet",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_25",
+  "ilvl": 21,
+  "stats": {
+    "intellect": 3
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 4,
+    "copper": 3
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28303,
+  "_source": "cache"
+}

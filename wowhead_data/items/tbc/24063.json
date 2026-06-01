@@ -1,0 +1,43 @@
+{
+  "name": "Shifting Sash of Midnight",
+  "quality": 3,
+  "icon": "inv_belt_29",
+  "ilvl": 85,
+  "required_level": 60,
+  "armor": 127,
+  "stats": {
+    "agility": 15,
+    "stamina": 19
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "sockets": {
+    "red": 2,
+    "total": 2
+  },
+  "socket_bonus": "+3 Dodge Rating",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 66,
+    "copper": 19
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9335,
+      "text": "Equip: Increases attack power by 28."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 24063,
+  "_source": "cache"
+}

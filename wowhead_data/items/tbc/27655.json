@@ -1,0 +1,28 @@
+{
+  "name": "Ravager Dog",
+  "quality": 1,
+  "icon": "inv_misc_food_53",
+  "ilvl": 65,
+  "required_level": 55,
+  "sell_price": {
+    "silver": 1,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 33260,
+      "text": "Use: Restores 4320 health over 30 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 40 attack power and 20 Spirit for 30 min."
+    }
+  ],
+  "food_hp": 4320,
+  "food_duration": 30,
+  "max_stack": 20,
+  "flavor_text": "Don't ask what it's made of.",
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 27655,
+  "_source": "cache"
+}

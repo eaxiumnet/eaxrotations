@@ -1,0 +1,27 @@
+{
+  "name": "Berserker Bracers",
+  "quality": 4,
+  "icon": "inv_bracer_06",
+  "ilvl": 65,
+  "required_level": 60,
+  "armor": 368,
+  "stats": {
+    "agility": 8,
+    "strength": 19,
+    "stamina": 11
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 55,
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 19578,
+  "_source": "cache"
+}

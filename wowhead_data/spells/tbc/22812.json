@@ -1,0 +1,19 @@
+{
+  "name": "Barkskin",
+  "icon": "spell_nature_stoneclawtotem",
+  "cost": {
+    "type": "mana",
+    "percent": 12
+  },
+  "cast_time": 0,
+  "cooldown": "1 min cooldown",
+  "required_class": "Druid",
+  "required_level": 44,
+  "description": "The druid's skin becomes as tough as bark.  All damage taken is reduced by 20%.  While protected, damaging attacks will not cause spellcasting delays.  This spell is usable while stunned, frozen, incapacitated, feared or asleep.  Lasts 12 sec.",
+  "duration": 12,
+  "has_buff": true,
+  "buff_duration": 12,
+  "buff_text": "All damage taken is reduced by 20%.  While protected, damaging attacks will not cause spellcasting delays.",
+  "_id": 22812,
+  "_source": "cache"
+}

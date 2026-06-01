@@ -1,0 +1,65 @@
+{
+  "name": "Leggings of Assassination",
+  "quality": 3,
+  "icon": "inv_pants_leather_03",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 256,
+  "stats": {
+    "agility": 40,
+    "stamina": 33
+  },
+  "ratings": {
+    "hit": 22
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "set_id": 620,
+  "set_name": "Assassination Armor",
+  "set_pieces": [
+    {
+      "id": 27509,
+      "name": "Handgrips of Assassination"
+    },
+    {
+      "id": 28414,
+      "name": "Helm of Assassination"
+    },
+    {
+      "id": 27908,
+      "name": "Leggings of Assassination"
+    },
+    {
+      "id": 27776,
+      "name": "Shoulderpads of Assassination"
+    },
+    {
+      "id": 28204,
+      "name": "Tunic of Assassination"
+    }
+  ],
+  "durability": 75,
+  "sell_price": {
+    "gold": 4,
+    "silver": 52,
+    "copper": 15
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15810,
+      "text": "Equip: Increases attack power by 44."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 27908,
+  "_source": "cache"
+}

@@ -1,0 +1,32 @@
+{
+  "name": "Warlord's Axe",
+  "quality": 2,
+  "icon": "inv_axe_16",
+  "ilvl": 58,
+  "required_level": 53,
+  "weapon": {
+    "min_damage": 55,
+    "max_damage": 104,
+    "speed": 2.3
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 75,
+  "sell_price": {
+    "gold": 3,
+    "silver": 64,
+    "copper": 96
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 15238,
+  "_source": "cache"
+}

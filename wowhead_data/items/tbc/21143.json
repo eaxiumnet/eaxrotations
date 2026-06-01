@@ -1,0 +1,23 @@
+{
+  "name": "Unsigned Field Duty Papers",
+  "quality": 1,
+  "icon": "inv_misc_note_01",
+  "ilvl": 60,
+  "required_level": 58,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28745,
+      "text": "Use: Fills out the recruit's field duty information.",
+      "cooldown": "3 Min Cooldown"
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 21143,
+  "_source": "cache"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Teromoth Sample",
+  "quality": 1,
+  "icon": "spell_shadow_carrionswarm",
+  "ilvl": 1,
+  "max_stack": 10,
+  "flavor_text": "Doesn't look unusual to you.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 25672,
+  "_source": "cache"
+}

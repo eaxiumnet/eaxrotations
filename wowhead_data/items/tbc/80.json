@@ -1,0 +1,23 @@
+{
+  "name": "Soft Fur-lined Shoes",
+  "quality": 1,
+  "icon": "inv_boots_09",
+  "ilvl": 5,
+  "armor": 7,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 20,
+  "sell_price": {
+    "copper": 7
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 80,
+  "_source": "cache"
+}

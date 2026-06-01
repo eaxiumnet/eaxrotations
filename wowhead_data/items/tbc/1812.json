@@ -1,0 +1,28 @@
+{
+  "name": "Short-handled Battle Axe",
+  "quality": 0,
+  "icon": "inv_throwingaxe_05",
+  "ilvl": 17,
+  "required_level": 12,
+  "weapon": {
+    "min_damage": 16,
+    "max_damage": 25,
+    "speed": 3.1
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "durability": 60,
+  "sell_price": {
+    "silver": 4,
+    "copper": 53
+  },
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 1812,
+  "_source": "cache"
+}

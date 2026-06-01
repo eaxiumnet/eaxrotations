@@ -1,0 +1,16 @@
+{
+  "name": "Rabbit's Foot",
+  "quality": 0,
+  "icon": "inv_gauntlets_02",
+  "ilvl": 5,
+  "sell_price": {
+    "copper": 9
+  },
+  "max_stack": 5,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 3300,
+  "_source": "cache"
+}

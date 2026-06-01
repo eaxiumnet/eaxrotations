@@ -1,0 +1,26 @@
+{
+  "name": "Impenetrable Bindings",
+  "quality": 2,
+  "icon": "inv_bracer_15",
+  "ilvl": 55,
+  "required_level": 50,
+  "armor": 130,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "silver": 95,
+    "copper": 8
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 15659,
+  "_source": "cache"
+}

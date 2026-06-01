@@ -1,0 +1,21 @@
+{
+  "name": "Swamp Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_12",
+  "ilvl": 57,
+  "required_level": 52,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 88,
+    "copper": 11
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 12015,
+  "_source": "cache"
+}

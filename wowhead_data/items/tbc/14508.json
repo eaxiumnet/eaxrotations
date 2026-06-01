@@ -1,0 +1,38 @@
+{
+  "name": "Pattern: Felcloth Shoulders",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 62,
+  "required_level": 57,
+  "armor": 60,
+  "stats": {
+    "spirit": 5
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 50,
+    "copper": 96
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18008,
+      "text": "Equip: Increases damage done by Shadow spells and effects by up to 26."
+    }
+  ],
+  "teaches": "sew Felcloth Shoulders",
+  "teaches_spell_id": 18453,
+  "item_class": 9,
+  "item_subclass": 2,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Tailoring Patterns",
+  "_id": 14508,
+  "_source": "cache"
+}

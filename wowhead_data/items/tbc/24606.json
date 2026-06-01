@@ -1,0 +1,27 @@
+{
+  "name": "Laughing Skull Boot",
+  "quality": 2,
+  "icon": "inv_boots_05",
+  "ilvl": 90,
+  "required_level": 60,
+  "armor": 77,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 68,
+    "copper": 85
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24606,
+  "_source": "cache"
+}

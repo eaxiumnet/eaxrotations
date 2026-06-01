@@ -1,0 +1,27 @@
+{
+  "name": "Reaver Legplates",
+  "quality": 2,
+  "icon": "inv_pants_plate_16",
+  "ilvl": 102,
+  "required_level": 64,
+  "armor": 826,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 4,
+    "silver": 42,
+    "copper": 47
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24979,
+  "_source": "cache"
+}

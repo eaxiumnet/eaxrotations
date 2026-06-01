@@ -1,0 +1,38 @@
+{
+  "name": "Siphoning Dagger",
+  "quality": 2,
+  "icon": "inv_weapon_shortblade_31",
+  "ilvl": 90,
+  "required_level": 60,
+  "weapon": {
+    "min_damage": 45,
+    "max_damage": 95,
+    "speed": 1.7
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Dagger",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 5,
+    "silver": 67,
+    "copper": 54
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18049,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 26."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 15,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Daggers",
+  "_id": 25299,
+  "_source": "cache"
+}

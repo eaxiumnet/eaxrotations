@@ -1,0 +1,29 @@
+{
+  "name": "Eroded Axe",
+  "quality": 0,
+  "icon": "inv_throwingaxe_03",
+  "ilvl": 69,
+  "required_level": 64,
+  "weapon": {
+    "min_damage": 31,
+    "max_damage": 59,
+    "speed": 1.9
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "durability": 75,
+  "sell_price": {
+    "gold": 1,
+    "silver": 83,
+    "copper": 52
+  },
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 25397,
+  "_source": "cache"
+}

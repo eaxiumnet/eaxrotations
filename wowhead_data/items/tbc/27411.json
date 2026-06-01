@@ -1,0 +1,45 @@
+{
+  "name": "Slippers of Serenity",
+  "quality": 3,
+  "icon": "inv_boots_cloth_14",
+  "ilvl": 100,
+  "required_level": 65,
+  "armor": 94,
+  "stats": {
+    "intellect": 22,
+    "spirit": 15,
+    "stamina": 10
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "blue": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Resilience Rating",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 28,
+    "copper": 76
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18029,
+      "text": "Equip: Increases healing done by up to 35 and damage done by up to 12 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 27411,
+  "_source": "cache"
+}

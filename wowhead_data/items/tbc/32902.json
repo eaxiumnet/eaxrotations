@@ -1,0 +1,23 @@
+{
+  "name": "Bottled Nethergon Energy",
+  "quality": 1,
+  "icon": "inv_potion_156",
+  "ilvl": 68,
+  "required_level": 55,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 41618,
+      "text": "Use: Restores 1800 to 3000 mana.Only works inside Tempest Keep: The Eye, The Arcatraz, The Botanica, The Mechanar.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 15,
+  "flavor_text": "Insert into nearest energy receptacle.",
+  "item_class": 0,
+  "item_subclass": 1,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Potions",
+  "_id": 32902,
+  "_source": "cache"
+}

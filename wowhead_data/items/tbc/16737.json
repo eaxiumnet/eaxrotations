@@ -1,0 +1,72 @@
+{
+  "name": "Gauntlets of Valor",
+  "quality": 3,
+  "icon": "inv_gauntlets_26",
+  "ilvl": 59,
+  "required_level": 54,
+  "armor": 386,
+  "stats": {
+    "agility": 3,
+    "strength": 17,
+    "spirit": 8,
+    "stamina": 10
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "set_id": 189,
+  "set_name": "Battlegear of Valor",
+  "set_pieces": [
+    {
+      "id": 16736,
+      "name": "Belt of Valor"
+    },
+    {
+      "id": 16734,
+      "name": "Boots of Valor"
+    },
+    {
+      "id": 16735,
+      "name": "Bracers of Valor"
+    },
+    {
+      "id": 16730,
+      "name": "Breastplate of Valor"
+    },
+    {
+      "id": 16737,
+      "name": "Gauntlets of Valor"
+    },
+    {
+      "id": 16731,
+      "name": "Helm of Valor"
+    },
+    {
+      "id": 16732,
+      "name": "Legplates of Valor"
+    },
+    {
+      "id": 16733,
+      "name": "Spaulders of Valor"
+    }
+  ],
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 72,
+    "copper": 39
+  },
+  "phase": 1,
+  "resistances": {
+    "all": 8
+  },
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 16737,
+  "_source": "cache"
+}

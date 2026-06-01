@@ -1,0 +1,76 @@
+{
+  "name": "Marshal's Chain Grips",
+  "quality": 4,
+  "icon": "inv_gauntlets_10",
+  "ilvl": 71,
+  "required_level": 60,
+  "armor": 363,
+  "stats": {
+    "agility": 14,
+    "intellect": 4,
+    "stamina": 20
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 395,
+  "set_name": "Field Marshal's Pursuit",
+  "set_pieces": [
+    {
+      "id": 16466,
+      "name": "Field Marshal's Chain Breastplate"
+    },
+    {
+      "id": 16465,
+      "name": "Field Marshal's Chain Helm"
+    },
+    {
+      "id": 16468,
+      "name": "Field Marshal's Chain Spaulders"
+    },
+    {
+      "id": 16462,
+      "name": "Marshal's Chain Boots"
+    },
+    {
+      "id": 16463,
+      "name": "Marshal's Chain Grips"
+    },
+    {
+      "id": 16467,
+      "name": "Marshal's Chain Legguards"
+    }
+  ],
+  "classes": [
+    "Hunter"
+  ],
+  "durability": 50,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 28539,
+      "text": "Equip: Increases the damage done by your Multi-Shot by 5%."
+    },
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    },
+    {
+      "type": "equip",
+      "spell_id": 9335,
+      "text": "Equip: Increases attack power by 28."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 16463,
+  "_source": "cache"
+}

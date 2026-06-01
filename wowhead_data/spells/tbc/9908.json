@@ -1,0 +1,16 @@
+{
+  "name": "Swipe",
+  "icon": "inv_misc_monsterclaw_03",
+  "cost": {
+    "type": "rage",
+    "amount": 20
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Druid",
+  "required_level": 54,
+  "description": "Swipe 3 nearby enemies, inflicting 60 damage.  Damage increased by attack power.",
+  "aoe": true,
+  "_id": 9908,
+  "_source": "cache"
+}

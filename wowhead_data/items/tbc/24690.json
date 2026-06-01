@@ -1,0 +1,27 @@
+{
+  "name": "Elementalist Leggings",
+  "quality": 2,
+  "icon": "inv_pants_06",
+  "ilvl": 120,
+  "required_level": 70,
+  "armor": 129,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 3,
+    "silver": 12,
+    "copper": 12
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24690,
+  "_source": "cache"
+}

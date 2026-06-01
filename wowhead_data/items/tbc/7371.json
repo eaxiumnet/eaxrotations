@@ -1,0 +1,26 @@
+{
+  "name": "Heavy Quiver",
+  "quality": 2,
+  "icon": "inv_misc_quiver_02",
+  "ilvl": 35,
+  "required_level": 30,
+  "bag_slots": 14,
+  "container_type": "quiver",
+  "ammo_type": "arrows",
+  "sell_price": {
+    "silver": 5
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 29416,
+      "text": "Equip: Increases ranged attack speed by 12%."
+    }
+  ],
+  "item_class": 11,
+  "item_subclass": 2,
+  "item_class_name": "Quiver",
+  "item_subclass_name": "Quiver",
+  "_id": 7371,
+  "_source": "cache"
+}

@@ -1,0 +1,35 @@
+{
+  "name": "Core of Ar'kelos",
+  "quality": 2,
+  "icon": "spell_nature_abolishmagic",
+  "ilvl": 108,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 3,
+    "silver": 46,
+    "copper": 29
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 35733,
+      "text": "Use: Increases your melee and ranged attack power by 200.  Effect lasts for 20 sec.",
+      "cooldown": "2 Min Cooldown"
+    },
+    {
+      "type": "equip",
+      "spell_id": 15812,
+      "text": "Equip: Increases attack power by 52."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29776,
+  "_source": "cache"
+}

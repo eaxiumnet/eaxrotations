@@ -1,0 +1,22 @@
+{
+  "name": "Starfire",
+  "icon": "spell_arcane_starfire",
+  "cost": {
+    "type": "mana",
+    "amount": 370
+  },
+  "range": 30,
+  "cast_time": 3.5,
+  "spell_level": 70,
+  "required_class": "Druid",
+  "required_level": 67,
+  "description": "Causes 550 to 647 Arcane damage to the target.",
+  "school": "arcane",
+  "damage": {
+    "min": 550,
+    "max": 647
+  },
+  "target_type": "hostile",
+  "_id": 26986,
+  "_source": "cache"
+}

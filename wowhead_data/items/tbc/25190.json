@@ -1,0 +1,31 @@
+{
+  "name": "Wight's Claws",
+  "quality": 2,
+  "icon": "inv_gauntlets_07",
+  "ilvl": 99,
+  "required_level": 63,
+  "weapon": {
+    "min_damage": 94,
+    "max_damage": 176,
+    "speed": 2.6
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Fist Weapon",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 6,
+    "silver": 27,
+    "copper": 25
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 13,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Fist Weapons",
+  "_id": 25190,
+  "_source": "cache"
+}

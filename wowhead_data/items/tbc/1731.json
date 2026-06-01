@@ -1,0 +1,23 @@
+{
+  "name": "Worn Mail Boots",
+  "quality": 0,
+  "icon": "inv_boots_01",
+  "ilvl": 13,
+  "required_level": 8,
+  "armor": 80,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "durability": 35,
+  "sell_price": {
+    "copper": 92
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 1731,
+  "_source": "cache"
+}

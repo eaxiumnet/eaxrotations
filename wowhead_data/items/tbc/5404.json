@@ -1,0 +1,29 @@
+{
+  "name": "Serpent's Shoulders",
+  "quality": 3,
+  "icon": "inv_shoulder_08",
+  "ilvl": 23,
+  "required_level": 18,
+  "armor": 68,
+  "stats": {
+    "agility": 9
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 50,
+  "sell_price": {
+    "silver": 9,
+    "copper": 38
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 5404,
+  "_source": "cache"
+}

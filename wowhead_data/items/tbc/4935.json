@@ -1,0 +1,23 @@
+{
+  "name": "Wide Metal Girdle",
+  "quality": 1,
+  "icon": "inv_belt_03",
+  "ilvl": 8,
+  "armor": 50,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 20,
+  "sell_price": {
+    "copper": 23
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 4935,
+  "_source": "cache"
+}

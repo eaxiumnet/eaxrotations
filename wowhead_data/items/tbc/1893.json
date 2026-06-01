@@ -1,0 +1,33 @@
+{
+  "name": "Miner's Revenge",
+  "quality": 2,
+  "icon": "inv_pick_03",
+  "ilvl": 20,
+  "stats": {
+    "spirit": 6
+  },
+  "weapon": {
+    "min_damage": 36,
+    "max_damage": 55,
+    "speed": 3.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "silver": 17,
+    "copper": 75
+  },
+  "phase": 1,
+  "flavor_text": "Also serves as a mining pick.",
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 1893,
+  "_source": "cache"
+}

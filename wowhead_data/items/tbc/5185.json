@@ -1,0 +1,20 @@
+{
+  "name": "Crystal Phial",
+  "quality": 1,
+  "icon": "inv_potion_15",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 4976,
+      "text": "Use: Right-click to fill the Crystal Phial at the Shadowglen moonwell."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 5185,
+  "_source": "cache"
+}

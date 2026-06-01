@@ -1,0 +1,28 @@
+{
+  "name": "Charm of Alacrity",
+  "quality": 2,
+  "icon": "inv_jewelry_talisman_05",
+  "ilvl": 93,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "silver": 89,
+    "copper": 10
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 32600,
+      "text": "Use: Increases dodge rating by 192 for 10 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25787,
+  "_source": "cache"
+}

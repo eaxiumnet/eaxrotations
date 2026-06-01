@@ -1,0 +1,31 @@
+{
+  "name": "Hateful Bludgeon",
+  "quality": 2,
+  "icon": "inv_mace_04",
+  "ilvl": 90,
+  "required_level": 60,
+  "weapon": {
+    "min_damage": 174,
+    "max_damage": 261,
+    "speed": 3.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 7,
+    "silver": 3,
+    "copper": 76
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 25131,
+  "_source": "cache"
+}

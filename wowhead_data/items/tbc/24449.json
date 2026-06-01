@@ -1,0 +1,17 @@
+{
+  "name": "Fertile Spores",
+  "quality": 1,
+  "icon": "classic_inv_misc_dust_04",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 1,
+    "copper": 46
+  },
+  "max_stack": 200,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24449,
+  "_source": "cache"
+}

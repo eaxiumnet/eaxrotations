@@ -1,0 +1,24 @@
+{
+  "name": "Interlaced Shoulderpads",
+  "quality": 0,
+  "icon": "inv_shoulder_09",
+  "ilvl": 35,
+  "required_level": 30,
+  "armor": 31,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "durability": 45,
+  "sell_price": {
+    "silver": 9,
+    "copper": 2
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 3798,
+  "_source": "cache"
+}

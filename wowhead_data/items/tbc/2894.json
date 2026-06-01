@@ -1,0 +1,23 @@
+{
+  "name": "Rhapsody Malt",
+  "quality": 1,
+  "icon": "inv_drink_13",
+  "ilvl": 1,
+  "sell_price": {
+    "copper": 12
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 11007,
+      "text": "Use: A fairly weak alcoholic beverage."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 2894,
+  "_source": "cache"
+}

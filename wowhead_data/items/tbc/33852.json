@@ -1,0 +1,20 @@
+{
+  "name": "Cooking Pot",
+  "quality": 1,
+  "icon": "inv_misc_cauldron_arcane",
+  "ilvl": 65,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 43723,
+      "text": "Use: Cook up some Demon Broiled Surprise using 2 Mok'Nathal Shortribs and 1 Crunchy Serpent."
+    }
+  ],
+  "flavor_text": "Requires the smoldering corpse of an Abyssal Flamebringer.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 33852,
+  "_source": "cache"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "Long-barreled Musket",
+  "quality": 0,
+  "icon": "inv_weapon_rifle_01",
+  "ilvl": 33,
+  "required_level": 28,
+  "weapon": {
+    "min_damage": 23,
+    "max_damage": 43,
+    "speed": 2.6
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Gun",
+  "durability": 65,
+  "sell_price": {
+    "silver": 18,
+    "copper": 77
+  },
+  "item_class": 2,
+  "item_subclass": 3,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Guns",
+  "_id": 3780,
+  "_source": "cache"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Fel-Touched Axe",
+  "quality": 2,
+  "icon": "inv_axe_44",
+  "ilvl": 84,
+  "required_level": 58,
+  "weapon": {
+    "min_damage": 166,
+    "max_damage": 250,
+    "speed": 3.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 6,
+    "silver": 85,
+    "copper": 22
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 25213,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Primal Belt",
+  "quality": 1,
+  "icon": "inv_belt_23",
+  "ilvl": 8,
+  "required_level": 3,
+  "armor": 25,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "durability": 18,
+  "sell_price": {
+    "copper": 20
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 15003,
+  "_source": "cache"
+}

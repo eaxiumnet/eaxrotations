@@ -1,0 +1,16 @@
+{
+  "name": "Ravager Flesh",
+  "quality": 1,
+  "icon": "inv_misc_food_72",
+  "ilvl": 60,
+  "sell_price": {
+    "silver": 2
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 8,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Meat",
+  "_id": 27674,
+  "_source": "cache"
+}

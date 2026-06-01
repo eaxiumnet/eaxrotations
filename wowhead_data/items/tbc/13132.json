@@ -1,0 +1,30 @@
+{
+  "name": "Skeletal Shoulders",
+  "quality": 3,
+  "icon": "inv_shoulder_11",
+  "ilvl": 43,
+  "required_level": 38,
+  "armor": 199,
+  "stats": {
+    "strength": 6,
+    "stamina": 15
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "silver": 73,
+    "copper": 40
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 13132,
+  "_source": "cache"
+}

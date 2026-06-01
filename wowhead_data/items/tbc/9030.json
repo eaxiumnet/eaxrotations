@@ -1,0 +1,25 @@
+{
+  "name": "Restorative Potion",
+  "quality": 1,
+  "icon": "inv_potion_01",
+  "ilvl": 42,
+  "required_level": 32,
+  "sell_price": {
+    "silver": 2
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 11359,
+      "text": "Use: Removes 1 magic, curse, poison or disease effect on you every 5 seconds for 30 seconds.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 1,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Potions",
+  "_id": 9030,
+  "_source": "cache"
+}

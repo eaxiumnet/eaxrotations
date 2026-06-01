@@ -1,0 +1,27 @@
+{
+  "name": "Merciless Surcoat",
+  "quality": 2,
+  "icon": "inv_chest_leather_07",
+  "ilvl": 57,
+  "required_level": 52,
+  "armor": 307,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 100,
+  "sell_price": {
+    "gold": 2,
+    "silver": 22,
+    "copper": 30
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 15650,
+  "_source": "cache"
+}

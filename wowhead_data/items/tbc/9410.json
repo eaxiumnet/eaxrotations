@@ -1,0 +1,33 @@
+{
+  "name": "Cragfists",
+  "quality": 3,
+  "icon": "inv_gauntlets_12",
+  "ilvl": 45,
+  "required_level": 40,
+  "armor": 300,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 45,
+  "sell_price": {
+    "silver": 66,
+    "copper": 62
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 7518,
+      "text": "Equip: Increases defense rating by 7."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 9410,
+  "_source": "cache"
+}

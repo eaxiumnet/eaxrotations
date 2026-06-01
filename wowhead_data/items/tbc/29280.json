@@ -1,0 +1,31 @@
+{
+  "name": "Violet Signet",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_62",
+  "ilvl": 115,
+  "stats": {
+    "stamina": 19
+  },
+  "ratings": {
+    "hit": 18
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15809,
+      "text": "Equip: Increases attack power by 42."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29280,
+  "_source": "cache"
+}

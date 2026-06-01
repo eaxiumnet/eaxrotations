@@ -1,0 +1,21 @@
+{
+  "name": "Onyx Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_01",
+  "ilvl": 50,
+  "required_level": 45,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 49,
+    "copper": 71
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 12001,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Warmaul Helmet",
+  "quality": 2,
+  "icon": "inv_helmet_10",
+  "ilvl": 108,
+  "required_level": 66,
+  "armor": 810,
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "gold": 3,
+    "silver": 78,
+    "copper": 33
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24994,
+  "_source": "cache"
+}

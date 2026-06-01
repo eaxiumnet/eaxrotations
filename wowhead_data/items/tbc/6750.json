@@ -1,0 +1,23 @@
+{
+  "name": "Snake Hoop",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_06",
+  "ilvl": 31,
+  "stats": {
+    "intellect": 6
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 8,
+    "copper": 97
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 6750,
+  "_source": "cache"
+}

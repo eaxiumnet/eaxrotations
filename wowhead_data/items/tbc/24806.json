@@ -1,0 +1,27 @@
+{
+  "name": "Unyielding Waistband",
+  "quality": 2,
+  "icon": "inv_belt_17",
+  "ilvl": 81,
+  "required_level": 57,
+  "armor": 240,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 66,
+    "copper": 46
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24806,
+  "_source": "cache"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Wine-stained Cloak",
+  "quality": 1,
+  "icon": "inv_misc_cape_18",
+  "ilvl": 5,
+  "armor": 5,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "copper": 7
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 11475,
+  "_source": "cache"
+}

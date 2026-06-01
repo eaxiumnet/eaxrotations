@@ -1,0 +1,29 @@
+{
+  "name": "Cincture of Woven Reeds",
+  "quality": 2,
+  "icon": "inv_belt_22",
+  "ilvl": 20,
+  "armor": 19,
+  "stats": {
+    "intellect": 4,
+    "stamina": 3
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 20,
+  "sell_price": {
+    "silver": 2,
+    "copper": 98
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 26013,
+  "_source": "cache"
+}

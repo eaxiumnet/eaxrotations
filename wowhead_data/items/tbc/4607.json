@@ -1,0 +1,24 @@
+{
+  "name": "Delicious Cave Mold",
+  "quality": 1,
+  "icon": "inv_misc_herb_06",
+  "ilvl": 35,
+  "required_level": 25,
+  "sell_price": {
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 1127,
+      "text": "Use: Restores 874.8 health over 27 sec.  Must remain seated while eating."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 4607,
+  "_source": "cache"
+}

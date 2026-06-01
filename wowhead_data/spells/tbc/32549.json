@@ -1,0 +1,8 @@
+{
+  "name": "Leatherworking",
+  "icon": "inv_misc_armorkit_17",
+  "cast_time": 0,
+  "description": "Allows a leatherworker to make master quality leather armors, up to a maximum potential skill of 375.",
+  "_id": 32549,
+  "_source": "cache"
+}

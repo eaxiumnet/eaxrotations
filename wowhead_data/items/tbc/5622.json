@@ -1,0 +1,24 @@
+{
+  "name": "Clergy Ring",
+  "quality": 2,
+  "icon": "inv_belt_33",
+  "ilvl": 22,
+  "stats": {
+    "spirit": 3,
+    "stamina": 1
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 5,
+    "copper": 56
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 5622,
+  "_source": "cache"
+}

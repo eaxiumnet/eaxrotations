@@ -1,0 +1,31 @@
+{
+  "name": "Grom'gol Buckler",
+  "quality": 2,
+  "icon": "inv_shield_02",
+  "ilvl": 37,
+  "armor": 695,
+  "stats": {
+    "strength": 2,
+    "spirit": 7,
+    "stamina": 3
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 15,
+  "durability": 85,
+  "sell_price": {
+    "silver": 57,
+    "copper": 83
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 4115,
+  "_source": "cache"
+}

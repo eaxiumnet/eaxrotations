@@ -1,0 +1,20 @@
+{
+  "name": "Crystal Mining Pick",
+  "quality": 1,
+  "icon": "inv_pick_03",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 30612,
+      "text": "Use: Mine a sample shard from a crystal used by the blood elves."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23876,
+  "_source": "cache"
+}

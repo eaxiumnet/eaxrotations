@@ -1,0 +1,40 @@
+{
+  "name": "Felsteel Whisper Knives",
+  "quality": 3,
+  "icon": "inv_weapon_shortblade_26",
+  "ilvl": 110,
+  "required_level": 70,
+  "ratings": {
+    "hit": 10,
+    "crit": 10
+  },
+  "weapon": {
+    "min_damage": 134,
+    "max_damage": 135,
+    "speed": 2.2
+  },
+  "slot": "Thrown",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Thrown",
+  "binding": "boe",
+  "durability": 240,
+  "sell_price": {
+    "gold": 2
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9331,
+      "text": "Equip: Increases attack power by 20."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 16,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Thrown",
+  "_id": 29204,
+  "_source": "cache"
+}

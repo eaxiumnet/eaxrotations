@@ -1,0 +1,29 @@
+{
+  "name": "Vindicator's Iron Legguards",
+  "quality": 2,
+  "icon": "inv_pants_03",
+  "ilvl": 17,
+  "armor": 139,
+  "stats": {
+    "strength": 4,
+    "stamina": 3
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 60,
+  "sell_price": {
+    "silver": 5,
+    "copper": 89
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 26033,
+  "_source": "cache"
+}

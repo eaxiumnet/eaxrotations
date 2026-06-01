@@ -1,0 +1,16 @@
+{
+  "name": "Fish Oil",
+  "quality": 1,
+  "icon": "inv_potion_64",
+  "ilvl": 1,
+  "sell_price": {
+    "copper": 7
+  },
+  "max_stack": 20,
+  "item_class": 15,
+  "item_subclass": 1,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Reagents",
+  "_id": 17058,
+  "_source": "cache"
+}

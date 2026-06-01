@@ -1,0 +1,35 @@
+{
+  "name": "Aegis of the Scarlet Commander",
+  "quality": 3,
+  "icon": "inv_shield_05",
+  "ilvl": 44,
+  "required_level": 39,
+  "armor": 1548,
+  "stats": {
+    "strength": 7,
+    "stamina": 8
+  },
+  "ratings": {
+    "defense": 7
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 23,
+  "durability": 100,
+  "sell_price": {
+    "gold": 1,
+    "silver": 16,
+    "copper": 81
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 7726,
+  "_source": "cache"
+}

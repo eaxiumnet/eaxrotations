@@ -1,0 +1,13 @@
+{
+  "name": "Scorpid Worker Tail",
+  "quality": 1,
+  "icon": "ability_poisonsting",
+  "ilvl": 1,
+  "max_stack": 20,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 4862,
+  "_source": "cache"
+}

@@ -1,0 +1,71 @@
+{
+  "name": "Marshal's Chain Boots",
+  "quality": 4,
+  "icon": "inv_boots_plate_07",
+  "ilvl": 71,
+  "required_level": 60,
+  "armor": 405,
+  "stats": {
+    "agility": 18,
+    "intellect": 9,
+    "stamina": 20
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 395,
+  "set_name": "Field Marshal's Pursuit",
+  "set_pieces": [
+    {
+      "id": 16466,
+      "name": "Field Marshal's Chain Breastplate"
+    },
+    {
+      "id": 16465,
+      "name": "Field Marshal's Chain Helm"
+    },
+    {
+      "id": 16468,
+      "name": "Field Marshal's Chain Spaulders"
+    },
+    {
+      "id": 16462,
+      "name": "Marshal's Chain Boots"
+    },
+    {
+      "id": 16463,
+      "name": "Marshal's Chain Grips"
+    },
+    {
+      "id": 16467,
+      "name": "Marshal's Chain Legguards"
+    }
+  ],
+  "classes": [
+    "Hunter"
+  ],
+  "durability": 70,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15464,
+      "text": "Equip: Increases your hit rating by 10."
+    },
+    {
+      "type": "equip",
+      "spell_id": 15806,
+      "text": "Equip: Increases attack power by 34."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 16462,
+  "_source": "cache"
+}

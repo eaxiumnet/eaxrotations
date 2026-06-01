@@ -1,0 +1,27 @@
+{
+  "name": "Skettis Footwraps",
+  "quality": 2,
+  "icon": "inv_boots_09",
+  "ilvl": 111,
+  "required_level": 67,
+  "armor": 394,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "gold": 3,
+    "silver": 9,
+    "copper": 51
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24887,
+  "_source": "cache"
+}

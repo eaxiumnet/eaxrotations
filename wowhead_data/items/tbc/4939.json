@@ -1,0 +1,32 @@
+{
+  "name": "Steady Bastard Sword",
+  "quality": 2,
+  "icon": "inv_sword_34",
+  "ilvl": 11,
+  "stats": {
+    "agility": 2
+  },
+  "weapon": {
+    "min_damage": 16,
+    "max_damage": 25,
+    "speed": 2.7
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 45,
+  "sell_price": {
+    "silver": 3,
+    "copper": 95
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 8,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Swords",
+  "_id": 4939,
+  "_source": "cache"
+}

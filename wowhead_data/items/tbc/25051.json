@@ -1,0 +1,22 @@
+{
+  "name": "Blue Topaz Band",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_29",
+  "ilvl": 102,
+  "required_level": 64,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 3,
+    "silver": 28,
+    "copper": 91
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25051,
+  "_source": "cache"
+}

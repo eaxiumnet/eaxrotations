@@ -1,0 +1,37 @@
+{
+  "name": "Cloak of the Inciter",
+  "quality": 3,
+  "icon": "inv_misc_cape_08",
+  "ilvl": 112,
+  "required_level": 68,
+  "armor": 76,
+  "stats": {
+    "stamina": 15
+  },
+  "ratings": {
+    "hit": 16,
+    "crit": 18
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 68,
+    "copper": 70
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9336,
+      "text": "Equip: Increases attack power by 30."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 27892,
+  "_source": "cache"
+}

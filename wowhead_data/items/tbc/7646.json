@@ -1,0 +1,13 @@
+{
+  "name": "Crate of Inn Supplies",
+  "quality": 1,
+  "icon": "inv_crate_04",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 7646,
+  "_source": "cache"
+}

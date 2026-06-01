@@ -1,0 +1,24 @@
+{
+  "name": "Savory Deviate Delight",
+  "quality": 1,
+  "icon": "inv_misc_monsterhead_04",
+  "ilvl": 18,
+  "sell_price": {
+    "copper": 5
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 8213,
+      "text": "Use: Eat me.",
+      "cooldown": "10 Sec Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 6657,
+  "_source": "cache"
+}

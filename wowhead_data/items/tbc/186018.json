@@ -1,0 +1,29 @@
+{
+  "name": "Communal Cowl",
+  "quality": 2,
+  "icon": "inv_helmet_29",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 54,
+  "stats": {
+    "intellect": 14,
+    "stamina": 14
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 45,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 186018,
+  "_source": "cache"
+}

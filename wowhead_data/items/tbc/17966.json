@@ -1,0 +1,19 @@
+{
+  "name": "Onyxia Hide Backpack",
+  "quality": 2,
+  "icon": "inv_misc_bag_22",
+  "ilvl": 55,
+  "binding": "bop",
+  "bag_slots": 18,
+  "container_type": "bag",
+  "sell_price": {
+    "silver": 87,
+    "copper": 50
+  },
+  "item_class": 1,
+  "item_subclass": 0,
+  "item_class_name": "Containers",
+  "item_subclass_name": "Bags",
+  "_id": 17966,
+  "_source": "cache"
+}

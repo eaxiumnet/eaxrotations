@@ -1,0 +1,23 @@
+{
+  "name": "Communal Band of Onslaught",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_10",
+  "ilvl": 52,
+  "required_level": 58,
+  "stats": {
+    "strength": 12
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "copper": 1
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 185981,
+  "_source": "cache"
+}

@@ -1,0 +1,45 @@
+{
+  "name": "Mitts of the Treemender",
+  "quality": 4,
+  "icon": "inv_gauntlets_25",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 228,
+  "stats": {
+    "intellect": 22,
+    "spirit": 14,
+    "stamina": 25
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "sockets": {
+    "blue": 1,
+    "yellow": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Spirit",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 88,
+    "copper": 41
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18040,
+      "text": "Equip: Increases healing done by up to 64 and damage done by up to 22 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 28521,
+  "_source": "cache"
+}

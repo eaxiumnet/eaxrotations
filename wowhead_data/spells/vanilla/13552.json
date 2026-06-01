@@ -1,0 +1,26 @@
+{
+  "name": "Serpent Sting",
+  "icon": "ability_hunter_quickshot",
+  "cost": {
+    "type": "mana",
+    "amount": 115
+  },
+  "range": 35,
+  "required_class": "Hunter",
+  "required_level": 34,
+  "requires_weapon": "Ranged Weapon",
+  "description": "Stings the target, causing 210 Nature damage over 15 sec.  Only one Sting per Hunter can be active on any one target.",
+  "school": "nature",
+  "duration": 15,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 15,
+  "periodic": {
+    "amount": 42,
+    "school": "nature",
+    "interval": 3
+  },
+  "buff_text": "Causes 42 Nature damage every 3 seconds.",
+  "_id": 13552,
+  "_source": "wowhead"
+}

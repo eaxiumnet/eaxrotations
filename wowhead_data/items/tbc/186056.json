@@ -1,0 +1,35 @@
+{
+  "name": "Communal Bow",
+  "quality": 2,
+  "icon": "inv_weapon_bow_02",
+  "ilvl": 52,
+  "required_level": 58,
+  "stats": {
+    "agility": 14
+  },
+  "ratings": {
+    "crit": 14
+  },
+  "weapon": {
+    "min_damage": 68,
+    "max_damage": 128,
+    "speed": 2.7
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "binding": "bop",
+  "durability": 75,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 186056,
+  "_source": "cache"
+}

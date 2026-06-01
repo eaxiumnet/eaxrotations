@@ -1,0 +1,42 @@
+{
+  "name": "Lionheart Helm",
+  "quality": 4,
+  "icon": "inv_helmet_36",
+  "ilvl": 61,
+  "required_level": 56,
+  "armor": 645,
+  "stats": {
+    "strength": 18
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 100,
+  "sell_price": {
+    "gold": 3,
+    "silver": 69,
+    "copper": 30
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 7598,
+      "text": "Equip: Increases your critical strike rating by 28."
+    },
+    {
+      "type": "equip",
+      "spell_id": 15465,
+      "text": "Equip: Increases your hit rating by 20."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 12640,
+  "_source": "cache"
+}

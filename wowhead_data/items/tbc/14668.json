@@ -1,0 +1,32 @@
+{
+  "name": "Keeper's Woolies",
+  "quality": 2,
+  "icon": "inv_pants_06",
+  "ilvl": 52,
+  "required_level": 47,
+  "armor": 120,
+  "stats": {
+    "agility": 19,
+    "spirit": 3,
+    "stamina": 7
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 65,
+  "sell_price": {
+    "gold": 1,
+    "silver": 35,
+    "copper": 97
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 14668,
+  "_source": "cache"
+}

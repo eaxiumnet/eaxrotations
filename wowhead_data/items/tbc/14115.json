@@ -1,0 +1,23 @@
+{
+  "name": "Aboriginal Bands",
+  "quality": 1,
+  "icon": "inv_bracer_08",
+  "ilvl": 14,
+  "required_level": 9,
+  "armor": 11,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "durability": 18,
+  "sell_price": {
+    "copper": 70
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14115,
+  "_source": "cache"
+}

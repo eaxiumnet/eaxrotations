@@ -1,0 +1,17 @@
+{
+  "name": "Hard Spider Leg Tip",
+  "quality": 0,
+  "icon": "inv_misc_monsterspidercarapace_01",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 4,
+    "copper": 91
+  },
+  "max_stack": 5,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 1074,
+  "_source": "cache"
+}

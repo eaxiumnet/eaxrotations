@@ -1,0 +1,20 @@
+{
+  "name": "Thunder Clap",
+  "icon": "spell_nature_thunderclap",
+  "cost": {
+    "type": "rage",
+    "amount": 20
+  },
+  "cast_time": 0,
+  "cooldown": "4 sec cooldown",
+  "required_class": "Warrior",
+  "required_level": 6,
+  "description": "Blasts nearby enemies increasing the time between their attacks by 10% for 10 sec and doing 10 damage to them.  Will affect up to 4 targets.",
+  "duration": 10,
+  "aoe": true,
+  "has_buff": true,
+  "buff_duration": 10,
+  "buff_text": "Time between attacks increased by 10%.",
+  "_id": 6343,
+  "_source": "wowhead"
+}

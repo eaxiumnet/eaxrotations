@@ -1,0 +1,39 @@
+{
+  "name": "Ornate Leggings of the Venerated",
+  "quality": 3,
+  "icon": "inv_pants_plate_21",
+  "ilvl": 112,
+  "required_level": 68,
+  "armor": 993,
+  "stats": {
+    "strength": 35,
+    "intellect": 25,
+    "stamina": 21
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "yellow": 1,
+    "blue": 1,
+    "total": 3
+  },
+  "socket_bonus": "",
+  "durability": 100,
+  "sell_price": {
+    "gold": 6,
+    "silver": 29,
+    "copper": 13
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 27893,
+  "_source": "cache"
+}

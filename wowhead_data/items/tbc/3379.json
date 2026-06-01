@@ -1,0 +1,24 @@
+{
+  "name": "Brocade Bracers",
+  "quality": 0,
+  "icon": "inv_bracer_03",
+  "ilvl": 22,
+  "required_level": 17,
+  "armor": 14,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "durability": 20,
+  "sell_price": {
+    "silver": 1,
+    "copper": 52
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 3379,
+  "_source": "cache"
+}

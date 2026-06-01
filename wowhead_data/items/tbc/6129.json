@@ -1,0 +1,22 @@
+{
+  "name": "Acolyte's Robe",
+  "quality": 0,
+  "icon": "inv_chest_cloth_16",
+  "ilvl": 1,
+  "armor": 3,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "durability": 35,
+  "sell_price": {
+    "copper": 1
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 6129,
+  "_source": "cache"
+}

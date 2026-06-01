@@ -1,0 +1,17 @@
+{
+  "name": "Thick Spider's Silk",
+  "quality": 1,
+  "icon": "spell_nature_web",
+  "ilvl": 35,
+  "sell_price": {
+    "silver": 7,
+    "copper": 50
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 5,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Cloth",
+  "_id": 4337,
+  "_source": "cache"
+}

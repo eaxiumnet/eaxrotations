@@ -1,0 +1,17 @@
+{
+  "name": "Sinister Strike",
+  "icon": "spell_shadow_ritualofsacrifice",
+  "cost": {
+    "type": "energy",
+    "amount": 45
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Rogue",
+  "required_level": 14,
+  "requires_weapon": "Melee Weapon",
+  "description": "An instant strike that causes 10 damage in addition to your normal weapon damage.  Awards 1 combo point.",
+  "school": "physical",
+  "_id": 1758,
+  "_source": "wowhead"
+}

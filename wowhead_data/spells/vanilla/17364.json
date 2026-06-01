@@ -1,0 +1,21 @@
+{
+  "name": "Stormstrike",
+  "icon": "spell_holy_sealofmight",
+  "cost": {
+    "type": "mana",
+    "percent": 21
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "cooldown": "20 sec cooldown",
+  "required_class": "Shaman",
+  "description": "Gives you an extra attack.  In addition, the next 2 sources of Nature damage dealt to the target are increased by 20%.  Lasts 12 sec.",
+  "school": "nature",
+  "duration": 12,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 12,
+  "buff_text": "Increases Nature damage taken by 20%.",
+  "_id": 17364,
+  "_source": "wowhead"
+}

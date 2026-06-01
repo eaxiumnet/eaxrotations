@@ -1,0 +1,24 @@
+{
+  "name": "Double Mail Bracers",
+  "quality": 0,
+  "icon": "inv_bracer_03",
+  "ilvl": 38,
+  "required_level": 33,
+  "armor": 88,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "durability": 35,
+  "sell_price": {
+    "silver": 11,
+    "copper": 45
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 3810,
+  "_source": "cache"
+}

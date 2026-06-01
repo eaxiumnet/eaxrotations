@@ -1,0 +1,28 @@
+{
+  "name": "Blackened Basilisk",
+  "quality": 1,
+  "icon": "inv_misc_food_86_basilisk",
+  "ilvl": 65,
+  "required_level": 55,
+  "sell_price": {
+    "silver": 1,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 33264,
+      "text": "Use: Restores 7500 health over 30 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 23 Spell Damage and 20 Spirit for 30 min."
+    }
+  ],
+  "food_hp": 7500,
+  "food_duration": 30,
+  "max_stack": 20,
+  "flavor_text": "Seared to perfection!",
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 27657,
+  "_source": "cache"
+}

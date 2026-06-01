@@ -1,0 +1,25 @@
+{
+  "name": "Free Action Potion",
+  "quality": 1,
+  "icon": "inv_potion_04",
+  "ilvl": 30,
+  "required_level": 20,
+  "sell_price": {
+    "copper": 75
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 6615,
+      "text": "Use: Makes you immune to Stun and Movement Impairing effects for the next 30 sec.   Does not remove effects already on the imbiber.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 1,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Potions",
+  "_id": 5634,
+  "_source": "cache"
+}

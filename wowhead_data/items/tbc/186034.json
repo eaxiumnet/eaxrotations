@@ -1,0 +1,29 @@
+{
+  "name": "Communal Headguard",
+  "quality": 2,
+  "icon": "inv_crown_02",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 230,
+  "stats": {
+    "agility": 14,
+    "stamina": 14
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 60,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 186034,
+  "_source": "cache"
+}

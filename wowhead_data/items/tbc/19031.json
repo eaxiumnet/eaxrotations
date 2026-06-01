@@ -1,0 +1,16 @@
+{
+  "name": "Frostwolf Battle Tabard",
+  "quality": 1,
+  "icon": "inv_shirt_guildtabard_01",
+  "ilvl": 20,
+  "slot": "Tabard",
+  "equip_slots": [
+    19
+  ],
+  "binding": "bop",
+  "unique": true,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 19031,
+  "_source": "cache"
+}

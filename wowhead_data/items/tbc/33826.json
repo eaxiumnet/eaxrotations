@@ -1,0 +1,14 @@
+{
+  "name": "Black Stalker Egg",
+  "quality": 1,
+  "icon": "inv_misc_shadowegg",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "It pulses with life.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 33826,
+  "_source": "cache"
+}

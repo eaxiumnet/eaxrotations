@@ -1,0 +1,18 @@
+{
+  "name": "Feign Death",
+  "icon": "ability_rogue_feigndeath",
+  "cost": {
+    "type": "mana",
+    "amount": 80
+  },
+  "cast_time": 0,
+  "cooldown": "30 sec cooldown",
+  "required_class": "Hunter",
+  "required_level": 30,
+  "description": "Feign death which may trick enemies into ignoring you.  Lasts up to 6 min.",
+  "has_buff": true,
+  "buff_duration": 360,
+  "buff_text": "Feigning death.",
+  "_id": 5384,
+  "_source": "cache"
+}

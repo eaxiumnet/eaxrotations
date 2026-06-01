@@ -1,0 +1,22 @@
+{
+  "name": "Rubellite Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_36",
+  "ilvl": 81,
+  "required_level": 57,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 2,
+    "silver": 68,
+    "copper": 9
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25044,
+  "_source": "cache"
+}

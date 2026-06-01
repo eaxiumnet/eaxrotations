@@ -1,0 +1,24 @@
+{
+  "name": "Laminated Scale Boots",
+  "quality": 0,
+  "icon": "inv_boots_01",
+  "ilvl": 53,
+  "required_level": 48,
+  "armor": 178,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "durability": 50,
+  "sell_price": {
+    "silver": 49,
+    "copper": 40
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 3993,
+  "_source": "cache"
+}

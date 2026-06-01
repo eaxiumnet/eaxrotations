@@ -1,0 +1,20 @@
+{
+  "name": "Antheol's Disciplinary Rod",
+  "quality": 1,
+  "icon": "inv_staff_10",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 27907,
+      "text": "Use: Punishes transgressing apprentices.",
+      "cooldown": "20 Sec Cooldown"
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 22473,
+  "_source": "cache"
+}

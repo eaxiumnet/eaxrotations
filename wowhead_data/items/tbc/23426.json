@@ -1,0 +1,17 @@
+{
+  "name": "Khorium Ore",
+  "quality": 2,
+  "icon": "inv_ore_khorium",
+  "ilvl": 70,
+  "sell_price": {
+    "silver": 25
+  },
+  "phase": 1,
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 7,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Metal & Stone",
+  "_id": 23426,
+  "_source": "cache"
+}

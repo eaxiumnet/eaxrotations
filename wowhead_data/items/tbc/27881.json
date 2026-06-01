@@ -1,0 +1,42 @@
+{
+  "name": "Gladiator's Scaled Helm",
+  "quality": 4,
+  "icon": "inv_helmet_22",
+  "ilvl": 123,
+  "required_level": 70,
+  "armor": 1257,
+  "stats": {
+    "strength": 45,
+    "intellect": 21,
+    "stamina": 48
+  },
+  "ratings": {
+    "crit": 16,
+    "resilience": 16
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "meta": 1,
+    "red": 1,
+    "total": 2
+  },
+  "socket_bonus": "+4 Resilience Rating",
+  "set_id": 583,
+  "set_name": "Gladiator's Vindication",
+  "classes": [
+    "Paladin"
+  ],
+  "durability": 100,
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 27881,
+  "_source": "cache"
+}

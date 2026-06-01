@@ -1,0 +1,26 @@
+{
+  "name": "Kibler's Bits",
+  "quality": 1,
+  "icon": "inv_misc_food_49",
+  "ilvl": 65,
+  "required_level": 55,
+  "sell_price": {
+    "silver": 1,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 43771,
+      "text": "Use: Increases the Strength and Spirit of your pet by 20.  Lasts for 30 min."
+    }
+  ],
+  "max_stack": 20,
+  "flavor_text": "Pet tested, hunter approved.",
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 33874,
+  "_source": "cache"
+}

@@ -1,0 +1,35 @@
+{
+  "name": "General's Scaled Greaves",
+  "quality": 4,
+  "icon": "inv_boots_plate_04",
+  "ilvl": 123,
+  "required_level": 70,
+  "armor": 1063,
+  "stats": {
+    "strength": 36,
+    "intellect": 23,
+    "stamina": 33
+  },
+  "ratings": {
+    "crit": 16,
+    "resilience": 16
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "classes": [
+    "Warrior",
+    "Paladin"
+  ],
+  "durability": 75,
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 28645,
+  "_source": "cache"
+}

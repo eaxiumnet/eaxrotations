@@ -1,0 +1,30 @@
+{
+  "name": "Scalping Tomahawk",
+  "quality": 2,
+  "icon": "inv_axe_19",
+  "ilvl": 11,
+  "required_level": 6,
+  "weapon": {
+    "min_damage": 7,
+    "max_damage": 14,
+    "speed": 1.8
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "silver": 3,
+    "copper": 9
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 4561,
+  "_source": "cache"
+}

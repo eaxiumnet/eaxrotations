@@ -1,0 +1,336 @@
+{
+  "name": "Holy Wrath",
+  "icon": "spell_holy_excorcism",
+  "cost": {
+    "type": "mana",
+    "amount": 550
+  },
+  "cast_time": 2,
+  "cooldown": "1 min cooldown",
+  "spell_level": 70,
+  "required_class": "Paladin",
+  "required_level": 50,
+  "description": "Sends bolts of holy power in all directions, causing 368 to 435 Holy damage to all Undead and Demon targets within 20 yds.",
+  "school": "holy",
+  "damage": {
+    "min": 368,
+    "max": 435
+  },
+  "radius": 20,
+  "school_mask": 2,
+  "schools": "Holy",
+  "category": 7,
+  "class_mask": 2,
+  "classes": [
+    "Paladin"
+  ],
+  "skill": [
+    594
+  ],
+  "trainers": [
+    {
+      "id": 5491,
+      "name": "Arthur the Faithful",
+      "location": [
+        1519
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 1232,
+      "name": "Azar Stronghammer",
+      "location": [
+        1
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 16761,
+      "name": "Baatun",
+      "location": [
+        3557
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 5148,
+      "name": "Beldruk Doombrow",
+      "location": [
+        1537
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 5149,
+      "name": "Brandur Ironhammer",
+      "location": [
+        1537
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 8140,
+      "name": "Brother Karman",
+      "location": [
+        15
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 927,
+      "name": "Brother Wilhelm",
+      "location": [
+        12
+      ],
+      "react": [
+        1,
+        -1
+      ]
+    },
+    {
+      "id": 16681,
+      "name": "Champion Bachi",
+      "location": [
+        3487
+      ],
+      "react": [
+        null,
+        1
+      ]
+    },
+    {
+      "id": 20406,
+      "name": "Champion Cyssa Dawnrose",
+      "location": [
+        1497
+      ],
+      "react": [
+        null,
+        1
+      ]
+    },
+    {
+      "id": 16680,
+      "name": "Ithelis",
+      "location": [
+        3487
+      ],
+      "react": [
+        null,
+        1
+      ]
+    },
+    {
+      "id": 17509,
+      "name": "Jol",
+      "location": [
+        3557
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 5492,
+      "name": "Katherine the Pure",
+      "location": [
+        1519
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 17121,
+      "name": "Kavaan",
+      "location": [
+        3557
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 928,
+      "name": "Lord Grayson Shadowbreaker",
+      "location": [
+        1519
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 23128,
+      "name": "Master Pyreanor",
+      "location": [
+        1637
+      ],
+      "react": [
+        null,
+        1
+      ]
+    },
+    {
+      "id": 16275,
+      "name": "Noellene",
+      "location": [
+        3430
+      ],
+      "react": [
+        null,
+        1
+      ]
+    },
+    {
+      "id": 16679,
+      "name": "Osselan",
+      "location": [
+        3487
+      ],
+      "react": [
+        null,
+        1
+      ]
+    },
+    {
+      "id": 17483,
+      "name": "Tullas",
+      "location": [
+        3524
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 5147,
+      "name": "Valgar Highforge",
+      "location": [
+        1537
+      ],
+      "react": [
+        1,
+        null
+      ]
+    },
+    {
+      "id": 17844,
+      "name": "Vindicator Aesom",
+      "location": [
+        3525
+      ],
+      "react": [
+        1,
+        null
+      ]
+    }
+  ],
+  "taught_by_item": [
+    {
+      "id": 4167,
+      "name": "Libram: Judgement",
+      "quality": 1,
+      "icon": null
+    },
+    {
+      "id": 8935,
+      "name": "Libram: Judgement II",
+      "quality": 1,
+      "icon": null
+    },
+    {
+      "id": 8945,
+      "name": "Libram: Judgement III",
+      "quality": 1,
+      "icon": null
+    }
+  ],
+  "modified_by": [
+    {
+      "id": 31825,
+      "name": "Purifying Power",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 31826,
+      "name": "Purifying Power",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 33695,
+      "name": "Exorcism and Holy Wrath Damage",
+      "level": 0,
+      "school": "Physical"
+    }
+  ],
+  "see_also": [
+    {
+      "id": 10318,
+      "name": "Holy Wrath",
+      "level": 60,
+      "school": "Holy"
+    },
+    {
+      "id": 27139,
+      "name": "Holy Wrath",
+      "level": 69,
+      "school": "Holy"
+    }
+  ],
+  "gcd": 1.5,
+  "flags": [
+    "Cannot be used while shapeshifted",
+    "Cannot be reflected",
+    "All spell effects are harmful"
+  ],
+  "effects": [
+    {
+      "type": "School Damage (Holy)",
+      "value_raw": "362 (SP mod:",
+      "value": 362
+    }
+  ],
+  "_listview_ids": [
+    "add-your-comment",
+    "comments",
+    "modified-by",
+    "screenshots",
+    "see-also-ability",
+    "sounds",
+    "submit-a-screenshot",
+    "submit-your-data",
+    "suggest-a-video",
+    "taught-by-item",
+    "taught-by-npc",
+    "videos",
+    "videos-english"
+  ],
+  "_id": 2812,
+  "_source": "cache"
+}

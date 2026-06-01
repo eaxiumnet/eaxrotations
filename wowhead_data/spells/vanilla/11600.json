@@ -1,0 +1,22 @@
+{
+  "name": "Revenge",
+  "icon": "ability_warrior_revenge",
+  "cost": {
+    "type": "rage",
+    "amount": 5
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "cooldown": "5 sec cooldown",
+  "required_class": "Warrior",
+  "required_level": 44,
+  "requires_weapon": "Melee Weapon",
+  "description": "Instantly counterattack an enemy for 43 to 53 damage and a high amount of threat.   Revenge must follow a block, dodge or parry.",
+  "damage": {
+    "min": 43,
+    "max": 53
+  },
+  "target_type": "hostile",
+  "_id": 11600,
+  "_source": "wowhead"
+}

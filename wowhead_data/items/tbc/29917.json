@@ -1,0 +1,43 @@
+{
+  "name": "Landslide Buckler",
+  "quality": 2,
+  "icon": "inv_shield_05",
+  "ilvl": 81,
+  "armor": 2428,
+  "stats": {
+    "intellect": 11,
+    "stamina": 12
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 49,
+  "durability": 85,
+  "sell_price": {
+    "gold": 3,
+    "silver": 46,
+    "copper": 47
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9342,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 13."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21361,
+      "text": "Equip: Restores 3 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 29917,
+  "_source": "cache"
+}

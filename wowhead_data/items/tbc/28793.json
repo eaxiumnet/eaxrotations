@@ -1,0 +1,34 @@
+{
+  "name": "Band of Crimson Fury",
+  "quality": 4,
+  "icon": "inv_jewelry_ring_65",
+  "ilvl": 125,
+  "stats": {
+    "intellect": 22,
+    "stamina": 22
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 6,
+    "silver": 2,
+    "copper": 56
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14127,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 28."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28793,
+  "_source": "cache"
+}

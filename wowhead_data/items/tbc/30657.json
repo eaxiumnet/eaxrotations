@@ -1,0 +1,21 @@
+{
+  "name": "The Cipher of Damnation",
+  "quality": 1,
+  "icon": "inv_misc_rune_10",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 37236,
+      "text": "Use: Unleashes the ancient words at the Altar of Damnation in Shadowmoon Valley."
+    }
+  ],
+  "flavor_text": "Herein lies the words of the eternal.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 30657,
+  "_source": "cache"
+}

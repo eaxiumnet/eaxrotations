@@ -1,0 +1,18 @@
+{
+  "name": "Traveler's Backpack",
+  "quality": 2,
+  "icon": "inv_misc_bag_08",
+  "ilvl": 55,
+  "bag_slots": 16,
+  "container_type": "bag",
+  "sell_price": {
+    "silver": 87,
+    "copper": 50
+  },
+  "item_class": 1,
+  "item_subclass": 0,
+  "item_class_name": "Containers",
+  "item_subclass_name": "Bags",
+  "_id": 4500,
+  "_source": "cache"
+}

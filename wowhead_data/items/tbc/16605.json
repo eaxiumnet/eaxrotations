@@ -1,0 +1,30 @@
+{
+  "name": "Friar's Robes of the Light",
+  "quality": 2,
+  "icon": "inv_chest_cloth_04",
+  "ilvl": 5,
+  "armor": 10,
+  "stats": {
+    "spirit": 1
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "classes": [
+    "Priest"
+  ],
+  "durability": 40,
+  "sell_price": {
+    "copper": 17
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 16605,
+  "_source": "cache"
+}

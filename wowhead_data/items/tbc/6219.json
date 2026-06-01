@@ -1,0 +1,25 @@
+{
+  "name": "Arclight Spanner",
+  "quality": 1,
+  "icon": "inv_misc_wrench_01",
+  "ilvl": 10,
+  "weapon": {
+    "min_damage": 7,
+    "max_damage": 14,
+    "speed": 2.4
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "sell_price": {
+    "silver": 1,
+    "copper": 44
+  },
+  "item_class": 2,
+  "item_subclass": 14,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Miscellaneous (Weapons)",
+  "_id": 6219,
+  "_source": "cache"
+}

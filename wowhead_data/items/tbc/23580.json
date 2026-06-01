@@ -1,0 +1,16 @@
+{
+  "name": "Avruu's Orb",
+  "quality": 1,
+  "icon": "inv_misc_gem_pearl_05",
+  "ilvl": 1,
+  "required_level": 60,
+  "binding": "bop",
+  "unique": true,
+  "starts_quest": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23580,
+  "_source": "cache"
+}

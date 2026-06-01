@@ -1,0 +1,37 @@
+{
+  "name": "Longstrider's Loop",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_44",
+  "ilvl": 97,
+  "required_level": 64,
+  "stats": {
+    "agility": 16,
+    "stamina": 15
+  },
+  "ratings": {
+    "hit": 11
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 8,
+    "silver": 37,
+    "copper": 97
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15807,
+      "text": "Equip: Increases attack power by 32."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25962,
+  "_source": "cache"
+}

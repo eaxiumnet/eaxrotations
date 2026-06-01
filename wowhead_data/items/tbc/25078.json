@@ -1,0 +1,28 @@
+{
+  "name": "Zangari Shield",
+  "quality": 2,
+  "icon": "inv_shield_10",
+  "ilvl": 99,
+  "required_level": 63,
+  "armor": 2938,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "boe",
+  "block": 65,
+  "durability": 85,
+  "sell_price": {
+    "gold": 4,
+    "silver": 2,
+    "copper": 95
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 25078,
+  "_source": "cache"
+}

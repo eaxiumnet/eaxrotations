@@ -1,0 +1,32 @@
+{
+  "name": "Imbued Plate Armor",
+  "quality": 2,
+  "icon": "inv_chest_plate09",
+  "ilvl": 62,
+  "required_level": 57,
+  "armor": 588,
+  "stats": {
+    "strength": 15,
+    "spirit": 14,
+    "stamina": 14
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 115,
+  "sell_price": {
+    "gold": 2,
+    "silver": 91,
+    "copper": 56
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 10368,
+  "_source": "cache"
+}

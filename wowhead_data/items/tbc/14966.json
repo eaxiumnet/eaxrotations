@@ -1,0 +1,26 @@
+{
+  "name": "Glorious Breastplate",
+  "quality": 2,
+  "icon": "inv_chest_plate03",
+  "ilvl": 61,
+  "required_level": 56,
+  "armor": 579,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 115,
+  "sell_price": {
+    "gold": 3,
+    "copper": 83
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 14966,
+  "_source": "cache"
+}

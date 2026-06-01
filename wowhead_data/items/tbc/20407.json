@@ -1,0 +1,41 @@
+{
+  "name": "Twilight Cultist Robe",
+  "quality": 2,
+  "icon": "inv_chest_cloth_17",
+  "ilvl": 60,
+  "required_level": 60,
+  "armor": 77,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "set_id": 492,
+  "set_name": "Twilight Trappings",
+  "set_pieces": [
+    {
+      "id": 20406,
+      "name": "Twilight Cultist Mantle"
+    },
+    {
+      "id": 20408,
+      "name": "Twilight Cultist Cowl"
+    },
+    {
+      "id": 20407,
+      "name": "Twilight Cultist Robe"
+    }
+  ],
+  "durability": 70,
+  "sell_price": {
+    "silver": 25,
+    "copper": 81
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 20407,
+  "_source": "cache"
+}

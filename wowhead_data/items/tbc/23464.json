@@ -1,0 +1,42 @@
+{
+  "name": "High Warlord's Battle Mace",
+  "quality": 4,
+  "icon": "inv_hammer_02",
+  "ilvl": 78,
+  "required_level": 60,
+  "stats": {
+    "intellect": 8,
+    "stamina": 14
+  },
+  "weapon": {
+    "min_damage": 69,
+    "max_damage": 173,
+    "speed": 2.9
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "binding": "bop",
+  "durability": 105,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 29369,
+      "text": "Equip: Increases healing done by up to 134 and damage done by up to 45 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21626,
+      "text": "Equip: Restores 6 mana per 5 sec."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 23464,
+  "_source": "cache"
+}

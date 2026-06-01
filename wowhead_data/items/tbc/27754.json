@@ -1,0 +1,44 @@
+{
+  "name": "Keen Marshfang Slicer",
+  "quality": 2,
+  "icon": "inv_sword_36",
+  "ilvl": 93,
+  "stats": {
+    "agility": 9
+  },
+  "ratings": {
+    "hit": 10
+  },
+  "weapon": {
+    "min_damage": 89,
+    "max_damage": 165,
+    "speed": 2.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 75,
+  "sell_price": {
+    "gold": 6,
+    "silver": 4,
+    "copper": 47
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9330,
+      "text": "Equip: Increases attack power by 18."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 27754,
+  "_source": "cache"
+}

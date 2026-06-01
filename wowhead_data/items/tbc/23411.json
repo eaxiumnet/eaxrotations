@@ -1,0 +1,35 @@
+{
+  "name": "Well Crafted Staff",
+  "quality": 2,
+  "icon": "inv_staff_31",
+  "ilvl": 20,
+  "weapon": {
+    "min_damage": 26,
+    "max_damage": 39,
+    "speed": 2.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Staff",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "silver": 18
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9394,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 4."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 10,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Staves",
+  "_id": 23411,
+  "_source": "cache"
+}

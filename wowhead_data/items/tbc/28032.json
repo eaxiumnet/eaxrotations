@@ -1,0 +1,37 @@
+{
+  "name": "Delicate Green Poncho",
+  "quality": 3,
+  "icon": "inv_misc_cape_05",
+  "ilvl": 97,
+  "armor": 66,
+  "stats": {
+    "agility": 14,
+    "stamina": 19
+  },
+  "ratings": {
+    "hit": 14
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 25,
+    "copper": 18
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9335,
+      "text": "Equip: Increases attack power by 28."
+    }
+  ],
+  "flavor_text": "They won't see you coming but they'll definitely see you leaving.",
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28032,
+  "_source": "cache"
+}

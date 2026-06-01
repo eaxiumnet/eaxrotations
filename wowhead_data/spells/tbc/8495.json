@@ -1,0 +1,18 @@
+{
+  "name": "Mana Shield",
+  "icon": "spell_shadow_detectlesserinvisibility",
+  "cost": {
+    "type": "mana",
+    "amount": 80
+  },
+  "cast_time": 0,
+  "required_class": "Mage",
+  "required_level": 36,
+  "description": "Absorbs 300 damage, draining mana instead.  Drains 2 mana per damage absorbed.  Lasts 1 min.",
+  "duration": 60,
+  "has_buff": true,
+  "buff_duration": 60,
+  "buff_text": "Absorbs damage, draining mana instead.",
+  "_id": 8495,
+  "_source": "cache"
+}

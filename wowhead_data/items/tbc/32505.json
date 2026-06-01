@@ -1,0 +1,39 @@
+{
+  "name": "Madness of the Betrayer",
+  "quality": 4,
+  "icon": "spell_shadow_charm",
+  "ilvl": 141,
+  "required_level": 70,
+  "ratings": {
+    "hit": 20
+  },
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 9,
+    "silver": 11,
+    "copper": 60
+  },
+  "phase": 3,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15828,
+      "text": "Equip: Increases attack power by 84."
+    },
+    {
+      "type": "equip",
+      "spell_id": 40475,
+      "text": "Equip: Your melee and ranged attacks have a chance allow you to ignore 300 of your enemies' armor for 10 secs."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 32505,
+  "_source": "cache"
+}

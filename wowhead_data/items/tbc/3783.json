@@ -1,0 +1,28 @@
+{
+  "name": "Light Scimitar",
+  "quality": 0,
+  "icon": "inv_sword_24",
+  "ilvl": 36,
+  "required_level": 31,
+  "weapon": {
+    "min_damage": 15,
+    "max_damage": 28,
+    "speed": 1.9
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Sword",
+  "durability": 75,
+  "sell_price": {
+    "silver": 30,
+    "copper": 48
+  },
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 3783,
+  "_source": "cache"
+}

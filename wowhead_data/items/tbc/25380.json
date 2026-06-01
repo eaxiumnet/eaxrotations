@@ -1,0 +1,24 @@
+{
+  "name": "Corroded Mail Shoulderpads",
+  "quality": 0,
+  "icon": "inv_shoulder_07",
+  "ilvl": 72,
+  "required_level": 67,
+  "armor": 258,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Mail",
+  "durability": 60,
+  "sell_price": {
+    "silver": 87,
+    "copper": 2
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 25380,
+  "_source": "cache"
+}

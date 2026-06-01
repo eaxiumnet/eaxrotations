@@ -1,0 +1,23 @@
+{
+  "name": "Burnt Hide Bracers",
+  "quality": 1,
+  "icon": "inv_bracer_08",
+  "ilvl": 12,
+  "armor": 26,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 20,
+  "sell_price": {
+    "copper": 60
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 3158,
+  "_source": "cache"
+}

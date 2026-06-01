@@ -1,0 +1,23 @@
+{
+  "name": "Cookie's Jumbo Gumbo",
+  "quality": 1,
+  "icon": "inv_misc_food_64",
+  "ilvl": 8,
+  "sell_price": {
+    "copper": 10
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 5004,
+      "text": "Use: Restores 61.2 health over 18 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 2 Stamina and Spirit for 15 min."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 23756,
+  "_source": "cache"
+}

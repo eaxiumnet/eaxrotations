@@ -1,0 +1,20 @@
+{
+  "name": "Ironroot Seeds",
+  "quality": 1,
+  "icon": "inv_misc_food_wheat_02",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 29773,
+      "text": "Use: Plant the tree seedling in the fertile dirt mound."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 31300,
+  "_source": "cache"
+}

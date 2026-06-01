@@ -1,0 +1,29 @@
+{
+  "name": "Stone Reaper",
+  "quality": 0,
+  "icon": "inv_throwingaxe_06",
+  "ilvl": 69,
+  "required_level": 64,
+  "weapon": {
+    "min_damage": 62,
+    "max_damage": 93,
+    "speed": 2.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 2,
+    "silver": 30,
+    "copper": 27
+  },
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 25398,
+  "_source": "cache"
+}

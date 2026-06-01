@@ -1,0 +1,24 @@
+{
+  "name": "Corroded Mail Circlet",
+  "quality": 0,
+  "icon": "inv_crown_01",
+  "ilvl": 72,
+  "required_level": 67,
+  "armor": 279,
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Mail",
+  "durability": 60,
+  "sell_price": {
+    "silver": 83,
+    "copper": 37
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 25377,
+  "_source": "cache"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Reins of the Swift Stormsaber",
+  "quality": 4,
+  "icon": "ability_mount_whitetiger",
+  "ilvl": 60,
+  "required_level": 60,
+  "binding": "bop",
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 23338,
+      "text": "Use: Summons and dismisses a rideable Swift Stormsaber.  This is a very fast mount.",
+      "cooldown": "3 Sec Cooldown"
+    }
+  ],
+  "item_class": 15,
+  "item_subclass": 5,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Mounts",
+  "_id": 18902,
+  "_source": "cache"
+}

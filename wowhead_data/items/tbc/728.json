@@ -1,0 +1,29 @@
+{
+  "name": "Recipe: Westfall Stew",
+  "quality": 1,
+  "icon": "inv_scroll_03",
+  "ilvl": 15,
+  "required_level": 5,
+  "sell_price": {
+    "silver": 1,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 435,
+      "text": "Use: Restores 552 health over 24 sec.  Must remain seated while eating."
+    }
+  ],
+  "food_hp": 552,
+  "food_duration": 24,
+  "max_stack": 20,
+  "teaches": "cook Westfall Stew",
+  "teaches_spell_id": 2543,
+  "item_class": 9,
+  "item_subclass": 5,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Cooking Recipes",
+  "_id": 728,
+  "_source": "cache"
+}

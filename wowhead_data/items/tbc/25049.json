@@ -1,0 +1,22 @@
+{
+  "name": "Scheelite Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_33",
+  "ilvl": 96,
+  "required_level": 62,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 3,
+    "silver": 11,
+    "copper": 54
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25049,
+  "_source": "cache"
+}

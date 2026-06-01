@@ -1,0 +1,9 @@
+{
+  "name": "Water Shield",
+  "icon": "ability_shaman_watershield",
+  "cast_time": 0,
+  "required_class": "Shaman",
+  "required_level": 62,
+  "_id": 23575,
+  "_source": "cache"
+}

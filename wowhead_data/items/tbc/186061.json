@@ -1,0 +1,34 @@
+{
+  "name": "Communal Blade",
+  "quality": 2,
+  "icon": "inv_sword_47",
+  "ilvl": 52,
+  "required_level": 58,
+  "stats": {
+    "agility": 5,
+    "stamina": 5
+  },
+  "weapon": {
+    "min_damage": 75,
+    "max_damage": 140,
+    "speed": 2.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 90,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 186061,
+  "_source": "cache"
+}

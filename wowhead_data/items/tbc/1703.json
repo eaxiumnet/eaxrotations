@@ -1,0 +1,25 @@
+{
+  "name": "Crystal Basilisk Spine",
+  "quality": 1,
+  "icon": "inv_misc_bone_03",
+  "ilvl": 35,
+  "required_level": 25,
+  "sell_price": {
+    "copper": 81
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 1138,
+      "text": "Use: Increases Frost and Shadow resistance by 10 for 1 min.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 15,
+  "item_subclass": 4,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Other (Miscellaneous)",
+  "_id": 1703,
+  "_source": "cache"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Purple Smoke Flare",
+  "quality": 1,
+  "icon": "inv_misc_missilesmall_purple",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 2,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 32812,
+      "text": "Use: Throw a purple smoke flare at a specific location that lasts for 5 min.",
+      "cooldown": "5 Sec Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 8,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Other Consumables",
+  "_id": 25886,
+  "_source": "cache"
+}

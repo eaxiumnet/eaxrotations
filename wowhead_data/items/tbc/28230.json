@@ -1,0 +1,70 @@
+{
+  "name": "Hallowed Garments",
+  "quality": 3,
+  "icon": "inv_chest_cloth_39",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 156,
+  "stats": {
+    "intellect": 26,
+    "spirit": 26,
+    "stamina": 12
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "yellow": 1,
+    "blue": 1,
+    "total": 3
+  },
+  "socket_bonus": "+6 Stamina",
+  "set_id": 662,
+  "set_name": "Hallowed Raiment",
+  "set_pieces": [
+    {
+      "id": 28413,
+      "name": "Hallowed Crown"
+    },
+    {
+      "id": 28230,
+      "name": "Hallowed Garments"
+    },
+    {
+      "id": 27536,
+      "name": "Hallowed Handwraps"
+    },
+    {
+      "id": 27775,
+      "name": "Hallowed Pauldrons"
+    },
+    {
+      "id": 27875,
+      "name": "Hallowed Trousers"
+    }
+  ],
+  "durability": 80,
+  "sell_price": {
+    "gold": 3,
+    "silver": 65,
+    "copper": 66
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18037,
+      "text": "Equip: Increases healing done by up to 57 and damage done by up to 19 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 28230,
+  "_source": "cache"
+}

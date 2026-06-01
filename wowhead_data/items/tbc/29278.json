@@ -1,0 +1,25 @@
+{
+  "name": "Violet Signet",
+  "quality": 4,
+  "icon": "inv_jewelry_ring_62",
+  "ilvl": 120,
+  "armor": 371,
+  "stats": {
+    "stamina": 36
+  },
+  "ratings": {
+    "defense": 18
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29278,
+  "_source": "cache"
+}

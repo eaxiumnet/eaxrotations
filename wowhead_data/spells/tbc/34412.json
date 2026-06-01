@@ -1,0 +1,16 @@
+{
+  "name": "Mutilate",
+  "icon": "ability_rogue_shadowstrikes",
+  "cost": {
+    "type": "energy",
+    "amount": 60
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Rogue",
+  "required_level": 60,
+  "description": "Instantly attacks with both weapons for an additional 88 with each weapon.  Damage is increased by 50% against Poisoned targets.  Must be behind the target.  Awards 2 combo points.",
+  "target_type": "hostile",
+  "_id": 34412,
+  "_source": "cache"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Blood Knight Tabard",
+  "quality": 1,
+  "icon": "inv_shirt_guildtabard_01",
+  "ilvl": 60,
+  "slot": "Tabard",
+  "equip_slots": [
+    19
+  ],
+  "binding": "bop",
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25549,
+  "_source": "cache"
+}

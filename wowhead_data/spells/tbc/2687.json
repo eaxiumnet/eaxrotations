@@ -1,0 +1,12 @@
+{
+  "name": "Bloodrage",
+  "icon": "ability_racial_bloodrage",
+  "cast_time": 0,
+  "cooldown": "1 min cooldown",
+  "required_class": "Warrior",
+  "required_level": 10,
+  "description": "Generates 10 rage at the cost of health, and then generates an additional 10 rage over 10 sec.",
+  "duration": 10,
+  "_id": 2687,
+  "_source": "cache"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Murloc Fin",
+  "quality": 1,
+  "icon": "inv_misc_monsterscales_02",
+  "ilvl": 16,
+  "sell_price": {
+    "copper": 28
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 8,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Meat",
+  "_id": 1468,
+  "_source": "cache"
+}

@@ -1,0 +1,41 @@
+{
+  "name": "Ironstar Repeater",
+  "quality": 2,
+  "icon": "inv_weapon_bow_01",
+  "ilvl": 81,
+  "stats": {
+    "agility": 6,
+    "stamina": 9
+  },
+  "weapon": {
+    "min_damage": 97,
+    "max_damage": 98,
+    "speed": 2.2
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Crossbow",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "gold": 4,
+    "silver": 4,
+    "copper": 54
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9141,
+      "text": "Equip: Increases attack power by 12."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 18,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Crossbows",
+  "_id": 29916,
+  "_source": "cache"
+}

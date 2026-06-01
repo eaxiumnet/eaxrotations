@@ -1,0 +1,29 @@
+{
+  "name": "Deathguard's Cloak",
+  "quality": 4,
+  "icon": "inv_misc_cape_02",
+  "ilvl": 65,
+  "required_level": 60,
+  "armor": 57,
+  "stats": {
+    "agility": 5,
+    "stamina": 11
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15806,
+      "text": "Equip: Increases attack power by 34."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 20068,
+  "_source": "cache"
+}

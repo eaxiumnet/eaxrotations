@@ -1,0 +1,25 @@
+{
+  "name": "Seal of Command",
+  "icon": "ability_warrior_innerrage",
+  "cost": {
+    "type": "mana",
+    "amount": 280
+  },
+  "cast_time": 0,
+  "spell_level": 70,
+  "required_class": "Paladin",
+  "required_level": 70,
+  "description": "Gives the Paladin a chance to deal additional Holy damage equal to 70% of normal weapon damage.  Only one Seal can be active on the Paladin at any one time.  Lasts 30 sec.Unleashing this Seal's energy will judge an enemy, instantly causing 228 to 252 Holy damage, 456 to 504 if the target is stunned or incapacitated.",
+  "school": "holy",
+  "damage": {
+    "min": 228,
+    "max": 252
+  },
+  "duration": 30,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 30,
+  "buff_text": "Melee attacks have a chance to deal additional Holy damage.",
+  "_id": 27170,
+  "_source": "cache"
+}

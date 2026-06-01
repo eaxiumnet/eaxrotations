@@ -1,0 +1,21 @@
+{
+  "name": "Murloc Tagger",
+  "quality": 1,
+  "icon": "inv_weapon_rifle_10",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 30877,
+      "text": "Use: Tag a Blacksilt Scout."
+    }
+  ],
+  "flavor_text": "Where are you, little murloc? This won't hurt a bit...",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23995,
+  "_source": "cache"
+}

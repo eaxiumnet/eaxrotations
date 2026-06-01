@@ -1,0 +1,37 @@
+{
+  "name": "Pendant of Triumph",
+  "quality": 4,
+  "icon": "inv_jewelry_necklace_36",
+  "ilvl": 113,
+  "required_level": 70,
+  "stats": {
+    "stamina": 28
+  },
+  "ratings": {
+    "crit": 10,
+    "resilience": 17
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "unique": true,
+  "sockets": {
+    "yellow": 1,
+    "total": 1
+  },
+  "socket_bonus": "+2 Hit Rating",
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14089,
+      "text": "Equip: Increases attack power by 36."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28244,
+  "_source": "cache"
+}

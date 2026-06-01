@@ -1,0 +1,26 @@
+{
+  "name": "Defender Tunic",
+  "quality": 2,
+  "icon": "inv_chest_chain_04",
+  "ilvl": 23,
+  "required_level": 18,
+  "armor": 177,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 90,
+  "sell_price": {
+    "silver": 13,
+    "copper": 12
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 6580,
+  "_source": "cache"
+}

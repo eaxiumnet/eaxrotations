@@ -1,0 +1,17 @@
+{
+  "name": "Vibrant Plume",
+  "quality": 1,
+  "icon": "inv_feather_12",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 8,
+    "copper": 25
+  },
+  "max_stack": 10,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 5117,
+  "_source": "cache"
+}

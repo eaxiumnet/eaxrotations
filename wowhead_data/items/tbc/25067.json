@@ -1,0 +1,21 @@
+{
+  "name": "Diopside Beads",
+  "quality": 2,
+  "icon": "inv_jewelry_necklace_01",
+  "ilvl": 108,
+  "required_level": 66,
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 3,
+    "silver": 46,
+    "copper": 29
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25067,
+  "_source": "cache"
+}

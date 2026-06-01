@@ -1,0 +1,27 @@
+{
+  "name": "Wrathfin Waistband",
+  "quality": 2,
+  "icon": "inv_belt_13",
+  "ilvl": 93,
+  "required_level": 61,
+  "armor": 273,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 82,
+    "copper": 66
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24838,
+  "_source": "cache"
+}

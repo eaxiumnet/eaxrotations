@@ -1,0 +1,14 @@
+{
+  "name": "Eye of Veil Reskk",
+  "quality": 1,
+  "icon": "inv_misc_gem_pearl_06",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "The globe emits a soft blue glow.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 25638,
+  "_source": "cache"
+}

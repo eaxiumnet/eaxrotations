@@ -1,0 +1,12 @@
+{
+  "name": "Nature's Swiftness",
+  "icon": "spell_nature_ravenform",
+  "cast_time": 0,
+  "cooldown": "3 min cooldown",
+  "required_class": "Druid",
+  "description": "When activated, your next Nature spell becomes an instant cast spell.",
+  "has_buff": true,
+  "buff_text": "Your next Nature spell will be an instant cast spell.",
+  "_id": 17116,
+  "_source": "cache"
+}

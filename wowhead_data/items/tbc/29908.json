@@ -1,0 +1,41 @@
+{
+  "name": "Rage Reaver",
+  "quality": 2,
+  "icon": "inv_axe_12",
+  "ilvl": 81,
+  "stats": {
+    "agility": 19,
+    "stamina": 30
+  },
+  "weapon": {
+    "min_damage": 167,
+    "max_damage": 251,
+    "speed": 3.6
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "bop",
+  "durability": 85,
+  "sell_price": {
+    "gold": 6,
+    "silver": 36,
+    "copper": 76
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15808,
+      "text": "Equip: Increases attack power by 38."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 29908,
+  "_source": "cache"
+}

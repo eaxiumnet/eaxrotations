@@ -1,0 +1,26 @@
+{
+  "name": "Buccaneer's Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_12",
+  "ilvl": 19,
+  "required_level": 14,
+  "armor": 14,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 20,
+  "sell_price": {
+    "silver": 2,
+    "copper": 38
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14166,
+  "_source": "cache"
+}

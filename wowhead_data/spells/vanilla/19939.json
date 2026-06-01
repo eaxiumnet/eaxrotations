@@ -1,0 +1,22 @@
+{
+  "name": "Flash of Light",
+  "icon": "spell_holy_flashheal",
+  "cost": {
+    "type": "mana",
+    "amount": 50
+  },
+  "range": 40,
+  "cast_time": 1.5,
+  "spell_level": 60,
+  "required_class": "Paladin",
+  "required_level": 26,
+  "description": "Heals a friendly target for 102 to 117.",
+  "healing": {
+    "min": 102,
+    "max": 117
+  },
+  "is_heal": true,
+  "target_type": "friendly",
+  "_id": 19939,
+  "_source": "wowhead"
+}

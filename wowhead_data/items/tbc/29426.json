@@ -1,0 +1,18 @@
+{
+  "name": "Firewing Signet",
+  "quality": 1,
+  "icon": "inv_jewelry_ring_23",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 2
+  },
+  "phase": 1,
+  "max_stack": 250,
+  "flavor_text": "Present this to the Scryers in Shattrath City to prove your slaying of a low-ranking follower of Kael'thas.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 29426,
+  "_source": "cache"
+}

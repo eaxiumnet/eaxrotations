@@ -1,0 +1,39 @@
+{
+  "name": "Marshal's Plate Bracers",
+  "quality": 4,
+  "icon": "inv_bracer_19",
+  "ilvl": 113,
+  "required_level": 70,
+  "armor": 624,
+  "stats": {
+    "strength": 19,
+    "stamina": 25
+  },
+  "ratings": {
+    "crit": 14,
+    "resilience": 14
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "yellow": 1,
+    "total": 1
+  },
+  "socket_bonus": "+2 Resilience Rating",
+  "classes": [
+    "Warrior",
+    "Paladin"
+  ],
+  "durability": 55,
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 28996,
+  "_source": "cache"
+}

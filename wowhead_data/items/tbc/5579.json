@@ -1,0 +1,27 @@
+{
+  "name": "Militia Warhammer",
+  "quality": 1,
+  "icon": "inv_hammer_15",
+  "ilvl": 5,
+  "weapon": {
+    "min_damage": 6,
+    "max_damage": 9,
+    "speed": 2.9
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "copper": 32
+  },
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 5579,
+  "_source": "cache"
+}

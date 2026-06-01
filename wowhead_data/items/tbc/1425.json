@@ -1,0 +1,23 @@
+{
+  "name": "Worn Leather Vest",
+  "quality": 0,
+  "icon": "inv_shirt_05",
+  "ilvl": 9,
+  "required_level": 4,
+  "armor": 46,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "durability": 55,
+  "sell_price": {
+    "copper": 37
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 1425,
+  "_source": "cache"
+}

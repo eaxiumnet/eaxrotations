@@ -1,0 +1,65 @@
+{
+  "name": "Cyclone Gloves",
+  "quality": 4,
+  "icon": "inv_gauntlets_25",
+  "ilvl": 120,
+  "required_level": 70,
+  "armor": 528,
+  "stats": {
+    "intellect": 28,
+    "stamina": 28
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "set_id": 631,
+  "set_name": "Cyclone Raiment",
+  "set_pieces": [
+    {
+      "id": 29032,
+      "name": "Cyclone Gloves"
+    },
+    {
+      "id": 29029,
+      "name": "Cyclone Hauberk"
+    },
+    {
+      "id": 29028,
+      "name": "Cyclone Headdress"
+    },
+    {
+      "id": 29030,
+      "name": "Cyclone Kilt"
+    },
+    {
+      "id": 29031,
+      "name": "Cyclone Shoulderpads"
+    }
+  ],
+  "classes": [
+    "Shaman"
+  ],
+  "durability": 50,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18042,
+      "text": "Equip: Increases healing done by up to 68 and damage done by up to 23 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21632,
+      "text": "Equip: Restores 10 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 29032,
+  "_source": "cache"
+}

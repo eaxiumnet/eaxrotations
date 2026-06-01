@@ -1,0 +1,25 @@
+{
+  "name": "Scroll of Stamina IV",
+  "quality": 1,
+  "icon": "inv_scroll_07",
+  "ilvl": 60,
+  "required_level": 50,
+  "sell_price": {
+    "silver": 1,
+    "copper": 12
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 12178,
+      "text": "Use: Increases the target's Stamina by 16 for 30 min."
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 4,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Scrolls",
+  "_id": 10307,
+  "_source": "cache"
+}

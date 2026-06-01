@@ -1,0 +1,38 @@
+{
+  "name": "Sure-Step Boots",
+  "quality": 3,
+  "icon": "inv_boots_cloth_05",
+  "ilvl": 85,
+  "armor": 155,
+  "stats": {
+    "agility": 20,
+    "stamina": 28
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "unique": true,
+  "durability": 50,
+  "sell_price": {
+    "gold": 2,
+    "silver": 48,
+    "copper": 43
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15808,
+      "text": "Equip: Increases attack power by 38."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 25717,
+  "_source": "cache"
+}

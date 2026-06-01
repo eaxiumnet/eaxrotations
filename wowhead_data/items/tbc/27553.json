@@ -1,0 +1,30 @@
+{
+  "name": "Crimson Steer Energy Drink",
+  "quality": 1,
+  "icon": "inv_drink_12",
+  "ilvl": 15,
+  "required_level": 5,
+  "binding": "bop",
+  "classes": [
+    "Rogue"
+  ],
+  "sell_price": {
+    "copper": 30
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 9512,
+      "text": "Use: Instantly restores [100 - 2 * Max(0, 70 - 40)] energy.",
+      "cooldown": "5 Min Cooldown"
+    }
+  ],
+  "max_stack": 10,
+  "flavor_text": "The perfect pick me up for those rough mornings after a late night.",
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 27553,
+  "_source": "cache"
+}

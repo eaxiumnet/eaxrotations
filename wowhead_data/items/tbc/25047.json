@@ -1,0 +1,22 @@
+{
+  "name": "Tourmaline Loop",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_09",
+  "ilvl": 90,
+  "required_level": 60,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 2,
+    "silver": 94,
+    "copper": 15
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25047,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Battleworn Leather Gloves",
+  "quality": 1,
+  "icon": "inv_gauntlets_05",
+  "ilvl": 5,
+  "armor": 21,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 16,
+  "sell_price": {
+    "copper": 6
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 4914,
+  "_source": "cache"
+}

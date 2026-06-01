@@ -1,0 +1,54 @@
+{
+  "name": "Armor of the Fang",
+  "quality": 3,
+  "icon": "inv_shirt_16",
+  "ilvl": 23,
+  "required_level": 18,
+  "armor": 91,
+  "stats": {
+    "strength": 8,
+    "stamina": 8
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "set_id": 162,
+  "set_name": "Embrace of the Viper",
+  "set_pieces": [
+    {
+      "id": 10412,
+      "name": "Belt of the Fang"
+    },
+    {
+      "id": 10411,
+      "name": "Footpads of the Fang"
+    },
+    {
+      "id": 10413,
+      "name": "Gloves of the Fang"
+    },
+    {
+      "id": 10410,
+      "name": "Leggings of the Fang"
+    },
+    {
+      "id": 6473,
+      "name": "Armor of the Fang"
+    }
+  ],
+  "durability": 90,
+  "sell_price": {
+    "silver": 12,
+    "copper": 12
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 6473,
+  "_source": "cache"
+}

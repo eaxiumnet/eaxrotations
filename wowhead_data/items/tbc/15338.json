@@ -1,0 +1,26 @@
+{
+  "name": "Wrangler's Mantle",
+  "quality": 2,
+  "icon": "inv_shoulder_18",
+  "ilvl": 28,
+  "required_level": 23,
+  "armor": 68,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "silver": 13,
+    "copper": 87
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 15338,
+  "_source": "cache"
+}

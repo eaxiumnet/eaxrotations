@@ -1,0 +1,14 @@
+{
+  "name": "Plump Buzzard Wing",
+  "quality": 1,
+  "icon": "inv_misc_food_46",
+  "ilvl": 1,
+  "max_stack": 20,
+  "flavor_text": "Premium quality wings from only the finest free range carrion birds.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23239,
+  "_source": "cache"
+}

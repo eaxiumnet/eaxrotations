@@ -1,0 +1,22 @@
+{
+  "name": "Sparkleshell Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_07",
+  "ilvl": 35,
+  "required_level": 30,
+  "armor": 23,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 21,
+    "copper": 22
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 15579,
+  "_source": "cache"
+}

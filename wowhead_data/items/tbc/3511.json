@@ -1,0 +1,24 @@
+{
+  "name": "Cloak of the People's Militia",
+  "quality": 2,
+  "icon": "inv_misc_cape_14",
+  "ilvl": 15,
+  "armor": 14,
+  "stats": {
+    "agility": 2
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 2,
+    "copper": 14
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 3511,
+  "_source": "cache"
+}

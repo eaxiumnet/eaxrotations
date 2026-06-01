@@ -1,0 +1,21 @@
+{
+  "name": "Heavy Leaden Collection Phial",
+  "quality": 1,
+  "icon": "inv_drink_01",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 12709,
+      "text": "Use: Captures radioactive fallout."
+    }
+  ],
+  "flavor_text": "Handle With Care",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 9364,
+  "_source": "cache"
+}

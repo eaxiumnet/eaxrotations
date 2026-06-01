@@ -1,0 +1,25 @@
+{
+  "name": "Elixir of Lesser Agility",
+  "quality": 1,
+  "icon": "inv_potion_92",
+  "ilvl": 28,
+  "required_level": 18,
+  "sell_price": {
+    "copper": 35
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 3160,
+      "text": "Use: Increases Agility by 8 for 1 hour.  Battle Elixir.",
+      "cooldown": "3 Sec Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 2,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Elixirs",
+  "_id": 3390,
+  "_source": "cache"
+}

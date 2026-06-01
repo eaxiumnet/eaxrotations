@@ -1,0 +1,22 @@
+{
+  "name": "Superior Wizard Oil",
+  "quality": 1,
+  "icon": "inv_potion_141",
+  "ilvl": 68,
+  "required_level": 58,
+  "sell_price": {
+    "silver": 15
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28017,
+      "text": "Use: While applied to target weapon it increases spell damage by up to 42.  Lasts for 1 hour."
+    }
+  ],
+  "charges": 5,
+  "item_class": 0,
+  "item_class_name": "Consumables",
+  "_id": 22522,
+  "_source": "cache"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Loosely Threaded Pants",
+  "quality": 0,
+  "icon": "inv_pants_06",
+  "ilvl": 66,
+  "required_level": 61,
+  "armor": 67,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "durability": 55,
+  "sell_price": {
+    "silver": 69,
+    "copper": 6
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 25338,
+  "_source": "cache"
+}

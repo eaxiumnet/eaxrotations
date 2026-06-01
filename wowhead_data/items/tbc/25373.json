@@ -1,0 +1,25 @@
+{
+  "name": "Corroded Mail Armor",
+  "quality": 0,
+  "icon": "inv_chest_chain_05",
+  "ilvl": 72,
+  "required_level": 67,
+  "armor": 344,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "durability": 100,
+  "sell_price": {
+    "gold": 1,
+    "silver": 21,
+    "copper": 8
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 25373,
+  "_source": "cache"
+}

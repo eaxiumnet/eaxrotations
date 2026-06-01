@@ -1,0 +1,13 @@
+{
+  "name": "Elder Brown Bear Flank",
+  "quality": 1,
+  "icon": "inv_misc_food_72",
+  "ilvl": 1,
+  "max_stack": 8,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24026,
+  "_source": "cache"
+}

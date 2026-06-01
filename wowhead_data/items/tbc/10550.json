@@ -1,0 +1,23 @@
+{
+  "name": "Wooly Mittens",
+  "quality": 1,
+  "icon": "inv_gauntlets_02",
+  "ilvl": 12,
+  "armor": 13,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 16,
+  "sell_price": {
+    "copper": 48
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 10550,
+  "_source": "cache"
+}

@@ -1,0 +1,40 @@
+{
+  "name": "Pauldrons of Brute Force",
+  "quality": 3,
+  "icon": "inv_shoulder_15",
+  "ilvl": 94,
+  "required_level": 63,
+  "armor": 721,
+  "stats": {
+    "strength": 16,
+    "stamina": 22
+  },
+  "ratings": {
+    "defense": 18
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "yellow": 1,
+    "blue": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Dodge Rating",
+  "durability": 80,
+  "sell_price": {
+    "gold": 3,
+    "silver": 92,
+    "copper": 26
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24463,
+  "_source": "cache"
+}

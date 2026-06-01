@@ -1,0 +1,17 @@
+{
+  "name": "Jade",
+  "quality": 2,
+  "icon": "inv_misc_gem_stone_01",
+  "ilvl": 35,
+  "sell_price": {
+    "silver": 7
+  },
+  "phase": 1,
+  "max_stack": 20,
+  "item_class": 3,
+  "item_subclass": 7,
+  "item_class_name": "Gems",
+  "item_subclass_name": "Simple Gems",
+  "_id": 1529,
+  "_source": "cache"
+}

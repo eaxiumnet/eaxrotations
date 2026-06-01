@@ -1,0 +1,26 @@
+{
+  "name": "Aboriginal Sash",
+  "quality": 2,
+  "icon": "inv_belt_05",
+  "ilvl": 15,
+  "required_level": 10,
+  "armor": 16,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 18,
+  "sell_price": {
+    "silver": 1,
+    "copper": 39
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14113,
+  "_source": "cache"
+}

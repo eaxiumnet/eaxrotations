@@ -1,0 +1,52 @@
+{
+  "name": "Dreadweave Mantle",
+  "quality": 3,
+  "icon": "inv_shoulder_02",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 117,
+  "stats": {
+    "intellect": 15,
+    "stamina": 19
+  },
+  "ratings": {
+    "resilience": 17
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "blue": 1,
+    "yellow": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Resilience Rating",
+  "set_id": 2022,
+  "set_name": "Oathbound's Dreadweave Battlegear",
+  "classes": [
+    "Warlock"
+  ],
+  "durability": 50,
+  "sell_price": {
+    "gold": 2,
+    "silver": 63,
+    "copper": 77
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18049,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 26."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 35331,
+  "_source": "cache"
+}

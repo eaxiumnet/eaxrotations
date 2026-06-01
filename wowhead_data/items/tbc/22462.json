@@ -1,0 +1,18 @@
+{
+  "name": "Runed Adamantite Rod",
+  "quality": 2,
+  "icon": "inv_rod_enchantedadamantite",
+  "ilvl": 61,
+  "binding": "bop",
+  "sell_price": {
+    "gold": 3,
+    "silver": 20
+  },
+  "flavor_text": "Can also serve as any lesser runed enchanting rod.",
+  "item_class": 7,
+  "item_subclass": 12,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Enchanting",
+  "_id": 22462,
+  "_source": "cache"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Totem of Spirits",
+  "quality": 1,
+  "icon": "inv_waepon_bow_zulgrub_d_02",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 36107,
+      "text": "Use: Places a totem of spirits on the ground that is used to collect elemental souls from enraged elemental spirits.",
+      "cooldown": "30 Sec Cooldown"
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 30094,
+  "_source": "cache"
+}

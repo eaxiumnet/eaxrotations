@@ -1,0 +1,19 @@
+{
+  "name": "Whirlwind",
+  "icon": "ability_whirlwind",
+  "cost": {
+    "type": "rage",
+    "amount": 25
+  },
+  "cast_time": 0,
+  "cooldown": "10 sec cooldown",
+  "required_class": "Warrior",
+  "required_level": 36,
+  "requires_weapon": "Melee Weapon",
+  "description": "In a whirlwind of steel you attack up to 4 enemies within 8 yards, causing weapon damage to each enemy.",
+  "school": "physical",
+  "aoe": true,
+  "radius": 8,
+  "_id": 1680,
+  "_source": "wowhead"
+}

@@ -1,0 +1,42 @@
+{
+  "name": "Calming Spore Reed",
+  "quality": 3,
+  "icon": "inv_wand_04",
+  "ilvl": 91,
+  "required_level": 62,
+  "stats": {
+    "intellect": 8,
+    "spirit": 9
+  },
+  "weapon": {
+    "min_damage": 108,
+    "max_damage": 202,
+    "speed": 1.6
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Wand",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "gold": 5,
+    "silver": 11,
+    "copper": 53
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9407,
+      "text": "Equip: Increases healing done by up to 20 and damage done by up to 7 for all magical spells and effects."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 19,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Wands",
+  "_id": 24380,
+  "_source": "cache"
+}

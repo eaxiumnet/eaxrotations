@@ -1,0 +1,29 @@
+{
+  "name": "Gladius",
+  "quality": 1,
+  "icon": "inv_sword_20",
+  "ilvl": 9,
+  "required_level": 4,
+  "weapon": {
+    "min_damage": 5,
+    "max_damage": 11,
+    "speed": 2.1
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "durability": 35,
+  "sell_price": {
+    "silver": 1,
+    "copper": 7
+  },
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 2488,
+  "_source": "cache"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Gooey Spider Leg",
+  "quality": 1,
+  "icon": "inv_misc_monsterspidercarapace_01",
+  "ilvl": 25,
+  "sell_price": {
+    "copper": 12
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 8,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Meat",
+  "_id": 2251,
+  "_source": "cache"
+}

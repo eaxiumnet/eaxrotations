@@ -1,0 +1,17 @@
+{
+  "name": "Sweeping Strikes",
+  "icon": "ability_rogue_slicedice",
+  "cost": {
+    "type": "rage",
+    "amount": 30
+  },
+  "cast_time": 0,
+  "cooldown": "30 sec cooldown",
+  "required_class": "Warrior",
+  "description": "Your next 5 melee attacks strike an additional nearby opponent.",
+  "has_buff": true,
+  "buff_duration": 20,
+  "buff_text": "Your next 5 melee attacks strike an additional nearby opponent.",
+  "_id": 12292,
+  "_source": "wowhead"
+}

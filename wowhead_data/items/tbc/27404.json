@@ -1,0 +1,32 @@
+{
+  "name": "Lightspark",
+  "quality": 2,
+  "icon": "inv_wand_07",
+  "ilvl": 17,
+  "stats": {
+    "intellect": 1
+  },
+  "weapon": {
+    "min_damage": 16,
+    "max_damage": 30,
+    "speed": 1.8
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Wand",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "silver": 6,
+    "copper": 71
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 19,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Wands",
+  "_id": 27404,
+  "_source": "cache"
+}

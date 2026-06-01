@@ -1,0 +1,30 @@
+{
+  "name": "Plans: Copper Chain Vest",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 10,
+  "required_level": 5,
+  "armor": 108,
+  "stats": {
+    "strength": 1
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 65,
+  "sell_price": {
+    "silver": 1,
+    "copper": 25
+  },
+  "teaches": "make a Copper Chain Vest",
+  "teaches_spell_id": 3321,
+  "item_class": 9,
+  "item_subclass": 4,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Blacksmithing Plans",
+  "_id": 3609,
+  "_source": "cache"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Blackwhelp Net",
+  "quality": 1,
+  "icon": "inv_misc_net_01",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 38177,
+      "text": "Use: Throw a net at the targeted wyrmcult blackwhelp, which will immobilize it and put it into your pack.",
+      "cooldown": "5 Sec Cooldown"
+    }
+  ],
+  "charges": 12,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 31129,
+  "_source": "cache"
+}

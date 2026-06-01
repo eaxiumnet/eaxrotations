@@ -1,0 +1,26 @@
+{
+  "name": "Recipe: Delicious Chocolate Cake",
+  "quality": 3,
+  "icon": "inv_scroll_05",
+  "ilvl": 5,
+  "binding": "bop",
+  "sell_price": {
+    "silver": 50,
+    "copper": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 43777,
+      "text": "Use: If you spend at least 5 seconds eating you will become Very Happy for 1 hour."
+    }
+  ],
+  "teaches": "bake a Delicious Chocolate Cake",
+  "teaches_spell_id": 43779,
+  "item_class": 9,
+  "item_subclass": 5,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Cooking Recipes",
+  "_id": 33925,
+  "_source": "cache"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Obsidian Band",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_01",
+  "ilvl": 58,
+  "required_level": 53,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 91,
+    "copper": 63
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 12004,
+  "_source": "cache"
+}

@@ -1,0 +1,37 @@
+{
+  "name": "Shadowmoon Destroyer's Drape",
+  "quality": 4,
+  "icon": "inv_misc_cape_naxxramas_02",
+  "ilvl": 141,
+  "required_level": 70,
+  "armor": 118,
+  "stats": {
+    "stamina": 24
+  },
+  "ratings": {
+    "hit": 17,
+    "crit": 24
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 4,
+    "silver": 28,
+    "copper": 52
+  },
+  "phase": 3,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15821,
+      "text": "Equip: Increases attack power by 72."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 32323,
+  "_source": "cache"
+}

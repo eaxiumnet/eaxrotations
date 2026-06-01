@@ -1,0 +1,16 @@
+{
+  "name": "Hops",
+  "quality": 1,
+  "icon": "inv_misc_herb_08",
+  "ilvl": 1,
+  "sell_price": {
+    "copper": 8
+  },
+  "max_stack": 20,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 1274,
+  "_source": "cache"
+}

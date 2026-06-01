@@ -1,0 +1,26 @@
+{
+  "name": "Fortified Spaulders",
+  "quality": 2,
+  "icon": "inv_shoulder_07",
+  "ilvl": 26,
+  "required_level": 21,
+  "armor": 139,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "silver": 14,
+    "copper": 26
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 9817,
+  "_source": "cache"
+}

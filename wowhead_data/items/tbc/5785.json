@@ -1,0 +1,16 @@
+{
+  "name": "Thick Murloc Scale",
+  "quality": 1,
+  "icon": "inv_misc_monsterscales_03",
+  "ilvl": 35,
+  "sell_price": {
+    "silver": 5
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 6,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Leather",
+  "_id": 5785,
+  "_source": "cache"
+}

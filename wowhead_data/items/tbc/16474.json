@@ -1,0 +1,76 @@
+{
+  "name": "Field Marshal's Lamellar Faceguard",
+  "quality": 4,
+  "icon": "inv_helmet_05",
+  "ilvl": 74,
+  "required_level": 60,
+  "armor": 775,
+  "stats": {
+    "strength": 21,
+    "intellect": 20,
+    "stamina": 21
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 402,
+  "set_name": "Field Marshal's Aegis",
+  "set_pieces": [
+    {
+      "id": 16473,
+      "name": "Field Marshal's Lamellar Chestplate"
+    },
+    {
+      "id": 16474,
+      "name": "Field Marshal's Lamellar Faceguard"
+    },
+    {
+      "id": 16476,
+      "name": "Field Marshal's Lamellar Pauldrons"
+    },
+    {
+      "id": 16472,
+      "name": "Marshal's Lamellar Boots"
+    },
+    {
+      "id": 16471,
+      "name": "Marshal's Lamellar Gloves"
+    },
+    {
+      "id": 16475,
+      "name": "Marshal's Lamellar Legplates"
+    }
+  ],
+  "classes": [
+    "Paladin"
+  ],
+  "durability": 100,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    },
+    {
+      "type": "equip",
+      "spell_id": 15715,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 25."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21363,
+      "text": "Equip: Restores 5 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 16474,
+  "_source": "cache"
+}

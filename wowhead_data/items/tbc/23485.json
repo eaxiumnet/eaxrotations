@@ -1,0 +1,20 @@
+{
+  "name": "Empty Birdcage",
+  "quality": 1,
+  "icon": "inv_box_petcarrier_01",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 29435,
+      "text": "Use: Use when near a Female Kaliri Hatchling to capture her."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23485,
+  "_source": "cache"
+}

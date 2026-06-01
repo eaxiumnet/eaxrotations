@@ -1,0 +1,12 @@
+{
+  "name": "Omor's Hoof",
+  "quality": 1,
+  "icon": "ability_warstomp",
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23886,
+  "_source": "cache"
+}

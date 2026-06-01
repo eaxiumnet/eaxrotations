@@ -1,0 +1,17 @@
+{
+  "name": "Raptor Hide",
+  "quality": 1,
+  "icon": "inv_misc_monsterscales_01",
+  "ilvl": 30,
+  "sell_price": {
+    "silver": 2,
+    "copper": 8
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 6,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Leather",
+  "_id": 4461,
+  "_source": "cache"
+}

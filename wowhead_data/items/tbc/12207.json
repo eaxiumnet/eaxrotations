@@ -1,0 +1,13 @@
+{
+  "name": "Giant Egg",
+  "quality": 1,
+  "icon": "inv_egg_03",
+  "ilvl": 45,
+  "sell_price": {
+    "silver": 1,
+    "copper": 50
+  },
+  "max_stack": 10,
+  "_id": 12207,
+  "_source": "cache"
+}

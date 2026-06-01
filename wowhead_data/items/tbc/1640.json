@@ -1,0 +1,31 @@
+{
+  "name": "Monstrous War Axe",
+  "quality": 2,
+  "icon": "inv_axe_18",
+  "ilvl": 42,
+  "required_level": 37,
+  "weapon": {
+    "min_damage": 92,
+    "max_damage": 139,
+    "speed": 3.7
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 1,
+    "silver": 56,
+    "copper": 37
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 1640,
+  "_source": "cache"
+}

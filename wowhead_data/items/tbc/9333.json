@@ -1,0 +1,18 @@
+{
+  "name": "Tarnished Silver Necklace",
+  "quality": 0,
+  "icon": "inv_belt_18",
+  "ilvl": 1,
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "sell_price": {
+    "copper": 73
+  },
+  "max_stack": 20,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 9333,
+  "_source": "cache"
+}

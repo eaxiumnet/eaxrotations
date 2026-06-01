@@ -1,0 +1,41 @@
+{
+  "name": "Crusader's Scaled Legguards",
+  "quality": 3,
+  "icon": "inv_pants_plate_17",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 1019,
+  "stats": {
+    "strength": 36,
+    "intellect": 16,
+    "stamina": 42
+  },
+  "ratings": {
+    "crit": 16,
+    "resilience": 16
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "set_id": 2016,
+  "set_name": "Oathbound's Scaled Battlegear",
+  "classes": [
+    "Paladin"
+  ],
+  "durability": 100,
+  "sell_price": {
+    "gold": 6,
+    "silver": 40,
+    "copper": 52
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 35415,
+  "_source": "cache"
+}

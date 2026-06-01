@@ -1,0 +1,44 @@
+{
+  "name": "Invincible Stave",
+  "quality": 2,
+  "icon": "inv_staff_29",
+  "ilvl": 99,
+  "stats": {
+    "intellect": 23,
+    "stamina": 34
+  },
+  "ratings": {
+    "resilience": 23
+  },
+  "weapon": {
+    "min_damage": 134,
+    "max_damage": 218,
+    "speed": 3.1
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Staff",
+  "binding": "bop",
+  "durability": 85,
+  "sell_price": {
+    "gold": 8,
+    "silver": 25,
+    "copper": 53
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18058,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 42."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 10,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Staves",
+  "_id": 25935,
+  "_source": "cache"
+}

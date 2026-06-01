@@ -1,0 +1,16 @@
+{
+  "name": "Summon Water Elemental",
+  "icon": "spell_frost_summonwaterelemental_2",
+  "cost": {
+    "type": "mana",
+    "percent": 16
+  },
+  "cast_time": 0,
+  "cooldown": "3 min cooldown",
+  "required_class": "Mage",
+  "description": "Summon a Water Elemental to fight for the caster for 45 sec.",
+  "duration": 45,
+  "target_type": "self",
+  "_id": 31687,
+  "_source": "cache"
+}

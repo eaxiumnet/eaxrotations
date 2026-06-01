@@ -1,0 +1,21 @@
+{
+  "name": "Formula: Runed Adamantite Rod",
+  "quality": 1,
+  "icon": "inv_misc_note_01",
+  "ilvl": 70,
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 50
+  },
+  "phase": 1,
+  "teaches": "make a Runed Adamantite Rod",
+  "teaches_spell_id": 32665,
+  "flavor_text": "Can also serve as any lesser runed enchanting rod.",
+  "item_class": 9,
+  "item_subclass": 8,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Enchanting Formulae",
+  "_id": 25848,
+  "_source": "cache"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Overcharged Manacell",
+  "quality": 1,
+  "icon": "inv_gizmo_khoriumpowercore",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "A small container filled with brightly glowing plasma.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 30824,
+  "_source": "cache"
+}

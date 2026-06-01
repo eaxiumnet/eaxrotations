@@ -1,0 +1,73 @@
+{
+  "name": "Beast Lord Mantle",
+  "quality": 3,
+  "icon": "inv_shoulder_23",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 489,
+  "stats": {
+    "agility": 25,
+    "intellect": 12
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "sockets": {
+    "yellow": 1,
+    "red": 1,
+    "total": 2
+  },
+  "socket_bonus": "+4 Stamina",
+  "set_id": 650,
+  "set_name": "Beast Lord Armor",
+  "set_pieces": [
+    {
+      "id": 28228,
+      "name": "Beast Lord Cuirass"
+    },
+    {
+      "id": 27474,
+      "name": "Beast Lord Handguards"
+    },
+    {
+      "id": 28275,
+      "name": "Beast Lord Helm"
+    },
+    {
+      "id": 27874,
+      "name": "Beast Lord Leggings"
+    },
+    {
+      "id": 27801,
+      "name": "Beast Lord Mantle"
+    }
+  ],
+  "durability": 70,
+  "sell_price": {
+    "gold": 4,
+    "silver": 17,
+    "copper": 53
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15806,
+      "text": "Equip: Increases attack power by 34."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21363,
+      "text": "Equip: Restores 5 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 27801,
+  "_source": "cache"
+}

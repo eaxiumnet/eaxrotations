@@ -1,0 +1,22 @@
+{
+  "name": "Greater Heal",
+  "icon": "spell_holy_greaterheal",
+  "cost": {
+    "type": "mana",
+    "amount": 825
+  },
+  "range": 40,
+  "cast_time": 3,
+  "spell_level": 70,
+  "required_class": "Priest",
+  "required_level": 68,
+  "description": "A slow casting spell that heals a single target for 2414 to 2803.",
+  "healing": {
+    "min": 2414,
+    "max": 2803
+  },
+  "is_heal": true,
+  "target_type": "friendly",
+  "_id": 25213,
+  "_source": "cache"
+}

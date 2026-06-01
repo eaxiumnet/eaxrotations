@@ -1,0 +1,19 @@
+{
+  "name": "Worn Hide Cloak",
+  "quality": 0,
+  "icon": "inv_misc_cape_14",
+  "ilvl": 10,
+  "required_level": 5,
+  "armor": 9,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "sell_price": {
+    "copper": 28
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 1421,
+  "_source": "cache"
+}

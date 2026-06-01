@@ -1,0 +1,27 @@
+{
+  "name": "Clefthoof Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_17",
+  "ilvl": 108,
+  "required_level": 66,
+  "armor": 156,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 30,
+  "sell_price": {
+    "gold": 1,
+    "silver": 75,
+    "copper": 91
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 24768,
+  "_source": "cache"
+}

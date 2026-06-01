@@ -1,0 +1,68 @@
+{
+  "name": "Hallowed Trousers",
+  "quality": 3,
+  "icon": "inv_pants_cloth_18",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 136,
+  "stats": {
+    "intellect": 33,
+    "spirit": 18,
+    "stamina": 25
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "set_id": 662,
+  "set_name": "Hallowed Raiment",
+  "set_pieces": [
+    {
+      "id": 28413,
+      "name": "Hallowed Crown"
+    },
+    {
+      "id": 28230,
+      "name": "Hallowed Garments"
+    },
+    {
+      "id": 27536,
+      "name": "Hallowed Handwraps"
+    },
+    {
+      "id": 27775,
+      "name": "Hallowed Pauldrons"
+    },
+    {
+      "id": 27875,
+      "name": "Hallowed Trousers"
+    }
+  ],
+  "durability": 65,
+  "sell_price": {
+    "gold": 3,
+    "silver": 35,
+    "copper": 64
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18044,
+      "text": "Equip: Increases healing done by up to 73 and damage done by up to 25 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21364,
+      "text": "Equip: Restores 7 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 27875,
+  "_source": "cache"
+}

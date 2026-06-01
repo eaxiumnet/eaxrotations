@@ -1,0 +1,26 @@
+{
+  "name": "Mighty Troll's Blood Potion",
+  "quality": 1,
+  "icon": "inv_potion_79",
+  "ilvl": 36,
+  "required_level": 26,
+  "sell_price": {
+    "silver": 1,
+    "copper": 5
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 3223,
+      "text": "Use: Regenerate 12 health every 5 sec for 1 hour.  Guardian Elixir.",
+      "cooldown": "3 Sec Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 2,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Elixirs",
+  "_id": 3826,
+  "_source": "cache"
+}

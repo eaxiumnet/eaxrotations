@@ -1,0 +1,29 @@
+{
+  "name": "Communal Sash",
+  "quality": 2,
+  "icon": "inv_belt_07",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 38,
+  "stats": {
+    "intellect": 16,
+    "stamina": 6
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 25,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 186021,
+  "_source": "cache"
+}

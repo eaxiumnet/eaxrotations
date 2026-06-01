@@ -1,0 +1,24 @@
+{
+  "name": "Dilapidated Cloth Bracers",
+  "quality": 0,
+  "icon": "inv_bracer_10",
+  "ilvl": 72,
+  "required_level": 67,
+  "armor": 36,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "durability": 25,
+  "sell_price": {
+    "silver": 37,
+    "copper": 91
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 25343,
+  "_source": "cache"
+}

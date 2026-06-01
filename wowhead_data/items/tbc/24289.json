@@ -1,0 +1,21 @@
+{
+  "name": "Chrono-beacon",
+  "quality": 1,
+  "icon": "inv_misc_token_argentdawn2",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 31479,
+      "text": "Use: Calls forth a guardian of time to assist you inside the Black Morass."
+    }
+  ],
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 24289,
+  "_source": "cache"
+}

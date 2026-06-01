@@ -1,0 +1,25 @@
+{
+  "name": "Crested Buckler",
+  "quality": 0,
+  "icon": "inv_shield_10",
+  "ilvl": 56,
+  "required_level": 51,
+  "armor": 1517,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "block": 23,
+  "durability": 85,
+  "sell_price": {
+    "silver": 82,
+    "copper": 37
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 3990,
+  "_source": "cache"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "MacGrann's Dried Meats",
+  "quality": 1,
+  "icon": "inv_misc_food_14",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 2667,
+  "_source": "cache"
+}

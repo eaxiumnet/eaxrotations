@@ -1,0 +1,25 @@
+{
+  "name": "Tower Shield",
+  "quality": 0,
+  "icon": "inv_shield_11",
+  "ilvl": 29,
+  "required_level": 24,
+  "armor": 483,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "block": 8,
+  "durability": 85,
+  "sell_price": {
+    "silver": 10,
+    "copper": 5
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 2222,
+  "_source": "cache"
+}

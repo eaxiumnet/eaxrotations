@@ -1,0 +1,26 @@
+{
+  "name": "Willow Boots",
+  "quality": 2,
+  "icon": "inv_boots_03",
+  "ilvl": 15,
+  "required_level": 10,
+  "armor": 19,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "silver": 2,
+    "copper": 10
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 6537,
+  "_source": "cache"
+}

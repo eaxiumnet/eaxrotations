@@ -1,0 +1,17 @@
+{
+  "name": "Deeprock Salt",
+  "quality": 1,
+  "icon": "inv_misc_dust_02",
+  "ilvl": 40,
+  "sell_price": {
+    "silver": 2,
+    "copper": 50
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 6,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Leather",
+  "_id": 8150,
+  "_source": "cache"
+}

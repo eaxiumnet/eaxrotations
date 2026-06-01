@@ -1,0 +1,35 @@
+{
+  "name": "Emberstone Staff",
+  "quality": 3,
+  "icon": "inv_staff_13",
+  "ilvl": 23,
+  "required_level": 18,
+  "stats": {
+    "intellect": 8,
+    "spirit": 5,
+    "stamina": 5
+  },
+  "weapon": {
+    "min_damage": 47,
+    "max_damage": 71,
+    "speed": 3
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Staff",
+  "binding": "bop",
+  "durability": 80,
+  "sell_price": {
+    "silver": 31,
+    "copper": 61
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 10,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Staves",
+  "_id": 5201,
+  "_source": "cache"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Fade",
+  "icon": "spell_magic_lesserinvisibilty",
+  "cost": {
+    "type": "mana",
+    "amount": 175
+  },
+  "cast_time": 0,
+  "cooldown": "30 sec cooldown",
+  "rank": 3,
+  "required_class": "Priest",
+  "required_level": 40,
+  "description": "Fade out, discouraging enemies from attacking you for 10 sec.  More effective than Fade (Rank 3).",
+  "duration": 10,
+  "has_buff": true,
+  "buff_duration": 10,
+  "buff_text": "Reduced threat level.",
+  "_id": 9592,
+  "_source": "cache"
+}

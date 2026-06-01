@@ -1,0 +1,30 @@
+{
+  "name": "Fireball",
+  "icon": "spell_fire_flamebolt",
+  "cost": {
+    "type": "mana",
+    "amount": 30
+  },
+  "range": 35,
+  "cast_time": 1.5,
+  "spell_level": 60,
+  "required_class": "Mage",
+  "required_level": 1,
+  "description": "Hurls a fiery ball that causes 16 to 25 Fire damage and an additional 2 Fire damage over 4 sec.",
+  "school": "fire",
+  "damage": {
+    "min": 16,
+    "max": 25
+  },
+  "duration": 4,
+  "has_buff": true,
+  "buff_duration": 4,
+  "periodic": {
+    "amount": 1,
+    "school": "fire",
+    "interval": 2
+  },
+  "buff_text": "1 Fire damage every 2 seconds.",
+  "_id": 133,
+  "_source": "cache"
+}

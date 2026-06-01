@@ -1,0 +1,29 @@
+{
+  "name": "Communal Belt",
+  "quality": 2,
+  "icon": "inv_belt_04",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 77,
+  "stats": {
+    "agility": 16,
+    "stamina": 6
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 186029,
+  "_source": "cache"
+}

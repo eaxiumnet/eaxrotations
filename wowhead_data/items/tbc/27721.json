@@ -1,0 +1,33 @@
+{
+  "name": "Expedition Footgear",
+  "quality": 2,
+  "icon": "inv_boots_plate_02",
+  "ilvl": 93,
+  "armor": 594,
+  "stats": {
+    "strength": 17,
+    "stamina": 25
+  },
+  "ratings": {
+    "crit": 16
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 55,
+  "sell_price": {
+    "gold": 3,
+    "silver": 24,
+    "copper": 99
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 27721,
+  "_source": "cache"
+}

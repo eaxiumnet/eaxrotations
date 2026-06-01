@@ -1,0 +1,31 @@
+{
+  "name": "Painbringer",
+  "quality": 2,
+  "icon": "inv_hammer_10",
+  "ilvl": 58,
+  "required_level": 53,
+  "weapon": {
+    "min_damage": 100,
+    "max_damage": 151,
+    "speed": 2.8
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 4,
+    "silver": 68,
+    "copper": 23
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 15265,
+  "_source": "cache"
+}

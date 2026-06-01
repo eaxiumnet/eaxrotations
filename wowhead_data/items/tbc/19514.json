@@ -1,0 +1,24 @@
+{
+  "name": "Protector's Band",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_10",
+  "ilvl": 63,
+  "required_level": 58,
+  "stats": {
+    "agility": 11,
+    "strength": 12,
+    "stamina": 8
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 19514,
+  "_source": "cache"
+}

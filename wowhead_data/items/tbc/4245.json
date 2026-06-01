@@ -1,0 +1,17 @@
+{
+  "name": "Small Silk Pack",
+  "quality": 1,
+  "icon": "inv_misc_bag_07",
+  "ilvl": 25,
+  "bag_slots": 10,
+  "container_type": "bag",
+  "sell_price": {
+    "silver": 20
+  },
+  "item_class": 1,
+  "item_subclass": 0,
+  "item_class_name": "Containers",
+  "item_subclass_name": "Bags",
+  "_id": 4245,
+  "_source": "cache"
+}

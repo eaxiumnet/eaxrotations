@@ -1,0 +1,32 @@
+{
+  "name": "Sapphiron's Scale Boots",
+  "quality": 3,
+  "icon": "inv_boots_plate_05",
+  "ilvl": 58,
+  "required_level": 53,
+  "armor": 417,
+  "stats": {
+    "agility": 9,
+    "strength": 14,
+    "stamina": 14
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 65,
+  "sell_price": {
+    "gold": 2,
+    "silver": 46,
+    "copper": 6
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 13070,
+  "_source": "cache"
+}

@@ -1,0 +1,60 @@
+{
+  "name": "Fel Leather Boots",
+  "quality": 3,
+  "icon": "inv_boots_cloth_05",
+  "ilvl": 112,
+  "required_level": 69,
+  "armor": 196,
+  "ratings": {
+    "hit": 25,
+    "crit": 17
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "sockets": {
+    "yellow": 1,
+    "red": 1,
+    "total": 2
+  },
+  "socket_bonus": "",
+  "set_id": 573,
+  "set_name": "Fel Skin",
+  "set_pieces": [
+    {
+      "id": 25685,
+      "name": "Fel Leather Gloves"
+    },
+    {
+      "id": 25686,
+      "name": "Fel Leather Boots"
+    },
+    {
+      "id": 25687,
+      "name": "Fel Leather Leggings"
+    }
+  ],
+  "durability": 50,
+  "sell_price": {
+    "gold": 3,
+    "silver": 28,
+    "copper": 62
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14089,
+      "text": "Equip: Increases attack power by 36."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 25686,
+  "_source": "cache"
+}

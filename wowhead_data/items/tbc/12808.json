@@ -1,0 +1,16 @@
+{
+  "name": "Essence of Undeath",
+  "quality": 2,
+  "icon": "spell_shadow_shadetruesight",
+  "ilvl": 55,
+  "sell_price": {
+    "silver": 10
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 10,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Elemental",
+  "_id": 12808,
+  "_source": "cache"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "Emperor Shield",
+  "quality": 2,
+  "icon": "inv_shield_07",
+  "ilvl": 84,
+  "required_level": 58,
+  "armor": 2513,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "boe",
+  "block": 51,
+  "durability": 85,
+  "sell_price": {
+    "gold": 3,
+    "silver": 67,
+    "copper": 84
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 25073,
+  "_source": "cache"
+}

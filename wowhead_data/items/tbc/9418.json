@@ -1,0 +1,38 @@
+{
+  "name": "Stoneslayer",
+  "quality": 3,
+  "icon": "inv_sword_47",
+  "ilvl": 49,
+  "required_level": 40,
+  "weapon": {
+    "min_damage": 133,
+    "max_damage": 200,
+    "speed": 3.9
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 100,
+  "sell_price": {
+    "gold": 3,
+    "silver": 28,
+    "copper": 51
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "proc",
+      "spell_id": 12731,
+      "text": "Chance on hit: Increases damage by 10 for 8 sec."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 8,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Swords",
+  "_id": 9418,
+  "_source": "cache"
+}

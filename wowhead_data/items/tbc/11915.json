@@ -1,0 +1,31 @@
+{
+  "name": "Shizzle's Drizzle Blocker",
+  "quality": 2,
+  "icon": "inv_shield_07",
+  "ilvl": 55,
+  "armor": 1691,
+  "stats": {
+    "strength": 13,
+    "stamina": 1
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 29,
+  "durability": 85,
+  "sell_price": {
+    "gold": 2,
+    "silver": 1,
+    "copper": 24
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 11915,
+  "_source": "cache"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Siphon Life",
+  "icon": "spell_shadow_requiem",
+  "cost": {
+    "type": "mana",
+    "amount": 285
+  },
+  "range": 30,
+  "cast_time": 0,
+  "required_class": "Warlock",
+  "required_level": 48,
+  "description": "Transfers 33 health from the target to the caster every 3 sec.  Lasts 30 sec.",
+  "duration": 30,
+  "target_type": "self",
+  "has_buff": true,
+  "buff_duration": 30,
+  "buff_text": "Drains 33 health to the caster every 3 secs.",
+  "_id": 18880,
+  "_source": "wowhead"
+}

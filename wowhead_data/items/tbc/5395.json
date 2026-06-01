@@ -1,0 +1,24 @@
+{
+  "name": "Woodland Shield",
+  "quality": 1,
+  "icon": "inv_shield_03",
+  "ilvl": 5,
+  "armor": 55,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 1,
+  "durability": 35,
+  "sell_price": {
+    "copper": 16
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 5395,
+  "_source": "cache"
+}

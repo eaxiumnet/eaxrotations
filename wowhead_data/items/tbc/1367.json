@@ -1,0 +1,22 @@
+{
+  "name": "Ragged Leather Boots",
+  "quality": 0,
+  "icon": "inv_boots_06",
+  "ilvl": 3,
+  "armor": 16,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "durability": 20,
+  "sell_price": {
+    "copper": 2
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 1367,
+  "_source": "cache"
+}

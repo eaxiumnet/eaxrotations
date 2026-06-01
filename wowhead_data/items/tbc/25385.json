@@ -1,0 +1,25 @@
+{
+  "name": "Tarnished Plate Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_28",
+  "ilvl": 66,
+  "required_level": 61,
+  "armor": 351,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "durability": 40,
+  "sell_price": {
+    "silver": 64,
+    "copper": 6
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25385,
+  "_source": "cache"
+}

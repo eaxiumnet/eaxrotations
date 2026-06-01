@@ -1,0 +1,41 @@
+{
+  "name": "Breastplate of Rapid Striking",
+  "quality": 3,
+  "icon": "inv_chest_plate10",
+  "ilvl": 109,
+  "required_level": 68,
+  "armor": 619,
+  "stats": {
+    "agility": 40,
+    "intellect": 20
+  },
+  "ratings": {
+    "hit": 20
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 120,
+  "sell_price": {
+    "gold": 4,
+    "silver": 79,
+    "copper": 60
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15811,
+      "text": "Equip: Increases attack power by 46."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 31286,
+  "_source": "cache"
+}

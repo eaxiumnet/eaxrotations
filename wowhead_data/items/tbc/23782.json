@@ -1,0 +1,16 @@
+{
+  "name": "Fel Iron Casing",
+  "quality": 1,
+  "icon": "inv_gizmo_felironcasing",
+  "ilvl": 60,
+  "sell_price": {
+    "silver": 80
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 1,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Parts",
+  "_id": 23782,
+  "_source": "cache"
+}

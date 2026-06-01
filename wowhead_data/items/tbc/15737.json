@@ -1,0 +1,32 @@
+{
+  "name": "Pattern: Chimeric Boots",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 55,
+  "required_level": 50,
+  "armor": 99,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 40,
+    "copper": 30
+  },
+  "resistances": {
+    "arcane": 12,
+    "nature": 12
+  },
+  "teaches": "craft Chimeric Boots",
+  "teaches_spell_id": 19063,
+  "item_class": 9,
+  "item_subclass": 1,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Leatherworking Patterns",
+  "_id": 15737,
+  "_source": "cache"
+}

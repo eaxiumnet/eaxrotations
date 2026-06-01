@@ -1,0 +1,16 @@
+{
+  "name": "Arthas' Tears",
+  "quality": 1,
+  "icon": "inv_misc_herb_13",
+  "ilvl": 44,
+  "sell_price": {
+    "copper": 95
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 9,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Herbs",
+  "_id": 8836,
+  "_source": "cache"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Bestial Wrath",
+  "icon": "ability_druid_ferociousbite",
+  "cost": {
+    "type": "mana",
+    "percent": 10
+  },
+  "range": 100,
+  "cast_time": 0,
+  "cooldown": "2 min cooldown",
+  "required_class": "Hunter",
+  "description": "Send your pet into a rage causing 50% additional damage for 18 sec.  While enraged, the beast does not feel pity or remorse or fear and it cannot be stopped unless killed.",
+  "duration": 18,
+  "has_buff": true,
+  "buff_duration": 18,
+  "buff_text": "Enraged.",
+  "_id": 19574,
+  "_source": "cache"
+}

@@ -1,0 +1,29 @@
+{
+  "name": "SHOWLABEL Only OFF",
+  "icon": "spell_nature_nullward",
+  "cast_time": 0,
+  "school_mask": 1,
+  "school": "physical",
+  "schools": "Physical",
+  "category": 0,
+  "gcd": 0,
+  "effects": [
+    {
+      "type": "Script Effect",
+      "value_raw": "1",
+      "value": 1
+    }
+  ],
+  "_listview_ids": [
+    "add-your-comment",
+    "comments",
+    "screenshots",
+    "submit-a-screenshot",
+    "submit-your-data",
+    "suggest-a-video",
+    "videos",
+    "videos-english"
+  ],
+  "_id": 456,
+  "_source": "cache"
+}

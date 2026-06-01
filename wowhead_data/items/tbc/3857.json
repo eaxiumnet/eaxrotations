@@ -1,0 +1,17 @@
+{
+  "name": "Coal",
+  "quality": 1,
+  "icon": "inv_ore_tin_01",
+  "ilvl": 30,
+  "sell_price": {
+    "silver": 1,
+    "copper": 25
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 7,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Metal & Stone",
+  "_id": 3857,
+  "_source": "cache"
+}

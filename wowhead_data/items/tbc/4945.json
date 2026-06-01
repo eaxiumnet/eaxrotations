@@ -1,0 +1,24 @@
+{
+  "name": "Faintly Glowing Skull",
+  "quality": 1,
+  "icon": "inv_misc_bone_dwarfskull_01",
+  "ilvl": 9,
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "copper": 37
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 16375,
+      "text": "Use: Steals 75 to 125 life from target enemy."
+    }
+  ],
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 4945,
+  "_source": "cache"
+}

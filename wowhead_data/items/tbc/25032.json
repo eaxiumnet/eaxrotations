@@ -1,0 +1,23 @@
+{
+  "name": "Hellfire Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_20",
+  "ilvl": 87,
+  "required_level": 59,
+  "armor": 55,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 1,
+    "silver": 77,
+    "copper": 25
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25032,
+  "_source": "cache"
+}

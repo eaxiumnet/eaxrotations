@@ -1,0 +1,31 @@
+{
+  "name": "Torc of the Sethekk Prophet",
+  "quality": 3,
+  "icon": "inv_jewelry_necklace_29naxxramas",
+  "ilvl": 115,
+  "stats": {
+    "intellect": 18
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 4,
+    "silver": 19,
+    "copper": 53
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14254,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 19."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29333,
+  "_source": "cache"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Shining Mace",
+  "quality": 2,
+  "icon": "inv_mace_02",
+  "ilvl": 81,
+  "required_level": 57,
+  "weapon": {
+    "min_damage": 162,
+    "max_damage": 244,
+    "speed": 3.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 7,
+    "silver": 1,
+    "copper": 11
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 25128,
+  "_source": "cache"
+}

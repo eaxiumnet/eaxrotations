@@ -1,0 +1,17 @@
+{
+  "name": "Windfury Totem",
+  "icon": "spell_nature_windfury",
+  "cost": {
+    "type": "mana",
+    "amount": 250
+  },
+  "cast_time": 0,
+  "required_class": "Shaman",
+  "required_level": 52,
+  "description": "Summons a Windfury Totem with 5 health at the feet of the caster.  The totem enchants all party members main-hand weapons with wind, if they are within 20 yards.  Each hit has a 20% chance of granting the attacker 1 extra attack with (315 * 1) extra melee attack power.  Lasts 2 min.",
+  "duration": 120,
+  "radius": 20,
+  "target_type": "friendly",
+  "_id": 10614,
+  "_source": "wowhead"
+}

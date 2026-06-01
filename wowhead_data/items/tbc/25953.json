@@ -1,0 +1,37 @@
+{
+  "name": "Ethereal Warp-Bow",
+  "quality": 3,
+  "icon": "inv_weapon_bow_20",
+  "ilvl": 97,
+  "required_level": 64,
+  "stats": {
+    "stamina": 13
+  },
+  "ratings": {
+    "crit": 14
+  },
+  "weapon": {
+    "min_damage": 120,
+    "max_damage": 181,
+    "speed": 2.7
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "binding": "bop",
+  "durability": 75,
+  "sell_price": {
+    "gold": 5,
+    "silver": 79,
+    "copper": 44
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 25953,
+  "_source": "cache"
+}

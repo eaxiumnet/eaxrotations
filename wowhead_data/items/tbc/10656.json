@@ -1,0 +1,23 @@
+{
+  "name": "Barkmail Vest",
+  "quality": 1,
+  "icon": "inv_chest_chain",
+  "ilvl": 5,
+  "armor": 67,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 55,
+  "sell_price": {
+    "copper": 14
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 10656,
+  "_source": "cache"
+}

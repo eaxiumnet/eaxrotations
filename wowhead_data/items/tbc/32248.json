@@ -1,0 +1,45 @@
+{
+  "name": "Halberd of Desolation",
+  "quality": 4,
+  "icon": "inv_weapon_halberd_20",
+  "ilvl": 141,
+  "required_level": 70,
+  "stats": {
+    "agility": 51,
+    "stamina": 57
+  },
+  "ratings": {
+    "hit": 30
+  },
+  "weapon": {
+    "min_damage": 365,
+    "max_damage": 548,
+    "speed": 3.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Polearm",
+  "binding": "bop",
+  "durability": 120,
+  "sell_price": {
+    "gold": 17,
+    "silver": 72,
+    "copper": 10
+  },
+  "phase": 3,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 28735,
+      "text": "Equip: Increases attack power by 100."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 6,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Polearms",
+  "_id": 32248,
+  "_source": "cache"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Muck-ridden Core",
+  "quality": 1,
+  "icon": "spell_nature_elementalshields",
+  "ilvl": 1,
+  "max_stack": 10,
+  "flavor_text": "Oozing with tainted muck.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24469,
+  "_source": "cache"
+}

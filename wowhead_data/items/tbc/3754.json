@@ -1,0 +1,29 @@
+{
+  "name": "Shepherd's Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_21",
+  "ilvl": 33,
+  "armor": 61,
+  "stats": {
+    "agility": 6,
+    "strength": 7
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "silver": 14,
+    "copper": 92
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 3754,
+  "_source": "cache"
+}

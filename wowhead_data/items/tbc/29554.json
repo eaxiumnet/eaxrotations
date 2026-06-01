@@ -1,0 +1,17 @@
+{
+  "name": "Encrusted Basilisk Skin",
+  "quality": 0,
+  "icon": "inv_misc_monsterscales_05",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 9,
+    "copper": 90
+  },
+  "max_stack": 5,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 29554,
+  "_source": "cache"
+}

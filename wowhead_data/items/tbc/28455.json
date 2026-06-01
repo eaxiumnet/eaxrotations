@@ -1,0 +1,22 @@
+{
+  "name": "Archmage Vargoth's Staff",
+  "quality": 1,
+  "icon": "inv_staff_45",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 34372,
+      "text": "Use: Attempt to contact Archmage Vargoth.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "flavor_text": "Although the staff shows no visible signs of age, you get the impression that it is quite old.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 28455,
+  "_source": "cache"
+}

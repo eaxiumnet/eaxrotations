@@ -1,0 +1,21 @@
+{
+  "name": "Serpentine Loop",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_12",
+  "ilvl": 55,
+  "required_level": 50,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 78,
+    "copper": 96
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 11977,
+  "_source": "cache"
+}

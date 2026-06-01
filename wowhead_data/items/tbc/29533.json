@@ -1,0 +1,24 @@
+{
+  "name": "Cobrahide Leg Armor",
+  "quality": 3,
+  "icon": "inv_misc_armorkit_21",
+  "ilvl": 67,
+  "required_level": 60,
+  "sell_price": {
+    "gold": 2
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 35488,
+      "text": "Use: Permanently attach cobrahide armor onto pants to increase attack power by 40 and critical strike rating by 10."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 6,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Item Enhancements (Permanent)",
+  "_id": 29533,
+  "_source": "cache"
+}

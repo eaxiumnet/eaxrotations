@@ -1,0 +1,25 @@
+{
+  "name": "Goldenmist Special Brew",
+  "quality": 1,
+  "icon": "inv_potion_10",
+  "ilvl": 10,
+  "sell_price": {
+    "silver": 1,
+    "copper": 10
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 29348,
+      "text": "Use: Increases the player's maximum health by 70 for 1 hour.",
+      "cooldown": "3 Sec Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 2,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Elixirs",
+  "_id": 23444,
+  "_source": "cache"
+}

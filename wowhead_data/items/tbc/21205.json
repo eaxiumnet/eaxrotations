@@ -1,0 +1,36 @@
+{
+  "name": "Signet Ring of the Bronze Dragonflight",
+  "quality": 4,
+  "icon": "inv_jewelry_ring_40",
+  "ilvl": 80,
+  "required_level": 60,
+  "stats": {
+    "agility": 18,
+    "stamina": 13
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15464,
+      "text": "Equip: Increases your hit rating by 10."
+    },
+    {
+      "type": "equip",
+      "spell_id": 14027,
+      "text": "Equip: Increases attack power by 24."
+    }
+  ],
+  "flavor_text": "The Path of the Conqueror",
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 21205,
+  "_source": "cache"
+}

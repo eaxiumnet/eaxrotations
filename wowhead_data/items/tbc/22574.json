@@ -1,0 +1,24 @@
+{
+  "name": "Mote of Fire",
+  "quality": 1,
+  "icon": "inv_elemental_mote_fire01",
+  "ilvl": 65,
+  "sell_price": {
+    "silver": 4
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28102,
+      "text": "Use: Turn ten Motes of Fire into Primal Fire."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 10,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Elemental",
+  "_id": 22574,
+  "_source": "cache"
+}

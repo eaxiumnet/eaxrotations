@@ -1,0 +1,24 @@
+{
+  "name": "Smooth Leather Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_18",
+  "ilvl": 58,
+  "required_level": 53,
+  "armor": 84,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "durability": 30,
+  "sell_price": {
+    "silver": 36,
+    "copper": 57
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 3973,
+  "_source": "cache"
+}

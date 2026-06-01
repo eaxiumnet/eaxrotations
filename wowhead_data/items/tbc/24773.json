@@ -1,0 +1,27 @@
+{
+  "name": "Boneshredder Belt",
+  "quality": 2,
+  "icon": "inv_belt_16",
+  "ilvl": 111,
+  "required_level": 67,
+  "armor": 144,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 30,
+  "sell_price": {
+    "gold": 1,
+    "silver": 70,
+    "copper": 53
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 24773,
+  "_source": "cache"
+}

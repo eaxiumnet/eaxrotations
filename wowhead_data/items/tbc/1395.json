@@ -1,0 +1,22 @@
+{
+  "name": "Apprentice's Pants",
+  "quality": 0,
+  "icon": "inv_pants_01",
+  "ilvl": 1,
+  "armor": 2,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "durability": 25,
+  "sell_price": {
+    "copper": 1
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 1395,
+  "_source": "cache"
+}

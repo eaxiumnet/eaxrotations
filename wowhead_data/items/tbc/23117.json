@@ -1,0 +1,13 @@
+{
+  "name": "Azure Moonstone",
+  "quality": 2,
+  "icon": "inv_misc_gem_azuredraenite_03",
+  "ilvl": 65,
+  "sell_price": {
+    "silver": 25
+  },
+  "phase": 1,
+  "max_stack": 20,
+  "_id": 23117,
+  "_source": "cache"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Cross-stitched Bracers",
+  "quality": 0,
+  "icon": "inv_bracer_13",
+  "ilvl": 28,
+  "required_level": 23,
+  "armor": 16,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "durability": 25,
+  "sell_price": {
+    "silver": 3,
+    "copper": 3
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 3381,
+  "_source": "cache"
+}

@@ -1,0 +1,34 @@
+{
+  "name": "Scarab of the Infinite Cycle",
+  "quality": 3,
+  "icon": "inv_misc_ahnqirajtrinket_06",
+  "ilvl": 115,
+  "required_level": 70,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique_equipped": true,
+  "sell_price": {
+    "gold": 1
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18043,
+      "text": "Equip: Increases healing done by up to 70 and damage done by up to 24 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 33953,
+      "text": "Equip: Your direct healing and heal over time spells have a chance to increase your spell haste rating by 320 for 6 secs. (Proc chance: 10%, 45s cooldown)"
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28190,
+  "_source": "cache"
+}

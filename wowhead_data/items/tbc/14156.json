@@ -1,0 +1,18 @@
+{
+  "name": "Bottomless Bag",
+  "quality": 3,
+  "icon": "inv_misc_bag_13",
+  "ilvl": 62,
+  "binding": "boe",
+  "bag_slots": 18,
+  "container_type": "bag",
+  "sell_price": {
+    "gold": 4
+  },
+  "item_class": 1,
+  "item_subclass": 0,
+  "item_class_name": "Containers",
+  "item_subclass_name": "Bags",
+  "_id": 14156,
+  "_source": "cache"
+}

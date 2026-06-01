@@ -1,0 +1,14 @@
+{
+  "name": "Bundle of Skins",
+  "quality": 1,
+  "icon": "inv_misc_bag_12",
+  "ilvl": 1,
+  "max_stack": 10,
+  "flavor_text": "Heavy and slightly damp from the marsh.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 25449,
+  "_source": "cache"
+}

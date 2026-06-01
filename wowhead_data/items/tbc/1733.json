@@ -1,0 +1,19 @@
+{
+  "name": "Worn Cloak",
+  "quality": 0,
+  "icon": "inv_misc_cape_08",
+  "ilvl": 15,
+  "required_level": 10,
+  "armor": 13,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "sell_price": {
+    "copper": 88
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 1733,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Shadow Council Pants",
+  "quality": 2,
+  "icon": "inv_pants_cloth_04",
+  "ilvl": 111,
+  "required_level": 67,
+  "armor": 120,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 2,
+    "silver": 79,
+    "copper": 10
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24666,
+  "_source": "cache"
+}

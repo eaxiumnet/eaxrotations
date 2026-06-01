@@ -1,0 +1,24 @@
+{
+  "name": "Smooth Leather Shoulderpads",
+  "quality": 0,
+  "icon": "inv_shoulder_08",
+  "ilvl": 52,
+  "required_level": 47,
+  "armor": 92,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Leather",
+  "durability": 50,
+  "sell_price": {
+    "silver": 38,
+    "copper": 96
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 3975,
+  "_source": "cache"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Last Stand",
+  "icon": "spell_holy_ashestoashes",
+  "cast_time": 0,
+  "cooldown": "10 min cooldown",
+  "required_class": "Warrior",
+  "description": "When activated, this ability temporarily grants you 30% of your maximum hit points for 20 seconds.  After the effect expires, the hit points are lost.",
+  "duration": 20,
+  "_id": 12975,
+  "_source": "wowhead"
+}

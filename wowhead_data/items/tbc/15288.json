@@ -1,0 +1,31 @@
+{
+  "name": "Blasthorn Bow",
+  "quality": 2,
+  "icon": "inv_weapon_bow_07",
+  "ilvl": 61,
+  "required_level": 56,
+  "weapon": {
+    "min_damage": 67,
+    "max_damage": 125,
+    "speed": 2.6
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "binding": "boe",
+  "durability": 65,
+  "sell_price": {
+    "gold": 3,
+    "silver": 25,
+    "copper": 85
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 15288,
+  "_source": "cache"
+}

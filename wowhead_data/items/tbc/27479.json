@@ -1,0 +1,22 @@
+{
+  "name": "Flaming Torch",
+  "quality": 1,
+  "icon": "inv_torch_lit",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 33067,
+      "text": "Use: Burns an Alliance cannon overlooking the Path of Glory."
+    }
+  ],
+  "flavor_text": "A lively flame crackles on the end of a torch soaked in pitch.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 27479,
+  "_source": "cache"
+}

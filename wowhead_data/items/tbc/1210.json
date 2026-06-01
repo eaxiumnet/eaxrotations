@@ -1,0 +1,18 @@
+{
+  "name": "Shadowgem",
+  "quality": 2,
+  "icon": "inv_misc_gem_amethyst_01",
+  "ilvl": 20,
+  "sell_price": {
+    "silver": 2,
+    "copper": 50
+  },
+  "phase": 1,
+  "max_stack": 20,
+  "item_class": 3,
+  "item_subclass": 7,
+  "item_class_name": "Gems",
+  "item_subclass_name": "Simple Gems",
+  "_id": 1210,
+  "_source": "cache"
+}

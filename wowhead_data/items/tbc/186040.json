@@ -1,0 +1,29 @@
+{
+  "name": "Communal Armguards",
+  "quality": 2,
+  "icon": "inv_bracer_04",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 124,
+  "stats": {
+    "agility": 3,
+    "stamina": 11
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 186040,
+  "_source": "cache"
+}

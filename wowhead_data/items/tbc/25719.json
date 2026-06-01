@@ -1,0 +1,17 @@
+{
+  "name": "Arakkoa Feather",
+  "quality": 1,
+  "icon": "inv_feather_06",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 8,
+    "copper": 68
+  },
+  "max_stack": 250,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 25719,
+  "_source": "cache"
+}

@@ -1,0 +1,37 @@
+{
+  "name": "Gorehowl",
+  "quality": 4,
+  "icon": "inv_axe_60",
+  "ilvl": 125,
+  "required_level": 70,
+  "stats": {
+    "agility": 43,
+    "strength": 49,
+    "stamina": 51
+  },
+  "weapon": {
+    "min_damage": 345,
+    "max_damage": 518,
+    "speed": 3.6
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "bop",
+  "durability": 120,
+  "sell_price": {
+    "gold": 16,
+    "silver": 32,
+    "copper": 60
+  },
+  "phase": 1,
+  "flavor_text": "The axe of Grom Hellscream has sown terror across hundreds of battlefields.",
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 28773,
+  "_source": "cache"
+}

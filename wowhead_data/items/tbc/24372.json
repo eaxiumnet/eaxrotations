@@ -1,0 +1,14 @@
+{
+  "name": "Diaphanous Wing",
+  "quality": 1,
+  "icon": "inv_misc_monsterscales_18",
+  "ilvl": 1,
+  "max_stack": 10,
+  "flavor_text": "A thin, nearly transparent insect wing.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24372,
+  "_source": "cache"
+}

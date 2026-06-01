@@ -1,0 +1,18 @@
+{
+  "name": "Icy Veins",
+  "icon": "spell_frost_coldhearted",
+  "cost": {
+    "type": "mana",
+    "percent": 3
+  },
+  "cast_time": 0,
+  "cooldown": "3 min cooldown",
+  "required_class": "Mage",
+  "description": "Hastens your spellcasting, increasing spell casting speed by 20% and gives you 100% chance to avoid interruption caused by damage while casting.  Lasts 20 sec.",
+  "duration": 20,
+  "has_buff": true,
+  "buff_duration": 20,
+  "buff_text": "Casting speed of all spells increased by 20% and reduces the chance to avoid interruption caused by damage while casting by 100%.",
+  "_id": 12472,
+  "_source": "cache"
+}

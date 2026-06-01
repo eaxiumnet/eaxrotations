@@ -1,0 +1,33 @@
+{
+  "name": "Choker of Endless Nightmares",
+  "quality": 4,
+  "icon": "inv_jewelry_necklace_35",
+  "ilvl": 141,
+  "required_level": 70,
+  "ratings": {
+    "hit": 21,
+    "crit": 27
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 8,
+    "silver": 83,
+    "copper": 55
+  },
+  "phase": 3,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15821,
+      "text": "Equip: Increases attack power by 72."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 32260,
+  "_source": "cache"
+}

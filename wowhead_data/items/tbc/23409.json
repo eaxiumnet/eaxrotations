@@ -1,0 +1,29 @@
+{
+  "name": "Well Crafted Long Bow",
+  "quality": 2,
+  "icon": "inv_weapon_bow_02",
+  "ilvl": 20,
+  "weapon": {
+    "min_damage": 20,
+    "max_damage": 39,
+    "speed": 2.7
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "binding": "bop",
+  "durability": 50,
+  "sell_price": {
+    "silver": 10,
+    "copper": 72
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 23409,
+  "_source": "cache"
+}

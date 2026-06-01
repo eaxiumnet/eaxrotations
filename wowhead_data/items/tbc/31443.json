@@ -1,0 +1,31 @@
+{
+  "name": "Nickwinkle's Harness Experiment",
+  "quality": 2,
+  "icon": "inv_chest_leather_04",
+  "ilvl": 105,
+  "armor": 343,
+  "stats": {
+    "agility": 12,
+    "strength": 20,
+    "stamina": 54
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 85,
+  "sell_price": {
+    "gold": 3,
+    "silver": 45,
+    "copper": 97
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 31443,
+  "_source": "cache"
+}

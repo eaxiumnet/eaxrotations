@@ -1,0 +1,13 @@
+{
+  "name": "Scroll of Atalor",
+  "quality": 1,
+  "icon": "inv_scroll_09",
+  "ilvl": 1,
+  "max_stack": 10,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 31708,
+  "_source": "cache"
+}

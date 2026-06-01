@@ -1,0 +1,24 @@
+{
+  "name": "Cross-stitched Shoulderpads",
+  "quality": 0,
+  "icon": "inv_shoulder_09",
+  "ilvl": 28,
+  "required_level": 23,
+  "armor": 28,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "durability": 40,
+  "sell_price": {
+    "silver": 4,
+    "copper": 64
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 1785,
+  "_source": "cache"
+}

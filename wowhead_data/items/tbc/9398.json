@@ -1,0 +1,30 @@
+{
+  "name": "Worn Running Boots",
+  "quality": 3,
+  "icon": "inv_boots_02",
+  "ilvl": 40,
+  "required_level": 35,
+  "armor": 83,
+  "stats": {
+    "agility": 12,
+    "stamina": 10
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 50,
+  "sell_price": {
+    "silver": 14,
+    "copper": 93
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 9398,
+  "_source": "cache"
+}

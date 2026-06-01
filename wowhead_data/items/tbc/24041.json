@@ -1,0 +1,13 @@
+{
+  "name": "Aquatic Stinkhorn",
+  "quality": 1,
+  "icon": "inv_mushroom_02",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24041,
+  "_source": "cache"
+}

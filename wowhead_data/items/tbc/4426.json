@@ -1,0 +1,25 @@
+{
+  "name": "Scroll of Strength III",
+  "quality": 1,
+  "icon": "inv_scroll_02",
+  "ilvl": 50,
+  "required_level": 40,
+  "sell_price": {
+    "silver": 1,
+    "copper": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 8120,
+      "text": "Use: Increases the target's Strength by 13 for 30 min."
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 4,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Scrolls",
+  "_id": 4426,
+  "_source": "cache"
+}

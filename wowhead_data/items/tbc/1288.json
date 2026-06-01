@@ -1,0 +1,17 @@
+{
+  "name": "Large Venom Sac",
+  "quality": 1,
+  "icon": "inv_misc_organ_01",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 1,
+    "copper": 85
+  },
+  "max_stack": 5,
+  "item_class": 7,
+  "item_subclass": 11,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Other (Trade Goods)",
+  "_id": 1288,
+  "_source": "cache"
+}

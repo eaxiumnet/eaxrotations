@@ -1,0 +1,14 @@
+{
+  "name": "Head of Kel'gash the Wicked",
+  "quality": 1,
+  "icon": "inv_misc_head_troll_01",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "Somehow he doesn't seem so wicked now.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 22640,
+  "_source": "cache"
+}

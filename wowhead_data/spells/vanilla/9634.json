@@ -1,0 +1,18 @@
+{
+  "name": "Dire Bear Form",
+  "icon": "ability_racial_bearform",
+  "cost": {
+    "type": "mana",
+    "percent": 55
+  },
+  "cast_time": 0,
+  "spell_level": 60,
+  "required_class": "Druid",
+  "required_level": 40,
+  "description": "Shapeshift into a dire bear, increasing melee attack power by 180, armor contribution from items by 360%, and health by 1240.  Also protects the caster from Polymorph effects and allows the use of various bear abilities.The act of shapeshifting frees the caster of Polymorph and Movement Impairing effects.",
+  "target_type": "self",
+  "has_buff": true,
+  "buff_text": "Immune to Polymorph effects.  Increases melee attack power by 180, armor contribution from items by 360%, and health by 1240.",
+  "_id": 9634,
+  "_source": "wowhead"
+}

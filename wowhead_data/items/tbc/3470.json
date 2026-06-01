@@ -1,0 +1,16 @@
+{
+  "name": "Rough Grinding Stone",
+  "quality": 1,
+  "icon": "inv_stone_grindingstone_01",
+  "ilvl": 10,
+  "sell_price": {
+    "copper": 5
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 7,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Metal & Stone",
+  "_id": 3470,
+  "_source": "cache"
+}

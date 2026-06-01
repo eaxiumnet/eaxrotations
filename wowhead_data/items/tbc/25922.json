@@ -1,0 +1,39 @@
+{
+  "name": "Fearless Girdle",
+  "quality": 2,
+  "icon": "inv_belt_32",
+  "ilvl": 99,
+  "armor": 516,
+  "stats": {
+    "strength": 12,
+    "stamina": 25
+  },
+  "ratings": {
+    "defense": 12
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "yellow": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Hit Rating",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 15,
+    "copper": 74
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25922,
+  "_source": "cache"
+}

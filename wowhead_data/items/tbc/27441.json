@@ -1,0 +1,17 @@
+{
+  "name": "Felblood Snapper",
+  "quality": 0,
+  "icon": "inv_misc_fish_38",
+  "ilvl": 60,
+  "sell_price": {
+    "copper": 8
+  },
+  "max_stack": 20,
+  "flavor_text": "A twisted fish that lives in fel pools and lava.   Do Not Eat!",
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 27441,
+  "_source": "cache"
+}

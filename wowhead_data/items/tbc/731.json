@@ -1,0 +1,16 @@
+{
+  "name": "Goretusk Snout",
+  "quality": 1,
+  "icon": "spell_magic_polymorphpig",
+  "ilvl": 12,
+  "sell_price": {
+    "copper": 27
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 8,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Meat",
+  "_id": 731,
+  "_source": "cache"
+}

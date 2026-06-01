@@ -1,0 +1,23 @@
+{
+  "name": "Three of Beasts",
+  "quality": 3,
+  "icon": "inv_misc_ticket_tarot_beasts_01",
+  "ilvl": 1,
+  "sell_price": {
+    "gold": 1,
+    "silver": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 23677,
+      "text": "Use: Combine the Ace through Eight of Beasts to complete the set."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 19231,
+  "_source": "cache"
+}

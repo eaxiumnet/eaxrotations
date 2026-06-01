@@ -1,0 +1,17 @@
+{
+  "name": "Aimed Shot",
+  "icon": "inv_spear_07",
+  "cost": {
+    "type": "mana",
+    "amount": 210
+  },
+  "range": 35,
+  "cast_time": 3,
+  "cooldown": "6 sec cooldown",
+  "required_class": "Hunter",
+  "required_level": 44,
+  "requires_weapon": "Ranged Weapon",
+  "description": "An aimed shot that increases ranged damage by 330.",
+  "_id": 20902,
+  "_source": "wowhead"
+}

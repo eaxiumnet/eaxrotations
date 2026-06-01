@@ -1,0 +1,27 @@
+{
+  "name": "Wrathfin Armor",
+  "quality": 2,
+  "icon": "inv_chest_chain_07",
+  "ilvl": 93,
+  "required_level": 61,
+  "armor": 485,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 100,
+  "sell_price": {
+    "gold": 3,
+    "silver": 67,
+    "copper": 99
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24840,
+  "_source": "cache"
+}

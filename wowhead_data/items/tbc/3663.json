@@ -1,0 +1,27 @@
+{
+  "name": "Murloc Fin Soup",
+  "quality": 1,
+  "icon": "inv_misc_bowl_01",
+  "ilvl": 25,
+  "required_level": 15,
+  "sell_price": {
+    "silver": 1,
+    "copper": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 5006,
+      "text": "Use: Restores 552 health over 24 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 6 Stamina and Spirit for 15 min."
+    }
+  ],
+  "food_hp": 552,
+  "food_duration": 24,
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 3663,
+  "_source": "cache"
+}

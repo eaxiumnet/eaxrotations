@@ -1,0 +1,30 @@
+{
+  "name": "Fire Wand",
+  "quality": 2,
+  "icon": "inv_staff_02",
+  "ilvl": 12,
+  "required_level": 7,
+  "weapon": {
+    "min_damage": 9,
+    "max_damage": 17,
+    "speed": 1.5
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Wand",
+  "binding": "boe",
+  "durability": 30,
+  "sell_price": {
+    "silver": 2,
+    "copper": 93
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 19,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Wands",
+  "_id": 5069,
+  "_source": "cache"
+}

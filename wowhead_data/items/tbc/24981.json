@@ -1,0 +1,27 @@
+{
+  "name": "Reaver Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_14",
+  "ilvl": 102,
+  "required_level": 64,
+  "armor": 413,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 24,
+    "copper": 21
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24981,
+  "_source": "cache"
+}

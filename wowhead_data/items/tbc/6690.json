@@ -1,0 +1,30 @@
+{
+  "name": "Ferine Leggings",
+  "quality": 3,
+  "icon": "inv_pants_14",
+  "ilvl": 34,
+  "required_level": 29,
+  "armor": 96,
+  "stats": {
+    "agility": 13,
+    "strength": 12
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 75,
+  "sell_price": {
+    "silver": 40,
+    "copper": 15
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 6690,
+  "_source": "cache"
+}

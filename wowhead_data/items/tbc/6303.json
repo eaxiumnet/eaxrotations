@@ -1,0 +1,25 @@
+{
+  "name": "Raw Slitherskin Mackerel",
+  "quality": 1,
+  "icon": "inv_misc_fish_24",
+  "ilvl": 5,
+  "sell_price": {
+    "copper": 1
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 7737,
+      "text": "Use: Restores 30 health over 15 sec.  Must remain seated while eating."
+    }
+  ],
+  "food_hp": 30,
+  "food_duration": 15,
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 8,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Meat",
+  "_id": 6303,
+  "_source": "cache"
+}

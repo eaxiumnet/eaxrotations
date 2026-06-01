@@ -1,0 +1,36 @@
+{
+  "name": "Shoni's Disarming Tool",
+  "quality": 2,
+  "icon": "inv_misc_wrench_01",
+  "ilvl": 31,
+  "weapon": {
+    "min_damage": 21,
+    "max_damage": 40,
+    "speed": 1.9
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Axe",
+  "binding": "bop",
+  "durability": 75,
+  "sell_price": {
+    "silver": 50,
+    "copper": 28
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "proc",
+      "spell_id": 11879,
+      "text": "Chance on hit: Disarm target's weapon for 5 sec."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 9608,
+  "_source": "cache"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "Battered Mallet",
+  "quality": 0,
+  "icon": "inv_hammer_16",
+  "ilvl": 19,
+  "required_level": 14,
+  "weapon": {
+    "min_damage": 17,
+    "max_damage": 26,
+    "speed": 2.9
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "durability": 65,
+  "sell_price": {
+    "silver": 6,
+    "copper": 3
+  },
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 1814,
+  "_source": "cache"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Laced Cloak",
+  "quality": 0,
+  "icon": "inv_misc_cape_13",
+  "ilvl": 17,
+  "required_level": 12,
+  "armor": 14,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "sell_price": {
+    "silver": 1,
+    "copper": 12
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 1741,
+  "_source": "cache"
+}

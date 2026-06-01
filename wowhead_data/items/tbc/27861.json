@@ -1,0 +1,14 @@
+{
+  "name": "Lathrai's Stolen Goods",
+  "quality": 1,
+  "icon": "inv_misc_enggizmos_16",
+  "ilvl": 1,
+  "max_stack": 20,
+  "flavor_text": "None of this stuff looks familiar to you.  Just what is Lathrai up to?",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 27861,
+  "_source": "cache"
+}

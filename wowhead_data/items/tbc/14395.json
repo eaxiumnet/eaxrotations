@@ -1,0 +1,14 @@
+{
+  "name": "Spells of Shadow",
+  "quality": 1,
+  "icon": "inv_misc_book_01",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "You know opening this would be a terrible idea.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 14395,
+  "_source": "cache"
+}

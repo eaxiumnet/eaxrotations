@@ -1,0 +1,42 @@
+{
+  "name": "Ultra-Spectropic Detection Goggles",
+  "quality": 3,
+  "icon": "inv_gizmo_newgoggles",
+  "ilvl": 112,
+  "armor": 124,
+  "stats": {
+    "spirit": 47,
+    "stamina": 48
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "gold": 2,
+    "silver": 53,
+    "copper": 24
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 30645,
+      "text": "Equip: Shows the location of all nearby gas clouds on the minimap."
+    },
+    {
+      "type": "use",
+      "spell_id": 12883,
+      "text": "Use: Allows you to look far into the distance."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 23762,
+  "_source": "cache"
+}

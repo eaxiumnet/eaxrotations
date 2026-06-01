@@ -1,0 +1,16 @@
+{
+  "name": "Burning Legion Missive",
+  "quality": 1,
+  "icon": "inv_letter_17",
+  "required_level": 58,
+  "binding": "bop",
+  "unique": true,
+  "starts_quest": true,
+  "flavor_text": "A coded message.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 29588,
+  "_source": "cache"
+}

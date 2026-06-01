@@ -1,0 +1,37 @@
+{
+  "name": "Robe of the Crimson Order",
+  "quality": 3,
+  "icon": "inv_chest_cloth_25",
+  "ilvl": 112,
+  "required_level": 69,
+  "armor": 152,
+  "stats": {
+    "intellect": 23
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 80,
+  "sell_price": {
+    "gold": 3,
+    "silver": 27,
+    "copper": 69
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 33484,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 50."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 31297,
+  "_source": "cache"
+}

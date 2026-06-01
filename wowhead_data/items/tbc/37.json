@@ -1,0 +1,26 @@
+{
+  "name": "Worn Axe",
+  "quality": 1,
+  "icon": "inv_axe_11",
+  "ilvl": 2,
+  "weapon": {
+    "min_damage": 1,
+    "max_damage": 3,
+    "speed": 2
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "durability": 20,
+  "sell_price": {
+    "copper": 7
+  },
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 37,
+  "_source": "cache"
+}

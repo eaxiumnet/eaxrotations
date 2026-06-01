@@ -1,0 +1,13 @@
+{
+  "name": "Lament of the Highborne",
+  "quality": 1,
+  "icon": "inv_misc_book_10",
+  "binding": "bop",
+  "flavor_text": "The small book contains the lyrics to the song.",
+  "item_class": 15,
+  "item_subclass": 4,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Other (Miscellaneous)",
+  "_id": 30632,
+  "_source": "cache"
+}

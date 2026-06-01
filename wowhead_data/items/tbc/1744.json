@@ -1,0 +1,24 @@
+{
+  "name": "Laced Mail Shoulderpads",
+  "quality": 0,
+  "icon": "inv_shoulder_07",
+  "ilvl": 20,
+  "required_level": 15,
+  "armor": 113,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Mail",
+  "durability": 50,
+  "sell_price": {
+    "silver": 2,
+    "copper": 60
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 1744,
+  "_source": "cache"
+}

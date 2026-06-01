@@ -1,0 +1,23 @@
+{
+  "name": "Lupine Cuffs",
+  "quality": 1,
+  "icon": "inv_bracer_05",
+  "ilvl": 14,
+  "required_level": 9,
+  "armor": 28,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Leather",
+  "durability": 20,
+  "sell_price": {
+    "copper": 86
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 15013,
+  "_source": "cache"
+}

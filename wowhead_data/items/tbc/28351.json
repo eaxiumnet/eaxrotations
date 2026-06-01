@@ -1,0 +1,20 @@
+{
+  "name": "Dathric's Blade",
+  "quality": 1,
+  "icon": "inv_sword_49",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 34141,
+      "text": "Use: Place Dathric's Blade on the Weapon Rack in his house."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 28351,
+  "_source": "cache"
+}

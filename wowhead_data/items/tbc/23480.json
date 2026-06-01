@@ -1,0 +1,20 @@
+{
+  "name": "Lit Torch",
+  "quality": 1,
+  "icon": "inv_torch_lit",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 29384,
+      "text": "Use: Sets light to the beacons in the Great Fissure."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23480,
+  "_source": "cache"
+}

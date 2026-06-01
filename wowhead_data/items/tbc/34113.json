@@ -1,0 +1,24 @@
+{
+  "name": "Field Repair Bot 110G",
+  "quality": 1,
+  "icon": "inv_misc_enggizmos_01",
+  "ilvl": 70,
+  "sell_price": {
+    "gold": 1
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 44389,
+      "text": "Use: Unfolds into a Field Repair Bot that sells reagents and can repair damaged items.  After 10 minutes its internal motor fails.",
+      "cooldown": "10 Min Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 7,
+  "item_subclass": 3,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Devices",
+  "_id": 34113,
+  "_source": "cache"
+}

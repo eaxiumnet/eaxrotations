@@ -1,0 +1,26 @@
+{
+  "name": "Warbringer's Spaulders",
+  "quality": 2,
+  "icon": "inv_shoulder_22",
+  "ilvl": 43,
+  "required_level": 40,
+  "armor": 286,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "silver": 72,
+    "copper": 51
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 14946,
+  "_source": "cache"
+}

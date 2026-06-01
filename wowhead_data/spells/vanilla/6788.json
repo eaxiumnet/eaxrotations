@@ -1,0 +1,11 @@
+{
+  "name": "Weakened Soul",
+  "icon": "spell_holy_ashestoashes",
+  "cast_time": 0,
+  "required_class": "Priest",
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Cannot be Power Word: Shielded.",
+  "_id": 6788,
+  "_source": "wowhead"
+}

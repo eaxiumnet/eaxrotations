@@ -1,0 +1,27 @@
+{
+  "name": "Orb of the Soul-Eater",
+  "quality": 4,
+  "icon": "inv_misc_orb_04",
+  "ilvl": 110,
+  "required_level": 70,
+  "stats": {
+    "stamina": 18
+  },
+  "slot": "Held In Off-hand",
+  "equip_slots": [
+    17
+  ],
+  "binding": "bop",
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18026,
+      "text": "Equip: Increases damage done by Shadow spells and effects by up to 51."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29272,
+  "_source": "cache"
+}

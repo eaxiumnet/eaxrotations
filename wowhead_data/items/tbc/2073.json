@@ -1,0 +1,30 @@
+{
+  "name": "Dwarven Hatchet",
+  "quality": 2,
+  "icon": "inv_axe_04",
+  "ilvl": 15,
+  "required_level": 10,
+  "weapon": {
+    "min_damage": 10,
+    "max_damage": 20,
+    "speed": 2
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "silver": 7,
+    "copper": 42
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 2073,
+  "_source": "cache"
+}

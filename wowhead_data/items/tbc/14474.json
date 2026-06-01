@@ -1,0 +1,37 @@
+{
+  "name": "Pattern: Frostweave Gloves",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 53,
+  "required_level": 47,
+  "armor": 43,
+  "stats": {
+    "intellect": 6
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "silver": 30,
+    "copper": 71
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9308,
+      "text": "Equip: Increases damage done by Frost spells and effects by up to 21."
+    }
+  ],
+  "teaches": "sew Frostweave Gloves",
+  "teaches_spell_id": 18411,
+  "item_class": 9,
+  "item_subclass": 2,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Tailoring Patterns",
+  "_id": 14474,
+  "_source": "cache"
+}

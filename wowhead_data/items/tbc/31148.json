@@ -1,0 +1,42 @@
+{
+  "name": "Demon Hide Spaulders",
+  "quality": 3,
+  "icon": "inv_shoulder_07",
+  "ilvl": 91,
+  "required_level": 61,
+  "armor": 178,
+  "stats": {
+    "agility": 23,
+    "stamina": 18
+  },
+  "ratings": {
+    "dodge": 13,
+    "hit": 11
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 60,
+  "sell_price": {
+    "gold": 2,
+    "silver": 77,
+    "copper": 82
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15807,
+      "text": "Equip: Increases attack power by 32."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 31148,
+  "_source": "cache"
+}

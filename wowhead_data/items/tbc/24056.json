@@ -1,0 +1,17 @@
+{
+  "name": "Glowing Nightseye",
+  "quality": 3,
+  "icon": "inv_jewelcrafting_nightseye_03",
+  "ilvl": 70,
+  "sell_price": {
+    "gold": 3
+  },
+  "phase": 1,
+  "flavor_text": "Matches a Red or Blue Socket.",
+  "item_class": 3,
+  "item_subclass": 3,
+  "item_class_name": "Gems",
+  "item_subclass_name": "Purple Gems",
+  "_id": 24056,
+  "_source": "cache"
+}

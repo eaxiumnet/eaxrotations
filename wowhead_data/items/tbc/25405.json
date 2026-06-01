@@ -1,0 +1,29 @@
+{
+  "name": "Rusted Musket",
+  "quality": 0,
+  "icon": "inv_weapon_rifle_01",
+  "ilvl": 69,
+  "required_level": 64,
+  "weapon": {
+    "min_damage": 34,
+    "max_damage": 65,
+    "speed": 1.8
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Gun",
+  "durability": 65,
+  "sell_price": {
+    "gold": 1,
+    "silver": 41,
+    "copper": 76
+  },
+  "item_class": 2,
+  "item_subclass": 3,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Guns",
+  "_id": 25405,
+  "_source": "cache"
+}

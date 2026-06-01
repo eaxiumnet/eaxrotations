@@ -1,0 +1,30 @@
+{
+  "name": "Burnished Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_01",
+  "ilvl": 19,
+  "required_level": 14,
+  "armor": 72,
+  "stats": {
+    "strength": 2,
+    "stamina": 2
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 30,
+  "sell_price": {
+    "silver": 3,
+    "copper": 73
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 3211,
+  "_source": "cache"
+}

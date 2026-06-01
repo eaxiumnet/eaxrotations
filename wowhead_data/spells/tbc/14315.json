@@ -1,0 +1,17 @@
+{
+  "name": "Explosive Trap Effect",
+  "icon": "spell_fire_selfdestruct",
+  "cast_time": 0,
+  "required_class": "Hunter",
+  "required_level": 54,
+  "has_buff": true,
+  "buff_duration": 20,
+  "periodic": {
+    "amount": 33,
+    "school": "fire",
+    "interval": 2
+  },
+  "buff_text": "33 Fire damage every 2 seconds.",
+  "_id": 14315,
+  "_source": "cache"
+}

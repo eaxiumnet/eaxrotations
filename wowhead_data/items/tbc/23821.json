@@ -1,0 +1,23 @@
+{
+  "name": "Zapthrottle Mote Extractor",
+  "quality": 1,
+  "icon": "inv_gizmo_zapthrottlegascollector",
+  "ilvl": 61,
+  "sell_price": {
+    "gold": 1,
+    "silver": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 30427,
+      "text": "Use: Extracts gas from a nearby gas cloud."
+    }
+  ],
+  "item_class": 7,
+  "item_subclass": 3,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Devices",
+  "_id": 23821,
+  "_source": "cache"
+}

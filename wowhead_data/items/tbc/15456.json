@@ -1,0 +1,29 @@
+{
+  "name": "Lightstep Leggings",
+  "quality": 2,
+  "icon": "inv_pants_13",
+  "ilvl": 37,
+  "armor": 92,
+  "stats": {
+    "agility": 13,
+    "stamina": 5
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "silver": 44,
+    "copper": 42
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 15456,
+  "_source": "cache"
+}

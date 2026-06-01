@@ -1,0 +1,19 @@
+{
+  "name": "Primal Cape",
+  "quality": 1,
+  "icon": "inv_misc_cape_03",
+  "ilvl": 8,
+  "required_level": 3,
+  "armor": 7,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "sell_price": {
+    "copper": 24
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 15007,
+  "_source": "cache"
+}

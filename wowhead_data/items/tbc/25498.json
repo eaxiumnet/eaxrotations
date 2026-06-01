@@ -1,0 +1,25 @@
+{
+  "name": "Rough Stone Statue",
+  "quality": 1,
+  "icon": "inv_misc_statue_08",
+  "ilvl": 10,
+  "binding": "bop",
+  "sell_price": {
+    "copper": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 32254,
+      "text": "Use: Place a rough stone statue on the ground where it will heal you for a short time before its power fades.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 25498,
+  "_source": "cache"
+}

@@ -1,0 +1,36 @@
+{
+  "name": "Kaylaan's Signet",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_34",
+  "ilvl": 109,
+  "stats": {
+    "agility": 15
+  },
+  "ratings": {
+    "hit": 10
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique_equipped": true,
+  "sell_price": {
+    "gold": 4,
+    "silver": 15,
+    "copper": 55
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14056,
+      "text": "Equip: Increases attack power by 50."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 30860,
+  "_source": "cache"
+}

@@ -1,0 +1,18 @@
+{
+  "name": "Deckhand's Shirt",
+  "quality": 1,
+  "icon": "inv_shirt_12",
+  "ilvl": 14,
+  "slot": "Shirt",
+  "equip_slots": [
+    4
+  ],
+  "sell_price": {
+    "silver": 1,
+    "copper": 39
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 5107,
+  "_source": "cache"
+}

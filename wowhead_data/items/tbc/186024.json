@@ -1,0 +1,29 @@
+{
+  "name": "Communal Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_07",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 30,
+  "stats": {
+    "intellect": 3,
+    "stamina": 11
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 25,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 186024,
+  "_source": "cache"
+}

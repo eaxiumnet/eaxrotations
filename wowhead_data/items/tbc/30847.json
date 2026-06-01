@@ -1,0 +1,29 @@
+{
+  "name": "X-52 Rocket Helmet",
+  "quality": 2,
+  "icon": "inv_helmet_49",
+  "ilvl": 108,
+  "armor": 108,
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 45,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 37896,
+      "text": "Use: Launch yourself from Outland to the stars.  For the safety of others, please clear the launching platform before use.",
+      "cooldown": "30 Min Cooldown"
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 30847,
+  "_source": "cache"
+}

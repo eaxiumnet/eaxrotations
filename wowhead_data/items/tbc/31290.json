@@ -1,0 +1,31 @@
+{
+  "name": "Band of Dominion",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_24",
+  "ilvl": 109,
+  "required_level": 70,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "unique_equipped": true,
+  "sell_price": {
+    "gold": 1,
+    "silver": 7,
+    "copper": 9
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14127,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 28."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31290,
+  "_source": "cache"
+}

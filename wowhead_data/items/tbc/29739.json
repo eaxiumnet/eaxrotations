@@ -1,0 +1,14 @@
+{
+  "name": "Arcane Tome",
+  "quality": 2,
+  "icon": "inv_misc_book_07",
+  "phase": 1,
+  "max_stack": 250,
+  "flavor_text": "The Scryers in the Seer's Library would be interested in this item.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 29739,
+  "_source": "cache"
+}

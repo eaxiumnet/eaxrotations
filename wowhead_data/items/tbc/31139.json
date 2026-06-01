@@ -1,0 +1,43 @@
+{
+  "name": "Fist of Reckoning",
+  "quality": 3,
+  "icon": "inv_mace_08",
+  "ilvl": 88,
+  "required_level": 61,
+  "ratings": {
+    "hit": 10,
+    "crit": 16
+  },
+  "weapon": {
+    "min_damage": 102,
+    "max_damage": 190,
+    "speed": 2.7
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Mace",
+  "binding": "boe",
+  "durability": 90,
+  "sell_price": {
+    "gold": 6,
+    "silver": 96,
+    "copper": 28
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9141,
+      "text": "Equip: Increases attack power by 12."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 31139,
+  "_source": "cache"
+}

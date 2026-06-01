@@ -1,0 +1,13 @@
+{
+  "name": "Growl",
+  "icon": "ability_physical_taunt",
+  "range": "melee",
+  "cast_time": 0,
+  "cooldown": "10 sec cooldown",
+  "required_class": "Druid",
+  "required_level": 10,
+  "description": "Taunts the target to attack you, but has no effect if the target is already attacking you.",
+  "target_type": "hostile",
+  "_id": 6795,
+  "_source": "wowhead"
+}

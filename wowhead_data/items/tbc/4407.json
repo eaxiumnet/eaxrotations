@@ -1,0 +1,24 @@
+{
+  "name": "Accurate Scope",
+  "quality": 2,
+  "icon": "inv_misc_spyglass_02",
+  "ilvl": 36,
+  "required_level": 20,
+  "sell_price": {
+    "silver": 12
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 3976,
+      "text": "Use: Attaches a permanent scope to a bow or gun that increases its damage by 3."
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 6,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Item Enhancements (Permanent)",
+  "_id": 4407,
+  "_source": "cache"
+}

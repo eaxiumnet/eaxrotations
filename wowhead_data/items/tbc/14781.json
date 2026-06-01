@@ -1,0 +1,27 @@
+{
+  "name": "Khan's Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_08",
+  "ilvl": 44,
+  "required_level": 39,
+  "armor": 29,
+  "stats": {
+    "strength": 4,
+    "spirit": 1,
+    "stamina": 8
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 46,
+    "copper": 17
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 14781,
+  "_source": "cache"
+}

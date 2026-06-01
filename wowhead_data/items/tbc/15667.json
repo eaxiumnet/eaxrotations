@@ -1,0 +1,28 @@
+{
+  "name": "Impenetrable Wall",
+  "quality": 2,
+  "icon": "inv_shield_03",
+  "ilvl": 61,
+  "required_level": 56,
+  "armor": 1861,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "boe",
+  "block": 35,
+  "durability": 85,
+  "sell_price": {
+    "gold": 2,
+    "silver": 77,
+    "copper": 98
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 15667,
+  "_source": "cache"
+}

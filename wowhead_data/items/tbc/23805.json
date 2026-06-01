@@ -1,0 +1,43 @@
+{
+  "name": "Schematic: Ultra-Spectropic Detection Goggles",
+  "quality": 1,
+  "icon": "inv_scroll_03",
+  "ilvl": 70,
+  "armor": 124,
+  "stats": {
+    "spirit": 47,
+    "stamina": 48
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "gold": 2,
+    "silver": 53,
+    "copper": 24
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 30645,
+      "text": "Equip: Shows the location of all nearby gas clouds on the minimap."
+    },
+    {
+      "type": "use",
+      "spell_id": 12883,
+      "text": "Use: Allows you to look far into the distance."
+    }
+  ],
+  "teaches": "make Ultra-Spectropic Detection Goggles",
+  "teaches_spell_id": 30318,
+  "item_class": 9,
+  "item_subclass": 3,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Engineering Schematics",
+  "_id": 23805,
+  "_source": "cache"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "Insignia of the Horde",
+  "quality": 3,
+  "icon": "inv_jewelry_trinketpvp_02",
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique": true,
+  "classes": [
+    "Rogue"
+  ],
+  "phase": 1,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 42292,
+      "text": "Use: Removes all movement impairing effects and all effects which cause loss of control of your character.",
+      "cooldown": "5 Min Cooldown"
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 18849,
+  "_source": "cache"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Ukor's Burden",
+  "quality": 1,
+  "icon": "inv_misc_bag_01",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 7629,
+  "_source": "cache"
+}

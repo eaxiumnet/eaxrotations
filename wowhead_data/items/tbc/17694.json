@@ -1,0 +1,24 @@
+{
+  "name": "Band of the Fist",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_02",
+  "ilvl": 25,
+  "stats": {
+    "agility": 3,
+    "strength": 3
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 8,
+    "copper": 81
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 17694,
+  "_source": "cache"
+}

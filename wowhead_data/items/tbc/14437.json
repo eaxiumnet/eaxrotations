@@ -1,0 +1,34 @@
+{
+  "name": "Venomshroud Vest",
+  "quality": 2,
+  "icon": "inv_shirt_06",
+  "ilvl": 54,
+  "required_level": 49,
+  "armor": 70,
+  "stats": {
+    "spirit": 9,
+    "stamina": 18
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "gold": 1,
+    "silver": 20,
+    "copper": 2
+  },
+  "phase": 1,
+  "resistances": {
+    "nature": 4
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14437,
+  "_source": "cache"
+}

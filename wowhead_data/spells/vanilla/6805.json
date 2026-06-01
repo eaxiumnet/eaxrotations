@@ -1,0 +1,8 @@
+{
+  "name": "Dousing",
+  "icon": "classic_temp",
+  "range": 5,
+  "cast_time": 5,
+  "_id": 6805,
+  "_source": "wowhead"
+}

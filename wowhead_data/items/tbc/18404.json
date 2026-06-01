@@ -1,0 +1,39 @@
+{
+  "name": "Onyxia Tooth Pendant",
+  "quality": 4,
+  "icon": "inv_jewelry_necklace_09",
+  "ilvl": 74,
+  "stats": {
+    "agility": 12,
+    "stamina": 9
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 67,
+    "copper": 14
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15464,
+      "text": "Equip: Increases your hit rating by 10."
+    },
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    }
+  ],
+  "resistances": {
+    "fire": 10
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 18404,
+  "_source": "cache"
+}

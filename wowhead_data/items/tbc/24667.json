@@ -1,0 +1,27 @@
+{
+  "name": "Shadow Council Mantle",
+  "quality": 2,
+  "icon": "inv_shoulder_09",
+  "ilvl": 111,
+  "required_level": 67,
+  "armor": 103,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "gold": 2,
+    "silver": 10,
+    "copper": 11
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24667,
+  "_source": "cache"
+}

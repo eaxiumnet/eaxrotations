@@ -1,0 +1,22 @@
+{
+  "name": "Everlasting Underspore Frond",
+  "quality": 3,
+  "icon": "inv_misc_herb_11a",
+  "ilvl": 100,
+  "binding": "bop",
+  "phase": 1,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 33770,
+      "text": "Use: Creates 10 edible Underspore Pods.",
+      "cooldown": "12 Hrs Cooldown"
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 0,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Miscellaneous (Armor)",
+  "_id": 28111,
+  "_source": "cache"
+}

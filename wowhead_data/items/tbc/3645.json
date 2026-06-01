@@ -1,0 +1,30 @@
+{
+  "name": "Seer's Cuffs",
+  "quality": 2,
+  "icon": "inv_bracer_07",
+  "ilvl": 17,
+  "required_level": 12,
+  "armor": 13,
+  "stats": {
+    "intellect": 1,
+    "spirit": 2
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 20,
+  "sell_price": {
+    "silver": 1,
+    "copper": 89
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 3645,
+  "_source": "cache"
+}

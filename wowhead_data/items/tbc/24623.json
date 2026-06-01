@@ -1,0 +1,27 @@
+{
+  "name": "Slavehandler Jerkin",
+  "quality": 2,
+  "icon": "inv_chest_leather_08",
+  "ilvl": 96,
+  "required_level": 62,
+  "armor": 120,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "gold": 2,
+    "silver": 60,
+    "copper": 61
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24623,
+  "_source": "cache"
+}

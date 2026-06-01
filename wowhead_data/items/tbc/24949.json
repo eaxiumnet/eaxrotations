@@ -1,0 +1,27 @@
+{
+  "name": "Bloodscale Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_10",
+  "ilvl": 90,
+  "required_level": 60,
+  "armor": 367,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 6,
+    "copper": 64
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24949,
+  "_source": "cache"
+}

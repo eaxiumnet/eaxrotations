@@ -1,0 +1,85 @@
+{
+  "name": "Belt of Might",
+  "quality": 4,
+  "icon": "inv_belt_09",
+  "ilvl": 66,
+  "required_level": 60,
+  "armor": 481,
+  "stats": {
+    "strength": 21,
+    "stamina": 15
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "set_id": 209,
+  "set_name": "Battlegear of Might",
+  "set_pieces": [
+    {
+      "id": 16864,
+      "name": "Belt of Might"
+    },
+    {
+      "id": 16861,
+      "name": "Bracers of Might"
+    },
+    {
+      "id": 16865,
+      "name": "Breastplate of Might"
+    },
+    {
+      "id": 16863,
+      "name": "Gauntlets of Might"
+    },
+    {
+      "id": 16866,
+      "name": "Helm of Might"
+    },
+    {
+      "id": 16867,
+      "name": "Legplates of Might"
+    },
+    {
+      "id": 16868,
+      "name": "Pauldrons of Might"
+    },
+    {
+      "id": 16862,
+      "name": "Sabatons of Might"
+    }
+  ],
+  "classes": [
+    "Warrior"
+  ],
+  "durability": 55,
+  "sell_price": {
+    "gold": 2,
+    "silver": 55,
+    "copper": 96
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 13669,
+      "text": "Equip: Increases your dodge rating by 12."
+    },
+    {
+      "type": "equip",
+      "spell_id": 13383,
+      "text": "Equip: Increases defense rating by 8."
+    }
+  ],
+  "resistances": {
+    "fire": 7
+  },
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 16864,
+  "_source": "cache"
+}

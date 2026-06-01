@@ -1,0 +1,24 @@
+{
+  "name": "Heavy Knothide Armor Kit",
+  "quality": 1,
+  "icon": "inv_misc_armorkit_25",
+  "ilvl": 70,
+  "required_level": 60,
+  "sell_price": {
+    "silver": 75
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 44968,
+      "text": "Use: Permanently increase the Stamina of an item worn on the head, chest, shoulders, legs, hands or feet by 10.  Only usable on items level 60 and above."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 0,
+  "item_subclass": 6,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Item Enhancements (Permanent)",
+  "_id": 34330,
+  "_source": "cache"
+}

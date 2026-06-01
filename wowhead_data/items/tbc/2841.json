@@ -1,0 +1,16 @@
+{
+  "name": "Bronze Bar",
+  "quality": 1,
+  "icon": "inv_ingot_bronze",
+  "ilvl": 20,
+  "sell_price": {
+    "copper": 50
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 7,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Metal & Stone",
+  "_id": 2841,
+  "_source": "cache"
+}

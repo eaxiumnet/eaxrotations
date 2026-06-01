@@ -1,0 +1,21 @@
+{
+  "name": "Mend Pet",
+  "icon": "ability_hunter_mendpet",
+  "cost": {
+    "type": "mana",
+    "amount": 90
+  },
+  "range": 20,
+  "channeled": true,
+  "cast_time": 5,
+  "required_class": "Hunter",
+  "required_level": 20,
+  "description": "Heals your pet 38 health every second while you focus.  Lasts 5 sec.",
+  "is_heal": true,
+  "duration": 5,
+  "has_buff": true,
+  "buff_duration": 5,
+  "buff_text": "Heals 38 every second.",
+  "_id": 3111,
+  "_source": "wowhead"
+}

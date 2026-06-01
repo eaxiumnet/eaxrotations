@@ -1,0 +1,33 @@
+{
+  "name": "Idol of the Moon",
+  "quality": 3,
+  "icon": "inv_relics_idolofrejuvenation",
+  "ilvl": 65,
+  "required_level": 60,
+  "slot": "Relic",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Idol",
+  "binding": "boe",
+  "unique": true,
+  "sell_price": {
+    "gold": 1,
+    "silver": 56,
+    "copper": 90
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 28854,
+      "text": "Equip: Increases the damage of your Moonfire spell by up to 33."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 8,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Idols",
+  "_id": 23197,
+  "_source": "cache"
+}

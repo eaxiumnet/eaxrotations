@@ -1,0 +1,23 @@
+{
+  "name": "Patchwork Shoes",
+  "quality": 0,
+  "icon": "inv_boots_09",
+  "ilvl": 10,
+  "required_level": 5,
+  "armor": 12,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "durability": 25,
+  "sell_price": {
+    "copper": 29
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 1427,
+  "_source": "cache"
+}

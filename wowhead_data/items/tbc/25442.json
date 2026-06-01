@@ -1,0 +1,17 @@
+{
+  "name": "Mangled Snout",
+  "quality": 0,
+  "icon": "ability_hunter_pet_boar",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 9,
+    "copper": 90
+  },
+  "max_stack": 20,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 25442,
+  "_source": "cache"
+}

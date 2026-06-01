@@ -1,0 +1,33 @@
+{
+  "name": "Libram of Saints Departed",
+  "quality": 3,
+  "icon": "inv_misc_book_13",
+  "ilvl": 88,
+  "required_level": 61,
+  "slot": "Relic",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Libram",
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 2,
+    "silver": 8,
+    "copper": 72
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 34262,
+      "text": "Equip: Causes your Judgements to heal you for 41 to 49."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 7,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Librams",
+  "_id": 24386,
+  "_source": "cache"
+}

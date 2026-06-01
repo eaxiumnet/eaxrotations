@@ -1,0 +1,25 @@
+{
+  "name": "Formula: Enchant Boots - Greater Stamina",
+  "quality": 2,
+  "icon": "inv_misc_note_01",
+  "ilvl": 52,
+  "sell_price": {
+    "silver": 30
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 20020,
+      "text": "Permanently enchant boots to give +7 Stamina."
+    }
+  ],
+  "teaches": "permanently enchant a pair of boots to grant +7 Stamina",
+  "teaches_spell_id": 20020,
+  "item_class": 9,
+  "item_subclass": 8,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Enchanting Formulae",
+  "_id": 16215,
+  "_source": "cache"
+}

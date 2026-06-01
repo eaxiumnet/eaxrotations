@@ -1,0 +1,28 @@
+{
+  "name": "Shroud of Frenzy",
+  "quality": 3,
+  "icon": "inv_misc_cape_18",
+  "ilvl": 91,
+  "required_level": 62,
+  "armor": 63,
+  "stats": {
+    "strength": 21
+  },
+  "ratings": {
+    "crit": 16
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 2,
+    "silver": 18,
+    "copper": 32
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31143,
+  "_source": "cache"
+}

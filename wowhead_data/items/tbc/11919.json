@@ -1,0 +1,30 @@
+{
+  "name": "Cragplate Greaves",
+  "quality": 2,
+  "icon": "inv_boots_plate_08",
+  "ilvl": 55,
+  "armor": 361,
+  "stats": {
+    "strength": 12,
+    "stamina": 12
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 55,
+  "sell_price": {
+    "gold": 1,
+    "silver": 67,
+    "copper": 20
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 11919,
+  "_source": "cache"
+}

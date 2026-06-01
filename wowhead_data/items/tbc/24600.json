@@ -1,0 +1,27 @@
+{
+  "name": "Starfire Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_19",
+  "ilvl": 87,
+  "required_level": 59,
+  "armor": 68,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "gold": 1,
+    "silver": 18,
+    "copper": 15
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24600,
+  "_source": "cache"
+}

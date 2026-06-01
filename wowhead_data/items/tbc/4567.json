@@ -1,0 +1,30 @@
+{
+  "name": "Merc Sword",
+  "quality": 2,
+  "icon": "inv_sword_04",
+  "ilvl": 16,
+  "required_level": 11,
+  "weapon": {
+    "min_damage": 24,
+    "max_damage": 36,
+    "speed": 2.8
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Sword",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "silver": 10,
+    "copper": 49
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 8,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Swords",
+  "_id": 4567,
+  "_source": "cache"
+}

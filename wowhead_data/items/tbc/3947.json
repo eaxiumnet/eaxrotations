@@ -1,0 +1,20 @@
+{
+  "name": "Twill Cloak",
+  "quality": 0,
+  "icon": "inv_misc_cape_14",
+  "ilvl": 52,
+  "required_level": 47,
+  "armor": 30,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "sell_price": {
+    "silver": 32,
+    "copper": 58
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 3947,
+  "_source": "cache"
+}

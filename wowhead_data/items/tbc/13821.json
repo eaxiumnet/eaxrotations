@@ -1,0 +1,29 @@
+{
+  "name": "Bulky Maul",
+  "quality": 0,
+  "icon": "inv_hammer_16",
+  "ilvl": 57,
+  "required_level": 52,
+  "weapon": {
+    "min_damage": 76,
+    "max_damage": 115,
+    "speed": 3.6
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "durability": 85,
+  "sell_price": {
+    "gold": 1,
+    "silver": 79,
+    "copper": 93
+  },
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 13821,
+  "_source": "cache"
+}

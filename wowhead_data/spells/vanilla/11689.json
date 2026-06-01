@@ -1,0 +1,11 @@
+{
+  "name": "Life Tap",
+  "icon": "spell_shadow_burningspirit",
+  "cast_time": 0,
+  "spell_level": 60,
+  "required_class": "Warlock",
+  "required_level": 56,
+  "description": "Converts 424 health into 424 mana",
+  "_id": 11689,
+  "_source": "wowhead"
+}

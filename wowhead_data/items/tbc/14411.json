@@ -1,0 +1,30 @@
+{
+  "name": "Stonecloth Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_21",
+  "ilvl": 35,
+  "required_level": 30,
+  "armor": 29,
+  "stats": {
+    "spirit": 8,
+    "stamina": 5
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "silver": 13,
+    "copper": 87
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14411,
+  "_source": "cache"
+}

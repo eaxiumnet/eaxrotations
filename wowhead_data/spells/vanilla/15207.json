@@ -1,0 +1,22 @@
+{
+  "name": "Lightning Bolt",
+  "icon": "spell_nature_lightning",
+  "cost": {
+    "type": "mana",
+    "amount": 230
+  },
+  "range": 30,
+  "cast_time": 3,
+  "spell_level": 60,
+  "required_class": "Shaman",
+  "required_level": 50,
+  "description": "Casts a bolt of lightning at the target for 357 to 400 Nature damage.",
+  "school": "nature",
+  "damage": {
+    "min": 357,
+    "max": 400
+  },
+  "target_type": "hostile",
+  "_id": 15207,
+  "_source": "wowhead"
+}

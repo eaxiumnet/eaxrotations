@@ -1,0 +1,70 @@
+{
+  "name": "General's Dreadweave Gloves",
+  "quality": 4,
+  "icon": "inv_gauntlets_19",
+  "ilvl": 71,
+  "required_level": 60,
+  "armor": 78,
+  "stats": {
+    "intellect": 6,
+    "stamina": 20
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 391,
+  "set_name": "Warlord's Threads",
+  "set_pieces": [
+    {
+      "id": 17586,
+      "name": "General's Dreadweave Boots"
+    },
+    {
+      "id": 17588,
+      "name": "General's Dreadweave Gloves"
+    },
+    {
+      "id": 17593,
+      "name": "General's Dreadweave Pants"
+    },
+    {
+      "id": 17591,
+      "name": "Warlord's Dreadweave Hood"
+    },
+    {
+      "id": 17590,
+      "name": "Warlord's Dreadweave Mantle"
+    },
+    {
+      "id": 17592,
+      "name": "Warlord's Dreadweave Robe"
+    }
+  ],
+  "classes": [
+    "Warlock"
+  ],
+  "durability": 35,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 23046,
+      "text": "Equip: Gives you a 50% chance to avoid interruption caused by damage while casting Searing Pain."
+    },
+    {
+      "type": "equip",
+      "spell_id": 14798,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 30."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 17588,
+  "_source": "cache"
+}

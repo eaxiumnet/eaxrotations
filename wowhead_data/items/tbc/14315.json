@@ -1,0 +1,27 @@
+{
+  "name": "Celestial Kilt",
+  "quality": 2,
+  "icon": "inv_pants_13",
+  "ilvl": 59,
+  "required_level": 54,
+  "armor": 67,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 1,
+    "silver": 65,
+    "copper": 50
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14315,
+  "_source": "cache"
+}

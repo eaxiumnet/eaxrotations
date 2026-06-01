@@ -1,0 +1,26 @@
+{
+  "name": "Communal Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_04",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 33,
+  "stats": {
+    "intellect": 9,
+    "spirit": 4,
+    "stamina": 4
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 186046,
+  "_source": "cache"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Scroll of Agility V",
+  "quality": 1,
+  "icon": "inv_scroll_02",
+  "ilvl": 70,
+  "required_level": 60,
+  "sell_price": {
+    "silver": 1,
+    "copper": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 33077,
+      "text": "Use: Increases the target's Agility by 20 for 30 min."
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 4,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Scrolls",
+  "_id": 27498,
+  "_source": "cache"
+}

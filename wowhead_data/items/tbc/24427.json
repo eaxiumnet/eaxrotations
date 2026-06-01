@@ -1,0 +1,13 @@
+{
+  "name": "Fen Strider Tentacle",
+  "quality": 1,
+  "icon": "inv_misc_fish_13",
+  "ilvl": 1,
+  "max_stack": 4,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24427,
+  "_source": "cache"
+}

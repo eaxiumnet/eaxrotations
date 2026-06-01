@@ -1,0 +1,29 @@
+{
+  "name": "Watcher's Cloak of Vigilance",
+  "quality": 2,
+  "icon": "inv_misc_cape_05",
+  "ilvl": 93,
+  "armor": 58,
+  "stats": {
+    "strength": 13,
+    "stamina": 18
+  },
+  "ratings": {
+    "hit": 12
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 1,
+    "silver": 78,
+    "copper": 70
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 27730,
+  "_source": "cache"
+}

@@ -1,0 +1,46 @@
+{
+  "name": "Light-Touched Breastplate",
+  "quality": 3,
+  "icon": "inv_chest_plate03",
+  "ilvl": 85,
+  "required_level": 60,
+  "armor": 873,
+  "stats": {
+    "strength": 26,
+    "intellect": 25,
+    "stamina": 25
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "yellow": 1,
+    "blue": 1,
+    "total": 3
+  },
+  "socket_bonus": "",
+  "durability": 135,
+  "sell_price": {
+    "gold": 4,
+    "silver": 49,
+    "copper": 59
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 21363,
+      "text": "Equip: Restores 5 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24021,
+  "_source": "cache"
+}

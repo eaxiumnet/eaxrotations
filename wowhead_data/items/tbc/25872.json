@@ -1,0 +1,27 @@
+{
+  "name": "Balanced Throwing Dagger",
+  "quality": 1,
+  "icon": "inv_weapon_shortblade_05",
+  "ilvl": 8,
+  "required_level": 3,
+  "weapon": {
+    "min_damage": 3,
+    "max_damage": 7,
+    "speed": 1.7
+  },
+  "slot": "Thrown",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Thrown",
+  "durability": 200,
+  "sell_price": {
+    "copper": 7
+  },
+  "item_class": 2,
+  "item_subclass": 16,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Thrown",
+  "_id": 25872,
+  "_source": "cache"
+}

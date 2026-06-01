@@ -1,0 +1,14 @@
+{
+  "name": "The Master's Key",
+  "quality": 1,
+  "icon": "inv_misc_key_07",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "item_class": 13,
+  "item_subclass": 0,
+  "item_class_name": "Key",
+  "item_subclass_name": "Key",
+  "_id": 24490,
+  "_source": "cache"
+}

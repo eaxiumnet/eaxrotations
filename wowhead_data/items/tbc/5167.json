@@ -1,0 +1,13 @@
+{
+  "name": "Webwood Egg",
+  "quality": 1,
+  "icon": "inv_egg_02",
+  "ilvl": 1,
+  "max_stack": 20,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 5167,
+  "_source": "cache"
+}

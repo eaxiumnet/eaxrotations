@@ -1,0 +1,18 @@
+{
+  "name": "Moonkin Form",
+  "icon": "spell_nature_forceofnature",
+  "cost": {
+    "type": "mana",
+    "percent": 35
+  },
+  "cast_time": 0,
+  "spell_level": 60,
+  "required_class": "Druid",
+  "description": "Transforms the Druid into Moonkin Form.  While in this form the armor contribution from items is increased by 360% [S03 - Tuning and Overrides Passive - Druid: Moonfire costs 50% less mana and deals 100% more damage over time, your periodic damage spells can deal critical periodic damage, you gain (60 * 3) spell damage] and all party members within 30 yards have their spell critical chance increased by 3%.  [S03 - Tuning and Overrides Passive - Druid: The Moonkin cannot cast healing spells while shapeshifted / The Moonkin can only cast Balance spells while shapeshifted.] [Reduces all threat from Arcane and Nature spells by 0% while in this form]The act of shapeshifting frees the caster of Polymorph and Movement Impairing effects.",
+  "radius": 30,
+  "target_type": "friendly",
+  "has_buff": true,
+  "buff_text": "Immune to Polymorph effects.  Armor contribution from items is increased by 360%.",
+  "_id": 24858,
+  "_source": "wowhead"
+}

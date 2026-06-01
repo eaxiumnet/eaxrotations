@@ -1,0 +1,41 @@
+{
+  "name": "Sunwell Blade",
+  "quality": 2,
+  "icon": "inv_sword_06",
+  "ilvl": 20,
+  "stats": {
+    "stamina": 3
+  },
+  "weapon": {
+    "min_damage": 18,
+    "max_damage": 34,
+    "speed": 2.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 55,
+  "sell_price": {
+    "silver": 13,
+    "copper": 87
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28516,
+      "text": "Use: Use on Dar'Khan Drathir to release the energy contained in this item causing 500 Arcane damage over 5 sec and silencing the target.",
+      "cooldown": "10 Min Cooldown"
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 22783,
+  "_source": "cache"
+}

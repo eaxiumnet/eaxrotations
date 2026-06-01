@@ -1,0 +1,35 @@
+{
+  "name": "Band of Renewal",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_26",
+  "ilvl": 85,
+  "required_level": 60,
+  "stats": {
+    "intellect": 14,
+    "spirit": 12,
+    "stamina": 13
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 1,
+    "silver": 37,
+    "copper": 82
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9316,
+      "text": "Equip: Increases healing done by up to 29 and damage done by up to 10 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 24045,
+  "_source": "cache"
+}

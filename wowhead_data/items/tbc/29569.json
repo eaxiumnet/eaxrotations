@@ -1,0 +1,12 @@
+{
+  "name": "Strong Junkbox",
+  "quality": 1,
+  "icon": "inv_box_02",
+  "ilvl": 60,
+  "item_class": 15,
+  "item_subclass": 4,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Other (Miscellaneous)",
+  "_id": 29569,
+  "_source": "cache"
+}

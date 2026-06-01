@@ -1,0 +1,20 @@
+{
+  "name": "Crystal Controlling Orb",
+  "quality": 1,
+  "icon": "inv_misc_gem_pearl_06",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 29049,
+      "text": "Use: Deactivates the night elf moon crystal at An'owyn."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23191,
+  "_source": "cache"
+}

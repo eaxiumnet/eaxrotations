@@ -1,0 +1,26 @@
+{
+  "name": "Deteriorating Plate Boots",
+  "quality": 0,
+  "icon": "inv_boots_plate_08",
+  "ilvl": 72,
+  "required_level": 67,
+  "armor": 420,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Plate",
+  "durability": 55,
+  "sell_price": {
+    "gold": 1,
+    "silver": 4,
+    "copper": 60
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25390,
+  "_source": "cache"
+}

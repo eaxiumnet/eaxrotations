@@ -1,0 +1,23 @@
+{
+  "name": "Scavenger Tunic",
+  "quality": 1,
+  "icon": "inv_chest_leather_03",
+  "ilvl": 5,
+  "armor": 33,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 45,
+  "sell_price": {
+    "copper": 12
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 11851,
+  "_source": "cache"
+}

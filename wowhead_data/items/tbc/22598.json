@@ -1,0 +1,12 @@
+{
+  "name": "Stone of Light",
+  "quality": 1,
+  "icon": "inv_misc_gem_pearl_06",
+  "max_stack": 20,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 22598,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Bloodscale Helm",
+  "quality": 2,
+  "icon": "inv_helmet_03",
+  "ilvl": 90,
+  "required_level": 60,
+  "armor": 681,
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "gold": 3,
+    "silver": 4,
+    "copper": 23
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24946,
+  "_source": "cache"
+}

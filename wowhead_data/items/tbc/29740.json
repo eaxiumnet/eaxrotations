@@ -1,0 +1,14 @@
+{
+  "name": "Fel Armament",
+  "quality": 2,
+  "icon": "inv_misc_desecrated_plategloves",
+  "phase": 1,
+  "max_stack": 250,
+  "flavor_text": "Only the Aldor in the Temple of Unending Light could cleanse the demonic taint that permeates this item.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 29740,
+  "_source": "cache"
+}

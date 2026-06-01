@@ -1,0 +1,36 @@
+{
+  "name": "Thun'grim's Sword",
+  "quality": 2,
+  "icon": "inv_sword_04",
+  "ilvl": 15,
+  "stats": {
+    "stamina": 1
+  },
+  "weapon": {
+    "min_damage": 11,
+    "max_damage": 21,
+    "speed": 2.1
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "classes": [
+    "Warrior"
+  ],
+  "durability": 50,
+  "sell_price": {
+    "silver": 7,
+    "copper": 3
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 7329,
+  "_source": "cache"
+}

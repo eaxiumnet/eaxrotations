@@ -1,0 +1,30 @@
+{
+  "name": "Short Ash Bow",
+  "quality": 2,
+  "icon": "inv_weapon_bow_03",
+  "ilvl": 23,
+  "required_level": 18,
+  "weapon": {
+    "min_damage": 16,
+    "max_damage": 31,
+    "speed": 1.9
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "silver": 16,
+    "copper": 10
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 3039,
+  "_source": "cache"
+}

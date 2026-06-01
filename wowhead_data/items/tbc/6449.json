@@ -1,0 +1,26 @@
+{
+  "name": "Glowing Lizardscale Cloak",
+  "quality": 3,
+  "icon": "inv_chest_cloth_15",
+  "ilvl": 22,
+  "required_level": 17,
+  "armor": 20,
+  "stats": {
+    "agility": 6,
+    "stamina": 2
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 7,
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 6449,
+  "_source": "cache"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "The Relics of Terokk",
+  "quality": 0,
+  "icon": "inv_misc_note_05",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "flavor_text": "Isfar's notes on the locations of the relics of Terokk",
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 32888,
+  "_source": "cache"
+}

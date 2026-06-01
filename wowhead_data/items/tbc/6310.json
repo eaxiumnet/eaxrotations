@@ -1,0 +1,18 @@
+{
+  "name": "19 Pound Catfish",
+  "quality": 1,
+  "icon": "inv_misc_fish_30",
+  "ilvl": 15,
+  "slot": "Held In Off-hand",
+  "equip_slots": [
+    17
+  ],
+  "sell_price": {
+    "silver": 1,
+    "copper": 50
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 6310,
+  "_source": "cache"
+}

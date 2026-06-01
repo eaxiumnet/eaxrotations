@@ -1,0 +1,14 @@
+{
+  "name": "Incantations from the Nether",
+  "quality": 1,
+  "icon": "inv_misc_book_06",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "You're glad you don't understand the runes inscribed on the cover.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 14396,
+  "_source": "cache"
+}

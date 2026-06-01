@@ -1,0 +1,38 @@
+{
+  "name": "Pattern: Felcloth Boots",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 57,
+  "required_level": 52,
+  "armor": 51,
+  "stats": {
+    "spirit": 12
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 50,
+    "copper": 12
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9325,
+      "text": "Equip: Increases damage done by Shadow spells and effects by up to 17."
+    }
+  ],
+  "teaches": "sew Felcloth Boots",
+  "teaches_spell_id": 18437,
+  "item_class": 9,
+  "item_subclass": 2,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Tailoring Patterns",
+  "_id": 14492,
+  "_source": "cache"
+}

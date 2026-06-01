@@ -1,0 +1,19 @@
+{
+  "name": "Backstab",
+  "icon": "ability_backstab",
+  "cost": {
+    "type": "energy",
+    "amount": 60
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Rogue",
+  "required_level": 52,
+  "description": "Backstab the target, causing 150% weapon damage plus 165 to the target.  Must be behind the target.  Requires a dagger in the main hand.  Awards 1 combo point.",
+  "school": "physical",
+  "weapon_pct": 150,
+  "weapon_bonus": 165,
+  "target_type": "hostile",
+  "_id": 11280,
+  "_source": "wowhead"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Skettis Chestpiece",
+  "quality": 2,
+  "icon": "inv_chest_chain_12",
+  "ilvl": 111,
+  "required_level": 67,
+  "armor": 573,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 100,
+  "sell_price": {
+    "gold": 4,
+    "silver": 12,
+    "copper": 38
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24888,
+  "_source": "cache"
+}

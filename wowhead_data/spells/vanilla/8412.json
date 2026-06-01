@@ -1,0 +1,22 @@
+{
+  "name": "Fire Blast",
+  "icon": "spell_fire_fireball",
+  "cost": {
+    "type": "mana",
+    "amount": 165
+  },
+  "range": 20,
+  "cast_time": 0,
+  "cooldown": "8 sec cooldown",
+  "spell_level": 60,
+  "required_class": "Mage",
+  "required_level": 30,
+  "description": "Blasts the enemy for 177 to 211 Fire damage.",
+  "school": "fire",
+  "damage": {
+    "min": 177,
+    "max": 211
+  },
+  "_id": 8412,
+  "_source": "wowhead"
+}

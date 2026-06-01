@@ -1,0 +1,27 @@
+{
+  "name": "Resplendent Epaulets",
+  "quality": 2,
+  "icon": "inv_shoulder_23",
+  "ilvl": 61,
+  "required_level": 56,
+  "armor": 59,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 27,
+    "copper": 51
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14325,
+  "_source": "cache"
+}

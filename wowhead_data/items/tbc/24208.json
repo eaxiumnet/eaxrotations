@@ -1,0 +1,19 @@
+{
+  "name": "Design: Mystic Dawnstone",
+  "quality": 3,
+  "icon": "inv_scroll_05",
+  "ilvl": 70,
+  "binding": "bop",
+  "sell_price": {
+    "gold": 3
+  },
+  "teaches": "cut a Mystic Dawnstone",
+  "teaches_spell_id": 31101,
+  "flavor_text": "Matches a Yellow Socket.",
+  "item_class": 9,
+  "item_subclass": 10,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Jewelcrafting Designs",
+  "_id": 24208,
+  "_source": "cache"
+}

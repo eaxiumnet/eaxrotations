@@ -1,0 +1,61 @@
+{
+  "name": "Scarlet Gauntlets",
+  "quality": 2,
+  "icon": "inv_gauntlets_19",
+  "ilvl": 38,
+  "required_level": 33,
+  "armor": 139,
+  "stats": {
+    "agility": 7,
+    "strength": 8
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "set_id": 163,
+  "set_name": "Chain of the Scarlet Crusade",
+  "set_pieces": [
+    {
+      "id": 10329,
+      "name": "Scarlet Belt"
+    },
+    {
+      "id": 10332,
+      "name": "Scarlet Boots"
+    },
+    {
+      "id": 10328,
+      "name": "Scarlet Chestpiece"
+    },
+    {
+      "id": 10331,
+      "name": "Scarlet Gauntlets"
+    },
+    {
+      "id": 10330,
+      "name": "Scarlet Leggings"
+    },
+    {
+      "id": 10333,
+      "name": "Scarlet Wristguards"
+    }
+  ],
+  "durability": 35,
+  "sell_price": {
+    "silver": 27,
+    "copper": 29
+  },
+  "phase": 1,
+  "resistances": {
+    "shadow": 5
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 10331,
+  "_source": "cache"
+}

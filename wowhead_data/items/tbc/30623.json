@@ -1,0 +1,20 @@
+{
+  "name": "Reservoir Key",
+  "quality": 1,
+  "icon": "inv_misc_key_13",
+  "ilvl": 70,
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 2,
+    "silver": 50
+  },
+  "phase": 1,
+  "flavor_text": "Unlocks Heroic Difficulty for Coilfang Reservoir dungeons.",
+  "item_class": 13,
+  "item_subclass": 0,
+  "item_class_name": "Key",
+  "item_subclass_name": "Key",
+  "_id": 30623,
+  "_source": "cache"
+}

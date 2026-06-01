@@ -1,0 +1,10 @@
+{
+  "name": "Call Pet",
+  "icon": "ability_hunter_beastcall",
+  "cast_time": 0,
+  "required_class": "Hunter",
+  "required_level": 10,
+  "description": "Summons your pet to you.",
+  "_id": 883,
+  "_source": "cache"
+}

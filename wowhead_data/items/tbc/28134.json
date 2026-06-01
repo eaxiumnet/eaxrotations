@@ -1,0 +1,33 @@
+{
+  "name": "Brooch of Heightened Potential",
+  "quality": 3,
+  "icon": "inv_jewelry_necklace_27",
+  "ilvl": 112,
+  "required_level": 68,
+  "stats": {
+    "intellect": 14,
+    "stamina": 15
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 24,
+    "copper": 64
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15714,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 22."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28134,
+  "_source": "cache"
+}

@@ -1,0 +1,36 @@
+{
+  "name": "Cosmic Lifeband",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_62",
+  "ilvl": 115,
+  "required_level": 70,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique_equipped": true,
+  "sell_price": {
+    "gold": 3,
+    "silver": 8,
+    "copper": 66
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18037,
+      "text": "Equip: Increases healing done by up to 57 and damage done by up to 19 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21364,
+      "text": "Equip: Restores 7 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28259,
+  "_source": "cache"
+}

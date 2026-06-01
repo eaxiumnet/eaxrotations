@@ -1,0 +1,23 @@
+{
+  "name": "Calico Belt",
+  "quality": 0,
+  "icon": "inv_belt_06",
+  "ilvl": 14,
+  "required_level": 9,
+  "armor": 13,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "durability": 18,
+  "sell_price": {
+    "copper": 45
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 3374,
+  "_source": "cache"
+}

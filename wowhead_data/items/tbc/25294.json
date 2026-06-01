@@ -1,0 +1,31 @@
+{
+  "name": "Dragonscale Wand",
+  "quality": 2,
+  "icon": "inv_wand_06",
+  "ilvl": 117,
+  "required_level": 69,
+  "weapon": {
+    "min_damage": 133,
+    "max_damage": 249,
+    "speed": 1.7
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Wand",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 5,
+    "silver": 69,
+    "copper": 71
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 19,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Wands",
+  "_id": 25294,
+  "_source": "cache"
+}

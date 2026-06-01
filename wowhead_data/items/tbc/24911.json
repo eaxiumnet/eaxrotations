@@ -1,0 +1,27 @@
+{
+  "name": "Netherstorm Greaves",
+  "quality": 2,
+  "icon": "inv_boots_chain_04",
+  "ilvl": 120,
+  "required_level": 70,
+  "armor": 424,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "gold": 3,
+    "silver": 37,
+    "copper": 23
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24911,
+  "_source": "cache"
+}

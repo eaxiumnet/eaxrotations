@@ -1,0 +1,38 @@
+{
+  "name": "Tigerbane",
+  "quality": 2,
+  "icon": "inv_weapon_shortblade_15",
+  "ilvl": 38,
+  "required_level": 33,
+  "weapon": {
+    "min_damage": 27,
+    "max_damage": 51,
+    "speed": 1.9
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Dagger",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "silver": 98,
+    "copper": 25
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 19691,
+      "text": "Equip: Increases attack power by 18 when fighting Beasts."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 15,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Daggers",
+  "_id": 1465,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Jug of Badlands Bourbon",
+  "quality": 1,
+  "icon": "inv_cask_02",
+  "ilvl": 35,
+  "sell_price": {
+    "silver": 5
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 11009,
+      "text": "Use: A strong alcoholic beverage."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 2595,
+  "_source": "cache"
+}

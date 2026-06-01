@@ -1,0 +1,94 @@
+{
+  "name": "Cryptstalker Girdle",
+  "quality": 4,
+  "icon": "inv_belt_22",
+  "ilvl": 88,
+  "required_level": 60,
+  "armor": 355,
+  "stats": {
+    "agility": 16,
+    "intellect": 12,
+    "stamina": 22
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "set_id": 530,
+  "set_name": "Cryptstalker Armor",
+  "set_pieces": [
+    {
+      "id": 22440,
+      "name": "Cryptstalker Boots"
+    },
+    {
+      "id": 22442,
+      "name": "Cryptstalker Girdle"
+    },
+    {
+      "id": 22441,
+      "name": "Cryptstalker Handguards"
+    },
+    {
+      "id": 22438,
+      "name": "Cryptstalker Headpiece"
+    },
+    {
+      "id": 22437,
+      "name": "Cryptstalker Legguards"
+    },
+    {
+      "id": 22439,
+      "name": "Cryptstalker Spaulders"
+    },
+    {
+      "id": 22436,
+      "name": "Cryptstalker Tunic"
+    },
+    {
+      "id": 22443,
+      "name": "Cryptstalker Wristguards"
+    },
+    {
+      "id": 23067,
+      "name": "Ring of the Cryptstalker"
+    }
+  ],
+  "durability": 50,
+  "sell_price": {
+    "gold": 2,
+    "silver": 67,
+    "copper": 94
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15464,
+      "text": "Equip: Increases your hit rating by 10."
+    },
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21625,
+      "text": "Equip: Restores 3 mana per 5 sec."
+    },
+    {
+      "type": "equip",
+      "spell_id": 9336,
+      "text": "Equip: Increases attack power by 30."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 22442,
+  "_source": "cache"
+}

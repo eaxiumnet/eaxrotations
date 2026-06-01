@@ -1,0 +1,22 @@
+{
+  "name": "Preserved Holly",
+  "quality": 2,
+  "icon": "inv_misc_branch_01",
+  "ilvl": 30,
+  "required_level": 30,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 25860,
+      "text": "Use: Transforms your mount into something more festive.",
+      "cooldown": "1 Min Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 15,
+  "item_subclass": 3,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Holiday",
+  "_id": 21213,
+  "_source": "cache"
+}

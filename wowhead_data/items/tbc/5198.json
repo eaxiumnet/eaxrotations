@@ -1,0 +1,30 @@
+{
+  "name": "Cookie's Stirring Rod",
+  "quality": 3,
+  "icon": "inv_staff_02",
+  "ilvl": 22,
+  "required_level": 17,
+  "weapon": {
+    "min_damage": 20,
+    "max_damage": 38,
+    "speed": 1.3
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Wand",
+  "binding": "bop",
+  "durability": 50,
+  "sell_price": {
+    "silver": 16,
+    "copper": 60
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 19,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Wands",
+  "_id": 5198,
+  "_source": "cache"
+}

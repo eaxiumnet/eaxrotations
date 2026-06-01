@@ -1,0 +1,14 @@
+{
+  "name": "Condensed Voidwalker Essence",
+  "quality": 1,
+  "icon": "inv_poison_mindnumbing",
+  "ilvl": 1,
+  "max_stack": 10,
+  "flavor_text": "The voidwalker essence radiates energy. It's just the kind of thing that Screed could use to \"improve\" his zeppelin's engine.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23218,
+  "_source": "cache"
+}

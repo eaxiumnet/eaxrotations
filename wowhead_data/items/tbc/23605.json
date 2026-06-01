@@ -1,0 +1,57 @@
+{
+  "name": "Plans: Felsteel Gloves",
+  "quality": 3,
+  "icon": "inv_scroll_05",
+  "ilvl": 72,
+  "required_level": 70,
+  "armor": 943,
+  "stats": {
+    "stamina": 27
+  },
+  "ratings": {
+    "defense": 25
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "blue": 1,
+    "red": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Parry Rating",
+  "set_id": 569,
+  "set_name": "Faith in Felsteel",
+  "set_pieces": [
+    {
+      "id": 23519,
+      "name": "Felsteel Helm"
+    },
+    {
+      "id": 23518,
+      "name": "Felsteel Leggings"
+    },
+    {
+      "id": 23517,
+      "name": "Felsteel Gloves"
+    }
+  ],
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 50,
+    "copper": 11
+  },
+  "phase": 1,
+  "teaches": "make Felsteel Gloves",
+  "teaches_spell_id": 29619,
+  "item_class": 9,
+  "item_subclass": 4,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Blacksmithing Plans",
+  "_id": 23605,
+  "_source": "cache"
+}

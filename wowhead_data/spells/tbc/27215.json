@@ -1,0 +1,26 @@
+{
+  "name": "Immolate",
+  "icon": "spell_fire_immolation",
+  "cost": {
+    "type": "mana",
+    "amount": 445
+  },
+  "range": 30,
+  "cast_time": 2,
+  "spell_level": 70,
+  "required_class": "Warlock",
+  "required_level": 69,
+  "description": "Burns the enemy for 332 Fire damage and then an additional 615 Fire damage over 15 sec.",
+  "school": "fire",
+  "duration": 15,
+  "has_buff": true,
+  "buff_duration": 15,
+  "periodic": {
+    "amount": 123,
+    "school": "fire",
+    "interval": 3
+  },
+  "buff_text": "123 Fire damage every 3 seconds.",
+  "_id": 27215,
+  "_source": "cache"
+}

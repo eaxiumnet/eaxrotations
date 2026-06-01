@@ -1,0 +1,38 @@
+{
+  "name": "Frenzied Staff",
+  "quality": 2,
+  "icon": "inv_staff_38",
+  "ilvl": 90,
+  "required_level": 60,
+  "weapon": {
+    "min_damage": 151,
+    "max_damage": 238,
+    "speed": 3.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Staff",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 7,
+    "silver": 30,
+    "copper": 97
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 44889,
+      "text": "Equip: Increases attack power by 104 in Cat, Bear, Dire Bear, and Moonkin forms only."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 10,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Staves",
+  "_id": 25327,
+  "_source": "cache"
+}

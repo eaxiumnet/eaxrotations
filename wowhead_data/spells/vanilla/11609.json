@@ -1,0 +1,18 @@
+{
+  "name": "Cleave",
+  "icon": "ability_warrior_cleave",
+  "cost": {
+    "type": "rage",
+    "amount": 20
+  },
+  "range": "melee",
+  "required_class": "Warrior",
+  "required_level": 50,
+  "requires_weapon": "Melee Weapon",
+  "description": "A sweeping attack that does your weapon damage plus 32 to the target and his nearest ally.",
+  "school": "physical",
+  "weapon_bonus": 32,
+  "target_type": "hostile",
+  "_id": 11609,
+  "_source": "wowhead"
+}

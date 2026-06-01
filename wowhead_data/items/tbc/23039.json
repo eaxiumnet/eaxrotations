@@ -1,0 +1,45 @@
+{
+  "name": "The Eye of Nerub",
+  "quality": 4,
+  "icon": "inv_weapon_halberd_04",
+  "ilvl": 83,
+  "required_level": 60,
+  "stats": {
+    "agility": 30,
+    "stamina": 22
+  },
+  "ratings": {
+    "hit": 16
+  },
+  "weapon": {
+    "min_damage": 251,
+    "max_damage": 378,
+    "speed": 3.7
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Polearm",
+  "binding": "bop",
+  "durability": 120,
+  "sell_price": {
+    "gold": 11,
+    "silver": 37,
+    "copper": 47
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14052,
+      "text": "Equip: Increases attack power by 60."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 6,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Polearms",
+  "_id": 23039,
+  "_source": "cache"
+}

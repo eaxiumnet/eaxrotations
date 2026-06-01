@@ -1,0 +1,25 @@
+{
+  "name": "Skinning Knife",
+  "quality": 1,
+  "icon": "inv_weapon_shortblade_01",
+  "ilvl": 4,
+  "weapon": {
+    "min_damage": 1,
+    "max_damage": 3,
+    "speed": 1.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "sell_price": {
+    "copper": 16
+  },
+  "item_class": 2,
+  "item_subclass": 14,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Miscellaneous (Weapons)",
+  "_id": 7005,
+  "_source": "cache"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Elunarian Handgrips",
+  "quality": 2,
+  "icon": "inv_gauntlets_10",
+  "ilvl": 62,
+  "required_level": 57,
+  "armor": 50,
+  "stats": {
+    "intellect": 8,
+    "spirit": 12,
+    "stamina": 8
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "silver": 87,
+    "copper": 11
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14461,
+  "_source": "cache"
+}

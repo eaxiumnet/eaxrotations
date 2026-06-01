@@ -1,0 +1,66 @@
+{
+  "name": "Champion's Lamellar Shoulders",
+  "quality": 3,
+  "icon": "inv_shoulder_28",
+  "ilvl": 71,
+  "required_level": 60,
+  "armor": 552,
+  "stats": {
+    "strength": 14,
+    "intellect": 8,
+    "stamina": 14
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 697,
+  "set_name": "Champion's Redoubt",
+  "set_pieces": [
+    {
+      "id": 29600,
+      "name": "Blood Guard's Lamellar Gauntlets"
+    },
+    {
+      "id": 29601,
+      "name": "Blood Guard's Lamellar Sabatons"
+    },
+    {
+      "id": 29602,
+      "name": "Legionnaire's Lamellar Breastplate"
+    },
+    {
+      "id": 29603,
+      "name": "Legionnaire's Lamellar Leggings"
+    },
+    {
+      "id": 29604,
+      "name": "Champion's Lamellar Headguard"
+    },
+    {
+      "id": 29605,
+      "name": "Champion's Lamellar Shoulders"
+    }
+  ],
+  "classes": [
+    "Paladin"
+  ],
+  "durability": 80,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14799,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 20."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 29605,
+  "_source": "cache"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Holy Shock",
+  "icon": "spell_holy_searinglight",
+  "cost": {
+    "type": "mana",
+    "amount": 410
+  },
+  "range": 20,
+  "cast_time": 0,
+  "cooldown": "15 sec cooldown",
+  "required_class": "Paladin",
+  "required_level": 48,
+  "description": "Blasts the target with Holy energy, causing 379 to 409 Holy damage to an enemy, or 480 to 518 healing to an ally.",
+  "school": "holy",
+  "damage": {
+    "min": 379,
+    "max": 409
+  },
+  "target_type": "hostile",
+  "_id": 20929,
+  "_source": "cache"
+}

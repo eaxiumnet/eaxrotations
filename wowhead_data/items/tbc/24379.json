@@ -1,0 +1,29 @@
+{
+  "name": "Bogstrok Scale Cloak",
+  "quality": 3,
+  "icon": "inv_misc_cape_06",
+  "ilvl": 91,
+  "required_level": 62,
+  "armor": 271,
+  "stats": {
+    "stamina": 22
+  },
+  "ratings": {
+    "defense": 16
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 3,
+    "copper": 84
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 24379,
+  "_source": "cache"
+}

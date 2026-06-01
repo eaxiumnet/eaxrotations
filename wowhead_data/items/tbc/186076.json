@@ -1,0 +1,29 @@
+{
+  "name": "Communal Bindings",
+  "quality": 2,
+  "icon": "inv_bracer_08",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 60,
+  "stats": {
+    "agility": 11,
+    "stamina": 3
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 186076,
+  "_source": "cache"
+}

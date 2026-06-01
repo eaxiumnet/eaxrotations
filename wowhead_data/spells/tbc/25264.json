@@ -1,0 +1,20 @@
+{
+  "name": "Thunder Clap",
+  "icon": "spell_nature_thunderclap",
+  "cost": {
+    "type": "rage",
+    "amount": 20
+  },
+  "cast_time": 0,
+  "cooldown": "4 sec cooldown",
+  "required_class": "Warrior",
+  "required_level": 67,
+  "description": "Blasts nearby enemies increasing the time between their attacks by 10% for 30 sec and doing 123 damage to them.  This ability causes additonal threat and will affect up to 4 targets.",
+  "duration": 30,
+  "aoe": true,
+  "has_buff": true,
+  "buff_duration": 30,
+  "buff_text": "Attack speed reduced by 10%.",
+  "_id": 25264,
+  "_source": "cache"
+}

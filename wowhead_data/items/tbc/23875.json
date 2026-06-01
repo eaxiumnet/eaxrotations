@@ -1,0 +1,20 @@
+{
+  "name": "Crystal Mining Pick",
+  "quality": 1,
+  "icon": "inv_pick_03",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 30611,
+      "text": "Use: Mine a sample of the crystal from among the crash debris."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23875,
+  "_source": "cache"
+}

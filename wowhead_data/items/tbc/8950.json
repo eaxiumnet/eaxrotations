@@ -1,0 +1,26 @@
+{
+  "name": "Homemade Cherry Pie",
+  "quality": 1,
+  "icon": "inv_misc_food_10",
+  "ilvl": 55,
+  "required_level": 45,
+  "sell_price": {
+    "silver": 2
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 1131,
+      "text": "Use: Restores 2148 health over 30 sec.  Must remain seated while eating."
+    }
+  ],
+  "food_hp": 2148,
+  "food_duration": 30,
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 8950,
+  "_source": "cache"
+}

@@ -1,0 +1,29 @@
+{
+  "name": "Unfinished Headpiece",
+  "quality": 1,
+  "icon": "inv_staff_23",
+  "ilvl": 1,
+  "required_level": 67,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "unique": true,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 38438,
+      "text": "Equip: Allows the wearer to see echoes of the past."
+    },
+    {
+      "type": "use",
+      "spell_id": 38444,
+      "text": "Use: Imbue the unfinished headpiece with the essence of Gul'dan."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31360,
+  "_source": "cache"
+}

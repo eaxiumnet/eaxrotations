@@ -1,0 +1,23 @@
+{
+  "name": "Shadowburn",
+  "icon": "spell_shadow_scourgebuild",
+  "cost": {
+    "type": "mana",
+    "amount": 365
+  },
+  "range": 20,
+  "cast_time": 0,
+  "cooldown": "15 sec cooldown",
+  "spell_level": 70,
+  "required_class": "Warlock",
+  "required_level": 56,
+  "description": "Instantly blasts the target for 468 to 520 Shadow damage.  If the target dies within 5 sec of Shadowburn, and yields experience or honor, the caster gains a Soul Shard.",
+  "school": "shadow",
+  "damage": {
+    "min": 468,
+    "max": 520
+  },
+  "target_type": "self",
+  "_id": 18871,
+  "_source": "cache"
+}

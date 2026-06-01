@@ -1,0 +1,30 @@
+{
+  "name": "Herod's Shoulder",
+  "quality": 3,
+  "icon": "inv_shoulder_01",
+  "ilvl": 42,
+  "required_level": 37,
+  "armor": 196,
+  "stats": {
+    "strength": 6,
+    "stamina": 15
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 70,
+  "sell_price": {
+    "silver": 68,
+    "copper": 67
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 7718,
+  "_source": "cache"
+}

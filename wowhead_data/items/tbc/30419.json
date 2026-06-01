@@ -1,0 +1,27 @@
+{
+  "name": "Brilliant Necklace",
+  "quality": 2,
+  "icon": "inv_jewelry_necklace_01",
+  "ilvl": 25,
+  "required_level": 20,
+  "stats": {
+    "agility": 2,
+    "strength": 2,
+    "intellect": 2,
+    "spirit": 2,
+    "stamina": 1
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 7,
+    "copper": 50
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 30419,
+  "_source": "cache"
+}

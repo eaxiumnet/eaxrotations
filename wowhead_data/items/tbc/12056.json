@@ -1,0 +1,25 @@
+{
+  "name": "Ring of the Heavens",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_10",
+  "ilvl": 56,
+  "required_level": 51,
+  "stats": {
+    "spirit": 3,
+    "stamina": 13
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 83,
+    "copper": 75
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 12056,
+  "_source": "cache"
+}

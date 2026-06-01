@@ -1,0 +1,27 @@
+{
+  "name": "Dementia Armguards",
+  "quality": 2,
+  "icon": "inv_bracer_10",
+  "ilvl": 93,
+  "required_level": 61,
+  "armor": 96,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 30,
+  "sell_price": {
+    "gold": 1,
+    "silver": 56,
+    "copper": 11
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 24732,
+  "_source": "cache"
+}

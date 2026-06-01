@@ -1,0 +1,37 @@
+{
+  "name": "Bristleblitz Striker",
+  "quality": 4,
+  "icon": "inv_weapon_bow_30",
+  "ilvl": 151,
+  "required_level": 70,
+  "stats": {
+    "stamina": 28
+  },
+  "ratings": {
+    "crit": 25
+  },
+  "weapon": {
+    "min_damage": 201,
+    "max_damage": 374,
+    "speed": 3
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "binding": "bop",
+  "durability": 90,
+  "sell_price": {
+    "gold": 10,
+    "silver": 77,
+    "copper": 92
+  },
+  "phase": 3,
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 30906,
+  "_source": "cache"
+}

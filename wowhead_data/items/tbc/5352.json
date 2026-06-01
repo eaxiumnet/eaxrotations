@@ -1,0 +1,16 @@
+{
+  "name": "Book: The Powers Below",
+  "quality": 1,
+  "icon": "inv_misc_book_11",
+  "ilvl": 20,
+  "required_level": 10,
+  "binding": "bop",
+  "unique": true,
+  "starts_quest": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 5352,
+  "_source": "cache"
+}

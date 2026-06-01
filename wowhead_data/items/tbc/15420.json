@@ -1,0 +1,12 @@
+{
+  "name": "Ironfeather",
+  "quality": 1,
+  "icon": "inv_feather_05",
+  "ilvl": 50,
+  "sell_price": {
+    "silver": 1
+  },
+  "max_stack": 50,
+  "_id": 15420,
+  "_source": "cache"
+}

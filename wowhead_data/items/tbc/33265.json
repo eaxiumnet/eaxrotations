@@ -1,0 +1,23 @@
+{
+  "name": "Pendant of Ferocity",
+  "quality": 2,
+  "icon": "inv_jewelry_necklace_02",
+  "ilvl": 37,
+  "stats": {
+    "strength": 5,
+    "stamina": 6
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 43,
+    "copper": 78
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 33265,
+  "_source": "cache"
+}

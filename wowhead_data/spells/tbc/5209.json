@@ -1,0 +1,20 @@
+{
+  "name": "Challenging Roar",
+  "icon": "ability_druid_challangingroar",
+  "cost": {
+    "type": "rage",
+    "amount": 15
+  },
+  "cast_time": 0,
+  "cooldown": "10 min cooldown",
+  "required_class": "Druid",
+  "required_level": 28,
+  "description": "Forces all nearby enemies to focus attacks on you for 6 sec.",
+  "duration": 6,
+  "aoe": true,
+  "has_buff": true,
+  "buff_duration": 6,
+  "buff_text": "Taunted.",
+  "_id": 5209,
+  "_source": "cache"
+}

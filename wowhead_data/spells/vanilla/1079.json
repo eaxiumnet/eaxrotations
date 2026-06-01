@@ -1,0 +1,19 @@
+{
+  "name": "Rip",
+  "icon": "ability_ghoulfrenzy",
+  "cost": {
+    "type": "energy",
+    "amount": 30
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Druid",
+  "required_level": 20,
+  "description": "Finishing move that causes damage over time.  Damage increases per combo point and by your Attack Power:   1 point  : [6 * 1 * (7)] damage over 12 sec.   2 points: [6 * 1 * (11)] damage over 12 sec.   3 points: [6 * 1 * (15)] damage over 12 sec.   4 points: [6 * 1 * (19)] damage over 12 sec.   5 points: [6 * 1 * (23)] damage over 12 sec.",
+  "duration": 12,
+  "has_buff": true,
+  "buff_duration": 12,
+  "buff_text": "Bleed damage every 2 seconds.",
+  "_id": 1079,
+  "_source": "wowhead"
+}

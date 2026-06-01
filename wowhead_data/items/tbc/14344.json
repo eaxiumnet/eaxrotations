@@ -1,0 +1,13 @@
+{
+  "name": "Large Brilliant Shard",
+  "quality": 3,
+  "icon": "inv_enchant_shardbrilliantlarge",
+  "ilvl": 55,
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 12,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Enchanting",
+  "_id": 14344,
+  "_source": "cache"
+}

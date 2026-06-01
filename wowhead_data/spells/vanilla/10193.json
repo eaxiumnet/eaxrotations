@@ -1,0 +1,19 @@
+{
+  "name": "Mana Shield",
+  "icon": "spell_shadow_detectlesserinvisibility",
+  "cost": {
+    "type": "mana",
+    "amount": 140
+  },
+  "cast_time": 0,
+  "required_class": "Mage",
+  "required_level": 60,
+  "description": "Absorbs 570 physical damage, draining mana instead.  Drains 2 mana per damage absorbed.  Lasts 1 min.",
+  "school": "physical",
+  "duration": 60,
+  "has_buff": true,
+  "buff_duration": 60,
+  "buff_text": "Absorbs physical damage, draining mana instead.",
+  "_id": 10193,
+  "_source": "wowhead"
+}

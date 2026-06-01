@@ -1,0 +1,13 @@
+{
+  "name": "Lucky Red Envelope",
+  "quality": 1,
+  "icon": "inv_misc_luckymoneyenvelope",
+  "ilvl": 1,
+  "binding": "bop",
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 21746,
+  "_source": "cache"
+}

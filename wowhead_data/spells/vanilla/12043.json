@@ -1,0 +1,12 @@
+{
+  "name": "Presence of Mind",
+  "icon": "spell_nature_enchantarmor",
+  "cast_time": 0,
+  "cooldown": "3 min cooldown",
+  "required_class": "Mage",
+  "description": "When activated, your next Mage spell with a casting time less than 10 sec becomes an instant cast spell.",
+  "has_buff": true,
+  "buff_text": "Your next Mage spell with a casting time less than 10 sec will be an instant cast spell.",
+  "_id": 12043,
+  "_source": "wowhead"
+}

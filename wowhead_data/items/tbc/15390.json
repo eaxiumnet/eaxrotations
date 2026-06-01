@@ -1,0 +1,27 @@
+{
+  "name": "Jadefire Chestguard",
+  "quality": 2,
+  "icon": "inv_chest_plate07",
+  "ilvl": 56,
+  "required_level": 51,
+  "armor": 146,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 1,
+    "silver": 61,
+    "copper": 75
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 15390,
+  "_source": "cache"
+}

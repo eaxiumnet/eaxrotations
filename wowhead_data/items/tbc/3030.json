@@ -1,0 +1,16 @@
+{
+  "name": "Razor Arrow",
+  "quality": 1,
+  "icon": "inv_ammo_arrow_02",
+  "ilvl": 30,
+  "required_level": 25,
+  "slot": "Ammo",
+  "subclass": "Arrow",
+  "max_stack": 200,
+  "item_class": 6,
+  "item_subclass": 2,
+  "item_class_name": "Projectiles",
+  "item_subclass_name": "Arrows",
+  "_id": 3030,
+  "_source": "cache"
+}

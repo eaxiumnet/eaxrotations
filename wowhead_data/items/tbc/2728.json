@@ -1,0 +1,17 @@
+{
+  "name": "Green Hills of Stranglethorn - Page 4",
+  "quality": 1,
+  "icon": "inv_misc_note_06",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 3,
+    "copper": 75
+  },
+  "max_stack": 10,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 2728,
+  "_source": "cache"
+}

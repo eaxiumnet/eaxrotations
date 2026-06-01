@@ -1,0 +1,26 @@
+{
+  "name": "Tarnished Plate Chestpiece",
+  "quality": 0,
+  "icon": "inv_chest_plate04",
+  "ilvl": 66,
+  "required_level": 61,
+  "armor": 562,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "durability": 115,
+  "sell_price": {
+    "gold": 1,
+    "silver": 26,
+    "copper": 94
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25384,
+  "_source": "cache"
+}

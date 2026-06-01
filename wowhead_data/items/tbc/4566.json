@@ -1,0 +1,30 @@
+{
+  "name": "Sturdy Quarterstaff",
+  "quality": 2,
+  "icon": "inv_staff_08",
+  "ilvl": 13,
+  "required_level": 8,
+  "weapon": {
+    "min_damage": 20,
+    "max_damage": 30,
+    "speed": 2.8
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Staff",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "silver": 6,
+    "copper": 31
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 10,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Staves",
+  "_id": 4566,
+  "_source": "cache"
+}

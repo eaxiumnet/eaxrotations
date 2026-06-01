@@ -1,0 +1,16 @@
+{
+  "name": "Feint",
+  "icon": "ability_rogue_feint",
+  "cost": {
+    "type": "energy",
+    "amount": 20
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "cooldown": "10 sec cooldown",
+  "required_class": "Rogue",
+  "required_level": 16,
+  "description": "Performs a feint, causing no damage but lowering your threat by a small amount, making the enemy less likely to attack you.",
+  "_id": 1966,
+  "_source": "cache"
+}

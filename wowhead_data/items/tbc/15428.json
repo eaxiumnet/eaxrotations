@@ -1,0 +1,26 @@
+{
+  "name": "Peerless Belt",
+  "quality": 2,
+  "icon": "inv_belt_12",
+  "ilvl": 56,
+  "required_level": 51,
+  "armor": 82,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 30,
+  "sell_price": {
+    "silver": 80,
+    "copper": 24
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 15428,
+  "_source": "cache"
+}

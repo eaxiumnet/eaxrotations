@@ -1,0 +1,32 @@
+{
+  "name": "Double-Bladed Axe",
+  "quality": 2,
+  "icon": "inv_axe_21",
+  "ilvl": 117,
+  "required_level": 69,
+  "weapon": {
+    "min_damage": 115,
+    "max_damage": 215,
+    "speed": 2.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 75,
+  "sell_price": {
+    "gold": 7,
+    "silver": 29,
+    "copper": 30
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 25210,
+  "_source": "cache"
+}

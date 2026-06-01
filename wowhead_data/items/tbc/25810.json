@@ -1,0 +1,37 @@
+{
+  "name": "Vicar's Cloak",
+  "quality": 3,
+  "icon": "inv_misc_cape_19",
+  "ilvl": 109,
+  "armor": 74,
+  "stats": {
+    "intellect": 18
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 41,
+    "copper": 53
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 21364,
+      "text": "Equip: Restores 7 mana per 5 sec."
+    },
+    {
+      "type": "equip",
+      "spell_id": 18031,
+      "text": "Equip: Increases healing done by up to 40 and damage done by up to 14 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25810,
+  "_source": "cache"
+}

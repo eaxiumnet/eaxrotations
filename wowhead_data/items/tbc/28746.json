@@ -1,0 +1,48 @@
+{
+  "name": "Fiend Slayer Boots",
+  "quality": 4,
+  "icon": "inv_boots_chain_05",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 558,
+  "stats": {
+    "agility": 26,
+    "intellect": 16,
+    "stamina": 24
+  },
+  "ratings": {
+    "hit": 17
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "blue": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Agility",
+  "durability": 70,
+  "sell_price": {
+    "gold": 5,
+    "silver": 19,
+    "copper": 49
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15806,
+      "text": "Equip: Increases attack power by 34."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 28746,
+  "_source": "cache"
+}

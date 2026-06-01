@@ -1,0 +1,26 @@
+{
+  "name": "Sentinel Boots",
+  "quality": 2,
+  "icon": "inv_boots_wolf",
+  "ilvl": 37,
+  "required_level": 32,
+  "armor": 72,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "silver": 33,
+    "copper": 77
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 7444,
+  "_source": "cache"
+}

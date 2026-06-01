@@ -1,0 +1,23 @@
+{
+  "name": "Silver-Lined Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_11",
+  "ilvl": 96,
+  "required_level": 62,
+  "armor": 60,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 1,
+    "silver": 95,
+    "copper": 49
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25035,
+  "_source": "cache"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Ethereum Torque",
+  "quality": 3,
+  "icon": "inv_jewelry_necklace_29naxxramas",
+  "ilvl": 115,
+  "required_level": 70,
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 2,
+    "silver": 24,
+    "copper": 64
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31940,
+  "_source": "cache"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Lacerate",
+  "icon": "ability_druid_lacerate",
+  "cost": {
+    "type": "rage",
+    "amount": 15
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Druid",
+  "required_level": 66,
+  "description": "Lacerates the enemy target, dealing 31 bleed damage and making them bleed for 155 damage over 15 sec and causing a high amount of threat.  Damage increased by attack power.  This effect stacks up to 5 times on the same target.",
+  "duration": 15,
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "31 damage every 3 sec",
+  "_id": 33745,
+  "_source": "cache"
+}

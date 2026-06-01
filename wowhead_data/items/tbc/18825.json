@@ -1,0 +1,34 @@
+{
+  "name": "Grand Marshal's Aegis",
+  "quality": 4,
+  "icon": "inv_shield_05",
+  "ilvl": 78,
+  "required_level": 60,
+  "armor": 3366,
+  "stats": {
+    "strength": 10,
+    "stamina": 23
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 73,
+  "durability": 120,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 13959,
+      "text": "Equip: When struck in combat has a 5% chance of inflicting 35 to 65 Nature damage to the attacker. (Proc chance: 5%)"
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 18825,
+  "_source": "cache"
+}

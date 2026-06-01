@@ -1,0 +1,31 @@
+{
+  "name": "Chief Brigadier Gauntlets",
+  "quality": 2,
+  "icon": "inv_gauntlets_22",
+  "ilvl": 38,
+  "required_level": 33,
+  "armor": 139,
+  "stats": {
+    "strength": 6,
+    "spirit": 5,
+    "stamina": 6
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "silver": 28,
+    "copper": 52
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 1988,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Journeyman's Gloves",
+  "quality": 1,
+  "icon": "inv_gauntlets_21",
+  "ilvl": 9,
+  "required_level": 4,
+  "armor": 10,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "durability": 16,
+  "sell_price": {
+    "copper": 22
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 2960,
+  "_source": "cache"
+}

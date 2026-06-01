@@ -1,0 +1,25 @@
+{
+  "name": "Inlaid Malachite Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_23",
+  "ilvl": 20,
+  "required_level": 15,
+  "stats": {
+    "agility": 2
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "unique_equipped": true,
+  "sell_price": {
+    "silver": 10,
+    "copper": 64
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 20821,
+  "_source": "cache"
+}

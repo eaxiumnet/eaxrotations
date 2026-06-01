@@ -1,0 +1,22 @@
+{
+  "name": "Dense Weightstone",
+  "quality": 1,
+  "icon": "inv_stone_weightstone_05",
+  "ilvl": 45,
+  "required_level": 35,
+  "sell_price": {
+    "copper": 75
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 16622,
+      "text": "Use: Increase the damage of a blunt weapon by 8 for 1 hour."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_class_name": "Consumables",
+  "_id": 12643,
+  "_source": "cache"
+}

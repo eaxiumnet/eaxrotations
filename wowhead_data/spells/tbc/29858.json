@@ -1,0 +1,13 @@
+{
+  "name": "Soulshatter",
+  "icon": "spell_arcane_arcane01",
+  "cast_time": 0,
+  "cooldown": "5 min cooldown",
+  "required_class": "Warlock",
+  "required_level": 66,
+  "description": "Reduces threat by 50% for all enemies within 50 yards.",
+  "aoe": true,
+  "radius": 50,
+  "_id": 29858,
+  "_source": "cache"
+}

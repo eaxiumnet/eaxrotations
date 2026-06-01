@@ -1,0 +1,17 @@
+{
+  "name": "Massive Mojo",
+  "quality": 1,
+  "icon": "spell_nature_strength",
+  "ilvl": 60,
+  "sell_price": {
+    "silver": 20
+  },
+  "max_stack": 20,
+  "flavor_text": "More Mojo than any one troll should have.",
+  "item_class": 7,
+  "item_subclass": 11,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Other (Trade Goods)",
+  "_id": 19943,
+  "_source": "cache"
+}

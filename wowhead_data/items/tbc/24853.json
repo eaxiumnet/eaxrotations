@@ -1,0 +1,27 @@
+{
+  "name": "Fenclaw Bindings",
+  "quality": 2,
+  "icon": "inv_bracer_06",
+  "ilvl": 96,
+  "required_level": 62,
+  "armor": 218,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 84,
+    "copper": 45
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24853,
+  "_source": "cache"
+}

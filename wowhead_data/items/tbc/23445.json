@@ -1,0 +1,16 @@
+{
+  "name": "Fel Iron Bar",
+  "quality": 1,
+  "icon": "inv_ingot_feliron",
+  "ilvl": 60,
+  "sell_price": {
+    "silver": 20
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 7,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Metal & Stone",
+  "_id": 23445,
+  "_source": "cache"
+}

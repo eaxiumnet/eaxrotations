@@ -1,0 +1,14 @@
+{
+  "name": "Blue Punch Card",
+  "quality": 1,
+  "icon": "inv_misc_punchcards_blue",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "Grants access to Matrix Punchograph 3005-C",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 9282,
+  "_source": "cache"
+}

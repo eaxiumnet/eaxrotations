@@ -1,0 +1,24 @@
+{
+  "name": "Double Mail Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_04",
+  "ilvl": 36,
+  "required_level": 31,
+  "armor": 122,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "durability": 35,
+  "sell_price": {
+    "silver": 9,
+    "copper": 71
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 3812,
+  "_source": "cache"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Zircon Amulet",
+  "quality": 2,
+  "icon": "inv_misc_gem_diamond_01",
+  "ilvl": 93,
+  "required_level": 61,
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 3,
+    "silver": 2,
+    "copper": 84
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25062,
+  "_source": "cache"
+}

@@ -1,0 +1,42 @@
+{
+  "name": "Wild Wood Staff",
+  "quality": 2,
+  "icon": "inv_staff_49",
+  "ilvl": 108,
+  "stats": {
+    "agility": 21,
+    "strength": 37,
+    "stamina": 22
+  },
+  "weapon": {
+    "min_damage": 140,
+    "max_damage": 237,
+    "speed": 3.2
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Staff",
+  "binding": "bop",
+  "durability": 85,
+  "sell_price": {
+    "gold": 8,
+    "silver": 35,
+    "copper": 68
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 44898,
+      "text": "Equip: Increases attack power by 285 in Cat, Bear, Dire Bear, and Moonkin forms only."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 10,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Staves",
+  "_id": 31414,
+  "_source": "cache"
+}

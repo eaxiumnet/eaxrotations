@@ -1,0 +1,29 @@
+{
+  "name": "Dark Leather Pants",
+  "quality": 2,
+  "icon": "inv_pants_09",
+  "ilvl": 23,
+  "required_level": 18,
+  "armor": 72,
+  "stats": {
+    "agility": 8
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "silver": 10,
+    "copper": 89
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 5961,
+  "_source": "cache"
+}

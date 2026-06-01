@@ -1,0 +1,40 @@
+{
+  "name": "Blacksting Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_26",
+  "ilvl": 90,
+  "armor": 134,
+  "stats": {
+    "agility": 14,
+    "stamina": 21
+  },
+  "ratings": {
+    "hit": 13
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "gold": 1,
+    "silver": 53,
+    "copper": 96
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9335,
+      "text": "Equip: Increases attack power by 28."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 31788,
+  "_source": "cache"
+}

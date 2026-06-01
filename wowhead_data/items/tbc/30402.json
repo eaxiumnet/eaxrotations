@@ -1,0 +1,32 @@
+{
+  "name": "Field Agent's Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_19",
+  "ilvl": 108,
+  "armor": 436,
+  "stats": {
+    "agility": 8,
+    "strength": 21,
+    "stamina": 16
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 39,
+    "copper": 81
+  },
+  "phase": 1,
+  "flavor_text": "The inner surface is inscribed with the name of B.O.O.M.",
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 30402,
+  "_source": "cache"
+}

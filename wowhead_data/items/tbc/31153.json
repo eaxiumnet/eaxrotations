@@ -1,0 +1,39 @@
+{
+  "name": "Axe of the Legion",
+  "quality": 3,
+  "icon": "inv_axe_18",
+  "ilvl": 94,
+  "required_level": 63,
+  "stats": {
+    "strength": 16,
+    "stamina": 15
+  },
+  "ratings": {
+    "expertise": 14
+  },
+  "weapon": {
+    "min_damage": 95,
+    "max_damage": 177,
+    "speed": 2.4
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 90,
+  "sell_price": {
+    "gold": 7,
+    "silver": 22,
+    "copper": 3
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 31153,
+  "_source": "cache"
+}

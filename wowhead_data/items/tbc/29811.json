@@ -1,0 +1,44 @@
+{
+  "name": "Goldenlink Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_19",
+  "ilvl": 111,
+  "armor": 251,
+  "stats": {
+    "intellect": 12
+  },
+  "ratings": {
+    "crit": 16
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "gold": 2,
+    "silver": 20,
+    "copper": 52
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15808,
+      "text": "Equip: Increases attack power by 38."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21628,
+      "text": "Equip: Restores 7 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 29811,
+  "_source": "cache"
+}

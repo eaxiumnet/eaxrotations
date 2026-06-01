@@ -1,0 +1,36 @@
+{
+  "name": "Keeper's Ring of Piety",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_38",
+  "ilvl": 115,
+  "stats": {
+    "spirit": 18
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 71,
+    "copper": 2
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18032,
+      "text": "Equip: Increases healing done by up to 42 and damage done by up to 14 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21628,
+      "text": "Equip: Restores 7 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29322,
+  "_source": "cache"
+}

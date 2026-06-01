@@ -1,0 +1,62 @@
+{
+  "name": "Gloves of Oblivion",
+  "quality": 3,
+  "icon": "inv_gauntlets_16",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 97,
+  "stats": {
+    "intellect": 21,
+    "stamina": 33
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "set_id": 644,
+  "set_name": "Oblivion Raiment",
+  "set_pieces": [
+    {
+      "id": 27537,
+      "name": "Gloves of Oblivion"
+    },
+    {
+      "id": 28415,
+      "name": "Hood of Oblivion"
+    },
+    {
+      "id": 28232,
+      "name": "Robe of Oblivion"
+    },
+    {
+      "id": 27778,
+      "name": "Spaulders of Oblivion"
+    },
+    {
+      "id": 27948,
+      "name": "Trousers of Oblivion"
+    }
+  ],
+  "durability": 30,
+  "sell_price": {
+    "gold": 1,
+    "silver": 68,
+    "copper": 47
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18049,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 26."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 27537,
+  "_source": "cache"
+}

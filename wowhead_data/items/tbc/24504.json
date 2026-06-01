@@ -1,0 +1,16 @@
+{
+  "name": "Howling Wind",
+  "quality": 1,
+  "icon": "spell_ice_lament",
+  "ilvl": 65,
+  "required_level": 64,
+  "binding": "bop",
+  "unique": true,
+  "starts_quest": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24504,
+  "_source": "cache"
+}

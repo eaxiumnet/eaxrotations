@@ -1,0 +1,30 @@
+{
+  "name": "Netherfury Cape",
+  "quality": 3,
+  "icon": "inv_misc_cape_02",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 78,
+  "stats": {
+    "strength": 19,
+    "stamina": 19
+  },
+  "ratings": {
+    "crit": 21
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 62,
+    "copper": 52
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28371,
+  "_source": "cache"
+}

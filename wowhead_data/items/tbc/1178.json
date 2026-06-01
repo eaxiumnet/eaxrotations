@@ -1,0 +1,24 @@
+{
+  "name": "Explosive Rocket",
+  "quality": 1,
+  "icon": "inv_ammo_bullet_01",
+  "ilvl": 8,
+  "sell_price": {
+    "copper": 7
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 1940,
+      "text": "Use: Inflicts 28 to 32 Fire damage in a 3 yard radius.",
+      "cooldown": "1 Min Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 8,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Other Consumables",
+  "_id": 1178,
+  "_source": "cache"
+}

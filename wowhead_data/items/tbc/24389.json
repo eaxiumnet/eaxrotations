@@ -1,0 +1,41 @@
+{
+  "name": "Legion Blunderbuss",
+  "quality": 3,
+  "icon": "inv_weapon_rifle_17",
+  "ilvl": 88,
+  "required_level": 61,
+  "stats": {
+    "agility": 9
+  },
+  "weapon": {
+    "min_damage": 110,
+    "max_damage": 205,
+    "speed": 3
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Gun",
+  "binding": "bop",
+  "durability": 75,
+  "sell_price": {
+    "gold": 5,
+    "silver": 27,
+    "copper": 51
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14027,
+      "text": "Equip: Increases attack power by 24."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 3,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Guns",
+  "_id": 24389,
+  "_source": "cache"
+}

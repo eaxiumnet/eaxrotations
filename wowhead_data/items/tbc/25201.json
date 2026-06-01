@@ -1,0 +1,32 @@
+{
+  "name": "Reaver's Sickle",
+  "quality": 2,
+  "icon": "inv_axe_11",
+  "ilvl": 90,
+  "required_level": 60,
+  "weapon": {
+    "min_damage": 87,
+    "max_damage": 162,
+    "speed": 2.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 75,
+  "sell_price": {
+    "gold": 5,
+    "silver": 99,
+    "copper": 95
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 25201,
+  "_source": "cache"
+}

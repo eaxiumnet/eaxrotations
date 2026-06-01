@@ -1,0 +1,16 @@
+{
+  "name": "Fist-sized Spinneret",
+  "quality": 0,
+  "icon": "inv_misc_monsterspidercarapace_01",
+  "ilvl": 20,
+  "sell_price": {
+    "copper": 56
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 11,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Other (Trade Goods)",
+  "_id": 878,
+  "_source": "cache"
+}

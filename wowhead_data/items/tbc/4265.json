@@ -1,0 +1,25 @@
+{
+  "name": "Heavy Armor Kit",
+  "quality": 1,
+  "icon": "inv_misc_armorkit_16",
+  "ilvl": 30,
+  "required_level": 20,
+  "sell_price": {
+    "silver": 6,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 2833,
+      "text": "Use: Permanently increase the armor value of an item worn on the chest, legs, hands or feet by 24.  Only usable on items level 15 and above."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 0,
+  "item_subclass": 6,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Item Enhancements (Permanent)",
+  "_id": 4265,
+  "_source": "cache"
+}

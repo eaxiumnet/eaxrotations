@@ -1,0 +1,21 @@
+{
+  "name": "Surveying Markers",
+  "quality": 1,
+  "icon": "inv_wand_1h_stratholme_d_02",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 35246,
+      "text": "Use: Place near a draenei banner in the Ruins of Farahlon.",
+      "cooldown": "1 Min Cooldown"
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 29445,
+  "_source": "cache"
+}

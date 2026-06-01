@@ -1,0 +1,30 @@
+{
+  "name": "Barbaric Cloth Robe",
+  "quality": 2,
+  "icon": "inv_chest_cloth_14",
+  "ilvl": 18,
+  "required_level": 13,
+  "armor": 32,
+  "stats": {
+    "intellect": 2,
+    "stamina": 4
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "silver": 4,
+    "copper": 17
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 6531,
+  "_source": "cache"
+}

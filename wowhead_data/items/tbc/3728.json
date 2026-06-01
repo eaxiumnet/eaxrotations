@@ -1,0 +1,24 @@
+{
+  "name": "Tasty Lion Steak",
+  "quality": 1,
+  "icon": "inv_misc_food_14",
+  "ilvl": 30,
+  "required_level": 20,
+  "sell_price": {
+    "silver": 3
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 5007,
+      "text": "Use: Restores 874.8 health over 27 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 8 Stamina and Spirit for 15 min."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 3728,
+  "_source": "cache"
+}

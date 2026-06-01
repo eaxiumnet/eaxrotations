@@ -1,0 +1,24 @@
+{
+  "name": "Ironforge Memorial Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_13",
+  "ilvl": 31,
+  "stats": {
+    "spirit": 4,
+    "stamina": 5
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 8,
+    "copper": 82
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 4535,
+  "_source": "cache"
+}

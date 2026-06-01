@@ -1,0 +1,24 @@
+{
+  "name": "Dragonbreath Chili",
+  "quality": 1,
+  "icon": "inv_drink_17",
+  "ilvl": 40,
+  "required_level": 35,
+  "sell_price": {
+    "silver": 3
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 15852,
+      "text": "Use: Occasionally belch flame at enemies struck in melee for the next 10 min. (Proc chance: 5%, 10s cooldown)"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 12217,
+  "_source": "cache"
+}

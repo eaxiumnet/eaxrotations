@@ -1,0 +1,14 @@
+{
+  "name": "William's Shipment",
+  "quality": 1,
+  "icon": "inv_misc_candle_02",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "There is a note attached.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 957,
+  "_source": "cache"
+}

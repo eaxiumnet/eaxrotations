@@ -1,0 +1,23 @@
+{
+  "name": "Mote of Air",
+  "quality": 1,
+  "icon": "inv_elemental_mote_air01",
+  "ilvl": 65,
+  "sell_price": {
+    "silver": 4
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28100,
+      "text": "Use: Turn ten Motes of Air into Primal Air."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 10,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Elemental",
+  "_id": 22572,
+  "_source": "cache"
+}

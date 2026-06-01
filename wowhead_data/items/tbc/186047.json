@@ -1,0 +1,25 @@
+{
+  "name": "Communal Cape",
+  "quality": 2,
+  "icon": "inv_misc_cape_11",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 33,
+  "stats": {
+    "strength": 7,
+    "stamina": 7
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 186047,
+  "_source": "cache"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Nightcrawlers",
+  "quality": 1,
+  "icon": "inv_misc_monstertail_03",
+  "ilvl": 20,
+  "sell_price": {
+    "copper": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 8088,
+      "text": "Use: When applied to your fishing pole, increases Fishing by 50 for 10 min."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_class_name": "Consumables",
+  "_id": 6530,
+  "_source": "cache"
+}

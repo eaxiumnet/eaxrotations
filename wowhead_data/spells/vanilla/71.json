@@ -1,0 +1,11 @@
+{
+  "name": "Defensive Stance",
+  "icon": "ability_warrior_defensivestance",
+  "cast_time": 0,
+  "cooldown": "1 sec cooldown",
+  "required_class": "Warrior",
+  "required_level": 10,
+  "description": "A defensive combat stance.  Decreases damage taken by 10% and damage caused by 10%.  Increases threat generated.",
+  "_id": 71,
+  "_source": "wowhead"
+}

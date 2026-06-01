@@ -1,0 +1,10 @@
+{
+  "name": "Complete Vulnerability",
+  "icon": "ability_creature_disease_03",
+  "cast_time": 0,
+  "has_buff": true,
+  "buff_duration": 8,
+  "buff_text": "Doubles the damage taken from all sources.",
+  "_id": 30457,
+  "_source": "cache"
+}

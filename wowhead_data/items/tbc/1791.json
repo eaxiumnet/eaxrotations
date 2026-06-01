@@ -1,0 +1,23 @@
+{
+  "name": "Patched Leather Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_05",
+  "ilvl": 17,
+  "required_level": 12,
+  "armor": 41,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "durability": 20,
+  "sell_price": {
+    "copper": 90
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 1791,
+  "_source": "cache"
+}

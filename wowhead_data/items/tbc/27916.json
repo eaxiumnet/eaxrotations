@@ -1,0 +1,41 @@
+{
+  "name": "Sethekk Feather-Darts",
+  "quality": 3,
+  "icon": "inv_throwingknife_06",
+  "ilvl": 112,
+  "required_level": 68,
+  "stats": {
+    "agility": 15
+  },
+  "weapon": {
+    "min_damage": 80,
+    "max_damage": 120,
+    "speed": 1.6
+  },
+  "slot": "Thrown",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Thrown",
+  "binding": "bop",
+  "durability": 240,
+  "sell_price": {
+    "gold": 4,
+    "silver": 39,
+    "copper": 88
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9332,
+      "text": "Equip: Increases attack power by 22."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 16,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Thrown",
+  "_id": 27916,
+  "_source": "cache"
+}

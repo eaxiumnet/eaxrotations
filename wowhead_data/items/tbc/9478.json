@@ -1,0 +1,39 @@
+{
+  "name": "Ripsaw",
+  "quality": 3,
+  "icon": "inv_axe_07",
+  "ilvl": 50,
+  "required_level": 45,
+  "weapon": {
+    "min_damage": 63,
+    "max_damage": 117,
+    "speed": 2.7
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Axe",
+  "binding": "bop",
+  "durability": 90,
+  "sell_price": {
+    "gold": 2,
+    "silver": 88,
+    "copper": 53
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "proc",
+      "spell_id": 16405,
+      "text": "Chance on hit: Wounds the target for 75 damage."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 9478,
+  "_source": "cache"
+}

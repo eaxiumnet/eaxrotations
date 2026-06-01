@@ -1,0 +1,24 @@
+{
+  "name": "Glyph of Power",
+  "quality": 2,
+  "icon": "spell_nature_lightningoverload",
+  "ilvl": 70,
+  "required_level": 70,
+  "binding": "bop",
+  "sell_price": {
+    "gold": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 35447,
+      "text": "Use: Permanently adds up to 22 spell damage and healing and 14 spell hit rating to a head slot item. Does not stack with other enchantments for the selected equipment slot."
+    }
+  ],
+  "item_class": 0,
+  "item_subclass": 6,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Item Enhancements (Permanent)",
+  "_id": 29191,
+  "_source": "cache"
+}

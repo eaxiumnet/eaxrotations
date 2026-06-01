@@ -1,0 +1,38 @@
+{
+  "name": "Heartblood Prayer Beads",
+  "quality": 3,
+  "icon": "inv_jewelry_amulet_05",
+  "ilvl": 85,
+  "required_level": 60,
+  "stats": {
+    "intellect": 15,
+    "stamina": 15
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 4,
+    "silver": 40,
+    "copper": 30
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 21618,
+      "text": "Equip: Restores 4 mana per 5 sec."
+    },
+    {
+      "type": "equip",
+      "spell_id": 9317,
+      "text": "Equip: Increases healing done by up to 31 and damage done by up to 11 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 24096,
+  "_source": "cache"
+}

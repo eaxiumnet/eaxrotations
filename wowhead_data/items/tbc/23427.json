@@ -1,0 +1,17 @@
+{
+  "name": "Eternium Ore",
+  "quality": 2,
+  "icon": "inv_ore_eternium",
+  "ilvl": 70,
+  "sell_price": {
+    "silver": 12,
+    "copper": 50
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 7,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Metal & Stone",
+  "_id": 23427,
+  "_source": "cache"
+}

@@ -1,0 +1,35 @@
+{
+  "name": "Consortium Cloak of the Quick",
+  "quality": 2,
+  "icon": "inv_misc_cape_11",
+  "ilvl": 99,
+  "armor": 61,
+  "stats": {
+    "agility": 14
+  },
+  "ratings": {
+    "hit": 14
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 1,
+    "silver": 92,
+    "copper": 47
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9334,
+      "text": "Equip: Increases attack power by 26."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25927,
+  "_source": "cache"
+}

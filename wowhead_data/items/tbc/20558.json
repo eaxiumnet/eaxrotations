@@ -1,0 +1,14 @@
+{
+  "name": "Warsong Gulch Mark of Honor",
+  "quality": 2,
+  "icon": "inv_misc_rune_07",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "max_stack": 100,
+  "flavor_text": "Medal awarded for fighting in Warsong Gulch",
+  "item_class": 10,
+  "item_subclass": 0,
+  "_id": 20558,
+  "_source": "cache"
+}

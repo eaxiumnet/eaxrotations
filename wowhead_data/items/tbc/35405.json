@@ -1,0 +1,46 @@
+{
+  "name": "Crusader's Ornamented Leggings",
+  "quality": 3,
+  "icon": "inv_pants_plate_17",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 1019,
+  "stats": {
+    "intellect": 26,
+    "stamina": 39
+  },
+  "ratings": {
+    "resilience": 24
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "set_id": 2015,
+  "set_name": "Oathbound's Ornamented Battlegear",
+  "classes": [
+    "Paladin"
+  ],
+  "durability": 100,
+  "sell_price": {
+    "gold": 6,
+    "silver": 1,
+    "copper": 54
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15696,
+      "text": "Equip: Increases healing done by up to 53 and damage done by up to 18 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 35405,
+  "_source": "cache"
+}

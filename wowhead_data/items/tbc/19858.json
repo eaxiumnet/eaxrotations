@@ -1,0 +1,22 @@
+{
+  "name": "Zandalar Honor Token",
+  "quality": 2,
+  "icon": "inv_misc_coin_08",
+  "ilvl": 1,
+  "binding": "bop",
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 24226,
+      "text": "Use: Increase your reputation permanently with the Zandalar Tribe.",
+      "cooldown": "2 Sec Cooldown"
+    }
+  ],
+  "max_stack": 250,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 19858,
+  "_source": "cache"
+}

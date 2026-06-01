@@ -1,0 +1,34 @@
+{
+  "name": "Pimgib's Collar",
+  "quality": 3,
+  "icon": "inv_jewelry_amulet_05",
+  "ilvl": 60,
+  "required_level": 55,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique_equipped": true,
+  "classes": [
+    "Warlock"
+  ],
+  "sell_price": {
+    "gold": 1,
+    "silver": 74,
+    "copper": 66
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 22855,
+      "text": "Equip: Increases the damage of your Imp's Firebolt spell by 8."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 18354,
+  "_source": "cache"
+}

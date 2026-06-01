@@ -1,0 +1,16 @@
+{
+  "name": "Furious Crawdad",
+  "quality": 1,
+  "icon": "inv_misc_fish_14",
+  "ilvl": 60,
+  "sell_price": {
+    "copper": 8
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 8,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Meat",
+  "_id": 27439,
+  "_source": "cache"
+}

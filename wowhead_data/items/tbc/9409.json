@@ -1,0 +1,26 @@
+{
+  "name": "Ironaya's Bracers",
+  "quality": 3,
+  "icon": "inv_bracer_19",
+  "ilvl": 42,
+  "required_level": 37,
+  "armor": 165,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 40,
+  "sell_price": {
+    "silver": 44,
+    "copper": 90
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 9409,
+  "_source": "cache"
+}

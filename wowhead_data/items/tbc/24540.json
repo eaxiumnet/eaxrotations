@@ -1,0 +1,25 @@
+{
+  "name": "Edible Fern",
+  "quality": 1,
+  "icon": "inv_misc_herb_11a",
+  "binding": "bop",
+  "sell_price": {
+    "silver": 10
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 10257,
+      "text": "Use: Restores 2148 health over 30 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 14 Stamina and Spirit for 15 min."
+    }
+  ],
+  "food_hp": 2148,
+  "food_duration": 30,
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 24540,
+  "_source": "cache"
+}

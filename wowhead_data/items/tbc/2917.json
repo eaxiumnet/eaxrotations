@@ -1,0 +1,24 @@
+{
+  "name": "Tranquil Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_07",
+  "ilvl": 33,
+  "stats": {
+    "intellect": 1,
+    "spirit": 7
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 6,
+    "copper": 65
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 2917,
+  "_source": "cache"
+}

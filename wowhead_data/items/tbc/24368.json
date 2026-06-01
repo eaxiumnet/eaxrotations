@@ -1,0 +1,16 @@
+{
+  "name": "Coilfang Armaments",
+  "quality": 1,
+  "icon": "inv_spear_06",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 5
+  },
+  "max_stack": 200,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24368,
+  "_source": "cache"
+}

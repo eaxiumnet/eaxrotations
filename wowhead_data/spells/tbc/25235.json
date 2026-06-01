@@ -1,0 +1,22 @@
+{
+  "name": "Flash Heal",
+  "icon": "spell_holy_flashheal",
+  "cost": {
+    "type": "mana",
+    "amount": 470
+  },
+  "range": 40,
+  "cast_time": 1.5,
+  "spell_level": 70,
+  "required_class": "Priest",
+  "required_level": 67,
+  "description": "Heals a friendly target for 1116 to 1295.",
+  "healing": {
+    "min": 1116,
+    "max": 1295
+  },
+  "is_heal": true,
+  "target_type": "friendly",
+  "_id": 25235,
+  "_source": "cache"
+}

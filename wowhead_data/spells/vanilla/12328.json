@@ -1,0 +1,19 @@
+{
+  "name": "Death Wish",
+  "icon": "spell_shadow_deathpact",
+  "cost": {
+    "type": "rage",
+    "amount": 10
+  },
+  "cast_time": 0,
+  "cooldown": "3 min cooldown",
+  "required_class": "Warrior",
+  "description": "When activated, increases your physical damage by 20% and makes you immune to Fear effects, but lowers your armor and all resistances by 20%.  Lasts 30 sec.",
+  "school": "physical",
+  "duration": 30,
+  "has_buff": true,
+  "buff_duration": 30,
+  "buff_text": "Increases physical damage by 20%.  Reduces armor and all resistances by 20%.  Immune to Fear effects.",
+  "_id": 12328,
+  "_source": "wowhead"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Twill Belt",
+  "quality": 0,
+  "icon": "inv_belt_02",
+  "ilvl": 53,
+  "required_level": 48,
+  "armor": 35,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "durability": 25,
+  "sell_price": {
+    "silver": 22,
+    "copper": 77
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 3944,
+  "_source": "cache"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "Stone Club",
+  "quality": 0,
+  "icon": "inv_mace_11",
+  "ilvl": 40,
+  "required_level": 35,
+  "weapon": {
+    "min_damage": 20,
+    "max_damage": 38,
+    "speed": 2.2
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "durability": 75,
+  "sell_price": {
+    "silver": 42,
+    "copper": 89
+  },
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 3787,
+  "_source": "cache"
+}

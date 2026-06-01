@@ -1,0 +1,32 @@
+{
+  "name": "Heirloom Signet of Valor",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_10",
+  "ilvl": 99,
+  "stats": {
+    "agility": 11,
+    "stamina": 10
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 3,
+    "silver": 20,
+    "copper": 23
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14049,
+      "text": "Equip: Increases attack power by 40."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31729,
+  "_source": "cache"
+}

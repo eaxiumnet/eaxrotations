@@ -1,0 +1,34 @@
+{
+  "name": "Breastplate of Blade Turning",
+  "quality": 3,
+  "icon": "inv_chest_plate13",
+  "ilvl": 88,
+  "required_level": 61,
+  "armor": 902,
+  "stats": {
+    "strength": 38,
+    "stamina": 22
+  },
+  "ratings": {
+    "parry": 21
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 135,
+  "sell_price": {
+    "gold": 4,
+    "silver": 82,
+    "copper": 7
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 31136,
+  "_source": "cache"
+}

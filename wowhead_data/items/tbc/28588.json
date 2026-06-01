@@ -1,0 +1,42 @@
+{
+  "name": "Blue Diamond Witchwand",
+  "quality": 4,
+  "icon": "inv_wand_16",
+  "ilvl": 115,
+  "required_level": 70,
+  "stats": {
+    "intellect": 13,
+    "spirit": 11
+  },
+  "weapon": {
+    "min_damage": 169,
+    "max_damage": 314,
+    "speed": 1.5
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Wand",
+  "binding": "bop",
+  "durability": 75,
+  "sell_price": {
+    "gold": 9,
+    "silver": 10,
+    "copper": 81
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9316,
+      "text": "Equip: Increases healing done by up to 29 and damage done by up to 10 for all magical spells and effects."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 19,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Wands",
+  "_id": 28588,
+  "_source": "cache"
+}

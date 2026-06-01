@@ -1,0 +1,22 @@
+{
+  "name": "Prayer of Healing",
+  "icon": "spell_holy_prayerofhealing02",
+  "cost": {
+    "type": "mana",
+    "amount": 770
+  },
+  "cast_time": 3,
+  "spell_level": 60,
+  "required_class": "Priest",
+  "required_level": 50,
+  "description": "A powerful prayer heals party members within 30 yards for 675 to 713.",
+  "healing": {
+    "min": 675,
+    "max": 713
+  },
+  "is_heal": true,
+  "radius": 30,
+  "target_type": "friendly",
+  "_id": 10960,
+  "_source": "wowhead"
+}

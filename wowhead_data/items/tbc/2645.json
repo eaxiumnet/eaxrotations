@@ -1,0 +1,23 @@
+{
+  "name": "Loose Chain Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_04",
+  "ilvl": 7,
+  "required_level": 2,
+  "armor": 48,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "durability": 20,
+  "sell_price": {
+    "copper": 11
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2645,
+  "_source": "cache"
+}

@@ -1,0 +1,30 @@
+{
+  "name": "Marshstrider's Spaulders",
+  "quality": 2,
+  "icon": "inv_shoulder_16",
+  "ilvl": 93,
+  "armor": 648,
+  "stats": {
+    "strength": 22,
+    "stamina": 31
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 70,
+  "sell_price": {
+    "gold": 3,
+    "silver": 26,
+    "copper": 4
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25522,
+  "_source": "cache"
+}

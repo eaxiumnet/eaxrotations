@@ -1,0 +1,22 @@
+{
+  "name": "Outrunner's Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_13",
+  "ilvl": 17,
+  "required_level": 12,
+  "armor": 15,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 2,
+    "copper": 69
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 15501,
+  "_source": "cache"
+}

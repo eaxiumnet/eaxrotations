@@ -1,0 +1,27 @@
+{
+  "name": "Brutish Helmet",
+  "quality": 2,
+  "icon": "inv_helmet_25",
+  "ilvl": 48,
+  "required_level": 43,
+  "armor": 376,
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "gold": 1,
+    "silver": 6,
+    "copper": 96
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 14907,
+  "_source": "cache"
+}

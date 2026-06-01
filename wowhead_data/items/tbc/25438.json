@@ -1,0 +1,23 @@
+{
+  "name": "Malachite Pendant",
+  "quality": 2,
+  "icon": "inv_jewelry_necklace_01",
+  "ilvl": 18,
+  "required_level": 13,
+  "stats": {
+    "agility": 2
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 7,
+    "copper": 50
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25438,
+  "_source": "cache"
+}

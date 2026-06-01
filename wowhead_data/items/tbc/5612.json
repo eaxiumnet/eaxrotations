@@ -1,0 +1,23 @@
+{
+  "name": "Ivy Cuffs",
+  "quality": 1,
+  "icon": "inv_bracer_12",
+  "ilvl": 13,
+  "armor": 27,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 20,
+  "sell_price": {
+    "copper": 72
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 5612,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Outfitter Boots",
+  "quality": 1,
+  "icon": "inv_boots_01",
+  "ilvl": 5,
+  "armor": 46,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 25,
+  "sell_price": {
+    "copper": 10
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2691,
+  "_source": "cache"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Pridelord Armor",
+  "quality": 2,
+  "icon": "inv_chest_leather_02",
+  "ilvl": 59,
+  "required_level": 54,
+  "armor": 152,
+  "stats": {
+    "agility": 24,
+    "stamina": 5
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 2,
+    "silver": 3,
+    "copper": 96
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 14670,
+  "_source": "cache"
+}

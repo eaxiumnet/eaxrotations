@@ -1,0 +1,24 @@
+{
+  "name": "Conjured Crystal Water",
+  "quality": 1,
+  "icon": "inv_drink_18",
+  "ilvl": 65,
+  "required_level": 55,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 22734,
+      "text": "Use: Restores 4200 mana over 30 sec.  Must remain seated while drinking."
+    }
+  ],
+  "drink_mana": 4200,
+  "drink_duration": 30,
+  "max_stack": 20,
+  "conjured": true,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 8079,
+  "_source": "cache"
+}

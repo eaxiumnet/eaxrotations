@@ -1,0 +1,16 @@
+{
+  "name": "Runed Copper Rod",
+  "quality": 1,
+  "icon": "inv_staff_goldfeathered_01",
+  "ilvl": 5,
+  "binding": "bop",
+  "sell_price": {
+    "copper": 24
+  },
+  "item_class": 7,
+  "item_subclass": 12,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Enchanting",
+  "_id": 6218,
+  "_source": "cache"
+}

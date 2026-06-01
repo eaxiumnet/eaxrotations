@@ -1,0 +1,28 @@
+{
+  "name": "Ornamental Mace",
+  "quality": 0,
+  "icon": "inv_mace_03",
+  "ilvl": 17,
+  "required_level": 12,
+  "weapon": {
+    "min_damage": 10,
+    "max_damage": 19,
+    "speed": 2.8
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "durability": 50,
+  "sell_price": {
+    "silver": 3,
+    "copper": 66
+  },
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 1815,
+  "_source": "cache"
+}

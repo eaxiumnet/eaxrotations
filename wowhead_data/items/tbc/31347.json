@@ -1,0 +1,20 @@
+{
+  "name": "Bleeding Hollow Torch",
+  "quality": 1,
+  "icon": "inv_torch_unlit",
+  "ilvl": 1,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 38345,
+      "text": "Use: Light at the Bleeding Hollow Forge."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 31347,
+  "_source": "cache"
+}

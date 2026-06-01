@@ -1,0 +1,26 @@
+{
+  "name": "Mystic's Cape",
+  "quality": 2,
+  "icon": "inv_misc_cape_16",
+  "ilvl": 15,
+  "required_level": 10,
+  "armor": 14,
+  "stats": {
+    "agility": 1,
+    "spirit": 1
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 2,
+    "copper": 14
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 14365,
+  "_source": "cache"
+}

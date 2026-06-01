@@ -1,0 +1,16 @@
+{
+  "name": "Adamantite Frame",
+  "quality": 1,
+  "icon": "inv_gizmo_adamantiteframe",
+  "ilvl": 65,
+  "sell_price": {
+    "gold": 1
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 1,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Parts",
+  "_id": 23784,
+  "_source": "cache"
+}

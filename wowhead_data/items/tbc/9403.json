@@ -1,0 +1,33 @@
+{
+  "name": "Battered Viking Shield",
+  "quality": 3,
+  "icon": "inv_shield_07",
+  "ilvl": 40,
+  "required_level": 35,
+  "armor": 1078,
+  "stats": {
+    "stamina": 10
+  },
+  "ratings": {
+    "defense": 7
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 20,
+  "durability": 100,
+  "sell_price": {
+    "silver": 26,
+    "copper": 62
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 9403,
+  "_source": "cache"
+}

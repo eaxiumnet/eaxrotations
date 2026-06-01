@@ -1,0 +1,13 @@
+{
+  "name": "Stealth",
+  "icon": "ability_stealth",
+  "cast_time": 0,
+  "cooldown": "10 sec cooldown",
+  "required_class": "Rogue",
+  "required_level": 1,
+  "description": "Allows the rogue to sneak around, but reduces your speed by 50%.  Lasts until cancelled.",
+  "has_buff": true,
+  "buff_text": "Stealthed.  Movement slowed by 50%.",
+  "_id": 1784,
+  "_source": "wowhead"
+}

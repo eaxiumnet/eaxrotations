@@ -1,0 +1,22 @@
+{
+  "name": "Flash Heal",
+  "icon": "spell_holy_flashheal",
+  "cost": {
+    "type": "mana",
+    "amount": 185
+  },
+  "range": 40,
+  "cast_time": 1.5,
+  "spell_level": 60,
+  "required_class": "Priest",
+  "required_level": 32,
+  "description": "Heals a friendly target for 339 to 406.",
+  "healing": {
+    "min": 339,
+    "max": 406
+  },
+  "is_heal": true,
+  "target_type": "friendly",
+  "_id": 9473,
+  "_source": "wowhead"
+}

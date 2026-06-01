@@ -1,0 +1,38 @@
+{
+  "name": "Ethereal Sash",
+  "quality": 2,
+  "icon": "inv_belt_32",
+  "ilvl": 105,
+  "armor": 73,
+  "stats": {
+    "intellect": 19,
+    "spirit": 12,
+    "stamina": 19
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 25,
+  "sell_price": {
+    "gold": 1,
+    "silver": 29,
+    "copper": 77
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9344,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 15."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 25637,
+  "_source": "cache"
+}

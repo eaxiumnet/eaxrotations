@@ -1,0 +1,9 @@
+{
+  "name": "Surge of Light",
+  "icon": "spell_holy_surgeoflight",
+  "required_class": "Priest",
+  "description": "Your spell criticals have a 50% chance to cause your next Smite spell to be instant cast, cost no mana but be incapable of a critical hit.  This effect lasts 10 sec.",
+  "duration": 10,
+  "_id": 33154,
+  "_source": "cache"
+}

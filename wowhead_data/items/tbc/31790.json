@@ -1,0 +1,31 @@
+{
+  "name": "Expedition Pendant",
+  "quality": 2,
+  "icon": "inv_jewelry_necklace_01",
+  "ilvl": 108,
+  "stats": {
+    "agility": 11,
+    "stamina": 12
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 3,
+    "silver": 46,
+    "copper": 29
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15809,
+      "text": "Equip: Increases attack power by 42."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31790,
+  "_source": "cache"
+}

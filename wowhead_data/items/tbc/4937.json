@@ -1,0 +1,24 @@
+{
+  "name": "Charging Buckler",
+  "quality": 1,
+  "icon": "inv_shield_09",
+  "ilvl": 9,
+  "armor": 135,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 3,
+  "durability": 40,
+  "sell_price": {
+    "copper": 71
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 4937,
+  "_source": "cache"
+}

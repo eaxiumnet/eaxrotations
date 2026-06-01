@@ -1,0 +1,12 @@
+{
+  "name": "Major Firestone Attack",
+  "icon": "inv_ammo_firetar",
+  "range": 100,
+  "cast_time": 0,
+  "required_class": "Warlock",
+  "required_level": 56,
+  "description": "Fire damage proc.",
+  "school": "fire",
+  "_id": 17935,
+  "_source": "wowhead"
+}

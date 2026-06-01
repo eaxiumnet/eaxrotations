@@ -1,0 +1,33 @@
+{
+  "name": "Murkblood Avenger's Legplates",
+  "quality": 2,
+  "icon": "inv_pants_04",
+  "ilvl": 105,
+  "armor": 849,
+  "stats": {
+    "strength": 26,
+    "stamina": 39
+  },
+  "ratings": {
+    "crit": 25
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 85,
+  "sell_price": {
+    "gold": 4,
+    "silver": 55,
+    "copper": 76
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25585,
+  "_source": "cache"
+}

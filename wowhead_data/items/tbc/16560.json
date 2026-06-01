@@ -1,0 +1,65 @@
+{
+  "name": "General's Leather Mitts",
+  "quality": 4,
+  "icon": "inv_gauntlets_25",
+  "ilvl": 71,
+  "required_level": 60,
+  "armor": 212,
+  "stats": {
+    "agility": 20,
+    "stamina": 23
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 393,
+  "set_name": "Warlord's Vestments",
+  "set_pieces": [
+    {
+      "id": 16563,
+      "name": "Warlord's Leather Breastplate"
+    },
+    {
+      "id": 16561,
+      "name": "Warlord's Leather Helm"
+    },
+    {
+      "id": 16562,
+      "name": "Warlord's Leather Spaulders"
+    },
+    {
+      "id": 16564,
+      "name": "General's Leather Legguards"
+    },
+    {
+      "id": 16560,
+      "name": "General's Leather Mitts"
+    },
+    {
+      "id": 16558,
+      "name": "General's Leather Treads"
+    }
+  ],
+  "classes": [
+    "Rogue"
+  ],
+  "durability": 40,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 16560,
+  "_source": "cache"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Olemba Seed",
+  "quality": 1,
+  "icon": "inv_misc_food_45",
+  "ilvl": 1,
+  "max_stack": 30,
+  "flavor_text": "Fist-sized, oily seeds from the olemba tree of Terokkar Forest.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 25745,
+  "_source": "cache"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Bloodlust Gauntlets",
+  "quality": 2,
+  "icon": "inv_gauntlets_19",
+  "ilvl": 55,
+  "required_level": 50,
+  "armor": 186,
+  "stats": {
+    "agility": 7,
+    "strength": 7,
+    "stamina": 12
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "silver": 97,
+    "copper": 49
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 14802,
+  "_source": "cache"
+}

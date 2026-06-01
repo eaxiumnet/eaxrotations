@@ -1,0 +1,23 @@
+{
+  "name": "Worn Mail Pants",
+  "quality": 0,
+  "icon": "inv_pants_03",
+  "ilvl": 12,
+  "required_level": 7,
+  "armor": 96,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Mail",
+  "durability": 50,
+  "sell_price": {
+    "copper": 89
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 1735,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Dalson Family Wedding Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_03",
+  "ilvl": 55,
+  "stats": {
+    "stamina": 13
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 81,
+    "copper": 9
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 13475,
+  "_source": "cache"
+}

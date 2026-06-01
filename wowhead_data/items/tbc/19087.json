@@ -1,0 +1,30 @@
+{
+  "name": "Frostwolf Plate Belt",
+  "quality": 3,
+  "icon": "inv_belt_35",
+  "ilvl": 60,
+  "required_level": 55,
+  "armor": 353,
+  "stats": {
+    "agility": 7,
+    "strength": 18,
+    "stamina": 8
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 45,
+  "phase": 1,
+  "resistances": {
+    "frost": 5
+  },
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 19087,
+  "_source": "cache"
+}

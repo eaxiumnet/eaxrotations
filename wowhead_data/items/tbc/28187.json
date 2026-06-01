@@ -1,0 +1,33 @@
+{
+  "name": "Star-Heart Lamp",
+  "quality": 3,
+  "icon": "inv_offhand_outlandraid_03blue",
+  "ilvl": 112,
+  "required_level": 68,
+  "stats": {
+    "intellect": 18,
+    "stamina": 17
+  },
+  "slot": "Held In Off-hand",
+  "equip_slots": [
+    17
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 20,
+    "copper": 45
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15714,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 22."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28187,
+  "_source": "cache"
+}

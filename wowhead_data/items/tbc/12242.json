@@ -1,0 +1,11 @@
+{
+  "name": "Sea Creature Bones",
+  "quality": 1,
+  "icon": "inv_misc_bone_02",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 12242,
+  "_source": "cache"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Guild Tabard",
+  "quality": 1,
+  "icon": "inv_shirt_guildtabard_01",
+  "ilvl": 1,
+  "slot": "Tabard",
+  "equip_slots": [
+    19
+  ],
+  "sell_price": {
+    "silver": 25
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 5976,
+  "_source": "cache"
+}

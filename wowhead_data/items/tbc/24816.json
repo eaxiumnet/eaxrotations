@@ -1,0 +1,27 @@
+{
+  "name": "Felstone Chain Vest",
+  "quality": 2,
+  "icon": "inv_chest_chain_04",
+  "ilvl": 84,
+  "required_level": 58,
+  "armor": 441,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 100,
+  "sell_price": {
+    "gold": 3,
+    "silver": 22,
+    "copper": 69
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24816,
+  "_source": "cache"
+}

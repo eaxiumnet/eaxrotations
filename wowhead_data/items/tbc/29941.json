@@ -1,0 +1,37 @@
+{
+  "name": "Scale Brand Breastplate",
+  "quality": 2,
+  "icon": "inv_chest_chain_17",
+  "ilvl": 81,
+  "armor": 427,
+  "stats": {
+    "agility": 19,
+    "stamina": 30
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 100,
+  "sell_price": {
+    "gold": 3,
+    "silver": 29,
+    "copper": 48
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15808,
+      "text": "Equip: Increases attack power by 38."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 29941,
+  "_source": "cache"
+}

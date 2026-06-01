@@ -1,0 +1,15 @@
+{
+  "name": "Rough Arrow",
+  "quality": 1,
+  "icon": "inv_ammo_arrow_02",
+  "ilvl": 5,
+  "slot": "Ammo",
+  "subclass": "Arrow",
+  "max_stack": 200,
+  "item_class": 6,
+  "item_subclass": 2,
+  "item_class_name": "Projectiles",
+  "item_subclass_name": "Arrows",
+  "_id": 2512,
+  "_source": "cache"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Crystal Vial",
+  "quality": 1,
+  "icon": "inv_drink_06",
+  "ilvl": 35,
+  "sell_price": {
+    "silver": 1,
+    "copper": 25
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 11,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Other (Trade Goods)",
+  "_id": 8925,
+  "_source": "cache"
+}

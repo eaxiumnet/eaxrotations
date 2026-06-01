@@ -1,0 +1,22 @@
+{
+  "name": "Healing Touch",
+  "icon": "spell_nature_healingtouch",
+  "cost": {
+    "type": "mana",
+    "amount": 800
+  },
+  "range": 40,
+  "cast_time": 3.5,
+  "spell_level": 70,
+  "required_class": "Druid",
+  "required_level": 60,
+  "description": "Heals a friendly target for 2303 to 2714.",
+  "healing": {
+    "min": 2303,
+    "max": 2714
+  },
+  "is_heal": true,
+  "target_type": "friendly",
+  "_id": 25297,
+  "_source": "cache"
+}

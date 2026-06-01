@@ -1,0 +1,32 @@
+{
+  "name": "Plans: Radiant Gloves",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 57,
+  "required_level": 52,
+  "armor": 192,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 50,
+    "copper": 42
+  },
+  "resistances": {
+    "frost": 12,
+    "shadow": 12
+  },
+  "teaches": "make Radiant Gloves",
+  "teaches_spell_id": 16654,
+  "item_class": 9,
+  "item_subclass": 4,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Blacksmithing Plans",
+  "_id": 12695,
+  "_source": "cache"
+}

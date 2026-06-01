@@ -1,0 +1,23 @@
+{
+  "name": "Journeyman's Boots",
+  "quality": 1,
+  "icon": "inv_boots_09",
+  "ilvl": 9,
+  "required_level": 4,
+  "armor": 11,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "durability": 20,
+  "sell_price": {
+    "copper": 32
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 2959,
+  "_source": "cache"
+}

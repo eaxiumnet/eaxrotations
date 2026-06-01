@@ -1,0 +1,16 @@
+{
+  "name": "Kingsblood",
+  "quality": 1,
+  "icon": "inv_misc_herb_03",
+  "ilvl": 24,
+  "sell_price": {
+    "copper": 30
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 9,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Herbs",
+  "_id": 3356,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Khan'aish Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_23",
+  "ilvl": 96,
+  "required_level": 62,
+  "armor": 557,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 12,
+    "copper": 38
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24961,
+  "_source": "cache"
+}

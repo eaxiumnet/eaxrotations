@@ -1,0 +1,19 @@
+{
+  "name": "Inner Fire",
+  "icon": "spell_holy_innerfire",
+  "cost": {
+    "type": "mana",
+    "amount": 30
+  },
+  "cast_time": 0,
+  "required_class": "Priest",
+  "required_level": 12,
+  "description": "A burst of Holy energy fills the caster, increasing armor by 315.  Each melee or ranged damage hit against the priest will remove one charge.  Lasts 10 min or until 20 charges are used.",
+  "duration": 600,
+  "target_type": "self",
+  "has_buff": true,
+  "buff_duration": 600,
+  "buff_text": "Increases armor by 315.",
+  "_id": 588,
+  "_source": "cache"
+}

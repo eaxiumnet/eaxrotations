@@ -1,0 +1,15 @@
+{
+  "name": "Common Fern",
+  "quality": 0,
+  "icon": "inv_misc_herb_11",
+  "sell_price": {
+    "silver": 10
+  },
+  "max_stack": 100,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24403,
+  "_source": "cache"
+}

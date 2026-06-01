@@ -1,0 +1,17 @@
+{
+  "name": "Primal Water",
+  "quality": 2,
+  "icon": "inv_elemental_primal_water",
+  "ilvl": 65,
+  "sell_price": {
+    "silver": 40
+  },
+  "phase": 1,
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 10,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Elemental",
+  "_id": 21885,
+  "_source": "cache"
+}

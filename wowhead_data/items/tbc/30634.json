@@ -1,0 +1,19 @@
+{
+  "name": "Warpforged Key",
+  "quality": 1,
+  "icon": "inv_misc_key_09",
+  "ilvl": 70,
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 2,
+    "silver": 50
+  },
+  "flavor_text": "Unlocks Heroic Difficulty for Tempest Keep dungeons.",
+  "item_class": 13,
+  "item_subclass": 0,
+  "item_class_name": "Key",
+  "item_subclass_name": "Key",
+  "_id": 30634,
+  "_source": "cache"
+}

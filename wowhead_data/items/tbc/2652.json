@@ -1,0 +1,18 @@
+{
+  "name": "Flimsy Chain Cloak",
+  "quality": 0,
+  "icon": "inv_misc_cape_02",
+  "ilvl": 5,
+  "armor": 5,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "sell_price": {
+    "copper": 4
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 2652,
+  "_source": "cache"
+}

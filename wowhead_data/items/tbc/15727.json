@@ -1,0 +1,32 @@
+{
+  "name": "Pattern: Heavy Scorpid Vest",
+  "quality": 2,
+  "icon": "inv_scroll_03",
+  "ilvl": 53,
+  "required_level": 48,
+  "armor": 288,
+  "stats": {
+    "spirit": 15,
+    "stamina": 16
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 100,
+  "sell_price": {
+    "gold": 1,
+    "silver": 30,
+    "copper": 4
+  },
+  "teaches": "craft a Heavy Scorpid Vest",
+  "teaches_spell_id": 19051,
+  "item_class": 9,
+  "item_subclass": 1,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Leatherworking Patterns",
+  "_id": 15727,
+  "_source": "cache"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Curved Dagger",
+  "quality": 2,
+  "icon": "inv_weapon_shortblade_01",
+  "ilvl": 14,
+  "required_level": 9,
+  "weapon": {
+    "min_damage": 8,
+    "max_damage": 15,
+    "speed": 1.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Dagger",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "silver": 6,
+    "copper": 5
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 15,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Daggers",
+  "_id": 2632,
+  "_source": "cache"
+}

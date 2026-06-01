@@ -1,0 +1,29 @@
+{
+  "name": "Sparkmetal Coif",
+  "quality": 2,
+  "icon": "inv_helmet_02",
+  "ilvl": 33,
+  "armor": 168,
+  "stats": {
+    "strength": 9,
+    "stamina": 8
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 60,
+  "sell_price": {
+    "silver": 28,
+    "copper": 25
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 1282,
+  "_source": "cache"
+}

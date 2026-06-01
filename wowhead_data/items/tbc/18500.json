@@ -1,0 +1,32 @@
+{
+  "name": "Tarnished Elven Ring",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_13",
+  "ilvl": 61,
+  "required_level": 56,
+  "stats": {
+    "agility": 15
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 31,
+    "copper": 34
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15464,
+      "text": "Equip: Increases your hit rating by 10."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 18500,
+  "_source": "cache"
+}

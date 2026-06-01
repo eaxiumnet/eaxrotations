@@ -1,0 +1,23 @@
+{
+  "name": "Patchwork Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_18",
+  "ilvl": 7,
+  "required_level": 2,
+  "armor": 8,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "durability": 14,
+  "sell_price": {
+    "copper": 7
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 1430,
+  "_source": "cache"
+}

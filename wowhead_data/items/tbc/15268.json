@@ -1,0 +1,30 @@
+{
+  "name": "Twin-bladed Axe",
+  "quality": 2,
+  "icon": "inv_axe_09",
+  "ilvl": 16,
+  "required_level": 11,
+  "weapon": {
+    "min_damage": 23,
+    "max_damage": 35,
+    "speed": 2.7
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "silver": 10,
+    "copper": 24
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 15268,
+  "_source": "cache"
+}

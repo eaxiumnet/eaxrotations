@@ -1,0 +1,31 @@
+{
+  "name": "Splintsteel Armor",
+  "quality": 2,
+  "icon": "inv_chest_chain_16",
+  "ilvl": 53,
+  "armor": 288,
+  "stats": {
+    "strength": 12,
+    "spirit": 12,
+    "stamina": 12
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 100,
+  "sell_price": {
+    "gold": 1,
+    "silver": 68,
+    "copper": 50
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 12049,
+  "_source": "cache"
+}

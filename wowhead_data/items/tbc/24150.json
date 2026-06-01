@@ -1,0 +1,29 @@
+{
+  "name": "Mok'Nathal Wildercloak",
+  "quality": 3,
+  "icon": "inv_misc_cape_17",
+  "ilvl": 85,
+  "required_level": 60,
+  "armor": 59,
+  "stats": {
+    "stamina": 21
+  },
+  "ratings": {
+    "resilience": 21
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 9,
+    "copper": 84
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 24150,
+  "_source": "cache"
+}

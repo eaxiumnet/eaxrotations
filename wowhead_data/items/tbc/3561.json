@@ -1,0 +1,24 @@
+{
+  "name": "Resilient Poncho",
+  "quality": 2,
+  "icon": "inv_misc_cape_04",
+  "ilvl": 26,
+  "armor": 20,
+  "stats": {
+    "stamina": 5
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 8,
+    "copper": 95
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 3561,
+  "_source": "cache"
+}

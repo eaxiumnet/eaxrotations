@@ -1,0 +1,29 @@
+{
+  "name": "Ridgeback Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_10",
+  "ilvl": 18,
+  "armor": 33,
+  "stats": {
+    "spirit": 2,
+    "stamina": 2
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 20,
+  "sell_price": {
+    "silver": 2,
+    "copper": 80
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 15403,
+  "_source": "cache"
+}

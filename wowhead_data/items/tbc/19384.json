@@ -1,0 +1,39 @@
+{
+  "name": "Master Dragonslayer's Ring",
+  "quality": 4,
+  "icon": "inv_jewelry_ring_41",
+  "ilvl": 83,
+  "required_level": 60,
+  "stats": {
+    "stamina": 14
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 13,
+    "silver": 6,
+    "copper": 16
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9333,
+      "text": "Equip: Increases attack power by 48."
+    },
+    {
+      "type": "equip",
+      "spell_id": 15464,
+      "text": "Equip: Increases your hit rating by 10."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 19384,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Gothic Plate Armor",
+  "quality": 2,
+  "icon": "inv_chest_leather_07",
+  "ilvl": 49,
+  "required_level": 44,
+  "armor": 471,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 115,
+  "sell_price": {
+    "gold": 1,
+    "silver": 47,
+    "copper": 68
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 10086,
+  "_source": "cache"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Bronze Tube",
+  "quality": 1,
+  "icon": "inv_gizmo_pipe_01",
+  "ilvl": 21,
+  "sell_price": {
+    "silver": 2
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 1,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Parts",
+  "_id": 4371,
+  "_source": "cache"
+}

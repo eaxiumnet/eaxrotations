@@ -1,0 +1,14 @@
+{
+  "name": "Lay on Hands",
+  "icon": "spell_holy_layonhands",
+  "range": 40,
+  "cast_time": 0,
+  "cooldown": "1 hour cooldown",
+  "required_class": "Paladin",
+  "required_level": 10,
+  "description": "Heals a friendly target for an amount equal to the Paladin's maximum health.  Drains all of the Paladin's remaining mana when used.",
+  "is_heal": true,
+  "target_type": "friendly",
+  "_id": 633,
+  "_source": "cache"
+}

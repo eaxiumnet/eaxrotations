@@ -1,0 +1,20 @@
+{
+  "name": "Filled Cleansing Bowl",
+  "quality": 1,
+  "icon": "inv_potion_01",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 16072,
+      "text": "Use: Creates a bowl of purified food that the furbolg are sure to enjoy.  It requires fruit, grain, and nuts from the Blackwood camp."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 12347,
+  "_source": "cache"
+}

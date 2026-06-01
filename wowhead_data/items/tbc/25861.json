@@ -1,0 +1,26 @@
+{
+  "name": "Crude Throwing Axe",
+  "quality": 1,
+  "icon": "inv_axe_19",
+  "ilvl": 3,
+  "weapon": {
+    "min_damage": 1,
+    "max_damage": 3,
+    "speed": 1.8
+  },
+  "slot": "Thrown",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Thrown",
+  "durability": 200,
+  "sell_price": {
+    "copper": 3
+  },
+  "item_class": 2,
+  "item_subclass": 16,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Thrown",
+  "_id": 25861,
+  "_source": "cache"
+}

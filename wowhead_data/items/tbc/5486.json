@@ -1,0 +1,27 @@
+{
+  "name": "Recipe: Strider Stew",
+  "quality": 1,
+  "icon": "inv_scroll_03",
+  "ilvl": 15,
+  "required_level": 5,
+  "sell_price": {
+    "silver": 1,
+    "copper": 10
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 5005,
+      "text": "Use: Restores 243.6 health over 21 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 4 Stamina and Spirit for 15 min."
+    }
+  ],
+  "max_stack": 20,
+  "teaches": "cook a Strider Stew",
+  "teaches_spell_id": 6416,
+  "item_class": 9,
+  "item_subclass": 5,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Cooking Recipes",
+  "_id": 5486,
+  "_source": "cache"
+}

@@ -1,0 +1,30 @@
+{
+  "name": "Prospector's Sash",
+  "quality": 2,
+  "icon": "inv_belt_26",
+  "ilvl": 18,
+  "required_level": 13,
+  "armor": 42,
+  "stats": {
+    "spirit": 2,
+    "stamina": 3
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 20,
+  "sell_price": {
+    "silver": 2,
+    "copper": 79
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 14559,
+  "_source": "cache"
+}

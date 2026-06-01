@@ -1,0 +1,29 @@
+{
+  "name": "Cinched Belt",
+  "quality": 2,
+  "icon": "inv_belt_03",
+  "ilvl": 15,
+  "armor": 81,
+  "stats": {
+    "strength": 2,
+    "stamina": 2
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 25,
+  "sell_price": {
+    "silver": 2,
+    "copper": 5
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 5328,
+  "_source": "cache"
+}

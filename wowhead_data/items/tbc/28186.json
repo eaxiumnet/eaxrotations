@@ -1,0 +1,46 @@
+{
+  "name": "Laughing Skull Battle-Harness",
+  "quality": 3,
+  "icon": "inv_chest_leather_04",
+  "ilvl": 112,
+  "required_level": 68,
+  "armor": 635,
+  "stats": {
+    "agility": 28,
+    "intellect": 20,
+    "stamina": 29
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "yellow": 1,
+    "blue": 1,
+    "total": 3
+  },
+  "socket_bonus": "",
+  "durability": 120,
+  "sell_price": {
+    "gold": 5,
+    "silver": 14,
+    "copper": 41
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14049,
+      "text": "Equip: Increases attack power by 40."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 28186,
+  "_source": "cache"
+}

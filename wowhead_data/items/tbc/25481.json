@@ -1,0 +1,31 @@
+{
+  "name": "Suntrider's Gauntlets",
+  "quality": 2,
+  "icon": "inv_gauntlets_29",
+  "ilvl": 93,
+  "armor": 540,
+  "stats": {
+    "agility": 16,
+    "strength": 17,
+    "stamina": 25
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 18,
+    "copper": 29
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25481,
+  "_source": "cache"
+}

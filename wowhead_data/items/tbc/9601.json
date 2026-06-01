@@ -1,0 +1,23 @@
+{
+  "name": "Cushioned Boots",
+  "quality": 1,
+  "icon": "inv_boots_05",
+  "ilvl": 12,
+  "armor": 40,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "copper": 87
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 9601,
+  "_source": "cache"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Peon Sleep Potion",
+  "quality": 1,
+  "icon": "inv_drink_10",
+  "ilvl": 1,
+  "binding": "bop",
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 11009,
+      "text": "Use: A strong alcoholic beverage.",
+      "cooldown": "30 Sec Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 30858,
+  "_source": "cache"
+}

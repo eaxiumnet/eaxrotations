@@ -1,0 +1,30 @@
+{
+  "name": "Inscribed Leather Boots",
+  "quality": 2,
+  "icon": "inv_boots_05",
+  "ilvl": 18,
+  "required_level": 13,
+  "armor": 51,
+  "stats": {
+    "agility": 2,
+    "stamina": 3
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "silver": 4,
+    "copper": 8
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 2987,
+  "_source": "cache"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Shed Lizard Skin",
+  "quality": 0,
+  "icon": "inv_misc_monsterscales_03",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 2,
+    "copper": 2
+  },
+  "max_stack": 5,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 5128,
+  "_source": "cache"
+}

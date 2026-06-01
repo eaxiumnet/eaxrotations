@@ -1,0 +1,13 @@
+{
+  "name": "Hand of Dextren Ward",
+  "quality": 1,
+  "icon": "inv_gauntlets_09",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 3628,
+  "_source": "cache"
+}

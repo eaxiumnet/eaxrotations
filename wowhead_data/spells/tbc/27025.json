@@ -1,0 +1,20 @@
+{
+  "name": "Explosive Trap",
+  "icon": "spell_fire_selfdestruct",
+  "cost": {
+    "type": "mana",
+    "amount": 650
+  },
+  "cast_time": 0,
+  "cooldown": "30 sec cooldown",
+  "required_class": "Hunter",
+  "required_level": 61,
+  "description": "Place a fire trap that explodes when an enemy approaches, causing (Ranged Attack Power * 0.1 + 263) to (Ranged Attack Power * 0.1 + 337) Fire damage and burning all enemies for 450 additional Fire damage over 20 sec to all within 10 yards.  Trap will exist for 1 min.  Only one trap can be active at a time.",
+  "school": "fire",
+  "duration": 20,
+  "aoe": true,
+  "radius": 10,
+  "target_type": "hostile",
+  "_id": 27025,
+  "_source": "cache"
+}

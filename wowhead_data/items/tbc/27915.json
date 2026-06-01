@@ -1,0 +1,44 @@
+{
+  "name": "Sky-Hunter Swift Boots",
+  "quality": 3,
+  "icon": "inv_boots_chain_05",
+  "ilvl": 112,
+  "required_level": 68,
+  "armor": 437,
+  "stats": {
+    "agility": 25,
+    "intellect": 24,
+    "stamina": 19
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 60,
+  "sell_price": {
+    "gold": 3,
+    "silver": 70,
+    "copper": 17
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9334,
+      "text": "Equip: Increases attack power by 26."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21620,
+      "text": "Equip: Restores 5 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 27915,
+  "_source": "cache"
+}

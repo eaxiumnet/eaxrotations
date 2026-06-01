@@ -1,0 +1,27 @@
+{
+  "name": "Bloodscale Gauntlets",
+  "quality": 2,
+  "icon": "inv_gauntlets_19",
+  "ilvl": 90,
+  "required_level": 60,
+  "armor": 524,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 3,
+    "copper": 60
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24945,
+  "_source": "cache"
+}

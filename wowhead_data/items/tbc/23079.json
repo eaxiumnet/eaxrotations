@@ -1,0 +1,17 @@
+{
+  "name": "Deep Peridot",
+  "quality": 2,
+  "icon": "inv_misc_gem_deepperidot_03",
+  "ilvl": 65,
+  "sell_price": {
+    "silver": 25
+  },
+  "phase": 1,
+  "max_stack": 20,
+  "item_class": 3,
+  "item_subclass": 4,
+  "item_class_name": "Gems",
+  "item_subclass_name": "Green Gems",
+  "_id": 23079,
+  "_source": "cache"
+}

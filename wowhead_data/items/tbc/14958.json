@@ -1,0 +1,27 @@
+{
+  "name": "High Chief's Armor",
+  "quality": 2,
+  "icon": "inv_chest_chain_14",
+  "ilvl": 56,
+  "required_level": 51,
+  "armor": 534,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 115,
+  "sell_price": {
+    "gold": 2,
+    "silver": 26,
+    "copper": 43
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 14958,
+  "_source": "cache"
+}

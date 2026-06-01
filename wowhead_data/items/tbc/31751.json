@@ -1,0 +1,13 @@
+{
+  "name": "Blazing Signet",
+  "quality": 1,
+  "icon": "spell_fire_burnout",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 31751,
+  "_source": "cache"
+}

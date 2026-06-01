@@ -1,0 +1,27 @@
+{
+  "name": "Ornate Blunderbuss",
+  "quality": 1,
+  "icon": "inv_weapon_rifle_02",
+  "ilvl": 9,
+  "required_level": 4,
+  "weapon": {
+    "min_damage": 7,
+    "max_damage": 15,
+    "speed": 2.2
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Gun",
+  "durability": 30,
+  "sell_price": {
+    "copper": 82
+  },
+  "item_class": 2,
+  "item_subclass": 3,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Guns",
+  "_id": 2509,
+  "_source": "cache"
+}

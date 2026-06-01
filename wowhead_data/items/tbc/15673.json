@@ -1,0 +1,27 @@
+{
+  "name": "Magnificent Belt",
+  "quality": 2,
+  "icon": "inv_belt_11",
+  "ilvl": 58,
+  "required_level": 53,
+  "armor": 176,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 10,
+    "copper": 75
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 15673,
+  "_source": "cache"
+}

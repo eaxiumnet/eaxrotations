@@ -1,0 +1,16 @@
+{
+  "name": "Elemental Water",
+  "quality": 1,
+  "icon": "inv_potion_03",
+  "ilvl": 25,
+  "sell_price": {
+    "silver": 4
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 10,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Elemental",
+  "_id": 7070,
+  "_source": "cache"
+}

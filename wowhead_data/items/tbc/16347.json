@@ -1,0 +1,28 @@
+{
+  "name": "Grimoire of Torment (Rank 3)",
+  "quality": 1,
+  "icon": "inv_misc_book_06",
+  "ilvl": 30,
+  "required_level": 30,
+  "binding": "bop",
+  "unique": true,
+  "classes": [
+    "Warlock"
+  ],
+  "sell_price": {
+    "silver": 15
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 20377,
+      "text": "Use: Teaches Voidwalker Torment (Rank 3)."
+    }
+  ],
+  "item_class": 9,
+  "item_subclass": 0,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Books",
+  "_id": 16347,
+  "_source": "cache"
+}

@@ -1,0 +1,33 @@
+{
+  "name": "Crescent of Forlorn Spirits",
+  "quality": 3,
+  "icon": "inv_axe_06",
+  "ilvl": 35,
+  "ratings": {
+    "crit": 8
+  },
+  "weapon": {
+    "min_damage": 25,
+    "max_damage": 48,
+    "speed": 1.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Axe",
+  "binding": "bop",
+  "durability": 90,
+  "sell_price": {
+    "silver": 88,
+    "copper": 29
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 0,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Axes",
+  "_id": 2044,
+  "_source": "cache"
+}

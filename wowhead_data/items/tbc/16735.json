@@ -1,0 +1,72 @@
+{
+  "name": "Bracers of Valor",
+  "quality": 3,
+  "icon": "inv_bracer_18",
+  "ilvl": 57,
+  "required_level": 52,
+  "armor": 261,
+  "stats": {
+    "agility": 3,
+    "strength": 7,
+    "spirit": 2,
+    "stamina": 14
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "set_id": 189,
+  "set_name": "Battlegear of Valor",
+  "set_pieces": [
+    {
+      "id": 16736,
+      "name": "Belt of Valor"
+    },
+    {
+      "id": 16734,
+      "name": "Boots of Valor"
+    },
+    {
+      "id": 16735,
+      "name": "Bracers of Valor"
+    },
+    {
+      "id": 16730,
+      "name": "Breastplate of Valor"
+    },
+    {
+      "id": 16737,
+      "name": "Gauntlets of Valor"
+    },
+    {
+      "id": 16731,
+      "name": "Helm of Valor"
+    },
+    {
+      "id": 16732,
+      "name": "Legplates of Valor"
+    },
+    {
+      "id": 16733,
+      "name": "Spaulders of Valor"
+    }
+  ],
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 53,
+    "copper": 79
+  },
+  "phase": 1,
+  "resistances": {
+    "all": 8
+  },
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 16735,
+  "_source": "cache"
+}

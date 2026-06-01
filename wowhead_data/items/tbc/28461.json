@@ -1,0 +1,17 @@
+{
+  "name": "Runed Tourmaline",
+  "quality": 1,
+  "icon": "inv_misc_gem_ruby_03",
+  "ilvl": 55,
+  "sell_price": {
+    "silver": 50
+  },
+  "phase": 1,
+  "flavor_text": "Matches a Red Socket.",
+  "item_class": 3,
+  "item_subclass": 0,
+  "item_class_name": "Gems",
+  "item_subclass_name": "Red Gems",
+  "_id": 28461,
+  "_source": "cache"
+}

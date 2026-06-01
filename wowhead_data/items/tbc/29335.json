@@ -1,0 +1,34 @@
+{
+  "name": "Talon Lord's Collar",
+  "quality": 3,
+  "icon": "inv_jewelry_necklace_04",
+  "ilvl": 115,
+  "stats": {
+    "stamina": 19
+  },
+  "ratings": {
+    "hit": 21
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 4,
+    "silver": 19,
+    "copper": 53
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15808,
+      "text": "Equip: Increases attack power by 38."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29335,
+  "_source": "cache"
+}

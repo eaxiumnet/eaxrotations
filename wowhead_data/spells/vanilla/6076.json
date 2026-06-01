@@ -1,0 +1,21 @@
+{
+  "name": "Renew",
+  "icon": "spell_holy_renew",
+  "cost": {
+    "type": "mana",
+    "amount": 140
+  },
+  "range": 40,
+  "cast_time": 0,
+  "required_class": "Priest",
+  "required_level": 26,
+  "description": "Heals the target of 245 damage over 15 sec.",
+  "is_heal": true,
+  "duration": 15,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Healing 49 damage every 3 seconds.",
+  "_id": 6076,
+  "_source": "wowhead"
+}

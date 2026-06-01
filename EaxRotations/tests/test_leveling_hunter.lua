@@ -749,7 +749,7 @@ test("steady_shot_matches: in combat, not moving, ready -> true", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.is_moving = false
-    assert_true(strategies[15].matches(ctx, state), "stationary should match")
+    assert_true(strategies[16].matches(ctx, state), "stationary should match")
 end)
 
 test("steady_shot_matches: moving -> false", function()
@@ -757,14 +757,14 @@ test("steady_shot_matches: moving -> false", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.is_moving = true
-    assert_false(strategies[15].matches(ctx, state), "moving should not match")
+    assert_false(strategies[16].matches(ctx, state), "moving should not match")
 end)
 
 test("steady_shot_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.steady_shot_ready = true
-    assert_false(strategies[15].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[16].matches(ctx, state), "OOC should not match")
 end)
 
 test("steady_shot_matches: no target -> false", function()
@@ -772,14 +772,14 @@ test("steady_shot_matches: no target -> false", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.target = nil
-    assert_false(strategies[15].matches(ctx, state), "no target should not match")
+    assert_false(strategies[16].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 15 strategies in correct priority order", function()
+test("strategies: 16 strategies in correct priority order", function()
     local expected = {
         "AspectHawk",
         "CallPet",
@@ -795,9 +795,10 @@ test("strategies: 15 strategies in correct priority order", function()
         "SerpentSting",
         "ArcaneShot",
         "MultiShot",
+        "RaptorStrike",
         "SteadyShot",
     }
-    assert_eq(#strategies, 15, "should have 15 strategies")
+    assert_eq(#strategies, 16, "should have 16 strategies")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -1141,7 +1142,7 @@ test("edge_movement: steady_shot while stationary matches", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.is_moving = false
-    assert_true(strategies[15].matches(ctx, state), "steady_shot stationary should match")
+    assert_true(strategies[16].matches(ctx, state), "steady_shot stationary should match")
 end)
 
 test("edge_movement: steady_shot while moving does not match", function()
@@ -1149,7 +1150,7 @@ test("edge_movement: steady_shot while moving does not match", function()
     local state = get_state(ctx)
     state.steady_shot_ready = true
     state.is_moving = true
-    assert_false(strategies[15].matches(ctx, state), "steady_shot moving should NOT match")
+    assert_false(strategies[16].matches(ctx, state), "steady_shot moving should NOT match")
 end)
 
 test("edge_movement: arcane_shot still works while moving (no movement restriction)", function()
@@ -1337,7 +1338,7 @@ test("edge_range: all damage matches work when target in melee range", function(
     state.enemies = 1
     assert_true(strategies[12].matches(ctx, state), "serpent sting works at melee range")
     assert_true(strategies[13].matches(ctx, state), "arcane shot works at melee range")
-    assert_true(strategies[15].matches(ctx, state), "steady shot works at melee range")
+    assert_true(strategies[16].matches(ctx, state), "steady shot works at melee range")
 end)
 
 test("edge_range: utility matches work when target in melee range", function()

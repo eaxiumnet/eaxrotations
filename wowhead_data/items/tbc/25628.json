@@ -1,0 +1,32 @@
+{
+  "name": "Ogre Mauler's Badge",
+  "quality": 2,
+  "icon": "inv_jewelry_talisman_04",
+  "ilvl": 102,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 70
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9333,
+      "text": "Equip: Increases attack power by 48."
+    },
+    {
+      "type": "use",
+      "spell_id": 32362,
+      "text": "Use: Increases attack power by 185 for 15 sec.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25628,
+  "_source": "cache"
+}

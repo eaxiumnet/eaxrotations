@@ -1,0 +1,35 @@
+{
+  "name": "Bludstone Hammer",
+  "quality": 3,
+  "icon": "inv_hammer_19",
+  "ilvl": 61,
+  "required_level": 56,
+  "stats": {
+    "spirit": 12,
+    "stamina": 5
+  },
+  "weapon": {
+    "min_damage": 59,
+    "max_damage": 110,
+    "speed": 2.1
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Mace",
+  "binding": "boe",
+  "durability": 90,
+  "sell_price": {
+    "gold": 5,
+    "silver": 8
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 13028,
+  "_source": "cache"
+}

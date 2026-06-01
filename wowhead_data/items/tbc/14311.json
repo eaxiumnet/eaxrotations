@@ -1,0 +1,26 @@
+{
+  "name": "Celestial Bindings",
+  "quality": 2,
+  "icon": "inv_bracer_17",
+  "ilvl": 55,
+  "required_level": 50,
+  "armor": 31,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "silver": 65,
+    "copper": 24
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14311,
+  "_source": "cache"
+}

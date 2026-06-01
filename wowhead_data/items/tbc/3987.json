@@ -1,0 +1,25 @@
+{
+  "name": "Deflecting Tower",
+  "quality": 0,
+  "icon": "inv_shield_11",
+  "ilvl": 53,
+  "required_level": 48,
+  "armor": 1442,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "block": 21,
+  "durability": 85,
+  "sell_price": {
+    "silver": 68,
+    "copper": 37
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 3987,
+  "_source": "cache"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Heart of Agamaggan",
+  "quality": 3,
+  "icon": "inv_shield_02",
+  "ilvl": 36,
+  "required_level": 27,
+  "armor": 776,
+  "stats": {
+    "spirit": 8,
+    "stamina": 7
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 17,
+  "durability": 100,
+  "sell_price": {
+    "silver": 63,
+    "copper": 9
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 6694,
+  "_source": "cache"
+}

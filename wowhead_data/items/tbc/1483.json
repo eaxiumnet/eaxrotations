@@ -1,0 +1,35 @@
+{
+  "name": "Face Smasher",
+  "quality": 3,
+  "icon": "inv_hammer_08",
+  "ilvl": 21,
+  "required_level": 16,
+  "stats": {
+    "strength": 3,
+    "stamina": 3
+  },
+  "weapon": {
+    "min_damage": 25,
+    "max_damage": 48,
+    "speed": 2.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Mace",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "silver": 20,
+    "copper": 25
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 1483,
+  "_source": "cache"
+}

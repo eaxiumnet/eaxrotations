@@ -1,0 +1,22 @@
+{
+  "name": "Gordawg's Boulder",
+  "quality": 1,
+  "icon": "inv_stone_16",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 32001,
+      "text": "Use: Hurls Gordawg's boulder at Shattered Rumblers, breaking their outer shell to reveal the true identity of the Usurper.",
+      "cooldown": "10 Sec Cooldown"
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24501,
+  "_source": "cache"
+}

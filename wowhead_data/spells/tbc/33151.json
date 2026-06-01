@@ -1,0 +1,11 @@
+{
+  "name": "Surge of Light",
+  "icon": "spell_holy_surgeoflight",
+  "cast_time": 0,
+  "required_class": "Priest",
+  "has_buff": true,
+  "buff_duration": 10,
+  "buff_text": "Your next Smite spell is instant cast, costs no mana but is incapable of a critical hit.",
+  "_id": 33151,
+  "_source": "cache"
+}

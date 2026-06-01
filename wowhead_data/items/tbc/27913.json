@@ -1,0 +1,45 @@
+{
+  "name": "Whispering Blade of Slaying",
+  "quality": 3,
+  "icon": "inv_weapon_shortblade_51",
+  "ilvl": 115,
+  "required_level": 70,
+  "stats": {
+    "stamina": 21
+  },
+  "ratings": {
+    "expertise": 15
+  },
+  "weapon": {
+    "min_damage": 109,
+    "max_damage": 164,
+    "speed": 1.9
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Dagger",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "gold": 9,
+    "silver": 20,
+    "copper": 49
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9334,
+      "text": "Equip: Increases attack power by 26."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 15,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Daggers",
+  "_id": 27913,
+  "_source": "cache"
+}

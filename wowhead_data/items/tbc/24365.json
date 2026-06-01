@@ -1,0 +1,46 @@
+{
+  "name": "Deft Handguards",
+  "quality": 3,
+  "icon": "inv_gauntlets_22",
+  "ilvl": 91,
+  "required_level": 62,
+  "armor": 149,
+  "stats": {
+    "stamina": 18
+  },
+  "ratings": {
+    "crit": 12
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "sockets": {
+    "blue": 1,
+    "yellow": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Hit Rating",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 73,
+    "copper": 81
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15812,
+      "text": "Equip: Increases attack power by 52."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 24365,
+  "_source": "cache"
+}

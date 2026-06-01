@@ -1,0 +1,71 @@
+{
+  "name": "General's Lamellar Gloves",
+  "quality": 4,
+  "icon": "inv_gauntlets_29",
+  "ilvl": 71,
+  "required_level": 60,
+  "armor": 573,
+  "stats": {
+    "strength": 18,
+    "intellect": 16,
+    "stamina": 17
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 698,
+  "set_name": "Warlord's Aegis",
+  "set_pieces": [
+    {
+      "id": 29612,
+      "name": "General's Lamellar Boots"
+    },
+    {
+      "id": 29613,
+      "name": "General's Lamellar Gloves"
+    },
+    {
+      "id": 29614,
+      "name": "General's Lamellar Legplates"
+    },
+    {
+      "id": 29615,
+      "name": "Warlord's Lamellar Chestplate"
+    },
+    {
+      "id": 29616,
+      "name": "Warlord's Lamellar Faceguard"
+    },
+    {
+      "id": 29617,
+      "name": "Warlord's Lamellar Pauldrons"
+    }
+  ],
+  "classes": [
+    "Paladin"
+  ],
+  "durability": 55,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 23300,
+      "text": "Equip: Increases the Holy damage bonus of your Judgement of the Crusader by 20."
+    },
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 29613,
+  "_source": "cache"
+}

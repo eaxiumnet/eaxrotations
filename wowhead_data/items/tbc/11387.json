@@ -1,0 +1,17 @@
+{
+  "name": "Basilisk Heart",
+  "quality": 0,
+  "icon": "inv_misc_organ_01",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 10,
+    "copper": 13
+  },
+  "max_stack": 5,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 11387,
+  "_source": "cache"
+}

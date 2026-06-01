@@ -1,0 +1,31 @@
+{
+  "name": "Protectorate Breastplate",
+  "quality": 2,
+  "icon": "inv_chest_plate12",
+  "ilvl": 81,
+  "armor": 758,
+  "stats": {
+    "agility": 19,
+    "strength": 19,
+    "stamina": 30
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 115,
+  "sell_price": {
+    "gold": 3,
+    "silver": 60,
+    "copper": 94
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 29944,
+  "_source": "cache"
+}

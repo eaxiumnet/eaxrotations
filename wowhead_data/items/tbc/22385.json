@@ -1,0 +1,42 @@
+{
+  "name": "Titanic Leggings",
+  "quality": 4,
+  "icon": "inv_pants_04",
+  "ilvl": 60,
+  "required_level": 55,
+  "armor": 683,
+  "stats": {
+    "strength": 30
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 120,
+  "sell_price": {
+    "gold": 4,
+    "silver": 42,
+    "copper": 34
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15465,
+      "text": "Equip: Increases your hit rating by 20."
+    },
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 22385,
+  "_source": "cache"
+}

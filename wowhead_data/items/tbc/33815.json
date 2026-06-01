@@ -1,0 +1,14 @@
+{
+  "name": "Bladefist's Seal",
+  "quality": 1,
+  "icon": "inv_summerfest_symbol_medium",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "Forged from the strongest metals, it bears the mark of the deceased warchief.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 33815,
+  "_source": "cache"
+}

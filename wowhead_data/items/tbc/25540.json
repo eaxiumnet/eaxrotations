@@ -1,0 +1,33 @@
+{
+  "name": "Dark Cloak of the Marsh",
+  "quality": 3,
+  "icon": "inv_misc_cape_20",
+  "ilvl": 94,
+  "armor": 64,
+  "stats": {
+    "agility": 16,
+    "stamina": 24
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 2,
+    "silver": 30,
+    "copper": 32
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9336,
+      "text": "Equip: Increases attack power by 30."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25540,
+  "_source": "cache"
+}

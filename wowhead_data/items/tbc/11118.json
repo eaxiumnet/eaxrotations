@@ -1,0 +1,25 @@
+{
+  "name": "Archaedic Stone",
+  "quality": 3,
+  "icon": "inv_stone_15",
+  "ilvl": 47,
+  "required_level": 40,
+  "armor": 50,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique_equipped": true,
+  "sell_price": {
+    "gold": 1,
+    "silver": 7,
+    "copper": 95
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 11118,
+  "_source": "cache"
+}

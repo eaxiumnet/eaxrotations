@@ -1,0 +1,22 @@
+{
+  "name": "Resplendent Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_08",
+  "ilvl": 55,
+  "required_level": 50,
+  "armor": 36,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 94,
+    "copper": 38
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 14321,
+  "_source": "cache"
+}

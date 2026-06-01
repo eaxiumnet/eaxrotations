@@ -1,0 +1,34 @@
+{
+  "name": "Chestplate of A'dal",
+  "quality": 3,
+  "icon": "inv_chest_plate11",
+  "ilvl": 109,
+  "armor": 1106,
+  "stats": {
+    "strength": 35,
+    "stamina": 27
+  },
+  "ratings": {
+    "hit": 22,
+    "crit": 25
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 135,
+  "sell_price": {
+    "gold": 5,
+    "silver": 96,
+    "copper": 60
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 30258,
+  "_source": "cache"
+}

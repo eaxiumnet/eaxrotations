@@ -1,0 +1,44 @@
+{
+  "name": "Triptych Shield of the Ancients",
+  "quality": 4,
+  "icon": "inv_shield_31",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 4872,
+  "stats": {
+    "intellect": 21,
+    "stamina": 24
+  },
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "bop",
+  "block": 122,
+  "durability": 120,
+  "sell_price": {
+    "gold": 7,
+    "silver": 57,
+    "copper": 63
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18032,
+      "text": "Equip: Increases healing done by up to 42 and damage done by up to 14 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21629,
+      "text": "Equip: Restores 8 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 28754,
+  "_source": "cache"
+}

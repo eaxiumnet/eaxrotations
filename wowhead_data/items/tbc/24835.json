@@ -1,0 +1,27 @@
+{
+  "name": "Nexus-Strider Legwraps",
+  "quality": 2,
+  "icon": "inv_pants_mail_15",
+  "ilvl": 90,
+  "required_level": 60,
+  "armor": 412,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 75,
+  "sell_price": {
+    "gold": 3,
+    "silver": 50,
+    "copper": 93
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24835,
+  "_source": "cache"
+}

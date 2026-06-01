@@ -1,0 +1,27 @@
+{
+  "name": "Carpenter's Mallet",
+  "quality": 0,
+  "icon": "inv_hammer_15",
+  "ilvl": 9,
+  "required_level": 4,
+  "weapon": {
+    "min_damage": 3,
+    "max_damage": 7,
+    "speed": 1.7
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "durability": 35,
+  "sell_price": {
+    "copper": 72
+  },
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 1415,
+  "_source": "cache"
+}

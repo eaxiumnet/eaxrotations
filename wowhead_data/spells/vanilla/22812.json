@@ -1,0 +1,20 @@
+{
+  "name": "Barkskin",
+  "icon": "spell_nature_stoneclawtotem",
+  "cost": {
+    "type": "mana",
+    "percent": 15
+  },
+  "cast_time": 0,
+  "cooldown": "1 min cooldown",
+  "required_class": "Druid",
+  "required_level": 44,
+  "description": "The druid's skin becomes as tough as bark.  Physical damage taken is reduced by 20%.  While protected, damaging attacks will not cause spellcasting delays but non-instant spells take 1 sec longer to cast and melee combat is slowed by 25%.  Lasts 15 sec.",
+  "school": "physical",
+  "duration": 15,
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Physical damage taken is reduced by 20%.  While protected, damaging attacks will not cause spellcasting delays but non-instant spells take 1 sec longer to cast and melee combat is slowed by 25%.",
+  "_id": 22812,
+  "_source": "wowhead"
+}

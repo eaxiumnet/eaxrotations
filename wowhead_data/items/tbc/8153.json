@@ -1,0 +1,16 @@
+{
+  "name": "Wildvine",
+  "quality": 1,
+  "icon": "inv_misc_herb_03",
+  "ilvl": 40,
+  "sell_price": {
+    "copper": 5
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 9,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Herbs",
+  "_id": 8153,
+  "_source": "cache"
+}

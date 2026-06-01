@@ -1,0 +1,18 @@
+{
+  "name": "Small Black Pouch",
+  "quality": 1,
+  "icon": "inv_misc_bag_09_black",
+  "ilvl": 5,
+  "bag_slots": 6,
+  "container_type": "bag",
+  "sell_price": {
+    "silver": 2,
+    "copper": 50
+  },
+  "item_class": 1,
+  "item_subclass": 0,
+  "item_class_name": "Containers",
+  "item_subclass_name": "Bags",
+  "_id": 5571,
+  "_source": "cache"
+}

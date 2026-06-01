@@ -1,0 +1,23 @@
+{
+  "name": "Sedgeweed Britches",
+  "quality": 1,
+  "icon": "inv_pants_12",
+  "ilvl": 5,
+  "armor": 9,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "copper": 9
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 10655,
+  "_source": "cache"
+}

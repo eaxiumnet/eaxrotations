@@ -1,0 +1,35 @@
+{
+  "name": "Technician's Boots",
+  "quality": 2,
+  "icon": "inv_boots_08",
+  "ilvl": 19,
+  "armor": 52,
+  "stats": {
+    "agility": 3
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "silver": 4,
+    "copper": 73
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9137,
+      "text": "Equip: Increases attack power by 4."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 26025,
+  "_source": "cache"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "Battered Steam Tonk Controller",
+  "quality": 1,
+  "icon": "inv_misc_enggizmos_20",
+  "ilvl": 55,
+  "binding": "bop",
+  "sell_price": {
+    "silver": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 45257,
+      "text": "Use: Summon and control your steam tonk.",
+      "cooldown": "30 Sec Cooldown"
+    }
+  ],
+  "charges": 10,
+  "flavor_text": "This toy has seen a lot of love.  It probably won't last much longer.",
+  "item_class": 7,
+  "item_subclass": 3,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Devices",
+  "_id": 31666,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Der'izu Spaulders",
+  "quality": 2,
+  "icon": "inv_shoulder_18",
+  "ilvl": 108,
+  "required_level": 66,
+  "armor": 418,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 60,
+  "sell_price": {
+    "gold": 2,
+    "silver": 98,
+    "copper": 45
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24884,
+  "_source": "cache"
+}

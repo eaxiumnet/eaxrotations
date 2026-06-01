@@ -1,0 +1,27 @@
+{
+  "name": "Knight's Crest",
+  "quality": 2,
+  "icon": "inv_shield_06",
+  "ilvl": 39,
+  "required_level": 34,
+  "armor": 728,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "boe",
+  "block": 16,
+  "durability": 85,
+  "sell_price": {
+    "silver": 67,
+    "copper": 47
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 7465,
+  "_source": "cache"
+}

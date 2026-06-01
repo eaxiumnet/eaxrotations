@@ -1,0 +1,25 @@
+{
+  "name": "Glowing Wax Stick",
+  "quality": 1,
+  "icon": "inv_misc_candle_03",
+  "ilvl": 7,
+  "binding": "bop",
+  "sell_price": {
+    "copper": 43
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 13424,
+      "text": "Use: Decrease the armor of the target by 50 for 30 sec.  While affected, the target cannot stealth or turn invisible.",
+      "cooldown": "1 Min Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 1434,
+  "_source": "cache"
+}

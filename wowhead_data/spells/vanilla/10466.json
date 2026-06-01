@@ -1,0 +1,22 @@
+{
+  "name": "Lesser Healing Wave",
+  "icon": "spell_nature_healingwavelesser",
+  "cost": {
+    "type": "mana",
+    "amount": 235
+  },
+  "range": 40,
+  "cast_time": 1.5,
+  "spell_level": 60,
+  "required_class": "Shaman",
+  "required_level": 44,
+  "description": "Heals a friendly target for 473 to 529.",
+  "healing": {
+    "min": 473,
+    "max": 529
+  },
+  "is_heal": true,
+  "target_type": "friendly",
+  "_id": 10466,
+  "_source": "wowhead"
+}

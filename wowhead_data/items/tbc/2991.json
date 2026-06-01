@@ -1,0 +1,30 @@
+{
+  "name": "Burnished Boots",
+  "quality": 2,
+  "icon": "inv_boots_plate_07",
+  "ilvl": 21,
+  "required_level": 16,
+  "armor": 117,
+  "stats": {
+    "strength": 2,
+    "stamina": 4
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "silver": 7,
+    "copper": 5
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2991,
+  "_source": "cache"
+}

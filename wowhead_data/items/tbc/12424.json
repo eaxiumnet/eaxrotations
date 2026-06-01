@@ -1,0 +1,62 @@
+{
+  "name": "Imperial Plate Belt",
+  "quality": 2,
+  "icon": "inv_belt_01",
+  "ilvl": 53,
+  "required_level": 47,
+  "armor": 285,
+  "stats": {
+    "strength": 12,
+    "stamina": 11
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "set_id": 321,
+  "set_name": "Imperial Plate",
+  "set_pieces": [
+    {
+      "id": 12424,
+      "name": "Imperial Plate Belt"
+    },
+    {
+      "id": 12426,
+      "name": "Imperial Plate Boots"
+    },
+    {
+      "id": 12425,
+      "name": "Imperial Plate Bracers"
+    },
+    {
+      "id": 12422,
+      "name": "Imperial Plate Chest"
+    },
+    {
+      "id": 12427,
+      "name": "Imperial Plate Helm"
+    },
+    {
+      "id": 12429,
+      "name": "Imperial Plate Leggings"
+    },
+    {
+      "id": 12428,
+      "name": "Imperial Plate Shoulders"
+    }
+  ],
+  "durability": 40,
+  "sell_price": {
+    "silver": 97,
+    "copper": 38
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 12424,
+  "_source": "cache"
+}

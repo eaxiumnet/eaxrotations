@@ -1,0 +1,26 @@
+{
+  "name": "Buccaneer's Pants",
+  "quality": 2,
+  "icon": "inv_pants_06",
+  "ilvl": 22,
+  "required_level": 17,
+  "armor": 31,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "silver": 7,
+    "copper": 38
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14171,
+  "_source": "cache"
+}

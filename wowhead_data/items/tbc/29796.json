@@ -1,0 +1,21 @@
+{
+  "name": "Socrethar's Teleportation Stone",
+  "quality": 1,
+  "icon": "inv_misc_stonetablet_11",
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 35745,
+      "text": "Use: Creates a portal, teleporting group members that use it to Socrethar's Seat and back.",
+      "cooldown": "1 Min Cooldown"
+    }
+  ],
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 29796,
+  "_source": "cache"
+}

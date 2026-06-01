@@ -1,0 +1,29 @@
+{
+  "name": "Cliffrunner's Aim",
+  "quality": 2,
+  "icon": "inv_weapon_bow_08",
+  "ilvl": 29,
+  "weapon": {
+    "min_damage": 25,
+    "max_damage": 48,
+    "speed": 2.3
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "silver": 29,
+    "copper": 91
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 6739,
+  "_source": "cache"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Preserved Pheromone Mixture",
+  "quality": 1,
+  "icon": "inv_potion_12",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 15119,
+      "text": "Use: Apply to the Preserved Threshadon Carcass."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 11570,
+  "_source": "cache"
+}

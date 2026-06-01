@@ -1,0 +1,22 @@
+{
+  "name": "Jump-a-tron 4000 Key",
+  "quality": 2,
+  "icon": "inv_misc_key_02",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 33381,
+      "text": "Use: Turns on the Jump-a-tron 4000."
+    }
+  ],
+  "flavor_text": "Etched on the side: Wazat will not be held accountable for any accidents that occur as a result of using the Jump-a-tron 4000.",
+  "item_class": 13,
+  "item_subclass": 0,
+  "item_class_name": "Key",
+  "item_subclass_name": "Key",
+  "_id": 27808,
+  "_source": "cache"
+}

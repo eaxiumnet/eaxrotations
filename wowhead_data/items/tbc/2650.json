@@ -1,0 +1,22 @@
+{
+  "name": "Flimsy Chain Boots",
+  "quality": 0,
+  "icon": "inv_boots_01",
+  "ilvl": 3,
+  "armor": 34,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "durability": 25,
+  "sell_price": {
+    "copper": 3
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2650,
+  "_source": "cache"
+}

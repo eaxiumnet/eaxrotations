@@ -1,0 +1,17 @@
+{
+  "name": "Thug Shirt",
+  "quality": 1,
+  "icon": "inv_shirt_14",
+  "ilvl": 1,
+  "slot": "Shirt",
+  "equip_slots": [
+    4
+  ],
+  "sell_price": {
+    "copper": 1
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 2105,
+  "_source": "cache"
+}

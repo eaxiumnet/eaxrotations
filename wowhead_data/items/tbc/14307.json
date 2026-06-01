@@ -1,0 +1,27 @@
+{
+  "name": "Bonecaster's Crown",
+  "quality": 2,
+  "icon": "inv_crown_02",
+  "ilvl": 59,
+  "required_level": 54,
+  "armor": 62,
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 20,
+    "copper": 64
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14307,
+  "_source": "cache"
+}

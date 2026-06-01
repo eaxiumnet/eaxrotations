@@ -1,0 +1,12 @@
+{
+  "name": "Discarded Knife",
+  "quality": 1,
+  "icon": "inv_weapon_shortblade_24",
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 11462,
+  "_source": "cache"
+}

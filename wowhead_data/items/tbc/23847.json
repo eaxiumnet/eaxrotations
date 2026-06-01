@@ -1,0 +1,13 @@
+{
+  "name": "Nolkai's Band",
+  "quality": 0,
+  "icon": "inv_jewelry_ring_35",
+  "ilvl": 16,
+  "flavor_text": "An inscription on the inside of the band reads: A token for my love to remember me by. May Elune watch over my dear Nolkai.",
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 23847,
+  "_source": "cache"
+}

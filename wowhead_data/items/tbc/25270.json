@@ -1,0 +1,31 @@
+{
+  "name": "Gnomish Assault Rifle",
+  "quality": 2,
+  "icon": "inv_weapon_rifle_07",
+  "ilvl": 87,
+  "required_level": 59,
+  "weapon": {
+    "min_damage": 88,
+    "max_damage": 164,
+    "speed": 2.7
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Gun",
+  "binding": "boe",
+  "durability": 65,
+  "sell_price": {
+    "gold": 4,
+    "silver": 30,
+    "copper": 50
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 3,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Guns",
+  "_id": 25270,
+  "_source": "cache"
+}

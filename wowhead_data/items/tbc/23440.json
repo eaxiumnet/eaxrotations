@@ -1,0 +1,17 @@
+{
+  "name": "Dawnstone",
+  "quality": 3,
+  "icon": "inv_jewelcrafting_dawnstone_02",
+  "ilvl": 70,
+  "sell_price": {
+    "gold": 3
+  },
+  "phase": 1,
+  "max_stack": 20,
+  "item_class": 3,
+  "item_subclass": 2,
+  "item_class_name": "Gems",
+  "item_subclass_name": "Yellow Gems",
+  "_id": 23440,
+  "_source": "cache"
+}

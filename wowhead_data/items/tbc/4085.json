@@ -1,0 +1,14 @@
+{
+  "name": "Krazek's Crock Pot",
+  "quality": 1,
+  "icon": "inv_misc_urn_01",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "A cooking pot covered with gauges and dials.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 4085,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Heavy Silver Ring",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_26",
+  "ilvl": 27,
+  "required_level": 22,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "unique_equipped": true,
+  "sell_price": {
+    "silver": 22,
+    "copper": 7
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 20826,
+  "_source": "cache"
+}

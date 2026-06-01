@@ -1,0 +1,28 @@
+{
+  "name": "Cursed Eye of Paleth",
+  "quality": 2,
+  "icon": "inv_misc_orb_04",
+  "ilvl": 31,
+  "required_level": 26,
+  "stats": {
+    "stamina": 3
+  },
+  "slot": "Held In Off-hand",
+  "equip_slots": [
+    17
+  ],
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 7709,
+      "text": "Equip: Increases damage done by Shadow spells and effects by up to 10."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 2944,
+  "_source": "cache"
+}

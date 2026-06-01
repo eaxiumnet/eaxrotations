@@ -1,0 +1,32 @@
+{
+  "name": "Pendant of Cunning",
+  "quality": 3,
+  "icon": "inv_jewelry_necklace_06",
+  "ilvl": 91,
+  "required_level": 62,
+  "stats": {
+    "agility": 20
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 2,
+    "silver": 88,
+    "copper": 36
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14049,
+      "text": "Equip: Increases attack power by 40."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31147,
+  "_source": "cache"
+}

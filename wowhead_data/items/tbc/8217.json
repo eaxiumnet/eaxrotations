@@ -1,0 +1,26 @@
+{
+  "name": "Quickdraw Quiver",
+  "quality": 2,
+  "icon": "inv_misc_quiver_07",
+  "ilvl": 45,
+  "required_level": 40,
+  "bag_slots": 16,
+  "container_type": "quiver",
+  "ammo_type": "arrows",
+  "sell_price": {
+    "silver": 10
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 29413,
+      "text": "Equip: Increases ranged attack speed by 13%."
+    }
+  ],
+  "item_class": 11,
+  "item_subclass": 2,
+  "item_class_name": "Quiver",
+  "item_subclass_name": "Quiver",
+  "_id": 8217,
+  "_source": "cache"
+}

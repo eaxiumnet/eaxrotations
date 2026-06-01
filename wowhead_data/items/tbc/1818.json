@@ -1,0 +1,28 @@
+{
+  "name": "Standard Claymore",
+  "quality": 0,
+  "icon": "inv_sword_06",
+  "ilvl": 24,
+  "required_level": 19,
+  "weapon": {
+    "min_damage": 23,
+    "max_damage": 35,
+    "speed": 3
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Sword",
+  "durability": 75,
+  "sell_price": {
+    "silver": 12,
+    "copper": 21
+  },
+  "item_class": 2,
+  "item_subclass": 8,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Swords",
+  "_id": 1818,
+  "_source": "cache"
+}

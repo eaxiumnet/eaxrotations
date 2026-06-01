@@ -1,0 +1,26 @@
+{
+  "name": "Avenger's Shield",
+  "icon": "spell_holy_avengersshield",
+  "cost": {
+    "type": "mana",
+    "amount": 780
+  },
+  "range": 30,
+  "cast_time": 1,
+  "cooldown": "30 sec cooldown",
+  "required_class": "Paladin",
+  "required_level": 70,
+  "description": "Hurls a holy shield at the enemy, dealing 494 to 602 Holy damage, Dazing them and then jumping to additional nearby enemies.  Affects 3 total targets.  Lasts 6 sec.",
+  "school": "holy",
+  "damage": {
+    "min": 494,
+    "max": 602
+  },
+  "duration": 6,
+  "aoe": true,
+  "has_buff": true,
+  "buff_duration": 6,
+  "buff_text": "Dazed.",
+  "_id": 32700,
+  "_source": "cache"
+}

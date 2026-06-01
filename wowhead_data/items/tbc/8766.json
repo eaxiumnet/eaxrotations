@@ -1,0 +1,26 @@
+{
+  "name": "Morning Glory Dew",
+  "quality": 1,
+  "icon": "inv_potion_01",
+  "ilvl": 55,
+  "required_level": 45,
+  "sell_price": {
+    "silver": 2
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 1137,
+      "text": "Use: Restores 2934 mana over 30 sec.  Must remain seated while drinking."
+    }
+  ],
+  "drink_mana": 2934,
+  "drink_duration": 30,
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 8766,
+  "_source": "cache"
+}

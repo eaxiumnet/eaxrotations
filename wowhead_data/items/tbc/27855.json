@@ -1,0 +1,27 @@
+{
+  "name": "Mag'har Grainbread",
+  "quality": 1,
+  "icon": "inv_misc_food_95_grainbread",
+  "ilvl": 65,
+  "required_level": 55,
+  "sell_price": {
+    "silver": 2,
+    "copper": 80
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 27094,
+      "text": "Use: Restores 4320 health over 30 sec.  Must remain seated while eating."
+    }
+  ],
+  "food_hp": 4320,
+  "food_duration": 30,
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 27855,
+  "_source": "cache"
+}

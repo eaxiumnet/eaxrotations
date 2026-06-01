@@ -1,0 +1,26 @@
+{
+  "name": "Saltstone Legplates",
+  "quality": 2,
+  "icon": "inv_pants_07",
+  "ilvl": 40,
+  "required_level": 40,
+  "armor": 232,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "silver": 75,
+    "copper": 21
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 14900,
+  "_source": "cache"
+}

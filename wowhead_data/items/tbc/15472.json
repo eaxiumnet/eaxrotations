@@ -1,0 +1,23 @@
+{
+  "name": "Charger's Belt",
+  "quality": 1,
+  "icon": "inv_belt_22",
+  "ilvl": 9,
+  "required_level": 4,
+  "armor": 53,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "durability": 20,
+  "sell_price": {
+    "copper": 33
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 15472,
+  "_source": "cache"
+}

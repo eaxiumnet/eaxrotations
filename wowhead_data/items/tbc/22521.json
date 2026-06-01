@@ -1,0 +1,22 @@
+{
+  "name": "Superior Mana Oil",
+  "quality": 1,
+  "icon": "inv_potion_101",
+  "ilvl": 62,
+  "required_level": 52,
+  "sell_price": {
+    "silver": 15
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28013,
+      "text": "Use: While applied to target weapon it restores 14 mana to the caster every 5 seconds.  Lasts for 1 hour."
+    }
+  ],
+  "charges": 5,
+  "item_class": 0,
+  "item_class_name": "Consumables",
+  "_id": 22521,
+  "_source": "cache"
+}

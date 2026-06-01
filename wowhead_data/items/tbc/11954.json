@@ -1,0 +1,13 @@
+{
+  "name": "Filled Pure Sample Jar",
+  "quality": 1,
+  "icon": "inv_potion_56",
+  "ilvl": 1,
+  "max_stack": 20,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 11954,
+  "_source": "cache"
+}

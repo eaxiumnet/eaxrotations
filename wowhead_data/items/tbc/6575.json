@@ -1,0 +1,22 @@
+{
+  "name": "Defender Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_05",
+  "ilvl": 20,
+  "required_level": 15,
+  "armor": 17,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 4,
+    "copper": 31
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 6575,
+  "_source": "cache"
+}

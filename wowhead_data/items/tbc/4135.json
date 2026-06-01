@@ -1,0 +1,24 @@
+{
+  "name": "Bloodbone Band",
+  "quality": 2,
+  "icon": "inv_misc_bone_05",
+  "ilvl": 35,
+  "stats": {
+    "spirit": 2,
+    "stamina": 7
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 11,
+    "copper": 30
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 4135,
+  "_source": "cache"
+}

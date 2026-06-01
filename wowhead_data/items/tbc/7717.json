@@ -1,0 +1,38 @@
+{
+  "name": "Ravager",
+  "quality": 3,
+  "icon": "inv_weapon_halberd_05",
+  "ilvl": 42,
+  "required_level": 37,
+  "weapon": {
+    "min_damage": 104,
+    "max_damage": 157,
+    "speed": 3.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Axe",
+  "binding": "bop",
+  "durability": 100,
+  "sell_price": {
+    "gold": 1,
+    "silver": 89,
+    "copper": 23
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "proc",
+      "spell_id": 9632,
+      "text": "Chance on hit: You attack all nearby enemies for 9 sec causing weapon damage plus an additional 5 every 3 sec."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 1,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Axes",
+  "_id": 7717,
+  "_source": "cache"
+}

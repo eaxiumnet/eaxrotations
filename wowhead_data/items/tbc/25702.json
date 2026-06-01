@@ -1,0 +1,37 @@
+{
+  "name": "Scaled Legs of Ruination",
+  "quality": 3,
+  "icon": "inv_pants_04",
+  "ilvl": 88,
+  "armor": 444,
+  "stats": {
+    "intellect": 23,
+    "stamina": 33
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 90,
+  "sell_price": {
+    "gold": 4,
+    "silver": 17,
+    "copper": 52
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14054,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 27."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 25702,
+  "_source": "cache"
+}

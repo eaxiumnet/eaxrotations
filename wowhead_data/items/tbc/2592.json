@@ -1,0 +1,16 @@
+{
+  "name": "Wool Cloth",
+  "quality": 1,
+  "icon": "inv_fabric_wool_01",
+  "ilvl": 15,
+  "sell_price": {
+    "copper": 33
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 5,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Cloth",
+  "_id": 2592,
+  "_source": "cache"
+}

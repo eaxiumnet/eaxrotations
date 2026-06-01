@@ -1,0 +1,32 @@
+{
+  "name": "Plans: Radiant Boots",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 58,
+  "required_level": 53,
+  "armor": 215,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "gold": 1,
+    "silver": 55,
+    "copper": 21
+  },
+  "resistances": {
+    "frost": 15,
+    "shadow": 15
+  },
+  "teaches": "make Radiant Boots",
+  "teaches_spell_id": 16656,
+  "item_class": 9,
+  "item_subclass": 4,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Blacksmithing Plans",
+  "_id": 12697,
+  "_source": "cache"
+}

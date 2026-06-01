@@ -1,0 +1,31 @@
+{
+  "name": "Violet Signet of the Master Assassin",
+  "quality": 4,
+  "icon": "inv_jewelry_ring_62",
+  "ilvl": 130,
+  "stats": {
+    "stamina": 28
+  },
+  "ratings": {
+    "hit": 25
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15814,
+      "text": "Equip: Increases attack power by 56."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29283,
+  "_source": "cache"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Brocade Shoes",
+  "quality": 0,
+  "icon": "inv_boots_05",
+  "ilvl": 23,
+  "required_level": 18,
+  "armor": 23,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "durability": 30,
+  "sell_price": {
+    "silver": 2,
+    "copper": 47
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 1772,
+  "_source": "cache"
+}

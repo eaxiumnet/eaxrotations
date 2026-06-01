@@ -1,0 +1,31 @@
+{
+  "name": "Frostwolf Legionnaire's Cloak",
+  "quality": 3,
+  "icon": "inv_misc_cape_16",
+  "ilvl": 60,
+  "required_level": 55,
+  "armor": 43,
+  "stats": {
+    "stamina": 11
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "bop",
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14027,
+      "text": "Equip: Increases attack power by 24."
+    }
+  ],
+  "resistances": {
+    "frost": 5
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 19083,
+  "_source": "cache"
+}

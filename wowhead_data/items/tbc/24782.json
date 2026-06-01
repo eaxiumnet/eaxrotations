@@ -1,0 +1,24 @@
+{
+  "name": "Loosely Threaded Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_23",
+  "ilvl": 66,
+  "required_level": 61,
+  "armor": 48,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "durability": 25,
+  "sell_price": {
+    "silver": 35,
+    "copper": 72
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24782,
+  "_source": "cache"
+}

@@ -1,0 +1,38 @@
+{
+  "name": "Tenacious Defender",
+  "quality": 3,
+  "icon": "inv_belt_27",
+  "ilvl": 85,
+  "required_level": 60,
+  "armor": 491,
+  "stats": {
+    "agility": 14,
+    "strength": 15,
+    "stamina": 19
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "red": 2,
+    "total": 2
+  },
+  "socket_bonus": "+3 Resilience Rating",
+  "durability": 45,
+  "sell_price": {
+    "gold": 2,
+    "silver": 40,
+    "copper": 92
+  },
+  "phase": 1,
+  "flavor_text": "It has the power... to move you.",
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24091,
+  "_source": "cache"
+}

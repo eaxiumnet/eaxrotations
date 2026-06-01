@@ -1,0 +1,27 @@
+{
+  "name": "War Paint Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_18",
+  "ilvl": 16,
+  "required_level": 11,
+  "armor": 15,
+  "stats": {
+    "agility": 1,
+    "strength": 1,
+    "stamina": 1
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 2,
+    "copper": 53
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 14724,
+  "_source": "cache"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Bloated Barbed Gill Trout",
+  "quality": 1,
+  "icon": "inv_misc_fish_37",
+  "ilvl": 60,
+  "binding": "bop",
+  "duration": "2 hrs (real time)",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 35313,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Recipe: Curiously Tasty Omelet",
+  "quality": 1,
+  "icon": "inv_scroll_03",
+  "ilvl": 25,
+  "required_level": 15,
+  "sell_price": {
+    "silver": 4,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 5006,
+      "text": "Use: Restores 552 health over 24 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 6 Stamina and Spirit for 15 min."
+    }
+  ],
+  "max_stack": 20,
+  "teaches": "cook a Curiously Tasty Omelet",
+  "teaches_spell_id": 3376,
+  "item_class": 9,
+  "item_subclass": 5,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Cooking Recipes",
+  "_id": 3682,
+  "_source": "cache"
+}

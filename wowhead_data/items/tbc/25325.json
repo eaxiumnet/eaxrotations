@@ -1,0 +1,38 @@
+{
+  "name": "Brutal Scar-Limb",
+  "quality": 2,
+  "icon": "inv_staff_26",
+  "ilvl": 84,
+  "required_level": 58,
+  "weapon": {
+    "min_damage": 151,
+    "max_damage": 235,
+    "speed": 3.5
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Staff",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 6,
+    "silver": 82,
+    "copper": 66
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 44888,
+      "text": "Equip: Increases attack power by 65 in Cat, Bear, Dire Bear, and Moonkin forms only."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 10,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Staves",
+  "_id": 25325,
+  "_source": "cache"
+}

@@ -1,0 +1,65 @@
+{
+  "name": "Primal Mooncloth Belt",
+  "quality": 4,
+  "icon": "inv_belt_31",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 109,
+  "stats": {
+    "intellect": 12,
+    "spirit": 11
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "yellow": 1,
+    "blue": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Intellect",
+  "set_id": 554,
+  "set_name": "Primal Mooncloth",
+  "set_pieces": [
+    {
+      "id": 21875,
+      "name": "Primal Mooncloth Robe"
+    },
+    {
+      "id": 21874,
+      "name": "Primal Mooncloth Shoulders"
+    },
+    {
+      "id": 21873,
+      "name": "Primal Mooncloth Belt"
+    }
+  ],
+  "durability": 35,
+  "sell_price": {
+    "gold": 2,
+    "silver": 40,
+    "copper": 89
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18048,
+      "text": "Equip: Increases healing done by up to 81 and damage done by up to 27 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 18378,
+      "text": "Equip: Restores 8 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 21873,
+  "_source": "cache"
+}

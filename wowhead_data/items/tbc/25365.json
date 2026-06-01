@@ -1,0 +1,25 @@
+{
+  "name": "Eroded Mail Armor",
+  "quality": 0,
+  "icon": "inv_chest_chain_05",
+  "ilvl": 66,
+  "required_level": 61,
+  "armor": 317,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "durability": 100,
+  "sell_price": {
+    "gold": 1,
+    "silver": 9,
+    "copper": 21
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 25365,
+  "_source": "cache"
+}

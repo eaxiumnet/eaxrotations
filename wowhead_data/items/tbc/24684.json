@@ -1,0 +1,27 @@
+{
+  "name": "Archmage Bracelets",
+  "quality": 2,
+  "icon": "inv_bracer_10",
+  "ilvl": 117,
+  "required_level": 69,
+  "armor": 63,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "gold": 1,
+    "silver": 45,
+    "copper": 28
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24684,
+  "_source": "cache"
+}

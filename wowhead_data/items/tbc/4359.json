@@ -1,0 +1,16 @@
+{
+  "name": "Handful of Copper Bolts",
+  "quality": 1,
+  "icon": "inv_misc_gear_06",
+  "ilvl": 8,
+  "sell_price": {
+    "copper": 12
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 1,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Parts",
+  "_id": 4359,
+  "_source": "cache"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Demon Broiled Surprise",
+  "quality": 1,
+  "icon": "inv_misc_food_64",
+  "ilvl": 1,
+  "flavor_text": "Smells delicious!",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 33848,
+  "_source": "cache"
+}

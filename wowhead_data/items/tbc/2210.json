@@ -1,0 +1,23 @@
+{
+  "name": "Battered Buckler",
+  "quality": 0,
+  "icon": "inv_shield_09",
+  "ilvl": 2,
+  "armor": 12,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "block": 1,
+  "durability": 25,
+  "sell_price": {
+    "copper": 3
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 2210,
+  "_source": "cache"
+}

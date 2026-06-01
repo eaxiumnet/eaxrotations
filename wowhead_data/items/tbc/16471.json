@@ -1,0 +1,71 @@
+{
+  "name": "Marshal's Lamellar Gloves",
+  "quality": 4,
+  "icon": "inv_gauntlets_29",
+  "ilvl": 71,
+  "required_level": 60,
+  "armor": 573,
+  "stats": {
+    "strength": 18,
+    "intellect": 16,
+    "stamina": 17
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 402,
+  "set_name": "Field Marshal's Aegis",
+  "set_pieces": [
+    {
+      "id": 16473,
+      "name": "Field Marshal's Lamellar Chestplate"
+    },
+    {
+      "id": 16474,
+      "name": "Field Marshal's Lamellar Faceguard"
+    },
+    {
+      "id": 16476,
+      "name": "Field Marshal's Lamellar Pauldrons"
+    },
+    {
+      "id": 16472,
+      "name": "Marshal's Lamellar Boots"
+    },
+    {
+      "id": 16471,
+      "name": "Marshal's Lamellar Gloves"
+    },
+    {
+      "id": 16475,
+      "name": "Marshal's Lamellar Legplates"
+    }
+  ],
+  "classes": [
+    "Paladin"
+  ],
+  "durability": 55,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 23300,
+      "text": "Equip: Increases the Holy damage bonus of your Judgement of the Crusader by 20."
+    },
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 16471,
+  "_source": "cache"
+}

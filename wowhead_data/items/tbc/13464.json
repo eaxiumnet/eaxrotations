@@ -1,0 +1,16 @@
+{
+  "name": "Golden Sansam",
+  "quality": 1,
+  "icon": "inv_misc_herb_sansamroot",
+  "ilvl": 52,
+  "sell_price": {
+    "silver": 1
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 9,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Herbs",
+  "_id": 13464,
+  "_source": "cache"
+}

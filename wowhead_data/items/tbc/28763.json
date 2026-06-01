@@ -1,0 +1,36 @@
+{
+  "name": "Jade Ring of the Everliving",
+  "quality": 4,
+  "icon": "inv_jewelry_ring_08",
+  "ilvl": 125,
+  "required_level": 70,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 6,
+    "silver": 2,
+    "copper": 56
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18042,
+      "text": "Equip: Increases healing done by up to 68 and damage done by up to 23 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21636,
+      "text": "Equip: Restores 12 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28763,
+  "_source": "cache"
+}

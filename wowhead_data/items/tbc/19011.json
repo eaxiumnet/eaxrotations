@@ -1,0 +1,23 @@
+{
+  "name": "Greater Healthstone",
+  "quality": 1,
+  "icon": "inv_stone_04",
+  "ilvl": 46,
+  "required_level": 36,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 23475,
+      "text": "Use: Instantly restores 960 life.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "conjured": true,
+  "item_class": 0,
+  "item_subclass": 8,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Other Consumables",
+  "_id": 19011,
+  "_source": "cache"
+}

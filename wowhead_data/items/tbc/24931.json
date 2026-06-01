@@ -1,0 +1,27 @@
+{
+  "name": "Ango'rosh Legguards",
+  "quality": 2,
+  "icon": "inv_pants_plate_15",
+  "ilvl": 84,
+  "required_level": 58,
+  "armor": 687,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 3,
+    "silver": 89,
+    "copper": 57
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24931,
+  "_source": "cache"
+}

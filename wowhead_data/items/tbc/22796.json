@@ -1,0 +1,21 @@
+{
+  "name": "Apothecary's Poison",
+  "quality": 1,
+  "icon": "inv_potion_95",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 29517,
+      "text": "Use: Poison the troll foodstuff in Zeb'Nowa."
+    }
+  ],
+  "charges": 3,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 22796,
+  "_source": "cache"
+}

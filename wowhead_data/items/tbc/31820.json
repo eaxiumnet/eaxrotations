@@ -1,0 +1,29 @@
+{
+  "name": "Blessed Signet Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_43",
+  "ilvl": 102,
+  "stats": {
+    "agility": 12,
+    "strength": 13,
+    "stamina": 12
+  },
+  "ratings": {
+    "hit": 12
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 3,
+    "silver": 28,
+    "copper": 91
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31820,
+  "_source": "cache"
+}

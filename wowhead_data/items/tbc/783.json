@@ -1,0 +1,16 @@
+{
+  "name": "Light Hide",
+  "quality": 1,
+  "icon": "inv_misc_pelt_wolf_ruin_02",
+  "ilvl": 10,
+  "sell_price": {
+    "copper": 50
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 6,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Leather",
+  "_id": 783,
+  "_source": "cache"
+}

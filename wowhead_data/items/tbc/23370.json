@@ -1,0 +1,28 @@
+{
+  "name": "Ley-Keeper's Blade",
+  "quality": 1,
+  "icon": "inv_sword_24",
+  "ilvl": 6,
+  "weapon": {
+    "min_damage": 3,
+    "max_damage": 6,
+    "speed": 1.9
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "copper": 38
+  },
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 23370,
+  "_source": "cache"
+}

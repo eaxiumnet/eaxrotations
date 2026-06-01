@@ -1,0 +1,16 @@
+{
+  "name": "Raptor Egg",
+  "quality": 1,
+  "icon": "inv_egg_03",
+  "ilvl": 22,
+  "sell_price": {
+    "copper": 71
+  },
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 8,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Meat",
+  "_id": 3685,
+  "_source": "cache"
+}

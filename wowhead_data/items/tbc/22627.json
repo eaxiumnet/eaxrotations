@@ -1,0 +1,14 @@
+{
+  "name": "The Lady's Necklace",
+  "quality": 1,
+  "icon": "inv_jewelry_necklace_16",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "There's an inscription, which reads: To Sylvanas. Love always, Alleria.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 22627,
+  "_source": "cache"
+}

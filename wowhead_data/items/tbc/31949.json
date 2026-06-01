@@ -1,0 +1,21 @@
+{
+  "name": "Warden's Arrow",
+  "quality": 3,
+  "icon": "inv_misc_ammo_arrow_02",
+  "ilvl": 115,
+  "required_level": 68,
+  "slot": "Ammo",
+  "subclass": "Arrow",
+  "binding": "bop",
+  "sell_price": {
+    "copper": 6
+  },
+  "phase": 1,
+  "max_stack": 200,
+  "item_class": 6,
+  "item_subclass": 2,
+  "item_class_name": "Projectiles",
+  "item_subclass_name": "Arrows",
+  "_id": 31949,
+  "_source": "cache"
+}

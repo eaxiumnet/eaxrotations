@@ -1,0 +1,19 @@
+{
+  "name": "Old Blanchy's Feed Pouch",
+  "quality": 1,
+  "icon": "inv_misc_bag_10",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "bag_slots": 8,
+  "container_type": "bag",
+  "sell_price": {
+    "copper": 62
+  },
+  "item_class": 1,
+  "item_subclass": 0,
+  "item_class_name": "Containers",
+  "item_subclass_name": "Bags",
+  "_id": 1537,
+  "_source": "cache"
+}

@@ -1,0 +1,38 @@
+{
+  "name": "Murkblood Oven Mitts",
+  "quality": 2,
+  "icon": "inv_gauntlets_26",
+  "ilvl": 105,
+  "armor": 339,
+  "stats": {
+    "agility": 16,
+    "intellect": 16,
+    "stamina": 24
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 94,
+    "copper": 60
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15807,
+      "text": "Equip: Increases attack power by 32."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 25584,
+  "_source": "cache"
+}

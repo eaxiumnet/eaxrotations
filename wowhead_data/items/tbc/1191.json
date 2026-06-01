@@ -1,0 +1,25 @@
+{
+  "name": "Bag of Marbles",
+  "quality": 1,
+  "icon": "inv_misc_ammo_bullet_01",
+  "ilvl": 8,
+  "binding": "bop",
+  "sell_price": {
+    "copper": 82
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 5917,
+      "text": "Use: Decreases target's chance to hit by 25% for 10 sec.",
+      "cooldown": "1 Min Cooldown"
+    }
+  ],
+  "charges": 10,
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 1191,
+  "_source": "cache"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Elixir of Major Strength",
+  "quality": 1,
+  "icon": "inv_potion_147",
+  "ilvl": 61,
+  "required_level": 50,
+  "sell_price": {
+    "silver": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28490,
+      "text": "Use: Increases your Strength by 35 for 1 hour.  Battle Elixir.",
+      "cooldown": "3 Sec Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 2,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Elixirs",
+  "_id": 22824,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Vindicator Tunic",
+  "quality": 2,
+  "icon": "inv_chest_cloth_19",
+  "ilvl": 93,
+  "required_level": 61,
+  "armor": 116,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "gold": 2,
+    "silver": 46,
+    "copper": 22
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24615,
+  "_source": "cache"
+}

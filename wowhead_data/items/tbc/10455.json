@@ -1,0 +1,28 @@
+{
+  "name": "Chained Essence of Eranikus",
+  "quality": 2,
+  "icon": "inv_stone_03",
+  "ilvl": 60,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 64,
+    "copper": 64
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 12766,
+      "text": "Use: Poisons all enemies in an 8 yard radius around the caster.  Victims of the poison suffer 50 Nature damage every 5 sec for 45 sec.",
+      "cooldown": "15 Min Cooldown"
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 10455,
+  "_source": "cache"
+}

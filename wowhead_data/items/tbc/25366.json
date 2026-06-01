@@ -1,0 +1,24 @@
+{
+  "name": "Eroded Mail Belt",
+  "quality": 0,
+  "icon": "inv_belt_09",
+  "ilvl": 66,
+  "required_level": 61,
+  "armor": 178,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "durability": 35,
+  "sell_price": {
+    "silver": 54,
+    "copper": 80
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 25366,
+  "_source": "cache"
+}

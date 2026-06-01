@@ -1,0 +1,46 @@
+{
+  "name": "Raiments of Divine Authority",
+  "quality": 3,
+  "icon": "inv_chest_cloth_31",
+  "ilvl": 88,
+  "required_level": 61,
+  "armor": 122,
+  "stats": {
+    "intellect": 21,
+    "spirit": 18,
+    "stamina": 16
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "yellow": 1,
+    "blue": 1,
+    "total": 3
+  },
+  "socket_bonus": "+6 Stamina",
+  "durability": 80,
+  "sell_price": {
+    "gold": 2,
+    "silver": 89,
+    "copper": 47
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18033,
+      "text": "Equip: Increases healing done by up to 46 and damage done by up to 16 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24397,
+  "_source": "cache"
+}

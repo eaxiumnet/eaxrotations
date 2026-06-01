@@ -1,0 +1,26 @@
+{
+  "name": "Primal Wraps",
+  "quality": 2,
+  "icon": "inv_chest_leather_04",
+  "ilvl": 11,
+  "required_level": 6,
+  "armor": 58,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "silver": 1,
+    "copper": 63
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 15010,
+  "_source": "cache"
+}

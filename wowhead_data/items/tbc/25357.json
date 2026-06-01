@@ -1,0 +1,24 @@
+{
+  "name": "Decaying Leather Armor",
+  "quality": 0,
+  "icon": "inv_chest_leather_09",
+  "ilvl": 72,
+  "required_level": 67,
+  "armor": 161,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "durability": 85,
+  "sell_price": {
+    "silver": 92,
+    "copper": 64
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 25357,
+  "_source": "cache"
+}

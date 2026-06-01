@@ -1,0 +1,17 @@
+{
+  "name": "Aquamarine",
+  "quality": 2,
+  "icon": "inv_misc_gem_crystal_02",
+  "ilvl": 45,
+  "sell_price": {
+    "silver": 10
+  },
+  "phase": 1,
+  "max_stack": 20,
+  "item_class": 3,
+  "item_subclass": 7,
+  "item_class_name": "Gems",
+  "item_subclass_name": "Simple Gems",
+  "_id": 7909,
+  "_source": "cache"
+}

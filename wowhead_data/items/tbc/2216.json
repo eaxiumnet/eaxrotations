@@ -1,0 +1,25 @@
+{
+  "name": "Simple Buckler",
+  "quality": 0,
+  "icon": "inv_shield_09",
+  "ilvl": 16,
+  "required_level": 11,
+  "armor": 297,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "block": 3,
+  "durability": 55,
+  "sell_price": {
+    "silver": 2,
+    "copper": 10
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 2216,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Potion of Water Breathing",
+  "quality": 1,
+  "icon": "inv_potion_05",
+  "ilvl": 60,
+  "required_level": 60,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 22807,
+      "text": "Use: Allows the Imbiber to breathe water for 1 hour."
+    }
+  ],
+  "charges": 3,
+  "item_class": 0,
+  "item_subclass": 2,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Elixirs",
+  "_id": 25539,
+  "_source": "cache"
+}

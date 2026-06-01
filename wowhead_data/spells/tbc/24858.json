@@ -1,0 +1,17 @@
+{
+  "name": "Moonkin Form",
+  "icon": "spell_nature_forceofnature",
+  "cost": {
+    "type": "mana",
+    "percent": 22
+  },
+  "cast_time": 0,
+  "required_class": "Druid",
+  "description": "Shapeshift into Moonkin Form.  While in this form the armor contribution from items is increased by 400%, attack power is increased by 150% of your level and all party members within 30 yards have their spell critical chance increased by 5%.  Melee attacks in this form have a chance on hit to regenerate mana based on attack power.  The Moonkin can only cast Balance and Remove Curse spells while shapeshifted.The act of shapeshifting frees the caster of Polymorph and Movement Impairing effects.",
+  "radius": 30,
+  "target_type": "friendly",
+  "has_buff": true,
+  "buff_text": "Immune to Polymorph effects.Armor contribution from items is increased by 400%.Attack power increased by 150% of your level.Most melee attacks have a chance on hit to regenerate mana based on attack power.",
+  "_id": 24858,
+  "_source": "cache"
+}

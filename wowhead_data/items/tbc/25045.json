@@ -1,0 +1,22 @@
+{
+  "name": "Azurite Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_33",
+  "ilvl": 84,
+  "required_level": 58,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 2,
+    "silver": 76,
+    "copper": 78
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25045,
+  "_source": "cache"
+}

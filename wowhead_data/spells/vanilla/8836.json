@@ -1,0 +1,10 @@
+{
+  "name": "Grace of Air",
+  "icon": "spell_nature_invisibilitytotem",
+  "required_class": "Shaman",
+  "required_level": 42,
+  "has_buff": true,
+  "buff_text": "Increases Agility by 43.",
+  "_id": 8836,
+  "_source": "wowhead"
+}

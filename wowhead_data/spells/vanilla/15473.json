@@ -1,0 +1,17 @@
+{
+  "name": "Shadowform",
+  "icon": "spell_shadow_shadowform",
+  "cost": {
+    "type": "mana",
+    "percent": 40
+  },
+  "cast_time": 0,
+  "cooldown": "1.5 sec cooldown",
+  "required_class": "Priest",
+  "description": "Assume a Shadowform, increasing your Shadow damage by 15% [S03 - Tuning and Overrides Passive - Priest: reducing the mana cost of all Shadow spells by 0%] and reducing Physical damage done to you by 15%.  However, you may not cast Holy spells while in this form.",
+  "school": "shadow",
+  "has_buff": true,
+  "buff_text": "Shadow damage you deal increased by 15%.[Mana cost of all Shadow spells reduced by 0%.]  Physical damage you take reduced by 15%.  You may not cast Holy spells.",
+  "_id": 15473,
+  "_source": "wowhead"
+}

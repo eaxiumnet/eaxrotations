@@ -1,0 +1,31 @@
+{
+  "name": "Sawed-Off Shotgun",
+  "quality": 2,
+  "icon": "inv_weapon_rifle_01",
+  "ilvl": 96,
+  "required_level": 62,
+  "weapon": {
+    "min_damage": 93,
+    "max_damage": 173,
+    "speed": 2.7
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Gun",
+  "binding": "boe",
+  "durability": 65,
+  "sell_price": {
+    "gold": 4,
+    "silver": 74,
+    "copper": 96
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 3,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Guns",
+  "_id": 25273,
+  "_source": "cache"
+}

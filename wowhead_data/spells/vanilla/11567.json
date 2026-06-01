@@ -1,0 +1,15 @@
+{
+  "name": "Heroic Strike",
+  "icon": "ability_rogue_ambush",
+  "cost": {
+    "type": "rage",
+    "amount": 15
+  },
+  "range": "melee",
+  "required_class": "Warrior",
+  "required_level": 56,
+  "requires_weapon": "Melee Weapon",
+  "description": "A strong attack that increases melee damage by 138 and causes a high amount of threat.",
+  "_id": 11567,
+  "_source": "wowhead"
+}

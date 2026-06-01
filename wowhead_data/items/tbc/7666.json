@@ -1,0 +1,16 @@
+{
+  "name": "Shattered Necklace",
+  "quality": 2,
+  "icon": "inv_jewelry_necklace_02",
+  "ilvl": 37,
+  "required_level": 37,
+  "binding": "bop",
+  "unique": true,
+  "starts_quest": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 7666,
+  "_source": "cache"
+}

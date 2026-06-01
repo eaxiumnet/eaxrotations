@@ -1,0 +1,27 @@
+{
+  "name": "Archmage Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_23",
+  "ilvl": 117,
+  "required_level": 69,
+  "armor": 90,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "gold": 1,
+    "silver": 43,
+    "copper": 9
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24680,
+  "_source": "cache"
+}

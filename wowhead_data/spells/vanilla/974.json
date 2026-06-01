@@ -1,0 +1,20 @@
+{
+  "name": "Earth Shield",
+  "icon": "spell_nature_skinofearth",
+  "cost": {
+    "type": "mana",
+    "percent": 15
+  },
+  "range": 40,
+  "cast_time": 0,
+  "required_class": "Shaman",
+  "required_level": 50,
+  "description": "Protects the target with an earthen shield, reducing casting or channeling time lost when damaged by 30%  and causing attacks to heal the shielded target for .  This effect can only occur once every few seconds.  6 charges.  Lasts 10 min.  Earth Shield can only be placed on one target at a time and only one Elemental Shield can be active on a target at a time.",
+  "duration": 600,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 600,
+  "buff_text": "Reduces casting or channeling time lost when damaged by 30% and attacks heal the shielded target for 150.",
+  "_id": 974,
+  "_source": "wowhead"
+}

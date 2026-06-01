@@ -1,0 +1,44 @@
+{
+  "name": "Dunewind Sash",
+  "quality": 3,
+  "icon": "inv_belt_24",
+  "ilvl": 115,
+  "required_level": 70,
+  "armor": 164,
+  "stats": {
+    "agility": 21,
+    "stamina": 16
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "blue": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Agility",
+  "durability": 35,
+  "sell_price": {
+    "gold": 2,
+    "silver": 30,
+    "copper": 18
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14056,
+      "text": "Equip: Increases attack power by 50."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 27760,
+  "_source": "cache"
+}

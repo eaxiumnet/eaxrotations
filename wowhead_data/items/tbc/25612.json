@@ -1,0 +1,38 @@
+{
+  "name": "Daggerfen Mail",
+  "quality": 2,
+  "icon": "inv_chest_plate08",
+  "ilvl": 84,
+  "armor": 441,
+  "stats": {
+    "agility": 17,
+    "intellect": 16,
+    "stamina": 25
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 100,
+  "sell_price": {
+    "gold": 3,
+    "silver": 37,
+    "copper": 57
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15806,
+      "text": "Equip: Increases attack power by 34."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 25612,
+  "_source": "cache"
+}

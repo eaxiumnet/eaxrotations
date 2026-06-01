@@ -1,0 +1,29 @@
+{
+  "name": "Communal Crown",
+  "quality": 2,
+  "icon": "inv_helmet_15",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 111,
+  "stats": {
+    "agility": 14,
+    "stamina": 14
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 50,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 186078,
+  "_source": "cache"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Gloves of Marshmanship",
+  "quality": 2,
+  "icon": "inv_gauntlets_12",
+  "ilvl": 93,
+  "armor": 303,
+  "stats": {
+    "agility": 17
+  },
+  "ratings": {
+    "hit": 16
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 86,
+    "copper": 73
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15806,
+      "text": "Equip: Increases attack power by 34."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 27722,
+  "_source": "cache"
+}

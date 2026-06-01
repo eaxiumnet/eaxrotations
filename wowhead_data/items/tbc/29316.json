@@ -1,0 +1,39 @@
+{
+  "name": "Warchief's Mantle",
+  "quality": 3,
+  "icon": "inv_shoulder_01",
+  "ilvl": 103,
+  "armor": 786,
+  "stats": {
+    "strength": 23,
+    "stamina": 27
+  },
+  "ratings": {
+    "parry": 18
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "yellow": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Critical Strike Rating",
+  "durability": 80,
+  "sell_price": {
+    "gold": 4,
+    "silver": 16,
+    "copper": 49
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 29316,
+  "_source": "cache"
+}

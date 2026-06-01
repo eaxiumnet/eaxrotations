@@ -1,0 +1,16 @@
+{
+  "name": "Simple Grinder",
+  "quality": 1,
+  "icon": "inv_stone_grindingstone_01",
+  "ilvl": 20,
+  "sell_price": {
+    "silver": 62,
+    "copper": 50
+  },
+  "item_class": 7,
+  "item_subclass": 4,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Jewelcrafting",
+  "_id": 20824,
+  "_source": "cache"
+}

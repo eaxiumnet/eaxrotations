@@ -1,0 +1,26 @@
+{
+  "name": "Dervish Belt",
+  "quality": 2,
+  "icon": "inv_belt_25",
+  "ilvl": 27,
+  "required_level": 22,
+  "armor": 50,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 30,
+  "sell_price": {
+    "silver": 8,
+    "copper": 67
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 6600,
+  "_source": "cache"
+}

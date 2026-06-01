@@ -1,0 +1,38 @@
+{
+  "name": "Helm of Natural Purity",
+  "quality": 2,
+  "icon": "inv_helmet_10",
+  "ilvl": 96,
+  "armor": 724,
+  "stats": {
+    "strength": 23,
+    "intellect": 23,
+    "stamina": 34
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 70,
+  "sell_price": {
+    "gold": 3,
+    "silver": 20,
+    "copper": 96
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14254,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 19."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25530,
+  "_source": "cache"
+}

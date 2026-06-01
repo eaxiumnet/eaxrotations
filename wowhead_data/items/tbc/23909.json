@@ -1,0 +1,20 @@
+{
+  "name": "Blood Elf Bandit Mask",
+  "quality": 1,
+  "icon": "inv_helmet_31",
+  "ilvl": 5,
+  "required_level": 5,
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "sell_price": {
+    "copper": 7
+  },
+  "item_class": 4,
+  "item_subclass": 0,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Miscellaneous (Armor)",
+  "_id": 23909,
+  "_source": "cache"
+}

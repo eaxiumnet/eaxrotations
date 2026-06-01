@@ -1,0 +1,22 @@
+{
+  "name": "Moldavite Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_18",
+  "ilvl": 99,
+  "required_level": 63,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 3,
+    "silver": 20,
+    "copper": 23
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25050,
+  "_source": "cache"
+}

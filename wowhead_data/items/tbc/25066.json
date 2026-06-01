@@ -1,0 +1,21 @@
+{
+  "name": "Pink Sapphire Necklace",
+  "quality": 2,
+  "icon": "inv_misc_gem_amethyst_02",
+  "ilvl": 105,
+  "required_level": 65,
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 3,
+    "silver": 37,
+    "copper": 60
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25066,
+  "_source": "cache"
+}

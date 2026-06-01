@@ -1,0 +1,14 @@
+{
+  "name": "Mild Spices",
+  "quality": 1,
+  "icon": "inv_misc_food_wheat_02",
+  "ilvl": 5,
+  "max_stack": 20,
+  "flavor_text": "Used to enhance the flavor in cooking recipes.",
+  "item_class": 7,
+  "item_subclass": 11,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Other (Trade Goods)",
+  "_id": 2678,
+  "_source": "cache"
+}

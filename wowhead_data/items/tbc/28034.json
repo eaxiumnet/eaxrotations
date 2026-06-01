@@ -1,0 +1,32 @@
+{
+  "name": "Hourglass of the Unraveller",
+  "quality": 3,
+  "icon": "inv_gizmo_khoriumpowercore",
+  "ilvl": 112,
+  "required_level": 68,
+  "ratings": {
+    "crit": 32
+  },
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique_equipped": true,
+  "sell_price": {
+    "gold": 1
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 33648,
+      "text": "Equip: Chance on critical hit to increase your attack power by 300 for 10 secs. (Proc chance: 10%, 50s cooldown)"
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 28034,
+  "_source": "cache"
+}

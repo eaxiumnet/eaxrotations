@@ -1,0 +1,27 @@
+{
+  "name": "Bogslayer Pauldrons",
+  "quality": 2,
+  "icon": "inv_shoulder_09",
+  "ilvl": 93,
+  "required_level": 61,
+  "armor": 648,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 70,
+  "sell_price": {
+    "gold": 3,
+    "silver": 24,
+    "copper": 87
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24956,
+  "_source": "cache"
+}

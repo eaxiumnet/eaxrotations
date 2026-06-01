@@ -1,0 +1,20 @@
+{
+  "name": "Belmara's Tome",
+  "quality": 1,
+  "icon": "inv_misc_book_07",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 34140,
+      "text": "Use: Place Belmara's Tome on the Bookshelf in her house."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 28336,
+  "_source": "cache"
+}

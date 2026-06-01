@@ -1,0 +1,21 @@
+{
+  "name": "Devastate",
+  "icon": "inv_sword_11",
+  "cost": {
+    "type": "rage",
+    "amount": 15
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Warrior",
+  "required_level": 60,
+  "requires_weapon": "One-Handed Melee Weapon",
+  "description": "Sunder the target's armor causing the Sunder Armor effect.  In addition, causes 50% of weapon damage plus 25 for each application of Sunder Armor on the target.  The Sunder Armor effect can stack up to 5 times.",
+  "school": "physical",
+  "weapon_bonus": 25,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_text": "Armor decreased by 50.",
+  "_id": 30016,
+  "_source": "cache"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Nigh-Invulnerability",
+  "icon": "inv_belt_27",
+  "cast_time": 0,
+  "has_buff": true,
+  "buff_duration": 8,
+  "buff_text": "Absorbs 4000 damage.",
+  "_id": 30456,
+  "_source": "cache"
+}

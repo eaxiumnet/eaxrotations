@@ -1,0 +1,32 @@
+{
+  "name": "Recipe: Elixir of Minor Agility",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 12,
+  "required_level": 2,
+  "sell_price": {
+    "copper": 25
+  },
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 3230,
+      "text": "With  Swiftthistle for speed and crushed Silverleaf for enhancement, a potion to to enchance ones natural agility is brewed."
+    },
+    {
+      "type": "use",
+      "spell_id": 2374,
+      "text": "Use: Increases Agility by 4 for 1 hour.  Battle Elixir.",
+      "cooldown": "3 Sec Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "teaches": "make an Elixir of Minor Agility",
+  "teaches_spell_id": 3230,
+  "item_class": 9,
+  "item_subclass": 6,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Alchemy Recipes",
+  "_id": 2553,
+  "_source": "cache"
+}

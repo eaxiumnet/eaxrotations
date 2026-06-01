@@ -1,0 +1,23 @@
+{
+  "name": "Calico Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_18",
+  "ilvl": 15,
+  "required_level": 10,
+  "armor": 16,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "durability": 18,
+  "sell_price": {
+    "copper": 57
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 1498,
+  "_source": "cache"
+}

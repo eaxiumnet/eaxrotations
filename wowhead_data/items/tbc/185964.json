@@ -1,0 +1,21 @@
+{
+  "name": "Azeroth Survival Kit",
+  "quality": 2,
+  "icon": "inv_misc_bag_18",
+  "ilvl": 1,
+  "binding": "bop",
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 352164,
+      "text": "Use: Open the bag."
+    }
+  ],
+  "flavor_text": "Basic supply package for new recruits.",
+  "item_class": 15,
+  "item_subclass": 4,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Other (Miscellaneous)",
+  "_id": 185964,
+  "_source": "cache"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "Worn Shortbow",
+  "quality": 1,
+  "icon": "inv_weapon_bow_05",
+  "ilvl": 2,
+  "weapon": {
+    "min_damage": 5,
+    "max_damage": 10,
+    "speed": 2.3
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "durability": 20,
+  "sell_price": {
+    "copper": 5
+  },
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 2504,
+  "_source": "cache"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Smoky Quartz Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_17",
+  "ilvl": 93,
+  "required_level": 61,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 3,
+    "silver": 2,
+    "copper": 84
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25048,
+  "_source": "cache"
+}

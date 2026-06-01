@@ -1,0 +1,35 @@
+{
+  "name": "White Remedy Cape",
+  "quality": 3,
+  "icon": "inv_misc_cape_11",
+  "ilvl": 112,
+  "required_level": 69,
+  "armor": 76,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 2,
+    "silver": 60,
+    "copper": 1
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18038,
+      "text": "Equip: Increases healing done by up to 59 and damage done by up to 20 for all magical spells and effects."
+    },
+    {
+      "type": "equip",
+      "spell_id": 21364,
+      "text": "Equip: Restores 7 mana per 5 sec."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 24254,
+  "_source": "cache"
+}

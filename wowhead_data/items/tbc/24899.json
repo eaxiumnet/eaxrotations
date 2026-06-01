@@ -1,0 +1,27 @@
+{
+  "name": "Sundered Legguards",
+  "quality": 2,
+  "icon": "inv_pants_mail_15",
+  "ilvl": 114,
+  "required_level": 68,
+  "armor": 514,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 75,
+  "sell_price": {
+    "gold": 4,
+    "silver": 51,
+    "copper": 67
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24899,
+  "_source": "cache"
+}

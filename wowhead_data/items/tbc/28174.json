@@ -1,0 +1,42 @@
+{
+  "name": "Shattrath Wraps",
+  "quality": 3,
+  "icon": "inv_bracer_07",
+  "ilvl": 115,
+  "armor": 68,
+  "stats": {
+    "intellect": 15,
+    "stamina": 15
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "total": 1
+  },
+  "socket_bonus": "+3 Stamina",
+  "durability": 30,
+  "sell_price": {
+    "gold": 1,
+    "silver": 80,
+    "copper": 82
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14248,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 21."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 28174,
+  "_source": "cache"
+}

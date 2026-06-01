@@ -1,0 +1,16 @@
+{
+  "name": "Divine Favor",
+  "icon": "spell_holy_heal",
+  "cost": {
+    "type": "mana",
+    "percent": 3
+  },
+  "cast_time": 0,
+  "cooldown": "2 min cooldown",
+  "required_class": "Paladin",
+  "description": "When activated, gives your next Flash of Light, Holy Light, or Holy Shock spell a 100% critical effect chance.",
+  "has_buff": true,
+  "buff_text": "Critical effect chance of next Flash of Light, Holy Light, or Holy Shock spell increased by 100%.",
+  "_id": 20216,
+  "_source": "cache"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "Sentry Cloak",
+  "quality": 3,
+  "icon": "inv_misc_cape_04",
+  "ilvl": 24,
+  "required_level": 19,
+  "armor": 21,
+  "stats": {
+    "agility": 4,
+    "stamina": 5
+  },
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 8,
+    "copper": 63
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 2059,
+  "_source": "cache"
+}

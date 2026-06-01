@@ -1,0 +1,23 @@
+{
+  "name": "Loose Chain Vest",
+  "quality": 0,
+  "icon": "inv_chest_chain",
+  "ilvl": 10,
+  "required_level": 5,
+  "armor": 97,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "durability": 65,
+  "sell_price": {
+    "copper": 58
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2648,
+  "_source": "cache"
+}

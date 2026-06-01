@@ -1,0 +1,22 @@
+{
+  "name": "Superior Cloak",
+  "quality": 2,
+  "icon": "inv_misc_cape_10",
+  "ilvl": 24,
+  "required_level": 19,
+  "armor": 19,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 7,
+    "copper": 9
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 9805,
+  "_source": "cache"
+}

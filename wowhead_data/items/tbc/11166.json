@@ -1,0 +1,25 @@
+{
+  "name": "Formula: Enchant Gloves - Skinning",
+  "quality": 2,
+  "icon": "inv_misc_note_01",
+  "ilvl": 40,
+  "sell_price": {
+    "silver": 10
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 13698,
+      "text": "Permanently enchant gloves to grant +5 skinning skill."
+    }
+  ],
+  "teaches": "permanently enchant gloves to give +5 skinning skill",
+  "teaches_spell_id": 13698,
+  "item_class": 9,
+  "item_subclass": 8,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Enchanting Formulae",
+  "_id": 11166,
+  "_source": "cache"
+}

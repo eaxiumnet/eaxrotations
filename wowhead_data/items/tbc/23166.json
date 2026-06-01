@@ -1,0 +1,14 @@
+{
+  "name": "Hexxer Stave",
+  "quality": 1,
+  "icon": "inv_staff_17",
+  "ilvl": 1,
+  "max_stack": 5,
+  "flavor_text": "Good versus skeletal scourge.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23166,
+  "_source": "cache"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Translated Sunhawk Missive",
+  "quality": 1,
+  "icon": "inv_scroll_04",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "This letter bears the seal of the blood elves.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24323,
+  "_source": "cache"
+}

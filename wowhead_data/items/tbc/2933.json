@@ -1,0 +1,28 @@
+{
+  "name": "Seal of Wrynn",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_05",
+  "ilvl": 31,
+  "stats": {
+    "agility": 3,
+    "strength": 3,
+    "intellect": 4,
+    "spirit": 3,
+    "stamina": 4
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 37,
+    "copper": 50
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 2933,
+  "_source": "cache"
+}

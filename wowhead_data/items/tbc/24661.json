@@ -1,0 +1,27 @@
+{
+  "name": "Shadow Council Chain",
+  "quality": 2,
+  "icon": "inv_belt_21",
+  "ilvl": 111,
+  "required_level": 67,
+  "armor": 77,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "gold": 1,
+    "silver": 36,
+    "copper": 95
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24661,
+  "_source": "cache"
+}

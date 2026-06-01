@@ -1,0 +1,16 @@
+{
+  "name": "Dark Iron Scraps",
+  "quality": 1,
+  "icon": "inv_misc_armorkit_20",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 2
+  },
+  "max_stack": 250,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 22528,
+  "_source": "cache"
+}

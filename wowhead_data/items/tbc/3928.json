@@ -1,0 +1,26 @@
+{
+  "name": "Superior Healing Potion",
+  "quality": 1,
+  "icon": "inv_potion_53",
+  "ilvl": 45,
+  "required_level": 35,
+  "sell_price": {
+    "silver": 2,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 4042,
+      "text": "Use: Restores 700 to 900 health.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 1,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Potions",
+  "_id": 3928,
+  "_source": "cache"
+}

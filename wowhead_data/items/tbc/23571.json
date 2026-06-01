@@ -1,0 +1,17 @@
+{
+  "name": "Primal Might",
+  "quality": 3,
+  "icon": "spell_nature_lightningoverload",
+  "ilvl": 65,
+  "sell_price": {
+    "gold": 1,
+    "silver": 60
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 10,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Elemental",
+  "_id": 23571,
+  "_source": "cache"
+}

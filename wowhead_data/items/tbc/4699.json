@@ -1,0 +1,29 @@
+{
+  "name": "Seer's Belt",
+  "quality": 2,
+  "icon": "inv_belt_22",
+  "ilvl": 18,
+  "required_level": 13,
+  "armor": 18,
+  "stats": {
+    "intellect": 4
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 20,
+  "sell_price": {
+    "silver": 2,
+    "copper": 21
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 4699,
+  "_source": "cache"
+}

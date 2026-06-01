@@ -1,0 +1,23 @@
+{
+  "name": "Heavy Linen Bandage",
+  "quality": 1,
+  "icon": "inv_misc_bandage_18",
+  "ilvl": 1,
+  "sell_price": {
+    "copper": 20
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 1159,
+      "text": "Use: Heals 114 damage over 6 sec."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 7,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Bandages",
+  "_id": 2581,
+  "_source": "cache"
+}

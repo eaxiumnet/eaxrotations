@@ -1,0 +1,15 @@
+{
+  "name": "Vanish",
+  "icon": "ability_vanish",
+  "cast_time": 0,
+  "cooldown": "5 min cooldown",
+  "rank": 2,
+  "required_class": "Rogue",
+  "required_level": 62,
+  "description": "Allows the rogue to vanish from sight, entering an improved stealth mode for 10 sec.  Also breaks movement impairing effects.  More effective than Vanish (Rank 2).",
+  "duration": 10,
+  "has_buff": true,
+  "buff_text": "Improved stealth.",
+  "_id": 26889,
+  "_source": "cache"
+}

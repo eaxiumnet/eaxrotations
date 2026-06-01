@@ -1,0 +1,27 @@
+{
+  "name": "Elementalist Skullcap",
+  "quality": 2,
+  "icon": "inv_helmet_59",
+  "ilvl": 120,
+  "required_level": 70,
+  "armor": 120,
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "gold": 2,
+    "silver": 33,
+    "copper": 24
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24689,
+  "_source": "cache"
+}

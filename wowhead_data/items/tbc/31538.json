@@ -1,0 +1,38 @@
+{
+  "name": "Twin Moon Shoulderguards",
+  "quality": 2,
+  "icon": "inv_shoulder_18",
+  "ilvl": 105,
+  "armor": 183,
+  "stats": {
+    "intellect": 14,
+    "spirit": 14,
+    "stamina": 14
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 50,
+  "sell_price": {
+    "gold": 2,
+    "silver": 61,
+    "copper": 35
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9345,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 16."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 31538,
+  "_source": "cache"
+}

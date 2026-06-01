@@ -1,0 +1,14 @@
+{
+  "name": "Earthen Signet",
+  "quality": 1,
+  "icon": "inv_ore_thorium_01",
+  "ilvl": 1,
+  "unique": true,
+  "phase": 1,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 31750,
+  "_source": "cache"
+}

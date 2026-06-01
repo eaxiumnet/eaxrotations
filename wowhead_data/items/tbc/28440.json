@@ -1,0 +1,37 @@
+{
+  "name": "Thunder",
+  "quality": 4,
+  "icon": "inv_mace_2h_blacksmithing_01",
+  "ilvl": 107,
+  "required_level": 70,
+  "stats": {
+    "agility": 37,
+    "strength": 37,
+    "stamina": 55
+  },
+  "weapon": {
+    "min_damage": 333,
+    "max_damage": 500,
+    "speed": 3.8
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "binding": "bop",
+  "unique": true,
+  "durability": 120,
+  "sell_price": {
+    "gold": 13,
+    "silver": 10,
+    "copper": 12
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 5,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Two-Handed Maces",
+  "_id": 28440,
+  "_source": "cache"
+}

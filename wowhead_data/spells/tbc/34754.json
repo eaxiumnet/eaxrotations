@@ -1,0 +1,13 @@
+{
+  "name": "Clearcasting",
+  "icon": "spell_holy_fanaticism",
+  "range": 100,
+  "cast_time": 0,
+  "required_class": "Priest",
+  "required_level": 10,
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Your next Flash Heal, Binding Heal, or Greater Heal spell has its mana cost reduced by 100%.",
+  "_id": 34754,
+  "_source": "cache"
+}

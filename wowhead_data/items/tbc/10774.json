@@ -1,0 +1,31 @@
+{
+  "name": "Fleshhide Shoulders",
+  "quality": 3,
+  "icon": "inv_shoulder_28",
+  "ilvl": 42,
+  "required_level": 37,
+  "armor": 95,
+  "stats": {
+    "agility": 6,
+    "strength": 5,
+    "stamina": 15
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 60,
+  "sell_price": {
+    "silver": 59,
+    "copper": 57
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 10774,
+  "_source": "cache"
+}

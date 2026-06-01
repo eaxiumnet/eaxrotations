@@ -1,0 +1,13 @@
+{
+  "name": "Ambassador Malcin's Head",
+  "quality": 1,
+  "icon": "inv_misc_head_undead_01",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 17009,
+  "_source": "cache"
+}

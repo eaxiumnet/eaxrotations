@@ -1,0 +1,26 @@
+{
+  "name": "Weathered Crossbow",
+  "quality": 1,
+  "icon": "inv_weapon_crossbow_02",
+  "ilvl": 2,
+  "weapon": {
+    "min_damage": 6,
+    "max_damage": 10,
+    "speed": 2.5
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Crossbow",
+  "durability": 20,
+  "sell_price": {
+    "copper": 5
+  },
+  "item_class": 2,
+  "item_subclass": 18,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Crossbows",
+  "_id": 23347,
+  "_source": "cache"
+}

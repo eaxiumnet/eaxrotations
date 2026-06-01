@@ -1,0 +1,25 @@
+{
+  "name": "Major Healing Potion",
+  "quality": 1,
+  "icon": "inv_potion_54",
+  "ilvl": 55,
+  "required_level": 45,
+  "sell_price": {
+    "silver": 10
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 17534,
+      "text": "Use: Restores 1050 to 1750 health.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 1,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Potions",
+  "_id": 13446,
+  "_source": "cache"
+}

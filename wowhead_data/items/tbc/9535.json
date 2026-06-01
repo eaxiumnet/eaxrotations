@@ -1,0 +1,29 @@
+{
+  "name": "Fire-welded Bracers",
+  "quality": 2,
+  "icon": "inv_bracer_02",
+  "ilvl": 30,
+  "armor": 87,
+  "stats": {
+    "agility": 6,
+    "stamina": 1
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "silver": 14,
+    "copper": 6
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 9535,
+  "_source": "cache"
+}

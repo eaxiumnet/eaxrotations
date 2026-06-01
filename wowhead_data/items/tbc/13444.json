@@ -1,0 +1,25 @@
+{
+  "name": "Major Mana Potion",
+  "quality": 1,
+  "icon": "inv_potion_76",
+  "ilvl": 59,
+  "required_level": 49,
+  "sell_price": {
+    "silver": 15
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 17531,
+      "text": "Use: Restores 1350 to 2250 mana.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 1,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Potions",
+  "_id": 13444,
+  "_source": "cache"
+}

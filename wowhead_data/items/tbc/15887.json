@@ -1,0 +1,29 @@
+{
+  "name": "Heroic Guard",
+  "quality": 2,
+  "icon": "inv_shield_04",
+  "ilvl": 62,
+  "required_level": 57,
+  "armor": 1890,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "boe",
+  "heroic": true,
+  "block": 36,
+  "durability": 85,
+  "sell_price": {
+    "gold": 2,
+    "silver": 75,
+    "copper": 81
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 15887,
+  "_source": "cache"
+}

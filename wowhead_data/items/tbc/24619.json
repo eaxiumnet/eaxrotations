@@ -1,0 +1,27 @@
+{
+  "name": "Vindicator Shoulderpads",
+  "quality": 2,
+  "icon": "inv_shoulder_01",
+  "ilvl": 93,
+  "required_level": 61,
+  "armor": 87,
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 87,
+    "copper": 33
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24619,
+  "_source": "cache"
+}

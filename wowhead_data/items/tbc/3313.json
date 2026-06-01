@@ -1,0 +1,30 @@
+{
+  "name": "Ceremonial Leather Harness",
+  "quality": 2,
+  "icon": "inv_chest_leather_04",
+  "ilvl": 18,
+  "required_level": 13,
+  "armor": 74,
+  "stats": {
+    "agility": 4,
+    "spirit": 3
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 65,
+  "sell_price": {
+    "silver": 5,
+    "copper": 19
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 3313,
+  "_source": "cache"
+}

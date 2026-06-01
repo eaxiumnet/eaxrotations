@@ -1,0 +1,42 @@
+{
+  "name": "Sacrificial Gauntlets",
+  "quality": 3,
+  "icon": "inv_gauntlets_31",
+  "ilvl": 68,
+  "required_level": 60,
+  "armor": 441,
+  "stats": {
+    "strength": 19
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 45,
+  "sell_price": {
+    "gold": 1,
+    "silver": 97,
+    "copper": 82
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    },
+    {
+      "type": "equip",
+      "spell_id": 15464,
+      "text": "Equip: Increases your hit rating by 10."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 22714,
+  "_source": "cache"
+}

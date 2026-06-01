@@ -1,0 +1,19 @@
+{
+  "name": "Ambush",
+  "icon": "ability_rogue_ambush",
+  "cost": {
+    "type": "energy",
+    "amount": 60
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Rogue",
+  "required_level": 42,
+  "description": "Ambush the target, causing 250% weapon damage plus 185 to the target.  Must be stealthed and behind the target.  Requires a dagger in the main hand.  Awards 1 combo point.",
+  "school": "physical",
+  "weapon_pct": 250,
+  "weapon_bonus": 185,
+  "target_type": "hostile",
+  "_id": 11267,
+  "_source": "wowhead"
+}

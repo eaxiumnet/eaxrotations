@@ -1,0 +1,21 @@
+{
+  "name": "Omokk's Head",
+  "quality": 1,
+  "icon": "inv_misc_head_centaur_01",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 16447,
+      "text": "Use: At Urok's Tribute Pile, combine Omokk's Head with the Roughshod Pike."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 12534,
+  "_source": "cache"
+}

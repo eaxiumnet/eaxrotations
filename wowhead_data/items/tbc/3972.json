@@ -1,0 +1,20 @@
+{
+  "name": "Smooth Cloak",
+  "quality": 0,
+  "icon": "inv_misc_cape_12",
+  "ilvl": 56,
+  "required_level": 51,
+  "armor": 33,
+  "slot": "Back",
+  "equip_slots": [
+    15
+  ],
+  "sell_price": {
+    "silver": 38,
+    "copper": 91
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 3972,
+  "_source": "cache"
+}

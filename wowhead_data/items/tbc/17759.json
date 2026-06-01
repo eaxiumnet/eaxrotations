@@ -1,0 +1,34 @@
+{
+  "name": "Mark of Resolution",
+  "quality": 2,
+  "icon": "inv_jewelry_talisman_07",
+  "ilvl": 60,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 1,
+    "silver": 3,
+    "copper": 7
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 21956,
+      "text": "Use: Absorbs 350 to 650 physical damage.  Lasts 10 sec.",
+      "cooldown": "30 Min Cooldown"
+    },
+    {
+      "type": "equip",
+      "spell_id": 21958,
+      "text": "Equip: Increases your chance to resist Stun and Fear effects by 1%."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 17759,
+  "_source": "cache"
+}

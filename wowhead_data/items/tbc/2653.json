@@ -1,0 +1,22 @@
+{
+  "name": "Flimsy Chain Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_04",
+  "ilvl": 4,
+  "armor": 35,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "durability": 18,
+  "sell_price": {
+    "copper": 3
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2653,
+  "_source": "cache"
+}

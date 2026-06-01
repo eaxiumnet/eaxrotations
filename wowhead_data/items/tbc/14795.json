@@ -1,0 +1,31 @@
+{
+  "name": "Protector Helm",
+  "quality": 2,
+  "icon": "inv_helmet_10",
+  "ilvl": 53,
+  "required_level": 48,
+  "armor": 234,
+  "stats": {
+    "spirit": 7,
+    "stamina": 20
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 60,
+  "sell_price": {
+    "gold": 1,
+    "silver": 26,
+    "copper": 90
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 14795,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Arachnidian Legguards",
+  "quality": 2,
+  "icon": "inv_pants_14",
+  "ilvl": 55,
+  "required_level": 50,
+  "armor": 62,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 1,
+    "silver": 32,
+    "copper": 37
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14295,
+  "_source": "cache"
+}

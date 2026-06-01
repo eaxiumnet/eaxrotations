@@ -1,0 +1,12 @@
+{
+  "name": "Inner Focus",
+  "icon": "spell_frost_windwalkon",
+  "cast_time": 0,
+  "cooldown": "3 min cooldown",
+  "required_class": "Priest",
+  "description": "When activated, reduces the Mana cost of your next spell by 100% and increases its critical effect chance by 25% if it is capable of a critical effect.",
+  "has_buff": true,
+  "buff_text": "The Mana cost of your next spell is reduced by 100%.",
+  "_id": 14751,
+  "_source": "wowhead"
+}

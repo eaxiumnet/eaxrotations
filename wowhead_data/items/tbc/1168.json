@@ -1,0 +1,44 @@
+{
+  "name": "Skullflame Shield",
+  "quality": 4,
+  "icon": "inv_shield_01",
+  "ilvl": 59,
+  "required_level": 54,
+  "armor": 2593,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "binding": "boe",
+  "block": 53,
+  "durability": 120,
+  "sell_price": {
+    "gold": 4,
+    "silver": 22,
+    "copper": 96
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18815,
+      "text": "Equip: When struck in combat has a 3% chance of stealing 35 life from target enemy. (Proc chance: 3%)"
+    },
+    {
+      "type": "equip",
+      "spell_id": 18816,
+      "text": "Equip: When struck in combat has a 1% chance of dealing 75 to 125 Fire damage to all targets around you. (Proc chance: 1%)"
+    }
+  ],
+  "resistances": {
+    "fire": 10,
+    "shadow": 10
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 1168,
+  "_source": "cache"
+}

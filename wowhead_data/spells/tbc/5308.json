@@ -1,0 +1,16 @@
+{
+  "name": "Execute",
+  "icon": "inv_sword_48",
+  "cost": {
+    "type": "rage",
+    "amount": 15
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Warrior",
+  "required_level": 24,
+  "requires_weapon": "Melee Weapon",
+  "description": "Attempt to finish off a wounded foe, causing 125 damage and converting each extra point of rage into 3 additional damage.  Only usable on enemies that have less than 20% health.",
+  "_id": 5308,
+  "_source": "cache"
+}

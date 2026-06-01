@@ -1,0 +1,26 @@
+{
+  "name": "Band of Vigor",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_20",
+  "ilvl": 58,
+  "required_level": 53,
+  "stats": {
+    "agility": 7,
+    "strength": 8,
+    "stamina": 7
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "silver": 75,
+    "copper": 30
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 18302,
+  "_source": "cache"
+}

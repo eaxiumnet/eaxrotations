@@ -1,0 +1,20 @@
+{
+  "name": "Luminrath's Mantle",
+  "quality": 1,
+  "icon": "inv_misc_cape_naxxramas_01",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 34142,
+      "text": "Use: Place Luminrath's Mantle inside the Dresser inside his house."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 28352,
+  "_source": "cache"
+}

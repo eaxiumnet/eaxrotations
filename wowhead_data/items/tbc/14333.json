@@ -1,0 +1,26 @@
+{
+  "name": "Eternal Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_06",
+  "ilvl": 63,
+  "required_level": 58,
+  "armor": 51,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "silver": 89,
+    "copper": 89
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14333,
+  "_source": "cache"
+}

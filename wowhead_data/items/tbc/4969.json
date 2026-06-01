@@ -1,0 +1,23 @@
+{
+  "name": "Fortified Bindings",
+  "quality": 1,
+  "icon": "inv_bracer_03",
+  "ilvl": 10,
+  "armor": 45,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 20,
+  "sell_price": {
+    "copper": 42
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 4969,
+  "_source": "cache"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Deteriorating Plate Bracers",
+  "quality": 0,
+  "icon": "inv_bracer_03",
+  "ilvl": 72,
+  "required_level": 67,
+  "armor": 267,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Plate",
+  "durability": 40,
+  "sell_price": {
+    "silver": 70,
+    "copper": 52
+  },
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25391,
+  "_source": "cache"
+}

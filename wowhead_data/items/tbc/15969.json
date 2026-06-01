@@ -1,0 +1,21 @@
+{
+  "name": "Beaded Orb",
+  "quality": 2,
+  "icon": "inv_misc_orb_05",
+  "ilvl": 10,
+  "required_level": 5,
+  "slot": "Held In Off-hand",
+  "equip_slots": [
+    17
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 4,
+    "copper": 25
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 15969,
+  "_source": "cache"
+}

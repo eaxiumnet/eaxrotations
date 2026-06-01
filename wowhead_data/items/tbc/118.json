@@ -1,0 +1,24 @@
+{
+  "name": "Minor Healing Potion",
+  "quality": 1,
+  "icon": "inv_potion_49",
+  "ilvl": 5,
+  "sell_price": {
+    "copper": 5
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 439,
+      "text": "Use: Restores 70 to 90 health.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 1,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Potions",
+  "_id": 118,
+  "_source": "cache"
+}

@@ -1,0 +1,42 @@
+{
+  "name": "High Warlord's Quickblade",
+  "quality": 4,
+  "icon": "inv_sword_05",
+  "ilvl": 78,
+  "required_level": 60,
+  "stats": {
+    "stamina": 7
+  },
+  "weapon": {
+    "min_damage": 85,
+    "max_damage": 129,
+    "speed": 1.8
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 105,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 7597,
+      "text": "Equip: Increases your critical strike rating by 14."
+    },
+    {
+      "type": "equip",
+      "spell_id": 9335,
+      "text": "Equip: Increases attack power by 28."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 23467,
+  "_source": "cache"
+}

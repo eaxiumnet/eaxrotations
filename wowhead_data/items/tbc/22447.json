@@ -1,0 +1,20 @@
+{
+  "name": "Lesser Planar Essence",
+  "quality": 2,
+  "icon": "inv_enchant_essencearcanesmall",
+  "ilvl": 60,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 32977,
+      "text": "Use: Turn three lesser planar essences into a greater one."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 12,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Enchanting",
+  "_id": 22447,
+  "_source": "cache"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Half Pendant of Aquatic Agility",
+  "quality": 1,
+  "icon": "inv_jewelry_talisman_10",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 19720,
+      "text": "Use: Combine with the Half Pendant of Aquatic Endurance to form the Pendant of the Sea Lion."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 15883,
+  "_source": "cache"
+}

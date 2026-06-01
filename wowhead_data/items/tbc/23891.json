@@ -1,0 +1,14 @@
+{
+  "name": "Ominous Letter",
+  "quality": 1,
+  "icon": "inv_scroll_04",
+  "ilvl": 1,
+  "required_level": 59,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23891,
+  "_source": "cache"
+}

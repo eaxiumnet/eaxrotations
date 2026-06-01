@@ -1,0 +1,14 @@
+{
+  "name": "Nurguni's Supplies",
+  "quality": 1,
+  "icon": "inv_box_01",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "A box filled with a variety of building materials, first aid supplies, and other items for the Blood Watch inn.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23903,
+  "_source": "cache"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Moldy Leather Gloves",
+  "quality": 0,
+  "icon": "inv_gauntlets_18",
+  "ilvl": 66,
+  "required_level": 61,
+  "armor": 94,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "durability": 30,
+  "sell_price": {
+    "silver": 46,
+    "copper": 83
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 25353,
+  "_source": "cache"
+}

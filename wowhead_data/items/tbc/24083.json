@@ -1,0 +1,45 @@
+{
+  "name": "Lifegiver Britches",
+  "quality": 3,
+  "icon": "inv_pants_plate_01",
+  "ilvl": 85,
+  "required_level": 60,
+  "armor": 103,
+  "stats": {
+    "intellect": 25,
+    "spirit": 12,
+    "stamina": 16
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "red": 1,
+    "blue": 2,
+    "total": 3
+  },
+  "socket_bonus": "",
+  "durability": 65,
+  "sell_price": {
+    "gold": 2,
+    "silver": 65,
+    "copper": 88
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 17371,
+      "text": "Equip: Increases healing done by up to 44 and damage done by up to 15 for all magical spells and effects."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24083,
+  "_source": "cache"
+}

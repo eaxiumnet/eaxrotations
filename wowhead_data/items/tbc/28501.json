@@ -1,0 +1,27 @@
+{
+  "name": "Ravager Egg Omelet",
+  "quality": 1,
+  "icon": "inv_egg_04",
+  "ilvl": 55,
+  "required_level": 55,
+  "sell_price": {
+    "copper": 25
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 18234,
+      "text": "Use: Restores 4320 health over 30 sec.   Must remain seated while eating.   Also increases your Stamina by 10 for 10 min."
+    }
+  ],
+  "food_hp": 4320,
+  "food_duration": 30,
+  "max_stack": 20,
+  "flavor_text": "You aren't really going to eat that, are you?",
+  "item_class": 0,
+  "item_subclass": 5,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Food & Drinks",
+  "_id": 28501,
+  "_source": "cache"
+}

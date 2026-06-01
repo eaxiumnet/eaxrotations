@@ -1,0 +1,37 @@
+{
+  "name": "Ravenclaw Band",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_16",
+  "ilvl": 115,
+  "required_level": 68,
+  "stats": {
+    "agility": 20,
+    "stamina": 15
+  },
+  "ratings": {
+    "hit": 13
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique_equipped": true,
+  "sell_price": {
+    "silver": 71,
+    "copper": 2
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9336,
+      "text": "Equip: Increases attack power by 30."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 27925,
+  "_source": "cache"
+}

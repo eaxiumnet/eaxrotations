@@ -1,0 +1,20 @@
+{
+  "name": "Water of the Seers",
+  "quality": 1,
+  "icon": "inv_potion_01",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 4981,
+      "text": "Use: Induces a Vision."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 4823,
+  "_source": "cache"
+}

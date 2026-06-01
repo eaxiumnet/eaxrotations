@@ -1,0 +1,66 @@
+{
+  "name": "Voidheart Crown",
+  "quality": 4,
+  "icon": "inv_crown_01",
+  "ilvl": 120,
+  "required_level": 70,
+  "armor": 164,
+  "stats": {
+    "intellect": 36,
+    "stamina": 39
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "meta": 1,
+    "red": 1,
+    "total": 2
+  },
+  "socket_bonus": "+4 Spell Hit Rating",
+  "set_id": 645,
+  "set_name": "Voidheart Raiment",
+  "set_pieces": [
+    {
+      "id": 28963,
+      "name": "Voidheart Crown"
+    },
+    {
+      "id": 28968,
+      "name": "Voidheart Gloves"
+    },
+    {
+      "id": 28966,
+      "name": "Voidheart Leggings"
+    },
+    {
+      "id": 28967,
+      "name": "Voidheart Mantle"
+    },
+    {
+      "id": 28964,
+      "name": "Voidheart Robe"
+    }
+  ],
+  "classes": [
+    "Warlock"
+  ],
+  "durability": 60,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18056,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 40."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 28963,
+  "_source": "cache"
+}

@@ -1,0 +1,41 @@
+{
+  "name": "Skull Splitting Crossbow",
+  "quality": 3,
+  "icon": "inv_weapon_crossbow_04",
+  "ilvl": 48,
+  "required_level": 43,
+  "stats": {
+    "strength": 3
+  },
+  "weapon": {
+    "min_damage": 66,
+    "max_damage": 99,
+    "speed": 2.6
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Crossbow",
+  "binding": "boe",
+  "durability": 75,
+  "sell_price": {
+    "gold": 1,
+    "silver": 78,
+    "copper": 92
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9142,
+      "text": "Equip: Increases attack power by 14."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 18,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Crossbows",
+  "_id": 13039,
+  "_source": "cache"
+}

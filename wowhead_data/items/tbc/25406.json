@@ -1,0 +1,29 @@
+{
+  "name": "Broken Longbow",
+  "quality": 0,
+  "icon": "inv_weapon_bow_02",
+  "ilvl": 69,
+  "required_level": 64,
+  "weapon": {
+    "min_damage": 48,
+    "max_damage": 90,
+    "speed": 2.5
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "durability": 65,
+  "sell_price": {
+    "gold": 1,
+    "silver": 42,
+    "copper": 27
+  },
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 25406,
+  "_source": "cache"
+}

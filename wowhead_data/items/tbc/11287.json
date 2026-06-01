@@ -1,0 +1,30 @@
+{
+  "name": "Lesser Magic Wand",
+  "quality": 2,
+  "icon": "inv_staff_02",
+  "ilvl": 15,
+  "required_level": 5,
+  "weapon": {
+    "min_damage": 12,
+    "max_damage": 22,
+    "speed": 1.5
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Wand",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "silver": 5,
+    "copper": 8
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 19,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Wands",
+  "_id": 11287,
+  "_source": "cache"
+}

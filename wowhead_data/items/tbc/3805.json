@@ -1,0 +1,24 @@
+{
+  "name": "Hardened Leather Pants",
+  "quality": 0,
+  "icon": "inv_pants_06",
+  "ilvl": 32,
+  "required_level": 27,
+  "armor": 76,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "durability": 65,
+  "sell_price": {
+    "silver": 10,
+    "copper": 49
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 3805,
+  "_source": "cache"
+}

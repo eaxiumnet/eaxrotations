@@ -1,0 +1,38 @@
+{
+  "name": "Crystalline Kopesh",
+  "quality": 3,
+  "icon": "inv_sword_20",
+  "ilvl": 100,
+  "stats": {
+    "stamina": 18
+  },
+  "ratings": {
+    "defense": 12,
+    "hit": 13
+  },
+  "weapon": {
+    "min_damage": 88,
+    "max_damage": 165,
+    "speed": 2.1
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 90,
+  "sell_price": {
+    "gold": 7,
+    "silver": 50,
+    "copper": 90
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 25772,
+  "_source": "cache"
+}

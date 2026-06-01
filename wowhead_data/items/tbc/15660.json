@@ -1,0 +1,27 @@
+{
+  "name": "Impenetrable Breastplate",
+  "quality": 2,
+  "icon": "inv_chest_plate01",
+  "ilvl": 61,
+  "required_level": 56,
+  "armor": 327,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 100,
+  "sell_price": {
+    "gold": 2,
+    "silver": 54,
+    "copper": 12
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 15660,
+  "_source": "cache"
+}

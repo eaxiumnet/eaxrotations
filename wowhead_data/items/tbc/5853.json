@@ -1,0 +1,13 @@
+{
+  "name": "Intact Silithid Carapace",
+  "quality": 1,
+  "icon": "inv_shoulder_04",
+  "ilvl": 1,
+  "max_stack": 20,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 5853,
+  "_source": "cache"
+}

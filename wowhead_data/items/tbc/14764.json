@@ -1,0 +1,31 @@
+{
+  "name": "Enduring Gauntlets",
+  "quality": 2,
+  "icon": "inv_gauntlets_09",
+  "ilvl": 35,
+  "required_level": 30,
+  "armor": 133,
+  "stats": {
+    "agility": 3,
+    "strength": 7,
+    "stamina": 5
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "silver": 22,
+    "copper": 50
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 14764,
+  "_source": "cache"
+}

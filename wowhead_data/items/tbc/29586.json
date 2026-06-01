@@ -1,0 +1,13 @@
+{
+  "name": "Head of Forgefiend Razorsaw",
+  "quality": 1,
+  "icon": "inv_mask_02",
+  "unique": true,
+  "flavor_text": "The head of the leader of Forge Base Mageddon.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 29586,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Talonguard Greaves",
+  "quality": 2,
+  "icon": "inv_boots_chain_05",
+  "ilvl": 99,
+  "required_level": 63,
+  "armor": 630,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 3,
+    "silver": 32,
+    "copper": 37
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24967,
+  "_source": "cache"
+}

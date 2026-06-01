@@ -1,0 +1,32 @@
+{
+  "name": "Icon of the Silver Crescent",
+  "quality": 4,
+  "icon": "inv_weapon_shortblade_23",
+  "ilvl": 110,
+  "required_level": 70,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 17280,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 43."
+    },
+    {
+      "type": "use",
+      "spell_id": 35163,
+      "text": "Use: Increases damage and healing done by magical spells and effects by up to 155 for 20 sec.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 29370,
+  "_source": "cache"
+}

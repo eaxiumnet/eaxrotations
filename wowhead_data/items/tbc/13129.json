@@ -1,0 +1,33 @@
+{
+  "name": "Firemane Leggings",
+  "quality": 3,
+  "icon": "inv_pants_03",
+  "ilvl": 39,
+  "required_level": 34,
+  "armor": 218,
+  "stats": {
+    "strength": 19,
+    "stamina": 5
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 90,
+  "sell_price": {
+    "silver": 76,
+    "copper": 21
+  },
+  "phase": 1,
+  "resistances": {
+    "fire": 10
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 13129,
+  "_source": "cache"
+}

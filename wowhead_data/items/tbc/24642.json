@@ -1,0 +1,27 @@
+{
+  "name": "Mistyreed Pants",
+  "quality": 2,
+  "icon": "inv_pants_cloth_06",
+  "ilvl": 102,
+  "required_level": 64,
+  "armor": 111,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 2,
+    "silver": 54,
+    "copper": 78
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 24642,
+  "_source": "cache"
+}

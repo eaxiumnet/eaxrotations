@@ -1,0 +1,23 @@
+{
+  "name": "Devouring Plague",
+  "icon": "spell_shadow_blackplague",
+  "cost": {
+    "type": "mana",
+    "amount": 350
+  },
+  "range": 30,
+  "cast_time": 0,
+  "cooldown": "3 min cooldown",
+  "required_class": "Priest",
+  "required_level": 28,
+  "description": "Afflicts the target with a disease that causes 272 Shadow damage over 24 sec.  Damage caused by the Devouring Plague heals the caster.",
+  "school": "shadow",
+  "is_heal": true,
+  "duration": 24,
+  "target_type": "self",
+  "has_buff": true,
+  "buff_duration": 24,
+  "buff_text": "Causes 34 damage every 3 seconds, healing the caster.",
+  "_id": 19276,
+  "_source": "wowhead"
+}

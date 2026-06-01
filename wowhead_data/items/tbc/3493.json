@@ -1,0 +1,29 @@
+{
+  "name": "Raptor's End",
+  "quality": 2,
+  "icon": "inv_weapon_bow_03",
+  "ilvl": 30,
+  "weapon": {
+    "min_damage": 33,
+    "max_damage": 62,
+    "speed": 2.9
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Bow",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "silver": 34,
+    "copper": 26
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 2,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Bows",
+  "_id": 3493,
+  "_source": "cache"
+}

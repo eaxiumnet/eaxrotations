@@ -1,0 +1,17 @@
+{
+  "name": "Heavy Blasting Powder",
+  "quality": 1,
+  "icon": "classic_inv_misc_dust_06",
+  "ilvl": 25,
+  "sell_price": {
+    "silver": 1,
+    "copper": 50
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 1,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Parts",
+  "_id": 4377,
+  "_source": "cache"
+}

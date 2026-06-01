@@ -1,0 +1,24 @@
+{
+  "name": "Dragonbone Ring",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_66",
+  "ilvl": 94,
+  "required_level": 63,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "unique_equipped": true,
+  "sell_price": {
+    "gold": 3,
+    "silver": 66,
+    "copper": 89
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31238,
+  "_source": "cache"
+}

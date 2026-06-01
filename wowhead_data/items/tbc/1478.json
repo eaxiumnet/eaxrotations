@@ -1,0 +1,24 @@
+{
+  "name": "Scroll of Protection II",
+  "quality": 1,
+  "icon": "inv_scroll_07",
+  "ilvl": 25,
+  "required_level": 15,
+  "sell_price": {
+    "copper": 62
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 8094,
+      "text": "Use: Increases the target's Armor by 120 for 30 min."
+    }
+  ],
+  "max_stack": 5,
+  "item_class": 0,
+  "item_subclass": 4,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Scrolls",
+  "_id": 1478,
+  "_source": "cache"
+}

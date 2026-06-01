@@ -1,0 +1,23 @@
+{
+  "name": "Heavy Runecloth Bandage",
+  "quality": 1,
+  "icon": "inv_misc_bandage_12",
+  "ilvl": 58,
+  "sell_price": {
+    "silver": 10
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 18610,
+      "text": "Use: Heals 2000 damage over 8 sec."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 7,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Bandages",
+  "_id": 14530,
+  "_source": "cache"
+}

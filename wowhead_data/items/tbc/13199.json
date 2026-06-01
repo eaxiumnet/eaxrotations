@@ -1,0 +1,30 @@
+{
+  "name": "Crushridge Bindings",
+  "quality": 3,
+  "icon": "inv_bracer_19",
+  "ilvl": 41,
+  "required_level": 36,
+  "armor": 113,
+  "stats": {
+    "strength": 5,
+    "stamina": 11
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Mail",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "silver": 43,
+    "copper": 99
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 13199,
+  "_source": "cache"
+}

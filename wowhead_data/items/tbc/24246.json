@@ -1,0 +1,17 @@
+{
+  "name": "Sanguine Hibiscus",
+  "quality": 1,
+  "icon": "inv_misc_herb_19",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 4
+  },
+  "max_stack": 200,
+  "flavor_text": "It certainly has a 'passionate' fragrance.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24246,
+  "_source": "cache"
+}

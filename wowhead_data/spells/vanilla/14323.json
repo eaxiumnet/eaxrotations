@@ -1,0 +1,19 @@
+{
+  "name": "Hunter's Mark",
+  "icon": "ability_hunter_snipershot",
+  "cost": {
+    "type": "mana",
+    "amount": 30
+  },
+  "range": 100,
+  "cast_time": 0,
+  "required_class": "Hunter",
+  "required_level": 22,
+  "description": "Places the Hunter's Mark on the target, increasing the Ranged Attack Power of all attackers against that target by 45.  In addition, the target of this ability can always be seen by the hunter whether it stealths or turns invisible.  The target also appears on the mini-map.  Lasts for 2 min.",
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 120,
+  "buff_text": "All attackers gain 45 Ranged Attack Power against this target.",
+  "_id": 14323,
+  "_source": "wowhead"
+}

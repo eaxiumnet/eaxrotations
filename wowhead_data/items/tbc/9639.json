@@ -1,0 +1,39 @@
+{
+  "name": "The Hand of Antu'sul",
+  "quality": 3,
+  "icon": "inv_mace_11",
+  "ilvl": 48,
+  "required_level": 43,
+  "weapon": {
+    "min_damage": 61,
+    "max_damage": 113,
+    "speed": 2.7
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Mace",
+  "binding": "bop",
+  "durability": 90,
+  "sell_price": {
+    "gold": 2,
+    "silver": 41,
+    "copper": 11
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "proc",
+      "spell_id": 13532,
+      "text": "Chance on hit: Blasts nearby enemies with thunder increasing the time between their attacks by 11% for 10 sec and doing 7 Nature damage to them.  Will affect up to 4 targets."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 9639,
+  "_source": "cache"
+}

@@ -1,0 +1,745 @@
+{
+  "name": "Fireball",
+  "icon": "spell_fire_flamebolt",
+  "cost": {
+    "type": "mana",
+    "amount": 30
+  },
+  "range": 35,
+  "cast_time": 1.5,
+  "spell_level": 70,
+  "required_class": "Mage",
+  "required_level": 1,
+  "description": "Hurls a fiery ball that causes 16 to 25 Fire damage and an additional 2 Fire damage over 4 sec.",
+  "school": "fire",
+  "damage": {
+    "min": 16,
+    "max": 25
+  },
+  "duration": 4,
+  "has_buff": true,
+  "buff_duration": 4,
+  "periodic": {
+    "amount": 1,
+    "school": "fire",
+    "interval": 2
+  },
+  "buff_text": "1 Fire damage every 2 seconds.",
+  "school_mask": 4,
+  "schools": "Fire",
+  "category": 7,
+  "class_mask": 128,
+  "classes": [
+    "Mage"
+  ],
+  "skill": [
+    8
+  ],
+  "used_by_npc": [
+    {
+      "id": 1832,
+      "name": "Scarlet Magus",
+      "location": [
+        28
+      ],
+      "react": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "id": 2192,
+      "name": "Firecaller Radison",
+      "location": [
+        148
+      ],
+      "react": [
+        -1,
+        null
+      ]
+    },
+    {
+      "id": 4198,
+      "name": "Braelyn Firehand",
+      "location": [
+        406
+      ],
+      "react": [
+        null,
+        1
+      ]
+    },
+    {
+      "id": 4968,
+      "name": "Lady Jaina Proudmoore",
+      "location": [
+        15
+      ],
+      "react": [
+        1,
+        -1
+      ]
+    },
+    {
+      "id": 5834,
+      "name": "Azzere the Skyblade",
+      "location": [
+        17
+      ],
+      "react": [
+        null,
+        -1
+      ]
+    },
+    {
+      "id": 6228,
+      "name": "Dark Iron Ambassador",
+      "location": [
+        721
+      ],
+      "react": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "id": 8660,
+      "name": "The Evalcharr",
+      "location": [
+        16
+      ],
+      "react": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "id": 8916,
+      "name": "Arena Spectator",
+      "location": [
+        1584
+      ],
+      "react": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "id": 10078,
+      "name": "Terrorspark",
+      "location": [
+        46
+      ],
+      "react": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "id": 10647,
+      "name": "Prince Raze",
+      "location": [
+        331
+      ],
+      "react": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "id": 13540,
+      "name": "Seasoned Irondeep Explorer",
+      "location": [
+        2597
+      ],
+      "react": [
+        -1,
+        1
+      ]
+    },
+    {
+      "id": 13541,
+      "name": "Veteran Irondeep Explorer",
+      "location": [
+        2597
+      ],
+      "react": [
+        -1,
+        1
+      ]
+    },
+    {
+      "id": 13542,
+      "name": "Champion Irondeep Explorer",
+      "location": [
+        2597
+      ],
+      "react": [
+        -1,
+        1
+      ]
+    },
+    {
+      "id": 13547,
+      "name": "Veteran Coldmine Explorer",
+      "location": [
+        2597
+      ],
+      "react": [
+        1,
+        -1
+      ]
+    },
+    {
+      "id": 13548,
+      "name": "Champion Coldmine Explorer",
+      "location": [
+        2597
+      ],
+      "react": [
+        1,
+        -1
+      ]
+    },
+    {
+      "id": 14479,
+      "name": "Twilight Lord Everun",
+      "location": [
+        1377
+      ],
+      "react": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "id": 15202,
+      "name": "Vyral the Vile",
+      "location": [
+        1377
+      ],
+      "react": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "id": 15859,
+      "name": "Stormwind Archmage",
+      "location": [
+        1377
+      ],
+      "react": [
+        1,
+        1
+      ]
+    }
+  ],
+  "modified_by": [
+    {
+      "id": 11069,
+      "name": "Improved Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 11083,
+      "name": "Burning Soul",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 11100,
+      "name": "Flame Throwing",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 11115,
+      "name": "Critical Mass",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 11124,
+      "name": "Fire Power",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 11129,
+      "name": "Combustion",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 11170,
+      "name": "Shatter",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 11367,
+      "name": "Critical Mass",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 11368,
+      "name": "Critical Mass",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12042,
+      "name": "Arcane Power",
+      "level": 0,
+      "school": "Arcane"
+    },
+    {
+      "id": 12043,
+      "name": "Presence of Mind",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 12338,
+      "name": "Improved Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12339,
+      "name": "Improved Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12340,
+      "name": "Improved Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12341,
+      "name": "Improved Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12351,
+      "name": "Burning Soul",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12353,
+      "name": "Flame Throwing",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12378,
+      "name": "Fire Power",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12398,
+      "name": "Fire Power",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12399,
+      "name": "Fire Power",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12400,
+      "name": "Fire Power",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 12472,
+      "name": "Icy Veins",
+      "level": 0,
+      "school": "Frost"
+    },
+    {
+      "id": 12536,
+      "name": "Clearcasting",
+      "level": 10,
+      "school": "Arcane"
+    },
+    {
+      "id": 12982,
+      "name": "Shatter",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 12983,
+      "name": "Shatter",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 12984,
+      "name": "Shatter",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 12985,
+      "name": "Shatter",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 15058,
+      "name": "Arcane Instability",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 15059,
+      "name": "Arcane Instability",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 15060,
+      "name": "Arcane Instability",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 21230,
+      "name": "Fireball, Improved DoT",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 21879,
+      "name": "Friendly Nukes",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 22008,
+      "name": "Netherwind Focus",
+      "level": 0,
+      "school": "Arcane"
+    },
+    {
+      "id": 28682,
+      "name": "Combustion",
+      "level": 40,
+      "school": "Fire"
+    },
+    {
+      "id": 29438,
+      "name": "Elemental Precision",
+      "level": 0,
+      "school": "Arcane"
+    },
+    {
+      "id": 29439,
+      "name": "Elemental Precision",
+      "level": 0,
+      "school": "Arcane"
+    },
+    {
+      "id": 29440,
+      "name": "Elemental Precision",
+      "level": 0,
+      "school": "Arcane"
+    },
+    {
+      "id": 29977,
+      "name": "Combustion",
+      "level": 40,
+      "school": "Fire"
+    },
+    {
+      "id": 31589,
+      "name": "Slow",
+      "level": 0,
+      "school": "Arcane"
+    },
+    {
+      "id": 31638,
+      "name": "Playing with Fire",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31639,
+      "name": "Playing with Fire",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31640,
+      "name": "Playing with Fire",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31641,
+      "name": "Blazing Speed",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31642,
+      "name": "Blazing Speed",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31643,
+      "name": "Blazing Speed",
+      "level": 1,
+      "school": "Fire"
+    },
+    {
+      "id": 31656,
+      "name": "Empowered Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31657,
+      "name": "Empowered Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31658,
+      "name": "Empowered Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31659,
+      "name": "Empowered Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31660,
+      "name": "Empowered Fireball",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 31679,
+      "name": "Molten Fury",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 31680,
+      "name": "Molten Fury",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 34293,
+      "name": "Pyromaniac",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 34295,
+      "name": "Pyromaniac",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 34296,
+      "name": "Pyromaniac",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 34935,
+      "name": "Backlash",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 34938,
+      "name": "Backlash",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 34939,
+      "name": "Backlash",
+      "level": 0,
+      "school": "Fire"
+    },
+    {
+      "id": 35578,
+      "name": "Spell Power",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 35581,
+      "name": "Spell Power",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 37438,
+      "name": "Pushback Resistance",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 38397,
+      "name": "Improved Fireball, Frostbolt, and Arcane Missiles",
+      "level": 0,
+      "school": "Physical"
+    },
+    {
+      "id": 44457,
+      "name": "Living Bomb",
+      "level": 60,
+      "school": "Fire"
+    },
+    {
+      "id": 44459,
+      "name": "Living Bomb",
+      "level": 60,
+      "school": "Fire"
+    },
+    {
+      "id": 44461,
+      "name": "Living Bomb",
+      "level": 60,
+      "school": "Fire"
+    }
+  ],
+  "see_also": [
+    {
+      "id": 143,
+      "name": "Fireball",
+      "level": 6,
+      "school": "Fire"
+    },
+    {
+      "id": 145,
+      "name": "Fireball",
+      "level": 12,
+      "school": "Fire"
+    },
+    {
+      "id": 3140,
+      "name": "Fireball",
+      "level": 18,
+      "school": "Fire"
+    },
+    {
+      "id": 8400,
+      "name": "Fireball",
+      "level": 24,
+      "school": "Fire"
+    },
+    {
+      "id": 8401,
+      "name": "Fireball",
+      "level": 30,
+      "school": "Fire"
+    },
+    {
+      "id": 8402,
+      "name": "Fireball",
+      "level": 36,
+      "school": "Fire"
+    },
+    {
+      "id": 10148,
+      "name": "Fireball",
+      "level": 42,
+      "school": "Fire"
+    },
+    {
+      "id": 10149,
+      "name": "Fireball",
+      "level": 48,
+      "school": "Fire"
+    },
+    {
+      "id": 10150,
+      "name": "Fireball",
+      "level": 54,
+      "school": "Fire"
+    },
+    {
+      "id": 10151,
+      "name": "Fireball",
+      "level": 60,
+      "school": "Fire"
+    },
+    {
+      "id": 25306,
+      "name": "Fireball",
+      "level": 60,
+      "school": "Fire"
+    },
+    {
+      "id": 27070,
+      "name": "Fireball",
+      "level": 66,
+      "school": "Fire"
+    },
+    {
+      "id": 38692,
+      "name": "Fireball",
+      "level": 70,
+      "school": "Fire"
+    }
+  ],
+  "gcd": 1.5,
+  "flags": [
+    "Cannot be used while shapeshifted"
+  ],
+  "effects": [
+    {
+      "type": "School Damage (Fire)",
+      "value_raw": "14 (SP mod:",
+      "value": 14,
+      "index": 1
+    },
+    {
+      "type": "Apply Aura: Periodic Damage",
+      "value_raw": "1 every 2 seconds",
+      "value": 1,
+      "interval": 2,
+      "index": 2
+    }
+  ],
+  "_listview_ids": [
+    "add-your-comment",
+    "comments",
+    "modified-by",
+    "screenshots",
+    "see-also-ability",
+    "sounds",
+    "submit-a-screenshot",
+    "submit-your-data",
+    "suggest-a-video",
+    "used-by-npc",
+    "videos",
+    "videos-english"
+  ],
+  "_id": 133,
+  "_source": "cache"
+}

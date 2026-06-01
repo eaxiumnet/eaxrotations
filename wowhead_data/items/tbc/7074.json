@@ -1,0 +1,16 @@
+{
+  "name": "Chipped Claw",
+  "quality": 0,
+  "icon": "inv_misc_bone_06",
+  "ilvl": 1,
+  "sell_price": {
+    "copper": 4
+  },
+  "max_stack": 5,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 7074,
+  "_source": "cache"
+}

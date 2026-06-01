@@ -1,0 +1,15 @@
+{
+  "name": "Gyromatic Micro-Adjustor",
+  "quality": 1,
+  "icon": "inv_misc_screwdriver_02",
+  "ilvl": 35,
+  "sell_price": {
+    "copper": 16
+  },
+  "item_class": 7,
+  "item_subclass": 1,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Parts",
+  "_id": 10498,
+  "_source": "cache"
+}

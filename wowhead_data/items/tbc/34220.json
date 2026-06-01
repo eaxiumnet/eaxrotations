@@ -1,0 +1,17 @@
+{
+  "name": "Chaotic Skyfire Diamond",
+  "quality": 3,
+  "icon": "inv_misc_gem_diamond_07",
+  "ilvl": 70,
+  "sell_price": {
+    "gold": 3
+  },
+  "phase": 1,
+  "flavor_text": "Only fits in a meta gem slot.",
+  "item_class": 3,
+  "item_subclass": 6,
+  "item_class_name": "Gems",
+  "item_subclass_name": "Meta Gems",
+  "_id": 34220,
+  "_source": "cache"
+}

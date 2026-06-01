@@ -1,0 +1,35 @@
+{
+  "name": "The Lobotomizer",
+  "quality": 4,
+  "icon": "inv_sword_29",
+  "ilvl": 65,
+  "required_level": 60,
+  "weapon": {
+    "min_damage": 59,
+    "max_damage": 111,
+    "speed": 1.8
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Dagger",
+  "binding": "bop",
+  "unique": true,
+  "durability": 75,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "proc",
+      "spell_id": 24388,
+      "text": "Chance on hit: Wounds the target for 200 to 300 damage and lowers Intellect of target by 25 for 30 sec."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 15,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Daggers",
+  "_id": 19324,
+  "_source": "cache"
+}

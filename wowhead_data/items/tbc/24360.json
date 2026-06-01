@@ -1,0 +1,41 @@
+{
+  "name": "Tracker's Belt",
+  "quality": 3,
+  "icon": "inv_belt_11",
+  "ilvl": 91,
+  "required_level": 62,
+  "armor": 294,
+  "stats": {
+    "stamina": 21
+  },
+  "ratings": {
+    "hit": 14,
+    "crit": 21
+  },
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 4,
+    "copper": 65
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15809,
+      "text": "Equip: Increases attack power by 42."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 24360,
+  "_source": "cache"
+}

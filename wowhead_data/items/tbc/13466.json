@@ -1,0 +1,17 @@
+{
+  "name": "Plaguebloom",
+  "quality": 1,
+  "icon": "inv_misc_herb_plaguebloom",
+  "ilvl": 57,
+  "sell_price": {
+    "silver": 2,
+    "copper": 50
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 9,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Herbs",
+  "_id": 13466,
+  "_source": "cache"
+}

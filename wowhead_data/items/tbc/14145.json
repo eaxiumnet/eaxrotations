@@ -1,0 +1,38 @@
+{
+  "name": "Cursed Felblade",
+  "quality": 3,
+  "icon": "inv_weapon_shortblade_12",
+  "ilvl": 18,
+  "required_level": 13,
+  "weapon": {
+    "min_damage": 22,
+    "max_damage": 42,
+    "speed": 2.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Sword",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "silver": 12,
+    "copper": 38
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "proc",
+      "spell_id": 18381,
+      "text": "Chance on hit: Reduces target enemy's attack power by 25 for 30 sec."
+    }
+  ],
+  "item_class": 2,
+  "item_subclass": 7,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Swords",
+  "_id": 14145,
+  "_source": "cache"
+}

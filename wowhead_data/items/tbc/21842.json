@@ -1,0 +1,16 @@
+{
+  "name": "Bolt of Imbued Netherweave",
+  "quality": 2,
+  "icon": "inv_fabric_netherweave_bolt_imbued",
+  "ilvl": 66,
+  "sell_price": {
+    "silver": 80
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 5,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Cloth",
+  "_id": 21842,
+  "_source": "cache"
+}

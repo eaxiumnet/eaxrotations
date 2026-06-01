@@ -1,0 +1,22 @@
+{
+  "name": "Frostmane Leather Vest",
+  "quality": 1,
+  "icon": "inv_chest_wolf",
+  "ilvl": 4,
+  "armor": 29,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "durability": 45,
+  "sell_price": {
+    "copper": 8
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 2108,
+  "_source": "cache"
+}

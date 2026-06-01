@@ -1,0 +1,31 @@
+{
+  "name": "Naga Battle Gloves",
+  "quality": 3,
+  "icon": "inv_gauntlets_13",
+  "ilvl": 27,
+  "required_level": 22,
+  "armor": 61,
+  "stats": {
+    "agility": 7,
+    "strength": 4,
+    "stamina": 4
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "silver": 9,
+    "copper": 80
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 888,
+  "_source": "cache"
+}

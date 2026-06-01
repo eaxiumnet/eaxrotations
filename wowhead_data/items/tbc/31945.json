@@ -1,0 +1,17 @@
+{
+  "name": "Shadow Circuit",
+  "quality": 0,
+  "icon": "inv_gizmo_hardenedadamantitetube",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 9,
+    "copper": 90
+  },
+  "max_stack": 20,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 31945,
+  "_source": "cache"
+}

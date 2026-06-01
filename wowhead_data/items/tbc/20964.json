@@ -1,0 +1,30 @@
+{
+  "name": "Aquamarine Signet",
+  "quality": 3,
+  "icon": "inv_jewelry_ring_05",
+  "ilvl": 42,
+  "required_level": 37,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "unique_equipped": true,
+  "sell_price": {
+    "silver": 66,
+    "copper": 46
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9331,
+      "text": "Equip: Increases attack power by 20."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 20964,
+  "_source": "cache"
+}

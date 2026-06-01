@@ -1,0 +1,22 @@
+{
+  "name": "Flimsy Chain Belt",
+  "quality": 0,
+  "icon": "inv_belt_06",
+  "ilvl": 2,
+  "armor": 24,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "durability": 16,
+  "sell_price": {
+    "copper": 1
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2649,
+  "_source": "cache"
+}

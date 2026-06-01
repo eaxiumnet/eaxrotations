@@ -1,0 +1,27 @@
+{
+  "name": "Talonguard Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_30",
+  "ilvl": 99,
+  "required_level": 63,
+  "armor": 573,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "gold": 2,
+    "silver": 24,
+    "copper": 94
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24969,
+  "_source": "cache"
+}

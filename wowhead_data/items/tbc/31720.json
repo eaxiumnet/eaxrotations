@@ -1,0 +1,31 @@
+{
+  "name": "Battlemaster's Breastplate",
+  "quality": 3,
+  "icon": "inv_chest_plate02",
+  "ilvl": 88,
+  "armor": 902,
+  "stats": {
+    "agility": 21,
+    "strength": 38,
+    "stamina": 22
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 135,
+  "sell_price": {
+    "gold": 4,
+    "silver": 80,
+    "copper": 23
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 31720,
+  "_source": "cache"
+}

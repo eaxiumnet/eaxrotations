@@ -1,0 +1,37 @@
+{
+  "name": "Battle Seeker Chestguard",
+  "quality": 2,
+  "icon": "inv_chest_leather_07",
+  "ilvl": 81,
+  "armor": 197,
+  "stats": {
+    "agility": 19,
+    "stamina": 30
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 85,
+  "sell_price": {
+    "gold": 2,
+    "silver": 71,
+    "copper": 62
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 15808,
+      "text": "Equip: Increases attack power by 38."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 29938,
+  "_source": "cache"
+}

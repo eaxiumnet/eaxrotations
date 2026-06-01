@@ -1,0 +1,21 @@
+{
+  "name": "Holy Shield",
+  "icon": "classic_spell_holy_blessingofprotection",
+  "cost": {
+    "type": "mana",
+    "amount": 195
+  },
+  "cast_time": 0,
+  "cooldown": "10 sec cooldown",
+  "spell_level": 60,
+  "required_class": "Paladin",
+  "required_level": 50,
+  "description": "Increases chance to block by 30% for 10 sec, and deals 95 Holy damage for each attack blocked while active.  Damage caused by Holy Shield causes 20% additional threat. Each block expends a charge. 4 charges. [S03 - Tuning and Overrides Passive - All Classes: Activating Holy Shield also grants you 2 Spell Power for each point of your defense skill beyond (60 * 5). Lasts 15 sec]",
+  "school": "holy",
+  "duration": 15,
+  "has_buff": true,
+  "buff_duration": 10,
+  "buff_text": "Block chance increased by 30%.  95 Holy damage dealt to attacker when blocked.  Damage caused by Holy Shield causes 20% additional threat.[4 charges.]",
+  "_id": 20927,
+  "_source": "wowhead"
+}

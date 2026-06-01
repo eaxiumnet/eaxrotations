@@ -1,0 +1,27 @@
+{
+  "name": "Bloodscale Legguards",
+  "quality": 2,
+  "icon": "inv_pants_plate_02",
+  "ilvl": 90,
+  "required_level": 60,
+  "armor": 733,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 4,
+    "silver": 7,
+    "copper": 94
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24947,
+  "_source": "cache"
+}

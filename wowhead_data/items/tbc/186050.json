@@ -1,0 +1,32 @@
+{
+  "name": "Communal Wand",
+  "quality": 2,
+  "icon": "inv_wand_02",
+  "ilvl": 52,
+  "required_level": 58,
+  "stats": {
+    "intellect": 9
+  },
+  "weapon": {
+    "min_damage": 65,
+    "max_damage": 122,
+    "speed": 1.4
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Wand",
+  "binding": "bop",
+  "durability": 65,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 19,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Wands",
+  "_id": 186050,
+  "_source": "cache"
+}

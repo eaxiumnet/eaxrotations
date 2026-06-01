@@ -1,0 +1,29 @@
+{
+  "name": "Communal Gloves",
+  "quality": 2,
+  "icon": "inv_gauntlets_05",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 86,
+  "stats": {
+    "agility": 11,
+    "stamina": 11
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 186033,
+  "_source": "cache"
+}

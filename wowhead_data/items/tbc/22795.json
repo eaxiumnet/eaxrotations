@@ -1,0 +1,22 @@
+{
+  "name": "Fel Blossom",
+  "quality": 1,
+  "icon": "inv_misc_herb_felblossom",
+  "ilvl": 65,
+  "required_level": 60,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28527,
+      "text": "Use: Absorbs 750 to 1250 damage.  Lasts 15 sec.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 22795,
+  "_source": "cache"
+}

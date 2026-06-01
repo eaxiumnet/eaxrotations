@@ -1,0 +1,27 @@
+{
+  "name": "Agamaggan's Clutch",
+  "quality": 3,
+  "icon": "inv_misc_bone_05",
+  "ilvl": 36,
+  "required_level": 27,
+  "stats": {
+    "spirit": 9,
+    "stamina": 5
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique_equipped": true,
+  "sell_price": {
+    "silver": 18,
+    "copper": 16
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 6693,
+  "_source": "cache"
+}

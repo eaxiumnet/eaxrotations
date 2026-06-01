@@ -1,0 +1,21 @@
+{
+  "name": "Preserved Threshadon Meat",
+  "quality": 1,
+  "icon": "inv_misc_food_14",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 15118,
+      "text": "Use: Place upon the Flat Un'Goro Rock."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 11569,
+  "_source": "cache"
+}

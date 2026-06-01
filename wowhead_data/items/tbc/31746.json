@@ -1,0 +1,29 @@
+{
+  "name": "Phoenix-fire Band",
+  "quality": 4,
+  "icon": "inv_jewelry_ring_36",
+  "ilvl": 115,
+  "stats": {
+    "stamina": 34
+  },
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 6,
+    "silver": 2,
+    "copper": 56
+  },
+  "phase": 1,
+  "resistances": {
+    "fire": 30
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31746,
+  "_source": "cache"
+}

@@ -1,0 +1,29 @@
+{
+  "name": "Greasy Tinker's Pants",
+  "quality": 2,
+  "icon": "inv_pants_02",
+  "ilvl": 18,
+  "armor": 65,
+  "stats": {
+    "agility": 3,
+    "strength": 3
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 50,
+  "sell_price": {
+    "silver": 5,
+    "copper": 19
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 5327,
+  "_source": "cache"
+}

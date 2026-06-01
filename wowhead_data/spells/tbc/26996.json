@@ -1,0 +1,14 @@
+{
+  "name": "Maul",
+  "icon": "ability_druid_maul",
+  "cost": {
+    "type": "rage",
+    "amount": 15
+  },
+  "range": "melee",
+  "required_class": "Druid",
+  "required_level": 67,
+  "description": "Increases the druid's next attack by 176 damage.",
+  "_id": 26996,
+  "_source": "cache"
+}

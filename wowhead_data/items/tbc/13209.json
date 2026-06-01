@@ -1,0 +1,25 @@
+{
+  "name": "Seal of the Dawn",
+  "quality": 3,
+  "icon": "inv_misc_armorkit_18",
+  "ilvl": 61,
+  "slot": "Trinket",
+  "equip_slots": [
+    13,
+    14
+  ],
+  "binding": "bop",
+  "unique": true,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 23930,
+      "text": "Equip: Increases attack power by 81 when fighting Undead.  It also allows the acquisition of Scourgestones on behalf of the Argent Dawn."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 13209,
+  "_source": "cache"
+}

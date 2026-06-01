@@ -1,0 +1,32 @@
+{
+  "name": "Necklace of Bloodied Feathers",
+  "quality": 3,
+  "icon": "inv_jewelry_necklace_19",
+  "ilvl": 94,
+  "stats": {
+    "intellect": 15,
+    "stamina": 24
+  },
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "bop",
+  "sell_price": {
+    "gold": 3,
+    "silver": 5,
+    "copper": 74
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 14254,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 19."
+    }
+  ],
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 31726,
+  "_source": "cache"
+}

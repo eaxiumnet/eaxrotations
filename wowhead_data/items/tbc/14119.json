@@ -1,0 +1,26 @@
+{
+  "name": "Aboriginal Loincloth",
+  "quality": 2,
+  "icon": "inv_pants_wolf",
+  "ilvl": 17,
+  "required_level": 12,
+  "armor": 27,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 40,
+  "sell_price": {
+    "silver": 3,
+    "copper": 78
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14119,
+  "_source": "cache"
+}

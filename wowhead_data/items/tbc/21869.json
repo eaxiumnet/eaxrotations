@@ -1,0 +1,65 @@
+{
+  "name": "Frozen Shadoweave Shoulders",
+  "quality": 4,
+  "icon": "inv_shoulder_25",
+  "ilvl": 105,
+  "required_level": 70,
+  "armor": 133,
+  "stats": {
+    "intellect": 15,
+    "stamina": 21
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "yellow": 1,
+    "blue": 1,
+    "total": 2
+  },
+  "socket_bonus": "+3 Spell Hit Rating",
+  "set_id": 553,
+  "set_name": "Shadow's Embrace",
+  "set_pieces": [
+    {
+      "id": 21871,
+      "name": "Frozen Shadoweave Robe"
+    },
+    {
+      "id": 21869,
+      "name": "Frozen Shadoweave Shoulders"
+    },
+    {
+      "id": 21870,
+      "name": "Frozen Shadoweave Boots"
+    }
+  ],
+  "durability": 60,
+  "sell_price": {
+    "gold": 3,
+    "silver": 28,
+    "copper": 1
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18025,
+      "text": "Equip: Increases damage done by Shadow spells and effects by up to 50."
+    },
+    {
+      "type": "equip",
+      "spell_id": 17908,
+      "text": "Equip: Increases damage done by Frost spells and effects by up to 50."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 21869,
+  "_source": "cache"
+}

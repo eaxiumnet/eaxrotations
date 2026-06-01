@@ -1,0 +1,16 @@
+{
+  "name": "Rough Blasting Powder",
+  "quality": 1,
+  "icon": "inv_misc_dust_01",
+  "ilvl": 5,
+  "sell_price": {
+    "copper": 4
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 1,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Parts",
+  "_id": 4357,
+  "_source": "cache"
+}

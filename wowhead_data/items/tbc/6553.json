@@ -1,0 +1,26 @@
+{
+  "name": "Bard's Trousers",
+  "quality": 2,
+  "icon": "inv_pants_06",
+  "ilvl": 18,
+  "required_level": 13,
+  "armor": 65,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 50,
+  "sell_price": {
+    "silver": 5,
+    "copper": 25
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 6553,
+  "_source": "cache"
+}

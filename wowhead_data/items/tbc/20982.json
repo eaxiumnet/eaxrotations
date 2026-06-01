@@ -1,0 +1,27 @@
+{
+  "name": "Sharp Dagger",
+  "quality": 1,
+  "icon": "inv_weapon_shortblade_18",
+  "ilvl": 2,
+  "weapon": {
+    "min_damage": 1,
+    "max_damage": 2,
+    "speed": 1.6
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Dagger",
+  "durability": 16,
+  "sell_price": {
+    "copper": 7
+  },
+  "item_class": 2,
+  "item_subclass": 15,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Daggers",
+  "_id": 20982,
+  "_source": "cache"
+}

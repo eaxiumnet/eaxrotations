@@ -1,0 +1,29 @@
+{
+  "name": "Communal Gauntlets",
+  "quality": 2,
+  "icon": "inv_gauntlets_25",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 177,
+  "stats": {
+    "agility": 11,
+    "stamina": 11
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 35,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 186041,
+  "_source": "cache"
+}

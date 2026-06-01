@@ -1,0 +1,29 @@
+{
+  "name": "Communal Pauldrons",
+  "quality": 2,
+  "icon": "inv_shoulder_29",
+  "ilvl": 52,
+  "required_level": 58,
+  "armor": 380,
+  "stats": {
+    "intellect": 11,
+    "stamina": 11
+  },
+  "slot": "Shoulder",
+  "equip_slots": [
+    3
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 70,
+  "sell_price": {
+    "copper": 1
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 186088,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Mote of Mana",
+  "quality": 1,
+  "icon": "inv_elemental_mote_mana",
+  "ilvl": 65,
+  "sell_price": {
+    "silver": 4
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28105,
+      "text": "Use: Turn ten Motes of Mana into Primal Mana."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 10,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Elemental",
+  "_id": 22576,
+  "_source": "cache"
+}

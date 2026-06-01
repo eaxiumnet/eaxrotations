@@ -1,0 +1,29 @@
+{
+  "name": "Tunneler's Boots",
+  "quality": 2,
+  "icon": "inv_boots_01",
+  "ilvl": 18,
+  "armor": 111,
+  "stats": {
+    "spirit": 2,
+    "stamina": 3
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 40,
+  "sell_price": {
+    "silver": 4,
+    "copper": 69
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2037,
+  "_source": "cache"
+}

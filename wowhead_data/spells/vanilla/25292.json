@@ -1,0 +1,22 @@
+{
+  "name": "Holy Light",
+  "icon": "spell_holy_holybolt",
+  "cost": {
+    "type": "mana",
+    "amount": 660
+  },
+  "range": 40,
+  "cast_time": 2.5,
+  "spell_level": 60,
+  "required_class": "Paladin",
+  "required_level": 60,
+  "description": "Heals a friendly target for 1590 to 1770.",
+  "healing": {
+    "min": 1590,
+    "max": 1770
+  },
+  "is_heal": true,
+  "target_type": "friendly",
+  "_id": 25292,
+  "_source": "wowhead"
+}

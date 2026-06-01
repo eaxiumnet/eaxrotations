@@ -1,0 +1,15 @@
+{
+  "name": "Letter from Shattrath",
+  "quality": 1,
+  "icon": "inv_letter_05",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "flavor_text": "The letter bears the mark of the naaru.",
+  "item_class": 15,
+  "item_subclass": 4,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Other (Miscellaneous)",
+  "_id": 31698,
+  "_source": "cache"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Renew",
+  "icon": "spell_holy_renew",
+  "cost": {
+    "type": "mana",
+    "amount": 450
+  },
+  "range": 40,
+  "cast_time": 0,
+  "required_class": "Priest",
+  "required_level": 70,
+  "description": "Heals the target for 1110 over 15 sec.",
+  "is_heal": true,
+  "duration": 15,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Healing 222 damage every 3 seconds.",
+  "_id": 25222,
+  "_source": "cache"
+}

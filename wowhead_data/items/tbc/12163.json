@@ -1,0 +1,36 @@
+{
+  "name": "Plans: Moonsteel Broadsword",
+  "quality": 1,
+  "icon": "inv_scroll_03",
+  "ilvl": 36,
+  "required_level": 31,
+  "stats": {
+    "spirit": 12,
+    "stamina": 4
+  },
+  "weapon": {
+    "min_damage": 55,
+    "max_damage": 83,
+    "speed": 2.8
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Sword",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 1,
+    "silver": 11,
+    "copper": 53
+  },
+  "teaches": "make a Moonsteel Broadsword",
+  "teaches_spell_id": 3496,
+  "item_class": 9,
+  "item_subclass": 4,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Blacksmithing Plans",
+  "_id": 12163,
+  "_source": "cache"
+}

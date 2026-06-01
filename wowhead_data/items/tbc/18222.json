@@ -1,0 +1,17 @@
+{
+  "name": "Thorny Vine",
+  "quality": 0,
+  "icon": "inv_misc_herb_15",
+  "ilvl": 1,
+  "sell_price": {
+    "silver": 30,
+    "copper": 70
+  },
+  "max_stack": 20,
+  "item_class": 15,
+  "item_subclass": 0,
+  "item_class_name": "Miscellaneous",
+  "item_subclass_name": "Junk",
+  "_id": 18222,
+  "_source": "cache"
+}

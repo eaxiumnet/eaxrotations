@@ -1,0 +1,24 @@
+{
+  "name": "Canvas Pants",
+  "quality": 0,
+  "icon": "inv_pants_09",
+  "ilvl": 20,
+  "required_level": 15,
+  "armor": 27,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "durability": 45,
+  "sell_price": {
+    "silver": 2,
+    "copper": 17
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 1768,
+  "_source": "cache"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Tribal Bracers",
+  "quality": 1,
+  "icon": "inv_bracer_02",
+  "ilvl": 10,
+  "required_level": 5,
+  "armor": 23,
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Leather",
+  "durability": 20,
+  "sell_price": {
+    "copper": 36
+  },
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 3285,
+  "_source": "cache"
+}

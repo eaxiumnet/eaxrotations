@@ -1,0 +1,38 @@
+{
+  "name": "Jaedenfire Gloves of Annihilation",
+  "quality": 3,
+  "icon": "inv_gauntlets_19",
+  "ilvl": 112,
+  "required_level": 68,
+  "armor": 95,
+  "stats": {
+    "intellect": 25,
+    "stamina": 25
+  },
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 30,
+  "sell_price": {
+    "gold": 1,
+    "silver": 77,
+    "copper": 22
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 18017,
+      "text": "Equip: Increases damage done by Shadow spells and effects by up to 39."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 27889,
+  "_source": "cache"
+}

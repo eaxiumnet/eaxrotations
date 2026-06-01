@@ -1,0 +1,26 @@
+{
+  "name": "Cone of Cold",
+  "icon": "spell_frost_glacier",
+  "cost": {
+    "type": "mana",
+    "amount": 645
+  },
+  "cast_time": 0,
+  "cooldown": "10 sec cooldown",
+  "spell_level": 70,
+  "required_class": "Mage",
+  "required_level": 65,
+  "description": "Targets in a cone in front of the caster take 418 to 457 Frost damage and are slowed by 50% for 8 sec.",
+  "school": "frost",
+  "damage": {
+    "min": 418,
+    "max": 457
+  },
+  "duration": 8,
+  "target_type": "self",
+  "has_buff": true,
+  "buff_duration": 8,
+  "buff_text": "Movement slowed by 50%.",
+  "_id": 27087,
+  "_source": "cache"
+}

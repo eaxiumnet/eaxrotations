@@ -1,0 +1,22 @@
+{
+  "name": "Hemorrhage",
+  "icon": "spell_shadow_lifedrain",
+  "cost": {
+    "type": "energy",
+    "amount": 35
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Rogue",
+  "required_level": 70,
+  "requires_weapon": "Melee Weapon",
+  "description": "An instant strike that deals 110 / Sinister Calling: 111 / Sinister Calling: 112 / Sinister Calling: 113 / Sinister Calling: 114% weapon damage and causes the target to hemorrhage, increasing any Physical damage dealt to the target by up to 42.  Lasts 10 charges or 15 sec.  Awards 1 combo point.",
+  "school": "physical",
+  "weapon_pct": 114,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Increases damage taken by 42.",
+  "_id": 26864,
+  "_source": "cache"
+}

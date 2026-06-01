@@ -1,0 +1,41 @@
+{
+  "name": "Skul's Cold Embrace",
+  "quality": 3,
+  "icon": "inv_chest_chain_15",
+  "ilvl": 59,
+  "required_level": 54,
+  "armor": 617,
+  "stats": {
+    "strength": 19,
+    "stamina": 20
+  },
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 135,
+  "sell_price": {
+    "gold": 3,
+    "silver": 18,
+    "copper": 8
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 13384,
+      "text": "Equip: Increases defense rating by 9."
+    }
+  ],
+  "resistances": {
+    "frost": 10
+  },
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 13394,
+  "_source": "cache"
+}

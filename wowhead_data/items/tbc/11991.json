@@ -1,0 +1,21 @@
+{
+  "name": "Quicksilver Ring",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_01",
+  "ilvl": 59,
+  "required_level": 54,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "silver": 63,
+    "copper": 17
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 11991,
+  "_source": "cache"
+}

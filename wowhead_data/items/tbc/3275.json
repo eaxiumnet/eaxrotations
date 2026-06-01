@@ -1,0 +1,23 @@
+{
+  "name": "Flax Gloves",
+  "quality": 1,
+  "icon": "inv_gauntlets_05",
+  "ilvl": 5,
+  "armor": 6,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "durability": 14,
+  "sell_price": {
+    "copper": 5
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 3275,
+  "_source": "cache"
+}

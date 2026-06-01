@@ -1,0 +1,20 @@
+{
+  "name": "Greater Planar Essence",
+  "quality": 2,
+  "icon": "inv_enchant_essencearcanelarge",
+  "ilvl": 65,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 32978,
+      "text": "Use: Turn a greater planar essence into three lesser ones."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 12,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Enchanting",
+  "_id": 22446,
+  "_source": "cache"
+}

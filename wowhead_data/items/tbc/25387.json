@@ -1,0 +1,26 @@
+{
+  "name": "Tarnished Plate Pants",
+  "quality": 0,
+  "icon": "inv_pants_04",
+  "ilvl": 66,
+  "required_level": 61,
+  "armor": 491,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "durability": 85,
+  "sell_price": {
+    "gold": 1,
+    "silver": 28,
+    "copper": 32
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25387,
+  "_source": "cache"
+}

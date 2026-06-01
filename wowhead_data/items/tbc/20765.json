@@ -1,0 +1,16 @@
+{
+  "name": "Incriminating Documents",
+  "quality": 1,
+  "icon": "inv_letter_08",
+  "ilvl": 4,
+  "required_level": 4,
+  "binding": "bop",
+  "unique": true,
+  "starts_quest": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 20765,
+  "_source": "cache"
+}

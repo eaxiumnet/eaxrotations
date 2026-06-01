@@ -1,0 +1,33 @@
+{
+  "name": "Vice Grips",
+  "quality": 3,
+  "icon": "inv_gauntlets_26",
+  "ilvl": 48,
+  "required_level": 43,
+  "armor": 318,
+  "slot": "Hands",
+  "equip_slots": [
+    10
+  ],
+  "subclass": "Plate",
+  "binding": "bop",
+  "durability": 45,
+  "sell_price": {
+    "silver": 85,
+    "copper": 19
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9142,
+      "text": "Equip: Increases attack power by 14."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 9640,
+  "_source": "cache"
+}

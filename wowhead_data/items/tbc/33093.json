@@ -1,0 +1,25 @@
+{
+  "name": "Mana Potion Injector",
+  "quality": 1,
+  "icon": "inv_potion_168",
+  "ilvl": 69,
+  "required_level": 55,
+  "sell_price": {
+    "silver": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28499,
+      "text": "Use: Restores 1800 to 3000 mana.",
+      "cooldown": "2 Min Cooldown"
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 0,
+  "item_subclass": 8,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Other Consumables",
+  "_id": 33093,
+  "_source": "cache"
+}

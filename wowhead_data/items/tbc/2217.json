@@ -1,0 +1,25 @@
+{
+  "name": "Rectangular Shield",
+  "quality": 0,
+  "icon": "inv_shield_03",
+  "ilvl": 17,
+  "required_level": 12,
+  "armor": 311,
+  "slot": "Off Hand",
+  "equip_slots": [
+    17
+  ],
+  "subclass": "Shield",
+  "block": 4,
+  "durability": 60,
+  "sell_price": {
+    "silver": 2,
+    "copper": 43
+  },
+  "item_class": 4,
+  "item_subclass": 6,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Shields",
+  "_id": 2217,
+  "_source": "cache"
+}

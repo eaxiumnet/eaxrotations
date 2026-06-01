@@ -1,0 +1,30 @@
+{
+  "name": "Seer's Pants",
+  "quality": 2,
+  "icon": "inv_pants_01",
+  "ilvl": 20,
+  "required_level": 15,
+  "armor": 29,
+  "stats": {
+    "spirit": 5,
+    "stamina": 3
+  },
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 45,
+  "sell_price": {
+    "silver": 5,
+    "copper": 66
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 2982,
+  "_source": "cache"
+}

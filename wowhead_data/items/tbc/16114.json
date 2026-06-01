@@ -1,0 +1,21 @@
+{
+  "name": "Foreman's Blackjack",
+  "quality": 1,
+  "icon": "inv_mace_11",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 19938,
+      "text": "Use: Wakes up a targeted sleeping peon.",
+      "cooldown": "5 Sec Cooldown"
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 16114,
+  "_source": "cache"
+}

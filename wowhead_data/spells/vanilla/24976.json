@@ -1,0 +1,25 @@
+{
+  "name": "Insect Swarm",
+  "icon": "spell_nature_insectswarm",
+  "cost": {
+    "type": "mana",
+    "amount": 140
+  },
+  "range": 30,
+  "cast_time": 0,
+  "required_class": "Druid",
+  "required_level": 50,
+  "description": "The enemy target is swarmed by insects, decreasing their chance to hit by 2% and causing 264 Nature damage over 12 sec.",
+  "school": "nature",
+  "duration": 12,
+  "has_buff": true,
+  "buff_duration": 12,
+  "periodic": {
+    "amount": 44,
+    "school": "nature",
+    "interval": 1
+  },
+  "buff_text": "Chance to hit decreased by 2% and 44 Nature damage every 2 sec.",
+  "_id": 24976,
+  "_source": "wowhead"
+}

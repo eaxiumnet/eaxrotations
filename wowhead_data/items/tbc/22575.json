@@ -1,0 +1,23 @@
+{
+  "name": "Mote of Life",
+  "quality": 1,
+  "icon": "inv_elemental_mote_life01",
+  "ilvl": 65,
+  "sell_price": {
+    "silver": 4
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 28106,
+      "text": "Use: Turn ten Motes of Life into Primal Life."
+    }
+  ],
+  "max_stack": 10,
+  "item_class": 7,
+  "item_subclass": 10,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Elemental",
+  "_id": 22575,
+  "_source": "cache"
+}

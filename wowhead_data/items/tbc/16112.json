@@ -1,0 +1,26 @@
+{
+  "name": "Manual: Heavy Silk Bandage",
+  "quality": 1,
+  "icon": "inv_misc_book_03",
+  "ilvl": 36,
+  "sell_price": {
+    "silver": 5,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 7927,
+      "text": "Use: Heals 640 damage over 8 sec."
+    }
+  ],
+  "max_stack": 20,
+  "teaches": "make a Heavy Silk Bandage",
+  "teaches_spell_id": 7929,
+  "item_class": 9,
+  "item_subclass": 7,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "First Aid Books",
+  "_id": 16112,
+  "_source": "cache"
+}

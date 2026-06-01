@@ -1,0 +1,17 @@
+{
+  "name": "Arcane Shot",
+  "icon": "ability_impalingbolt",
+  "cost": {
+    "type": "mana",
+    "amount": 35
+  },
+  "range": 35,
+  "cooldown": "6 sec cooldown",
+  "required_class": "Hunter",
+  "required_level": 12,
+  "requires_weapon": "Ranged Weapon",
+  "description": "An instant shot that causes 21 Arcane damage.",
+  "school": "arcane",
+  "_id": 14281,
+  "_source": "wowhead"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Light Plate Belt",
+  "quality": 0,
+  "icon": "inv_belt_16",
+  "ilvl": 57,
+  "required_level": 52,
+  "armor": 275,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Plate",
+  "durability": 40,
+  "sell_price": {
+    "silver": 49,
+    "copper": 89
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 8081,
+  "_source": "cache"
+}

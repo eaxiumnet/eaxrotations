@@ -1,0 +1,26 @@
+{
+  "name": "Huntsman's Armor",
+  "quality": 2,
+  "icon": "inv_chest_leather_07",
+  "ilvl": 43,
+  "required_level": 38,
+  "armor": 117,
+  "slot": "Chest",
+  "equip_slots": [
+    5
+  ],
+  "subclass": "Leather",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "silver": 70,
+    "copper": 71
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 2,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Leather Armor",
+  "_id": 9887,
+  "_source": "cache"
+}

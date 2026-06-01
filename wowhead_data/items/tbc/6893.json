@@ -1,0 +1,13 @@
+{
+  "name": "Workshop Key",
+  "quality": 1,
+  "icon": "inv_misc_key_06",
+  "binding": "bop",
+  "unique": true,
+  "item_class": 13,
+  "item_subclass": 0,
+  "item_class_name": "Key",
+  "item_subclass_name": "Key",
+  "_id": 6893,
+  "_source": "cache"
+}

@@ -1,0 +1,29 @@
+{
+  "name": "Stout War Staff",
+  "quality": 0,
+  "icon": "inv_staff_18",
+  "ilvl": 51,
+  "required_level": 46,
+  "weapon": {
+    "min_damage": 59,
+    "max_damage": 89,
+    "speed": 3.1
+  },
+  "slot": "Two-Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Staff",
+  "durability": 85,
+  "sell_price": {
+    "gold": 1,
+    "silver": 31,
+    "copper": 7
+  },
+  "item_class": 2,
+  "item_subclass": 10,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Staves",
+  "_id": 13823,
+  "_source": "cache"
+}

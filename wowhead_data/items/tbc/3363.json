@@ -1,0 +1,22 @@
+{
+  "name": "Frayed Belt",
+  "quality": 0,
+  "icon": "inv_belt_04",
+  "ilvl": 3,
+  "armor": 3,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "durability": 12,
+  "sell_price": {
+    "copper": 1
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 3363,
+  "_source": "cache"
+}

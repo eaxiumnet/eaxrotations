@@ -1,0 +1,30 @@
+{
+  "name": "Recipe: Spicy Hot Talbuk",
+  "quality": 2,
+  "icon": "inv_scroll_06",
+  "ilvl": 60,
+  "required_level": 65,
+  "binding": "bop",
+  "sell_price": {
+    "silver": 50,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 43763,
+      "text": "Use: Restores 7500 health over 30 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 20 Hit Rating and Spirit for 30 min."
+    }
+  ],
+  "food_hp": 7500,
+  "food_duration": 30,
+  "max_stack": 20,
+  "teaches": "cook Spicy Hot Talbuk",
+  "teaches_spell_id": 43765,
+  "item_class": 9,
+  "item_subclass": 5,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Cooking Recipes",
+  "_id": 33873,
+  "_source": "cache"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Thick Leather",
+  "quality": 1,
+  "icon": "inv_misc_leatherscrap_08",
+  "ilvl": 40,
+  "sell_price": {
+    "silver": 3
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 6,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Leather",
+  "_id": 4304,
+  "_source": "cache"
+}

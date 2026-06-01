@@ -1,0 +1,20 @@
+{
+  "name": "Nimboya's Pike",
+  "quality": 1,
+  "icon": "inv_spear_05",
+  "ilvl": 1,
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 18887,
+      "text": "Use: Attach 20 Witherbark Skulls to create Nimboya's Laden Pike."
+    }
+  ],
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 15002,
+  "_source": "cache"
+}

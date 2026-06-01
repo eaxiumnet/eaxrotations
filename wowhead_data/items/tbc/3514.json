@@ -1,0 +1,13 @@
+{
+  "name": "Mor'Ladim's Skull",
+  "quality": 1,
+  "icon": "inv_misc_bone_humanskull_01",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 3514,
+  "_source": "cache"
+}

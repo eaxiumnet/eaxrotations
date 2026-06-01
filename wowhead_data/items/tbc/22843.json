@@ -1,0 +1,65 @@
+{
+  "name": "Blood Guard's Chain Greaves",
+  "quality": 3,
+  "icon": "inv_boots_05",
+  "ilvl": 66,
+  "required_level": 60,
+  "armor": 266,
+  "stats": {
+    "agility": 14,
+    "stamina": 19
+  },
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "unique": true,
+  "set_id": 543,
+  "set_name": "Champion's Pursuance",
+  "set_pieces": [
+    {
+      "id": 22843,
+      "name": "Blood Guard's Chain Greaves"
+    },
+    {
+      "id": 22862,
+      "name": "Blood Guard's Chain Vices"
+    },
+    {
+      "id": 23251,
+      "name": "Champion's Chain Helm"
+    },
+    {
+      "id": 23252,
+      "name": "Champion's Chain Shoulders"
+    },
+    {
+      "id": 22874,
+      "name": "Legionnaire's Chain Hauberk"
+    },
+    {
+      "id": 22875,
+      "name": "Legionnaire's Chain Legguards"
+    }
+  ],
+  "classes": [
+    "Hunter"
+  ],
+  "durability": 60,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 9334,
+      "text": "Equip: Increases attack power by 26."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 22843,
+  "_source": "cache"
+}

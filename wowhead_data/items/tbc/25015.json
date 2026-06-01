@@ -1,0 +1,27 @@
+{
+  "name": "Shattered Hand Sabatons",
+  "quality": 2,
+  "icon": "inv_boots_plate_03",
+  "ilvl": 117,
+  "required_level": 69,
+  "armor": 740,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 4,
+    "silver": 8,
+    "copper": 22
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 25015,
+  "_source": "cache"
+}

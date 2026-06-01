@@ -1,0 +1,17 @@
+{
+  "name": "Mana Tide Totem",
+  "icon": "spell_frost_summonwaterelemental",
+  "cost": {
+    "type": "mana",
+    "percent": 3
+  },
+  "cast_time": 0,
+  "cooldown": "5 min cooldown",
+  "required_class": "Shaman",
+  "description": "Summons a Mana Tide Totem with 5 health at the feet of the caster for 12 sec that restores 6% of total mana every 3 seconds to group members within 20 yards.",
+  "duration": 12,
+  "radius": 20,
+  "target_type": "self",
+  "_id": 16190,
+  "_source": "cache"
+}

@@ -1,0 +1,41 @@
+{
+  "name": "Exorcist's Silk Hood",
+  "quality": 3,
+  "icon": "inv_helmet_30",
+  "ilvl": 100,
+  "required_level": 66,
+  "armor": 111,
+  "stats": {
+    "intellect": 14,
+    "stamina": 34
+  },
+  "ratings": {
+    "resilience": 14
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Cloth",
+  "binding": "bop",
+  "sockets": {
+    "meta": 1,
+    "total": 1
+  },
+  "socket_bonus": "+3 Spell Hit Rating",
+  "durability": 50,
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 13881,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 29."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 28760,
+  "_source": "cache"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Path of Illidan",
+  "quality": 3,
+  "icon": "spell_fire_felfire",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 50247,
+      "text": "Use: Right Click to leave flickering fel fire in your wake.",
+      "cooldown": "15 Min Cooldown"
+    }
+  ],
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 38233,
+  "_source": "cache"
+}

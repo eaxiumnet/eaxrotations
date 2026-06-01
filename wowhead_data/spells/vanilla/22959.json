@@ -1,0 +1,12 @@
+{
+  "name": "Fire Vulnerability",
+  "icon": "spell_fire_soulburn",
+  "range": 100,
+  "cast_time": 0,
+  "required_class": "Mage",
+  "has_buff": true,
+  "buff_duration": 30,
+  "buff_text": "Increases Fire damage taken by 3%.",
+  "_id": 22959,
+  "_source": "wowhead"
+}

@@ -1,0 +1,47 @@
+{
+  "name": "Mogor's Anointing Club",
+  "quality": 3,
+  "icon": "inv_hammer_13",
+  "ilvl": 103,
+  "stats": {
+    "intellect": 13,
+    "stamina": 19
+  },
+  "weapon": {
+    "min_damage": 47,
+    "max_damage": 126,
+    "speed": 2.1
+  },
+  "slot": "Main Hand",
+  "equip_slots": [
+    16
+  ],
+  "subclass": "Mace",
+  "binding": "bop",
+  "durability": 90,
+  "sell_price": {
+    "gold": 7,
+    "silver": 91,
+    "copper": 64
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 21620,
+      "text": "Equip: Restores 5 mana per 5 sec."
+    },
+    {
+      "type": "equip",
+      "spell_id": 33328,
+      "text": "Equip: Increases healing done by up to 160 and damage done by up to 54 for all magical spells and effects."
+    }
+  ],
+  "flavor_text": "The inscription reads: Never give them the chance to doubt you.",
+  "item_class": 2,
+  "item_subclass": 4,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "One-Handed Maces",
+  "_id": 25759,
+  "_source": "cache"
+}

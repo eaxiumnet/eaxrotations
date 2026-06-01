@@ -1,0 +1,14 @@
+{
+  "name": "Nazzivus Monument Glyph",
+  "quality": 1,
+  "icon": "inv_misc_rune_09",
+  "ilvl": 1,
+  "unique": true,
+  "flavor_text": "Wicked looking characters accompany a series of humanoid figures as part of some kind of narrative.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23859,
+  "_source": "cache"
+}

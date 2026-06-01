@@ -1,0 +1,21 @@
+{
+  "name": "Hiddenite Necklace",
+  "quality": 2,
+  "icon": "inv_jewelry_necklace_11",
+  "ilvl": 90,
+  "required_level": 60,
+  "slot": "Neck",
+  "equip_slots": [
+    2
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 2,
+    "silver": 94,
+    "copper": 15
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25061,
+  "_source": "cache"
+}

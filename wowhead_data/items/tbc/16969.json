@@ -1,0 +1,13 @@
+{
+  "name": "Savage Coast Blue Sailfin",
+  "quality": 1,
+  "icon": "inv_misc_fish_08",
+  "ilvl": 1,
+  "unique": true,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 16969,
+  "_source": "cache"
+}

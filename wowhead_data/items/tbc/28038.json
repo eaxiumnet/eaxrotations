@@ -1,0 +1,25 @@
+{
+  "name": "Seaforium PU-36 Explosive Nether Modulator",
+  "quality": 1,
+  "icon": "inv_misc_bomb_04",
+  "ilvl": 60,
+  "required_level": 58,
+  "binding": "bop",
+  "unique": true,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 33655,
+      "text": "Use: Drops a super-powered bomb on top of Burning Legion transporters.",
+      "cooldown": "10 Sec Cooldown"
+    }
+  ],
+  "flavor_text": "Manufactured: Garvin the Goblin, Area 52",
+  "duration": "1 hour (real time)",
+  "item_class": 0,
+  "item_subclass": 0,
+  "item_class_name": "Consumables",
+  "item_subclass_name": "Consumables",
+  "_id": 28038,
+  "_source": "cache"
+}

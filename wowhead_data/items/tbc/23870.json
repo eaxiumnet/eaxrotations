@@ -1,0 +1,17 @@
+{
+  "name": "Red Crystal Pendant",
+  "quality": 1,
+  "icon": "inv_jewelry_necklace_ahnqiraj_01",
+  "ilvl": 12,
+  "required_level": 9,
+  "binding": "bop",
+  "unique": true,
+  "starts_quest": true,
+  "flavor_text": "A piece of jewelry fashioned from a crystal shard and a rolled seaweed cord.",
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 23870,
+  "_source": "cache"
+}

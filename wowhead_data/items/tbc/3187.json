@@ -1,0 +1,32 @@
+{
+  "name": "Sacrificial Kris",
+  "quality": 2,
+  "icon": "inv_weapon_shortblade_03",
+  "ilvl": 44,
+  "required_level": 39,
+  "weapon": {
+    "min_damage": 25,
+    "max_damage": 47,
+    "speed": 1.4
+  },
+  "slot": "One-Hand",
+  "equip_slots": [
+    16,
+    17
+  ],
+  "subclass": "Dagger",
+  "binding": "boe",
+  "durability": 55,
+  "sell_price": {
+    "gold": 1,
+    "silver": 48,
+    "copper": 70
+  },
+  "phase": 1,
+  "item_class": 2,
+  "item_subclass": 15,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Daggers",
+  "_id": 3187,
+  "_source": "cache"
+}

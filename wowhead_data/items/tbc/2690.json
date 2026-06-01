@@ -1,0 +1,23 @@
+{
+  "name": "Latched Belt",
+  "quality": 1,
+  "icon": "inv_belt_06",
+  "ilvl": 5,
+  "armor": 38,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Mail",
+  "binding": "bop",
+  "durability": 18,
+  "sell_price": {
+    "copper": 7
+  },
+  "item_class": 4,
+  "item_subclass": 3,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Mail Armor",
+  "_id": 2690,
+  "_source": "cache"
+}

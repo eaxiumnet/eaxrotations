@@ -1,0 +1,30 @@
+{
+  "name": "Elunarian Cuffs",
+  "quality": 2,
+  "icon": "inv_bracer_09",
+  "ilvl": 58,
+  "required_level": 53,
+  "armor": 33,
+  "stats": {
+    "spirit": 10,
+    "stamina": 9
+  },
+  "slot": "Wrist",
+  "equip_slots": [
+    9
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 25,
+  "sell_price": {
+    "silver": 75,
+    "copper": 75
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14457,
+  "_source": "cache"
+}

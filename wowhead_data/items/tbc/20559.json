@@ -1,0 +1,14 @@
+{
+  "name": "Arathi Basin Mark of Honor",
+  "quality": 2,
+  "icon": "inv_jewelry_amulet_07",
+  "ilvl": 1,
+  "binding": "bop",
+  "unique": true,
+  "max_stack": 100,
+  "flavor_text": "Medal awarded for fighting in Arathi Basin",
+  "item_class": 10,
+  "item_subclass": 0,
+  "_id": 20559,
+  "_source": "cache"
+}

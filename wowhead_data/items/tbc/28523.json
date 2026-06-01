@@ -1,0 +1,33 @@
+{
+  "name": "Totem of Healing Rains",
+  "quality": 4,
+  "icon": "spell_nature_giftofthewaterspirit",
+  "ilvl": 115,
+  "required_level": 70,
+  "slot": "Relic",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Totem",
+  "binding": "bop",
+  "unique": true,
+  "sell_price": {
+    "gold": 3,
+    "silver": 48,
+    "copper": 66
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 38322,
+      "text": "Equip: Increases the base amount healed by Chain Heal by 87."
+    }
+  ],
+  "item_class": 4,
+  "item_subclass": 9,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Totems",
+  "_id": 28523,
+  "_source": "cache"
+}

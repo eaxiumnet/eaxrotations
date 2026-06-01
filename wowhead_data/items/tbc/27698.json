@@ -1,0 +1,29 @@
+{
+  "name": "Recipe: Poached Bluefish",
+  "quality": 1,
+  "icon": "inv_scroll_03",
+  "ilvl": 64,
+  "required_level": 55,
+  "sell_price": {
+    "silver": 75,
+    "copper": 50
+  },
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 33264,
+      "text": "Use: Restores 7500 health over 30 sec.  Must remain seated while eating.  If you spend at least 10 seconds eating you will become well fed and gain 23 Spell Damage and 20 Spirit for 30 min."
+    }
+  ],
+  "food_hp": 7500,
+  "food_duration": 30,
+  "max_stack": 20,
+  "teaches": "cook Poached Bluefish",
+  "teaches_spell_id": 33294,
+  "item_class": 9,
+  "item_subclass": 5,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Cooking Recipes",
+  "_id": 27698,
+  "_source": "cache"
+}

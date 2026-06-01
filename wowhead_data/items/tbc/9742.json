@@ -1,0 +1,23 @@
+{
+  "name": "Simple Cord",
+  "quality": 1,
+  "icon": "inv_belt_02",
+  "ilvl": 12,
+  "required_level": 7,
+  "armor": 12,
+  "slot": "Waist",
+  "equip_slots": [
+    6
+  ],
+  "subclass": "Cloth",
+  "durability": 16,
+  "sell_price": {
+    "copper": 49
+  },
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 9742,
+  "_source": "cache"
+}

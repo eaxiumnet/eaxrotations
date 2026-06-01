@@ -1,0 +1,47 @@
+{
+  "name": "Pattern: Stylin' Jungle Hat",
+  "quality": 3,
+  "icon": "inv_scroll_05",
+  "ilvl": 70,
+  "required_level": 69,
+  "armor": 232,
+  "stats": {
+    "agility": 24,
+    "strength": 24,
+    "intellect": 24,
+    "stamina": 24
+  },
+  "slot": "Head",
+  "equip_slots": [
+    1
+  ],
+  "subclass": "Leather",
+  "binding": "bop",
+  "durability": 60,
+  "sell_price": {
+    "gold": 1,
+    "silver": 50,
+    "copper": 39
+  },
+  "phase": 1,
+  "effects": [
+    {
+      "type": "equip",
+      "spell_id": 21632,
+      "text": "Equip: Restores 10 mana per 5 sec."
+    },
+    {
+      "type": "equip",
+      "spell_id": 14254,
+      "text": "Equip: Increases damage and healing done by magical spells and effects by up to 19."
+    }
+  ],
+  "teaches": "make a Stylin' Jungle Hat",
+  "teaches_spell_id": 32489,
+  "item_class": 9,
+  "item_subclass": 1,
+  "item_class_name": "Recipes",
+  "item_subclass_name": "Leatherworking Patterns",
+  "_id": 25730,
+  "_source": "cache"
+}

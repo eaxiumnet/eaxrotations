@@ -1,0 +1,22 @@
+{
+  "name": "Sodalite Band",
+  "quality": 2,
+  "icon": "inv_jewelry_ring_10",
+  "ilvl": 111,
+  "required_level": 67,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "binding": "boe",
+  "sell_price": {
+    "gold": 3,
+    "silver": 54,
+    "copper": 98
+  },
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 25054,
+  "_source": "cache"
+}

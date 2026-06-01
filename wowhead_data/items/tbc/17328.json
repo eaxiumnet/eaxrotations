@@ -1,0 +1,14 @@
+{
+  "name": "Stormpike Commander's Flesh",
+  "quality": 1,
+  "icon": "inv_misc_food_69",
+  "ilvl": 1,
+  "binding": "bop",
+  "max_stack": 100,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 17328,
+  "_source": "cache"
+}

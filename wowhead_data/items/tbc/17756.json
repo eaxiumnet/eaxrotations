@@ -1,0 +1,13 @@
+{
+  "name": "Shadowshard Fragment",
+  "quality": 1,
+  "icon": "inv_misc_gem_amethyst_03",
+  "ilvl": 1,
+  "max_stack": 20,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 17756,
+  "_source": "cache"
+}

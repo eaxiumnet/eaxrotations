@@ -1,0 +1,16 @@
+{
+  "name": "Fel Lotus",
+  "quality": 1,
+  "icon": "inv_misc_herb_fellotus",
+  "ilvl": 75,
+  "sell_price": {
+    "gold": 1
+  },
+  "max_stack": 20,
+  "item_class": 7,
+  "item_subclass": 9,
+  "item_class_name": "Trade Goods",
+  "item_subclass_name": "Herbs",
+  "_id": 22794,
+  "_source": "cache"
+}

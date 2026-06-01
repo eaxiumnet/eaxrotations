@@ -1,0 +1,26 @@
+{
+  "name": "Bonecaster's Boots",
+  "quality": 2,
+  "icon": "inv_boots_07",
+  "ilvl": 54,
+  "required_level": 49,
+  "armor": 48,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "silver": 86,
+    "copper": 2
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14299,
+  "_source": "cache"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Celestial Slippers",
+  "quality": 2,
+  "icon": "inv_boots_05",
+  "ilvl": 58,
+  "required_level": 53,
+  "armor": 52,
+  "slot": "Feet",
+  "equip_slots": [
+    8
+  ],
+  "subclass": "Cloth",
+  "binding": "boe",
+  "durability": 35,
+  "sell_price": {
+    "gold": 1,
+    "silver": 16,
+    "copper": 15
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 1,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Cloth Armor",
+  "_id": 14310,
+  "_source": "cache"
+}

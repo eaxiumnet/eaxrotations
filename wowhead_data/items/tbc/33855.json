@@ -1,0 +1,20 @@
+{
+  "name": "Tarnished Silver Ring",
+  "quality": 0,
+  "icon": "inv_jewelry_ring_19",
+  "ilvl": 1,
+  "slot": "Finger",
+  "equip_slots": [
+    11,
+    12
+  ],
+  "sell_price": {
+    "silver": 37,
+    "copper": 50
+  },
+  "flavor_text": "This ring has seen better days.",
+  "item_class": 4,
+  "item_class_name": "Armor",
+  "_id": 33855,
+  "_source": "cache"
+}

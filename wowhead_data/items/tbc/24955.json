@@ -1,0 +1,27 @@
+{
+  "name": "Bogslayer Legplates",
+  "quality": 2,
+  "icon": "inv_pants_plate_20",
+  "ilvl": 93,
+  "required_level": 61,
+  "armor": 756,
+  "slot": "Legs",
+  "equip_slots": [
+    7
+  ],
+  "subclass": "Plate",
+  "binding": "boe",
+  "durability": 85,
+  "sell_price": {
+    "gold": 4,
+    "silver": 32,
+    "copper": 46
+  },
+  "phase": 1,
+  "item_class": 4,
+  "item_subclass": 4,
+  "item_class_name": "Armor",
+  "item_subclass_name": "Plate Armor",
+  "_id": 24955,
+  "_source": "cache"
+}

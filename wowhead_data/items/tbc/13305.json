@@ -1,0 +1,20 @@
+{
+  "name": "Elders' Square Postbox Key",
+  "quality": 1,
+  "icon": "inv_misc_key_03",
+  "ilvl": 1,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 17432,
+      "text": "Use: Opens a Stratholme postbox."
+    }
+  ],
+  "max_stack": 20,
+  "item_class": 13,
+  "item_subclass": 0,
+  "item_class_name": "Key",
+  "item_subclass_name": "Key",
+  "_id": 13305,
+  "_source": "cache"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Warmaul Skull",
+  "quality": 1,
+  "icon": "inv_misc_bone_orcskull_01",
+  "ilvl": 1,
+  "effects": [
+    {
+      "type": "use",
+      "spell_id": 32036,
+      "text": "Use: Places 7 Warmaul Skulls at the Earthen Brand to summon forth Gurok the Usurper."
+    }
+  ],
+  "max_stack": 7,
+  "item_class": 12,
+  "item_subclass": 0,
+  "item_class_name": "Quest",
+  "item_subclass_name": "Quest",
+  "_id": 24502,
+  "_source": "cache"
+}

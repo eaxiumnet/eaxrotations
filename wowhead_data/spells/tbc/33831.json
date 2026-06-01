@@ -1,0 +1,16 @@
+{
+  "name": "Force of Nature",
+  "icon": "ability_druid_forceofnature",
+  "cost": {
+    "type": "mana",
+    "percent": 12
+  },
+  "range": 30,
+  "cast_time": 0,
+  "cooldown": "3 min cooldown",
+  "required_class": "Druid",
+  "description": "Summons 3 treants to attack enemy targets for 30 sec.",
+  "duration": 30,
+  "_id": 33831,
+  "_source": "cache"
+}

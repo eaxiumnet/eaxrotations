@@ -1,0 +1,27 @@
+{
+  "name": "Rust-covered Blunderbuss",
+  "quality": 0,
+  "icon": "inv_weapon_rifle_03",
+  "ilvl": 7,
+  "required_level": 2,
+  "weapon": {
+    "min_damage": 6,
+    "max_damage": 12,
+    "speed": 2.4
+  },
+  "slot": "Ranged",
+  "equip_slots": [
+    18
+  ],
+  "subclass": "Gun",
+  "durability": 30,
+  "sell_price": {
+    "copper": 28
+  },
+  "item_class": 2,
+  "item_subclass": 3,
+  "item_class_name": "Weapons",
+  "item_subclass_name": "Guns",
+  "_id": 2774,
+  "_source": "cache"
+}
