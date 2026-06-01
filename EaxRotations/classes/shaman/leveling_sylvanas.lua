@@ -285,7 +285,7 @@ local function has_enemy_target(context, state)
 end
 
 --- Main-hand weapon imbue - maintain OOC
-local weapon_imbue_matches = function(context, state)
+local weapon_imbue_matches = function(_, state)
     if not state then
         if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: no state") end
         return false
@@ -322,7 +322,7 @@ local weapon_imbue_matches = function(context, state)
 end
 
 --- Lightning Shield - maintain OOC
-local lightning_shield_matches = function(context, state)
+local lightning_shield_matches = function(_, state)
     if not state then return false end
     if state.in_combat then return false end
     if state.has_lightning_shield then return false end
@@ -332,7 +332,7 @@ local lightning_shield_matches = function(context, state)
 end
 
 --- Healing Wave - emergency heal
-local healing_wave_matches = function(context, state)
+local healing_wave_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.healing_wave_ready then return false end
@@ -341,7 +341,7 @@ local healing_wave_matches = function(context, state)
 end
 
 --- Earth Shock - interrupt
-local earth_shock_interrupt_matches = function(context, state)
+local earth_shock_interrupt_matches = function(_, state)
     if not state then return false end
     if not state.use_interrupt then return false end
     if not state.earth_shock_ready then return false end
@@ -352,7 +352,7 @@ local earth_shock_interrupt_matches = function(context, state)
 end
 
 --- Searing Totem - single target damage assist
-local searing_totem_matches = function(context, state)
+local searing_totem_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.use_totems or not state.use_searing_totem then return false end
@@ -362,7 +362,7 @@ local searing_totem_matches = function(context, state)
 end
 
 --- Strength of Earth Totem - melee leveling support
-local strength_totem_matches = function(context, state)
+local strength_totem_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.use_totems or not state.use_strength_totem then return false end
@@ -371,7 +371,7 @@ local strength_totem_matches = function(context, state)
 end
 
 --- Mana/Healing Stream - water totem sustain
-local water_totem_matches = function(context, state)
+local water_totem_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.use_totems or not state.use_water_totem then return false end
@@ -441,7 +441,7 @@ local lightning_bolt_matches = function(context, state)
 end
 
 --- Earthbind Totem - kite when overwhelmed
-local earthbind_totem_matches = function(context, state)
+local earthbind_totem_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.earthbind_totem_ready then return false end
@@ -451,7 +451,7 @@ local earthbind_totem_matches = function(context, state)
 end
 
 --- Water Shield - OOC mana sustain (when mana below threshold, swap from Lightning Shield)
-local water_shield_matches = function(context, state)
+local water_shield_matches = function(_, state)
     if not state then return false end
     if state.in_combat then return false end
     if state.has_water_shield then return false end
@@ -462,7 +462,7 @@ local water_shield_matches = function(context, state)
 end
 
 --- Shamanistic Rage - combat mana recovery (level 50+)
-local shamanistic_rage_matches = function(context, state)
+local shamanistic_rage_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if state.has_shamanistic_rage then return false end
@@ -472,7 +472,7 @@ local shamanistic_rage_matches = function(context, state)
 end
 
 --- Stormstrike - melee DPS (level 40+)
-local stormstrike_matches = function(context, state)
+local stormstrike_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.use_stormstrike then return false end
@@ -485,7 +485,7 @@ local stormstrike_matches = function(context, state)
 end
 
 --- Lesser Healing Wave - fast cheap heal (leveling priority over big heal)
-local lesser_healing_wave_matches = function(context, state)
+local lesser_healing_wave_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.lesser_healing_wave_ready then return false end
@@ -494,7 +494,7 @@ local lesser_healing_wave_matches = function(context, state)
 end
 
 --- Stoneclaw Totem - aggro redirect when overwhelmed
-local stoneclaw_totem_matches = function(context, state)
+local stoneclaw_totem_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.stoneclaw_totem_ready then return false end
@@ -504,7 +504,7 @@ local stoneclaw_totem_matches = function(context, state)
 end
 
 --- Grounding Totem - absorb incoming spells (PvP + caster mobs)
-local grounding_totem_matches = function(context, state)
+local grounding_totem_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.grounding_totem_ready then return false end
@@ -513,7 +513,7 @@ local grounding_totem_matches = function(context, state)
 end
 
 --- Tremor Totem - break fear/charm/sleep effects
-local tremor_totem_matches = function(context, state)
+local tremor_totem_matches = function(_, state)
     if not state then return false end
     if not state.tremor_totem_ready then return false end
     -- Always drop Tremor when in PvP combat (counters fear classes)
@@ -522,7 +522,7 @@ local tremor_totem_matches = function(context, state)
 end
 
 --- Purge - dispel 2 magic buffs from enemy
-local purge_matches = function(context, state)
+local purge_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.purge_ready then return false end
