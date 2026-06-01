@@ -141,7 +141,7 @@ assert_spell_ids("EaxRotations/classes/hunter/class_sylvanas.lua", "ViperSting",
 assert_not_numbers("EaxRotations/classes/hunter/class_sylvanas.lua", { 38121, 27045, 10926, 10925, 10924, 25810 }, "hunter spell table")
 
 local hunter_bm = read_file("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua")
-assert_true(before(hunter_bm, 'name = "SteadyShot"', 'name = "SerpentSting"'), "BM should not prioritize Serpent Sting above core shot rotation")
+assert_true(before(hunter_bm, 'name = "SerpentSting"', 'name = "SteadyShot"'), "BM should prioritize Serpent Sting above Steady Shot (IcyVeins #2 priority)")
 
 local paladin_ret = read_file("EaxRotations/classes/paladin/retribution_sylvanas.lua")
 assert_true(before(paladin_ret, 'name = "SealTwistBlood"', 'name = "CrusaderStrike"'), "Ret should prioritize twist-window seals over normal strikes")
