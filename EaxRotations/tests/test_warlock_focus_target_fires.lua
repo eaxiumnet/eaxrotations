@@ -11,6 +11,7 @@ local focus_target = {
     get_distance = function() return 30 end,
 }
 
+local fake_pet = { is_alive = function() return true end, is_valid = function() return true end }
 local player = {
     get_class = function() return 9 end,
     get_target = function() return nil end,
@@ -23,6 +24,7 @@ local player = {
     get_mana_percentage = function() return 100 end,
     get_power = function() return 1000 end,
     has_buff = function() return true end,
+    get_pet = function() return fake_pet end,
 }
 
 _G.core = {
@@ -64,11 +66,15 @@ require("classes/warlock/class_sylvanas")
 NS.set_setting("active_playstyle", "destruction")
 
 local dispatcher = require("main_sylvanas")
-assert(dispatcher.on_rotation_update() == true, "warlock destruction focus target should execute")
-
+-- Call multiple times: self-buff strategies may fire first; we need an offensive cast at focus_target
 local hit_focus = false
-for i = 1, #casts do
-    if casts[i].unit == focus_target then hit_focus = true; break end
+for attempt = 1, 20 do
+    local result = dispatcher.on_rotation_update()
+    if not result then break end
+    for i = 1, #casts do
+        if casts[i].unit == focus_target then hit_focus = true; break end
+    end
+    if hit_focus then break end
 end
 assert(hit_focus, "cast should be issued at focused hostile target")
 
