@@ -221,6 +221,8 @@ local function icy_veins_matches(context, s)
     if context.settings and context.settings.use_cooldowns == false then return false end
     if not s.in_combat then return false end
     if not s.icy_veins_ready then return false end
+    -- TTD gate: don't waste 3min CD on a dying target
+    if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
     return true
 end
 
@@ -228,6 +230,8 @@ local function water_elemental_matches(context, s)
     if context.settings and context.settings.use_cooldowns == false then return false end
     if not s.in_combat then return false end
     if not s.water_elemental_ready then return false end
+    -- TTD gate: don't waste 3min CD on a dying target
+    if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
     return true
 end
 

@@ -2226,7 +2226,7 @@ function NS.spell_ready(spell, target, opts)
     end
     if not opts.skip_gcd and gcd > 0 then
         if (NS.time_now() - _last_gcd_log) > 1 then
-            if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: gcd=" .. tostring(gcd)) end
+            if debug_trace then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: gcd=" .. tostring(gcd)) end
             _last_gcd_log = NS.time_now()
         end
         core_trace("ready:" .. label .. ":gcd", label .. " ready=false reason=gcd gcd=" .. tostring(gcd), 300)
@@ -2248,13 +2248,13 @@ function NS.spell_ready(spell, target, opts)
     -- Fallback: manual cooldown + range checks
     local cd = NS.cooldown_remains(spell, opts.expected_cooldown)
     if cd > 0 then
-        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: cooldown=" .. tostring(cd)) end
+        if debug_trace then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: cooldown=" .. tostring(cd)) end
         core_trace("ready:" .. label .. ":cd", label .. " ready=false reason=cooldown cd=" .. tostring(cd), 700)
         return false
     end
 
     if not opts.skip_range and target and NS.not_same_unit(target, NS.GetPlayer()) and not NS.is_spell_in_range(spell, target) then
-        if debug then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: out_of_range") end
+        if debug_trace then core.log("[EaxRotations:spell_ready] " .. label .. " FAIL: out_of_range") end
         core_trace("ready:" .. label .. ":range", label .. " ready=false reason=out_of_range target=" .. tostring(target ~= nil), 700)
         return false
     end
@@ -2292,13 +2292,13 @@ end
 ---@return boolean ok True if all guards pass.
 function NS.evaluate_cast(spell, unit, reason, opts)
     opts = opts or EMPTY
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
     local id = NS.get_spell_id(spell)
     if not id then
         if debug_trace then core_trace("eval:nil_id", "evaluate_cast failed: no spell id", 700) end
         return false
     end
     local label = spell_label(spell, id)
-    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
     local target = unit or NS.GetPlayer()
 
     -- 1. Primary: spell_helper native gate (cooldown + range + resource + facing + LOS + learned)
@@ -2378,6 +2378,7 @@ function NS.try_cast(spell, unit, reason, opts)
 
     local label = spell_label(spell, id)
 
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
     local target = unit
 
     if not target then
@@ -2388,8 +2389,6 @@ function NS.try_cast(spell, unit, reason, opts)
         end
     end
 
-    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
-
     if not id then
         core_trace("try:nil_id", "try_cast failed: no spell id label=" .. tostring(label) .. " reason=" .. tostring(reason), 700)
         return false
@@ -2397,7 +2396,7 @@ function NS.try_cast(spell, unit, reason, opts)
 
     core_trace("try:" .. tostring(id) .. ":enter", "try_cast enter id=" .. tostring(id) .. " label=" .. tostring(label) .. " target=" .. tostring(target ~= nil) .. " reason=" .. tostring(reason), 300)
 
-    if debug then core_trace("try:" .. tostring(id) .. ":attempt", "[EaxRotations:try_cast] ATTEMPT id=" .. tostring(id) .. " label=" .. label .. " has_target=" .. tostring(target ~= nil), 2000) end
+    if debug_trace then core_trace("try:" .. tostring(id) .. ":attempt", "[EaxRotations:try_cast] ATTEMPT id=" .. tostring(id) .. " label=" .. label .. " has_target=" .. tostring(target ~= nil), 2000) end
 
     -- Central cast guard: cooldown + resource + range + anti-flicker + min_interval + reagent + immunity
     if not NS.evaluate_cast(spell, unit, reason, opts) then
@@ -2416,8 +2415,8 @@ function NS.try_cast(spell, unit, reason, opts)
         end
         mark_spell_cast(id)
         core_trace("try:" .. tostring(id) .. ":queued", "try_cast " .. tostring(label) .. " queued id=" .. tostring(id) .. " result=" .. tostring(queued), 300)
-        if reason and debug then NS.log(reason) end
-        if debug then core_trace("try:" .. tostring(id) .. ":queued_ok", "[EaxRotations:try_cast] SUCCESS (queued) id=" .. tostring(id) .. " label=" .. label, 2000) end
+        if reason and debug_trace then NS.log(reason) end
+        if debug_trace then core_trace("try:" .. tostring(id) .. ":queued_ok", "[EaxRotations:try_cast] SUCCESS (queued) id=" .. tostring(id) .. " label=" .. label, 2000) end
         return true
     end
 
@@ -2428,13 +2427,13 @@ function NS.try_cast(spell, unit, reason, opts)
             local ok = izi_spell:cast_safe(target, reason) == true
             if ok then
                 mark_spell_cast(id)
-                if reason and debug then NS.log(reason) end
-                if debug then core_trace("try:" .. tostring(id) .. ":izi_ok", "[EaxRotations:try_cast] SUCCESS via IZI id=" .. tostring(id) .. " label=" .. label, 2000) end
+                if reason and debug_trace then NS.log(reason) end
+                if debug_trace then core_trace("try:" .. tostring(id) .. ":izi_ok", "[EaxRotations:try_cast] SUCCESS via IZI id=" .. tostring(id) .. " label=" .. label, 2000) end
                 return true
             end
         end
         -- IZI is present but returned nil or no cast_safe - do not fall through to raw core.input
-        if debug then core_trace("try:" .. tostring(id) .. ":izi_none", "[EaxRotations:try_cast] IZI unavailable for id=" .. tostring(id) .. " label=" .. label, 2000) end
+        if debug_trace then core_trace("try:" .. tostring(id) .. ":izi_none", "[EaxRotations:try_cast] IZI unavailable for id=" .. tostring(id) .. " label=" .. label, 2000) end
         return false
     end
 
@@ -2442,7 +2441,7 @@ function NS.try_cast(spell, unit, reason, opts)
     local cast = core.input and core.input.cast_target_spell
     if type(cast) == "function" then
         if safe(cast, id, target) == false then
-            if debug then core_trace("try:" .. tostring(id) .. ":direct_false", "[EaxRotations:try_cast] FAILED: cast_target_spell returned false id=" .. tostring(id) .. " label=" .. label, 2000) end
+            if debug_trace then core_trace("try:" .. tostring(id) .. ":direct_false", "[EaxRotations:try_cast] FAILED: cast_target_spell returned false id=" .. tostring(id) .. " label=" .. label, 2000) end
             return false
         end
     else
@@ -2452,9 +2451,9 @@ function NS.try_cast(spell, unit, reason, opts)
 
     mark_spell_cast(id)
 
-    if reason and debug then NS.log(reason) end
+    if reason and debug_trace then NS.log(reason) end
 
-    if debug then core_trace("try:" .. tostring(id) .. ":direct_ok", "[EaxRotations:try_cast] SUCCESS id=" .. tostring(id) .. " label=" .. label, 2000) end
+    if debug_trace then core_trace("try:" .. tostring(id) .. ":direct_ok", "[EaxRotations:try_cast] SUCCESS id=" .. tostring(id) .. " label=" .. label, 2000) end
 
     return true
 
@@ -2463,6 +2462,7 @@ end
 function NS.try_cast_position(spell, position, range_target, reason, opts)
 
     opts = opts or EMPTY
+    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
 
     local id = NS.get_spell_id(spell)
 
@@ -2485,9 +2485,11 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
         local queued = spell_queue:queue_spell_position(id, position, 1, label, false)
         if queued ~= false then
             mark_spell_cast(id)
-            local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
-            if reason and debug then NS.log(reason) end
+            core_trace("pos:" .. tostring(id) .. ":queued", "try_cast_position " .. tostring(label) .. " queued id=" .. tostring(id), 300)
+            if reason and debug_trace then NS.log(reason) end
             return true
+        else
+            core_trace("pos:" .. tostring(id) .. ":queue_false", "try_cast_position " .. tostring(label) .. " queue_spell_position returned false", 300)
         end
     end
 
@@ -2505,9 +2507,8 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
 
     mark_spell_cast(id)
 
-    local debug_trace = NS.get_setting and NS.get_setting("debug_system", false)
-
-    if reason and debug then NS.log(reason) end
+    core_trace("pos:" .. tostring(id) .. ":direct_ok", "try_cast_position " .. tostring(label) .. " SUCCESS id=" .. tostring(id), 300)
+    if reason and debug_trace then NS.log(reason) end
 
     return true
 
@@ -4741,7 +4742,7 @@ function NS.action_matches(context, action)
 
         if last and (NS.time_now() - last) < action.min_interval then
 
-            if debug then core_trace("action:" .. tostring(action.name) .. ":min_interval", "[DEBUG] " .. name .. " blocked: min_interval=" .. tostring(action.min_interval) .. "s (last=" .. tostring(NS.time_now() - last) .. "s ago)", 2000) end
+            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_interval", "[DEBUG] " .. name .. " blocked: min_interval=" .. tostring(action.min_interval) .. "s (last=" .. tostring(NS.time_now() - last) .. "s ago)", 2000) end
             return false
 
         end
@@ -4750,14 +4751,14 @@ function NS.action_matches(context, action)
 
     if action.combat and not context.in_combat then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":combat_required", "[DEBUG] " .. name .. " blocked: combat_required", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":combat_required", "[DEBUG] " .. name .. " blocked: combat_required", 2000) end
         return false
 
     end
 
     if action.ooc and context.in_combat then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":ooc_required", "[DEBUG] " .. name .. " blocked: ooc_required", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":ooc_required", "[DEBUG] " .. name .. " blocked: ooc_required", 2000) end
         return false
 
     end
@@ -4766,42 +4767,42 @@ function NS.action_matches(context, action)
 
     if action.max_hp and actor_hp > action.max_hp then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":max_hp", "[DEBUG] " .. name .. " blocked: max_hp=" .. tostring(actor_hp), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":max_hp", "[DEBUG] " .. name .. " blocked: max_hp=" .. tostring(actor_hp), 2000) end
         return false
 
     end
 
     if action.min_hp and actor_hp < action.min_hp then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":min_hp", "[DEBUG] " .. name .. " blocked: min_hp=" .. tostring(actor_hp), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_hp", "[DEBUG] " .. name .. " blocked: min_hp=" .. tostring(actor_hp), 2000) end
         return false
 
     end
 
     if action.target_max_hp and (context.target_hp or 100) > action.target_max_hp then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":target_max_hp", "[DEBUG] " .. name .. " blocked: target_max_hp=" .. tostring(context.target_hp), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":target_max_hp", "[DEBUG] " .. name .. " blocked: target_max_hp=" .. tostring(context.target_hp), 2000) end
         return false
 
     end
 
     if action.target_min_hp and (context.target_hp or 100) < action.target_min_hp then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":target_min_hp", "[DEBUG] " .. name .. " blocked: target_min_hp=" .. tostring(context.target_hp), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":target_min_hp", "[DEBUG] " .. name .. " blocked: target_min_hp=" .. tostring(context.target_hp), 2000) end
         return false
 
     end
 
     if action.min_level and (context.player_level or 70) < action.min_level then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":min_level", "[DEBUG] " .. name .. " blocked: min_level=" .. tostring(context.player_level), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_level", "[DEBUG] " .. name .. " blocked: min_level=" .. tostring(context.player_level), 2000) end
         return false
 
     end
 
     if action.max_level and (context.player_level or 70) > action.max_level then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":max_level", "[DEBUG] " .. name .. " blocked: max_level=" .. tostring(context.player_level), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":max_level", "[DEBUG] " .. name .. " blocked: max_level=" .. tostring(context.player_level), 2000) end
         return false
 
     end
@@ -4829,14 +4830,14 @@ function NS.action_matches(context, action)
 
         if action.require_ttd and not context.ttd_known then
 
-            if debug then core_trace("action:" .. tostring(action.name) .. ":ttd_unknown", "[DEBUG] " .. name .. " blocked: ttd_unknown", 2000) end
+            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":ttd_unknown", "[DEBUG] " .. name .. " blocked: ttd_unknown", 2000) end
             return false
 
         end
 
         if (context.ttd or 0) < action.min_ttd then
 
-            if debug then core_trace("action:" .. tostring(action.name) .. ":min_ttd", "[DEBUG] " .. name .. " blocked: min_ttd=" .. tostring(context.ttd), 2000) end
+            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_ttd", "[DEBUG] " .. name .. " blocked: min_ttd=" .. tostring(context.ttd), 2000) end
             return false
 
         end
@@ -4845,133 +4846,133 @@ function NS.action_matches(context, action)
 
     if action.enemy_count and (context.enemy_count or 0) < action.enemy_count then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":enemy_count", "[DEBUG] " .. name .. " blocked: enemy_count=" .. tostring(context.enemy_count), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":enemy_count", "[DEBUG] " .. name .. " blocked: enemy_count=" .. tostring(context.enemy_count), 2000) end
         return false
 
     end
 
     if context.settings and context.settings.aoe_enabled == false and (action.enemy_count or action.is_aoe) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":aoe_disabled", "[DEBUG] " .. name .. " blocked: aoe_disabled", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":aoe_disabled", "[DEBUG] " .. name .. " blocked: aoe_disabled", 2000) end
         return false
 
     end
 
     if action.max_enemy_count and (context.enemy_count or 0) > action.max_enemy_count then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":max_enemy_count", "[DEBUG] " .. name .. " blocked: max_enemy_count=" .. tostring(context.enemy_count), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":max_enemy_count", "[DEBUG] " .. name .. " blocked: max_enemy_count=" .. tostring(context.enemy_count), 2000) end
         return false
 
     end
 
     if action.min_mana and (context.mana_pct or 100) < action.min_mana then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":min_mana", "[DEBUG] " .. name .. " blocked: min_mana=" .. tostring(context.mana_pct), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_mana", "[DEBUG] " .. name .. " blocked: min_mana=" .. tostring(context.mana_pct), 2000) end
         return false
 
     end
 
     if action.max_mana and (context.mana_pct or 100) > action.max_mana then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":max_mana", "[DEBUG] " .. name .. " blocked: max_mana=" .. tostring(context.mana_pct), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":max_mana", "[DEBUG] " .. name .. " blocked: max_mana=" .. tostring(context.mana_pct), 2000) end
         return false
 
     end
 
     if action.target == "pet" and not NS.GetPet() then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":no_pet", "[DEBUG] " .. name .. " blocked: no_pet", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":no_pet", "[DEBUG] " .. name .. " blocked: no_pet", 2000) end
         return false
 
     end
 
     if action.min_rage and (context.rage or 0) < action.min_rage then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":min_rage", "[DEBUG] " .. name .. " blocked: min_rage=" .. tostring(context.rage), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_rage", "[DEBUG] " .. name .. " blocked: min_rage=" .. tostring(context.rage), 2000) end
         return false
 
     end
 
     if action.min_energy and (context.energy or 0) < action.min_energy then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":min_energy", "[DEBUG] " .. name .. " blocked: min_energy=" .. tostring(context.energy), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_energy", "[DEBUG] " .. name .. " blocked: min_energy=" .. tostring(context.energy), 2000) end
         return false
 
     end
 
     if action.min_combo and (context.combo_points or 0) < action.min_combo then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":min_combo", "[DEBUG] " .. name .. " blocked: min_combo=" .. tostring(context.combo_points), 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_combo", "[DEBUG] " .. name .. " blocked: min_combo=" .. tostring(context.combo_points), 2000) end
         return false
 
     end
 
     if action.not_moving and context.is_moving then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":moving", "[DEBUG] " .. name .. " blocked: moving", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":moving", "[DEBUG] " .. name .. " blocked: moving", 2000) end
         return false
 
     end
 
     if action.moving and not context.is_moving then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":not_moving", "[DEBUG] " .. name .. " blocked: not_moving", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":not_moving", "[DEBUG] " .. name .. " blocked: not_moving", 2000) end
         return false
 
     end
 
     if action.not_casting and (context.is_casting or context.is_channeling) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":already_casting", "[DEBUG] " .. name .. " blocked: already_casting", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":already_casting", "[DEBUG] " .. name .. " blocked: already_casting", 2000) end
         return false
 
     end
 
     if action.required_stance and context.stance ~= action.required_stance then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":wrong_stance", "[DEBUG] " .. name .. " blocked: wrong_stance", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":wrong_stance", "[DEBUG] " .. name .. " blocked: wrong_stance", 2000) end
         return false
 
     end
 
     if action.required_form and not NS.has_form(action.required_form) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":missing_form", "[DEBUG] " .. name .. " blocked: missing_form", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":missing_form", "[DEBUG] " .. name .. " blocked: missing_form", 2000) end
         return false
 
     end
 
     if action.requires_buff and not NS.buff_up(NS.GetPlayer(), action.requires_buff) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":missing_buff", "[DEBUG] " .. name .. " blocked: missing_buff", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":missing_buff", "[DEBUG] " .. name .. " blocked: missing_buff", 2000) end
         return false
 
     end
 
     if action.requires_behind and not NS.is_behind_target(context.target) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":not_behind", "[DEBUG] " .. name .. " blocked: not_behind", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":not_behind", "[DEBUG] " .. name .. " blocked: not_behind", 2000) end
         return false
 
     end
 
     if action.kind == "form" and NS.has_form(action.form) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":already_in_form", "[DEBUG] " .. name .. " blocked: already_in_form", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":already_in_form", "[DEBUG] " .. name .. " blocked: already_in_form", 2000) end
         return false
 
     end
 
     if action.kind == "buff" and NS.buff_up(NS.GetPlayer(), action.buff or action.spell) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":buff_already_up", "[DEBUG] " .. name .. " blocked: buff_already_up", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":buff_already_up", "[DEBUG] " .. name .. " blocked: buff_already_up", 2000) end
         return false
 
     end
 
     if action.kind == "threat_drop" and not NS.should_drop_threat(context) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":no_threat_drop", "[DEBUG] " .. name .. " blocked: no_threat_drop", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":no_threat_drop", "[DEBUG] " .. name .. " blocked: no_threat_drop", 2000) end
         return false
 
     end
@@ -4982,7 +4983,7 @@ function NS.action_matches(context, action)
 
         if not ready_target or not NS.spell_ready(action.requires_ready_spell, ready_target, { expected_cooldown = action.requires_ready_cooldown }) then
 
-            if debug then core_trace("action:" .. tostring(action.name) .. ":requires_ready_spell", "[DEBUG] " .. name .. " blocked: requires_ready_spell", 2000) end
+            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":requires_ready_spell", "[DEBUG] " .. name .. " blocked: requires_ready_spell", 2000) end
             return false
 
         end
@@ -4995,14 +4996,14 @@ function NS.action_matches(context, action)
 
             if not context.cc_target then
 
-                if debug then core_trace("action:" .. tostring(action.name) .. ":no_cc_target", "[DEBUG] " .. name .. " blocked: no_cc_target", 2000) end
+                if debug_trace then core_trace("action:" .. tostring(action.name) .. ":no_cc_target", "[DEBUG] " .. name .. " blocked: no_cc_target", 2000) end
                 return false
 
             end
 
         elseif not context.has_valid_enemy_target then
 
-            if debug then core_trace("action:" .. tostring(action.name) .. ":no_valid_target", "[DEBUG] " .. name .. " blocked: no_valid_target", 2000) end
+            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":no_valid_target", "[DEBUG] " .. name .. " blocked: no_valid_target", 2000) end
             return false
 
         end
@@ -5017,7 +5018,7 @@ function NS.action_matches(context, action)
 
         if is_player and safe(is_player, target) == true then
 
-            if debug then core_trace("action:" .. tostring(action.name) .. ":target_player", "[DEBUG] " .. name .. " blocked: target_player", 2000) end
+            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":target_player", "[DEBUG] " .. name .. " blocked: target_player", 2000) end
             return false
 
         end
@@ -5032,7 +5033,7 @@ function NS.action_matches(context, action)
 
         if not creature_type or not action.creature_types[creature_type] then
 
-            if debug then core_trace("action:" .. tostring(action.name) .. ":creature_type", "[DEBUG] " .. name .. " blocked: creature_type=" .. tostring(creature_type), 2000) end
+            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":creature_type", "[DEBUG] " .. name .. " blocked: creature_type=" .. tostring(creature_type), 2000) end
             return false
 
         end
@@ -5053,7 +5054,7 @@ function NS.action_matches(context, action)
 
             if stacks >= max_stacks then
 
-                if debug then core_trace("action:" .. tostring(action.name) .. ":debuff_stack_cap", "[DEBUG] " .. name .. " blocked: debuff_stack_cap=" .. tostring(stacks), 2000) end
+                if debug_trace then core_trace("action:" .. tostring(action.name) .. ":debuff_stack_cap", "[DEBUG] " .. name .. " blocked: debuff_stack_cap=" .. tostring(stacks), 2000) end
                 return false
 
             end
@@ -5070,7 +5071,7 @@ function NS.action_matches(context, action)
 
                 if remains > refresh then
 
-                    if debug then core_trace("action:" .. tostring(action.name) .. ":debuff_refresh", "[DEBUG] " .. name .. " blocked: debuff_refresh=" .. tostring(remains), 2000) end
+                    if debug_trace then core_trace("action:" .. tostring(action.name) .. ":debuff_refresh", "[DEBUG] " .. name .. " blocked: debuff_refresh=" .. tostring(remains), 2000) end
                     return false
 
                 end
@@ -5091,7 +5092,7 @@ function NS.action_matches(context, action)
 
                 if remains > refresh then
 
-                    if debug then core_trace("action:" .. tostring(action.name) .. ":debuff_refresh", "[DEBUG] " .. name .. " blocked: debuff_refresh=" .. tostring(remains), 2000) end
+                    if debug_trace then core_trace("action:" .. tostring(action.name) .. ":debuff_refresh", "[DEBUG] " .. name .. " blocked: debuff_refresh=" .. tostring(remains), 2000) end
                     return false
 
                 end
@@ -5104,14 +5105,14 @@ function NS.action_matches(context, action)
 
     if action.requires_debuff and target and not NS.debuff_up(target, action.requires_debuff) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":requires_debuff", "[DEBUG] " .. name .. " blocked: requires_debuff", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":requires_debuff", "[DEBUG] " .. name .. " blocked: requires_debuff", 2000) end
         return false
 
     end
 
     if action.blocked_debuff and target and NS.debuff_up(target, action.blocked_debuff) then
 
-        if debug then core_trace("action:" .. tostring(action.name) .. ":blocked_debuff", "[DEBUG] " .. name .. " blocked: blocked_debuff", 2000) end
+        if debug_trace then core_trace("action:" .. tostring(action.name) .. ":blocked_debuff", "[DEBUG] " .. name .. " blocked: blocked_debuff", 2000) end
         return false
 
     end

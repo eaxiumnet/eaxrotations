@@ -164,6 +164,8 @@ local function curse_of_doom_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfDoom, 2.0) then return false end
     if not context.target then return false end
     if not s.curse_of_doom_ready then return false end
+    -- TTD gate: Curse of Doom has 60s CD and 60s DoT — only use on long-lived targets
+    if context.ttd_known and context.ttd > 0 and context.ttd < 62 then return false end
     return true
 end
 
@@ -172,6 +174,8 @@ local function corruption_matches(context, s)
     if not context.target then return false end
     if not s.corruption_ready then return false end
     if NS.debuff_remains(context.target, CORRUPTION_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+    -- TTD gate: skip long DoT if target will die before it pays off (18s base)
+    if context.ttd_known and context.ttd > 0 and context.ttd < 4 then return false end
     return true
 end
 
@@ -180,6 +184,8 @@ local function immolate_matches(context, s)
     if not context.target then return false end
     if not s.immolate_ready then return false end
     if NS.debuff_remains(context.target, IMMOLATE_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+    -- TTD gate: skip casted DoT if target will die before it pays off (15s base + 2s cast)
+    if context.ttd_known and context.ttd > 0 and context.ttd < 5 then return false end
     return true
 end
 
@@ -223,6 +229,8 @@ local function siphon_life_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SiphonLife, 2.0) then return false end
     if not context.target then return false end
     if not s.siphon_life_ready then return false end
+    -- TTD gate: skip long DoT if target will die before it pays off (30s base)
+    if context.ttd_known and context.ttd > 0 and context.ttd < 4 then return false end
     return true
 end
 

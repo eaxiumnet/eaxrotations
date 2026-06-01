@@ -266,7 +266,7 @@ local function racial_matches(context, state)
     if not context.has_valid_enemy_target then return false end
     if not context.in_combat then return false end
     -- TTD gate: don't use racials if target is about to die
-    if context.ttd and context.ttd > 0 and context.ttd < 8 then return false end
+    if context.ttd_known and context.ttd > 0 and context.ttd < 8 then return false end
     return true
 end
 
@@ -479,7 +479,7 @@ local strategies = {
             -- Don't refresh if already applied and still ticking
             if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Only on long-lived targets (Doom takes 60s to tick)
-            if context.ttd and context.ttd < 62 then return false end
+            if context.ttd_known and context.ttd < 62 then return false end
             return NS.spell_ready(SPELLS.CurseOfDoom, context.target)
         end,
         execute = function(context)
@@ -517,7 +517,7 @@ local strategies = {
             if curse ~= "agony" then return false end
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- On short-lived targets, CoA may not run full duration
-            if context.ttd and context.ttd < 8 then return false end
+            if context.ttd_known and context.ttd < 8 then return false end
             return NS.spell_ready(SPELLS.CurseOfAgony, context.target)
         end,
         execute = function(context)
@@ -530,7 +530,7 @@ local strategies = {
         matches = function(context, state)
             if not _izi then return false end
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            if context.ttd and context.ttd < 8 then return false end
+            if context.ttd_known and context.ttd < 8 then return false end
             local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
             if not target then return false end
             return NS.spell_ready(SPELLS.CurseOfAgony, target)
@@ -551,7 +551,7 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Skip if target TTD is very short
-            if context.ttd and context.ttd < 5 then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            if context.ttd_known and context.ttd < 5 then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
 	            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
 	            if (state.immolate_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             return NS.spell_ready(SPELLS.Immolate, context.target)
@@ -575,7 +575,7 @@ local strategies = {
             -- Gate: setting check
             if context.settings and context.settings.aff_use_amplify_curse == false then return false end
             -- Only use on targets that live long enough (60s+ to warrant 3min CD)
-            if context.ttd and context.ttd < 60 then return false end
+            if context.ttd_known and context.ttd < 60 then return false end
             -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
             local about_to_curse = false
             if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 8 then about_to_curse = true end

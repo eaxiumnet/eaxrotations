@@ -67,6 +67,8 @@ local function combustion_matches_fn(context, state)
     if not state.combustion_ready then return false end
     if not context.in_combat then return false end
     if context.settings and context.settings.use_cooldowns == false then return false end
+    -- TTD gate: don't waste 3min CD on a dying target
+    if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
     if context.should_burst then return true end
     if NS.should_use_long_cd then return NS.should_use_long_cd(context, 180) end; return false
 end
