@@ -70,6 +70,7 @@ local mm_state = {
     aimed_shot_ready = false,
     silencing_shot_ready = false,
     target_is_casting = false,
+    target_interruptible = false,
     kill_command_ready = false,
     multi_shot_ready = false,
     steady_shot_ready = false,
@@ -119,6 +120,7 @@ local function build_state(context)
     mm_state.aimed_shot_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
     mm_state.silencing_shot_ready = target and NS.spell_ready(SPELLS.SilencingShot, target, { expected_cooldown = 20 }) or false
     mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
+    mm_state.target_interruptible = mm_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     mm_state.kill_command_ready = target and NS.spell_ready(SPELLS.KillCommand, target, { expected_cooldown = 5 }) or false
     mm_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
     mm_state.steady_shot_ready = target and NS.spell_ready(SPELLS.SteadyShot, target) or false
@@ -170,7 +172,7 @@ local function rapid_fire_matches(context, s)
     if not s.in_combat then return false end
     if not s.rapid_fire_ready then return false end
     -- TTD gate: don't waste 3min CD on a dying target
-    if context.ttd and context.ttd < 15 then return false end
+    if context.ttd_known and context.ttd < 15 then return false end
     return true
 end
 
@@ -257,19 +259,12 @@ local function freezing_trap_matches(context, s)
     return true
 end
 
-local function silencing_shot_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.target_is_casting then return false end
-    if not s.silencing_shot_ready then return false end
-    return true
-end
-
 local function in_combat_aimed_shot_matches(context, s)
     if not s.in_combat then return false end
     if not s.aimed_shot_ready then return false end
     if (s.mana_pct or 100) < 20 then return false end
     -- TTD gate: prefer instant Arcane Shot over 2.5s Aimed Shot when target is dying
-    if context.ttd and context.ttd < 3 then return false end
+    if context.ttd_known and context.ttd < 3 then return false end
     if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
     return true
 end
@@ -291,7 +286,7 @@ local function readiness_matches(context, s)
     if not s.in_combat then return false end
     if not s.readiness_ready then return false end
     -- TTD gate: don't waste 5min CD on a dying target
-    if context.ttd and context.ttd < 20 then return false end
+    if context.ttd_known and context.ttd < 20 then return false end
     -- Use after Rapid Fire has been used (on CD) to reset it for a 2nd burst window
     -- MM does not have Bestial Wrath; only gate on Rapid Fire
     if s.rapid_fire_ready then return false end

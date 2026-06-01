@@ -276,6 +276,8 @@ local function avenging_wrath_matches(context, state)
     if not cooldowns_enabled(context) then return false end
     if state.has_forbearance then return false end
     if not state.avenging_wrath_ready then return false end
+    -- TTD gate: don't waste 3min CD on a dying target
+    if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
     return true
 end
 

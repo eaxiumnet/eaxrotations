@@ -97,6 +97,7 @@ local arms_state = {
     target_is_player = false,
     target_is_pet = false,
     target_is_casting = false,
+    target_casting_interruptible = false,
     target_is_melee = false,
     ttd = 0,
     has_battle_shout = false,
@@ -274,6 +275,7 @@ local function build_state(context)
     arms_state.target_is_player = target and bool_call(target, "is_player") or false
     arms_state.target_is_pet = target and bool_call(target, "is_pet") or false
     arms_state.target_is_casting = context.target_is_casting or bool_call(target, "is_casting") or false
+    arms_state.target_casting_interruptible = arms_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     arms_state.target_is_melee = target_is_melee(target)
     arms_state.ttd = context.ttd or 0
     arms_state.target_in_combat = target and bool_call(target, "is_in_combat") or false

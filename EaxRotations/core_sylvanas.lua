@@ -2341,7 +2341,7 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     local reagent_guard = _reagent_guard
     if reagent_guard and reagent_guard.check_reagent then
         if not reagent_guard.check_reagent(id) then
-            if debug then
+            if debug_trace then
                 core.log("[EaxRotations:evaluate_cast] " .. label .. " blocked: missing reagent (spell_id=" .. tostring(id) .. ")")
             end
             core_trace("eval:" .. tostring(id) .. ":reagent", "evaluate_cast " .. label .. " blocked: missing reagent", 500)
@@ -5197,7 +5197,7 @@ function NS.action_execute(context, action, prefix)
                 if ok then
                     mark_spell_cast(id)
                     _last_action_exec[action.name] = NS.time_now()
-                    if debug then NS.log(reason) end
+                    if debug_trace then NS.log(reason) end
                     return true
                 end
             end
@@ -5217,7 +5217,7 @@ function NS.action_execute(context, action, prefix)
 
         _last_action_exec[action.name] = NS.time_now()
 
-        if debug then NS.log(reason) end
+        if debug_trace then NS.log(reason) end
 
         return true
 

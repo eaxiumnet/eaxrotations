@@ -312,7 +312,7 @@ local strategies = {
             -- Bleed-immune targets can't be ruptured
             if context.target_bleed_immune then return false end
             -- Only on long-lived targets (TTD > 12s)
-            if context.ttd and context.ttd > 0 and context.ttd < 12 then return false end
+            if context.ttd_known and context.ttd > 0 and context.ttd < 12 then return false end
             return NS.spell_ready(SPELLS.Rupture, context.target)
         end,
         execute = function(context)

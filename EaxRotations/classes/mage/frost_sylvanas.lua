@@ -99,6 +99,7 @@ local frost_state = {
     hp_pct = 100,
     enemy_count = 1,
     target_casting = false,
+    target_casting_interruptible = false,
     target_hp_pct = 100,
     target_not_rooted = false,
     in_combat = false,
@@ -162,6 +163,7 @@ local function build_state(context)
     frost_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     frost_state.enemy_count = context.enemy_count or context.enemies_count or 1
     frost_state.target_casting = target and target.is_casting and target:is_casting() or false
+    frost_state.target_casting_interruptible = frost_state.target_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     frost_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
     frost_state.target_not_rooted = target and not NS.debuff_up(target, FROST_NOVA_ROOTS) or false
     frost_state.in_combat = context.in_combat or false
@@ -317,14 +319,6 @@ end
 
 local function frost_ward_matches(context, s)
     if not s.frost_ward_ready then return false end
-    return true
-end
-
-local function counterspell_matches(context, s)
-    if not context.target then return false end
-    if context.settings and context.settings.use_interrupt == false then return false end
-    if not s.target_casting then return false end
-    if not s.counterspell_ready then return false end
     return true
 end
 

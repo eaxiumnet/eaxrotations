@@ -317,7 +317,7 @@ local function shadowfiend_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     if (context.mana_pct or 100) > 45 then return false end
     -- TTD gate: don't summon Shadowfiend if combat won't last long enough for its mana return
-    if context.ttd and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_SHADOWFIEND then return false end
+    if context.ttd_known and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_SHADOWFIEND then return false end
     return true
 end
 
@@ -389,7 +389,7 @@ local function racial_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     if not context.in_combat then return false end
     -- TTD gate: don't use racials if target is about to die
-    if context.ttd and context.ttd > 0 and context.ttd < 8 then return false end
+    if context.ttd_known and context.ttd > 0 and context.ttd < 8 then return false end
     return true
 end
 
@@ -399,7 +399,7 @@ local function vampiric_touch_matches(context, s)
     if context.is_moving then return false end
     if not context.has_valid_enemy_target or s.vt_remaining > (s.vt_refresh_window or 3) then return false end
     -- TTD gate: skip VT if target dying soon (1.5s cast + 15s to get full value)
-    if context.ttd and context.ttd > 0 and context.ttd < 6 then return false end
+    if context.ttd_known and context.ttd > 0 and context.ttd < 6 then return false end
     -- Mana emergency: drop all spells (wand only)
     if s.mana_emergency then return false end
     -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
@@ -447,7 +447,7 @@ local function inner_focus_matches(context, s)
     if not context.in_combat or not s.mb_ready then return false end
     if s.has_inner_focus then return false end
     -- TTD gate: don't burn 180s cooldown if combat ends within threshold
-    if context.ttd and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_INNER_FOCUS then return false end
+    if context.ttd_known and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_INNER_FOCUS then return false end
     return true
 end
 
@@ -468,7 +468,7 @@ local function shadow_word_death_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     if not s.swd_ready then return false end
     -- TTD gate: skip SW:D if target is about to die (don't waste GCD)
-    if context.ttd and context.ttd > 0 and context.ttd < 3 then return false end
+    if context.ttd_known and context.ttd > 0 and context.ttd < 3 then return false end
     -- Mana conservation: hold SW:D in emergency mana
     if s.mana_emergency then return false end
     -- Threat safety: hold SW:D if tank threat lead insufficient
@@ -580,6 +580,14 @@ local strategies = {
     { name = "Shadowfiend", matches = shadowfiend_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowfiend, context.target, "[SHADOW] Shadowfiend") end },
     { name = "VampiricTouch", matches = vampiric_touch_matches, execute = function(context) local ok = NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] VampiricTouch"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
     { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "MovingSWP", matches = function(context, s)
+        if not context.is_moving then return false end
+        if not context.has_valid_enemy_target then return false end
+        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWordPain, 2.0) then return false end
+        if (s.swp_remaining or 0) > 3 then return false end
+        if s.mana_emergency then return false end
+        return true
+    end, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWP (moving)"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricEmbrace, context.target, "[SHADOW] VampiricEmbrace") end },
     { name = "DevouringPlague", matches = devouring_plague_matches, execute = function(context) local ok = NS.try_cast(SPELLS.DevouringPlague, context.target, "[SHADOW] DevouringPlague"); if ok then shadow_state.snapshot_dp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocus", { skip_range = true }) end },

@@ -88,6 +88,7 @@ local ret_state = {
     target_has_crusader = false,
     target_has_wisdom = false,
     target_casting = false,
+    target_casting_interruptible = false,
     target_player = false,
     target_fleeing = false,
     in_melee = true,
@@ -224,6 +225,7 @@ local function build_state(context)
         ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
     end
     ret_state.target_casting = is_casting(context.target)
+    ret_state.target_casting_interruptible = ret_state.target_casting and (NS.is_interruptible and NS.is_interruptible(context.target) or false)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
     ret_state.in_melee = distance_to(context, context.target) <= MELEE_RANGE
@@ -321,11 +323,11 @@ end, function(context) return cast(Repentance, context.target, "[RET PvP] Repent
 
 add_strategy(strategies, "Ret_PvP_Repentance_EmergencyInterrupt", 840, function(context, state)
     if not get_setting(context, "repentance_pvp_usage", true) then return false end
-    return context.is_pvp and state.target_casting and ready(Repentance, context.target, {})
+    return context.is_pvp and (state.target_casting_interruptible or false) and ready(Repentance, context.target, {})
 end, function(context) return cast(Repentance, context.target, "[RET PvP] Repentance interrupt") end)
 
 add_strategy(strategies, "Ret_HammerJustice_Interrupt", 830, function(context, state)
-    return state.target_casting and ready(HammerJustice, context.target, { expected_cooldown = 60 })
+    return (state.target_casting_interruptible or false) and ready(HammerJustice, context.target, { expected_cooldown = 60 })
 end, function(context) return cast(HammerJustice, context.target, "[RET] Hammer of Justice interrupt", { expected_cooldown = 60 }) end)
 
 add_strategy(strategies, "Ret_PvP_HammerJustice_Burst", 820, function(context, state)

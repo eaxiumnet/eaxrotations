@@ -290,6 +290,20 @@ local _strategies = {
         execute=function(ctx) return _G_E.action_execute(ctx, _ACT_MF, "[BALANCE]") end,
     },
     {
+        name="MovingMoonfire",
+        matches=function(ctx, s)
+            if not ctx.is_moving then return false end
+            if not ctx.has_valid_enemy_target then return false end
+            local skip = _G_E.broken_api_throttled and _G_E.broken_api_throttled(SPELLS.Moonfire, 2.0) or false
+            if not skip then
+                if (s.moonfire_remains or 0) >= 3 then return false end
+            end
+            if (s.mana_pct or 100) < 10 then return false end
+            return _G_E.action_matches(ctx, _ACT_MF)
+        end,
+        execute=function(ctx) return _G_E.action_execute(ctx, _ACT_MF, "[BALANCE]") end,
+    },
+    {
         name="StarfirePrimary",
         matches=function(ctx, s)
             if ctx.is_moving then return false end
@@ -357,6 +371,7 @@ local _strategies = {
     {
         name="PvP_Cyclone",
         matches=function(ctx)
+            if _G_E.DRTracker and _G_E.DRTracker.is_dr_immune and ctx.target and _G_E.DRTracker.is_dr_immune(ctx.target, "cyclone") then return false end
             if not ctx.is_pvp then return false end
             if not ctx.enemy_healer then return false end
             return _G_E.spell_ready(_LOCAL_SPELLS.Cyclone, ctx.target)

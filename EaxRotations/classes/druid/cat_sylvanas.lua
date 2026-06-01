@@ -600,6 +600,7 @@ local function maim_interrupt_matches(context, action)
     if not state.is_pvp and not state.is_player_target then return false end
     local casting = safe_method(state.target, "is_casting", false) or safe_method(state.target, "is_channeling", false)
     if not casting then return false end
+    if NS.is_interruptible and not NS.is_interruptible(state.target) then return false end
     return true
 end
 
