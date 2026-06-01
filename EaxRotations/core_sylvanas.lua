@@ -1630,6 +1630,8 @@ function NS.spell_action(id, label)
 
                 school = cfg.school or "physical",
 
+                cc_type = cfg.cc_type,  -- CC category: "fear", "charm", "sleep", "sap", "incapacitate", "stun", etc.
+
             }
 
         }
@@ -2362,6 +2364,36 @@ function NS.evaluate_cast(spell, unit, reason, opts)
             local spell_school = type(spell) == "table" and spell._meta and spell._meta.school or nil
             if spell_school == "physical" then
                 core_trace("eval:" .. tostring(id) .. ":bop", "evaluate_cast " .. label .. " blocked: target has Blessing of Protection (physical spell)", 500)
+                return false
+            end
+        end
+
+        -- 5b. Cloak of Shadows (31224): immune to all magic for 5s
+        local has_cloak = NS.buff_up(target, {31224})
+        if has_cloak then
+            local spell_school = type(spell) == "table" and spell._meta and spell._meta.school or nil
+            if spell_school and spell_school ~= "physical" then
+                core_trace("eval:" .. tostring(id) .. ":cloak", "evaluate_cast " .. label .. " blocked: target has Cloak of Shadows (magic spell: " .. spell_school .. ")", 500)
+                return false
+            end
+        end
+
+        -- 5c. Will of the Forsaken (7744): immune to fear/charm/sleep for 5s
+        local has_wotf = NS.buff_up(target, {7744})
+        if has_wotf then
+            local cc_type = type(spell) == "table" and spell._meta and spell._meta.cc_type or nil
+            if cc_type and (cc_type == "fear" or cc_type == "charm" or cc_type == "sleep") then
+                core_trace("eval:" .. tostring(id) .. ":wotf", "evaluate_cast " .. label .. " blocked: target has Will of the Forsaken (cc_type: " .. cc_type .. ")", 500)
+                return false
+            end
+        end
+
+        -- 5d. Berserker Rage (18499): immune to fear/sap/incapacitate for 10s
+        local has_berserker_rage = NS.buff_up(target, {18499})
+        if has_berserker_rage then
+            local cc_type = type(spell) == "table" and spell._meta and spell._meta.cc_type or nil
+            if cc_type and (cc_type == "fear" or cc_type == "sap" or cc_type == "incapacitate") then
+                core_trace("eval:" .. tostring(id) .. ":berserker_rage", "evaluate_cast " .. label .. " blocked: target has Berserker Rage (cc_type: " .. cc_type .. ")", 500)
                 return false
             end
         end

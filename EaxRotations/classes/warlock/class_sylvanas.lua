@@ -108,6 +108,7 @@ local SPELLS = {
         power_cost = 0,
         power_type = "mana",
         school = "shadow",
+        cc_type = "fear",
     }),
     Immolate = NS.spell_action({
         name = "Immolate",
@@ -168,6 +169,7 @@ local SPELLS = {
         power_cost = 0,
         power_type = "mana",
         school = "shadow",
+        cc_type = "fear",
     }),
     SeedOfCorruption = NS.spell_action({
         name = "SeedOfCorruption",
