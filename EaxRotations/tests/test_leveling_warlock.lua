@@ -516,7 +516,7 @@ test("fear_matches: ready, 2+ enemies, debuff expiring -> true", function()
     local state = get_state(ctx)
     state.fear_ready = true
     state.enemies = 3
-    assert_true(strategies[6].matches(ctx, state), "3 enemies should match")
+    assert_true(strategies[7].matches(ctx, state), "3 enemies should match")
 end)
 
 test("fear_matches: 1 enemy -> false", function()
@@ -524,7 +524,7 @@ test("fear_matches: 1 enemy -> false", function()
     local state = get_state(ctx)
     state.fear_ready = true
     state.enemies = 1
-    assert_false(strategies[6].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[7].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("fear_matches: debuff still fresh -> false", function()
@@ -533,7 +533,7 @@ test("fear_matches: debuff still fresh -> false", function()
     state.fear_ready = true
     state.enemies = 3
     NS.debuff_remains = function(target, ids) return 12 end
-    assert_false(strategies[6].matches(ctx, state), "fresh fear should not match")
+    assert_false(strategies[7].matches(ctx, state), "fresh fear should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -542,7 +542,7 @@ test("fear_matches: no target -> false", function()
     local state = get_state(ctx)
     state.fear_ready = true
     state.target = nil
-    assert_false(strategies[6].matches(ctx, state), "no target should not match")
+    assert_false(strategies[7].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
@@ -1282,7 +1282,7 @@ do -- edge_fear
         state.enemies = 2
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 0 end
-        assert_true(strategies[6].matches(ctx, state), "2 enemies should match (>= 2)")
+        assert_true(strategies[7].matches(ctx, state), "2 enemies should match (>= 2)")
         NS.debuff_remains = saved
     end)
 
@@ -1291,7 +1291,7 @@ do -- edge_fear
         local state = get_state(ctx)
         state.fear_ready = true
         state.enemies = 1
-        assert_false(strategies[6].matches(ctx, state), "1 enemy should not match (< 2)")
+        assert_false(strategies[7].matches(ctx, state), "1 enemy should not match (< 2)")
     end)
 
     test("edge_fear: debuff remains exactly 8 -> match", function()
@@ -1301,7 +1301,7 @@ do -- edge_fear
         state.enemies = 2
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 8 end
-        assert_true(strategies[6].matches(ctx, state), "remains 8 should match (<= 8)")
+        assert_true(strategies[7].matches(ctx, state), "remains 8 should match (<= 8)")
         NS.debuff_remains = saved
     end)
 
@@ -1312,7 +1312,7 @@ do -- edge_fear
         state.enemies = 2
         local saved = NS.debuff_remains
         NS.debuff_remains = function() return 9 end
-        assert_false(strategies[6].matches(ctx, state), "remains 9 should not match (> 8)")
+        assert_false(strategies[7].matches(ctx, state), "remains 9 should not match (> 8)")
         NS.debuff_remains = saved
     end)
 end
