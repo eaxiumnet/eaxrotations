@@ -334,12 +334,14 @@ end, function(_, state) return cast(SPELLS.Cleanse, state.utility_target, "[RET]
 
 add_strategy(strategies, "Ret_PvP_Repentance_Opener", 850, function(context, state)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "disorient") then return false end
+    if NS.PvPTrinket and NS.PvPTrinket.is_on_cooldown and context.target and NS.PvPTrinket.is_on_cooldown(context.target) then return false end
     if not get_setting(context, "repentance_pvp_usage", true) then return false end
     return context.is_pvp and state.target_player and ready(Repentance, context.target, {})
 end, function(context) return cast(Repentance, context.target, "[RET PvP] Repentance opener") end)
 
 add_strategy(strategies, "Ret_PvP_HammerJustice_Burst", 820, function(context, state)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
+    if NS.PvPTrinket and NS.PvPTrinket.is_on_cooldown and context.target and NS.PvPTrinket.is_on_cooldown(context.target) then return false end
     return context.is_pvp and state.target_player and ready(HammerJustice, context.target, { expected_cooldown = 60 })
 end, function(context) return cast(HammerJustice, context.target, "[RET PvP] Hammer of Justice burst", { expected_cooldown = 60 }) end)
 

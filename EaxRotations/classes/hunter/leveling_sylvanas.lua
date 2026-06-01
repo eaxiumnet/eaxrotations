@@ -72,6 +72,9 @@ local function build_state(context)
     leveling_state.rapid_fire_ready = safe_spell_ready(SPELLS.RapidFire, nil, { skip_range = true })
     leveling_state.scare_beast_ready = safe_spell_ready(SPELLS.ScareBeast, context.target)
     leveling_state.freezing_trap_ready = safe_spell_ready(SPELLS.FreezingTrap, context.me, { skip_range = true, expected_cooldown = 30 })
+    leveling_state.feign_death_ready = safe_spell_ready(SPELLS.FeignDeath, nil, { skip_range = true })
+    leveling_state.raptor_strike_ready = safe_spell_ready(SPELLS.RaptorStrike, context.target)
+    leveling_state.in_melee = context.in_melee_range == true
 
     -- Pet HP
     if context.pet then
@@ -224,6 +227,15 @@ local function feign_death_matches(context, state)
     return state.feign_death_ready
 end
 
+local function raptor_strike_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not state.in_melee then return false end
+    return state.raptor_strike_ready
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -319,6 +331,14 @@ local strategies = {
       execute = function(context)
         if not context then return false end
         return NS.try_cast and NS.try_cast(SPELLS.MultiShot, context.target, "[LEVELING] Multi-Shot") or false
+      end },
+
+    -- Melee weave: Raptor Strike when mob is in melee range
+    { name = "RaptorStrike",
+      matches = raptor_strike_matches,
+      execute = function(context)
+        if not context then return false end
+        return NS.try_cast and NS.try_cast(SPELLS.RaptorStrike, context.target, "[LEVELING] Raptor Strike") or false
       end },
 
     { name = "SteadyShot",

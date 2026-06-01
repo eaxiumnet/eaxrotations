@@ -264,6 +264,7 @@ end
 --- Polymorph: crowd control in PvP
 local function polymorph_matches(context, s)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.cc_target and NS.DRTracker.is_dr_immune(context.cc_target, "incapacitate") then return false end
+    if NS.PvPTrinket and NS.PvPTrinket.is_on_cooldown and context.cc_target and NS.PvPTrinket.is_on_cooldown(context.cc_target) then return false end
     if not context.is_pvp then return false end
     if not context.cc_target then return false end
     if context.is_moving then return false end

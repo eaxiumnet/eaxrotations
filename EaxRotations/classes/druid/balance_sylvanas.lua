@@ -360,6 +360,7 @@ local _strategies = {
     {
         name="PvP_EntanglingRoots",
         matches=function(ctx)
+            if _G_E.PvPTrinket and _G_E.PvPTrinket.is_on_cooldown and ctx.target and _G_E.PvPTrinket.is_on_cooldown(ctx.target) then return false end
             if not ctx.is_pvp then return false end
             if not ctx.melee_on_you then return false end
             return _G_E.spell_ready(_LOCAL_SPELLS.EntanglingRoots, ctx.target)
@@ -372,6 +373,7 @@ local _strategies = {
         name="PvP_Cyclone",
         matches=function(ctx)
             if _G_E.DRTracker and _G_E.DRTracker.is_dr_immune and ctx.target and _G_E.DRTracker.is_dr_immune(ctx.target, "cyclone") then return false end
+            if _G_E.PvPTrinket and _G_E.PvPTrinket.is_on_cooldown and ctx.target and _G_E.PvPTrinket.is_on_cooldown(ctx.target) then return false end
             if not ctx.is_pvp then return false end
             if not ctx.enemy_healer then return false end
             return _G_E.spell_ready(_LOCAL_SPELLS.Cyclone, ctx.target)
