@@ -290,7 +290,7 @@ local expose_armor_matches = function(context, state)
     local ok, stacks = pcall(function() return NS.debuff_stacks and NS.debuff_stacks(state.target, SPELLS.ExposeArmor) or 0 end)
     if ok and stacks and stacks > 0 then return false end
     if (state.combo_points or 0) >= (state.max_combo_points or 5) then return false end  -- prefer Eviscerate at 5
-    if not state.target_is_elite and not state.target_is_boss and (state.target_ttd or 0) < 20 then return false end
+    if not state.target_is_elite and not state.target_is_boss and (state.target_ttd or 999) < 20 then return false end
     return true
 end
 
