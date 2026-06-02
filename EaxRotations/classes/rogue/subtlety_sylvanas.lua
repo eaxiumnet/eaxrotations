@@ -270,7 +270,17 @@ local function cheap_shot_opener_matches(context, state)
 end
 
 local function kick_matches(context, state)
-    if not target_is_casting(context.target) then return false end
+    -- Route through InterruptManager for cast window + humanization
+    local settings = context.settings or {}
+    if settings.use_interrupts == false then return false end
+    local mgr = NS.InterruptManager
+    if mgr then
+        if not NS.try_interrupt(context.target) then return false end
+        if not mgr.cast_has_interrupt_window(context.target, settings) then return false end
+        if not mgr.humanize_interrupt_elapsed(context.target, settings) then return false end
+    else
+        if not target_is_casting(context.target) then return false end
+    end
     if not enough_energy(state, ENERGY_KICK) then return false end
     return NS.spell_ready(SPELLS.Kick, context.target)
 end

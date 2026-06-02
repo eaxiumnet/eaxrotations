@@ -286,8 +286,20 @@ local function last_stand_matches_fn(context, state)
 end
 
 local function shield_bash_matches_fn(context, state)
-    if not state.target_is_casting then return false end
-    if not (state.target_casting_interruptible or false) then return false end
+    local settings = context.settings or {}
+    if settings.use_interrupts == false then return false end
+    -- Route through InterruptManager for cast window + humanization
+    local mgr = NS.InterruptManager
+    local target = context.target
+    if mgr then
+        if not NS.try_interrupt(target) then return false end
+        if not mgr.cast_has_interrupt_window(target, settings) then return false end
+        if not mgr.humanize_interrupt_elapsed(target, settings) then return false end
+    else
+        -- Fallback: bare cast-state checks
+        if not state.target_is_casting then return false end
+        if not (state.target_casting_interruptible or false) then return false end
+    end
     if not state.shield_bash_ready then return false end
     if not is_defensive_stance(state.stance) then return false end
     return true
@@ -397,14 +409,14 @@ local strategies = {
     -- 1) Emergency defensives (always first)
     {
         name = "LastStand",
-        matches = function(context) return last_stand_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return last_stand_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.LastStand, context.me or NS.GetPlayer(), "[PROT] LastStand", { skip_range = true, expected_cooldown = FINAL_STAND_CD })
         end,
     },
     {
         name = "ShieldWall",
-        matches = function(context) return shield_wall_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return shield_wall_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.ShieldWall, context.me or NS.GetPlayer(), "[PROT] ShieldWall", { skip_range = true, expected_cooldown = SHIELD_WALL_CD })
         end,
@@ -412,7 +424,7 @@ local strategies = {
     -- 2) Interrupts (must beat casts)
     {
         name = "ShieldBash",
-        matches = function(context) return shield_bash_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return shield_bash_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.ShieldBash, context.target, "[PROT] ShieldBash")
         end,
@@ -420,20 +432,19 @@ local strategies = {
     -- 3) Shield Slam Purge (PvP — checks settings from shared schema)
     {
         name = "ShieldSlamPurge",
-        matches = function(context)
+        matches = function(context, state)
             local settings = context.settings or {}
             if settings.use_shield_slam_purge == false then return false end
             if not context.is_pvp then return false end
             if not context.in_combat then return false end
-            local s = build_state(context)
-            if not s.ss_ready then return false end
-            if not s.ss_purge_name then return false end
+            if not state.ss_ready then return false end
+            if not state.ss_purge_name then return false end
             -- Player-only gate
             if settings.shield_slam_purge_pvp_only ~= false then
                 local ok, is_player = pcall(function() return context.target:is_player() end)
                 if not (ok and is_player) then return false end
             end
-            context._ss_purge_name = s.ss_purge_name
+            context._ss_purge_name = state.ss_purge_name
             return true
         end,
         execute = function(context)
@@ -444,47 +455,44 @@ local strategies = {
     -- 4) Threat-gen core (single-target and AoE)
     {
         name = "ShieldSlam",
-        matches = function(context)
-            local s = build_state(context)
-            return is_defensive_stance(s.stance) and s.ss_ready
+        matches = function(context, state)
+            return is_defensive_stance(state.stance) and state.ss_ready
         end,
         execute = function(context) return NS.try_cast(SPELLS.ShieldSlam, context.target, "[PROT] ShieldSlam", { expected_cooldown = SHIELD_SLAM_CD }) end,
     },
     {
         name = "Revenge",
-        matches = function(context)
-            local s = build_state(context)
-            return is_defensive_stance(s.stance) and s.revenge_ready
+        matches = function(context, state)
+            return is_defensive_stance(state.stance) and state.revenge_ready
         end,
         execute = function(context) return NS.try_cast(SPELLS.Revenge, context.target, "[PROT] Revenge", { expected_cooldown = REVENGE_CD }) end,
     },
     {
         name = "Taunt",
-        matches = function(context) return taunt_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return taunt_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Taunt, context.target, "[PROT] Taunt")
         end,
     },
     {
         name = "MockingBlow",
-        matches = function(context) return mocking_blow_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return mocking_blow_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.MockingBlow, context.target, "[PROT] MockingBlow")
         end,
     },
     {
         name = "ChallengingShout",
-        matches = function(context) return challenging_shout_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return challenging_shout_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.ChallengingShout, context.me or NS.GetPlayer(), "[PROT] ChallengingShout", { skip_range = true })
         end,
     },
     {
         name = "ShieldBlock",
-        matches = function(context)
-            local s = build_state(context)
-            if not is_defensive_stance(s.stance) then return false end
-            if not s.shield_block_ready then return false end
+        matches = function(context, state)
+            if not is_defensive_stance(state.stance) then return false end
+            if not state.shield_block_ready then return false end
             local me = context.me or NS.GetPlayer()
             local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SPELLS.ShieldBlock) or 0
             -- proactive refresh before expiry to prevent crush windows
@@ -496,14 +504,14 @@ local strategies = {
     -- 5) Sunder / Devastate stack maintenance
     {
         name = "Devastate",
-        matches = function(context) return devastate_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return devastate_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Devastate, context.target, "[PROT] Devastate")
         end,
     },
     {
         name = "SunderArmor",
-        matches = function(context) return sunder_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return sunder_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.SunderArmor, context.target, "[PROT] Sunder")
         end,
@@ -511,7 +519,7 @@ local strategies = {
     -- 5) Execute phase (sub-20%)
     {
         name = "Execute",
-        matches = function(context) return execute_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return execute_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Execute, context.target, "[PROT] Execute")
         end,
@@ -519,7 +527,7 @@ local strategies = {
     -- 6) AoE tanking
     {
         name = "ThunderClap",
-        matches = function(context) return thunderclap_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return thunderclap_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.ThunderClap, context.me or NS.GetPlayer(), "[PROT] ThunderClap", { skip_range = true, expected_cooldown = THUNDERCLAP_CD })
         end,
@@ -527,7 +535,7 @@ local strategies = {
     -- 7) Debuff maintenance
     {
         name = "DemoralizingShout",
-        matches = function(context) return demo_shout_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return demo_shout_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.DemoralizingShout, context.me or NS.GetPlayer(), "[PROT] DemoShout", { skip_range = true, expected_cooldown = DEMO_SHOUT_CD })
         end,
@@ -535,14 +543,14 @@ local strategies = {
     -- 8) Buffs / Shouts
     {
         name = "BattleShout",
-        matches = function(context) return battle_shout_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return battle_shout_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.BattleShout, context.me or NS.GetPlayer(), "[PROT] BattleShout", { skip_range = true })
         end,
     },
     {
         name = "CommandingShout",
-        matches = function(context) return commanding_shout_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return commanding_shout_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.CommandingShout, context.me or NS.GetPlayer(), "[PROT] CommandingShout", { skip_range = true })
         end,
@@ -550,14 +558,14 @@ local strategies = {
     -- 9) Rage dump
     {
         name = "Cleave",
-        matches = function(context) return cleave_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return cleave_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Cleave, context.target, "[PROT] Cleave")
         end,
     },
     {
         name = "HeroicStrike",
-        matches = function(context) return heroic_strike_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return heroic_strike_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.HeroicStrike, context.target, "[PROT] HeroicStrike")
         end,
@@ -565,7 +573,7 @@ local strategies = {
     -- 10) PvP / utility / movement
     {
         name = "SpellReflection",
-        matches = function(context) return spell_reflect_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return spell_reflect_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.SpellReflection, context.me or NS.GetPlayer(), "[PROT] SpellReflection", { skip_range = true })
         end,
@@ -581,7 +589,7 @@ local strategies = {
                 local ok, is_player = pcall(function() return context.target:is_player() end)
                 if not (ok and is_player) then return false end
             end
-            return disarm_matches_fn(context, build_state(context))
+            return disarm_matches_fn(context, state)
         end,
         execute = function(context)
             local label = context._disarm_burst_name
@@ -592,28 +600,28 @@ local strategies = {
     },
     {
         name = "ConcussionBlow",
-        matches = function(context) return concussion_blow_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return concussion_blow_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.ConcussionBlow, context.target, "[PROT] ConcussionBlow")
         end,
     },
     {
         name = "Hamstring",
-        matches = function(context) return hamstring_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return hamstring_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Hamstring, context.target, "[PROT] Hamstring")
         end,
     },
     {
         name = "Intercept",
-        matches = function(context) return intercept_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return intercept_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Intercept, context.target, "[PROT] Intercept")
         end,
     },
     {
         name = "BerserkerRage",
-        matches = function(context) return berserker_rage_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return berserker_rage_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.BerserkerRage, context.me or NS.GetPlayer(), "[PROT] BerserkerRage", { skip_range = true })
         end,
@@ -621,14 +629,14 @@ local strategies = {
     -- 11) FrostByte gaps: utility and sustain
     {
         name = "Bloodrage",
-        matches = function(context) return bloodrage_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return bloodrage_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Bloodrage, context.me or NS.GetPlayer(), "[PROT] Bloodrage", { skip_range = true, skip_gcd = true })
         end,
     },
     {
         name = "VictoryRush",
-        matches = function(context) return victory_rush_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return victory_rush_matches_fn(context, state) end,
         execute = function(context)
             -- VictoryRush works in any stance, no stance swap needed
             return NS.try_cast(SPELLS.VictoryRush, context.target, "[PROT] VictoryRush")
@@ -636,14 +644,14 @@ local strategies = {
     },
     {
         name = "Rend",
-        matches = function(context) return rend_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return rend_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Rend, context.target, "[PROT] Rend")
         end,
     },
     {
         name = "IntimidatingShout",
-        matches = function(context) return intimidating_shout_matches_fn(context, build_state(context)) end,
+        matches = function(context, state) return intimidating_shout_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.IntimidatingShout, context.me or NS.GetPlayer(), "[PROT] IntimidatingShout", { skip_range = true })
         end,

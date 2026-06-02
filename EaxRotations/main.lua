@@ -80,8 +80,6 @@ load_modules({
     "shared/pvp_burst_window_sylvanas",
 
     -- Rotation and profile support
-    "shared/strategy_factory_sylvanas",
-    "shared/custom_rotation_sylvanas",
     -- Metrics and utility support
     "shared/combat_stats_sylvanas",
     "shared/gear_score_sylvanas",
@@ -89,8 +87,6 @@ load_modules({
     "shared/weapon_imbue_sylvanas",
     "shared/spell_validation_sylvanas",
     "shared/talent_inference_sylvanas",
-    "shared/idle_suggestion_sylvanas",
-    "shared/benchmarks_sylvanas",
     "shared/ttd_tracker_sylvanas",
     "shared/ttd_ema_tracker_sylvanas",
     "shared/incoming_heal_predictor_sylvanas",

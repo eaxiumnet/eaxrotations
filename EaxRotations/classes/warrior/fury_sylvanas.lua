@@ -264,7 +264,7 @@ local function build_state(context)
     fury_state.target_distance = context.target_distance or context.distance or 0
     fury_state.target_is_casting = context.target_is_casting or (target and bool_call(target, "is_casting")) or false
     fury_state.target_casting_interruptible = fury_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
-    fury_state.ttd = context.ttd or 0
+    fury_state.ttd = context.ttd or 999
 
     -- Buffs
     fury_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)

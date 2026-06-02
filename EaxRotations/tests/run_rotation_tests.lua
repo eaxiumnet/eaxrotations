@@ -113,6 +113,7 @@ local tests = {
     -- Shaman
     "test_shaman_lightning_shield_throttle.lua",
     "test_shaman_enhancement_self_heal.lua",
+    "test_elemental_custom_matches.lua",
     "test_threat_drop_party_gate.lua",
 
     -- Paladin
@@ -125,6 +126,7 @@ local tests = {
 
     -- Warlock
     "test_demonology_custom_matches.lua",
+    "test_affliction_custom_matches.lua",
 
     -- Discipline
     "test_discipline_custom_matches.lua",
@@ -138,6 +140,9 @@ local tests = {
 
     -- Cat snapshot
     "test_cat_snapshot_upgrade.lua",
+
+    -- Rogue
+    "test_combat_custom_matches.lua",
 
     -- FrostByte gap coverage tests
     "test_balance_faerie_fire.lua",

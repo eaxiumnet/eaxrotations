@@ -277,7 +277,7 @@ local function build_state(context)
     arms_state.target_is_casting = context.target_is_casting or bool_call(target, "is_casting") or false
     arms_state.target_casting_interruptible = arms_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     arms_state.target_is_melee = target_is_melee(target)
-    arms_state.ttd = context.ttd or 0
+    arms_state.ttd = context.ttd or 999
     arms_state.target_in_combat = target and bool_call(target, "is_in_combat") or false
 
     arms_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)
@@ -647,6 +647,7 @@ local STRATEGY_SPECS = {
 }
 
 local strategies = {}
+local _build = build_state
 
 for i = 1, #STRATEGY_SPECS do
     local spec = STRATEGY_SPECS[i]
@@ -661,7 +662,7 @@ for i = 1, #STRATEGY_SPECS do
         min_rage = row.min_rage,
         cooldown = row.cooldown,
         matches = function(context)
-            local state = build_state(context or {})
+            local state = _build(context or {})
             return matches(context or {}, state)
         end,
         execute = spec[4] or function(context)
