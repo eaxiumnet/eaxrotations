@@ -2477,9 +2477,8 @@ function NS.try_cast(spell, unit, reason, opts)
                 return true
             end
         end
-        -- IZI is present but returned nil or no cast_safe - do not fall through to raw core.input
-        if debug_trace then core_trace("try:" .. tostring(id) .. ":izi_none", "[EaxRotations:try_cast] IZI unavailable for id=" .. tostring(id) .. " label=" .. label, 2000) end
-        return false
+        -- IZI returned nil/false — fall through to raw core.input.cast_target_spell
+        if debug_trace then core_trace("try:" .. tostring(id) .. ":izi_fallback", "[EaxRotations:try_cast] IZI returned nil for id=" .. tostring(id) .. " label=" .. label .. " — falling through to direct cast", 2000) end
     end
 
     -- Fallback: direct core.input.cast_target_spell
@@ -4880,7 +4879,7 @@ function NS.action_matches(context, action)
 
         end
 
-        if (context.ttd or 0) < action.min_ttd then
+        if context.ttd_known and (context.ttd or 999) < action.min_ttd then
 
             if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_ttd", "[DEBUG] " .. name .. " blocked: min_ttd=" .. tostring(context.ttd), 2000) end
             return false
@@ -5189,6 +5188,19 @@ function NS.action_execute(context, action, prefix)
             -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
             if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
 
+            -- Primary: spell_queue position casting (queue-first per Phase 4)
+            local spell_queue = _spell_queue
+            if spell_queue and type(spell_queue.queue_spell_position) == "function" then
+                local queued = spell_queue:queue_spell_position(id, position, 1, reason, false)
+                if queued ~= false then
+                    mark_spell_cast(id)
+                    _last_action_exec[action.name] = NS.time_now()
+                    if debug_trace then NS.log(reason) end
+                    return true
+                end
+            end
+
+            -- Fallback: direct core.input.cast_position_spell
             local cast_pos_fn = core.input and core.input.cast_position_spell
             if type(cast_pos_fn) ~= "function" then return false end
             if safe(cast_pos_fn, id, position) == false then return false end
@@ -5233,8 +5245,27 @@ function NS.action_execute(context, action, prefix)
 
         -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
         if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
+        -- Movement assist: brief pause + face target for cast-time spells (Phase 5)
+        do
+            local ma = NS.MovementAssist and NS.MovementAssist()
+            if ma and ma.face_for_spell then
+                ma:face_for_spell(id, target)
+            end
+        end
 
-        -- IZI primary: try IZI before central cast guard (supports skip_gcd actions)
+        -- Primary: spell_queue target casting (queue-first per Phase 4)
+        local spell_queue = _spell_queue
+        if spell_queue and type(spell_queue.queue_spell_target) == "function" then
+            local queued = spell_queue:queue_spell_target(id, target, 1, reason, false)
+            if queued ~= false then
+                mark_spell_cast(id)
+                _last_action_exec[action.name] = NS.time_now()
+                if debug_trace then NS.log(reason) end
+                return true
+            end
+        end
+
+        -- IZI fallback: try IZI before raw input
         if NS.izi and type(NS.izi.spell) == "function" then
             local izi_spell = NS.izi.spell(id)
             if izi_spell and type(izi_spell.cast_safe) == "function" then
@@ -5247,9 +5278,6 @@ function NS.action_execute(context, action, prefix)
                 end
             end
         end
-
-        -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
-        if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
 
         -- Fallback: direct core.input.cast_target_spell
         local cast_fn = core.input and core.input.cast_target_spell
@@ -5271,6 +5299,15 @@ function NS.action_execute(context, action, prefix)
     if not NS.spell_exists(action.spell) then return false end
 
     if NS.gcd_remains() > 0 then return false end
+
+    -- Movement assist: brief pause + face target for cast-time spells (Phase 5)
+    do
+        local spell_id = NS.get_spell_id(action.spell)
+        local ma = NS.MovementAssist and NS.MovementAssist()
+        if spell_id and ma and ma.face_for_spell then
+            ma:face_for_spell(spell_id, target)
+        end
+    end
 
     local ok = NS.try_cast(action.spell, target, reason, opts)
 

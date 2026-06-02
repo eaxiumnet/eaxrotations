@@ -799,6 +799,27 @@ local ACTIONS = {
         if not can_use_bear_ability(state) then return false end
         return action_ready(context, { spell = BASH })
     end },
+    -- InterruptManager-based Bash interrupt (PvE + PvP, replaces bare target_is_casting)
+    { name = "BashInterrupt", spell = BASH, required_form = "bear", matches = function(context)
+        local state = build_state(context)
+        local settings = context.settings or {}
+        if settings.use_interrupts == false then return false end
+        if not can_use_bear_ability(state) then return false end
+        -- Route through InterruptManager for cast window + humanization
+        local mgr = NS.InterruptManager
+        local target = context.target
+        if mgr then
+            if not NS.try_interrupt(target) then return false end
+            if not mgr.cast_has_interrupt_window(target, settings) then return false end
+            if not mgr.humanize_interrupt_elapsed(target, settings) then return false end
+        else
+            -- Fallback: bare interruptibility check
+            if not state.target_is_casting then return false end
+            if not state.target_interruptible then return false end
+        end
+        if (state.rage or 0) < 10 then return false end
+        return action_ready(context, { spell = BASH })
+    end },
     { name = "FeralChargePvP", spell = FERAL_CHARGE, required_form = "bear", matches = function(context)
         local state = build_state(context)
         if not state.is_target_player then return false end

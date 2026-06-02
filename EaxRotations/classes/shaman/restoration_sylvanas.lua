@@ -450,7 +450,11 @@ local function healing_way_matches(context, state)
     if (state.healing_way_stacks or 0) >= 3 then return false end
     if (state.healing_way_remains or 0) > 8 then return false end
     if not state.healing_wave_ready then return false end
-    return NS.spell_ready(SPELLS.HealingWave, state.tank.unit, { skip_range = true })
+    if not NS.spell_ready(SPELLS.HealingWave, state.tank.unit, { skip_range = true }) then return false end
+    -- Predictive overheal gate: don't cast a full Healing Wave just to maintain stacks
+    -- if the tank doesn't actually need the healing
+    if NS.gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings) then return false end
+    return true
 end
 
 local function healing_way_execute(context, state)
