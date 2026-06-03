@@ -137,6 +137,7 @@ local function build_state(context)
     context.settings = context.settings or EMPTY_SETTINGS
     local me = context.me or NS.GetPlayer()
     if not me then return disc_state end
+    disc_state.player_control_locked = context.player_control_locked == true
     -- Mounted bail: healer should not queue buffs/heals while mounted
     if me.is_mounted and me:is_mounted() then
         return disc_state
@@ -543,7 +544,7 @@ end
 -- ============================================================================
 local function stop_cast_matches(context, s)
     if not context.in_combat then return false end
-    if context.player_control_locked then return false end
+    if s.player_control_locked then return false end
     if not context.me then return false end
     local ok, is_casting = pcall(function() return context.me:is_casting() end)
     if not ok or not is_casting then return false end

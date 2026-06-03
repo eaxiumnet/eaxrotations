@@ -152,6 +152,7 @@ local function chain_lightning_matches_fn(context, state)
     if state.mana_emergency then return false end
     if state.mana_conserve then return false end
     -- CC safety: skip Chain Lightning if it might break nearby CC
+    -- Lua: nil == false is false (different types), so this only fires when cc_safe is explicitly false
     if context.cc_safe == false then return false end
     -- Threat safety: skip Chain Lightning if threat is high (multi-target pulls threat)
     if context.threat_pct and context.threat_pct > 80 then return false end
@@ -237,7 +238,7 @@ local function tremor_totem_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.TremorTotem, 3.0) then return false end
     if not context.in_combat then return false end
     if state.mana_emergency then return false end
-    if not context.fear_nearby then return false end
+    if not (context.fear_nearby or false) then return false end
     return NS.spell_ready(SPELLS.TremorTotem, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -255,7 +256,7 @@ local function mana_tide_totem_matches_fn(context, state)
 end
 
 local function chain_heal_matches_fn(context, state)
-    if not context.group_injured then return false end
+    if not (context.group_injured or false) then return false end
     return NS.spell_ready(SPELLS.ChainHeal, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -382,7 +383,7 @@ end
 local function totemic_call_matches_fn(context, state)
     if not context.in_combat then return false end
     if not context.is_moving then return false end
-    if not context.has_totems then return false end
+    if not (context.has_totems or false) then return false end
     return NS.spell_ready(SPELLS.TotemicCall, NS.PLAYER_UNIT, { skip_range = true })
 end
 

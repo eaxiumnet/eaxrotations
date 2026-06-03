@@ -254,8 +254,8 @@ local function build_state(context)
 -- Select which curse to use based on context
 local function select_curse(context, state)
     if context.is_pvp then
-        if context.enemy_healer then return "tongues" end
-        if context.melee_on_you then return "exhaustion" end
+        if (context.enemy_healer or false) then return "tongues" end
+        if (context.melee_on_you or false) then return "exhaustion" end
     end
     if (state.enemy_count or 0) >= 3 then return "elements" end  -- AoE benefit
     return "agony"  -- default: damage
@@ -417,22 +417,6 @@ local strategies = {
             local ok = NS.try_cast(SPELLS.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
             if ok then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
             return ok
-        end,
-    },
-    -- Corruption Spread — multi-DoT via IZI spread_dot
-    {
-        name = "CorruptionSpread",
-        matches = function(context, state)
-            if not _izi then return false end
-            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
-            if not target then return false end
-            return NS.spell_ready(SPELLS.Corruption, target)
-        end,
-        execute = function(context)
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
-            if not target then return false end
-            return NS.try_cast(SPELLS.Corruption, target, "[AFFL] Corruption Spread")
         end,
     },
 

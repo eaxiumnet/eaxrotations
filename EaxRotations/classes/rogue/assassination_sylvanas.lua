@@ -213,7 +213,7 @@ local strategies = {
         name = "VanishReopen",
         matches = function(context)
             if not context.in_combat then return false end
-            if context.threat_pct and context.threat_pct < 90 then return false end
+            if (context.threat_pct or 0) < 90 then return false end
             return NS.spell_ready(SPELLS.Vanish, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(context)
@@ -310,7 +310,7 @@ local strategies = {
             if (state.combo or 0) < 4 then return false end
             if (state.rupture_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Bleed-immune targets can't be ruptured
-            if context.target_bleed_immune then return false end
+            if (context.target_bleed_immune or false) then return false end  -- nil-safe: skip rupture if immune
             -- Only on long-lived targets (TTD > 12s)
             if context.ttd_known and context.ttd > 0 and context.ttd < 12 then return false end
             return NS.spell_ready(SPELLS.Rupture, context.target)
@@ -329,7 +329,7 @@ local strategies = {
             if (state.combo or 0) < 3 then return false end
             if not context.is_pvp then return false end
             -- Don't DR stun if already stunned recently
-            if context.target_dr_stun and context.target_dr_stun > 0 then return false end
+            if (context.target_dr_stun or false) then return false end
             return NS.spell_ready(SPELLS.KidneyShot, context.target)
         end,
         execute = function(context)
@@ -446,7 +446,7 @@ local strategies = {
             local target = context.target
             if not target then return false end
             if (state.combo or 0) < 3 then return false end
-            if context.has_sunder then return false end
+            if (context.has_sunder or false) then return false end
             return NS.spell_ready(SPELLS.ExposeArmor, target)
         end,
         execute = function(context)
@@ -486,7 +486,7 @@ local strategies = {
         name = "PvP_SprintGapClose",
         matches = function(context)
             if not context.is_pvp then return false end
-            if context.dist_to_target and context.dist_to_target < 15 then return false end
+            if context.target_distance and context.target_distance < 15 then return false end
             return NS.spell_ready(SPELLS.Sprint, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
@@ -545,12 +545,12 @@ local strategies = {
         name = "FeintAoE",
         matches = function(context, state)
             -- Threat drop: cast when threat is high regardless of HP/AoE
-            if context.threat_pct and context.threat_pct > 90 then
+            if (context.threat_pct or 0) > 90 then
                 return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
             end
             -- AoE damage reduction: cast when taking AoE damage and HP low
             if (state.hp_pct or 100) > 60 then return false end
-            if not context.aoe_damage_incoming then return false end
+            if not (context.aoe_damage_incoming or 0) then return false end
             return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()

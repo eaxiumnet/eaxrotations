@@ -168,6 +168,7 @@ local function build_state(context)
     state.use_explosive_trap = settings.use_explosive_trap == true
     state.aoe_threshold = settings.aoe_threshold or settings.volley_threshold or 3
     state.trinket_mode = settings.trinket_mode or "off"
+    state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
 
     return state
 end
@@ -451,8 +452,8 @@ local function raptor_strike_matches(context, s)
     if not s.use_melee then return false end
     if not context.target then return false end
     -- Squared distance: 5yd = 25
-    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
-    if dist_sq > 25 then return false end
+    local dsq = s.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dsq > 25 then return false end
     if not s.raptor_strike_ready then return false end
     -- Don't clip auto-shot
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
@@ -466,7 +467,7 @@ local function concussive_shot_matches(context, s)
     if not context.target then return false end
     if not s.concussive_shot_ready then return false end
     -- Squared distance: skip if in melee (< 8yd = 64), max range 15yd = 225
-    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    local dist_sq = s.distance_sq or (context.distance and context.distance * context.distance) or 10000
     if dist_sq < 64 then return false end
     if dist_sq > 225 then return false end
     -- Check auto-shot clipping

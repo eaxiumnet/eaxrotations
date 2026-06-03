@@ -259,7 +259,7 @@ local strategies = {
             if not context.in_combat then return false end
             
             -- Don't vanish in raid boss fights unless explicitly enabled
-            if context.is_raid_boss and settings.rogue_vanish_in_raid ~= true then
+            if (context.is_raid_boss or false) and settings.rogue_vanish_in_raid ~= true then
                 return false
             end
             

@@ -54,7 +54,9 @@ local HOLY_FIRE_DOT_DEBUFF = { 14914, 15262, 15263, 15264, 15265, 15266, 15267, 
 local FADE_BUFF = { 25429, 10942, 10941, 9592, 9579, 9578, 586 }
 
 -- Healthstone item IDs (TBC, best to worst)
-local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local HEALTHSTONE_IDS = {
+    19004, 19005, 19006, 19007, 19008, 19009, 19010, 19011, 19012, 19013,
+}
 
 -- Karazhan encounter map ID
 local KARAZHAN_MAP_ID = 532
@@ -199,7 +201,6 @@ local function build_holy_state(context)
 
     -- FrostByte: Encounter ID for Karazhan reactions
     holy_state.encounter_id = (NS.core and NS.core.get_map_id and NS.core.get_map_id())
-        or (core and core.get_map_id and core.get_map_id())
         or 0
 
     holy_state.pom_ready = spell_exists(SPELLS.PrayerofMending) and spell_ready(SPELLS.PrayerofMending, (tank_entry and tank_entry.unit) or NS.PLAYER_UNIT)

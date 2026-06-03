@@ -78,6 +78,7 @@ local function scorch_matches_fn(context, state)
     if context.settings and context.settings.use_scorch_debuff == false then return false end
     -- Build 5-stack Fire Vulnerability; maintain when about to drop
 
+    -- Context fallbacks: context.scorch_stacks / context.scorch_remains (harmless dead code with or 0)
     local stacks = (state and state.scorch_stacks) or (context.scorch_stacks or 0)
     local remains = (state and state.scorch_remains) or (context.scorch_remains or 0)
     if stacks < 5 then return NS.spell_ready(SPELLS.Scorch, context.target) end
@@ -202,7 +203,7 @@ local function polymorph_matches_fn(context, state)
     if not context.is_pvp then return false end
     if not context.cc_target then return false end
 
-    return NS.spell_ready(SPELLS.Polymorph, context.cc_target)
+    return NS.spell_ready(SPELLS.Polymorph, context.cc_target or context.target)
 end
 
 local function pyroblast_matches_fn(context, state)
@@ -302,7 +303,7 @@ local strategies = {
     -- CC
     { name = "Polymorph",
       matches = polymorph_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.Polymorph, context.cc_target, "[FIRE] Polymorph") end },
+      execute = function(context) return NS.try_cast(SPELLS.Polymorph, context.cc_target or context.target, "[FIRE] Polymorph") end },
     -- Utility: Remove Curse (curse detection via mage middleware; Fire toggle gates execution)
     { name = "RemoveCurse",
       matches = remove_curse_matches_fn,

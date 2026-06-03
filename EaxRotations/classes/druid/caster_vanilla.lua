@@ -26,7 +26,7 @@ local function build_state(context)
         caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
     end
     caster_state.in_combat = context.in_combat or false
-    caster_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
+    caster_state.mana_pct = context.mana_pct or (NS.mana_pct and NS.mana_pct(me)) or 100
     caster_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     caster_state.target_hp = context.target_hp or 100
     caster_state.innervate_ready = NS.spell_ready and NS.spell_ready(SPELLS.Innervate, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -36,7 +36,7 @@ end
 local function explicit_caster_selected(context)
     local settings = context and context.settings or EMPTY_SETTINGS
     return context and (
-        context.active_playstyle == "caster"
+        ((context.settings and context.settings.playstyle) or "auto") == "caster"
         or settings.active_playstyle == "caster"
         or settings.playstyle == "caster"
     )

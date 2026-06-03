@@ -143,7 +143,7 @@ local function build_state(context)
     -- Scan allies for threat and low HP (Righteous Defense / BoP peel)
     prot_state.ally_threatened = nil
     prot_state.low_hp_ally = nil
-    local allies = context.party_members or context.group_members or context.allies
+    local allies = context.party_members or context.group_members or (context.enemy_count or 1)
     if allies then
         for i = 1, #allies do
             local ally = allies[i]

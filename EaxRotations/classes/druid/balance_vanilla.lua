@@ -305,7 +305,7 @@ local _strategies = {
         name="PvP_NaturesGrasp",
         matches=function(ctx)
             if not ctx.is_pvp then return false end
-            if not ctx.melee_on_you then return false end
+            if not (ctx.melee_on_you or false) then return false end
             return NS.spell_ready(_LOCAL_SPELLS.NaturesGrasp, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute=function()
@@ -316,7 +316,7 @@ local _strategies = {
         name="PvP_EntanglingRoots",
         matches=function(ctx)
             if not ctx.is_pvp then return false end
-            if not ctx.melee_on_you then return false end
+            if not (ctx.melee_on_you or false) then return false end
             return NS.spell_ready(_LOCAL_SPELLS.EntanglingRoots, ctx.target)
         end,
         execute=function(ctx)

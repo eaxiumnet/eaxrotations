@@ -403,7 +403,7 @@ end
 
 local function expose_armor_matches(context, state)
     if not setting(context, "subtlety_expose_assigned", false) then return false end
-    if context.has_sunder then return false end
+    if (context.has_sunder or false) then return false end
     if (state.combo or 0) < 4 then return false end
     if (state.expose_remains or 0) > 3 then return false end
     if not context.target_is_boss and (context.ttd or 999) < 20 then return false end

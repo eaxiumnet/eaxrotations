@@ -225,7 +225,7 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if not context.in_combat then return false end
-            if context.is_stealthed then return false end
+            if NS.buff_up(context.me, { 5215, 5217, 5216, 5218, 9839, 9840, 9841, 24249, 24389, 24404 }) then return false end
             if not can_use_items(context.stance) then return false end
             if not can_afford_reshift(context.stance) then return false end
 

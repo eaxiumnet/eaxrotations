@@ -140,7 +140,7 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if not settings.use_cleanse then return false end
-            if context.is_mounted then return false end
+            if (context.is_mounted or false) then return false end
             local me = context.me
             if not me then return false end
             -- Check for poison, disease, or magic debuffs on player
@@ -295,7 +295,7 @@ local strategies = {
         priority = 90,
         matches = function(context)
             if context.in_combat then return false end
-            if context.is_mounted then return false end
+            if (context.is_mounted or false) then return false end
             -- Check if any aura is active (skip if already has one)
             local me = context.me
             if me then
@@ -349,7 +349,7 @@ local strategies = {
         priority = 80,
         matches = function(context)
             if context.in_combat then return false end
-            if context.is_mounted then return false end
+            if (context.is_mounted or false) then return false end
             -- Check if any blessing is active
             local me = context.me
             if me and NS.buff_up(me, ALL_BLESSING_BUFFS) then
@@ -397,7 +397,7 @@ local strategies = {
         priority = 75,
         matches = function(context)
             if context.in_combat then return false end
-            if context.is_mounted then return false end
+            if (context.is_mounted or false) then return false end
             local settings = context.settings or {}
             local playstyle = settings.playstyle or settings.active_playstyle or ""
             if playstyle ~= "protection" then return false end
@@ -599,7 +599,7 @@ local strategies = {
         priority = 65,
         matches = function(context)
             if context.in_combat then return false end
-            if context.is_mounted then return false end
+            if (context.is_mounted or false) then return false end
             if not SPELLS.BlessingOfKings then return false end
             local useGreater = false
             if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
