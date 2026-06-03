@@ -133,7 +133,7 @@ local function build_state(context)
     fury_state.has_valid_enemy = context.has_valid_enemy_target or false
     fury_state.in_melee_range = context.in_melee_range or false
     fury_state.target_count = context.enemies_count or 1
-    fury_state.target_ttd = (context.time_to_die and context.time_to_die(target)) or 15
+    fury_state.target_ttd = (context.ttd or 15)
     if me then
         fury_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)
     end

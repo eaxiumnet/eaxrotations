@@ -163,7 +163,7 @@ local function first_ready_item(ids)
 end
 
 local function candidate_members(context)
-    return context.party_members or context.group_members or context.friends or context.allies
+    return context.party_members or context.group_members or (context.enemy_count or 1)
 end
 
 local function find_ally(context, predicate)
@@ -211,7 +211,7 @@ local function build_state(context)
     ret_state.mana_pct = context.mana_pct or context.mana or 100
     ret_state.enemy_count = context.enemy_count or context.enemies_nearby or 1
     ret_state.target_hp_pct = health_pct(context.target, context.target_hp or 100)
-    ret_state.swing_remains = (NS.get_time_until_swing and NS.get_time_until_swing()) or context.time_to_swing or 99
+    ret_state.swing_remains = (NS.get_time_until_swing and NS.get_time_until_swing()) or (context.time_to_swing or 0)
     ret_state.seal_preference = get_setting(context, "seal_preference", get_setting(context, "retri_seal_preference", "auto"))
     ret_state.can_use_blood = should_use_blood(context)
     ret_state.preferred_damage_seal = ret_state.can_use_blood and "blood" or "command"

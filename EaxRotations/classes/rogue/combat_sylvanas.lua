@@ -17,7 +17,16 @@ local RUPTURE_SPELL = SPELLS.Rupture
 -- Energy tick constants
 local ENERGY_TICK = 2.0
 local ENERGY_PER_TICK = 20
-local ENERGY_CAP = 100
+-- Vigor talent ID (increases energy cap to 110)
+local VIGOR_TALENT_ID = 14983
+
+-- Dynamic energy cap: returns 110 if Vigor talented, 100 otherwise
+local function get_energy_cap(me)
+    if me and NS.has_talent and NS.has_talent(me, VIGOR_TALENT_ID) then
+        return 110
+    end
+    return 100
+end
 local SND_REFRESH_WINDOW = 3
 local RUPTURE_REFRESH_WINDOW = 3
 
@@ -70,7 +79,7 @@ local function should_pool_energy(context)
     -- If tick is coming in very soon, wait for it unless we are capping
     if next_tick_in <= offset + 0.1 then
         local projected_energy = energy + ENERGY_PER_TICK
-        if projected_energy <= ENERGY_CAP then
+        if projected_energy <= get_energy_cap(context.me) then
             return true
         end
     end
@@ -85,7 +94,7 @@ local function should_spend_energy(context, cost)
     
     -- Capping risk: if next tick will put us over cap, spend NOW
     local projected_energy = energy + ENERGY_PER_TICK
-    if projected_energy > ENERGY_CAP then
+    if projected_energy > get_energy_cap(context.me) then
         return true
     end
     

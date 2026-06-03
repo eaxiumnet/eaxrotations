@@ -126,6 +126,7 @@ local function build_state(context)
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
     sv_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not sv_state.steady_shot_ready)
+    sv_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
 
     return sv_state
 end
@@ -281,8 +282,8 @@ local function concussive_shot_matches(context, s)
     local target = context.target
     if not target then return false end
     -- Squared distance: 15yd = 225
-    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
-    if dist_sq > 225 then return false end
+    local dsq = s.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dsq > 225 then return false end
     return true
 end
 
@@ -326,8 +327,8 @@ local function raptor_strike_matches(context, s)
     local target = context.target
     if not target then return false end
     -- Squared distance: 5yd = 25
-    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
-    if dist_sq > 25 then return false end
+    local dsq = s.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dsq > 25 then return false end
     if not s.raptor_strike_ready then return false end
     -- Don't clip auto-shot
     if not can_cast_before_auto(500) then return false end
@@ -341,8 +342,8 @@ local function wing_clip_matches(context, s)
     local target = context.target
     if not target then return false end
     -- Squared distance: 5yd = 25
-    local dist_sq = context.distance_sq or (context.distance and context.distance * context.distance) or 10000
-    if dist_sq > 25 then return false end
+    local dsq = s.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dsq > 25 then return false end
     if not s.wing_clip_ready then return false end
     -- Don't clip auto-shot
     if not can_cast_before_auto(500) then return false end

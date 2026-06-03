@@ -202,8 +202,9 @@ local function preserved_rage_after_swap(rage)
 end
 
 local function stance_swap_safe(state, cost)
+    local effective_cost = math.min(cost or 0, 15)
     if state.stance == nil then return true end
-    return preserved_rage_after_swap(state.rage or 0) >= (cost or 0)
+    return preserved_rage_after_swap(state.rage or 0) >= effective_cost
 end
 
 local function action(context, row)
@@ -211,6 +212,7 @@ local function action(context, row)
     if not row.spell then return true end
     local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
     if not target then return false end
+        if row.min_rage and context.rage and context.rage < row.min_rage then return false end
     local opts = {}
     if row.requires_target == false then opts.skip_range = true end
     if row.cooldown then opts.expected_cooldown = row.cooldown end
@@ -247,7 +249,7 @@ local function build_state(context)
     arms_state.is_pvp = context.is_pvp or (context.settings and context.settings.pvp_mode) or false
     arms_state.in_combat = context.in_combat or false
     arms_state.is_moving = context.is_moving or false
-    arms_state.target_distance = context.target_distance or context.distance or 0
+    arms_state.target_distance = context.target_distance or context.target_range or context.distance or 0
     arms_state.target_is_player = target and bool_call(target, "is_player") or false
     arms_state.target_is_pet = target and bool_call(target, "is_pet") or false
     arms_state.target_is_casting = context.target_is_casting or bool_call(target, "is_casting") or false
@@ -463,7 +465,7 @@ local function charge_matches(context, state)
     if state.in_combat then return false end
     if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
     local charge_only_ooc = setting(context, "charge_only_ooc", true)
-    if charge_only_ooc and context.target_in_combat then return false end
+    if charge_only_ooc and (context.target and bool_call(context.target, "is_in_combat")) then return false end
     if not ready(ACTION.Charge, context.target) then return false end
     return action(context, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }))
 end

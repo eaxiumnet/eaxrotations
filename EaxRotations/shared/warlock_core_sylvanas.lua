@@ -42,6 +42,22 @@ local HEALTHSTONE_ITEMS = TBC_ITEMS.healthstones or {
 -- Fire/Shadow immunity check
 -- ============================================================================
 
+-- Known fire-immune mobs in TBC content
+local FIRE_IMMUNE_MOBS = {
+    [4842] = true,  -- Earth elemental
+    -- Fire elementals (TBC)
+    [1813] = true,  -- Searing Elemental
+    [14461] = true, -- Blazing Elemental (Shadowmoon Valley)
+    [19973] = true, -- Abyssal Flamebringer (Shadowmoon Valley)
+    [20038] = true, -- Phoenix-Hawk (Terokkar Forest)
+    [20039] = true, -- Phoenix-Hawk Hatchling
+    -- Molten Core / Firelands mobs that appear in TBC content
+    [16017] = true, -- Boneyard Screecher (silithus, fire immune)
+    [16947] = true, -- Greater Fire Elemental (warlock summon)
+    [15465] = true, -- World anchor, fire immune mobs
+    [181300] = true, -- Generic fire immune NPCs
+}
+
 --- Checks if a target is immune to fire damage
 ---@param target game_object
 ---@return boolean immune

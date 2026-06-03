@@ -81,6 +81,12 @@ local SLAM_SAFETY = 0.2
 local SWEEPING_STRIKES_COUNT = 2
 local TACTICAL_MASTERY_CAP = 25
 local HAMSTRING_SPAM_RAGE = 55
+local STANCE_CAST_LOCKOUT = 2.0
+local last_stance_cast_at = 0
+
+local function stance_lockout_active()
+    return (NS.time_now and NS.time_now() or 0) < last_stance_cast_at + STANCE_CAST_LOCKOUT
+end
 
 -- Action specs referenced via build_action() in strategy specs
 
@@ -226,8 +232,9 @@ local function preserved_rage_after_swap(rage)
 end
 
 local function stance_swap_safe(state, cost)
+    local effective_cost = math.min(cost or 0, 15)
     if state.stance == nil then return true end
-    return preserved_rage_after_swap(state.rage or 0) >= (cost or 0)
+    return preserved_rage_after_swap(state.rage or 0) >= effective_cost
 end
 
 local function action(context, row)
@@ -235,6 +242,7 @@ local function action(context, row)
     if not row.spell then return true end
     local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
     if not target then return false end
+        if row.min_rage and context.rage and context.rage < row.min_rage then return false end
     local opts = {}
     if row.requires_target == false then opts.skip_range = true end
     if row.cooldown then opts.expected_cooldown = row.cooldown end
@@ -249,7 +257,11 @@ local function cast(context, row)
     local opts = {}
     if row.requires_target == false then opts.skip_range = true end
     if row.cooldown then opts.expected_cooldown = row.cooldown end
-    return NS.try_cast(row.spell, target, "[ARMS]", opts)
+    local ok = NS.try_cast(row.spell, target, "[ARMS]", opts)
+    if ok and row.kind == "form" then
+        last_stance_cast_at = NS.time_now and NS.time_now() or 0
+    end
+    return ok
 end
 
 local function build_action(name, spell_value, opts)
@@ -271,7 +283,7 @@ local function build_state(context)
     arms_state.is_pvp = context.is_pvp or (context.settings and context.settings.pvp_mode) or false
     arms_state.in_combat = context.in_combat or false
     arms_state.is_moving = context.is_moving or false
-    arms_state.target_distance = context.target_distance or context.distance or 0
+    arms_state.target_distance = context.target_distance or context.target_range or context.distance or 0
     arms_state.target_is_player = target and bool_call(target, "is_player") or false
     arms_state.target_is_pet = target and bool_call(target, "is_pet") or false
     arms_state.target_is_casting = context.target_is_casting or bool_call(target, "is_casting") or false
@@ -516,7 +528,7 @@ local function charge_matches(context, state)
     if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
     -- Charge Only OOC Mobs: skip if target is already in combat with someone else
     local charge_only_ooc = setting(context, "charge_only_ooc", true)
-    if charge_only_ooc and context.target_in_combat then return false end
+    if charge_only_ooc and (context.target and bool_call(context.target, "is_in_combat")) then return false end
     if not ready(ACTION.Charge, context.target) then return false end
     return action(context, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }))
 end
@@ -528,6 +540,8 @@ end
 
 local function battle_stance_matches(context, state)
     if state.stance == STANCE.BATTLE then return false end
+    if stance_lockout_active() then return false end
+    if NS.has_form and NS.has_form("battle") then return false end
     if desired_stance(context) == STANCE.BATTLE then return action(context, battle_stance_action()) end
     if state.overpower_ready and stance_swap_safe(state, OVERPOWER_RAGE) then return action(context, battle_stance_action()) end
     if (state.ms_cd or 99) <= 0.3 and stance_swap_safe(state, MORTAL_STRIKE_RAGE) then return action(context, battle_stance_action()) end
@@ -536,6 +550,8 @@ end
 
 local function berserker_stance_matches(context, state)
     if state.stance == STANCE.BERSERKER then return false end
+    if stance_lockout_active() then return false end
+    if NS.has_form and NS.has_form("berserker") then return false end
     if desired_stance(context) == STANCE.BERSERKER then return action(context, berserker_stance_action()) end
     -- Execute requires Berserker Stance in TBC — swap if execute is ready and we have rage to use it
     if state.execute_phase and (state.rage or 0) >= 15 and stance_swap_safe(state, 15) then
@@ -548,6 +564,8 @@ end
 
 local function defensive_stance_matches(context, state)
     if state.stance == STANCE.DEFENSIVE then return false end
+    if stance_lockout_active() then return false end
+    if NS.has_form and NS.has_form("defensive") then return false end
     if desired_stance(context) == STANCE.DEFENSIVE then return action(context, defensive_stance_action()) end
     if (state.hp or 100) <= 30 and stance_swap_safe(state, 0) then return action(context, defensive_stance_action()) end
     if state.is_pvp and state.target_is_casting and stance_swap_safe(state, 15) then return action(context, defensive_stance_action()) end

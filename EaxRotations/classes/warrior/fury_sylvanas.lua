@@ -76,9 +76,14 @@ local SLAM_CAST_TIME = 0.5
 local SLAM_SAFETY = 0.2
 local HEROIC_STRIKE_RAGE = 60
 local CLEAVE_RAGE = 55
+local STANCE_CAST_LOCKOUT = 2.0
 local TACTICAL_MASTERY_CAP = 25
-local CHARGE_LOCKOUT_MS = 3000
-local INTERCEPT_LOCKOUT_MS = 5000
+local last_stance_cast_at = 0
+
+local function stance_lockout_active()
+    return (NS.time_now and NS.time_now() or 0) < last_stance_cast_at + STANCE_CAST_LOCKOUT
+end
+
 
 -- Test assertion strings (preserved for regression tests)
 -- Action fields referenced via build_action() in strategy specs
@@ -200,12 +205,14 @@ end
 
 local function preserved_rage_after_swap(rage)
     if NS.get_tactical_mastery_cap then return NS.get_tactical_mastery_cap() end
-    return rage < TACTICAL_MASTERY_CAP and rage or TACTICAL_MASTERY_CAP
+    local cap = TACTICAL_MASTERY_CAP or 25
+    return (rage or 0) < cap and (rage or 0) or cap
 end
 
 local function stance_swap_safe(state, cost)
+    local effective_cost = math.min(cost or 0, 15)
     if state.stance == nil then return true end
-    return preserved_rage_after_swap(state.rage or 0) >= (cost or 0)
+    return preserved_rage_after_swap(state.rage or 0) >= effective_cost
 end
 
 local function desired_stance(context)
@@ -221,6 +228,7 @@ local function action(context, row)
     if not row.spell then return true end
     local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
     if not target then return false end
+        if row.min_rage and context.rage and context.rage < row.min_rage then return false end
     local opts = {}
     if row.requires_target == false then opts.skip_range = true end
     if row.cooldown then opts.expected_cooldown = row.cooldown end
@@ -235,7 +243,11 @@ local function cast(context, row)
     local opts = {}
     if row.requires_target == false then opts.skip_range = true end
     if row.cooldown then opts.expected_cooldown = row.cooldown end
-    return NS.try_cast(row.spell, target, "[FURY]", opts)
+    local ok = NS.try_cast(row.spell, target, "[FURY]", opts)
+    if ok and row.kind == "form" then
+        last_stance_cast_at = NS.time_now and NS.time_now() or 0
+    end
+    return ok
 end
 
 local function build_action(name, spell_value, opts)
@@ -251,7 +263,7 @@ end
 local function build_state(context)
     local target = context.target
     local me = player_unit(context)
-    local now = NS.time and NS.time() or 0
+    local now = NS.time_now and NS.time_now() or 0
 
     fury_state.rage = context.rage or 0
     fury_state.hp = context.hp or 100
@@ -261,7 +273,7 @@ local function build_state(context)
     fury_state.is_pvp = context.is_pvp or (context.settings and context.settings.pvp_mode) or false
     fury_state.in_combat = context.in_combat or false
     fury_state.is_moving = context.is_moving or false
-    fury_state.target_distance = context.target_distance or context.distance or 0
+    fury_state.target_distance = context.target_distance or context.target_range or context.distance or 0
     fury_state.target_is_casting = context.target_is_casting or (target and bool_call(target, "is_casting")) or false
     fury_state.target_casting_interruptible = fury_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     fury_state.ttd = context.ttd or 999
@@ -289,6 +301,14 @@ local function build_state(context)
     fury_state.ww_cd = cooldown(ACTION.Whirlwind, 10)
     fury_state.bt_ready = ready(ACTION.Bloodthirst, target, { expected_cooldown = 6 })
     fury_state.ww_ready = ready(ACTION.Whirlwind, target, { expected_cooldown = 10 })
+
+    -- Stance fallback: engine may return 0 intermittently; trust buff detection
+    if fury_state.stance == 0 and NS.has_form then
+        if NS.has_form("berserker") then fury_state.stance = STANCE.BERSERKER
+        elseif NS.has_form("battle") then fury_state.stance = STANCE.BATTLE
+        elseif NS.has_form("defensive") then fury_state.stance = STANCE.DEFENSIVE
+        end
+    end
     fury_state.execute_ready = ready(ACTION.Execute, target)
     fury_state.slam_ready = ready(ACTION.Slam, target)
     fury_state.sweeping_ready = ready(ACTION.SweepingStrikes, me, { skip_range = true })
@@ -577,6 +597,8 @@ end
 -- Berserker Stance: preferred DPS stance
 local function berserker_stance_matches(context, state)
     if state.stance == STANCE.BERSERKER then return false end
+    if stance_lockout_active() then return false end
+    if NS.has_form and NS.has_form("berserker") then return false end
     if desired_stance(context) == STANCE.BERSERKER then return action(context, berserker_stance_action()) end
     -- Execute requires Berserker Stance
     if state.execute_phase and (state.rage or 0) >= 15 and stance_swap_safe(state, 15) then
@@ -594,6 +616,8 @@ end
 -- Battle Stance: for Charge, Overpower, Thunder Clap
 local function battle_stance_matches(context, state)
     if state.stance == STANCE.BATTLE then return false end
+    if stance_lockout_active() then return false end
+    if NS.has_form and NS.has_form("battle") then return false end
     if desired_stance(context) == STANCE.BATTLE then return action(context, battle_stance_action()) end
     if state.overpower_ready and stance_swap_safe(state, 5) then return action(context, battle_stance_action()) end
     local ss_count = setting(context, "sweeping_strikes_count", 2)

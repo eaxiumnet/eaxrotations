@@ -144,7 +144,7 @@ end
 
 local function group_is_stable(context)
     if not context then return false end
-    local lowest = context.lowest_ally_hp or context.lowest_group_hp or 100
+    local lowest = (context.lowest_ally_hp or context.lowest_group_hp or 100)
     return lowest >= ((context.settings or EMPTY_SETTINGS).smite_group_safe_hp or 80)
 end
 
@@ -153,7 +153,7 @@ local function can_take_smite_action(context)
     context.settings = context.settings or EMPTY_SETTINGS
     if not context.has_valid_enemy_target then return NS.match_fail("no_valid_target") end
     if context.player_control_locked then return NS.match_fail("ctrl_locked") end
-    if context.target_phys_immune then return NS.match_fail("phys_immune") end
+    if (context.target_phys_immune or false) then return NS.match_fail("phys_immune") end
     return true
 end
 

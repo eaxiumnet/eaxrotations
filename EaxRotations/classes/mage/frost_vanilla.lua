@@ -59,14 +59,17 @@ local function cone_of_cold_matches(context)
     if not me then return false end
     local dist = me.get_distance and me:get_distance(context.target) or 999
     if dist > 10 then return false end
-    local nearby = 1
-    if context.enemies then
-        nearby = 0
-        for i = 1, #context.enemies do
-            local e = context.enemies[i]
-            if e and e:is_valid() then
-                local edist = me.get_distance and me:get_distance(e) or 999
-                if edist <= 10 then nearby = nearby + 1 end
+    -- AoE: 2+ targets in range (use enemy_count to avoid iterating a nil array)
+    local nearby = 0
+    if context.enemy_count then
+        nearby = context.enemy_count
+    elseif context.enemies and type(context.enemies) == "table" then
+        for _, enemy in ipairs(context.enemies) do
+            if enemy and me.get_distance then
+                local d = me:get_distance(enemy) or 999
+                if d <= 10 then nearby = nearby + 1 end
+            else
+                nearby = nearby + 1
             end
         end
     end

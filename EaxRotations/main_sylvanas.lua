@@ -423,19 +423,11 @@ local function build_context()
     local raw_in_combat = is_in_combat and safe(is_in_combat, me) or nil
     local combat_state_known = type(raw_in_combat) == "boolean"
     local in_combat = combat_state_known and raw_in_combat or was_in_combat
-    
-    -- Combat start/end detection for callbacks
+
     if combat_state_known then
-        if in_combat and not was_in_combat then
-            -- Combat started
-            if NS._fire_combat_start then NS._fire_combat_start(_context) end
-        elseif not in_combat and was_in_combat then
-            -- Combat ended
-            if NS._fire_combat_end then NS._fire_combat_end(_context) end
-        end
         was_in_combat = in_combat
     end
-    
+
     if not _combat_start_time and me and in_combat then _combat_start_time = NS.time_now() end
     if _combat_start_time and me and combat_state_known and not in_combat then _combat_start_time = nil end
     local enemy_ok = valid_enemy(me, target)
@@ -545,6 +537,9 @@ local function build_context()
     _context.combo_points = combo_points(me)
     _context.enemy_count = count
     _context.enemies_count = count
+    -- Pet: used by hunter/warlock files
+    _context.pet = NS.GetPet and NS.GetPet()
+    _context.pet_dead = _context.pet and not _context.pet:is_alive() or false
     _context.stance = NS.get_player_stance()
     _context.is_moving = unit_bool(me, "is_moving")
     _context.is_casting = unit_bool(me, "is_casting", "is_casting_spell")
@@ -614,7 +609,17 @@ local function build_context()
         _context.combat_length_forecast = _context.ttd or 999
     end
     _context.ttd_known = ttd ~= nil
+    _context.now = NS.time_now()
     NS.current_context = _context
+    -- Fire combat start/end callbacks AFTER context is fully built so subscribers
+    -- can safely read fields like settings, hp, mana_pct, ttd, enemy_count.
+    if combat_state_known then
+        if in_combat and not was_in_combat then
+            if NS._fire_combat_start then NS._fire_combat_start(_context) end
+        elseif not in_combat and was_in_combat then
+            if NS._fire_combat_end then NS._fire_combat_end(_context) end
+        end
+    end
     trace("context:summary",
         "ctx raw_combat=" .. tostring(raw_in_combat) ..
         " known=" .. tostring(combat_state_known) ..

@@ -39,7 +39,7 @@ assert_true(wrath.matches({ is_leveling = true, is_moving = false, target = {}, 
 assert_true(moonfire.matches({ is_solo = true, target = {}, settings = {} }, { moonfire_remains = 0 }), "Moonfire should run while solo")
 assert_false(wrath.matches({ is_raid = true, is_moving = false, target = {}, settings = {} }, {}), "Wrath should not run in raid without explicit caster selection")
 assert_false(moonfire.matches({ is_pvp = true, target = {}, settings = {} }, { moonfire_remains = 0 }), "Moonfire should not run in PvP without explicit caster selection")
-assert_true(wrath.matches({ is_raid = true, active_playstyle = "caster", is_moving = false, target = {}, settings = {} }, {}), "Wrath should run in raid when caster is explicitly selected")
+assert_true(wrath.matches({ is_raid = true, is_moving = false, target = {}, settings = { playstyle = "caster" } }, {}), "Wrath should run in raid when caster is explicitly selected")
 assert_true(moonfire.matches({ is_pvp = true, target = {}, settings = { playstyle = "caster" } }, { moonfire_remains = 0 }), "Moonfire should run in PvP when caster is explicitly selected")
 
 print("PASS test_druid_caster_custom_matches")

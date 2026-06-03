@@ -350,7 +350,7 @@ local function tremor_totem_matches(context, state)
     if not state.tremor_totem_ready then return false end
     if not state.in_combat then return false end
     -- Only drop Tremor if feared/charmed/slept (detected via context flag)
-    if not (context.fear_nearby == true) then return false end
+    if not (context.fear_nearby or false) then return false end
     return true
 end
 
@@ -536,7 +536,7 @@ local healing_strategies = {
     { name = "HealingWay", matches = healing_way_matches, execute = healing_way_execute },
     { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
     { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
-        local heal = context._shaman_heal or Healing.select_heal(context, state, state.lowest)
+        local heal = (context._shaman_heal or false) or Healing.select_heal(context, state, state.lowest)
         if not heal or not heal.spell then return false end
         if not state.lowest or not state.lowest.unit then return false end
         return NS.try_cast(heal.spell, state.lowest.unit, string.format("[RESTO] %s %.0f%%", heal.label, state.lowest.effective_hp or 0))

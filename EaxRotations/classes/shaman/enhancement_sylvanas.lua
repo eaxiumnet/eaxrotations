@@ -9,7 +9,7 @@ local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
 local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
 
-local _core = (NS and NS.core) or rawget(_G, "core")
+local _core = NS and NS.core
 local _get_totem_info = _core and _core.spell_book and _core.spell_book.get_totem_info
 local _get_visible_objects = _core and _core.object_manager and _core.object_manager.get_visible_objects
 
