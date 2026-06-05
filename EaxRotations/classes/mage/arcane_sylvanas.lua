@@ -167,6 +167,8 @@ local function build_state(context)
         s.has_ice_barrier = NS.buff_up and NS.buff_up(me, ICE_BARRIER_BUFF) or false
         s.has_mana_shield = NS.buff_up and NS.buff_up(me, MANA_SHIELD_BUFF) or false
         s.bloodlust_active = NS.buff_up and NS.buff_up(me, BLOODLUST_BUFFS) or false
+        s.icy_veins_remains = NS.cooldown_remains and NS.cooldown_remains(SPELLS.IcyVeins) or 0
+        s.cold_snap_remains = NS.cooldown_remains and NS.cooldown_remains(SPELLS.ColdSnap) or 0
     end
 
     -- Cooldown availability
@@ -279,17 +281,6 @@ local function frost_nova_matches(context, s)
     if not me then return false end
     local dist = me.get_distance and me:get_distance(context.target) or 40
     if dist > 10 then return false end
-    return true
-end
-
---- Slow: PvP snare for kiting
-local function slow_matches(context, s)
-    if not context.is_pvp then return false end
-    if not context.target then return false end
-    local me = context.me
-    if not me then return false end
-    local dist = me.get_distance and me:get_distance(context.target) or 40
-    if dist <= 8 then return false end
     return true
 end
 
@@ -473,7 +464,15 @@ local strategies = {
       matches = frost_nova_matches,
       execute = function(context) return NS.try_cast(SPELLS.FrostNova, context.target, "[ARCANE] FrostNova") end },
     { name = "Slow",
-      matches = slow_matches,
+      matches = function(context, s)
+          if not context.is_pvp then return false end
+          if not context.target then return false end
+          local me = context.me
+          if not me then return false end
+          local dist = me.get_distance and me:get_distance(context.target) or 40
+          if dist <= 8 then return false end
+          return true
+      end,
       execute = function(context) return NS.try_cast(SPELLS.Slow, context.target, "[ARCANE] Slow") end },
 
     -- Burst cooldowns (synced with burn phase)
@@ -484,10 +483,33 @@ local strategies = {
       matches = arcane_power_matches,
       execute = function(context) return NS.try_cast(SPELLS.ArcanePower, context.me, "[ARCANE] ArcanePower") end },
 
+    -- Burst cooldowns
+    { name = "IcyVeins",
+      matches = function(context, s)
+          if not s.in_combat then return false end
+          if not context.target then return false end
+          if s.burn_phase ~= true then return false end
+          if s.icy_veins_remains and s.icy_veins_remains > 0 then return false end
+          return NS.spell_ready(SPELLS.IcyVeins, NS.PLAYER_UNIT, { skip_range = true })
+      end,
+      execute = function()
+          return NS.try_cast(SPELLS.IcyVeins, NS.PLAYER_UNIT, "[ARCANE] IcyVeins", { skip_range = true })
+      end },
+    { name = "ColdSnapIVReset",
+      matches = function(context, s)
+          if not s.in_combat then return false end
+          if s.burn_phase ~= true then return false end
+          if s.cold_snap_remains and s.cold_snap_remains > 0 then return false end
+          if not (s.icy_veins_remains and s.icy_veins_remains > 3) then return false end
+          return NS.spell_ready(SPELLS.ColdSnap, NS.PLAYER_UNIT, { skip_range = true })
+      end,
+      execute = function()
+          return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnapIVReset", { skip_range = true })
+      end },
     -- Mana management
     { name = "Evocation",
       matches = evocation_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Evocation, context.me, "[ARCANE] Evocation") end },
+      execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[ARCANE] Evocation", { skip_range = true }) end },
     { name = "ManaGem",
       matches = mana_gem_matches,
       execute = function() return use_mana_gem() end },

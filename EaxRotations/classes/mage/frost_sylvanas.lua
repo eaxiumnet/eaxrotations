@@ -15,7 +15,7 @@ local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
 local FROST_NOVA_ROOTS = TBC_MAGE.frost_nova or { 27088, 10230, 6131, 865, 122 }
 local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
 local ARCANE_INTELLECT_BUFF = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
-local MOLTEN_ARMOR_BUFF = { 30482 }
+local MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117 }
 local ICE_BLOCK_BUFF = { 11958, 45438, 27619 }
 local PRESENCE_OF_MIND_BUFF = { 12043 }
 local COMBUSTION_BUFF = { 11129 }
@@ -156,7 +156,7 @@ local function build_state(context)
     frost_state.has_ice_barrier = me and NS.buff_up(me, ICE_BARRIER_BUFF) or false
     frost_state.has_mana_shield = me and NS.buff_up(me, MANA_SHIELD_BUFF) or false
     frost_state.has_arcane_intellect = me and NS.buff_up(me, ARCANE_INTELLECT_BUFF) or false
-    frost_state.has_mage_armor = me and NS.buff_up(me, MOLTEN_ARMOR_BUFF) or false
+    frost_state.has_mage_armor = me and NS.buff_up(me, MAGE_ARMOR_BUFF) or false
     frost_state.has_ice_block = me and NS.buff_up(me, ICE_BLOCK_BUFF) or false
     frost_state.has_presence_of_mind = me and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
     frost_state.has_combustion = me and NS.buff_up(me, COMBUSTION_BUFF) or false
