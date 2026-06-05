@@ -141,7 +141,8 @@ function druid_leveling.build_state(context)
     end
 
     -- Target time-to-die estimate
-    state.target_ttd = context.ttd or context.target_ttd or 0
+    state.target_ttd = context.ttd or context.target_ttd or 999
+    state.target_ttd_known = (context.ttd ~= nil) or (context.target_ttd ~= nil)
     state.target_hp = context.target_hp or 100
     state.target_range = context.target_range or context.target_distance or 40
     state.in_melee = context.in_melee_range == true or state.target_range <= MELEE_RANGE
@@ -316,7 +317,7 @@ local bite_matches = function(context, state)
     if (state.energy or 0) < 35 then return false end
     if (state.combo_points or 0) < BITE_CP_MIN then return false end
     -- Prefer Rip if it still has value and is available
-    if state.combo_points >= RIP_CP_MIN and state.rip_ready and state.rip_remains <= 0 and state.target_ttd > MIN_RIP_TTD then return false end
+    if state.combo_points >= RIP_CP_MIN and state.rip_ready and state.rip_remains <= 0 and state.target_ttd_known and state.target_ttd > MIN_RIP_TTD then return false end
     return true
 end
 

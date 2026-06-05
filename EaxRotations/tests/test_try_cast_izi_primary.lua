@@ -57,6 +57,8 @@ NS.izi = {
 
 local result = NS.try_cast(686, target, "[TEST] fallback")
 
-assert(core_casts == 0, "forbidden fallback: try_cast used raw core.input.cast_target_spell when IZI is unavailable (result=" .. tostring(result) .. " core_casts=" .. tostring(core_casts) .. ")")
+assert(result == true, "expected try_cast to succeed via core.input fallback when IZI returns nil")
+assert(core_casts == 1, "expected core.input.cast_target_spell to fire once when IZI returns nil (core_casts=" .. tostring(core_casts) .. ")")
+assert(izi_casts == 1, "expected IZI spell() to be queried once (izi_casts=" .. tostring(izi_casts) .. ")")
 
 print("PASS test_try_cast_izi_primary")

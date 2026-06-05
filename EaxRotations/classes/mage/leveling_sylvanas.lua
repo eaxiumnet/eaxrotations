@@ -81,7 +81,7 @@ local function build_state(context)
     local state = {}
 
     state.has_ai = safe_buff_up(me, ARCANE_INTELLECT_BUFF)
-    state.has_molten_armor = safe_buff_up(me, MOLTEN_ARMOR_BUFF)
+    state.has_mage_armor = safe_buff_up(me, MOLTEN_ARMOR_BUFF)
     state.has_frost_armor = safe_buff_up(me, FROST_ARMOR_BUFF)
     state.has_ice_barrier = safe_buff_up(me, ICE_BARRIER_BUFF)
     state.has_mana_shield = safe_buff_up(me, MANA_SHIELD_BUFF)
@@ -265,7 +265,7 @@ local function frost_armor_matches(context, state)
     if not state then return false end
     if state.in_combat then return false end
     if state.has_frost_armor then return false end
-    if state.has_molten_armor then return false end
+    if state.has_mage_armor then return false end
     return state.frost_armor_ready
 end
 

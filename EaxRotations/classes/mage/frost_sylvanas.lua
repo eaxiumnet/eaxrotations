@@ -92,7 +92,7 @@ local frost_state = {
     has_ice_barrier = false,
     has_mana_shield = false,
     has_arcane_intellect = false,
-    has_molten_armor = false,
+    has_mage_armor = false,
     has_ice_block = false,
     has_presence_of_mind = false,
     has_combustion = false,
@@ -156,7 +156,7 @@ local function build_state(context)
     frost_state.has_ice_barrier = me and NS.buff_up(me, ICE_BARRIER_BUFF) or false
     frost_state.has_mana_shield = me and NS.buff_up(me, MANA_SHIELD_BUFF) or false
     frost_state.has_arcane_intellect = me and NS.buff_up(me, ARCANE_INTELLECT_BUFF) or false
-    frost_state.has_molten_armor = me and NS.buff_up(me, MOLTEN_ARMOR_BUFF) or false
+    frost_state.has_mage_armor = me and NS.buff_up(me, MOLTEN_ARMOR_BUFF) or false
     frost_state.has_ice_block = me and NS.buff_up(me, ICE_BLOCK_BUFF) or false
     frost_state.has_presence_of_mind = me and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
     frost_state.has_combustion = me and NS.buff_up(me, COMBUSTION_BUFF) or false
@@ -350,10 +350,10 @@ local function arcane_missiles_matches(context, s)
     return true
 end
 
-local function molten_armor_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.MoltenArmor, 3.0) then return false end
+local function mage_armor_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.MageArmor, 3.0) then return false end
     if context.settings and context.settings.use_self_buffs == false then return false end
-    if s.has_molten_armor then return false end
+    if s.has_mage_armor then return false end
     return true
 end
 
@@ -394,7 +394,7 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
-    { name = "MoltenArmor", matches = molten_armor_matches, execute = function() return NS.try_cast(SPELLS.MoltenArmor, NS.PLAYER_UNIT, "[FROST] MoltenArmor", { skip_range = true }) end },
+    { name = "MageArmor", matches = mage_armor_matches, execute = function() return NS.try_cast(SPELLS.MageArmor, NS.PLAYER_UNIT, "[FROST] Mage Armor", { skip_range = true }) end },
     { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function() return NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[FROST] ArcaneIntellect", { skip_range = true }) end },
     { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
     { name = "IceBlock", matches = ice_block_wrapper, execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[FROST] IceBlock", { skip_range = true }) end },

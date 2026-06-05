@@ -115,6 +115,8 @@ local strategies = {
             if settings.use_self_buffs == false or settings.use_battle_shout == false then return false end
             if NS.has_player_buff(BATTLE_SHOUT_BUFFS) then return false end
             if context.in_combat and NS.has_player_buff(BATTLE_SHOUT_BUFFS) then return false end
+            -- Throttle on PS builds where aura API is broken and has_player_buff always returns false
+            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 10.0) then return false end
             return defensive_spell_ready(SPELLS.BattleShout, context)
         end,
         execute = function(context)
