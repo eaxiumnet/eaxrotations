@@ -59,6 +59,8 @@ local sv_state = {
     hunters_mark_ready = false,
     rapid_fire_ready = false,
     explosive_trap_ready = false,
+    immolation_trap_ready = false,
+    mongoose_bite_ready = false,
     kill_command_ready = false,
     multi_shot_ready = false,
     steady_shot_ready = false,
@@ -106,6 +108,8 @@ local function build_state(context)
     sv_state.hunters_mark_ready = target and NS.spell_ready(SPELLS.HuntersMark, target) or false
     sv_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
     sv_state.explosive_trap_ready = me and NS.spell_ready(SPELLS.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    sv_state.immolation_trap_ready = me and NS.spell_ready(SPELLS.ImmolationTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    sv_state.mongoose_bite_ready = target and NS.spell_ready(SPELLS.MongooseBite, target) or false
     sv_state.kill_command_ready = target and NS.spell_ready(SPELLS.KillCommand, target, { expected_cooldown = 5 }) or false
     sv_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
     sv_state.steady_shot_ready = target and NS.spell_ready(SPELLS.SteadyShot, target) or false
@@ -161,6 +165,16 @@ end
 local function explosive_trap_matches(context, s)
     if (s.enemy_count or 0) < 3 then return false end
     if not s.explosive_trap_ready then return false end
+    -- TTD gate: don't waste trap CD on a dying target
+    if context.ttd_known and context.ttd < 8 then return false end
+    return true
+end
+
+-- Immolation Trap: AoE fire trap for 2-3 enemies
+local function immolation_trap_matches(context, s)
+    if not s.in_combat then return false end
+    if (s.enemy_count or 0) < 2 then return false end
+    if not s.immolation_trap_ready then return false end
     -- TTD gate: don't waste trap CD on a dying target
     if context.ttd_known and context.ttd < 8 then return false end
     return true
@@ -246,6 +260,7 @@ end
 
 -- Wyvern Sting: CC + DoT; suppress if target already has a DoT (breaks sleep)
 local function wyvern_sting_matches(context, s)
+    if not context.is_pvp then return false end
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "incapacitate") then return false end
     if not s.wyvern_sting_ready then return false end
     if s.has_serpent_sting then return false end
@@ -350,6 +365,20 @@ local function wing_clip_matches(context, s)
     return true
 end
 
+-- Mongoose Bite: melee-range counterattack after dodge
+local function mongoose_bite_matches(context, s)
+    if not s.in_combat then return false end
+    local target = context.target
+    if not target then return false end
+    -- Squared distance: 5yd = 25
+    local dsq = s.distance_sq or (context.distance and context.distance * context.distance) or 10000
+    if dsq > 25 then return false end
+    if not s.mongoose_bite_ready then return false end
+    -- Don't clip auto-shot
+    if not can_cast_before_auto(500) then return false end
+    return true
+end
+
 -- Volley: AoE channeled attack for multi-target
 local function volley_matches(context, s)
     if context.is_channeling then return false end
@@ -375,6 +404,7 @@ local strategies = {
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[SURVIVAL] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[SURVIVAL] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "ExplosiveTrap", matches = explosive_trap_matches, execute = function(context) return NS.try_cast(SPELLS.ExplosiveTrap, context.me, "[SURVIVAL] Explosive Trap", { skip_range = true, expected_cooldown = 30 }) end },
+    { name = "ImmolationTrap", matches = immolation_trap_matches, execute = function(context) return NS.try_cast(SPELLS.ImmolationTrap, context.me, "[SURVIVAL] Immolation Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "KillCommand", matches = kill_command_matches, execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[SURVIVAL] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
     { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[SURVIVAL] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "Misdirection", matches = misdirection_matches, execute = misdirection_execute },
@@ -382,6 +412,7 @@ local strategies = {
     { name = "ScorpidSting", matches = scorpid_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ScorpidSting, context.target, "[SURVIVAL] Scorpid Sting") end },
     { name = "Volley", matches = volley_matches, execute = function(context) return NS.try_cast(SPELLS.Volley, context.target, "[SURVIVAL] Volley") end },
     { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(SPELLS.RaptorStrike, context.target, "[SURVIVAL] Raptor Strike") end },
+    { name = "MongooseBite", matches = mongoose_bite_matches, execute = function(context) return NS.try_cast(SPELLS.MongooseBite, context.target, "[SURVIVAL] Mongoose Bite") end },
     { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(SPELLS.WingClip, context.target, "[SURVIVAL] Wing Clip") end },
     { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[SURVIVAL] Serpent Sting (leveling)") end },

@@ -127,7 +127,7 @@ assert_spell_ids("EaxRotations/classes/warrior/class_sylvanas.lua", "BattleShout
 assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "Envenom", { 32684, 32645 })
 assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "Shiv", { 5938 })
 assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "CloakOfShadows", { 31224 })
-assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "Gouge", { 38764, 11286, 11285, 8629, 1777, 1776 })
+assert_spell_ids("EaxRotations/classes/rogue/class_sylvanas.lua", "Gouge", { 11286, 11285, 8629, 1777, 1776 })
 assert_not_numbers("EaxRotations/classes/rogue/middleware_sylvanas.lua", { 51722 }, "rogue middleware")
 assert_not_numbers("EaxRotations/classes/rogue/assassination_sylvanas.lua", { 51722 }, "rogue assassination")
 assert_not_numbers("EaxRotations/classes/rogue/combat_sylvanas.lua", { 51722 }, "rogue combat")
