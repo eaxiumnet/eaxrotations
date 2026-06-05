@@ -101,7 +101,8 @@ function druid_leveling.build_state(context)
         state.faerie_fire_feral_remains = 0
     end
 
-    state.target_ttd = context.ttd or context.target_ttd or 0
+    state.target_ttd = context.ttd or context.target_ttd or 999
+    state.target_ttd_known = (context.ttd ~= nil) or (context.target_ttd ~= nil)
     state.target_hp = context.target_hp or 100
     state.in_melee = context.in_melee_range == true or (state.target_range or 40) <= MELEE_RANGE
     state.target_range = context.target_distance or 40
@@ -240,7 +241,7 @@ local bite_matches = function(context, state)
     if not state.bite_ready then return false end
     if (state.energy or 0) < 35 then return false end
     if (state.combo_points or 0) < BITE_CP_MIN then return false end
-    if state.combo_points >= RIP_CP_MIN and state.rip_ready and state.rip_remains <= 0 and state.target_ttd > MIN_RIP_TTD then return false end
+    if state.combo_points >= RIP_CP_MIN and state.rip_ready and state.rip_remains <= 0 and state.target_ttd_known and state.target_ttd > MIN_RIP_TTD then return false end
     return true
 end
 

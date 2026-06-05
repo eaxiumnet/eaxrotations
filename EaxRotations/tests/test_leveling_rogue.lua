@@ -499,7 +499,7 @@ test("evasion_matches: not in combat -> false", function()
 end)
 
 -- ============================================================================
--- Test: sprint_escape_matches (strategy #9)
+-- Test: sprint_escape_matches (strategy #10)
 -- ============================================================================
 
 test("sprint_matches: ready, very low HP -> true", function()
@@ -569,7 +569,7 @@ test("cold_blood_matches: not in combat -> false", function()
 end)
 
 -- ============================================================================
--- Test: adrenaline_rush_matches (strategy #12)
+-- Test: adrenaline_rush_matches (strategy #13)
 -- ============================================================================
 
 test("adrenaline_rush_matches: ready, low energy, cooldowns enabled -> true", function()
@@ -600,7 +600,7 @@ test("adrenaline_rush_matches: cooldowns disabled -> false", function()
 end)
 
 -- ============================================================================
--- Test: blade_flurry_matches (strategy #13)
+-- Test: blade_flurry_matches (strategy #14)
 -- ============================================================================
 
 test("blade_flurry_matches: ready, 3+ enemies, enabled -> true", function()
@@ -633,7 +633,7 @@ test("blade_flurry_matches: disabled -> false", function()
 end)
 
 -- ============================================================================
--- Test: slice_and_dice_matches (strategy #14)
+-- Test: slice_and_dice_matches (strategy #15)
 -- ============================================================================
 
 test("slice_and_dice_matches: ready, no buff, enough CP -> true", function()
@@ -674,7 +674,7 @@ test("slice_and_dice_matches: not in combat -> false", function()
 end)
 
 -- ============================================================================
--- Test: rupture_matches (strategy #15)
+-- Test: rupture_matches (strategy #16)
 -- ============================================================================
 
 test("rupture_matches: ready, 3-4 CP, debuff expired -> true", function()
@@ -713,7 +713,7 @@ test("rupture_matches: 1 CP -> false", function()
 end)
 
 -- ============================================================================
--- Test: expose_armor_matches (strategy #16)
+-- Test: expose_armor_matches (strategy #17)
 -- ============================================================================
 
 test("expose_armor_matches: ready, 3-4 CP, no stacks -> true", function()
@@ -760,7 +760,7 @@ test("expose_armor_matches: 1 CP -> false", function()
 end)
 
 -- ============================================================================
--- Test: eviscerate_matches (strategy #18)
+-- Test: eviscerate_matches (strategy #19)
 -- ============================================================================
 
 test("eviscerate_matches: ready, 5 CP -> true", function()
@@ -789,7 +789,7 @@ test("eviscerate_matches: no target -> false", function()
 end)
 
 -- ============================================================================
--- Test: sinister_strike_matches (strategy #19)
+-- Test: sinister_strike_matches (strategy #20)
 -- ============================================================================
 
 test("sinister_strike_matches: ready, below 5 CP -> true", function()

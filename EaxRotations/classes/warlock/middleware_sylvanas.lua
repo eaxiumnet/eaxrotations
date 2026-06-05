@@ -395,8 +395,8 @@ local strategies = {
                 has_shard = NS.has_item(SOUL_SHARD_ITEM)
             end
             -- Bag scan fallback for has_item being unavailable
-            if not has_shard and core and core.inventory then
-                local ok_shard, count = pcall(core.inventory.get_item_count, SOUL_SHARD_ITEM)
+            if not has_shard and NS.core and NS.core.inventory then
+                local ok_shard, count = pcall(NS.core.inventory.get_item_count, SOUL_SHARD_ITEM)
                 has_shard = ok_shard and (count or 0) > 0
             end
             if not has_shard then

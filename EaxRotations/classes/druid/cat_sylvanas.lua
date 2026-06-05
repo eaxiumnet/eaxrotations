@@ -86,7 +86,8 @@ local cat_state = {
     combo_points = 0,
     enemy_count = 1,
     target_hp = 100,
-    target_ttd = 0,
+    target_ttd = 999,
+    target_ttd_known = false,
     target_range = 0,
     in_combat = false,
     is_pvp = false,
@@ -399,7 +400,8 @@ function build_state(context)
     state.combo_points = get_combo_points(context, target)
     state.enemy_count = context.enemy_count or 1
     state.target_hp = context.target_hp or (NS.health_pct and NS.health_pct(target)) or 100
-    state.target_ttd = context.ttd or context.target_ttd or 0
+    state.target_ttd = context.ttd or context.target_ttd or 999
+    state.target_ttd_known = (context.ttd ~= nil) or (context.target_ttd ~= nil)
     state.target_range = get_target_range(me, target, context)
     state.in_combat = context.in_combat == true
     state.is_pvp = context.is_pvp == true or (settings and settings.pvp_mode == true)
@@ -581,7 +583,7 @@ local function bite_matches(context, action)
     if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
     -- TTD awareness: prefer Ferocious Bite when target dying soon (instant > DoT)
     local short_ttd = state.target_ttd > 0 and state.target_ttd < 6
-    if not state.should_execute and not short_ttd and state.target_ttd > SHORT_TTD then return false end
+    if not state.should_execute and not short_ttd and state.target_ttd_known and state.target_ttd > SHORT_TTD then return false end
     if should_wait_for_tick(state, BITE_COST) then return false end
     return true
 end
