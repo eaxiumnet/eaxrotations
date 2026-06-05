@@ -392,6 +392,7 @@ local strategies = {
     {
         name = "ThreatDrop",
         matches = function(context)
+            if not context.in_combat then return false end
             if context.settings.use_threat_drop == false then return false end
             return true
         end,

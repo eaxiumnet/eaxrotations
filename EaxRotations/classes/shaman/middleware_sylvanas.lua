@@ -160,7 +160,7 @@ local strategies = {
             end
             if not cure_id then return false end
             
-            return NS.try_cast(cure_id, nil, "[SHAMAN] Cure Poison", { skip_range = true })
+            return NS.try_cast(cure_id, context.me, "[SHAMAN] Cure Poison", { skip_range = true })
         end,
     },
 
@@ -202,7 +202,7 @@ local strategies = {
             end
             if not cure_id then return false end
             
-            return NS.try_cast(cure_id, nil, "[SHAMAN] Cure Disease", { skip_range = true })
+            return NS.try_cast(cure_id, context.me, "[SHAMAN] Cure Disease", { skip_range = true })
         end,
     },
 

@@ -74,7 +74,7 @@ end
 assert_true(strategy_names["Bloodthirst"], "Bloodthirst should be present")
 assert_true(strategy_names["Whirlwind"], "Whirlwind should be present")
 assert_true(strategy_names["Execute"], "Execute should be present")
-assert_true(strategy_names["Overpower"], "Overpower should be present")
+assert_false(strategy_names["Overpower"], "Overpower REMOVED from Fury: Arms-only in TBC. Stance-dancing to Battle loses Berserker Stance 3% crit.")
 assert_true(strategy_names["BattleShout"], "BattleShout should be present")
 assert_true(strategy_names["Bloodrage"], "Bloodrage should be present")
 assert_true(strategy_names["DeathWish"], "DeathWish should be present")
@@ -85,4 +85,4 @@ assert_true(strategy_names["Healthstone"], "Healthstone should be present")
 -- Health potion is a minor gap - if health pot is not ready, there's no fallback
 assert_false(strategy_names["HealthPotion"], "HealthPotion is MISSING - FrostByte gap: health potion fallback not implemented")
 
-print("PASS test_fury_health_potion (gap audit: " .. #strategies .. " strategies present, 1 minor FrostByte gap confirmed)")
+print("PASS test_fury_health_potion (gap audit: " .. #strategies .. " strategies present, Overpower intentionally removed, 1 minor FrostByte gap: health potion fallback)")
