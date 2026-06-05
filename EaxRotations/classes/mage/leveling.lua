@@ -17,7 +17,7 @@ local SPELLS = NS.MageSpells or {}
 
 local ARCANE_INTELLECT_BUFF = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
 local FROST_ARMOR_BUFF = { 27125, 12544, 12543, 10174, 10173, 7301, 7300, 168 }
-local MOLTEN_ARMOR_BUFF = { 30482 }
+local MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117 }
 local ICE_BARRIER_BUFF = { 27134, 13033, 13032, 13031, 11426 }
 local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
 local POLYMORPH_IDS = { 12826, 12825, 12824, 118 }
@@ -81,7 +81,7 @@ local function build_state(context)
     local state = {}
 
     state.has_ai = safe_buff_up(me, ARCANE_INTELLECT_BUFF)
-    state.has_mage_armor = safe_buff_up(me, MOLTEN_ARMOR_BUFF)
+    state.has_mage_armor = safe_buff_up(me, MAGE_ARMOR_BUFF)
     state.has_frost_armor = safe_buff_up(me, FROST_ARMOR_BUFF)
     state.has_ice_barrier = safe_buff_up(me, ICE_BARRIER_BUFF)
     state.has_mana_shield = safe_buff_up(me, MANA_SHIELD_BUFF)
