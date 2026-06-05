@@ -24,7 +24,7 @@ local ACTION = {
     Bloodrage = spell("Bloodrage", 2687, "Bloodrage"),
     Charge = spell("Charge", { 11578, 6178, 100 }, "Charge"),
     Cleave = spell("Cleave", { 20569, 11609, 11608, 7369, 845 }, "Cleave"),
-    DeathWish = spell("DeathWish", 12292, "DeathWish"),
+    DeathWish = SPELLS.DeathWish,  -- uses expansion-aware IDs from class_sylvanas.lua (Vanilla: 12328)
     DefensiveStance = spell("DefensiveStance", 71, "DefensiveStance"),
     DemoralizingShout = spell("DemoralizingShout", { 11556, 11555, 11554, 6190, 1160 }, "DemoralizingShout"),
     Disarm = spell("Disarm", 676, "Disarm"),
@@ -43,7 +43,7 @@ local ACTION = {
     ShieldWall = spell("ShieldWall", 871, "ShieldWall"),
     Slam = spell("Slam", { 11605, 11604, 8820, 1464 }, "Slam"),
     SunderArmor = spell("SunderArmor", { 11597, 11596, 8380, 7405, 7386 }, "SunderArmor"),
-    SweepingStrikes = spell("SweepingStrikes", 12328, "SweepingStrikes"),
+    SweepingStrikes = SPELLS.SweepingStrikes,  -- uses expansion-aware IDs from class_sylvanas.lua (Vanilla: 12292)
     ThunderClap = spell("ThunderClap", { 11581, 11580, 8205, 8204, 8198, 6343 }, "ThunderClap"),
     Whirlwind = spell("Whirlwind", 1680, "Whirlwind"),
 }

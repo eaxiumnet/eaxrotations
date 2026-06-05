@@ -3,6 +3,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local cl = require("shared/class_loader_sylvanas")
+local spell_id_table = require("shared/spell_id_table_sylvanas")
 local load_child = cl.create_loader("warrior", "Warrior")
 local load_spec = cl.create_expansion_loader("warrior", "Warrior")
 local enums = cl.get_enums()
@@ -123,7 +124,7 @@ local SPELLS = {
     }),
     DeathWish = NS.spell_action({
         name = "DeathWish",
-        ids = {12292},
+        ids = {spell_id_table.resolve("Death Wish") or 12292},  -- expansion-aware: TBC=12292, Vanilla=12328
         levels = {50},
         cast_time = 0,
         cooldown = 180,
@@ -383,7 +384,7 @@ local SPELLS = {
     }),
     SweepingStrikes = NS.spell_action({
         name = "SweepingStrikes",
-        ids = {12328},
+        ids = {spell_id_table.resolve("Sweeping Strikes") or 12328},  -- expansion-aware: TBC=12328, Vanilla=12292
         levels = {40},
         cast_time = 0,
         cooldown = 30,

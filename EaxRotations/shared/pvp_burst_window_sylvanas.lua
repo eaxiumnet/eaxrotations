@@ -32,7 +32,7 @@ local DEFENSIVE_BUFFS = {
 -- Offensive buffs that indicate burst
 local OFFENSIVE_BUFFS = {
     [1719] = true,   -- Recklessness
-    [12292] = true,  -- Death Wish
+    [12292] = true,  -- Death Wish (TBC) / Sweeping Strikes (Vanilla — harmless false-positive)
     [13750] = true,  -- Adrenaline Rush
     [19574] = true,  -- Bestial Wrath
     [2825] = true,   -- Bloodlust

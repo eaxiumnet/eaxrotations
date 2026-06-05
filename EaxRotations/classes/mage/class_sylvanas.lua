@@ -4,6 +4,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local cl = require("shared/class_loader_sylvanas")
+local spell_id_table = require("shared/spell_id_table_sylvanas")
 local load_child = cl.create_loader("mage", "Mage")
 local load_spec = cl.create_expansion_loader("mage", "Mage")
 local enums = cl.get_enums()
@@ -44,8 +45,8 @@ local SPELLS = {
     }),
     ArcaneMissiles = NS.spell_action({
         name = "ArcaneMissiles",
-        ids = {27075, 25345, 10212, 10211, 8417, 8416, 5145, 5144, 5143},
-        levels = {70, 69, 63, 60, 56, 48, 40, 32, 24, 16, 8},
+        ids = {27075, 25345, 10212, 10211, 8418, 8417, 8416, 5145, 5144, 5143},  -- 8418=TBC rank5, 8417=Vanilla rank5 (lexxer-verified swap)
+        levels = {70, 69, 63, 60, 56, 56, 48, 40, 32, 24},
         cast_time = 5.0,
         cooldown = 0,
         power_cost = 0,
@@ -244,7 +245,7 @@ local SPELLS = {
     }),
     IceBlock = NS.spell_action({
         name = "IceBlock",
-        ids = {11958, 45438, 27619},
+        ids = {11958, 45438, 27619},  -- 11958=Vanilla, 45438/27619=TBC ranks (not in spell_id_table — different ranks per expansion)
         levels = {30},
         cast_time = 0,
         cooldown = 300,
@@ -264,7 +265,7 @@ local SPELLS = {
     }),
     IcyVeins = NS.spell_action({
         name = "IcyVeins",
-        ids = {12472},
+        ids = {12472},  -- TBC only (12472 = Cold Snap in Vanilla; blocked by vanilla_spell_id_allowed)
         levels = {20},
         cast_time = 0,
         cooldown = 180,
@@ -394,7 +395,7 @@ local SPELLS = {
     }),
     ColdSnap = NS.spell_action({
         name = "ColdSnap",
-        ids = {11958},
+        ids = {spell_id_table.resolve("Cold Snap") or 11958},  -- expansion-aware: TBC=11958, Vanilla=12472
         levels = {48},
         cast_time = 0,
         cooldown = 480,
